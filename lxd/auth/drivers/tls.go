@@ -10,7 +10,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/identity"
-	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -44,7 +43,7 @@ func (t *tls) load(ctx context.Context, identityCache *identity.Cache, opts Opts
 func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement) error {
 	// Untrusted requests are denied.
 	if !auth.IsTrusted(ctx) {
-		return api.StatusErrorf(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return api.NewGenericStatusError(http.StatusForbidden)
 	}
 
 	isRoot, err := auth.IsServerAdmin(ctx, t.identities)
@@ -148,8 +147,6 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 		return allowFunc(false), nil
 	}
 
-	effectiveProject, _ := request.GetCtxValue[string](ctx, request.CtxEffectiveProjectName)
-
 	// Filter objects by project.
 	return func(entityURL *api.URL) bool {
 		eType, project, _, _, err := entity.ParseURL(entityURL.URL)
@@ -162,11 +159,6 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 		if eType != entityType {
 			logger.Warn("Permission checker received URL with unexpected entity type", logger.Ctx{"expected": entityType, "actual": eType, "entity_url": entityURL})
 			return false
-		}
-
-		// If an effective project has been set in the request context. We expect all entities to be in that project.
-		if effectiveProject != "" {
-			return project == effectiveProject
 		}
 
 		// Otherwise, check if the project is in the list of allowed projects for the entity.

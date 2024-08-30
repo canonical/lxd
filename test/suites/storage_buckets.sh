@@ -42,33 +42,16 @@ test_storage_buckets() {
     return
   fi
 
-  poolName=$(lxc profile device get default root pool)
+  poolName="s3"
   bucketPrefix="lxd$$"
+
+  create_object_storage_pool "${poolName}"
 
   # Check cephobject.radosgw.endpoint is required for cephobject pools.
   if [ "$lxd_backend" = "ceph" ]; then
-    ! lxc storage create s3 cephobject || false
-    lxc storage create s3 cephobject cephobject.radosgw.endpoint="${LXD_CEPH_CEPHOBJECT_RADOSGW}"
-    lxc storage show s3
-    poolName="s3"
     s3Endpoint="${LXD_CEPH_CEPHOBJECT_RADOSGW}"
   else
-    # Create a loop device for dir pools as MinIO doesn't support running on tmpfs (which the test suite can do).
-    if [ "$lxd_backend" = "dir" ]; then
-      configure_loop_device loop_file_1 loop_device_1
-      # shellcheck disable=SC2154
-      mkfs.ext4 "${loop_device_1}"
-      mkdir "${TEST_DIR}/${bucketPrefix}"
-      mount "${loop_device_1}" "${TEST_DIR}/${bucketPrefix}"
-      losetup -d "${loop_device_1}"
-      mkdir "${TEST_DIR}/${bucketPrefix}/s3"
-      lxc storage create s3 dir source="${TEST_DIR}/${bucketPrefix}/s3"
-      poolName="s3"
-    fi
-
-    buckets_addr="127.0.0.1:$(local_tcp_port)"
-    lxc config set core.storage_buckets_address "${buckets_addr}"
-    s3Endpoint="https://${buckets_addr}"
+    s3Endpoint="https://$(lxc config get core.storage_buckets_address)"
   fi
 
   # Check bucket name validation.
@@ -183,15 +166,5 @@ test_storage_buckets() {
   ! lxc storage bucket list "${poolName}" | grep -F "${bucketPrefix}.foo" || false
   ! lxc storage bucket show "${poolName}" "${bucketPrefix}.foo" || false
 
-  if [ "$lxd_backend" = "ceph" ] || [ "$lxd_backend" = "dir" ]; then
-    lxc storage delete "${poolName}"
-  fi
-
-  if [ "$lxd_backend" = "dir" ]; then
-    umount "${TEST_DIR}/${bucketPrefix}"
-    rmdir "${TEST_DIR}/${bucketPrefix}"
-
-    # shellcheck disable=SC2154
-    deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
-  fi
+  delete_object_storage_pool "${poolName}"
 }

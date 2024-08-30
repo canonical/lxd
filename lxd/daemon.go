@@ -1377,7 +1377,7 @@ func (d *Daemon) init() error {
 			return fmt.Errorf("Failed loading containers to restart: %w", err)
 		}
 
-		instancesShutdown(s, instances)
+		instancesShutdown(instances)
 		instancesStart(s, instances)
 	}
 
@@ -1600,10 +1600,13 @@ func (d *Daemon) init() error {
 	})
 
 	// Setup the networks.
-	logger.Infof("Initializing networks")
-	err = networkStartup(d.State())
-	if err != nil {
-		return err
+	if !d.db.Cluster.LocalNodeIsEvacuated() {
+		logger.Infof("Initializing networks")
+
+		err = networkStartup(d.State())
+		if err != nil {
+			return err
+		}
 	}
 
 	// Setup tertiary listeners that may use managed network addresses and must be started after networks.
@@ -1938,7 +1941,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 
 		// Full shutdown requested.
 		if sig == unix.SIGPWR {
-			instancesShutdown(s, instances)
+			instancesShutdown(instances)
 
 			logger.Info("Stopping networks")
 			networkShutdown(s)

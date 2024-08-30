@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	storagePools "github.com/canonical/lxd/lxd/storage"
+	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -121,7 +122,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 	if volumeType == cluster.StoragePoolVolumeTypeCustom {
 		// Custom volumes.
 		usage, err = pool.GetCustomVolumeUsage(projectName, volumeName)
-		if err != nil {
+		if err != nil && err != storageDrivers.ErrNotSupported {
 			return response.SmartError(err)
 		}
 	} else {
@@ -141,23 +142,26 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 		}
 
 		usage, err = pool.GetInstanceUsage(inst)
-		if err != nil {
+		if err != nil && err != storageDrivers.ErrNotSupported {
 			return response.SmartError(err)
 		}
 	}
 
 	// Prepare the state struct.
 	state := api.StorageVolumeState{}
-	state.Usage = &api.StorageVolumeStateUsage{}
 
-	// Only fill 'used' field if receiving a valid value.
-	if usage.Used >= 0 {
-		state.Usage.Used = uint64(usage.Used)
-	}
+	if usage != nil {
+		state.Usage = &api.StorageVolumeStateUsage{}
 
-	// Only fill 'total' field if receiving a valid value.
-	if usage.Total >= 0 {
-		state.Usage.Total = usage.Total
+		// Only fill 'used' field if receiving a valid value.
+		if usage.Used >= 0 {
+			state.Usage.Used = uint64(usage.Used)
+		}
+
+		// Only fill 'total' field if receiving a valid value.
+		if usage.Total >= 0 {
+			state.Usage.Total = usage.Total
+		}
 	}
 
 	return response.SyncResponse(true, state)

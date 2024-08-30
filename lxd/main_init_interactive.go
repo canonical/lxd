@@ -21,7 +21,6 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -292,7 +291,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 					config.Cluster.ClusterCertificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
 
 					// Cluster password
-					config.Cluster.ClusterPassword = cli.AskPasswordOnce("Cluster trust password: ")
+					config.Cluster.ClusterPassword = c.global.asker.AskPasswordOnce("Cluster trust password: ")
 					break
 				}
 			}

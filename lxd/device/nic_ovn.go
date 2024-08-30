@@ -37,8 +37,7 @@ type ovnNet interface {
 
 	InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, externalRoutes []*net.IPNet) error
 	InstanceDevicePortAdd(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
-	InstanceDevicePortStart(opts *network.OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, []net.IP, error)
-	InstanceDevicePortStop(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *network.OVNInstanceNICStopOpts) error
+	InstanceDevicePortStart(opts *network.OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error)
 	InstanceDevicePortRemove(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
 	InstanceDevicePortIPs(instanceUUID string, deviceName string) ([]net.IP, error)
 }
@@ -344,7 +343,41 @@ func (d *nicOVN) checkAddressConflict() error {
 
 // Add is run when a device is added to a non-snapshot instance whether or not the instance is running.
 func (d *nicOVN) Add() error {
-	return d.network.InstanceDevicePortAdd(d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
+	networkVethFillFromVolatile(d.config, d.volatileGet())
+
+	// Load uplink network config.
+	uplinkNetworkName := d.network.Config()["network"]
+
+	var err error
+	var uplink *api.Network
+
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkNetworkName)
+
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
+	}
+
+	err = d.network.InstanceDevicePortAdd(d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
+	if err != nil {
+		return err
+	}
+
+	// Add new OVN logical switch port for instance.
+	_, err = d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
+		InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
+		DNSName:      d.inst.Name(),
+		DeviceName:   d.name,
+		DeviceConfig: d.config,
+		UplinkConfig: uplink.Config,
+	}, nil)
+	if err != nil {
+		return fmt.Errorf("Failed setting up OVN port: %w", err)
+	}
+
+	return nil
 }
 
 // PreStartCheck checks the managed parent network is available (if relevant).
@@ -555,52 +588,17 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
 
-	v := d.volatileGet()
-
-	// Retrieve any last state IPs from volatile and pass them to OVN driver for potential use with sticky
-	// DHCPv4 allocations.
-	var lastStateIPs []net.IP
-	for _, ipStr := range shared.SplitNTrimSpace(v["last_state.ip_addresses"], ",", -1, true) {
-		lastStateIP := net.ParseIP(ipStr)
-		if lastStateIP != nil {
-			lastStateIPs = append(lastStateIPs, lastStateIP)
-		}
-	}
-
 	// Add new OVN logical switch port for instance.
-	logicalPortName, dnsIPs, err := d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
+	logicalPortName, err := d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
 		InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
 		DNSName:      d.inst.Name(),
 		DeviceName:   d.name,
 		DeviceConfig: d.config,
 		UplinkConfig: uplink.Config,
-		LastStateIPs: lastStateIPs, // Pass in volatile last state IPs for use with sticky DHCPv4 hint.
 	}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed setting up OVN port: %w", err)
 	}
-
-	// Record switch port DNS IPs to volatile so they can be used as sticky DHCPv4 hint in the future in order
-	// to allocate the same IPs on next start if they are still available/appropriate.
-	// This volatile key will not be removed when instance stops.
-	var dnsIPsStr strings.Builder
-	for i, dnsIP := range dnsIPs {
-		if i > 0 {
-			dnsIPsStr.WriteString(",")
-		}
-
-		dnsIPsStr.WriteString(dnsIP.String())
-	}
-
-	saveData["last_state.ip_addresses"] = dnsIPsStr.String()
-
-	revert.Add(func() {
-		_ = d.network.InstanceDevicePortStop("", &network.OVNInstanceNICStopOpts{
-			InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
-			DeviceName:   d.name,
-			DeviceConfig: d.config,
-		})
-	})
 
 	// Associated host side interface to OVN logical switch port (if not nested).
 	if integrationBridgeNICName != "" {
@@ -760,7 +758,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 			}
 
 			// Update OVN logical switch port for instance.
-			_, _, err = d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
+			_, err = d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
 				InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
 				DNSName:      d.inst.Name(),
 				DeviceName:   d.name,
@@ -835,19 +833,8 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 
 	var err error
 
-	// Try and retrieve the last associated OVN switch port for the instance interface in the local OVS DB.
-	// If we cannot get this, don't fail, as InstanceDevicePortStop will then try and generate the likely
-	// port name using the same regime it does for new ports. This part is only here in order to allow
-	// instance ports generated under an older regime to be cleaned up properly.
 	networkVethFillFromVolatile(d.config, v)
 	ovs := openvswitch.NewOVS()
-	var ovsExternalOVNPort openvswitch.OVNSwitchPort
-	if d.config["nested"] == "" {
-		ovsExternalOVNPort, err = ovs.InterfaceAssociatedOVNSwitchPort(d.config["host_name"])
-		if err != nil {
-			d.logger.Warn("Could not find OVN Switch port associated to OVS interface", logger.Ctx{"interface": d.config["host_name"]})
-		}
-	}
 
 	integrationBridgeNICName := d.config["host_name"]
 	if d.config["acceleration"] == "sriov" || d.config["acceleration"] == "vdpa" {
@@ -869,20 +856,6 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 		if err != nil {
 			// Don't fail here as we want the postStop hook to run to clean up the local veth pair.
 			d.logger.Error("Failed detaching interface from OVS integration bridge", logger.Ctx{"interface": integrationBridgeNICName, "bridge": integrationBridge, "err": err})
-		}
-	}
-
-	// If the devices config is invalid validateConfig() won't populate this field.
-	if d.network != nil {
-		instanceUUID := d.inst.LocalConfig()["volatile.uuid"]
-		err = d.network.InstanceDevicePortStop(ovsExternalOVNPort, &network.OVNInstanceNICStopOpts{
-			InstanceUUID: instanceUUID,
-			DeviceName:   d.name,
-			DeviceConfig: d.config,
-		})
-		if err != nil {
-			// Don't fail here as we still want the postStop hook to run to clean up the local veth pair.
-			d.logger.Error("Failed to remove OVN device port", logger.Ctx{"err": err})
 		}
 	}
 

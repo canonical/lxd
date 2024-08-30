@@ -1974,7 +1974,9 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 // GetVolumeDiskPath returns the location of a root disk block device.
 func (d *zfs) GetVolumeDiskPath(vol Volume) (string, error) {
 	// Wait up to 30 seconds for the device to appear.
-	ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
+	// Don't use d.state.ShutdownCtx here as this is used during instance stop during LXD shutdown after it is
+	// canceled.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	return d.tryGetVolumeDiskPathFromDataset(ctx, d.dataset(vol, false))

@@ -363,6 +363,10 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("ServerName may not start with %q", targetGroupPrefix))
 	}
 
+	if req.ServerName == "none" {
+		return response.BadRequest(fmt.Errorf("ServerName cannot be %q", req.ServerName))
+	}
+
 	// Disable clustering.
 	if !req.Enabled {
 		return clusterPutDisable(d, r, req)
@@ -1327,6 +1331,10 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 
 	if !s.ServerClustered {
 		return response.BadRequest(fmt.Errorf("This server is not clustered"))
+	}
+
+	if req.ServerName == "none" {
+		return response.BadRequest(fmt.Errorf("Join token name cannot be %q", req.ServerName))
 	}
 
 	expiry, err := shared.GetExpiry(time.Now(), s.GlobalConfig.ClusterJoinTokenExpiry())
@@ -3261,6 +3269,9 @@ func evacuateClusterMember(s *state.State, gateway *cluster.Gateway, r *http.Req
 			return err
 		}
 
+		// Stop networks after evacuation.
+		networkShutdown(s)
+
 		revert.Success()
 		return nil
 	}
@@ -3430,6 +3441,12 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 		var sourceNode db.NodeInfo
 
 		metadata := make(map[string]any)
+
+		// Restart the networks.
+		err = networkStartup(d.State())
+		if err != nil {
+			return err
+		}
 
 		// Restart the local instances.
 		for _, inst := range localInstances {

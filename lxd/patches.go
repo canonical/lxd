@@ -23,6 +23,7 @@ import (
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/util"
@@ -90,6 +91,7 @@ var patches = []patch{
 	{name: "storage_set_volume_uuid_v2", stage: patchPostDaemonStorage, run: patchStorageSetVolumeUUIDV2},
 	{name: "storage_move_custom_iso_block_volumes_v2", stage: patchPostDaemonStorage, run: patchStorageRenameCustomISOBlockVolumesV2},
 	{name: "storage_unset_invalid_block_settings_v2", stage: patchPostDaemonStorage, run: patchStorageUnsetInvalidBlockSettingsV2},
+	{name: "instance_remove_volatile_last_state_ip_addresses", stage: patchPostDaemonStorage, run: patchInstanceRemoveVolatileLastStateIPAddresses},
 }
 
 type patch struct {
@@ -99,8 +101,6 @@ type patch struct {
 }
 
 func (p *patch) apply(d *Daemon) error {
-	logger.Info("Applying patch", logger.Ctx{"name": p.name})
-
 	err := p.run(p.name, d)
 	if err != nil {
 		return fmt.Errorf("Failed applying patch %q: %w", p.name, err)
@@ -128,8 +128,9 @@ func patchesGetNames() []string {
 	return names
 }
 
-// patchesApplyPostDaemonStorage applies the patches that need to run after the daemon storage is initialised.
+// patchesApply applies the patches for the specified stage.
 func patchesApply(d *Daemon, stage patchStage) error {
+	logger.Debug("Checking for patches", logger.Ctx{"stage": stage})
 	appliedPatches, err := d.db.Node.GetAppliedPatches()
 	if err != nil {
 		return err
@@ -140,10 +141,15 @@ func patchesApply(d *Daemon, stage patchStage) error {
 			return fmt.Errorf("Patch %q has no stage set: %d", patch.name, patch.stage)
 		}
 
+		if patch.stage != stage {
+			continue
+		}
+
 		if shared.ValueInSlice(patch.name, appliedPatches) {
 			continue
 		}
 
+		logger.Info("Applying patch", logger.Ctx{"name": patch.name, "stage": stage})
 		err := patch.apply(d)
 		if err != nil {
 			return err
@@ -157,15 +163,15 @@ func patchesApply(d *Daemon, stage patchStage) error {
 // Use this function to deterministically coordinate the execution of patches on a single cluster member.
 // The member selection isn't based on the raft leader election which allows getting the same
 // results even if the raft cluster is currently running any kind of election.
-func selectedPatchClusterMember(d *Daemon) (bool, error) {
+func selectedPatchClusterMember(s *state.State) (bool, error) {
 	// If not clustered indicate to apply the patch.
-	if d.serverName == "none" {
+	if !s.ServerClustered {
 		return true, nil
 	}
 
 	// Get a list of all cluster members.
 	var clusterMembers []string
-	err := d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		nodeInfos, err := tx.GetNodes(ctx)
 		if err != nil {
 			return err
@@ -189,7 +195,7 @@ func selectedPatchClusterMember(d *Daemon) (bool, error) {
 	sort.Strings(clusterMembers)
 
 	// If the first cluster member in the sorted list matches the current node indicate to apply the patch.
-	return clusterMembers[0] == d.serverName, nil
+	return clusterMembers[0] == s.ServerName, nil
 }
 
 // Patches begin here
@@ -496,7 +502,7 @@ func patchVMRenameUUIDKey(name string, d *Daemon) error {
 			}
 
 			for _, snap := range snaps {
-				config, err := dbCluster.GetInstanceConfig(ctx, tx.Tx(), snap.ID)
+				config, err := dbCluster.GetInstanceSnapshotConfig(ctx, tx.Tx(), snap.ID)
 				if err != nil {
 					return err
 				}
@@ -911,8 +917,8 @@ func patchZfsSetContentTypeUserProperty(name string, d *Daemon) error {
 		}
 
 		for _, vol := range volumes {
-			// In a non-clusted environment ServerName will be empty.
-			if s.ServerName != "" && vol.Location != s.ServerName {
+			// Only consider volumes local to this server.
+			if s.ServerClustered && vol.Location != s.ServerName {
 				continue
 			}
 
@@ -935,116 +941,7 @@ func patchZfsSetContentTypeUserProperty(name string, d *Daemon) error {
 
 // patchStorageZfsUnsetInvalidBlockSettings removes invalid block settings from volumes.
 func patchStorageZfsUnsetInvalidBlockSettings(_ string, d *Daemon) error {
-	s := d.State()
-
-	var pools []string
-
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-
-		// Get all storage pool names.
-		pools, err = tx.GetStoragePoolNames(ctx)
-
-		return err
-	})
-	if err != nil {
-		// Skip the rest of the patch if no storage pools were found.
-		if api.StatusErrorCheck(err, http.StatusNotFound) {
-			return nil
-		}
-
-		return fmt.Errorf("Failed getting storage pool names: %w", err)
-	}
-
-	volTypeCustom := dbCluster.StoragePoolVolumeTypeCustom
-	volTypeVM := dbCluster.StoragePoolVolumeTypeVM
-
-	poolIDNameMap := make(map[int64]string, 0)
-	poolVolumes := make(map[int64][]*db.StorageVolume, 0)
-
-	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		for _, pool := range pools {
-			// Get storage pool ID.
-			poolID, err := tx.GetStoragePoolID(ctx, pool)
-			if err != nil {
-				return fmt.Errorf("Failed getting storage pool ID of pool %q: %w", pool, err)
-			}
-
-			driverName, err := tx.GetStoragePoolDriver(ctx, poolID)
-			if err != nil {
-				return fmt.Errorf("Failed getting storage pool driver of pool %q: %w", pool, err)
-			}
-
-			if driverName != "zfs" {
-				continue
-			}
-
-			// Get the pool's custom storage volumes.
-			volumes, err := tx.GetStorageVolumes(ctx, false, db.StorageVolumeFilter{Type: &volTypeCustom, PoolID: &poolID}, db.StorageVolumeFilter{Type: &volTypeVM, PoolID: &poolID})
-			if err != nil {
-				return fmt.Errorf("Failed getting custom storage volumes of pool %q: %w", pool, err)
-			}
-
-			if poolVolumes[poolID] == nil {
-				poolVolumes[poolID] = []*db.StorageVolume{}
-			}
-
-			poolIDNameMap[poolID] = pool
-			poolVolumes[poolID] = append(poolVolumes[poolID], volumes...)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	var volType int
-
-	for pool, volumes := range poolVolumes {
-		for _, vol := range volumes {
-			// In a non-clusted environment ServerName will be empty.
-			if s.ServerName != "" && vol.Location != s.ServerName {
-				continue
-			}
-
-			config := vol.Config
-
-			if shared.IsTrue(config["zfs.block_mode"]) {
-				continue
-			}
-
-			update := false
-			for _, k := range []string{"block.filesystem", "block.mount_options"} {
-				_, found := config[k]
-				if found {
-					delete(config, k)
-					update = true
-				}
-			}
-
-			if !update {
-				continue
-			}
-
-			if vol.Type == dbCluster.StoragePoolVolumeTypeNameVM {
-				volType = volTypeVM
-			} else if vol.Type == dbCluster.StoragePoolVolumeTypeNameCustom {
-				volType = volTypeCustom
-			} else {
-				// Should not happen.
-				continue
-			}
-
-			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return tx.UpdateStoragePoolVolume(ctx, vol.Project, vol.Name, volType, pool, vol.Description, config)
-			})
-			if err != nil {
-				return fmt.Errorf("Failed updating volume %q in project %q on pool %q: %w", vol.Name, vol.Project, poolIDNameMap[pool], err)
-			}
-		}
-	}
-
+	// Superseded by patchStorageZfsUnsetInvalidBlockSettingsV2.
 	return nil
 }
 
@@ -1121,8 +1018,8 @@ func patchStorageZfsUnsetInvalidBlockSettingsV2(_ string, d *Daemon) error {
 
 	for pool, volumes := range poolVolumes {
 		for _, vol := range volumes {
-			// In a non-clusted environment ServerName will be empty.
-			if s.ServerName != "" && vol.Location != s.ServerName {
+			// Only consider volumes local to this server.
+			if s.ServerClustered && vol.Location != s.ServerName {
 				continue
 			}
 
@@ -1357,7 +1254,7 @@ func patchStorageRenameCustomISOBlockVolumesV2(name string, d *Daemon) error {
 		return err
 	}
 
-	isSelectedPatchMember, err := selectedPatchClusterMember(d)
+	isSelectedPatchMember, err := selectedPatchClusterMember(s)
 	if err != nil {
 		return err
 	}
@@ -1369,14 +1266,16 @@ func patchStorageRenameCustomISOBlockVolumesV2(name string, d *Daemon) error {
 			return fmt.Errorf("Failed loading pool %q: %w", poolName, err)
 		}
 
+		isRemotePool := p.Driver().Info().Remote
+
 		// Ensure the renaming is done only on the selected patch cluster member for remote storage pools.
-		if p.Driver().Info().Remote && !isSelectedPatchMember {
+		if isRemotePool && !isSelectedPatchMember {
 			continue
 		}
 
 		for _, vol := range volumes {
-			// In a non-clusted environment ServerName will be empty.
-			if s.ServerName != "" && vol.Location != s.ServerName {
+			// Skip volumes on local pools that are on other servers.
+			if !isRemotePool && s.ServerClustered && vol.Location != s.ServerName {
 				continue
 			}
 
@@ -1429,6 +1328,80 @@ DELETE FROM storage_volumes_config
 	AND storage_volumes_config.key IN ("block.filesystem", "block.mount_options")
 	`)
 	return err
+}
+
+// patchInstanceRemoveVolatileLastStateIPAddresses removes the volatile.*.last_state.ip_addresses config key from instances.
+func patchInstanceRemoveVolatileLastStateIPAddresses(_ string, d *Daemon) error {
+	s := d.State()
+
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		foundCandidateKey := func(k string) bool {
+			if strings.HasPrefix(k, "volatile.") && strings.HasSuffix(k, ".last_state.ip_addresses") {
+				return true
+			}
+
+			return false
+		}
+
+		// Get instances on this member.
+		return tx.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
+			l := logger.AddContext(logger.Ctx{"project": dbInst.Project, "inst": dbInst.Name})
+
+			for k := range dbInst.Config {
+				if !foundCandidateKey(k) {
+					continue
+				}
+
+				// Remove found config key.
+				changes := map[string]string{
+					k: "",
+				}
+
+				l.Debug("Removing config key from instance", logger.Ctx{"key": k})
+				err := tx.UpdateInstanceConfig(dbInst.ID, changes)
+				if err != nil {
+					return fmt.Errorf("Failed removing config key %q for instance %q (Project %q): %w", k, dbInst.Name, dbInst.Project, err)
+				}
+			}
+
+			// Get snapshots for instance so we can check those too.
+			dbSnaps, err := tx.GetInstanceSnapshotsWithName(ctx, dbInst.Project, dbInst.Name)
+			if err != nil {
+				return fmt.Errorf("Failed getting snapshots for %q (Project %q): %w", dbInst.Name, dbInst.Project, err)
+			}
+
+			for _, dbSnap := range dbSnaps {
+				snapConfig, err := dbCluster.GetInstanceSnapshotConfig(ctx, tx.Tx(), dbSnap.ID)
+				if err != nil {
+					return err
+				}
+
+				for k := range snapConfig {
+					if !foundCandidateKey(k) {
+						continue
+					}
+
+					// Remove found config key.
+					changes := map[string]string{
+						k: "",
+					}
+
+					l.Debug("Removing config key from instance snapshot", logger.Ctx{"snapshot": dbSnap.Name, "key": k})
+					err := tx.UpdateInstanceSnapshotConfig(dbSnap.ID, changes)
+					if err != nil {
+						return fmt.Errorf("Failed removing config key %q for instance %q (Project %q): %w", k, dbSnap.Name, dbSnap.Project, err)
+					}
+				}
+			}
+
+			return nil
+		}, dbCluster.InstanceFilter{Node: &s.ServerName})
+	})
+	if err != nil {
+		return fmt.Errorf("Failed removing volatile.*.last_state.ip_addresses config keys: %w", err)
+	}
+
+	return nil
 }
 
 // Patches end here

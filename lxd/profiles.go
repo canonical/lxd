@@ -25,6 +25,7 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -43,11 +44,68 @@ var profilesCmd = APIEndpoint{
 var profileCmd = APIEndpoint{
 	Path: "profiles/{name}",
 
-	Delete: APIEndpointAction{Handler: profileDelete, AccessHandler: allowPermission(entity.TypeProfile, auth.EntitlementCanDelete, "name")},
-	Get:    APIEndpointAction{Handler: profileGet, AccessHandler: allowPermission(entity.TypeProfile, auth.EntitlementCanView, "name")},
-	Patch:  APIEndpointAction{Handler: profilePatch, AccessHandler: allowPermission(entity.TypeProfile, auth.EntitlementCanEdit, "name")},
-	Post:   APIEndpointAction{Handler: profilePost, AccessHandler: allowPermission(entity.TypeProfile, auth.EntitlementCanEdit, "name")},
-	Put:    APIEndpointAction{Handler: profilePut, AccessHandler: allowPermission(entity.TypeProfile, auth.EntitlementCanEdit, "name")},
+	Delete: APIEndpointAction{Handler: profileDelete, AccessHandler: profileAccessHandler(auth.EntitlementCanDelete)},
+	Get:    APIEndpointAction{Handler: profileGet, AccessHandler: profileAccessHandler(auth.EntitlementCanView)},
+	Patch:  APIEndpointAction{Handler: profilePatch, AccessHandler: profileAccessHandler(auth.EntitlementCanEdit)},
+	Post:   APIEndpointAction{Handler: profilePost, AccessHandler: profileAccessHandler(auth.EntitlementCanEdit)},
+	Put:    APIEndpointAction{Handler: profilePut, AccessHandler: profileAccessHandler(auth.EntitlementCanEdit)},
+}
+
+// ctxProfileDetails should be used only for getting/setting profileDetails in the request context.
+const ctxProfileDetails request.CtxKey = "profile-details"
+
+// profileDetails contains fields that are determined prior to the access check. This is set in the request context when
+// addProfileDetailsToRequestContext is called.
+type profileDetails struct {
+	profileName      string
+	effectiveProject api.Project
+}
+
+// addProfileDetailsToRequestContext sets request.CtxEffectiveProjectName (string) and ctxProfileDetails (profileDetails)
+// in the request context.
+func addProfileDetailsToRequestContext(s *state.State, r *http.Request) error {
+	profileName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return err
+	}
+
+	requestProjectName := request.ProjectParam(r)
+	effectiveProject, err := project.ProfileProject(s.DB.Cluster, requestProjectName)
+	if err != nil {
+		return fmt.Errorf("Failed to check project %q profile feature: %w", requestProjectName, err)
+	}
+
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProject.Name)
+	request.SetCtxValue(r, ctxProfileDetails, profileDetails{
+		profileName:      profileName,
+		effectiveProject: *effectiveProject,
+	})
+
+	return nil
+}
+
+// profileAccessHandler calls addProfileDetailsToRequestContext, then uses the details to perform an access check with
+// the given auth.Entitlement.
+func profileAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
+		s := d.State()
+		err := addProfileDetailsToRequestContext(s, r)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		err = s.Authorizer.CheckPermission(r.Context(), entity.ProfileURL(request.ProjectParam(r), details.profileName), entitlement)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
 }
 
 // swagger:operation GET /1.0/profiles profiles profiles_get
@@ -145,7 +203,8 @@ var profileCmd = APIEndpoint{
 func profilesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	p, err := project.ProfileProject(s.DB.Cluster, request.ProjectParam(r))
+	requestProjectName := request.ProjectParam(r)
+	p, err := project.ProfileProject(s.DB.Cluster, requestProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -173,7 +232,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		if recursion {
 			apiProfiles = make([]*api.Profile, 0, len(profiles))
 			for _, profile := range profiles {
-				if !userHasPermission(entity.ProfileURL(p.Name, profile.Name)) {
+				if !userHasPermission(entity.ProfileURL(requestProjectName, profile.Name)) {
 					continue
 				}
 
@@ -192,7 +251,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		} else {
 			profileURLs = make([]string, 0, len(profiles))
 			for _, profile := range profiles {
-				profileURL := entity.ProfileURL(p.Name, profile.Name)
+				profileURL := entity.ProfileURL(requestProjectName, profile.Name)
 				if userHasPermission(profileURL) {
 					profileURLs = append(profileURLs, profileURL.String())
 				}
@@ -391,12 +450,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 func profileGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	p, err := project.ProfileProject(s.DB.Cluster, request.ProjectParam(r))
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -404,7 +458,7 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 	var resp *api.Profile
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profile, err := dbCluster.GetProfile(ctx, tx.Tx(), p.Name, name)
+		profile, err := dbCluster.GetProfile(ctx, tx.Tx(), details.effectiveProject.Name, details.profileName)
 		if err != nil {
 			return fmt.Errorf("Fetch profile: %w", err)
 		}
@@ -468,12 +522,7 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 func profilePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	p, err := project.ProfileProject(s.DB.Cluster, request.ProjectParam(r))
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -487,7 +536,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(err)
 		}
 
-		err = doProfileUpdateCluster(s, p.Name, name, old)
+		err = doProfileUpdateCluster(s, details.effectiveProject.Name, details.profileName, old)
 		return response.SmartError(err)
 	}
 
@@ -495,9 +544,9 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 	var profile *api.Profile
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		current, err := dbCluster.GetProfile(ctx, tx.Tx(), p.Name, name)
+		current, err := dbCluster.GetProfile(ctx, tx.Tx(), details.effectiveProject.Name, details.profileName)
 		if err != nil {
-			return fmt.Errorf("Failed to retrieve profile %q: %w", name, err)
+			return fmt.Errorf("Failed to retrieve profile %q: %w", details.profileName, err)
 		}
 
 		profile, err = current.ToAPI(ctx, tx.Tx())
@@ -526,7 +575,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = doProfileUpdate(s, *p, name, id, profile, req)
+	err = doProfileUpdate(s, details.effectiveProject, details.profileName, id, profile, req)
 
 	if err == nil && !isClusterNotification(r) {
 		// Notify all other nodes. If a node is down, it will be ignored.
@@ -536,7 +585,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		}
 
 		err = notifier(func(client lxd.InstanceServer) error {
-			return client.UseProject(p.Name).UpdateProfile(name, profile.Writable(), "")
+			return client.UseProject(details.effectiveProject.Name).UpdateProfile(details.profileName, profile.Writable(), "")
 		})
 		if err != nil {
 			return response.SmartError(err)
@@ -544,7 +593,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	s.Events.SendLifecycle(p.Name, lifecycle.ProfileUpdated.Event(name, p.Name, requestor, nil))
+	s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor, nil))
 
 	return response.SmartError(err)
 }
@@ -586,12 +635,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 func profilePatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	p, err := project.ProfileProject(s.DB.Cluster, request.ProjectParam(r))
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -600,9 +644,9 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 	var profile *api.Profile
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		current, err := dbCluster.GetProfile(ctx, tx.Tx(), p.Name, name)
+		current, err := dbCluster.GetProfile(ctx, tx.Tx(), details.effectiveProject.Name, details.profileName)
 		if err != nil {
-			return fmt.Errorf("Failed to retrieve profile=%q: %w", name, err)
+			return fmt.Errorf("Failed to retrieve profile=%q: %w", details.profileName, err)
 		}
 
 		profile, err = current.ToAPI(ctx, tx.Tx())
@@ -676,9 +720,9 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	s.Events.SendLifecycle(p.Name, lifecycle.ProfileUpdated.Event(name, p.Name, requestor, nil))
+	s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor, nil))
 
-	return response.SmartError(doProfileUpdate(s, *p, name, id, profile, req))
+	return response.SmartError(doProfileUpdate(s, details.effectiveProject, details.profileName, id, profile, req))
 }
 
 // swagger:operation POST /1.0/profiles/{name} profiles profile_post
@@ -716,17 +760,12 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 func profilePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	p, err := project.ProfileProject(s.DB.Cluster, request.ProjectParam(r))
+	details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if name == "default" {
+	if details.profileName == "default" {
 		return response.Forbidden(errors.New(`The "default" profile cannot be renamed`))
 	}
 
@@ -751,20 +790,20 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check that the name isn't already in use.
-		_, err = dbCluster.GetProfile(ctx, tx.Tx(), p.Name, req.Name)
+		_, err = dbCluster.GetProfile(ctx, tx.Tx(), details.effectiveProject.Name, req.Name)
 		if err == nil {
 			return fmt.Errorf("Name %q already in use", req.Name)
 		}
 
-		return dbCluster.RenameProfile(ctx, tx.Tx(), p.Name, name, req.Name)
+		return dbCluster.RenameProfile(ctx, tx.Tx(), details.effectiveProject.Name, details.profileName, req.Name)
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	requestor := request.CreateRequestor(r)
-	lc := lifecycle.ProfileRenamed.Event(req.Name, p.Name, requestor, logger.Ctx{"old_name": name})
-	s.Events.SendLifecycle(p.Name, lc)
+	lc := lifecycle.ProfileRenamed.Event(req.Name, details.effectiveProject.Name, requestor, logger.Ctx{"old_name": details.profileName})
+	s.Events.SendLifecycle(details.effectiveProject.Name, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
@@ -796,22 +835,17 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 func profileDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	p, err := project.ProfileProject(s.DB.Cluster, request.ProjectParam(r))
+	details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if name == "default" {
+	if details.profileName == "default" {
 		return response.Forbidden(errors.New(`The "default" profile cannot be deleted`))
 	}
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profile, err := dbCluster.GetProfile(ctx, tx.Tx(), p.Name, name)
+		profile, err := dbCluster.GetProfile(ctx, tx.Tx(), details.effectiveProject.Name, details.profileName)
 		if err != nil {
 			return err
 		}
@@ -825,14 +859,14 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Profile is currently in use")
 		}
 
-		return dbCluster.DeleteProfile(ctx, tx.Tx(), p.Name, name)
+		return dbCluster.DeleteProfile(ctx, tx.Tx(), details.effectiveProject.Name, details.profileName)
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	requestor := request.CreateRequestor(r)
-	s.Events.SendLifecycle(p.Name, lifecycle.ProfileDeleted.Event(name, p.Name, requestor, nil))
+	s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileDeleted.Event(details.profileName, details.effectiveProject.Name, requestor, nil))
 
 	return response.EmptySyncResponse
 }

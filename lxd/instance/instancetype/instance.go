@@ -1179,15 +1179,6 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 			return validate.IsAny, nil
 		}
 
-		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.ip_addresses)
-		// Comma-separated list of the last used IP addresses of the network device.
-		// ---
-		//  type: string
-		//  shortdesc: Last used IP addresses
-		if strings.HasSuffix(key, ".last_state.ip_addresses") {
-			return validate.IsListOf(validate.IsNetworkAddress), nil
-		}
-
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.apply_quota)
 		// The disk quota is applied the next time the instance starts.
 		// ---
@@ -1207,6 +1198,24 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		}
 
 		if strings.HasSuffix(key, ".driver") {
+			return validate.IsAny, nil
+		}
+
+		// lxdmeta:generate(entities=network-physical; group=volatile; key=volatile.last_state.usb.bus)
+		//
+		// --
+		//  type: string
+		//  shortdesc: USB Bus Number
+		if strings.HasSuffix(key, ".bus") {
+			return validate.IsAny, nil
+		}
+
+		// lxdmeta:generate(entities=network-physical; group=volatile; key=volatile.last_state.usb.device)
+		//
+		// --
+		//  type: string
+		//  shortdesc: USB Device Number
+		if strings.HasSuffix(key, ".device") {
 			return validate.IsAny, nil
 		}
 

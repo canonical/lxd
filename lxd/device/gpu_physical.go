@@ -396,21 +396,21 @@ func (d *gpuPhysical) postStop() error {
 
 // deviceNumStringToUint32 converts a device number string (major:minor) into separare major and
 // minor uint32s.
-func (d *gpuPhysical) deviceNumStringToUint32(devNum string) (uint32, uint32, error) {
+func (d *gpuPhysical) deviceNumStringToUint32(devNum string) (major uint32, minor uint32, err error) {
 	devParts := strings.SplitN(devNum, ":", 2)
 	tmp, err := strconv.ParseUint(devParts[0], 10, 32)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	major := uint32(tmp)
+	major = uint32(tmp)
 
 	tmp, err = strconv.ParseUint(devParts[1], 10, 32)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	minor := uint32(tmp)
+	minor = uint32(tmp)
 
 	return major, minor, nil
 }

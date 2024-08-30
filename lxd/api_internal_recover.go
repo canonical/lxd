@@ -574,12 +574,23 @@ func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Poo
 		return nil, err
 	}
 
+	snapshotExpiry := snap.Config["snapshots.expiry"]
+	if snapshotExpiry != "" {
+		expiry, err := shared.GetExpiry(snap.CreatedAt, snapshotExpiry)
+		if err != nil {
+			return nil, err
+		}
+
+		snap.ExpiresAt = expiry
+	}
+
 	_, snapInstOp, cleanup, err := instance.CreateInternal(s, db.InstanceArgs{
 		Project:      projectName,
 		Architecture: arch,
 		BaseImage:    snap.Config["volatile.base_image"],
 		Config:       snap.Config,
 		CreationDate: snap.CreatedAt,
+		ExpiryDate:   snap.ExpiresAt,
 		Type:         instanceType,
 		Snapshot:     true,
 		Devices:      deviceConfig.NewDevices(snap.Devices),
