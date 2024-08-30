@@ -436,6 +436,7 @@ func FileResponse(files []FileResponseEntry, headers map[string]string) Response
 	return &fileResponse{files, headers}
 }
 
+// Render renders a file response.
 func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) (err error) {
 	if r.headers != nil {
 		for k, v := range r.headers {
