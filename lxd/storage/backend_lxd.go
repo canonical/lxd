@@ -26,12 +26,14 @@ import (
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/backup"
 	backupConfig "github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instancewriter"
@@ -63,6 +65,11 @@ import (
 
 var unavailablePools = make(map[string]struct{})
 var unavailablePoolsMu = sync.Mutex{}
+
+// ConnectIfInstanceIsRemote is a reference to cluster.ConnectIfInstanceIsRemote.
+//
+//nolint:typecheck
+var ConnectIfInstanceIsRemote func(s *state.State, projectName string, instName string, r *http.Request, instanceType instancetype.Type) (lxd.InstanceServer, error)
 
 // instanceDiskVolumeEffectiveFields fields from the instance disks that are applied to the volume's effective
 // config (but not stored in the disk's volume database record).
@@ -6066,6 +6073,80 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 	if shared.IsTrue(newConfig["security.unmapped"]) {
 		delete(newConfig, "volatile.idmap.last")
 		delete(newConfig, "volatile.idmap.next")
+	}
+
+	// Notify instances of disk size changes as needed.
+	newSize, ok := changedConfig["size"]
+	if ok && newSize != "" && contentType == drivers.ContentTypeBlock {
+		// Get the disk size in bytes.
+		size, err := units.ParseByteSizeString(changedConfig["size"])
+		if err != nil {
+			return err
+		}
+
+		type instDevice struct {
+			args    db.InstanceArgs
+			devices []string
+		}
+
+		instDevices := []instDevice{}
+		err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &curVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+			if dbInst.Type != instancetype.VM {
+				return nil
+			}
+
+			instDevices = append(instDevices, instDevice{args: dbInst, devices: usedByDevices})
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		for _, entry := range instDevices {
+			c, err := ConnectIfInstanceIsRemote(b.state, entry.args.Project, entry.args.Name, nil, entry.args.Type)
+			if err != nil {
+				return err
+			}
+
+			if c != nil {
+				// Send a remote notification.
+				devs := []string{}
+				for _, devName := range entry.devices {
+					devs = append(devs, fmt.Sprintf("%s:%d", devName, size))
+				}
+
+				uri := fmt.Sprintf("/internal/virtual-machines/%d/onresize?devices=%s", entry.args.ID, strings.Join(devs, ","))
+				_, _, err := c.RawQuery("GET", uri, nil, "")
+				if err != nil {
+					return err
+				}
+			} else {
+				// Update the local instance.
+				inst, err := instance.LoadByProjectAndName(b.state, entry.args.Project, entry.args.Name)
+				if err != nil {
+					return err
+				}
+
+				if !inst.IsRunning() {
+					continue
+				}
+
+				for _, devName := range entry.devices {
+					runConf := deviceConfig.RunConfig{}
+					runConf.Mounts = []deviceConfig.MountEntryItem{
+						{
+							DevName: devName,
+							Size:    size,
+						},
+					}
+
+					err = inst.DeviceEventHandler(&runConf)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
 	}
 
 	// Update the database if something changed.
