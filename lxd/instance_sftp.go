@@ -13,6 +13,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
@@ -173,6 +174,8 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter, req *http.Request) err
 	}
 
 	wg.Wait() // Wait for copy go routine to finish.
+
+	request.MetricsCallback(req, metrics.Success)
 
 	return nil
 }
