@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/canonical/lxd/lxd/metrics"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
@@ -103,7 +105,14 @@ func (r *forwardedOperationResponse) Render(w http.ResponseWriter, req *http.Req
 		debugLogger = logger.AddContext(logger.Ctx{"http_code": code})
 	}
 
-	return util.WriteJSON(w, body, debugLogger)
+	err := util.WriteJSON(w, body, debugLogger)
+
+	if err == nil {
+		// If there was an error on Render, the callback function will be called during the error handling.
+		request.MetricsCallback(req, metrics.Success)
+	}
+
+	return err
 }
 
 func (r *forwardedOperationResponse) String() string {
