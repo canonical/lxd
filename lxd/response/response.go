@@ -42,6 +42,7 @@ type devLxdResponse struct {
 	contentType string
 }
 
+// Render renders a response for requests against the /dev/lxd socket.
 func (r *devLxdResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	var err error
 
@@ -147,6 +148,7 @@ func SyncResponsePlain(success bool, compress bool, metadata string) Response {
 	return &syncResponse{success: success, metadata: metadata, plaintext: true, compress: compress}
 }
 
+// Render renders a synchronous response.
 func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) (err error) {
 	// Set an appropriate ETag header
 	if r.etag != nil {
@@ -344,6 +346,7 @@ func (r *errorResponse) String() string {
 	return r.msg
 }
 
+// Render renders a response that indicates an error on the request handling.
 func (r *errorResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	var output io.Writer
 
@@ -423,6 +426,7 @@ func FileResponse(files []FileResponseEntry, headers map[string]string) Response
 	return &fileResponse{files, headers}
 }
 
+// Render renders a file response.
 func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) (err error) {
 	if r.headers != nil {
 		for k, v := range r.headers {
@@ -555,6 +559,7 @@ func ForwardedResponse(client lxd.InstanceServer, request *http.Request) Respons
 	}
 }
 
+// Render renders a response for a forwarded request.
 func (r *forwardedResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	info, err := r.client.GetConnectionInfo()
 	if err != nil {
@@ -606,6 +611,7 @@ func ManualResponse(hook func(w http.ResponseWriter) error) Response {
 	return &manualResponse{hook: hook}
 }
 
+// Render renders a manual response.
 func (r *manualResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	err := r.hook(w)
 

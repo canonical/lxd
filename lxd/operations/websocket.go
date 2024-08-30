@@ -21,6 +21,7 @@ func OperationWebSocket(op *Operation) response.Response {
 	return &operationWebSocket{op}
 }
 
+// Render renders a websocket operation response.
 func (r *operationWebSocket) Render(w http.ResponseWriter, req *http.Request) error {
 	chanErr, err := r.op.Connect(req, w)
 	if err != nil {
@@ -56,6 +57,7 @@ func ForwardedOperationWebSocket(id string, source *websocket.Conn) response.Res
 	return &forwardedOperationWebSocket{id, source}
 }
 
+// Render renders a forwarded websocket operation response.
 func (r *forwardedOperationWebSocket) Render(w http.ResponseWriter, req *http.Request) error {
 	// Upgrade target connection to websocket.
 	target, err := ws.Upgrader.Upgrade(w, req, nil)
