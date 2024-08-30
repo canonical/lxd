@@ -6,12 +6,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/metrics"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/ucred"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
@@ -156,7 +159,7 @@ func SyncResponsePlain(success bool, compress bool, metadata string) Response {
 }
 
 // Render renders a synchronous response.
-func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
+func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) (err error) {
 	// Set an appropriate ETag header
 	if r.etag != nil {
 		etag, err := util.EtagHash(r.etag)
@@ -212,6 +215,18 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		}
 	}
 
+	// defer calling the callback function after possibly considering the response a SmartError.
+	defer func() {
+		// If there was an error on Render, the callback function will be called during the error handling.
+		if err == nil {
+			if r.success {
+				request.MetricsCallback(req, metrics.Success)
+			} else {
+				request.MetricsCallback(req, metrics.ErrorServer)
+			}
+		}
+	}()
+
 	// Handle plain text responses.
 	if r.plaintext {
 		if r.metadata != nil {
@@ -219,12 +234,12 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 				comp := gzip.NewWriter(w)
 				defer comp.Close()
 
-				_, err := comp.Write([]byte(r.metadata.(string)))
+				_, err = comp.Write([]byte(r.metadata.(string)))
 				if err != nil {
 					return err
 				}
 			} else {
-				_, err := w.Write([]byte(r.metadata.(string)))
+				_, err = w.Write([]byte(r.metadata.(string)))
 				if err != nil {
 					return err
 				}
@@ -247,7 +262,9 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		debugLogger = logger.AddContext(logger.Ctx{"http_code": code})
 	}
 
-	return util.WriteJSON(w, resp, debugLogger)
+	err = util.WriteJSON(w, resp, debugLogger)
+
+	return err
 }
 
 func (r *syncResponse) String() string {
@@ -357,6 +374,17 @@ func (r *errorResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		Code:  r.code, // Set the error code in the Code field of the response body.
 	}
 
+	defer func() {
+		// Use the callback function to count the request for the API metrics.
+		if r.code >= 400 && r.code < 500 {
+			// 4* codes are considered client errors on HTTP.
+			request.MetricsCallback(req, metrics.ErrorClient)
+		} else {
+			// Any other status code here shoud be higher than or equal to 500 and is considered a server error.
+			request.MetricsCallback(req, metrics.ErrorServer)
+		}
+	}()
+
 	err := json.NewEncoder(output).Encode(resp)
 
 	if err != nil {
@@ -408,13 +436,19 @@ func FileResponse(files []FileResponseEntry, headers map[string]string) Response
 	return &fileResponse{files, headers}
 }
 
-// Render renders a file response.
-func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
+func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) (err error) {
 	if r.headers != nil {
 		for k, v := range r.headers {
 			w.Header().Set(k, v)
 		}
 	}
+
+	defer func() {
+		if err == nil {
+			// If there was an error on Render, the callback function will be called during the error handling.
+			request.MetricsCallback(req, metrics.Success)
+		}
+	}()
 
 	// No file, well, it's easy then
 	if len(r.files) == 0 {
@@ -427,7 +461,7 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		remoteTCP, _ := tcp.ExtractConn(remoteConn)
 		if remoteTCP != nil {
 			// Apply TCP timeouts if remote connection is TCP (rather than Unix).
-			err := tcp.SetTimeouts(remoteTCP, 10*time.Second)
+			err = tcp.SetTimeouts(remoteTCP, 10*time.Second)
 			if err != nil {
 				return api.StatusErrorf(http.StatusInternalServerError, "Failed setting TCP timeouts on remote connection: %w", err)
 			}
@@ -446,14 +480,16 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 			mt = r.files[0].FileModified
 			sz = r.files[0].FileSize
 		} else {
-			f, err := os.Open(r.files[0].Path)
+			var f *os.File
+			f, err = os.Open(r.files[0].Path)
 			if err != nil {
 				return err
 			}
 
 			defer func() { _ = f.Close() }()
 
-			fi, err := f.Stat()
+			var fi fs.FileInfo
+			fi, err = f.Stat()
 			if err != nil {
 				return err
 			}
@@ -484,7 +520,8 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		if entry.File != nil {
 			rd = entry.File
 		} else {
-			fd, err := os.Open(entry.Path)
+			var fd *os.File
+			fd, err = os.Open(entry.Path)
 			if err != nil {
 				return err
 			}
@@ -494,7 +531,8 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 			rd = fd
 		}
 
-		fw, err := mw.CreateFormFile(entry.Identifier, entry.Filename)
+		var fw io.Writer
+		fw, err = mw.CreateFormFile(entry.Identifier, entry.Filename)
 		if err != nil {
 			return err
 		}
@@ -509,7 +547,9 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		}
 	}
 
-	return mw.Close()
+	err = mw.Close()
+
+	return err
 }
 
 func (r *fileResponse) String() string {
@@ -582,7 +622,14 @@ func ManualResponse(hook func(w http.ResponseWriter) error) Response {
 
 // Render renders a manual response.
 func (r *manualResponse) Render(w http.ResponseWriter, req *http.Request) error {
-	return r.hook(w)
+	err := r.hook(w)
+
+	if err == nil {
+		// If there was an error on Render, the callback function will be called during the error handling.
+		request.MetricsCallback(req, metrics.Success)
+	}
+
+	return err
 }
 
 func (r *manualResponse) String() string {
