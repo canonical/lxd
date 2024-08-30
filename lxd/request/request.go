@@ -4,10 +4,12 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // CreateRequestor extracts the lifecycle event requestor data from an http.Request context.
@@ -70,4 +72,16 @@ func CountStartedRequest(r *http.Request) {
 	SetCtxValue(r, MetricsCallbackFunc, callbackFunc)
 
 	metrics.TrackStartedRequest(requestURL)
+}
+
+// MetricsCallback retrieves a callback function from the request context and calls it.
+// The callback function is used to mark the request as completed for the API metrics.
+func MetricsCallback(request *http.Request, result metrics.RequestResult) {
+	callback, err := GetCtxValue[func(metrics.RequestResult)](request.Context(), MetricsCallbackFunc)
+	if err != nil && (strings.HasPrefix(request.URL.Path, "/1.0") || request.URL.Path == "/") {
+		// Log a warning if endpoint is part of the main API, and therefore should be counted fot the API metrics.
+		logger.Warn("Request will not be counted for the API metrics", logger.Ctx{"url": request.URL.Path, "method": request.Method, "remote": request.RemoteAddr})
+	} else if err == nil && callback != nil {
+		callback(result)
+	}
 }
