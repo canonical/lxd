@@ -107,7 +107,8 @@ func restServer(d *Daemon) *http.Server {
 		uiHandlerErrorUINotEnabled := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
 			w.WriteHeader(http.StatusServiceUnavailable)
-			_, _ = fmt.Fprint(w, errorMessage)
+			_, err := fmt.Fprint(w, errorMessage)
+			logger.Warn("Failed sending error message to client", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr, "err": err})
 		})
 		mux.PathPrefix("/ui").Handler(uiHandlerErrorUINotEnabled)
 	}
