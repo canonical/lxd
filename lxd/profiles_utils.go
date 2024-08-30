@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -151,7 +152,7 @@ func doProfileUpdate(s *state.State, p api.Project, profileName string, id int64
 			msg += fmt.Sprintf(" - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err)
 		}
 
-		return fmt.Errorf("%s", msg)
+		return errors.New(msg)
 	}
 
 	return nil
@@ -196,7 +197,7 @@ func doProfileUpdateCluster(s *state.State, projectName string, profileName stri
 			msg += fmt.Sprintf(" - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err)
 		}
 
-		return fmt.Errorf("%s", msg)
+		return errors.New(msg)
 	}
 
 	return nil
