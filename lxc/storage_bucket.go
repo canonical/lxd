@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -109,11 +110,11 @@ func (c *cmdStorageBucketCreate) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf("%s", i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf("%s", i18n.G("Missing bucket name"))
+		return errors.New(i18n.G("Missing bucket name"))
 	}
 
 	// If stdin isn't a terminal, read yaml from it.
@@ -209,11 +210,11 @@ func (c *cmdStorageBucketDelete) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf("%s", i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf("%s", i18n.G("Missing bucket name"))
+		return errors.New(i18n.G("Missing bucket name"))
 	}
 
 	client := resource.server
@@ -285,11 +286,11 @@ func (c *cmdStorageBucketEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf("%s", i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf("%s", i18n.G("Missing bucket name"))
+		return errors.New(i18n.G("Missing bucket name"))
 	}
 
 	client := resource.server
@@ -404,11 +405,11 @@ func (c *cmdStorageBucketGet) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf("%s", i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf("%s", i18n.G("Missing bucket name"))
+		return errors.New(i18n.G("Missing bucket name"))
 	}
 
 	client := resource.server
@@ -479,7 +480,7 @@ func (c *cmdStorageBucketList) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf("%s", i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	client := resource.server
@@ -561,11 +562,11 @@ func (c *cmdStorageBucketSet) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf("%s", i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf("%s", i18n.G("Missing bucket name"))
+		return errors.New(i18n.G("Missing bucket name"))
 	}
 
 	client := resource.server
@@ -653,11 +654,11 @@ func (c *cmdStorageBucketShow) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf("%s", i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf("%s", i18n.G("Missing bucket name"))
+		return errors.New(i18n.G("Missing bucket name"))
 	}
 
 	client := resource.server
@@ -795,11 +796,11 @@ func (c *cmdStorageBucketKeyList) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf("%s", i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf("%s", i18n.G("Missing bucket name"))
+		return errors.New(i18n.G("Missing bucket name"))
 	}
 
 	client := resource.server
@@ -882,15 +883,15 @@ func (c *cmdStorageBucketKeyCreate) runAdd(cmd *cobra.Command, args []string) er
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf("%s", i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf("%s", i18n.G("Missing bucket name"))
+		return errors.New(i18n.G("Missing bucket name"))
 	}
 
 	if args[2] == "" {
-		return fmt.Errorf("%s", i18n.G("Missing key name"))
+		return errors.New(i18n.G("Missing key name"))
 	}
 
 	client := resource.server
@@ -979,15 +980,15 @@ func (c *cmdStorageBucketKeyDelete) runRemove(cmd *cobra.Command, args []string)
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf("%s", i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf("%s", i18n.G("Missing bucket name"))
+		return errors.New(i18n.G("Missing bucket name"))
 	}
 
 	if args[2] == "" {
-		return fmt.Errorf("%s", i18n.G("Missing key name"))
+		return errors.New(i18n.G("Missing key name"))
 	}
 
 	client := resource.server
@@ -1058,15 +1059,15 @@ func (c *cmdStorageBucketKeyEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf("%s", i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf("%s", i18n.G("Missing bucket name"))
+		return errors.New(i18n.G("Missing bucket name"))
 	}
 
 	if args[2] == "" {
-		return fmt.Errorf("%s", i18n.G("Missing key name"))
+		return errors.New(i18n.G("Missing key name"))
 	}
 
 	client := resource.server
@@ -1181,15 +1182,15 @@ func (c *cmdStorageBucketKeyShow) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf("%s", i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf("%s", i18n.G("Missing bucket name"))
+		return errors.New(i18n.G("Missing bucket name"))
 	}
 
 	if args[2] == "" {
-		return fmt.Errorf("%s", i18n.G("Missing key name"))
+		return errors.New(i18n.G("Missing key name"))
 	}
 
 	client := resource.server
