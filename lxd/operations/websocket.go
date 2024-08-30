@@ -52,7 +52,7 @@ type forwardedOperationWebSocket struct {
 	source *websocket.Conn // Connection to the node were the operation is running
 }
 
-// ForwardedOperationWebSocket returns a new forwarted websocket operation.
+// ForwardedOperationWebSocket returns a new forwarded websocket operation.
 func ForwardedOperationWebSocket(id string, source *websocket.Conn) response.Response {
 	return &forwardedOperationWebSocket{id, source}
 }
