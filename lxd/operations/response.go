@@ -23,6 +23,7 @@ func OperationResponse(op *Operation) response.Response {
 	return &operationResponse{op}
 }
 
+// Render builds operationResponse and writes it to http.ResponseWriter.
 func (r *operationResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	// Inject callback function on operation.
 	// If the operation was completed as expected or cancelled by an user, it is considered a success.
@@ -93,6 +94,7 @@ func ForwardedOperationResponse(project string, op *api.Operation) response.Resp
 	}
 }
 
+// Render builds forwardedOperationResponse and writes it to http.ResponseWriter.
 func (r *forwardedOperationResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	url := fmt.Sprintf("/%s/operations/%s", version.APIVersion, r.op.ID)
 	if r.project != "" {
