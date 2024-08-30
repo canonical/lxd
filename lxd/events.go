@@ -10,6 +10,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/events"
+	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -35,7 +36,14 @@ type eventsServe struct {
 
 // Render starts event socket.
 func (r *eventsServe) Render(w http.ResponseWriter, req *http.Request) error {
-	return eventsSocket(r.s, req, w)
+	err := eventsSocket(r.s, req, w)
+
+	if err == nil {
+		// If there was an error on Render, the callback function will be called during the error handling.
+		request.MetricsCallback(req, metrics.Success)
+	}
+
+	return err
 }
 
 func (r *eventsServe) String() string {
