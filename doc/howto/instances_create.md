@@ -357,7 +357,7 @@ Now the VM can be rebooted, and it will boot from disk.
 <!-- iso_vm_step7 end -->
 
 <!-- iso_vm_step8 start -->
-If the VM installed from an ISO is a Linux distribution using `systemd`, it is possible to install the LXD agent inside of it. This can be done manually as the root user inside the VM:
+If the VM was installed from an ISO is a Linux distribution using `systemd`, it is possible to install the LXD agent inside of it. This can be done manually as the root user inside the VM:
 <!-- iso_vm_step8 end -->
 
     modprobe 9pnet_virtio
@@ -368,6 +368,9 @@ If the VM installed from an ISO is a Linux distribution using `systemd`, it is p
     umount /mnt
     reboot
 
+```{note}
+On SELinux enabled distribution, it might be necessary to disable SELinux or set it to `permissive` mode. Please refer to your OS vendor documentation for how to do this.
+```
 
 ````
 ````{group-tab} API
