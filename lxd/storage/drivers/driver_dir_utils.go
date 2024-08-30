@@ -119,7 +119,7 @@ func (d *dir) setQuota(path string, volID int64, sizeBytes int64) error {
 	}
 
 	// Clear and create new project if desired project ID is different.
-	if currentProjectID != d.quotaProjectID(volID) {
+	if currentProjectID != projectID {
 		err = quota.SetProject(path, projectID)
 		if err != nil {
 			return fmt.Errorf("Failed setting project: %w", err)
