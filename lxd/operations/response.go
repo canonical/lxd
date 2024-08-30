@@ -24,6 +24,18 @@ func OperationResponse(op *Operation) response.Response {
 }
 
 func (r *operationResponse) Render(w http.ResponseWriter, req *http.Request) error {
+	// Inject callback function on operation.
+	// If the operation was completed as expected or cancelled by an user, it is considered a success.
+	// Otherwise it is considered a failure.
+	r.op.SetOnDone(func(op *Operation) {
+		sc := op.Status()
+		if sc == api.Success || sc == api.Cancelled {
+			request.MetricsCallback(req, metrics.Success)
+		} else {
+			request.MetricsCallback(req, metrics.ErrorServer)
+		}
+	})
+
 	err := r.op.Start()
 	if err != nil {
 		return err
