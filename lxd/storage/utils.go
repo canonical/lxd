@@ -1105,11 +1105,12 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 	// Find if volume is attached to a remote instance.
 	var remoteInstance *db.InstanceArgs
 	err = VolumeUsedByInstanceDevices(s, poolName, projectName, vol, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
-		if dbInst.Node != s.ServerName {
-			remoteInstance = &dbInst
-			return db.ErrListStop // Stop the search, this volume is attached to a remote instance.
+		if dbInst.Node == s.ServerName {
+			remoteInstance = nil
+			return db.ErrListStop // Stop the search if the volume is attached to the local system.
 		}
 
+		remoteInstance = &dbInst
 		return nil
 	})
 	if err != nil && err != db.ErrListStop {
