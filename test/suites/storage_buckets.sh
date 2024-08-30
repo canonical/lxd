@@ -86,6 +86,7 @@ test_storage_buckets() {
 
   # Test creating a bucket key with YAML bucket key config.
   creds=$(lxc storage bucket key create "${poolName}" "${bucketPrefix}.foo" yaml-key << EOF
+description: yaml-key-desc
 role: read-only
 EOF
 )
@@ -96,6 +97,7 @@ EOF
   lxc storage bucket key list "${poolName}" "${bucketPrefix}.foo" | grep -F "ro-key"
   lxc storage bucket key show "${poolName}" "${bucketPrefix}.foo" admin-key
   lxc storage bucket key show "${poolName}" "${bucketPrefix}.foo" ro-key
+  lxc storage bucket key show "${poolName}" "${bucketPrefix}.foo" yaml-key | grep "description: yaml-key-desc"
 
   # Test listing buckets via S3.
   s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" ls | grep -F "${bucketPrefix}.foo"
