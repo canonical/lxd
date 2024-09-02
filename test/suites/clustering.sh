@@ -1729,15 +1729,33 @@ test_clustering_join_api() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: Fully operational"
 
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_THREE_DIR}"
+  ns3="${prefix}3"
+  LXD_NETNS="${ns3}" spawn_lxd "${LXD_THREE_DIR}" false
+
+  # Check the server cannot be joined using password by changing it's name to 'none'.
+  [ "$(curl --unix-socket "${LXD_THREE_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"none\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"10.1.1.103:8443\",\"cluster_address\":\"10.1.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_password\":\"sekret\"}" | jq -r '.error_code')" = "400" ]
+
+  # Check the server can be joined using password.
+  op=$(curl --unix-socket "${LXD_THREE_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"node3\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"10.1.1.103:8443\",\"cluster_address\":\"10.1.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_password\":\"sekret\"}" | jq -r .operation)
+  curl --unix-socket "${LXD_THREE_DIR}/unix.socket" "lxd${op}/wait"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -q "message: Fully operational"
+
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 0.5
+  rm -f "${LXD_THREE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
 
   teardown_clustering_netns
   teardown_clustering_bridge
 
+  kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_ONE_DIR}"
 }
