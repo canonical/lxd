@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 const gpuDRIDevPath = "/dev/dri"
@@ -596,6 +597,31 @@ func (d *gpuPhysical) stopCDIDevices(configDevices cdi.ConfigDevices, runConf *d
 	}
 
 	return nil
+}
+
+// CanHotPlug returns whether the device can be managed whilst the instance is running.
+// CDI GPU are not hotpluggable because the configuration of a CDI GPU requires a LXC hook that
+// is only run at instance start. A classic GPU device can be hotplugged.
+func (d *gpuPhysical) CanHotPlug() bool {
+	if d.inst.Type() == instancetype.Container {
+		if d.config["id"] != "" {
+			// Check if the id of the device match a CDI format.
+			cdiID, err := cdi.ToCDI(d.config["id"])
+			if err != nil {
+				d.logger.Error("Failed to parse CDI ID when hotplugging", logger.Ctx{"err": err})
+				return false
+			}
+
+			if !cdiID.Empty() {
+				d.logger.Warn("Hotplugging CDI devices is not supported", logger.Ctx{"id": d.config["id"]})
+				return false
+			}
+		}
+
+		return true
+	}
+
+	return false
 }
 
 // Stop is run when the device is removed from the instance.
