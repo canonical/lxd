@@ -38,11 +38,12 @@ Windows   | 11 23H2 [^5]       | Supported  | ➖                      | ✅    
 [^8]: This Linux version does not use `systemd` which the LXD agent requires.
 [^9]: Requires the HWE kernel (`4.15`) for proper `vsock` support which is required by the LXD agent.
 
-Legend:
-✅ : recommended
-🟢 : supported
-➖ : not applicable
-❌ : not supported
+Legend         | Icon
+:---           | :---
+recommended    | ✅
+supported      | 🟢
+not applicable | ➖
+not supported  | ❌
 
 ## Notes
 
