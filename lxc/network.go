@@ -833,7 +833,7 @@ func (c *cmdNetworkInfo) Run(cmd *cobra.Command, args []string) error {
 	fmt.Printf(i18n.G("Type: %s")+"\n", state.Type)
 
 	// IP addresses.
-	if state.Addresses != nil && len(state.Addresses) > 0 {
+	if len(state.Addresses) > 0 {
 		fmt.Println("")
 		fmt.Println(i18n.G("IP addresses:"))
 		for _, addr := range state.Addresses {
