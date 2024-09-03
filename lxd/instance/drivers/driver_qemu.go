@@ -8649,7 +8649,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 		}
 
 		if efiPath == "" {
-			return nil, fmt.Errorf("Unable to locate a UEFI firmware")
+			return nil, fmt.Errorf("Unable to locate a VM UEFI firmware")
 		}
 
 		qemuArgs = append(qemuArgs, "-drive", fmt.Sprintf("if=pflash,format=raw,readonly=on,file=%s", efiPath))
