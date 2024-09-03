@@ -474,6 +474,227 @@ jobs:
           name: ${{ runner.os }}
           path: bin/
 
+  ui:
+    name: UI e2e tests
+    runs-on: ubuntu-latest
+    if: "!startsWith(github.ref, 'refs/heads/stable-')"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Performance tuning
+        run: |
+          set -eux
+          # optimize ext4 FSes for performance, not reliability
+          for fs in $(findmnt --noheading --type ext4 --list --uniq | awk '{print $1}'); do
+            # nombcache and data=writeback cannot be changed on remount
+            sudo mount -o remount,noatime,barrier=0,commit=6000 "${fs}" || true
+          done
+
+          # disable dpkg from calling sync()
+          echo "force-unsafe-io" | sudo tee /etc/dpkg/dpkg.cfg.d/force-unsafe-io
+
+      - name: Install Go (1.22)
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22.x
+
+      - name: Install dependencies
+        run: |
+          set -eux
+          sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
+          sudo add-apt-repository ppa:dqlite/dev -y --no-update
+          sudo apt-get update
+
+          sudo systemctl mask lxc.service lxc-net.service
+
+          sudo apt-get install --no-install-recommends -y \
+            curl \
+            git \
+            libacl1-dev \
+            libcap-dev \
+            libdbus-1-dev \
+            libdqlite-dev \
+            liblxc-dev \
+            libseccomp-dev \
+            libselinux-dev \
+            libsqlite3-dev \
+            libtool \
+            libudev-dev \
+            make \
+            pkg-config\
+            acl \
+            attr \
+            bind9-dnsutils \
+            btrfs-progs \
+            busybox-static \
+            dnsmasq-base \
+            easy-rsa \
+            gettext \
+            jq \
+            lxc-utils \
+            lvm2 \
+            nftables \
+            quota \
+            rsync \
+            s3cmd \
+            socat \
+            sqlite3 \
+            squashfs-tools \
+            tar \
+            tcl \
+            thin-provisioning-tools \
+            uuid-runtime \
+            xfsprogs \
+            xz-utils \
+            zfsutils-linux
+
+          mkdir -p "$(go env GOPATH)/bin"
+          curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
+          chmod +x "$(go env GOPATH)/bin/minio"
+
+          # Also grab the latest minio client to maintain compatibility with the server.
+          curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc --output "$(go env GOPATH)/bin/mc"
+          chmod +x "$(go env GOPATH)/bin/mc"
+
+      - name: Download go dependencies
+        run: |
+          set -eux
+          go mod download
+
+      - name: Run LXD build
+        run: |
+          set -eux
+          make lxd
+
+      - name: Install doc dependencies
+        run: |
+          set -eux
+          sudo apt-get install aspell aspell-en
+          sudo snap install mdl
+
+      - name: Build docs (for the objects.inv.txt file to be available for the e2e tests)
+        shell: 'script -q -e -c "export TERM=xterm-256color; bash {0}"'
+        run: |
+          set -eux
+          make doc
+
+      - name: Run LXD daemon
+        run: |
+          set -eux
+          echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
+          export CGO_CFLAGS="-I/home/runner/work/lxd/lxd-test/vendor/dqlite/include/"
+          export CGO_LDFLAGS="-L/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
+          export LD_LIBRARY_PATH="/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
+          export LXD_DOCUMENTATION="/home/runner/work/lxd/lxd/doc/_build/"
+          sudo rm -rf /var/lib/lxd
+          sudo -E PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} $(go env GOPATH)/bin/lxd --group sudo &
+
+      - name: Setup LXD
+        shell: bash
+        run: |
+          set -eux
+          sudo LXD_DIR=/var/lib/lxd lxc storage create local-storage zfs
+          sudo LXD_DIR=/var/lib/lxd lxc profile device add default root disk path=/ pool=local-storage
+          sudo LXD_DIR=/var/lib/lxd lxc network create local-network
+          sudo LXD_DIR=/var/lib/lxd lxc profile device add default eth0 nic network=local-network
+          sudo LXD_DIR=/var/lib/lxd lxc config set core.https_address "[::]:8443"
+          sudo LXD_DIR=/var/lib/lxd lxc config set cluster.https_address "127.0.0.1"
+          sudo LXD_DIR=/var/lib/lxd lxc cluster enable local
+          sudo LXD_DIR=/var/lib/lxd lxc config set user.show_permissions=true
+
+      - name: Checkout LXD-UI
+        uses: actions/checkout@v4
+        with:
+            repository: 'canonical/lxd-ui'
+            ref: main
+            path: lxd-ui
+
+      - name: Install Dotrun
+        run: sudo pip3 install dotrun
+
+      - name: Restore cached keys
+        uses: actions/cache/restore@v3
+        with:
+          path: lxd-ui/keys
+          key: keys-folder
+
+      - name: Install LXD-UI dependencies
+        run: |
+          set -eux
+          sudo chmod 0777 ./lxd-ui
+          cd lxd-ui
+          dotrun install
+
+      - name: Run LXD-UI
+        env:
+          ENVIRONMENT: devel
+          PORT: 8407
+          LXD_UI_BACKEND_IP: 172.17.0.1
+        run: |
+          set -eux
+          cd lxd-ui
+          dotrun &
+          curl --head --fail --retry-delay 2 --retry 100 --retry-connrefused --insecure https://localhost:8407
+
+      - name: Set keys permissions
+        run: |
+          set -eux
+          sudo chmod -R 0666 lxd-ui/keys
+          sudo chmod 0777 lxd-ui/keys
+
+      - name: Save keys
+        uses: actions/cache/save@v3
+        with:
+          path: lxd-ui/keys
+          key: keys-folder
+
+      - name: Allow LXD-UI keys
+        shell: bash
+        run: |
+          set -eux
+          sudo LXD_DIR=/var/lib/lxd lxc config trust add lxd-ui/keys/lxd-ui.crt
+
+      - name: Create a custom image
+        shell: bash
+        run: |
+          set -eux
+          sudo LXD_DIR=/var/lib/lxd lxc launch ubuntu-minimal:22.04 my-instance
+          sudo LXD_DIR=/var/lib/lxd lxc publish my-instance --alias my-custom-image --force
+          sudo LXD_DIR=/var/lib/lxd lxc delete my-instance --force
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright Browsers
+        run: |
+          set -eux
+          cd lxd-ui
+          npx playwright install --with-deps chromium
+
+      - name: Create OIDC users
+        shell: bash
+        run: |
+          set -eux
+          sudo LXD_DIR=/var/lib/lxd PATH=/home/runner/go/bin:$PATH ./lxd-ui/tests/scripts/create_oidc_identities
+
+      - name: Run Playwright tests
+        run: |
+          set -eux
+          cd lxd-ui
+          CI=true DISABLE_VM_TESTS=true npx playwright test --project chromium:lxd-latest-edge
+          #npx playwright test --project chromium:lxd-5.21-edge
+          #npx playwright test --project lxd-5.0-edge
+
+      - name: Upload lxd-ui test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lxd-ui-test-report
+          path: lxd-ui/blob-report
+
   documentation:
     name: Documentation
     runs-on: ubuntu-latest
