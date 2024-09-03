@@ -38,17 +38,19 @@ Windows   | 11 23H2 [^5]       | Supported  | ➖                      | ✅    
 [^8]: This Linux version does not use `systemd` which the LXD agent requires.
 [^9]: Requires the HWE kernel (`4.15`) for proper `vsock` support which is required by the LXD agent.
 
-Legend:
-✅ : recommended
-🟢 : supported
-➖ : not applicable
-❌ : not supported
+Legend         | Icon
+:---           | :---
+recommended    | ✅
+supported      | 🟢
+not applicable | ➖
+not supported  | ❌
 
 ## Notes
 
 ### LXD agent
 
 The LXD agent provides the ability to execute commands inside of the virtual machine guest without relying on traditional access solution like secure shell (SSH) or Remote Desktop Protocol (RDP). This agent is only supported on Linux guests using `systemd`.
+See {ref}`instances-create-iso` for instructions on how to install the LXD agent manually.
 
 ### CSM/BIOS boot
 

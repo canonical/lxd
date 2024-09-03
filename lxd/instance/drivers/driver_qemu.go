@@ -2860,22 +2860,50 @@ if [ ! -e "systemd" ] || [ ! -e "lxd-agent" ]; then
     exit 1
 fi
 
-if [ ! -e "/lib/systemd/system" ]; then
+# systemd systems always have /run/systemd/system/ created on boot.
+if [ ! -d "/run/systemd/system/" ]; then
     echo "This script only works on systemd systems"
     exit 1
 fi
 
+for path in "/lib/systemd" "/usr/lib/systemd"; do
+    [ -d "${path}/system" ] || continue
+    LIB_SYSTEMD="${path}"
+    break
+done
+
+if [ ! -d "${LIB_SYSTEMD:-}" ]; then
+    echo "Could not find path to systemd"
+    exit 1
+fi
+
+for path in "/lib/udev" "/usr/lib/udev"; do
+    [ -d "${path}/rules.d/" ] || continue
+    LIB_UDEV="${path}"
+    break
+done
+
+if [ ! -d "${LIB_UDEV:-}" ]; then
+    echo "Could not find path to udev"
+    exit 1
+fi
+
 # Cleanup former units.
-rm -f /lib/systemd/system/lxd-agent-9p.service \
-    /lib/systemd/system/lxd-agent-virtiofs.service \
+rm -f "${LIB_SYSTEMD}/system/lxd-agent-9p.service" \
+    "${LIB_SYSTEMD}/system/lxd-agent-virtiofs.service" \
     /etc/systemd/system/multi-user.target.wants/lxd-agent-9p.service \
     /etc/systemd/system/multi-user.target.wants/lxd-agent-virtiofs.service \
     /etc/systemd/system/multi-user.target.wants/lxd-agent.service
 
 # Install the units.
-cp udev/99-lxd-agent.rules /lib/udev/rules.d/
-cp systemd/lxd-agent.service /lib/systemd/system/
-cp systemd/lxd-agent-setup /lib/systemd/
+cp udev/99-lxd-agent.rules "${LIB_UDEV}/rules.d/"
+cp systemd/lxd-agent-setup "${LIB_SYSTEMD}/"
+if [ "/lib/systemd" = "${LIB_SYSTEMD}" ]; then
+  cp systemd/lxd-agent.service "${LIB_SYSTEMD}/system/"
+else
+  # Adapt paths for systemd's lib location
+  sed "/=\/lib\/systemd/ s|=/lib/systemd|=${LIB_SYSTEMD}|" systemd/lxd-agent.service > "${LIB_SYSTEMD}/system/lxd-agent.service"
+fi
 systemctl daemon-reload
 
 # SELinux handling.
