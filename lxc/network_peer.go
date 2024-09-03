@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -107,7 +108,7 @@ func (c *cmdNetworkPeerList) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	peers, err := resource.server.GetNetworkPeers(resource.name)
@@ -177,11 +178,11 @@ func (c *cmdNetworkPeerShow) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing peer name"))
+		return errors.New(i18n.G("Missing peer name"))
 	}
 
 	client := resource.server
@@ -234,15 +235,15 @@ func (c *cmdNetworkPeerCreate) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing peer name"))
+		return errors.New(i18n.G("Missing peer name"))
 	}
 
 	if args[2] == "" {
-		return fmt.Errorf(i18n.G("Missing target network"))
+		return errors.New(i18n.G("Missing target network"))
 	}
 
 	targetParts := strings.SplitN(args[2], "/", 2)
@@ -352,11 +353,11 @@ func (c *cmdNetworkPeerGet) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing peer name"))
+		return errors.New(i18n.G("Missing peer name"))
 	}
 
 	// Get the current config.
@@ -423,11 +424,11 @@ func (c *cmdNetworkPeerSet) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing peer name"))
+		return errors.New(i18n.G("Missing peer name"))
 	}
 
 	client := resource.server
@@ -553,11 +554,11 @@ func (c *cmdNetworkPeerEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing peer name"))
+		return errors.New(i18n.G("Missing peer name"))
 	}
 
 	client := resource.server
@@ -662,11 +663,11 @@ func (c *cmdNetworkPeerDelete) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing peer name"))
+		return errors.New(i18n.G("Missing peer name"))
 	}
 
 	client := resource.server
