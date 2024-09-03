@@ -8671,6 +8671,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 		var efiPath string
 		for _, firmwarePair := range edk2.GetArchitectureFirmwarePairsForUsage(hostArch, edk2.GENERIC) {
 			if shared.PathExists(firmwarePair.Code) {
+				logger.Info("Found VM UEFI firmware", logger.Ctx{"code": firmwarePair.Code, "vars": firmwarePair.Vars})
 				efiPath = firmwarePair.Code
 				break
 			}
