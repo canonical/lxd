@@ -47,10 +47,10 @@ EOF
     lxc storage create "$storage_pool_yaml" "$lxd_backend" <<EOF
 description: foo
 config:
-  ceph.cluster_name: bar
+  ceph.cluster_name: ceph
 EOF
 
-    [ "$(lxc storage get "$storage_pool_yaml" ceph.cluster_name)" = "bar" ]
+    [ "$(lxc storage get "$storage_pool_yaml" ceph.cluster_name)" = "ceph" ]
     [ "$(lxc storage show "$storage_pool_yaml" | grep -i "description:" | awk '{print $2}')" = "foo" ]
   fi
 
