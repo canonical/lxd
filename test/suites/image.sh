@@ -105,7 +105,7 @@ test_image_import_dir() {
     local exported
     exported="${fingerprint}.tar.xz"
 
-    tar tvf "$exported" | grep -Fq metadata.yaml
+    tar tvf "$exported" metadata.yaml
     rm "$exported"
 }
 
