@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -95,6 +96,11 @@ func (c *cmdStorageCreate) command() *cobra.Command {
 	cmd.Short = i18n.G("Create storage pools")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create storage pools`))
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc storage create s1 dir
+
+lxc storage create s1 dir < config.yaml
+    Create a storage pool using the content of config.yaml.
+	`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
@@ -103,10 +109,25 @@ func (c *cmdStorageCreate) command() *cobra.Command {
 }
 
 func (c *cmdStorageCreate) run(cmd *cobra.Command, args []string) error {
+	var stdinData api.StoragePoolPut
+
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err
+	}
+
+	// If stdin isn't a terminal, read text from it
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		err = yaml.Unmarshal(contents, &stdinData)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Parse remote
@@ -119,18 +140,22 @@ func (c *cmdStorageCreate) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	// Create the new storage pool entry
-	pool := api.StoragePoolsPost{}
-	pool.Name = resource.name
-	pool.Config = map[string]string{}
-	pool.Driver = args[1]
+	pool := api.StoragePoolsPost{
+		Name:           resource.name,
+		Driver:         args[1],
+		StoragePoolPut: stdinData,
+	}
 
-	for i := 2; i < len(args); i++ {
-		entry := strings.SplitN(args[i], "=", 2)
-		if len(entry) < 2 {
-			return fmt.Errorf(i18n.G("Bad key=value pair: %s"), entry)
+	if pool.Config == nil {
+		pool.Config = map[string]string{}
+		for i := 2; i < len(args); i++ {
+			entry := strings.SplitN(args[i], "=", 2)
+			if len(entry) < 2 {
+				return fmt.Errorf(i18n.G("Bad key=value pair: %s"), entry)
+			}
+
+			pool.Config[entry[0]] = entry[1]
 		}
-
-		pool.Config[entry[0]] = entry[1]
 	}
 
 	// If a target member was specified the API won't actually create the
@@ -191,7 +216,7 @@ func (c *cmdStorageDelete) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	// Delete the pool
@@ -261,7 +286,7 @@ func (c *cmdStorageEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -367,7 +392,7 @@ func (c *cmdStorageGet) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	// If a target member was specified, we return also member-specific config values.
@@ -437,13 +462,13 @@ func (c *cmdStorageInfo) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	// Targeting
 	if c.storage.flagTarget != "" {
 		if !resource.server.IsClustered() {
-			return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
+			return errors.New(i18n.G("To use --target, the destination remote must be a cluster"))
 		}
 
 		resource.server = resource.server.UseTarget(c.storage.flagTarget)
@@ -692,7 +717,7 @@ func (c *cmdStorageSet) run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	client := resource.server
@@ -790,7 +815,7 @@ func (c *cmdStorageShow) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	// If a target member was specified, we return also member-specific config values.

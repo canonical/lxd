@@ -873,6 +873,10 @@ func (c *cmdNetworkZoneRecordCreate) command() *cobra.Command {
 	cmd.Use = usage("create", i18n.G("[<remote>:]<zone> <record> [key=value...]"))
 	cmd.Short = i18n.G("Create new network zone record")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Create new network zone record"))
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc network zone record create z1 r1
+
+lxc network zone record create z1 r1 < config.yaml
+    Create record r1 for zone z1 with configuration from config.yaml`))
 
 	cmd.RunE = c.run
 
