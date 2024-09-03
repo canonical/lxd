@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
+	"syscall"
 
 	"golang.org/x/sys/unix"
 
@@ -80,7 +82,9 @@ func (c *qemuCmd) Wait() (int, error) {
 		// Error of type EOF indicates the session ended unexpectedly,
 		// so we inform the client of the disconnection with a more
 		// descriptive message.
-		if errors.Is(err, io.EOF) {
+		// The error can be different depending on why the VM disconnected
+		// so we handle these cases similarly.
+		if errors.Is(err, io.EOF) || strings.Contains(err.Error(), io.ErrUnexpectedEOF.Error()) || strings.Contains(err.Error(), syscall.ECONNRESET.Error()) {
 			return exitStatus, ErrExecDisconnected
 		}
 
