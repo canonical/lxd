@@ -2470,3 +2470,8 @@ Adds the following internal metrics:
 This introduces per-pool project disk limits, introducing a `limits.disk.pool.NAME`
 configuration option to the project limits. When `limits.disk.pool.POOLNAME: 0`
 for a project, the pool is excluded from `lxc storage list` in that project.
+
+## `ubuntu_pro_guest_attach`
+
+Adds a new {config:option}`instance-miscellaneous:ubuntu_pro.guest_attach` configuration option for instances.
+When set to `on`, if the host has guest attachment enabled, the guest can request a guest token for Ubuntu Pro via `devlxd`.
