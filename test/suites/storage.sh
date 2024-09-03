@@ -15,12 +15,16 @@ test_storage() {
   lxc storage create "$storage_pool" "$lxd_backend"
   lxc storage show "$storage_pool" | sed 's/^description:.*/description: foo/' | lxc storage edit "$storage_pool"
   [ "$(lxc storage get "$storage_pool" -p description)" = "foo" ]
+  lxc storage set "$storage_pool" -p description="baz"
+  [ "$(lxc storage get "$storage_pool" -p description)" = "baz" ]
 
   lxc storage volume create "$storage_pool" "$storage_volume"
 
   # Test setting description on a storage volume
   lxc storage volume show "$storage_pool" "$storage_volume" | sed 's/^description:.*/description: bar/' | lxc storage volume edit "$storage_pool" "$storage_volume"
   [ "$(lxc storage volume get "$storage_pool" "$storage_volume" -p description)" = "bar" ]
+  lxc storage volume set "$storage_pool" "$storage_volume" -p description="baz"
+  [ "$(lxc storage volume get "$storage_pool" "$storage_volume" -p description)" = "baz" ]
 
   # Test creating a storage pool from yaml
   storage_pool_yaml="lxdtest-$(basename "${LXD_DIR}")-pool-yaml"
