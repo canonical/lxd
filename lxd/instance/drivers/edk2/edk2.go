@@ -3,6 +3,7 @@ package edk2
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/canonical/lxd/shared/osarch"
 )
@@ -15,7 +16,7 @@ type FirmwarePair struct {
 
 // Installation represents a set of available firmware at a given location on the system.
 type Installation struct {
-	Path  string
+	Paths []string
 	Usage map[FirmwareUsage][]FirmwarePair
 }
 
@@ -38,7 +39,7 @@ const OVMFDebugFirmware = "OVMF_CODE.4MB.debug.fd"
 
 var architectureInstallations = map[int][]Installation{
 	osarch.ARCH_64BIT_INTEL_X86: {{
-		Path: "/usr/share/OVMF",
+		Paths: GetenvEdk2Paths("/usr/share/OVMF"),
 		Usage: map[FirmwareUsage][]FirmwarePair{
 			GENERIC: {
 				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.fd"},
@@ -69,7 +70,7 @@ var architectureInstallations = map[int][]Installation{
 			},
 		},
 	}, {
-		Path: "/usr/share/qemu",
+		Paths: GetenvEdk2Paths("/usr/share/qemu"),
 		Usage: map[FirmwareUsage][]FirmwarePair{
 			GENERIC: {
 				{Code: "ovmf-x86_64-4m-code.bin", Vars: "ovmf-x86_64-4m-vars.bin"},
@@ -84,7 +85,7 @@ var architectureInstallations = map[int][]Installation{
 			},
 		},
 	}, {
-		Path: "/usr/share/edk2/x64",
+		Paths: GetenvEdk2Paths("/usr/share/edk2/x64"),
 		Usage: map[FirmwareUsage][]FirmwarePair{
 			GENERIC: {
 				{Code: "OVMF_CODE.4m.fd", Vars: "OVMF_VARS.4m.fd"},
@@ -96,7 +97,7 @@ var architectureInstallations = map[int][]Installation{
 			},
 		},
 	}, {
-		Path: "/usr/share/OVMF/x64",
+		Paths: GetenvEdk2Paths("/usr/share/OVMF/x64"),
 		Usage: map[FirmwareUsage][]FirmwarePair{
 			GENERIC: {
 				{Code: "OVMF_CODE.4m.fd", Vars: "OVMF_VARS.4m.fd"},
@@ -113,7 +114,7 @@ var architectureInstallations = map[int][]Installation{
 		},
 	}},
 	osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN: {{
-		Path: "/usr/share/AAVMF",
+		Paths: GetenvEdk2Paths("/usr/share/AAVMF"),
 		Usage: map[FirmwareUsage][]FirmwarePair{
 			GENERIC: {
 				{Code: "AAVMF_CODE.fd", Vars: "AAVMF_VARS.fd"},
@@ -151,9 +152,7 @@ func GetArchitectureInstallations(hostArch int) []Installation {
 }
 
 // GetAchitectureFirmwarePairs creates an array of FirmwarePair for a
-// specific host architecture. If the environment variable LXD_QEMU_FW_PATH
-// has been set it will override the default installation path when
-// constructing Code & Vars paths.
+// specific host architecture.
 func GetAchitectureFirmwarePairs(hostArch int) []FirmwarePair {
 	firmwares := make([]FirmwarePair, 0)
 
@@ -165,9 +164,7 @@ func GetAchitectureFirmwarePairs(hostArch int) []FirmwarePair {
 }
 
 // GetArchitectureFirmwarePairsForUsage creates an array of FirmwarePair
-// for a specific host architecture and usage combination. If the
-// environment variable LXD_QEMU_FW_PATH has been set it will override the
-// default installation path when constructing Code & Vars paths.
+// for a specific host architecture and usage combination.
 func GetArchitectureFirmwarePairsForUsage(hostArch int, usage FirmwareUsage) []FirmwarePair {
 	firmwares := make([]FirmwarePair, 0)
 
@@ -175,16 +172,12 @@ func GetArchitectureFirmwarePairsForUsage(hostArch int, usage FirmwareUsage) []F
 		usage, found := installation.Usage[usage]
 		if found {
 			for _, firmwarePair := range usage {
-				searchPath := installation.Path
-
-				if GetenvEdk2Path() != "" {
-					searchPath = GetenvEdk2Path()
+				for _, searchPath := range installation.Paths {
+					firmwares = append(firmwares, FirmwarePair{
+						Code: filepath.Join(searchPath, firmwarePair.Code),
+						Vars: filepath.Join(searchPath, firmwarePair.Vars),
+					})
 				}
-
-				firmwares = append(firmwares, FirmwarePair{
-					Code: filepath.Join(searchPath, firmwarePair.Code),
-					Vars: filepath.Join(searchPath, firmwarePair.Vars),
-				})
 			}
 		}
 	}
@@ -192,7 +185,21 @@ func GetArchitectureFirmwarePairsForUsage(hostArch int, usage FirmwareUsage) []F
 	return firmwares
 }
 
-// GetenvEdk2Path returns the environment variable for overriding the path to use for EDK2 installations.
-func GetenvEdk2Path() string {
-	return os.Getenv("LXD_QEMU_FW_PATH")
+// GetenvEdk2Paths returns a list of paths to search for VM firmwares.
+// If LXD_QEMU_FW_PATH or LXD_OVMF_PATH env vars are set then these values are split on ":" and prefixed to the
+// returned slice of paths.
+// The defaultPath argument is returned as the last element in the slice.
+func GetenvEdk2Paths(defaultPath string) []string {
+	var qemuFwPaths []string
+
+	for _, v := range []string{"LXD_QEMU_FW_PATH", "LXD_OVMF_PATH"} {
+		searchPaths := os.Getenv(v)
+		if searchPaths == "" {
+			continue
+		}
+
+		qemuFwPaths = append(qemuFwPaths, strings.Split(searchPaths, ":")...)
+	}
+
+	return append(qemuFwPaths, defaultPath)
 }
