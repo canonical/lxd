@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -116,7 +117,7 @@ func (c *cmdConfigDeviceAdd) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing name"))
+		return errors.New(i18n.G("Missing name"))
 	}
 
 	// Add the device
@@ -148,7 +149,7 @@ func (c *cmdConfigDeviceAdd) run(cmd *cobra.Command, args []string) error {
 
 		_, ok := profile.Devices[devname]
 		if ok {
-			return fmt.Errorf(i18n.G("The device already exists"))
+			return errors.New(i18n.G("The device already exists"))
 		}
 
 		profile.Devices[devname] = device
@@ -165,7 +166,7 @@ func (c *cmdConfigDeviceAdd) run(cmd *cobra.Command, args []string) error {
 
 		_, ok := inst.Devices[devname]
 		if ok {
-			return fmt.Errorf(i18n.G("The device already exists"))
+			return errors.New(i18n.G("The device already exists"))
 		}
 
 		inst.Devices[devname] = device
@@ -229,7 +230,7 @@ func (c *cmdConfigDeviceGet) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing name"))
+		return errors.New(i18n.G("Missing name"))
 	}
 
 	// Get the config key
@@ -244,7 +245,7 @@ func (c *cmdConfigDeviceGet) run(cmd *cobra.Command, args []string) error {
 
 		dev, ok := profile.Devices[devname]
 		if !ok {
-			return fmt.Errorf(i18n.G("Device doesn't exist"))
+			return errors.New(i18n.G("Device doesn't exist"))
 		}
 
 		fmt.Println(dev[key])
@@ -258,10 +259,10 @@ func (c *cmdConfigDeviceGet) run(cmd *cobra.Command, args []string) error {
 		if !ok {
 			_, ok = inst.ExpandedDevices[devname]
 			if !ok {
-				return fmt.Errorf(i18n.G("Device doesn't exist"))
+				return errors.New(i18n.G("Device doesn't exist"))
 			}
 
-			return fmt.Errorf(i18n.G("Device from profile(s) cannot be retrieved for individual instance"))
+			return errors.New(i18n.G("Device from profile(s) cannot be retrieved for individual instance"))
 		}
 
 		fmt.Println(dev[key])
@@ -311,7 +312,7 @@ func (c *cmdConfigDeviceList) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing name"))
+		return errors.New(i18n.G("Missing name"))
 	}
 
 	// List the devices
@@ -377,7 +378,7 @@ func (c *cmdConfigDeviceOverride) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing name"))
+		return errors.New(i18n.G("Missing name"))
 	}
 
 	// Override the device
@@ -389,12 +390,12 @@ func (c *cmdConfigDeviceOverride) run(cmd *cobra.Command, args []string) error {
 	devname := args[1]
 	_, ok := inst.Devices[devname]
 	if ok {
-		return fmt.Errorf(i18n.G("The device already exists"))
+		return errors.New(i18n.G("The device already exists"))
 	}
 
 	device, ok := inst.ExpandedDevices[devname]
 	if !ok {
-		return fmt.Errorf(i18n.G("The profile device doesn't exist"))
+		return errors.New(i18n.G("The profile device doesn't exist"))
 	}
 
 	if len(args) > 2 {
@@ -471,7 +472,7 @@ func (c *cmdConfigDeviceRemove) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing name"))
+		return errors.New(i18n.G("Missing name"))
 	}
 
 	// Remove the device
@@ -484,7 +485,7 @@ func (c *cmdConfigDeviceRemove) run(cmd *cobra.Command, args []string) error {
 		for _, devname := range args[1:] {
 			_, ok := profile.Devices[devname]
 			if !ok {
-				return fmt.Errorf(i18n.G("Device doesn't exist"))
+				return errors.New(i18n.G("Device doesn't exist"))
 			}
 
 			delete(profile.Devices, devname)
@@ -505,10 +506,10 @@ func (c *cmdConfigDeviceRemove) run(cmd *cobra.Command, args []string) error {
 			if !ok {
 				_, ok := inst.ExpandedDevices[devname]
 				if !ok {
-					return fmt.Errorf(i18n.G("Device doesn't exist"))
+					return errors.New(i18n.G("Device doesn't exist"))
 				}
 
-				return fmt.Errorf(i18n.G("Device from profile(s) cannot be removed from individual instance. Override device or modify profile instead"))
+				return errors.New(i18n.G("Device from profile(s) cannot be removed from individual instance. Override device or modify profile instead"))
 			}
 
 			delete(inst.Devices, devname)
@@ -580,7 +581,7 @@ func (c *cmdConfigDeviceSet) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing name"))
+		return errors.New(i18n.G("Missing name"))
 	}
 
 	// Set the device config key
@@ -599,7 +600,7 @@ func (c *cmdConfigDeviceSet) run(cmd *cobra.Command, args []string) error {
 
 		dev, ok := profile.Devices[devname]
 		if !ok {
-			return fmt.Errorf(i18n.G("Device doesn't exist"))
+			return errors.New(i18n.G("Device doesn't exist"))
 		}
 
 		for k, v := range keys {
@@ -622,10 +623,10 @@ func (c *cmdConfigDeviceSet) run(cmd *cobra.Command, args []string) error {
 		if !ok {
 			_, ok = inst.ExpandedDevices[devname]
 			if !ok {
-				return fmt.Errorf(i18n.G("Device doesn't exist"))
+				return errors.New(i18n.G("Device doesn't exist"))
 			}
 
-			return fmt.Errorf(i18n.G("Device from profile(s) cannot be modified for individual instance. Override device or modify profile instead"))
+			return errors.New(i18n.G("Device from profile(s) cannot be modified for individual instance. Override device or modify profile instead"))
 		}
 
 		for k, v := range keys {
@@ -689,7 +690,7 @@ func (c *cmdConfigDeviceShow) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing name"))
+		return errors.New(i18n.G("Missing name"))
 	}
 
 	// Show the devices
