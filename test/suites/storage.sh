@@ -14,13 +14,13 @@ test_storage() {
   storage_volume="${storage_pool}-vol"
   lxc storage create "$storage_pool" "$lxd_backend"
   lxc storage show "$storage_pool" | sed 's/^description:.*/description: foo/' | lxc storage edit "$storage_pool"
-  lxc storage show "$storage_pool" | grep -q 'description: foo'
+  [ "$(lxc storage get "$storage_pool" -p description)" = "foo" ]
 
   lxc storage volume create "$storage_pool" "$storage_volume"
 
   # Test setting description on a storage volume
   lxc storage volume show "$storage_pool" "$storage_volume" | sed 's/^description:.*/description: bar/' | lxc storage volume edit "$storage_pool" "$storage_volume"
-  lxc storage volume show "$storage_pool" "$storage_volume" | grep -q 'description: bar'
+  [ "$(lxc storage volume get "$storage_pool" "$storage_volume" -p description)" = "bar" ]
 
   # Test creating a storage pool from yaml
   storage_pool_yaml="lxdtest-$(basename "${LXD_DIR}")-pool-yaml"
@@ -32,7 +32,7 @@ config:
 EOF
 
     [ "$(lxc storage get "$storage_pool_yaml" size)" = "2GiB" ]
-    [ "$(lxc storage show "$storage_pool_yaml" | grep -i "description:" | awk '{print $2}')" = "foo" ]
+    [ "$(lxc storage get "$storage_pool_yaml" -p description)" = "foo" ]
   elif [ "${lxd_backend}" = "dir" ]; then
     tempdir=$(mktemp -d)
     lxc storage create "$storage_pool_yaml" "$lxd_backend" <<EOF
@@ -42,7 +42,7 @@ config:
 EOF
 
     [ "$(lxc storage get "$storage_pool_yaml" source)" = "${tempdir}" ]
-    [ "$(lxc storage show "$storage_pool_yaml" | grep -i "description:" | awk '{print $2}')" = "foo" ]
+    [ "$(lxc storage get "$storage_pool_yaml" -p description)" = "foo" ]
   elif [ "${lxd_backend}" = "ceph" ]; then
     lxc storage create "$storage_pool_yaml" "$lxd_backend" <<EOF
 description: foo
@@ -51,7 +51,7 @@ config:
 EOF
 
     [ "$(lxc storage get "$storage_pool_yaml" ceph.cluster_name)" = "ceph" ]
-    [ "$(lxc storage show "$storage_pool_yaml" | grep -i "description:" | awk '{print $2}')" = "foo" ]
+    [ "$(lxc storage get "$storage_pool_yaml" -p description)" = "foo" ]
   fi
 
   # Delete storage pool
