@@ -8,6 +8,11 @@ export LC_ALL="C"
 # Force UTC for consistency
 export TZ="UTC"
 
+if [ -z "${NO_PROXY:-}" ]; then
+  # Prevent proxy usage for some host names/IPs (comma-separated list)
+  export NO_PROXY="127.0.0.1"
+fi
+
 export DEBUG=""
 if [ -n "${LXD_VERBOSE:-}" ]; then
   DEBUG="--verbose"
