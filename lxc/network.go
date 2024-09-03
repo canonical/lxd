@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -156,7 +157,7 @@ func (c *cmdNetworkAttach) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	// Default name is same as network
@@ -241,7 +242,7 @@ func (c *cmdNetworkAttachProfile) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	// Default name is same as network
@@ -393,7 +394,7 @@ func (c *cmdNetworkDelete) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	// Delete the network
@@ -443,7 +444,7 @@ func (c *cmdNetworkDetach) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	// Default name is same as network
@@ -463,7 +464,7 @@ func (c *cmdNetworkDetach) run(cmd *cobra.Command, args []string) error {
 		for n, d := range inst.Devices {
 			if d["type"] == "nic" && (d["parent"] == resource.name || d["network"] == resource.name) {
 				if devName != "" {
-					return fmt.Errorf(i18n.G("More than one device matches, specify the device name"))
+					return errors.New(i18n.G("More than one device matches, specify the device name"))
 				}
 
 				devName = n
@@ -472,16 +473,16 @@ func (c *cmdNetworkDetach) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if devName == "" {
-		return fmt.Errorf(i18n.G("No device found for this network"))
+		return errors.New(i18n.G("No device found for this network"))
 	}
 
 	device, ok := inst.Devices[devName]
 	if !ok {
-		return fmt.Errorf(i18n.G("The specified device doesn't exist"))
+		return errors.New(i18n.G("The specified device doesn't exist"))
 	}
 
 	if device["type"] != "nic" || (device["parent"] != resource.name && device["network"] != resource.name) {
-		return fmt.Errorf(i18n.G("The specified device doesn't match the network"))
+		return errors.New(i18n.G("The specified device doesn't match the network"))
 	}
 
 	// Remove the device
@@ -528,7 +529,7 @@ func (c *cmdNetworkDetachProfile) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	// Default name is same as network
@@ -548,7 +549,7 @@ func (c *cmdNetworkDetachProfile) run(cmd *cobra.Command, args []string) error {
 		for n, d := range profile.Devices {
 			if d["type"] == "nic" && (d["parent"] == resource.name || d["network"] == resource.name) {
 				if devName != "" {
-					return fmt.Errorf(i18n.G("More than one device matches, specify the device name"))
+					return errors.New(i18n.G("More than one device matches, specify the device name"))
 				}
 
 				devName = n
@@ -557,16 +558,16 @@ func (c *cmdNetworkDetachProfile) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if devName == "" {
-		return fmt.Errorf(i18n.G("No device found for this network"))
+		return errors.New(i18n.G("No device found for this network"))
 	}
 
 	device, ok := profile.Devices[devName]
 	if !ok {
-		return fmt.Errorf(i18n.G("The specified device doesn't exist"))
+		return errors.New(i18n.G("The specified device doesn't exist"))
 	}
 
 	if device["type"] != "nic" || (device["parent"] != resource.name && device["network"] != resource.name) {
-		return fmt.Errorf(i18n.G("The specified device doesn't match the network"))
+		return errors.New(i18n.G("The specified device doesn't match the network"))
 	}
 
 	// Remove the device
@@ -633,7 +634,7 @@ func (c *cmdNetworkEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -659,7 +660,7 @@ func (c *cmdNetworkEdit) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !network.Managed {
-		return fmt.Errorf(i18n.G("Only managed networks can be modified"))
+		return errors.New(i18n.G("Only managed networks can be modified"))
 	}
 
 	data, err := yaml.Marshal(&network)
@@ -744,7 +745,7 @@ func (c *cmdNetworkGet) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	// Get the network key
@@ -812,13 +813,13 @@ func (c *cmdNetworkInfo) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	// Targeting.
 	if c.network.flagTarget != "" {
 		if !client.IsClustered() {
-			return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
+			return errors.New(i18n.G("To use --target, the destination remote must be a cluster"))
 		}
 
 		client = client.UseTarget(c.network.flagTarget)
@@ -940,7 +941,7 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 
 	// List the networks
 	if resource.name != "" {
-		return fmt.Errorf(i18n.G("Filtering isn't supported yet"))
+		return errors.New(i18n.G("Filtering isn't supported yet"))
 	}
 
 	networks, err := resource.server.GetNetworks()
@@ -1027,7 +1028,7 @@ func (c *cmdNetworkListLeases) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	// List DHCP leases
@@ -1097,7 +1098,7 @@ func (c *cmdNetworkRename) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	// Rename the network
@@ -1155,7 +1156,7 @@ func (c *cmdNetworkSet) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	// Handle targeting
@@ -1170,7 +1171,7 @@ func (c *cmdNetworkSet) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !network.Managed {
-		return fmt.Errorf(i18n.G("Only managed networks can be modified"))
+		return errors.New(i18n.G("Only managed networks can be modified"))
 	}
 
 	// Set the keys
@@ -1239,7 +1240,7 @@ func (c *cmdNetworkShow) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	// Show the network config
