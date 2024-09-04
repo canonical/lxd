@@ -42,6 +42,7 @@ type cmdMigrate struct {
 	flagStorage      string
 	flagStorageSize  string
 	flagNetwork      string
+	flagMountPaths   []string
 	flagConfig       []string
 	flagSource       string
 
@@ -82,6 +83,7 @@ func (c *cmdMigrate) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagStorage, "storage", "", "Storage pool name"+"``")
 	cmd.Flags().StringVar(&c.flagStorageSize, "storage-size", "", "Size of the instance's storage volume"+"``")
 	cmd.Flags().StringVar(&c.flagNetwork, "network", "", "Network name"+"``")
+	cmd.Flags().StringArrayVar(&c.flagMountPaths, "mount-path", nil, "Additional container mount paths"+"``")
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, "Config key/value to apply to the new instance"+"``")
 	cmd.Flags().StringVar(&c.flagSource, "source", "", "Path to the root filesystem for containers, or to the block device or disk image file for virtual machines"+"``")
 
@@ -486,6 +488,21 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 		}
 	}
 
+	// Configure additional mounts for containers.
+	if len(c.flagMountPaths) > 0 {
+		if config.InstanceArgs.Type != "" && config.InstanceArgs.Type != api.InstanceTypeContainer {
+			return nil, errors.New("Additional mount paths are supported only for containers")
+		}
+
+		for _, path := range c.flagMountPaths {
+			if !shared.PathExists(path) {
+				return nil, fmt.Errorf("Invalid mount path %q: Path does not exist", path)
+			}
+
+			config.Mounts = append(config.Mounts, path)
+		}
+	}
+
 	return config, nil
 }
 
@@ -506,6 +523,12 @@ func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceS
 		} else if instanceType == 2 {
 			config.InstanceArgs.Type = api.InstanceTypeVM
 		}
+	}
+
+	// As soon as we know the instance type, we can check if additional mount paths are supported.
+	// This applies only in case if additional mounts were configured using flags.
+	if len(config.Mounts) > 0 && config.InstanceArgs.Type != api.InstanceTypeContainer {
+		return errors.New("Additional mount paths are supported only for containers")
 	}
 
 	// Project.
@@ -581,8 +604,6 @@ func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceS
 		}
 	}
 
-	var mounts []string
-
 	// Additional mounts for containers
 	if config.InstanceArgs.Type == api.InstanceTypeContainer {
 		addMounts, err := c.global.asker.AskBool("Do you want to add additional filesystem mounts? [default=no]: ", "no")
@@ -592,7 +613,7 @@ func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceS
 
 		if addMounts {
 			for {
-				path, err := c.global.asker.AskString("Please provide a path the filesystem mount path [empty value to continue]: ", "", func(s string) error {
+				path, err := c.global.asker.AskString("Please provide the filesystem mount path [empty value to continue]: ", "", func(s string) error {
 					if s != "" {
 						if shared.PathExists(s) {
 							return nil
@@ -611,10 +632,8 @@ func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceS
 					break
 				}
 
-				mounts = append(mounts, path)
+				config.Mounts = append(config.Mounts, path)
 			}
-
-			config.Mounts = append(config.Mounts, mounts...)
 		}
 	}
 
