@@ -548,6 +548,32 @@ WHERE storage_pools.id = ? AND storage_pools.state = ?
 	return configs, nil
 }
 
+// GetStoragePoolDrivers maps all storage pool names to driver name.
+func (c *ClusterTx) GetStoragePoolDrivers(ctx context.Context) (map[string]string, error) {
+	sql := "SELECT name, driver FROM storage_pools"
+	drivers := make(map[string]string)
+
+	err := query.Scan(ctx, c.tx, sql, func(scan func(dest ...any) error) error {
+		poolName := ""
+		driver := ""
+
+		err := scan(&poolName, &driver)
+		if err != nil {
+			return err
+		}
+
+		drivers[poolName] = driver
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return drivers, nil
+}
+
 // GetStoragePoolNames returns the names of all storage pools.
 func (c *ClusterTx) GetStoragePoolNames(ctx context.Context) ([]string, error) {
 	return c.storagePools(ctx, "")
@@ -587,9 +613,9 @@ func (c *ClusterTx) storagePools(ctx context.Context, where string, args ...any)
 	return pools, nil
 }
 
-// GetStoragePoolDrivers returns the names of all storage drivers currently
+// GetStorageDrivers returns the names of all storage drivers currently
 // being used by at least one storage pool.
-func (c *ClusterTx) GetStoragePoolDrivers(ctx context.Context) ([]string, error) {
+func (c *ClusterTx) GetStorageDrivers(ctx context.Context) ([]string, error) {
 	var poolDriver string
 	query := "SELECT DISTINCT driver FROM storage_pools"
 	inargs := []any{}

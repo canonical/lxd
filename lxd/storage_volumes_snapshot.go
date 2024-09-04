@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -117,7 +118,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 			return err
 		}
 
-		err = project.AllowSnapshotCreation(p)
+		err = limits.AllowSnapshotCreation(p)
 		if err != nil {
 			return err
 		}
@@ -1030,7 +1031,7 @@ func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, t
 			}
 
 			for _, v := range allVolumes {
-				err = project.AllowSnapshotCreation(projects[v.ProjectName])
+				err = limits.AllowSnapshotCreation(projects[v.ProjectName])
 				if err != nil {
 					continue
 				}

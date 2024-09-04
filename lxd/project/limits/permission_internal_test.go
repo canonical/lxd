@@ -1,4 +1,4 @@
-package project
+package limits
 
 import (
 	"testing"

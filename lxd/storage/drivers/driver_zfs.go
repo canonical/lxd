@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/util"
@@ -119,7 +118,7 @@ func (d *zfs) Info() Info {
 	info := Info{
 		Name:                         "zfs",
 		Version:                      zfsVersion,
-		DefaultVMBlockFilesystemSize: deviceConfig.DefaultVMBlockFilesystemSize,
+		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              true,
 		OptimizedBackups:             true,
 		PreservesInodes:              true,

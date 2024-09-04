@@ -11,7 +11,6 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/backup"
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
@@ -649,8 +648,8 @@ func (d *powerflex) ListVolumes() ([]Volume, error) {
 }
 
 // DefaultVMBlockFilesystemSize returns the size of a VM root device block volume's associated filesystem volume.
-func (d *powerflex) DefaultVMBlockFilesystemSize() string {
-	return deviceConfig.DefaultVMPowerFlexBlockFilesystemSize
+func (d *powerflex) defaultVMBlockFilesystemSize() string {
+	return powerFlexDefaultSize
 }
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.

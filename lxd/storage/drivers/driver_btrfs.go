@@ -11,7 +11,6 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
@@ -93,7 +92,7 @@ func (d *btrfs) Info() Info {
 	return Info{
 		Name:                         "btrfs",
 		Version:                      btrfsVersion,
-		DefaultVMBlockFilesystemSize: deviceConfig.DefaultVMBlockFilesystemSize,
+		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              true,
 		OptimizedBackups:             true,
 		OptimizedBackupHeader:        true,

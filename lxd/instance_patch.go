@@ -15,7 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
-	projecthelpers "github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
@@ -200,7 +200,7 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 			apiProfiles = append(apiProfiles, *apiProfile)
 		}
 
-		return projecthelpers.AllowInstanceUpdate(s.GlobalConfig, tx, projectName, name, req, c.LocalConfig())
+		return limits.AllowInstanceUpdate(s.GlobalConfig, tx, projectName, name, req, c.LocalConfig())
 	})
 	if err != nil {
 		return response.SmartError(err)
