@@ -34,14 +34,16 @@ type cmdMigrate struct {
 	global *cmdGlobal
 
 	// Instance options.
-	flagProject     string
-	flagProfiles    []string
-	flagNoProfiles  bool
-	flagStorage     string
-	flagStorageSize string
-	flagNetwork     string
-	flagConfig      []string
-	flagSource      string
+	flagInstanceName string
+	flagInstanceType string
+	flagProject      string
+	flagProfiles     []string
+	flagNoProfiles   bool
+	flagStorage      string
+	flagStorageSize  string
+	flagNetwork      string
+	flagConfig       []string
+	flagSource       string
 
 	// Target server.
 	flagServer string
@@ -72,6 +74,8 @@ func (c *cmdMigrate) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	// Instance flags.
+	cmd.Flags().StringVar(&c.flagInstanceName, "name", "", "Name of the new instance"+"``")
+	cmd.Flags().StringVar(&c.flagInstanceType, "type", "", "Type of the instance to create (container or vm)"+"``")
 	cmd.Flags().StringVar(&c.flagProject, "project", "", "Project name"+"``")
 	cmd.Flags().StringSliceVar(&c.flagProfiles, "profiles", nil, "Profiles to apply on the new instance"+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the instance with no profiles applied"+"``")
@@ -350,6 +354,18 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 		config.InstanceArgs.Source.Type = "migration"
 	}
 
+	// Parse instance type from a flag.
+	if c.flagInstanceType != "" {
+		switch c.flagInstanceType {
+		case "container":
+			config.InstanceArgs.Type = api.InstanceTypeContainer
+		case "vm":
+			config.InstanceArgs.Type = api.InstanceTypeVM
+		default:
+			return nil, fmt.Errorf("Invalid instance type %q: Valid values are [%s]", c.flagInstanceType, strings.Join([]string{"container", "vm"}, ", "))
+		}
+	}
+
 	// Determine project from flags.
 	if c.flagProject != "" {
 		projectNames, err := server.GetProjectNames()
@@ -363,6 +379,20 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 
 		config.Project = c.flagProject
 		server = server.UseProject(config.Project)
+	}
+
+	// Parse instance name from a flag.
+	if c.flagInstanceName != "" {
+		instanceNames, err := server.GetInstanceNames(api.InstanceTypeAny)
+		if err != nil {
+			return nil, err
+		}
+
+		if shared.ValueInSlice(c.flagInstanceName, instanceNames) {
+			return nil, fmt.Errorf("Instance %q already exists", c.flagInstanceName)
+		}
+
+		config.InstanceArgs.Name = c.flagInstanceName
 	}
 
 	// Parse source path from a flag.
@@ -464,16 +494,18 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceServer) error {
 	var err error
 
-	// Provide instance type
-	instanceType, err := c.global.asker.AskInt("Would you like to create a container (1) or virtual-machine (2)?: ", 1, 2, "1", nil)
-	if err != nil {
-		return err
-	}
+	// Instance type.
+	if config.InstanceArgs.Type == "" {
+		instanceType, err := c.global.asker.AskInt("Would you like to create a container (1) or virtual-machine (2)?: ", 1, 2, "1", nil)
+		if err != nil {
+			return err
+		}
 
-	if instanceType == 1 {
-		config.InstanceArgs.Type = api.InstanceTypeContainer
-	} else if instanceType == 2 {
-		config.InstanceArgs.Type = api.InstanceTypeVM
+		if instanceType == 1 {
+			config.InstanceArgs.Type = api.InstanceTypeContainer
+		} else if instanceType == 2 {
+			config.InstanceArgs.Type = api.InstanceTypeVM
+		}
 	}
 
 	// Project.
@@ -498,24 +530,26 @@ func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceS
 	server = server.UseProject(config.Project)
 
 	// Instance name
-	instanceNames, err := server.GetInstanceNames(api.InstanceTypeAny)
-	if err != nil {
-		return err
-	}
-
-	for {
-		instanceName, err := c.global.asker.AskString("Name of the new instance: ", "", nil)
+	if config.InstanceArgs.Name == "" {
+		instanceNames, err := server.GetInstanceNames(api.InstanceTypeAny)
 		if err != nil {
 			return err
 		}
 
-		if shared.ValueInSlice(instanceName, instanceNames) {
-			fmt.Printf("Instance %q already exists\n", instanceName)
-			continue
-		}
+		for {
+			instanceName, err := c.global.asker.AskString("Name of the new instance: ", "", nil)
+			if err != nil {
+				return err
+			}
 
-		config.InstanceArgs.Name = instanceName
-		break
+			if shared.ValueInSlice(instanceName, instanceNames) {
+				fmt.Printf("Instance %q already exists\n", instanceName)
+				continue
+			}
+
+			config.InstanceArgs.Name = instanceName
+			break
+		}
 	}
 
 	if config.SourcePath == "" {
