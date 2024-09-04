@@ -112,6 +112,13 @@ var architectureInstallations = map[int][]Installation{
 				{Code: "OVMF_CODE.secboot.fd", Vars: "OVMF_VARS.fd"},
 			},
 		},
+	}, {
+		Paths: GetenvEdk2Paths("/usr/share/seabios"),
+		Usage: map[FirmwareUsage][]FirmwarePair{
+			CSM: {
+				{Code: "bios-256k.bin", Vars: "bios-256k.bin"},
+			},
+		},
 	}},
 	osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN: {{
 		Paths: GetenvEdk2Paths("/usr/share/AAVMF"),
