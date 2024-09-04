@@ -453,6 +453,14 @@ func (d *cephfs) Validate(config map[string]string) error {
 		//  shortdesc: Number of placement groups when creating missing OSD pools
 		//  scope: global
 		"cephfs.osd_pg_num": validate.Optional(validate.IsInt64),
+		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.osd_pool_size)
+		// This option specifies the number of OSD pool replicas to use
+		// when creating an OSD pool.
+		// ---
+		//  type: string
+		//  defaultdesc: `3`
+		//  shortdesc: Number of RADOS object replicas. Set to 1 for no replication.
+		"cephfs.osd_pool_size": validate.Optional(validate.IsInRange(1, 255)),
 		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.meta_pool)
 		// This option specifies the name for the file metadata OSD pool that should be used when
 		// creating a file system automatically.
