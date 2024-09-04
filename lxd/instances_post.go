@@ -1238,8 +1238,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return err
 			}
-
-			return nil
 		}
 
 		if !clusterNotification {
