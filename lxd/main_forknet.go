@@ -119,6 +119,7 @@ type cmdForknet struct {
 	global *cmdGlobal
 }
 
+// Command performs container network operations.
 func (c *cmdForknet) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -152,6 +153,7 @@ func (c *cmdForknet) Command() *cobra.Command {
 	return cmd
 }
 
+// RunInfo prints the information about a NIC.
 func (c *cmdForknet) RunInfo(cmd *cobra.Command, args []string) error {
 	hostInterfaces, _ := net.Interfaces()
 	networks, err := netutils.NetnsGetifaddrs(-1, hostInterfaces)
@@ -169,6 +171,7 @@ func (c *cmdForknet) RunInfo(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// RunDetach detaches a NIC from the host.
 func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 	lxdPID := args[1]
 	ifName := args[2]
