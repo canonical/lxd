@@ -148,16 +148,6 @@ var architectureInstallations = map[int][]Installation{
 	}},
 }
 
-// GetArchitectureInstallations returns an array of installations for a specific host architecture.
-func GetArchitectureInstallations(hostArch int) []Installation {
-	installations, found := architectureInstallations[hostArch]
-	if found {
-		return installations
-	}
-
-	return []Installation{}
-}
-
 // GetAchitectureFirmwarePairs creates an array of FirmwarePair for a
 // specific host architecture.
 func GetAchitectureFirmwarePairs(hostArch int) []FirmwarePair {
@@ -175,7 +165,7 @@ func GetAchitectureFirmwarePairs(hostArch int) []FirmwarePair {
 func GetArchitectureFirmwarePairsForUsage(hostArch int, usage FirmwareUsage) []FirmwarePair {
 	firmwares := make([]FirmwarePair, 0)
 
-	for _, installation := range GetArchitectureInstallations(hostArch) {
+	for _, installation := range architectureInstallations[hostArch] {
 		usage, found := installation.Usage[usage]
 		if found {
 			for _, firmwarePair := range usage {
