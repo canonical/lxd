@@ -3,9 +3,7 @@
 package util
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -64,41 +62,4 @@ func ReplaceDaemon() error {
 	}
 
 	return nil
-}
-
-// GetQemuFwPaths returns a list of directory paths to search for QEMU firmware files.
-func GetQemuFwPaths() ([]string, error) {
-	var qemuFwPaths []string
-
-	for _, v := range []string{"LXD_QEMU_FW_PATH", "LXD_OVMF_PATH"} {
-		searchPaths := os.Getenv(v)
-		if searchPaths == "" {
-			continue
-		}
-
-		qemuFwPaths = append(qemuFwPaths, strings.Split(searchPaths, ":")...)
-	}
-
-	// Append default paths after ones extracted from env vars so they take precedence.
-	qemuFwPaths = append(qemuFwPaths, "/usr/share/OVMF", "/usr/share/seabios")
-
-	count := 0
-	for i, path := range qemuFwPaths {
-		var err error
-		resolvedPath, err := filepath.EvalSymlinks(path)
-		if err != nil {
-			// don't fail, just skip as some search paths can be optional
-			continue
-		}
-
-		count++
-		qemuFwPaths[i] = resolvedPath
-	}
-
-	// We want to have at least one valid path to search for firmware.
-	if count == 0 {
-		return nil, fmt.Errorf("Failed to find a valid search path for firmware")
-	}
-
-	return qemuFwPaths, nil
 }
