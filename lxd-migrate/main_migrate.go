@@ -69,8 +69,6 @@ func (c *cmdMigrate) command() *cobra.Command {
   It will setup a clean mount tree made of the root filesystem and any
   additional mount you list, then transfer this through LXD's migration
   API to create a new instance from it.
-
-  The same set of options as ` + "`lxc launch`" + ` are also supported.
 `
 	cmd.RunE = c.run
 
