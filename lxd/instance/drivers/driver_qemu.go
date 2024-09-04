@@ -326,6 +326,9 @@ func qemuCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.I
 type qemu struct {
 	common
 
+	// Path to firmware, set at start time.
+	firmwarePath string
+
 	// Cached handles.
 	// Do not use these variables directly, instead use their associated get functions so they
 	// will be initialised on demand.
@@ -1765,6 +1768,11 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	return nil
 }
 
+// FirmwarePath returns the path to firmware, set at start time.
+func (d *qemu) FirmwarePath() string {
+	return d.firmwarePath
+}
+
 func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
 	if d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
 		return nil, errors.New("AMD SEV support is only available on x86_64 systems")
@@ -3177,6 +3185,9 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			roPath:    efiCode,
 			nvramPath: fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
 		}
+
+		// Set firmware path for apparmor profile.
+		d.firmwarePath = driveFirmwareOpts.roPath
 
 		cfg = append(cfg, qemuDriveFirmware(&driveFirmwareOpts)...)
 	}
