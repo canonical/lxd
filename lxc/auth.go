@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -119,7 +120,7 @@ func (c *cmdGroupCreate) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing group name"))
+		return errors.New(i18n.G("Missing group name"))
 	}
 
 	// Create the group
@@ -173,7 +174,7 @@ func (c *cmdGroupDelete) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing group name"))
+		return errors.New(i18n.G("Missing group name"))
 	}
 
 	// Delete the group
@@ -251,7 +252,7 @@ func (c *cmdGroupEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing group name"))
+		return errors.New(i18n.G("Missing group name"))
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -413,7 +414,7 @@ func (c *cmdGroupRename) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing group name"))
+		return errors.New(i18n.G("Missing group name"))
 	}
 
 	// Rename the group
@@ -462,7 +463,7 @@ func (c *cmdGroupShow) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing group name"))
+		return errors.New(i18n.G("Missing group name"))
 	}
 
 	// Show the group
@@ -537,7 +538,7 @@ func (c *cmdGroupPermissionAdd) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing group name"))
+		return errors.New(i18n.G("Missing group name"))
 	}
 
 	group, eTag, err := resource.server.GetAuthGroup(resource.name)
@@ -596,7 +597,7 @@ func (c *cmdGroupPermissionRemove) run(cmd *cobra.Command, args []string) error 
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing group name"))
+		return errors.New(i18n.G("Missing group name"))
 	}
 
 	group, eTag, err := resource.server.GetAuthGroup(resource.name)
@@ -859,7 +860,7 @@ func (c *cmdIdentityShow) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing identity argument"))
+		return errors.New(i18n.G("Missing identity argument"))
 	}
 
 	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
@@ -1000,7 +1001,7 @@ func (c *cmdIdentityEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing identity argument"))
+		return errors.New(i18n.G("Missing identity argument"))
 	}
 
 	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
@@ -1128,7 +1129,7 @@ func (c *cmdIdentityGroupAdd) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing identity argument"))
+		return errors.New(i18n.G("Missing identity argument"))
 	}
 
 	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
@@ -1186,7 +1187,7 @@ func (c *cmdIdentityGroupRemove) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing identity argument"))
+		return errors.New(i18n.G("Missing identity argument"))
 	}
 
 	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
@@ -1492,7 +1493,7 @@ func (c *cmdIdentityProviderGroupCreate) run(cmd *cobra.Command, args []string) 
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing identity provider group name"))
+		return errors.New(i18n.G("Missing identity provider group name"))
 	}
 
 	// Create the identity provider group
@@ -1545,7 +1546,7 @@ func (c *cmdIdentityProviderGroupDelete) run(cmd *cobra.Command, args []string) 
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing identity provider group name"))
+		return errors.New(i18n.G("Missing identity provider group name"))
 	}
 
 	// Delete the identity provider group
@@ -1611,7 +1612,7 @@ func (c *cmdIdentityProviderGroupEdit) run(cmd *cobra.Command, args []string) er
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing identity provider group name"))
+		return errors.New(i18n.G("Missing identity provider group name"))
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -1773,7 +1774,7 @@ func (c *cmdIdentityProviderGroupRename) run(cmd *cobra.Command, args []string) 
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing identity provider group name"))
+		return errors.New(i18n.G("Missing identity provider group name"))
 	}
 
 	// Rename the group
@@ -1822,7 +1823,7 @@ func (c *cmdIdentityProviderGroupShow) run(cmd *cobra.Command, args []string) er
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing group name"))
+		return errors.New(i18n.G("Missing group name"))
 	}
 
 	// Show the group
@@ -1896,7 +1897,7 @@ func (c *cmdIdentityProviderGroupGroupAdd) run(cmd *cobra.Command, args []string
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing identity provider group name argument"))
+		return errors.New(i18n.G("Missing identity provider group name argument"))
 	}
 
 	idpGroup, eTag, err := resource.server.GetIdentityProviderGroup(resource.name)
@@ -1949,7 +1950,7 @@ func (c *cmdIdentityProviderGroupGroupRemove) run(cmd *cobra.Command, args []str
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing identity provider group name argument"))
+		return errors.New(i18n.G("Missing identity provider group name argument"))
 	}
 
 	idpGroup, eTag, err := resource.server.GetIdentityProviderGroup(resource.name)
