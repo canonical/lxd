@@ -19,7 +19,7 @@ import (
 // dqlite client package.
 type RaftNode struct {
 	client.NodeInfo
-	Name string
+	Name string `yaml:"name"`
 }
 
 // RaftRole captures the role of dqlite/raft node.
