@@ -82,7 +82,7 @@ var entityTypes = map[entity.Type]entityTypeDBInfo{
 	entity.TypeInstanceSnapshot:      entityTypeInstanceSnapshot{},
 	entity.TypeNetwork:               entityTypeNetwork{},
 	entity.TypeNetworkACL:            entityTypeNetworkACL{},
-	entity.TypeNode:                  entityTypeClusterMember{},
+	entity.TypeClusterMember:         entityTypeClusterMember{},
 	entity.TypeOperation:             entityTypeOperation{},
 	entity.TypeStoragePool:           entityTypeStoragePool{},
 	entity.TypeStorageVolume:         entityTypeStorageVolume{},
