@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -21,8 +22,8 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-func coalesceErrors(local bool, errors map[string]error) error {
-	if len(errors) == 0 {
+func coalesceErrors(local bool, errs map[string]error) error {
+	if len(errs) == 0 {
 		return nil
 	}
 
@@ -31,7 +32,7 @@ func coalesceErrors(local bool, errors map[string]error) error {
 		errorMsg += "The following instances failed to update state:\n"
 	}
 
-	for instName, err := range errors {
+	for instName, err := range errs {
 		if local {
 			errorMsg += fmt.Sprintf(" - Instance: %s: %v\n", instName, err)
 		} else {
@@ -39,7 +40,7 @@ func coalesceErrors(local bool, errors map[string]error) error {
 		}
 	}
 
-	return fmt.Errorf("%s", errorMsg)
+	return errors.New(errorMsg)
 }
 
 // swagger:operation PUT /1.0/instances instances instances_put
