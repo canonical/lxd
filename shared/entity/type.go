@@ -51,8 +51,8 @@ const (
 	// TypeNetworkACL represents network acl resources.
 	TypeNetworkACL Type = "network_acl"
 
-	// TypeNode represents node resources.
-	TypeNode Type = "node"
+	// TypeClusterMember represents node resources.
+	TypeClusterMember Type = "cluster_member"
 
 	// TypeOperation represents operation resources.
 	TypeOperation Type = "operation"
