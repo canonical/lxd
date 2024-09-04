@@ -587,7 +587,9 @@ func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceS
 		}
 	}
 
-	if config.InstanceArgs.Type == api.InstanceTypeVM {
+	// Ask VM supports the secureboot. In non-interactive mode, security.secureboot can be
+	// configured using --config flag.
+	if !c.flagNonInteractive && config.InstanceArgs.Type == api.InstanceTypeVM {
 		architectureName, _ := osarch.ArchitectureGetLocal()
 
 		if shared.ValueInSlice(architectureName, []string{"x86_64", "aarch64"}) {
