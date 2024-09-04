@@ -160,7 +160,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	}
 
 	if len(line) < 1 || line[0] != 'y' && line[0] != 'Y' {
-		return nil, "", fmt.Errorf("Server certificate rejected by user")
+		return nil, "", errors.New("Server certificate rejected by user")
 	}
 
 	server, err := lxd.ConnectLXD(serverURL, &args)
@@ -355,7 +355,7 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 			}
 
 			if !isImageTypeRaw {
-				return fmt.Errorf(`Source disk format cannot be converted by server. Source disk should be in raw format`)
+				return errors.New("Source disk format cannot be converted by server. Source disk should be in raw format")
 			}
 		}
 
@@ -369,7 +369,7 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 		// Ensure the source file is not a tarball.
 		_, err = tar.NewReader(file).Next()
 		if err == nil {
-			return fmt.Errorf("Source cannot be a tar archive or OVA file")
+			return errors.New("Source cannot be a tar archive or OVA file")
 		}
 
 		return nil
@@ -475,7 +475,7 @@ Additional overrides can be applied at this stage:
 func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if os.Geteuid() != 0 {
-		return fmt.Errorf("This tool must be run as root")
+		return errors.New("This tool must be run as root")
 	}
 
 	// Check conversion options.
@@ -747,7 +747,7 @@ func (c *cmdMigrate) askStorage(server lxd.InstanceServer, config *cmdMigrateDat
 	}
 
 	if len(storagePools) == 0 {
-		return fmt.Errorf("No storage pools available")
+		return errors.New("No storage pools available")
 	}
 
 	storagePool, err := c.global.asker.AskChoice("Please provide the storage pool to use: ", storagePools, "")
