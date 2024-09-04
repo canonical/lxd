@@ -149,11 +149,11 @@ func transferRootDiskForConversion(ctx context.Context, op lxd.Operation, rootfs
 	return op.Wait()
 }
 
-func (c *cmdMigrate) connectLocal() (lxd.InstanceServer, error) {
+func (c *cmdMigrate) connectLocal(path string) (lxd.InstanceServer, error) {
 	args := lxd.ConnectionArgs{}
 	args.UserAgent = fmt.Sprintf("LXD-MIGRATE %s", version.Version)
 
-	return lxd.ConnectLXDUnix("", &args)
+	return lxd.ConnectLXDUnix(path, &args)
 }
 
 func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, authType string, token string) (lxd.InstanceServer, string, error) {
