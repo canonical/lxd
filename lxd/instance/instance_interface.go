@@ -193,6 +193,8 @@ type VM interface {
 
 	AgentCertificate() *x509.Certificate
 
+	FirmwarePath() string
+
 	// UEFI vars handling.
 	UEFIVars() (*api.InstanceUEFIVars, error)
 	UEFIVarsUpdate(newUEFIVarsSet api.InstanceUEFIVars) error
