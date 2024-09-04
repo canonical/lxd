@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"sort"
 	"strings"
 
@@ -81,7 +81,7 @@ func (c *cmdImageAliasCreate) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Alias name missing"))
+		return errors.New(i18n.G("Alias name missing"))
 	}
 
 	// Create the alias
@@ -128,7 +128,7 @@ func (c *cmdImageAliasDelete) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Alias name missing"))
+		return errors.New(i18n.G("Alias name missing"))
 	}
 
 	// Delete the alias
@@ -276,7 +276,7 @@ func (c *cmdImageAliasRename) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Alias name missing"))
+		return errors.New(i18n.G("Alias name missing"))
 	}
 
 	// Rename the alias
