@@ -25,10 +25,25 @@ import (
 	"github.com/canonical/lxd/shared/termios"
 )
 
+func promptConfirmation(prompt string, opname string) error {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print(prompt + "Do you want to proceed? (yes/no): ")
+
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSuffix(input, "\n")
+
+	if !shared.ValueInSlice(strings.ToLower(input), []string{"yes"}) {
+		return fmt.Errorf("%s operation aborted", opname)
+	}
+
+	return nil
+}
+
 type cmdCluster struct {
 	global *cmdGlobal
 }
 
+// Command returns a subcommand for administrating a cluster.
 func (c *cmdCluster) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "cluster"
@@ -41,8 +56,8 @@ func (c *cmdCluster) Command() *cobra.Command {
 	cmd.AddCommand(listDatabase.Command())
 
 	// Recover
-	recover := cmdClusterRecoverFromQuorumLoss{global: c.global}
-	cmd.AddCommand(recover.Command())
+	clusterRecover := cmdClusterRecoverFromQuorumLoss{global: c.global}
+	cmd.AddCommand(clusterRecover.Command())
 
 	// Remove a raft node.
 	removeRaftNode := cmdClusterRemoveRaftNode{global: c.global}
@@ -62,7 +77,7 @@ func (c *cmdCluster) Command() *cobra.Command {
 	return cmd
 }
 
-const SegmentComment = "# Latest dqlite segment ID: %s"
+const segmentComment = "# Latest dqlite segment ID: %s"
 
 // ClusterMember is a more human-readable representation of the db.RaftNode struct.
 type ClusterMember struct {
@@ -104,10 +119,31 @@ func (c ClusterMember) ToRaftNode() (*db.RaftNode, error) {
 	return node, nil
 }
 
+const clusterEditPrompt = `You should run this command only if:
+ - A quorum of cluster members is permanently lost or their addresses have changed
+ - You are *absolutely* sure all LXD daemons are stopped
+ - This instance has the most up to date database
+
+See https://documentation.ubuntu.com/lxd/en/latest/howto/cluster_recover/#reconfigure-the-cluster for more info.`
+
+const clusterEditComment = `# Member roles can be modified. Unrecoverable nodes should be given the role "spare".
+#
+# "voter" - Voting member of the database. A majority of voters is a quorum.
+# "stand-by" - Non-voting member of the database; can be promoted to voter.
+# "spare" - Not a member of the database.
+#
+# The edit is aborted if:
+# - the number of members changes
+# - the name of any member changes
+# - the ID of any member changes
+# - no changes are made
+`
+
 type cmdClusterEdit struct {
 	global *cmdGlobal
 }
 
+// Command returns a command for reconfiguring a cluster.
 func (c *cmdClusterEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "edit"
@@ -119,6 +155,7 @@ func (c *cmdClusterEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command for reconfiguring a cluster.
 func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 	// Make sure that the daemon is not running.
 	_, err := lxd.ConnectLXDUnix("", nil)
@@ -174,8 +211,16 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
+		err = promptConfirmation(clusterEditPrompt, "Cluster edit")
+		if err != nil {
+			return err
+		}
+
 		if len(config.Members) > 0 {
-			data = []byte(fmt.Sprintf(SegmentComment, segmentID) + "\n\n" + string(data))
+			data = []byte(
+				clusterEditComment + "\n\n" +
+					fmt.Sprintf(segmentComment, segmentID) + "\n\n" +
+					string(data))
 		}
 
 		content, err = shared.TextEditor("", data)
@@ -184,6 +229,7 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	var tarballPath string
 	for {
 		newConfig := ClusterConfig{}
 		err = yaml.Unmarshal(content, &newConfig)
@@ -204,7 +250,7 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 			if err == nil {
 				err = validateNewConfig(nodes, newNodes)
 				if err == nil {
-					err = cluster.Reconfigure(database, newNodes)
+					tarballPath, err = cluster.Reconfigure(database, newNodes)
 				}
 			}
 		}
@@ -227,6 +273,10 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 
 		break
 	}
+
+	fmt.Printf("Cluster changes applied; new database state saved to %s\n\n", tarballPath)
+	fmt.Printf("*Before* starting any cluster member, copy %s to %s on all remaining cluster members.\n\n", tarballPath, tarballPath)
+	fmt.Printf("LXD will load this file during startup.\n")
 
 	return nil
 }
@@ -276,6 +326,7 @@ type cmdClusterShow struct {
 	global *cmdGlobal
 }
 
+// Command returns a command for showing the current cluster configuration.
 func (c *cmdClusterShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "show"
@@ -287,6 +338,7 @@ func (c *cmdClusterShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command for showing the current cluster configuration.
 func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
 	database, err := db.OpenNode(filepath.Join(sys.DefaultOS().VarDir, "database"), nil)
 	if err != nil {
@@ -321,7 +373,7 @@ func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(config.Members) > 0 {
-		fmt.Printf(SegmentComment+"\n\n%s", segmentID, data)
+		fmt.Printf(segmentComment+"\n\n%s", segmentID, data)
 	} else {
 		fmt.Print(data)
 	}
@@ -333,6 +385,7 @@ type cmdClusterListDatabase struct {
 	global *cmdGlobal
 }
 
+// Command returns a command for showing the database roles of cluster members.
 func (c *cmdClusterListDatabase) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "list-database"
@@ -344,6 +397,7 @@ func (c *cmdClusterListDatabase) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command for showing the database roles of cluster members.
 func (c *cmdClusterListDatabase) Run(cmd *cobra.Command, args []string) error {
 	os := sys.DefaultOS()
 
@@ -368,11 +422,28 @@ func (c *cmdClusterListDatabase) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+const recoverFromQuorumLossPrompt = `You should run this command only if you are *absolutely* certain that this is
+the only database member left in your cluster AND that other database members will
+never come back (i.e. their LXD daemon won't ever be started again).
+
+This will make this LXD server the only member of the cluster, and it won't
+be possible to perform operations on former cluster members anymore.
+
+However all information about former cluster members will be preserved in the
+database, so you can possibly inspect it for further recovery.
+
+You'll be able to permanently delete from the database all information about
+former cluster members by running "lxc cluster remove <member-name> --force".
+
+See https://documentation.ubuntu.com/lxd/en/latest/howto/cluster_recover/#recover-from-quorum-loss for more
+info.`
+
 type cmdClusterRecoverFromQuorumLoss struct {
 	global             *cmdGlobal
 	flagNonInteractive bool
 }
 
+// Command returns a command for rebuilding a cluster based on the current member.
 func (c *cmdClusterRecoverFromQuorumLoss) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "recover-from-quorum-loss"
@@ -385,6 +456,7 @@ func (c *cmdClusterRecoverFromQuorumLoss) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command for rebuilding a cluster based on the current member.
 func (c *cmdClusterRecoverFromQuorumLoss) Run(cmd *cobra.Command, args []string) error {
 	// Make sure that the daemon is not running.
 	_, err := lxd.ConnectLXDUnix("", nil)
@@ -394,7 +466,7 @@ func (c *cmdClusterRecoverFromQuorumLoss) Run(cmd *cobra.Command, args []string)
 
 	// Prompt for confirmation unless --quiet was passed.
 	if !c.flagNonInteractive {
-		err := c.promptConfirmation()
+		err := promptConfirmation(recoverFromQuorumLossPrompt, "Recover")
 		if err != nil {
 			return err
 		}
@@ -410,40 +482,16 @@ func (c *cmdClusterRecoverFromQuorumLoss) Run(cmd *cobra.Command, args []string)
 	return cluster.Recover(db)
 }
 
-func (c *cmdClusterRecoverFromQuorumLoss) promptConfirmation() error {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print(`You should run this command only if you are *absolutely* certain that this is
-the only database node left in your cluster AND that other database nodes will
-never come back (i.e. their LXD daemon won't ever be started again).
-
-This will make this LXD instance the only member of the cluster, and it won't
-be possible to perform operations on former cluster members anymore.
-
-However all information about former cluster members will be preserved in the
-database, so you can possibly inspect it for further recovery.
-
-You'll be able to permanently delete from the database all information about
-former cluster members by running "lxc cluster remove <member-name> --force".
-
-See https://documentation.ubuntu.com/lxd/en/latest/howto/cluster_recover/#recover-from-quorum-loss for more
-info.
-
-Do you want to proceed? (yes/no): `)
-	input, _ := reader.ReadString('\n')
-	input = strings.TrimSuffix(input, "\n")
-
-	if !shared.ValueInSlice(strings.ToLower(input), []string{"yes"}) {
-		return fmt.Errorf("Recover operation aborted")
-	}
-
-	return nil
-}
+const removeRaftNodePrompt = `You should run this command only if you ended up in an
+inconsistent state where a cluster member has been uncleanly removed (i.e. it
+doesn't show up in "lxc cluster list" but it's still in the raft configuration).`
 
 type cmdClusterRemoveRaftNode struct {
 	global             *cmdGlobal
 	flagNonInteractive bool
 }
 
+// Command returns a command for removing a raft node from the currently running database.
 func (c *cmdClusterRemoveRaftNode) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "remove-raft-node <address>"
@@ -456,6 +504,7 @@ func (c *cmdClusterRemoveRaftNode) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command for removing a raft node from the currently running database.
 func (c *cmdClusterRemoveRaftNode) Run(cmd *cobra.Command, args []string) error {
 	if len(args) != 1 {
 		_ = cmd.Help()
@@ -466,7 +515,7 @@ func (c *cmdClusterRemoveRaftNode) Run(cmd *cobra.Command, args []string) error 
 
 	// Prompt for confirmation unless --quiet was passed.
 	if !c.flagNonInteractive {
-		err := c.promptConfirmation()
+		err := promptConfirmation(removeRaftNodePrompt, "Remove raft node")
 		if err != nil {
 			return err
 		}
@@ -481,23 +530,6 @@ func (c *cmdClusterRemoveRaftNode) Run(cmd *cobra.Command, args []string) error 
 	_, _, err = client.RawQuery("DELETE", endpoint, nil, "")
 	if err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func (c *cmdClusterRemoveRaftNode) promptConfirmation() error {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print(`You should run this command only if you ended up in an
-inconsistent state where a node has been uncleanly removed (i.e. it doesn't show
-up in "lxc cluster list" but it's still in the raft configuration).
-
-Do you want to proceed? (yes/no): `)
-	input, _ := reader.ReadString('\n')
-	input = strings.TrimSuffix(input, "\n")
-
-	if !shared.ValueInSlice(strings.ToLower(input), []string{"yes"}) {
-		return fmt.Errorf("Remove raft node operation aborted")
 	}
 
 	return nil

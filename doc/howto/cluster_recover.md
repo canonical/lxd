@@ -2,47 +2,50 @@
 # How to recover a cluster
 
 It might happen that one or several members of your cluster go offline or become unreachable.
-In that case, no operations are possible on this member, and neither are operations that require a state change across all members.
+If too many cluster members go offline, no operations will be possible on the cluster.
 See {ref}`clustering-offline-members` and {ref}`cluster-automatic-evacuation` for more information.
 
-If you can bring the offline cluster members back or delete them from the cluster, operation resumes as normal.
-If this is not possible, there are a few ways to recover the cluster, depending on the scenario that caused the failure.
-See the following sections for details.
+If you can bring the offline cluster members back up, operation resumes as normal.
+If the cluster members are lost permanently (e.g. disk failure), it is possible
+to recover any remaining cluster members.
 
 ```{note}
-When your cluster is in a state that needs recovery, most `lxc` commands do not work, because the LXD client cannot connect to the LXD daemon.
+When your cluster is in a state that needs recovery, most `lxc` commands do not
+work because the LXD database does not respond when a majority of database
+voters are inaccessible.
 
-Therefore, the commands to recover the cluster are provided directly by the LXD daemon (`lxd`).
+The commands to recover a cluster are provided directly by the LXD daemon (`lxd`)
+because they modify database files directly instead of making requests to the
+LXD daemon.
+
 Run `lxd cluster --help` for an overview of all available commands.
 ```
 
-## Recover from quorum loss
+## Database members
 
 Every LXD cluster has a specific number of members (configured through {config:option}`server-cluster:cluster.max_voters`) that serve as voting members of the distributed database.
-If you permanently lose a majority of these cluster members (for example, you have a three-member cluster and you lose two members), the cluster loses quorum and becomes unavailable.
-However, if at least one database member survives, it is possible to recover the cluster.
+If you lose a majority of these cluster members (for example, you have a three-member cluster and you lose two members), the cluster loses quorum and becomes unavailable.
 
-To do so, complete the following steps:
+To determine which members have (or had) database roles, log on to any surviving member of your cluster and run the following command:
 
-1. Log on to any surviving member of your cluster and run the following command:
+    sudo lxd cluster list-database
 
-       sudo lxd cluster list-database
+## Recover from quorum loss
 
-   This command shows which cluster members have one of the database roles.
-1. Pick one of the listed database members that is still online as the new leader.
-   Log on to the machine (if it differs from the one you are already logged on to).
+If only one cluster member with the database role survives, complete the following
+steps. See [Reconfigure the cluster](#reconfigure-the-cluster) below for recovering
+more than one member.
+
 1. Make sure that the LXD daemon is not running on the machine.
    For example, if you're using the snap:
 
        sudo snap stop lxd
 
-1. Log on to all other cluster members that are still online and stop the LXD daemon.
-1. On the server that you picked as the new leader, run the following command:
+1. Use the following command to reconfigure the database:
 
        sudo lxd cluster recover-from-quorum-loss
 
-1. Start the LXD daemon again on all machines, starting with the new leader.
-   For example, if you're using the snap:
+1. Start the LXD daemon again. For example, if you're using the snap:
 
        sudo snap start lxd
 
@@ -54,25 +57,34 @@ This can help you with further recovery steps if you need to re-create the lost 
 To permanently delete the cluster members that you have lost, force-remove them.
 See {ref}`cluster-manage-delete-members`.
 
-## Recover cluster members with changed addresses
+## Reconfigure the cluster
+
+```{important}
+It is highly recommended to take a backup of `/var/snap/lxd/common/lxd/database`
+(for snap users) or `/var/lib/lxd/lxd/database` (otherwise) before reconfiguring
+the cluster.
+```
 
 If some members of your cluster are no longer reachable, or if the cluster itself is unreachable due to a change in IP address or listening port number, you can reconfigure the cluster.
 
-To do so, edit the cluster configuration on each member of the cluster and change the IP addresses or listening port numbers as required.
-You cannot remove any members during this process.
-The cluster configuration must contain the description of the full cluster, so you must do the changes for all cluster members on all cluster members.
+To do so, choose one database member to edit the cluster configuration.
+Once the cluster edit is complete you will need to manually copy the reconfigured global database to every other surviving member.
 
-You can edit the {ref}`clustering-member-roles` of the different members, but with the following limitations:
+You can change the IP addresses or listening port numbers for each member as required.
+You cannot add or remove any members during this process.
+The cluster configuration must contain the description of the full cluster.
+
+You can edit the {ref}`clustering-member-roles` of the members, but with the following limitations:
 
 - A cluster member that does not have a `database*` role cannot become a voter, because it might lack a global database.
 - At least two members must remain voters (except in the case of a two-member cluster, where one voter suffices), or there will be no quorum.
 
-Log on to each cluster member and complete the following steps:
-
-1. Stop the LXD daemon.
+Before performing the recovery, stop the LXD daemon on all surviving cluster members.
    For example, if you're using the snap:
 
-       sudo snap stop lxd
+    sudo snap stop lxd
+
+Complete the following steps on one database member:
 
 1. Run the following command:
 
@@ -100,12 +112,24 @@ Log on to each cluster member and complete the following steps:
 
    You can edit the addresses and the roles.
 
-After doing the changes on all cluster members, start the LXD daemon on all members again.
-For example, if you're using the snap:
+1. When the cluster configuration has been changed on one member, LXD will create
+   a tarball of the global database (`/var/snap/lxd/common/lxd/database/lxd_recovery_db.tar.gz`
+   for snap installations or `/var/lib/lxd/database/lxd_recovery_db.tar.gz`).
+   Copy this recovery tarball to the same path on all remaining cluster members.
 
-    sudo snap start lxd
+   ```{note}
+   The tarball can be removed from the first member after it is generated, but
+   it does not have to be.
+   ```
 
-The cluster should now be fully available again with all members reporting in.
+1. Once the tarball has been copied to all remaining cluster members, start the
+   LXD daemon on all members again. LXD will load the recovery tarball on startup.
+
+   If you're using the snap:
+
+       sudo snap start lxd
+
+The cluster should now be fully available again with all surviving members reporting in.
 No information has been deleted from the database.
 All information about the cluster members and their instances is still there.
 
