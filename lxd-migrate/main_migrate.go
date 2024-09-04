@@ -33,6 +33,11 @@ import (
 type cmdMigrate struct {
 	global *cmdGlobal
 
+	// Instance options.
+	flagProfiles   []string
+	flagNoProfiles bool
+
+	// Other.
 	flagRsyncArgs      string
 	flagConversionOpts []string
 }
@@ -54,6 +59,12 @@ func (c *cmdMigrate) command() *cobra.Command {
   The same set of options as ` + "`lxc launch`" + ` are also supported.
 `
 	cmd.RunE = c.run
+
+	// Instance flags.
+	cmd.Flags().StringSliceVar(&c.flagProfiles, "profiles", nil, "Profiles to apply on the new instance"+"``")
+	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the instance with no profiles applied"+"``")
+
+	// Other flags.
 	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "", "Extra arguments to pass to rsync"+"``")
 	cmd.Flags().StringSliceVar(&c.flagConversionOpts, "conversion", []string{"format"}, "Comma-separated list of conversion options to apply. Allowed values are: [format, virtio]")
 
@@ -258,17 +269,17 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	return c.connectTarget(serverURL, certPath, keyPath, authType, token)
 }
 
-func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, error) {
-	var err error
-
-	config := cmdMigrateData{}
-
-	config.InstanceArgs = api.InstancesPost{
-		Source: api.InstanceSource{
-			Type:              "conversion",
-			Mode:              "push",
-			ConversionOptions: c.flagConversionOpts,
-		},
+// newMigrateData creates a new migration configuration from the provided flags. The configuration is
+// validated and an error is returned if any of the flags contain an invalid value. A server connection
+// is required for some of the validations, such as checking if the instance name is available.
+func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData, error) {
+	config := &cmdMigrateData{}
+	config.InstanceArgs.Config = map[string]string{}
+	config.InstanceArgs.Devices = map[string]map[string]string{}
+	config.InstanceArgs.Source = api.InstanceSource{
+		Type:              "conversion",
+		Mode:              "push",
+		ConversionOptions: c.flagConversionOpts,
 	}
 
 	// If server does not support conversion, fallback to migration.
@@ -279,13 +290,38 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 		config.InstanceArgs.Source.Type = "migration"
 	}
 
-	config.InstanceArgs.Config = map[string]string{}
-	config.InstanceArgs.Devices = map[string]map[string]string{}
+	// Configure profiles from flags.
+	if c.flagNoProfiles {
+		config.InstanceArgs.Profiles = []string{}
+	} else if len(c.flagProfiles) > 0 {
+		profileNames, err := server.GetProfileNames()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, profile := range c.flagProfiles {
+			if !shared.ValueInSlice(profile, profileNames) {
+				return nil, fmt.Errorf("Profile %q not found", profile)
+			}
+		}
+
+		config.InstanceArgs.Profiles = c.flagProfiles
+	} else {
+		config.InstanceArgs.Profiles = []string{"default"}
+	}
+
+	return config, nil
+}
+
+// runInteractive populates the migration request by interacting with the user. If any value is already
+// provided using flags, the corresponding questions are skipped.
+func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceServer) error {
+	var err error
 
 	// Provide instance type
 	instanceType, err := c.global.asker.AskInt("Would you like to create a container (1) or virtual-machine (2)?: ", 1, 2, "1", nil)
 	if err != nil {
-		return cmdMigrateData{}, err
+		return err
 	}
 
 	if instanceType == 1 {
@@ -297,13 +333,13 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 	// Project
 	projectNames, err := server.GetProjectNames()
 	if err != nil {
-		return cmdMigrateData{}, err
+		return err
 	}
 
 	if len(projectNames) > 1 {
 		project, err := c.global.asker.AskChoice("Project to create the instance in [default=default]: ", projectNames, "default")
 		if err != nil {
-			return cmdMigrateData{}, err
+			return err
 		}
 
 		config.Project = project
@@ -315,13 +351,13 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 	// Instance name
 	instanceNames, err := server.GetInstanceNames(api.InstanceTypeAny)
 	if err != nil {
-		return cmdMigrateData{}, err
+		return err
 	}
 
 	for {
 		instanceName, err := c.global.asker.AskString("Name of the new instance: ", "", nil)
 		if err != nil {
-			return cmdMigrateData{}, err
+			return err
 		}
 
 		if shared.ValueInSlice(instanceName, instanceNames) {
@@ -374,7 +410,7 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 		return nil
 	})
 	if err != nil {
-		return cmdMigrateData{}, err
+		return err
 	}
 
 	if config.InstanceArgs.Type == api.InstanceTypeVM {
@@ -383,7 +419,7 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 		if shared.ValueInSlice(architectureName, []string{"x86_64", "aarch64"}) {
 			hasSecureBoot, err := c.global.asker.AskBool("Does the VM support UEFI Secure Boot? [default=no]: ", "no")
 			if err != nil {
-				return cmdMigrateData{}, err
+				return err
 			}
 
 			if !hasSecureBoot {
@@ -398,7 +434,7 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 	if config.InstanceArgs.Type == api.InstanceTypeContainer {
 		addMounts, err := c.global.asker.AskBool("Do you want to add additional filesystem mounts? [default=no]: ", "no")
 		if err != nil {
-			return cmdMigrateData{}, err
+			return err
 		}
 
 		if addMounts {
@@ -415,7 +451,7 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 					return nil
 				})
 				if err != nil {
-					return cmdMigrateData{}, err
+					return err
 				}
 
 				if path == "" {
@@ -449,20 +485,20 @@ Additional overrides can be applied at this stage:
 
 		choice, err := c.global.asker.AskInt("Please pick one of the options above [default=1]: ", 1, 5, "1", nil)
 		if err != nil {
-			return cmdMigrateData{}, err
+			return err
 		}
 
 		switch choice {
 		case 1:
-			return config, nil
+			return nil
 		case 2:
-			err = c.askProfiles(server, &config)
+			err = c.askProfiles(server, config)
 		case 3:
-			err = c.askConfig(&config)
+			err = c.askConfig(config)
 		case 4:
-			err = c.askStorage(server, &config)
+			err = c.askStorage(server, config)
 		case 5:
-			err = c.askNetwork(server, &config)
+			err = c.askNetwork(server, config)
 		}
 
 		if err != nil {
@@ -524,7 +560,12 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		defer func() { _ = server.DeleteCertificate(clientFingerprint) }()
 	}
 
-	config, err := c.runInteractive(server)
+	config, err := c.newMigrateData(server)
+	if err != nil {
+		return err
+	}
+
+	err = c.runInteractive(config, server)
 	if err != nil {
 		return err
 	}
