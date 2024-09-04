@@ -5635,6 +5635,14 @@
 						}
 					},
 					{
+						"ceph.osd.pool_size": {
+							"defaultdesc": "`3`",
+							"longdesc": "This option specifies the name for the file metadata OSD pool that should be used when\ncreating a file system automatically.",
+							"shortdesc": "Number of RADOS object replicas. Set to 1 for no replication.",
+							"type": "string"
+						}
+					},
+					{
 						"ceph.rbd.clone_copy": {
 							"defaultdesc": "`true`",
 							"longdesc": "Enable this option to use RBD lightweight clones rather than full dataset copies.",
@@ -5844,6 +5852,14 @@
 							"longdesc": "This option specifies the number of OSD pool placement groups (`pg_num`) to use\nwhen creating a missing OSD pool.",
 							"scope": "global",
 							"shortdesc": "Number of placement groups when creating missing OSD pools",
+							"type": "string"
+						}
+					},
+					{
+						"cephfs.osd_pool_size": {
+							"defaultdesc": "`3`",
+							"longdesc": "This option specifies the number of OSD pool replicas to use\nwhen creating an OSD pool.",
+							"shortdesc": "Number of RADOS object replicas. Set to 1 for no replication.",
 							"type": "string"
 						}
 					},
