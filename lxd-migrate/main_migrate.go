@@ -42,9 +42,14 @@ type cmdMigrate struct {
 	flagNetwork     string
 	flagConfig      []string
 
+	// Target server.
+	flagServer string
+	flagToken  string
+
 	// Other.
 	flagRsyncArgs      string
 	flagConversionOpts []string
+	flagNonInteractive bool
 }
 
 func (c *cmdMigrate) command() *cobra.Command {
@@ -74,9 +79,14 @@ func (c *cmdMigrate) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagNetwork, "network", "", "Network name"+"``")
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, "Config key/value to apply to the new instance"+"``")
 
+	// Target server.
+	cmd.Flags().StringVar(&c.flagServer, "server", "", "Unix or HTTPS URL of the target server"+"``")
+	cmd.Flags().StringVar(&c.flagToken, "token", "", "Authentication token for HTTPS remote"+"``")
+
 	// Other flags.
 	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "", "Extra arguments to pass to rsync"+"``")
 	cmd.Flags().StringSliceVar(&c.flagConversionOpts, "conversion", []string{"format"}, "Comma-separated list of conversion options to apply. Allowed values are: [format, virtio]")
+	cmd.Flags().BoolVar(&c.flagNonInteractive, "non-interactive", false, "Prevent further interaction if migration questions are incomplete"+"``")
 
 	return cmd
 }
@@ -137,27 +147,50 @@ func (c *cmdMigrateData) render() string {
 }
 
 func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
-	local, err := c.connectLocal("")
-	if err == nil {
-		useLocal, err := c.global.asker.AskBool("The local LXD server is the target [default=yes]: ", "yes")
+	var serverURL string
+	var err error
+
+	if c.flagNonInteractive || c.flagServer != "" {
+		// Try to connect to unix socket if server URL is empty or has a "unix:" prefix.
+		if c.flagServer == "" || strings.HasPrefix(c.flagServer, "unix:") {
+			path := strings.TrimLeft(strings.TrimPrefix(c.flagServer, "unix:"), "/")
+			local, err := c.connectLocal(path)
+			if err != nil {
+				return nil, "", err
+			}
+
+			return local, "", err
+		}
+
+		// Otherwise, just parse the provided address.
+		serverURL, err = parseURL(c.flagServer)
+		if err != nil {
+			return nil, "", err
+		}
+	} else {
+		// Suggest connection to local server, if accessible.
+		local, err := c.connectLocal("")
+		if err == nil {
+			useLocal, err := c.global.asker.AskBool("The local LXD server is the target [default=yes]: ", "yes")
+			if err != nil {
+				return nil, "", err
+			}
+
+			if useLocal {
+				return local, "", nil
+			}
+		}
+
+		// Parse server address.
+		serverURL, err = c.global.asker.AskString("Please provide LXD server URL: ", "", nil)
 		if err != nil {
 			return nil, "", err
 		}
 
-		if useLocal {
-			return local, "", nil
+		serverURL, err = parseURL(serverURL)
+		if err != nil {
+			return nil, "", err
 		}
-	}
-
-	// Server address
-	serverURL, err := c.global.asker.AskString("Please provide LXD server URL: ", "", nil)
-	if err != nil {
-		return nil, "", err
-	}
-
-	serverURL, err = parseURL(serverURL)
-	if err != nil {
-		return nil, "", err
 	}
 
 	args := lxd.ConnectionArgs{
@@ -172,15 +205,20 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 
 	digest := shared.CertFingerprint(certificate)
 
-	fmt.Println("Certificate fingerprint:", digest)
-	fmt.Print("ok (y/n)? ")
-	line, err := shared.ReadStdin()
-	if err != nil {
-		return nil, "", err
-	}
+	if !c.flagNonInteractive {
+		fmt.Println("Certificate fingerprint:", digest)
+		fmt.Print("ok (y/n)? ")
 
-	if len(line) < 1 || line[0] != 'y' && line[0] != 'Y' {
-		return nil, "", errors.New("Server certificate rejected by user")
+		line, err := shared.ReadStdin()
+		if err != nil {
+			return nil, "", err
+		}
+
+		if len(line) < 1 || !strings.EqualFold(string(line[0]), "y") {
+			return nil, "", errors.New("Server certificate rejected by user")
+		}
+
+		fmt.Println("")
 	}
 
 	server, err := lxd.ConnectLXD(serverURL, &args)
@@ -193,8 +231,6 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 		return nil, "", fmt.Errorf("Failed to get server: %w", err)
 	}
 
-	fmt.Println("")
-
 	type AuthMethod int
 
 	const (
@@ -206,70 +242,82 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	// TLS is always available for LXD servers
 	var availableAuthMethods []AuthMethod
 	var authMethod AuthMethod
-
-	i := 1
-
-	if shared.ValueInSlice(api.AuthenticationMethodTLS, apiServer.AuthMethods) {
-		fmt.Printf("%d) Use a certificate token\n", i)
-		availableAuthMethods = append(availableAuthMethods, authMethodTLSCertificateToken)
-		i++
-		fmt.Printf("%d) Use an existing TLS authentication certificate\n", i)
-		availableAuthMethods = append(availableAuthMethods, authMethodTLSCertificate)
-		i++
-		fmt.Printf("%d) Generate a temporary TLS authentication certificate\n", i)
-		availableAuthMethods = append(availableAuthMethods, authMethodTLSTemporaryCertificate)
-	}
-
-	if len(apiServer.AuthMethods) > 1 || shared.ValueInSlice(api.AuthenticationMethodTLS, apiServer.AuthMethods) {
-		authMethodInt, err := c.global.asker.AskInt("Please pick an authentication mechanism above: ", 1, int64(i), "", nil)
-		if err != nil {
-			return nil, "", err
-		}
-
-		authMethod = availableAuthMethods[authMethodInt-1]
-	}
-
+	var authType string
 	var certPath string
 	var keyPath string
 	var token string
 
-	if authMethod == authMethodTLSCertificate {
-		certPath, err = c.global.asker.AskString("Please provide the certificate path: ", "", func(path string) error {
-			if !shared.PathExists(path) {
-				return errors.New("File does not exist")
-			}
+	if c.flagToken != "" {
+		token = c.flagToken
+		authMethod = authMethodTLSCertificateToken
 
-			return nil
-		})
+		_, err = shared.CertificateTokenDecode(token)
 		if err != nil {
-			return nil, "", err
+			return nil, "", fmt.Errorf("Failed to decode certificate token: %w", err)
+		}
+	} else {
+		if c.flagNonInteractive {
+			return nil, "", errors.New("Authentication token is required for HTTPS remote in non-interactive mode")
 		}
 
-		keyPath, err = c.global.asker.AskString("Please provide the keyfile path: ", "", func(path string) error {
-			if !shared.PathExists(path) {
-				return errors.New("File does not exist")
-			}
+		i := 1
 
-			return nil
-		})
-		if err != nil {
-			return nil, "", err
+		if shared.ValueInSlice(api.AuthenticationMethodTLS, apiServer.AuthMethods) {
+			fmt.Printf("%d) Use a certificate token\n", i)
+			availableAuthMethods = append(availableAuthMethods, authMethodTLSCertificateToken)
+			i++
+			fmt.Printf("%d) Use an existing TLS authentication certificate\n", i)
+			availableAuthMethods = append(availableAuthMethods, authMethodTLSCertificate)
+			i++
+			fmt.Printf("%d) Generate a temporary TLS authentication certificate\n", i)
+			availableAuthMethods = append(availableAuthMethods, authMethodTLSTemporaryCertificate)
 		}
-	} else if authMethod == authMethodTLSCertificateToken {
-		token, err = c.global.asker.AskString("Please provide the certificate token: ", "", func(token string) error {
-			_, err := shared.CertificateTokenDecode(token)
+
+		if len(apiServer.AuthMethods) > 1 || shared.ValueInSlice(api.AuthenticationMethodTLS, apiServer.AuthMethods) {
+			authMethodInt, err := c.global.asker.AskInt("Please pick an authentication mechanism above: ", 1, int64(i), "", nil)
 			if err != nil {
-				return err
+				return nil, "", err
 			}
 
-			return nil
-		})
-		if err != nil {
-			return nil, "", err
+			authMethod = availableAuthMethods[authMethodInt-1]
+		}
+
+		if authMethod == authMethodTLSCertificate {
+			certPath, err = c.global.asker.AskString("Please provide the certificate path: ", "", func(path string) error {
+				if !shared.PathExists(path) {
+					return errors.New("File does not exist")
+				}
+
+				return nil
+			})
+			if err != nil {
+				return nil, "", err
+			}
+
+			keyPath, err = c.global.asker.AskString("Please provide the keyfile path: ", "", func(path string) error {
+				if !shared.PathExists(path) {
+					return errors.New("File does not exist")
+				}
+
+				return nil
+			})
+			if err != nil {
+				return nil, "", err
+			}
+		} else if authMethod == authMethodTLSCertificateToken {
+			token, err = c.global.asker.AskString("Please provide the certificate token: ", "", func(token string) error {
+				_, err := shared.CertificateTokenDecode(token)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			})
+			if err != nil {
+				return nil, "", err
+			}
 		}
 	}
-
-	var authType string
 
 	switch authMethod {
 	case authMethodTLSCertificate, authMethodTLSTemporaryCertificate, authMethodTLSCertificateToken:
