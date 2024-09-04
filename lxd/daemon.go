@@ -68,6 +68,7 @@ import (
 	"github.com/canonical/lxd/lxd/storage/s3/miniod"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/lxd/task"
+	"github.com/canonical/lxd/lxd/ubuntupro"
 	"github.com/canonical/lxd/lxd/ucred"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/lxd/warnings"
@@ -163,6 +164,9 @@ type Daemon struct {
 
 	// Syslog listener cancel function.
 	syslogSocketCancel context.CancelFunc
+
+	// Ubuntu Pro settings
+	ubuntuPro *ubuntupro.Client
 }
 
 // DaemonConfig holds configuration values for Daemon.
@@ -598,6 +602,7 @@ func (d *Daemon) State() *state.State {
 		ServerUUID:          d.serverUUID,
 		StartTime:           d.startTime,
 		Authorizer:          d.authorizer,
+		UbuntuPro:           d.ubuntuPro,
 	}
 }
 
@@ -1806,6 +1811,9 @@ func (d *Daemon) init() error {
 
 	// Start all background tasks
 	d.tasks.Start(d.shutdownCtx)
+
+	// Load Ubuntu Pro configuration before starting any instances.
+	d.ubuntuPro = ubuntupro.New(d.os.ReleaseInfo["NAME"], d.shutdownCtx)
 
 	// Restore instances
 	instancesStart(d.State(), instances)
