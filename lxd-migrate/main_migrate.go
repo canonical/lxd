@@ -34,6 +34,7 @@ type cmdMigrate struct {
 	global *cmdGlobal
 
 	// Instance options.
+	flagProject     string
 	flagProfiles    []string
 	flagNoProfiles  bool
 	flagStorage     string
@@ -65,6 +66,7 @@ func (c *cmdMigrate) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	// Instance flags.
+	cmd.Flags().StringVar(&c.flagProject, "project", "", "Project name"+"``")
 	cmd.Flags().StringSliceVar(&c.flagProfiles, "profiles", nil, "Profiles to apply on the new instance"+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the instance with no profiles applied"+"``")
 	cmd.Flags().StringVar(&c.flagStorage, "storage", "", "Storage pool name"+"``")
@@ -298,6 +300,21 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 		config.InstanceArgs.Source.Type = "migration"
 	}
 
+	// Determine project from flags.
+	if c.flagProject != "" {
+		projectNames, err := server.GetProjectNames()
+		if err != nil {
+			return nil, err
+		}
+
+		if !shared.ValueInSlice(c.flagProject, projectNames) {
+			return nil, fmt.Errorf("Project %q does not exist", c.flagProject)
+		}
+
+		config.Project = c.flagProject
+		server = server.UseProject(config.Project)
+	}
+
 	// Configure profiles from flags.
 	if c.flagNoProfiles {
 		config.InstanceArgs.Profiles = []string{}
@@ -399,23 +416,26 @@ func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceS
 		config.InstanceArgs.Type = api.InstanceTypeVM
 	}
 
-	// Project
-	projectNames, err := server.GetProjectNames()
-	if err != nil {
-		return err
-	}
+	// Project.
+	if config.Project == "" {
+		config.Project = "default"
 
-	if len(projectNames) > 1 {
-		project, err := c.global.asker.AskChoice("Project to create the instance in [default=default]: ", projectNames, "default")
+		projectNames, err := server.GetProjectNames()
 		if err != nil {
 			return err
 		}
 
-		config.Project = project
-		server = server.UseProject(config.Project)
-	} else {
-		config.Project = "default"
+		if len(projectNames) > 1 {
+			project, err := c.global.asker.AskChoice("Project to create the instance in [default=default]: ", projectNames, "default")
+			if err != nil {
+				return err
+			}
+
+			config.Project = project
+		}
 	}
+
+	server = server.UseProject(config.Project)
 
 	// Instance name
 	instanceNames, err := server.GetInstanceNames(api.InstanceTypeAny)
