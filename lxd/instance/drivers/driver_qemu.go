@@ -2050,7 +2050,7 @@ func (d *qemu) qemuArchConfig(arch int) (path string, bus string, err error) {
 		}
 
 		return path, "pcie", nil
-	} else if arch == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN {
+	} else if arch == osarch.ARCH_32BIT_ARMV7_LITTLE_ENDIAN || arch == osarch.ARCH_32BIT_ARMV8_LITTLE_ENDIAN || arch == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN {
 		path, err := exec.LookPath(basePath + "qemu-system-aarch64")
 		if err != nil {
 			return "", "", err
