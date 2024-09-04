@@ -972,6 +972,28 @@ test_projects_restrictions() {
   lxc project set p1 restricted.devices.disk=block
   ! lxc profile device add default data disk pool="${pool}" path=/mnt source="v-proj$$" || false
 
+  restrictedDir="/opt/projects_restricted"
+  mkdir "${restrictedDir}"
+  tmpDir=$(mktemp -d)
+  optDir=$(mktemp -d --tmpdir="${restrictedDir}")
+
+  # Block unmanaged disk devices
+  lxc project set p1 restricted.devices.disk=managed
+  ! lxc profile device add default data disk path=/mnt source="${tmpDir}" || false
+
+  # Allow unmanaged disk devices
+  lxc project set p1 restricted.devices.disk=allow
+  lxc profile device add default data disk path=/mnt source="${tmpDir}"
+  lxc profile device remove default data
+
+  # Path restrictions
+  lxc project set p1 restricted.devices.disk.paths="${restrictedDir}"
+  ! lxc profile device add default data disk path=/mnt source="${tmpDir}" || false
+  lxc profile device add default data disk path=/mnt source="${optDir}"
+  lxc profile device remove default data
+
+  rm -r "${tmpDir}" "${optDir}" "${restrictedDir}"
+
   # Setting restricted.containers.nesting to 'allow' makes it possible to create
   # nested containers.
   lxc project set p1 restricted.containers.nesting=allow
