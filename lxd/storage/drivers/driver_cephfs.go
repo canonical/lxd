@@ -1,10 +1,12 @@
 package drivers
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/migration"
@@ -99,6 +101,29 @@ func (d *cephfs) FillConfig() error {
 
 	if d.config["cephfs.user.name"] == "" {
 		d.config["cephfs.user.name"] = CephDefaultUser
+	}
+
+	if d.config["cephfs.osd_pool_size"] == "" {
+		size, err := shared.TryRunCommand("ceph",
+			"--name", fmt.Sprintf("client.%s", d.config["cephfs.user.name"]),
+			"--cluster", d.config["cephfs.cluster_name"],
+			"config",
+			"get",
+			"mon",
+			"osd_pool_default_size",
+			"--format",
+			"json")
+		if err != nil {
+			return err
+		}
+
+		var sizeInt int
+		err = json.Unmarshal([]byte(size), &sizeInt)
+		if err != nil {
+			return err
+		}
+
+		d.config["cephfs.osd_pool_size"] = strconv.Itoa(sizeInt)
 	}
 
 	return nil

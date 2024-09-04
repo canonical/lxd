@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/migration"
@@ -110,6 +111,29 @@ func (d *ceph) FillConfig() error {
 
 	if d.config["ceph.osd.pg_num"] == "" {
 		d.config["ceph.osd.pg_num"] = "32"
+	}
+
+	if d.config["ceph.osd.pool_size"] == "" {
+		size, err := shared.TryRunCommand("ceph",
+			"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
+			"--cluster", d.config["ceph.cluster_name"],
+			"config",
+			"get",
+			"mon",
+			"osd_pool_default_size",
+			"--format",
+			"json")
+		if err != nil {
+			return err
+		}
+
+		var sizeInt int
+		err = json.Unmarshal([]byte(size), &sizeInt)
+		if err != nil {
+			return err
+		}
+
+		d.config["ceph.osd.pool_size"] = strconv.Itoa(sizeInt)
 	}
 
 	return nil
