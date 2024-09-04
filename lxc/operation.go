@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -133,7 +134,7 @@ func (c *cmdOperationList) run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 	if resource.name != "" {
-		return fmt.Errorf(i18n.G("Filtering isn't supported yet"))
+		return errors.New(i18n.G("Filtering isn't supported yet"))
 	}
 
 	// Get operations
