@@ -396,6 +396,23 @@ func (d *ceph) Validate(config map[string]string) error {
 
 // Update applies any driver changes required from a configuration change.
 func (d *ceph) Update(changedConfig map[string]string) error {
+	newSize := changedConfig["ceph.osd.pool_size"]
+	if newSize != d.config["ceph.osd.pool_size"] && newSize != "" {
+		_, err := shared.TryRunCommand("ceph",
+			"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
+			"--cluster", d.config["ceph.cluster_name"],
+			"osd",
+			"pool",
+			"set",
+			d.config["ceph.osd.pool_name"],
+			"size",
+			newSize,
+			"--yes-i-really-mean-it")
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
