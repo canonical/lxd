@@ -49,7 +49,7 @@ config:
 EOF
   # Check that the size and description are set correctly
   [ "$(lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")" testvolume-yaml size)" = "3GiB" ]
-  [ "$(lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" testvolume-yaml | grep -i "description:" | awk '{print $2}')" = "foo" ]
+  [ "$(lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")" testvolume-yaml -p description)" = "foo" ]
 
   # create containers
   lxc launch testimage c1 -c security.privileged=true
