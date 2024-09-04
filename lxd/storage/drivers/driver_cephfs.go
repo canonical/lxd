@@ -225,6 +225,20 @@ func (d *cephfs) Create() error {
 						"--yes-i-really-really-mean-it",
 					)
 				})
+
+				_, err = shared.TryRunCommand("ceph",
+					"--name", fmt.Sprintf("client.%s", d.config["cephfs.user.name"]),
+					"--cluster", d.config["cephfs.cluster_name"],
+					"osd",
+					"pool",
+					"set",
+					pool,
+					"size",
+					d.config["cephfs.osd_pool_size"],
+					"--yes-i-really-mean-it")
+				if err != nil {
+					return err
+				}
 			}
 		}
 

@@ -195,6 +195,20 @@ func (d *ceph) Create() error {
 
 		revert.Add(func() { _ = d.osdDeletePool() })
 
+		_, err = shared.TryRunCommand("ceph",
+			"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
+			"--cluster", d.config["ceph.cluster_name"],
+			"osd",
+			"pool",
+			"set",
+			d.config["ceph.osd.pool_name"],
+			"size",
+			d.config["ceph.osd.pool_size"],
+			"--yes-i-really-mean-it")
+		if err != nil {
+			return err
+		}
+
 		// Initialize the pool. This is not necessary but allows the pool to be monitored.
 		_, err = shared.TryRunCommand("rbd",
 			"--id", d.config["ceph.user.name"],
