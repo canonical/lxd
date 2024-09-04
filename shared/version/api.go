@@ -426,6 +426,7 @@ var APIExtensions = []string{
 	"metadata_configuration_scope",
 	"unix_device_hotplug_ownership_inherit",
 	"unix_device_hotplug_subsystem_device_option",
+	"storage_ceph_osd_pool_size",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
