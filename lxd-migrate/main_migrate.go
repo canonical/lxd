@@ -737,9 +737,20 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = c.runInteractive(config, server)
-	if err != nil {
-		return err
+	if c.flagNonInteractive {
+		// In non-interactive mode, print the instance to be created and continue with the migration.
+		fmt.Println("\nInstance to be created:")
+		scanner := bufio.NewScanner(strings.NewReader(config.render()))
+		for scanner.Scan() {
+			fmt.Printf("  %s\n", scanner.Text())
+		}
+	} else {
+		// Otherwise, run in interactive mode where user is asked for missing information
+		// and given the opportunity to review and modify the instance configuration.
+		err = c.runInteractive(config, server)
+		if err != nil {
+			return err
+		}
 	}
 
 	if config.Project != "" {
