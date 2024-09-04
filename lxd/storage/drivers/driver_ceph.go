@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -341,6 +342,13 @@ func (d *ceph) Validate(config map[string]string) error {
 		//  defaultdesc: `32`
 		//  shortdesc: Number of placement groups for the OSD storage pool
 		"ceph.osd.pg_num": validate.IsAny,
+		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.osd.pool_size)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `3`
+		//  shortdesc: Number of RADOS object replicas. Set to 1 for no replication.
+		"ceph.osd.pool_size": validate.Optional(validate.IsInRange(1, math.MaxInt64)),
 		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.osd.pool_name)
 		//
 		// ---
