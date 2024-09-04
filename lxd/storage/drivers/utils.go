@@ -22,6 +22,9 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// defaultVMBlockFilesystemSize is the size of a VM root device block volume's associated filesystem volume.
+const defaultVMBlockFilesystemSize = "100MiB"
+
 // MinBlockBoundary minimum block boundary size to use.
 const MinBlockBoundary = 8192
 
