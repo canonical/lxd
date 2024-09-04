@@ -91,6 +91,7 @@ var patches = []patch{
 	{name: "storage_set_volume_uuid_v2", stage: patchPostDaemonStorage, run: patchStorageSetVolumeUUIDV2},
 	{name: "storage_move_custom_iso_block_volumes_v2", stage: patchPostDaemonStorage, run: patchStorageRenameCustomISOBlockVolumesV2},
 	{name: "storage_unset_invalid_block_settings_v2", stage: patchPostDaemonStorage, run: patchStorageUnsetInvalidBlockSettingsV2},
+	{name: "entity_type_instance_snapshot_on_delete_trigger_typo_fix", stage: patchPreLoadClusterConfig, run: patchEntityTypeInstanceSnapshotOnDeleteTriggerTypoFix},
 	{name: "instance_remove_volatile_last_state_ip_addresses", stage: patchPostDaemonStorage, run: patchInstanceRemoveVolatileLastStateIPAddresses},
 }
 
@@ -1328,6 +1329,21 @@ DELETE FROM storage_volumes_config
 	AND storage_volumes_config.key IN ("block.filesystem", "block.mount_options")
 	`)
 	return err
+}
+
+// patchEntityTypeInstanceSnapshotOnDeleteTriggerTypoFix drops the misspelled on_instance_snaphot_delete trigger on all cluster members, if it exists.
+func patchEntityTypeInstanceSnapshotOnDeleteTriggerTypoFix(_ string, d *Daemon) error {
+	var err error
+	s := d.State()
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		_, err = tx.Tx().Exec(`DROP TRIGGER IF EXISTS on_instance_snaphot_delete`)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to remove trigger: %w", err)
+	}
+
+	return nil
 }
 
 // patchInstanceRemoveVolatileLastStateIPAddresses removes the volatile.*.last_state.ip_addresses config key from instances.
