@@ -4,7 +4,9 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"sync"
 
+	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -49,4 +51,23 @@ func CreateRequestor(r *http.Request) *api.EventLifecycleRequestor {
 // in the request context for later use.
 func SaveConnectionInContext(ctx context.Context, connection net.Conn) context.Context {
 	return context.WithValue(ctx, CtxConn, connection)
+}
+
+// CountStartedRequest tracks the request as started for the API metrics and
+// injects a callback function to track the request as completed.
+func CountStartedRequest(r *http.Request) {
+	requestURL := *r.URL
+
+	// Set the callback function to track the request as completed.
+	// Use sync.Once to ensure it can be called at most once.
+	var once sync.Once
+	callbackFunc := func(result metrics.RequestResult) {
+		once.Do(func() {
+			metrics.TrackCompletedRequest(requestURL, result)
+		})
+	}
+
+	SetCtxValue(r, MetricsCallbackFunc, callbackFunc)
+
+	metrics.TrackStartedRequest(requestURL)
 }
