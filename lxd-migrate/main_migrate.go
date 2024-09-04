@@ -41,6 +41,7 @@ type cmdMigrate struct {
 	flagStorageSize string
 	flagNetwork     string
 	flagConfig      []string
+	flagSource      string
 
 	// Target server.
 	flagServer string
@@ -78,6 +79,7 @@ func (c *cmdMigrate) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagStorageSize, "storage-size", "", "Size of the instance's storage volume"+"``")
 	cmd.Flags().StringVar(&c.flagNetwork, "network", "", "Network name"+"``")
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, "Config key/value to apply to the new instance"+"``")
+	cmd.Flags().StringVar(&c.flagSource, "source", "", "Path to the root filesystem for containers, or to the block device or disk image file for virtual machines"+"``")
 
 	// Target server.
 	cmd.Flags().StringVar(&c.flagServer, "server", "", "Unix or HTTPS URL of the target server"+"``")
@@ -363,6 +365,16 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 		server = server.UseProject(config.Project)
 	}
 
+	// Parse source path from a flag.
+	if c.flagSource != "" {
+		err := c.checkSource(c.flagSource, config.InstanceArgs.Type, config.InstanceArgs.Source.Type)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid source path %q: %w", c.flagSource, err)
+		}
+
+		config.SourcePath = c.flagSource
+	}
+
 	// Configure profiles from flags.
 	if c.flagNoProfiles {
 		config.InstanceArgs.Profiles = []string{}
@@ -506,48 +518,18 @@ func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceS
 		break
 	}
 
-	var question string
-
-	// Provide source path
-	if config.InstanceArgs.Type == api.InstanceTypeVM {
-		question = "Please provide the path to a disk, partition, or image file: "
-	} else {
-		question = "Please provide the path to a root filesystem: "
-	}
-
-	config.SourcePath, err = c.global.asker.AskString(question, "", func(s string) error {
-		if !shared.PathExists(s) {
-			return errors.New("Path does not exist")
+	if config.SourcePath == "" {
+		question := "Please provide the path to a root filesystem: "
+		if config.InstanceArgs.Type == api.InstanceTypeVM {
+			question = "Please provide the path to the block device or disk image file: "
 		}
 
-		if config.InstanceArgs.Type == api.InstanceTypeVM && config.InstanceArgs.Source.Type == "migration" {
-			isImageTypeRaw, err := isImageTypeRaw(s)
-			if err != nil {
-				return err
-			}
-
-			if !isImageTypeRaw {
-				return errors.New("Source disk format cannot be converted by server. Source disk should be in raw format")
-			}
-		}
-
-		file, err := os.Open(s)
+		config.SourcePath, err = c.global.asker.AskString(question, "", func(s string) error {
+			return c.checkSource(s, config.InstanceArgs.Type, config.InstanceArgs.Source.Type)
+		})
 		if err != nil {
 			return err
 		}
-
-		defer file.Close()
-
-		// Ensure the source file is not a tarball.
-		_, err = tar.NewReader(file).Next()
-		if err == nil {
-			return errors.New("Source cannot be a tar archive or OVA file")
-		}
-
-		return nil
-	})
-	if err != nil {
-		return err
 	}
 
 	if config.InstanceArgs.Type == api.InstanceTypeVM {
@@ -973,6 +955,40 @@ func (c *cmdMigrate) askNetwork(server lxd.InstanceServer, config *cmdMigrateDat
 		"name":    "eth0",
 		"type":    "nic",
 		"network": network,
+	}
+
+	return nil
+}
+
+// checkSource checks if the source path is valid and can be used for migration.
+// Source path can represent a disk, image, or partition.
+func (c *cmdMigrate) checkSource(path string, instanceType api.InstanceType, migrationMode string) error {
+	if !shared.PathExists(path) {
+		return errors.New("Path does not exist")
+	}
+
+	if instanceType == api.InstanceTypeVM && migrationMode == "migration" {
+		isImageTypeRaw, err := isImageTypeRaw(path)
+		if err != nil {
+			return err
+		}
+
+		if !isImageTypeRaw {
+			return errors.New("Source disk format cannot be converted by server. Source disk should be in raw format")
+		}
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	// Ensure the source file is not a tarball.
+	_, err = tar.NewReader(file).Next()
+	if err == nil {
+		return errors.New("Source cannot be a tar archive or OVA file")
 	}
 
 	return nil
