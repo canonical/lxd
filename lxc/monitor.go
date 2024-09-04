@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
@@ -76,7 +77,7 @@ func (c *cmdMonitor) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.flagFormat != "pretty" && c.flagLogLevel != "" {
-		return fmt.Errorf(i18n.G("Log level filtering can only be used with pretty formatting"))
+		return errors.New(i18n.G("Log level filtering can only be used with pretty formatting"))
 	}
 
 	// Connect to the event source.
