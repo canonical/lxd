@@ -484,6 +484,29 @@ func (d *cephfs) Validate(config map[string]string) error {
 
 // Update applies any driver changes required from a configuration change.
 func (d *cephfs) Update(changedConfig map[string]string) error {
+	newSize, changed := changedConfig["cephfs.osd_pool_size"]
+	if changed {
+		for _, poolName := range []string{d.config["cephfs.meta_pool"], d.config["cephfs.data_pool"]} {
+			if poolName == "" {
+				continue
+			}
+
+			_, err := shared.TryRunCommand("ceph",
+				"--name", "client."+d.config["cephfs.user.name"],
+				"--cluster", d.config["cephfs.cluster_name"],
+				"osd",
+				"pool",
+				"set",
+				poolName,
+				"size",
+				newSize,
+				"--yes-i-really-mean-it")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
