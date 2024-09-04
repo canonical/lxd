@@ -141,7 +141,7 @@ var entityTypes = map[Type]typeInfo{
 	TypeInstanceSnapshot:      instanceSnapshot{},
 	TypeNetwork:               network{},
 	TypeNetworkACL:            networkACL{},
-	TypeNode:                  clusterMember{},
+	TypeClusterMember:         clusterMember{},
 	TypeOperation:             operation{},
 	TypeStoragePool:           storagePool{},
 	TypeStorageVolume:         storageVolume{},
