@@ -39,6 +39,7 @@ type cmdMigrate struct {
 	flagStorage     string
 	flagStorageSize string
 	flagNetwork     string
+	flagConfig      []string
 
 	// Other.
 	flagRsyncArgs      string
@@ -69,6 +70,7 @@ func (c *cmdMigrate) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagStorage, "storage", "", "Storage pool name"+"``")
 	cmd.Flags().StringVar(&c.flagStorageSize, "storage-size", "", "Size of the instance's storage volume"+"``")
 	cmd.Flags().StringVar(&c.flagNetwork, "network", "", "Network name"+"``")
+	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, "Config key/value to apply to the new instance"+"``")
 
 	// Other flags.
 	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "", "Extra arguments to pass to rsync"+"``")
@@ -314,6 +316,18 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 		config.InstanceArgs.Profiles = c.flagProfiles
 	} else {
 		config.InstanceArgs.Profiles = []string{"default"}
+	}
+
+	// Parse instance config from flags.
+	if len(c.flagConfig) > 0 {
+		for _, entry := range c.flagConfig {
+			key, value, found := strings.Cut(entry, "=")
+			if !found {
+				return nil, fmt.Errorf("Invalid configuration entry: Entry %q is not in key=value format", entry)
+			}
+
+			config.InstanceArgs.Config[key] = value
+		}
 	}
 
 	// Configure root storage disk from flags.
