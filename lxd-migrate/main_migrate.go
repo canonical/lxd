@@ -36,6 +36,7 @@ type cmdMigrate struct {
 	// Instance options.
 	flagProfiles   []string
 	flagNoProfiles bool
+	flagNetwork    string
 
 	// Other.
 	flagRsyncArgs      string
@@ -63,6 +64,7 @@ func (c *cmdMigrate) command() *cobra.Command {
 	// Instance flags.
 	cmd.Flags().StringSliceVar(&c.flagProfiles, "profiles", nil, "Profiles to apply on the new instance"+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the instance with no profiles applied"+"``")
+	cmd.Flags().StringVar(&c.flagNetwork, "network", "", "Network name"+"``")
 
 	// Other flags.
 	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "", "Extra arguments to pass to rsync"+"``")
@@ -115,7 +117,7 @@ func (c *cmdMigrateData) render() string {
 
 	network, ok := c.InstanceArgs.Devices["eth0"]
 	if ok {
-		data.Network = network["parent"]
+		data.Network = network["network"]
 	}
 
 	out, err := yaml.Marshal(&data)
@@ -308,6 +310,24 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 		config.InstanceArgs.Profiles = c.flagProfiles
 	} else {
 		config.InstanceArgs.Profiles = []string{"default"}
+	}
+
+	// Configure instance NIC connected to network from a flag.
+	if c.flagNetwork != "" {
+		networks, err := server.GetNetworkNames()
+		if err != nil {
+			return nil, err
+		}
+
+		if !shared.ValueInSlice(c.flagNetwork, networks) {
+			return nil, fmt.Errorf("Network %q not found", c.flagNetwork)
+		}
+
+		config.InstanceArgs.Devices["eth0"] = map[string]string{
+			"name":    "eth0",
+			"type":    "nic",
+			"network": c.flagNetwork,
+		}
 	}
 
 	return config, nil
@@ -833,10 +853,9 @@ func (c *cmdMigrate) askNetwork(server lxd.InstanceServer, config *cmdMigrateDat
 	}
 
 	config.InstanceArgs.Devices["eth0"] = map[string]string{
-		"type":    "nic",
-		"nictype": "bridged",
-		"parent":  network,
 		"name":    "eth0",
+		"type":    "nic",
+		"network": network,
 	}
 
 	return nil
