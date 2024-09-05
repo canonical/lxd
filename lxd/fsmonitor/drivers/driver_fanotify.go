@@ -224,7 +224,7 @@ func (d *fanotify) getEvents(ctx context.Context, mountFd int) {
 			}
 
 			for identifier, f := range d.watches[path] {
-				ret := f(path, action.String())
+				ret := f(path, action)
 				if !ret {
 					delete(d.watches[path], identifier)
 
