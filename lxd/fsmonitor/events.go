@@ -4,15 +4,16 @@ package fsmonitor
 type Event int
 
 const (
-	// Add represents the add event.
-	Add Event = iota
-	// Remove represents the remove event.
-	Remove
+	// EventAdd represents the add event.
+	EventAdd Event = iota
+
+	// EventRemove represents the remove event.
+	EventRemove
 )
 
 func (e Event) String() string {
 	return map[Event]string{
-		Add:    "add",
-		Remove: "remove",
+		EventAdd:    "add",
+		EventRemove: "remove",
 	}[e]
 }
