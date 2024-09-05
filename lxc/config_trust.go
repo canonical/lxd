@@ -187,7 +187,7 @@ func (c *cmdConfigTrustAdd) run(cmd *cobra.Command, args []string) error {
 		cert.Type = api.CertificateTypeClient
 	} else if c.flagType == "metrics" {
 		if cert.Token {
-			return fmt.Errorf(i18n.G("Cannot use metrics type certificate when using a token"))
+			return errors.New(i18n.G("Cannot use metrics type certificate when using a token"))
 		}
 
 		cert.Type = api.CertificateTypeMetrics
@@ -265,7 +265,7 @@ func (c *cmdConfigTrustEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing certificate fingerprint"))
+		return errors.New(i18n.G("Missing certificate fingerprint"))
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -388,7 +388,7 @@ func (c *cmdConfigTrustList) run(cmd *cobra.Command, args []string) error {
 
 		certBlock, _ := pem.Decode([]byte(cert.Certificate))
 		if certBlock == nil {
-			return fmt.Errorf(i18n.G("Invalid certificate"))
+			return errors.New(i18n.G("Invalid certificate"))
 		}
 
 		tlsCert, err := x509.ParseCertificate(certBlock.Bytes)
@@ -673,7 +673,7 @@ func (c *cmdConfigTrustShow) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing certificate fingerprint"))
+		return errors.New(i18n.G("Missing certificate fingerprint"))
 	}
 
 	// Show the certificate configuration

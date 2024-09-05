@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -56,13 +57,13 @@ func CancelableWait(rawOp any, progress *ProgressRenderer) error {
 			}
 
 			if err == nil {
-				return fmt.Errorf(i18n.G("Remote operation canceled by user"))
+				return errors.New(i18n.G("Remote operation canceled by user"))
 			}
 
 			count++
 
 			if count == 3 {
-				return fmt.Errorf(i18n.G("User signaled us three times, exiting. The remote operation will keep running"))
+				return errors.New(i18n.G("User signaled us three times, exiting. The remote operation will keep running"))
 			}
 
 			if progress != nil {
