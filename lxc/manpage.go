@@ -36,6 +36,15 @@ func (c *cmdManpage) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// If asked to do all commands, mark them all visible.
+	for _, c := range c.global.cmd.Commands() {
+		if c.Name() == "completion" {
+			continue
+		}
+
+		c.Hidden = false
+	}
+
 	// Generate the documentation.
 	switch c.flagFormat {
 	case "man":

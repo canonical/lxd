@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -32,6 +33,10 @@ func (c *cmdStart) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Start instances`))
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return c.global.cmpInstances(toComplete)
+	}
+
 	return cmd
 }
 
@@ -53,6 +58,10 @@ func (c *cmdPause) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Pause instances`))
 	cmd.Aliases = []string{"freeze"}
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return c.global.cmpInstances(toComplete)
+	}
 
 	return cmd
 }
@@ -77,6 +86,10 @@ func (c *cmdRestart) command() *cobra.Command {
 
 The opposite of "lxc pause" is "lxc start".`))
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return c.global.cmpInstances(toComplete)
+	}
+
 	return cmd
 }
 
@@ -97,6 +110,10 @@ func (c *cmdStop) command() *cobra.Command {
 	cmd.Short = i18n.G("Stop instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Stop instances`))
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return c.global.cmpInstances(toComplete)
+	}
 
 	return cmd
 }
@@ -144,7 +161,7 @@ func (c *cmdAction) Command(action string) *cobra.Command {
 func (c *cmdAction) doActionAll(action string, resource remoteResource) error {
 	if resource.name != "" {
 		// both --all and instance name given.
-		return fmt.Errorf(i18n.G("Both --all and instance name given"))
+		return errors.New(i18n.G("Both --all and instance name given"))
 	}
 
 	remote := resource.remote
@@ -216,7 +233,7 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 	}
 
 	if action == "stop" && c.flagForce && c.flagConsole != "" {
-		return fmt.Errorf(i18n.G("--console can't be used while forcing instance shutdown"))
+		return errors.New(i18n.G("--console can't be used while forcing instance shutdown"))
 	}
 
 	remote, name, err := conf.ParseRemote(nameArg)
@@ -321,7 +338,7 @@ func (c *cmdAction) run(cmd *cobra.Command, args []string) error {
 		for _, resource := range resources {
 			// We don't allow instance names with --all.
 			if resource.name != "" {
-				return fmt.Errorf(i18n.G("Both --all and instance name given"))
+				return errors.New(i18n.G("Both --all and instance name given"))
 			}
 
 			// See if we can use the bulk API.
@@ -365,11 +382,11 @@ func (c *cmdAction) run(cmd *cobra.Command, args []string) error {
 
 	if c.flagConsole != "" {
 		if c.flagAll {
-			return fmt.Errorf(i18n.G("--console can't be used with --all"))
+			return errors.New(i18n.G("--console can't be used with --all"))
 		}
 
 		if len(names) != 1 {
-			return fmt.Errorf(i18n.G("--console only works with a single instance"))
+			return errors.New(i18n.G("--console only works with a single instance"))
 		}
 	}
 

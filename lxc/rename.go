@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -21,6 +22,14 @@ func (c *cmdRename) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Rename instances and snapshots`))
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpInstances(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
@@ -48,7 +57,7 @@ func (c *cmdRename) run(cmd *cobra.Command, args []string) error {
 	if sourceRemote != destRemote {
 		// We just do renames
 		if strings.Contains(args[1], ":") {
-			return fmt.Errorf(i18n.G("Can't specify a different remote for rename"))
+			return errors.New(i18n.G("Can't specify a different remote for rename"))
 		}
 
 		// Don't require the remote to be passed as both source and target

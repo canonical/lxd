@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -66,6 +67,14 @@ lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size
 	cmd.Flags().BoolVar(&c.flagEmpty, "empty", false, i18n.G("Create an empty instance"))
 	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Create a virtual machine"))
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		return c.global.cmpImages(toComplete)
+	}
+
 	return cmd
 }
 
@@ -130,7 +139,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 
 	if c.flagEmpty {
 		if len(args) > 1 {
-			return nil, "", fmt.Errorf(i18n.G("--empty cannot be combined with an image name"))
+			return nil, "", errors.New(i18n.G("--empty cannot be combined with an image name"))
 		}
 
 		if len(args) == 0 {
@@ -166,13 +175,13 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 	if !c.global.flagQuiet {
 		if d.HasExtension("instance_create_start") && launch {
 			if name == "" {
-				fmt.Printf(i18n.G("Launching the instance") + "\n")
+				fmt.Print(i18n.G("Launching the instance") + "\n")
 			} else {
 				fmt.Printf(i18n.G("Launching %s")+"\n", name)
 			}
 		} else {
 			if name == "" {
-				fmt.Printf(i18n.G("Creating the instance") + "\n")
+				fmt.Print(i18n.G("Creating the instance") + "\n")
 			} else {
 				fmt.Printf(i18n.G("Creating %s")+"\n", name)
 			}
@@ -330,7 +339,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 
 		if conf.Remotes[iremote].Protocol != "simplestreams" {
 			if imgInfo.Type != "virtual-machine" && c.flagVM {
-				return nil, "", fmt.Errorf(i18n.G("Asked for a VM but image is of type container"))
+				return nil, "", errors.New(i18n.G("Asked for a VM but image is of type container"))
 			}
 
 			req.Type = api.InstanceType(imgInfo.Type)
@@ -390,7 +399,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 		// Try using the older "containers" field
 		instances, ok = opInfo.Resources["containers"]
 		if !ok || len(instances) == 0 {
-			return nil, "", fmt.Errorf(i18n.G("Didn't get any affected image, instance or snapshot from server"))
+			return nil, "", errors.New(i18n.G("Didn't get any affected image, instance or snapshot from server"))
 		}
 	}
 
@@ -422,7 +431,7 @@ func (c *cmdInit) checkNetwork(d lxd.InstanceServer, name string) {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "\n"+i18n.G("The instance you are starting doesn't have any network attached to it.")+"\n")
-	fmt.Fprintf(os.Stderr, "  "+i18n.G("To create a new network, use: lxc network create")+"\n")
-	fmt.Fprintf(os.Stderr, "  "+i18n.G("To attach a network to an instance, use: lxc network attach")+"\n\n")
+	fmt.Fprint(os.Stderr, "\n"+i18n.G("The instance you are starting doesn't have any network attached to it.")+"\n")
+	fmt.Fprint(os.Stderr, "  "+i18n.G("To create a new network, use: lxc network create")+"\n")
+	fmt.Fprint(os.Stderr, "  "+i18n.G("To attach a network to an instance, use: lxc network attach")+"\n\n")
 }

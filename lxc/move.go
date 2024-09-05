@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -67,6 +68,18 @@ lxc move <instance>/<old snapshot name> <instance>/<new snapshot name>
 	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
 	cmd.Flags().BoolVar(&c.flagAllowInconsistent, "allow-inconsistent", false, i18n.G("Ignore copy errors for volatile files"))
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpInstances(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpRemotes(false)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -114,7 +127,7 @@ func (c *cmdMove) run(cmd *cobra.Command, args []string) error {
 	// simply won't work).
 	if sourceRemote == destRemote && c.flagTarget == "" && c.flagStorage == "" && c.flagTargetProject == "" {
 		if c.flagConfig != nil || c.flagDevice != nil || c.flagProfile != nil || c.flagNoProfiles {
-			return fmt.Errorf(i18n.G("Can't override configuration or profiles in local rename"))
+			return errors.New(i18n.G("Can't override configuration or profiles in local rename"))
 		}
 
 		source, err := conf.GetInstanceServer(sourceRemote)
@@ -128,11 +141,11 @@ func (c *cmdMove) run(cmd *cobra.Command, args []string) error {
 			dstParent, dstSnap, dstIsSnap := api.GetParentAndSnapshotName(destName)
 
 			if srcParent != dstParent {
-				return fmt.Errorf(i18n.G("Invalid new snapshot name, parent must be the same as source"))
+				return errors.New(i18n.G("Invalid new snapshot name, parent must be the same as source"))
 			}
 
 			if !dstIsSnap {
-				return fmt.Errorf(i18n.G("Invalid new snapshot name"))
+				return errors.New(i18n.G("Invalid new snapshot name"))
 			}
 
 			op, err := source.RenameInstanceSnapshot(srcParent, srcSnap, api.InstanceSnapshotPost{Name: dstSnap})
@@ -165,19 +178,19 @@ func (c *cmdMove) run(cmd *cobra.Command, args []string) error {
 		// cluster member to another, let's use the dedicated API.
 		if sourceRemote == destRemote {
 			if c.flagInstanceOnly {
-				return fmt.Errorf(i18n.G("The --instance-only flag can't be used with --target"))
+				return errors.New(i18n.G("The --instance-only flag can't be used with --target"))
 			}
 
 			if c.flagStorage != "" {
-				return fmt.Errorf(i18n.G("The --storage flag can't be used with --target"))
+				return errors.New(i18n.G("The --storage flag can't be used with --target"))
 			}
 
 			if c.flagTargetProject != "" {
-				return fmt.Errorf(i18n.G("The --target-project flag can't be used with --target"))
+				return errors.New(i18n.G("The --target-project flag can't be used with --target"))
 			}
 
 			if c.flagMode != moveDefaultMode {
-				return fmt.Errorf(i18n.G("The --mode flag can't be used with --target"))
+				return errors.New(i18n.G("The --mode flag can't be used with --target"))
 			}
 
 			return moveClusterInstance(conf, sourceResource, destResource, c.flagTarget, c.global.flagQuiet, stateful)
@@ -189,7 +202,7 @@ func (c *cmdMove) run(cmd *cobra.Command, args []string) error {
 		}
 
 		if !dest.IsClustered() {
-			return fmt.Errorf(i18n.G("The destination LXD server is not clustered"))
+			return errors.New(i18n.G("The destination LXD server is not clustered"))
 		}
 	}
 
@@ -203,7 +216,7 @@ func (c *cmdMove) run(cmd *cobra.Command, args []string) error {
 
 		if source.HasExtension("instance_move_config") {
 			if c.flagMode != moveDefaultMode {
-				return fmt.Errorf(i18n.G("The --mode flag can't be used with --storage or --target-project"))
+				return errors.New(i18n.G("The --mode flag can't be used with --storage or --target-project"))
 			}
 
 			// Evaluate provided profiles. If no profiles were provided and flag noProfiles is false,
@@ -224,7 +237,7 @@ func (c *cmdMove) run(cmd *cobra.Command, args []string) error {
 			}
 
 			if c.flagMode != moveDefaultMode {
-				return fmt.Errorf(i18n.G("The --mode flag can't be used with --storage or --target-project"))
+				return errors.New(i18n.G("The --mode flag can't be used with --storage or --target-project"))
 			}
 
 			return moveInstance(conf, sourceResource, destResource, c.flagStorage, c.flagTargetProject, []string{}, []string{}, nil, c.flagInstanceOnly, stateful)
@@ -277,7 +290,7 @@ func moveClusterInstance(conf *config.Config, sourceResource string, destResourc
 
 	// Make sure we have an instance or snapshot name.
 	if sourceName == "" {
-		return fmt.Errorf(i18n.G("You must specify a source instance name"))
+		return errors.New(i18n.G("You must specify a source instance name"))
 	}
 
 	// The destination name is optional.
@@ -293,7 +306,7 @@ func moveClusterInstance(conf *config.Config, sourceResource string, destResourc
 
 	// Check that it's a cluster
 	if !source.IsClustered() {
-		return fmt.Errorf(i18n.G("The source LXD server is not clustered"))
+		return errors.New(i18n.G("The source LXD server is not clustered"))
 	}
 
 	// The migrate API will do the right thing when passed a target.
@@ -353,7 +366,7 @@ func moveInstance(conf *config.Config, sourceResource string, destResource strin
 
 	// Make sure we have an instance or snapshot name.
 	if sourceName == "" {
-		return fmt.Errorf(i18n.G("You must specify a source instance name"))
+		return errors.New(i18n.G("You must specify a source instance name"))
 	}
 
 	// The destination name is optional.
