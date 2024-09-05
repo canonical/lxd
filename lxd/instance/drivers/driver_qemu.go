@@ -2866,7 +2866,7 @@ systemctl daemon-reload
 
 # SELinux handling.
 if getenforce >/dev/null 2>&1; then
-    semanage fcontext -a -t bin_t /run/lxd_agent/lxd-agent
+    semanage fcontext -a -t bin_t /var/run/lxd_agent/lxd-agent
 fi
 
 echo ""
