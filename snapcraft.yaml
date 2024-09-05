@@ -1541,7 +1541,14 @@ parts:
 
       # Setup bash completion
       mkdir -p "${CRAFT_PART_INSTALL}/etc/bash_completion.d/"
-      "${CRAFT_PART_INSTALL}/bin/lxc" completion bash > "${CRAFT_PART_INSTALL}/etc/bash_completion.d/snap.lxd.lxc"
+      # Snapd requires the unaliased command `lxd.lxc` to be supplied as the first command for completion to be detected
+      set_cmds='s/^\s*complete.*__start_lxc /&lxd.lxc /'
+      # When executed by Snapd, the COLUMNS shell value is unset, so use $(tput cols) instead
+      set_cols='s/COLUMNS/$(tput cols)/'
+      # Modify requestComp variable to use lxc based on context ($SNAP/bin/lxc in Snap environment)
+      set_request_comp='s|requestComp="${words\[0\]} __complete ${args\[\*\]}"|requestComp="/snap/lxd/current/bin/lxc __complete ${args[*]}"|'
+      # Generate completions script
+      "${CRAFT_PART_INSTALL}/bin/lxc" completion bash | sed -e "${set_cmds}" -e "${set_cols}" -e "${set_request_comp}" > "${CRAFT_PART_INSTALL}/etc/bash_completion.d/snap.lxd.lxc"
     organize:
       usr/bin/: bin/
       usr/lib/: lib/
