@@ -250,6 +250,23 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 			if err != nil {
 				return nil, "", fmt.Errorf("Failed to create certificate: %w", err)
 			}
+		} else if c.flagNonInteractive {
+			// In non-interactive mode stop at this point, as we know that the server
+			// does not trust us, but we should not make any further interaction with the caller.
+			if certPath != "" || keyPath != "" {
+				return nil, "", fmt.Errorf("Provided certificate is not trusted by the server")
+			}
+
+			return nil, "", errors.New("Failed to authenticate with the server: Please, either provide a trust token or an already trusted certificate")
+		} else if instanceServer.HasExtension("explicit_trust_token") {
+			fmt.Println("A temporary client certificate was generated, use `lxc config trust add` on the target server.")
+			fmt.Println("")
+
+			fmt.Print("Press ENTER after the certificate was added to the remote server: ")
+			_, err = bufio.NewReader(os.Stdin).ReadString('\n')
+			if err != nil {
+				return nil, "", err
+			}
 		} else {
 			fmt.Println("It is recommended to have this certificate be manually added to LXD through `lxc config trust add` on the target server.\nAlternatively you could use a pre-defined trust password to add it remotely (use of a trust password can be a security issue).")
 
