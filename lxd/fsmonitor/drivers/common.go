@@ -14,12 +14,14 @@ type common struct {
 	mu         sync.Mutex
 	watches    map[string]map[string]func(string, fsmonitor.Event) bool
 	prefixPath string
+	events     []fsmonitor.Event
 }
 
-func (d *common) init(logger logger.Logger, path string) {
+func (d *common) init(logger logger.Logger, path string, events []fsmonitor.Event) {
 	d.logger = logger
 	d.watches = make(map[string]map[string]func(string, fsmonitor.Event) bool)
 	d.prefixPath = path
+	d.events = events
 }
 
 // PrefixPath returns the prefix path.
