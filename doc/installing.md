@@ -304,6 +304,15 @@ sudo -E PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} $(go env GOPATH)/bin/lxd
 If `newuidmap/newgidmap` tools are present on your system and `/etc/subuid`, `etc/subgid` exist, they must be configured to allow the root user a contiguous range of at least 10M UID/GID.
 ```
 
+### Shell completions
+
+Shell completion profiles can be generated with `lxc completion <shell>` (e.g. `lxc completion bash`). Supported shells are `bash`, `zsh`, `fish`, and `powershell`.
+
+```bash
+lxc completion bash > /etc/bash_completion.d/lxc # generating completions for bash as an example
+. /etc/bash_completion.d/lxc
+```
+
 (installing-manage-access)=
 ## Manage access to LXD
 
