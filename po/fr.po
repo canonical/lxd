@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-09-05 08:44-0400\n"
+"POT-Creation-Date: 2024-09-05 10:48-0400\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -4016,8 +4016,8 @@ msgid "Make image public"
 msgstr "Rendre l'image publique"
 
 #: lxc/publish.go:38
-msgid "Make the image public"
-msgstr "Rendre l'image publique"
+msgid "Make the image public (accessible to unauthenticated clients as well)"
+msgstr ""
 
 #: lxc/network.go:32 lxc/network.go:33
 msgid "Manage and attach instances to networks"
@@ -9175,6 +9175,9 @@ msgstr "o"
 #: lxc/image.go:1192
 msgid "yes"
 msgstr "oui"
+
+#~ msgid "Make the image public"
+#~ msgstr "Rendre l'image publique"
 
 #, fuzzy
 #~ msgid "[<remote>:]<cluster member>"
