@@ -31,6 +31,13 @@ var inotifyEventToFSMonitorEvent = map[uint32]fsmonitor.Event{
 	in.InMovedTo:    fsmonitor.EventRename,
 }
 
+var fsMonitorEventToINotifyEvent = map[fsmonitor.Event]uint32{
+	fsmonitor.EventAdd:    in.InCreate,
+	fsmonitor.EventRemove: in.InDelete | in.InDeleteSelf,
+	fsmonitor.EventWrite:  in.InCloseWrite,
+	fsmonitor.EventRename: in.InMovedTo,
+}
+
 func (d *inotify) toFSMonitorEvent(mask uint32) (fsmonitor.Event, error) {
 	for knownINotifyEvent, event := range inotifyEventToFSMonitorEvent {
 		if mask&knownINotifyEvent != 0 {
@@ -39,6 +46,27 @@ func (d *inotify) toFSMonitorEvent(mask uint32) (fsmonitor.Event, error) {
 	}
 
 	return -1, fmt.Errorf(`Unknown inotify event "%d"`, mask)
+}
+
+func (d *inotify) eventMask() (uint32, error) {
+	// in.Create is required so that we can determine when a new directory is created and set up a watcher on it and
+	// it's subdirectories.
+	mask := in.InCreate
+	for _, e := range d.events {
+		inotifyEvent, ok := fsMonitorEventToINotifyEvent[e]
+		if !ok {
+			return 0, fmt.Errorf(`Unknown fsmonitor event "%d"`, e)
+		}
+
+		// Skip in.InCreate as it is already part of the mask.
+		if inotifyEvent&in.InCreate != 0 {
+			continue
+		}
+
+		mask = mask | inotifyEvent
+	}
+
+	return mask, nil
 }
 
 // DriverName returns the name of the driver.
@@ -170,8 +198,12 @@ func (d *inotify) watchFSTree(path string) error {
 			return nil
 		}
 
-		// Only watch on real paths for CREATE and DELETE events.
-		err = d.watcher.AddWatch(path, in.InCreate|in.InDelete)
+		mask, err := d.eventMask()
+		if err != nil {
+			return fmt.Errorf("Failed to get an inotify event mask: %w", err)
+		}
+
+		err = d.watcher.AddWatch(path, mask)
 		if err != nil {
 			d.logger.Warn("Failed to watch path", logger.Ctx{"path": path, "err": err})
 			return nil

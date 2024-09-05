@@ -44,6 +44,13 @@ var fanotifyEventToFSMonitorEvent = map[uint64]fsmonitor.Event{
 	unix.FAN_MOVED_TO:    fsmonitor.EventRename,
 }
 
+var fsMonitorEventToFANotifyEvent = map[fsmonitor.Event]uint64{
+	fsmonitor.EventAdd:    unix.FAN_CREATE,
+	fsmonitor.EventRemove: unix.FAN_DELETE | unix.FAN_DELETE_SELF,
+	fsmonitor.EventWrite:  unix.FAN_CLOSE_WRITE,
+	fsmonitor.EventRename: unix.FAN_MOVED_TO,
+}
+
 func (d *fanotify) toFSMonitorEvent(mask uint64) (fsmonitor.Event, error) {
 	for knownFANotifyEvent, event := range fanotifyEventToFSMonitorEvent {
 		if mask&knownFANotifyEvent != 0 {
@@ -52,6 +59,21 @@ func (d *fanotify) toFSMonitorEvent(mask uint64) (fsmonitor.Event, error) {
 	}
 
 	return -1, fmt.Errorf(`Unknown fanotify event "%d"`, mask)
+}
+
+func (d *fanotify) eventMask() (uint64, error) {
+	// ON_DIR is required so that we can determine if the event occurred on a file or a directory.
+	var mask uint64 = unix.FAN_ONDIR
+	for _, e := range d.events {
+		fanotifyEvent, ok := fsMonitorEventToFANotifyEvent[e]
+		if !ok {
+			return 0, fmt.Errorf(`Unknown fsmonitor event "%d"`, e)
+		}
+
+		mask = mask | fanotifyEvent
+	}
+
+	return mask, nil
 }
 
 // DriverName returns the name of the driver.
@@ -75,7 +97,12 @@ func (d *fanotify) load(ctx context.Context) error {
 		return fmt.Errorf("Failed to initialize fanotify: %w", err)
 	}
 
-	err = unix.FanotifyMark(d.fd, unix.FAN_MARK_ADD|unix.FAN_MARK_FILESYSTEM, unix.FAN_CREATE|unix.FAN_DELETE|unix.FAN_ONDIR, unix.AT_FDCWD, d.prefixPath)
+	mask, err := d.eventMask()
+	if err != nil {
+		return fmt.Errorf("Failed to get a fanotify event mask: %w", err)
+	}
+
+	err = unix.FanotifyMark(d.fd, unix.FAN_MARK_ADD|unix.FAN_MARK_FILESYSTEM, mask, unix.AT_FDCWD, d.prefixPath)
 	if err != nil {
 		_ = unix.Close(d.fd)
 		return fmt.Errorf("Failed to watch directory %q: %w", d.prefixPath, err)
