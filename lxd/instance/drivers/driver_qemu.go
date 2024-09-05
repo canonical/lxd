@@ -2283,21 +2283,12 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 
 	reverter.Add(func() { _ = monitor.RemoveCharDevice(deviceID) })
 
-	// Figure out a hotplug slot.
-	pciDevID := qemuPCIDeviceIDStart
-
-	// Iterate through all the instance devices in the same sorted order as is used when allocating the
-	// boot time devices in order to find the PCI bus slot device we would have used at boot time.
-	// Then attempt to use that same device, assuming it is available.
-	for _, dev := range d.expandedDevices.Sorted() {
-		if dev.Name == deviceName {
-			break // Found our device.
-		}
-
-		pciDevID++
+	// Try to get a PCI address for hotplugging.
+	pciDeviceName, err := d.getPCIHotplug()
+	if err != nil {
+		return "", err
 	}
 
-	pciDeviceName := fmt.Sprintf("%s%d", busDevicePortPrefix, pciDevID)
 	d.logger.Debug("Using PCI bus device to hotplug virtiofs into", logger.Ctx{"device": deviceName, "port": pciDeviceName})
 
 	qemuDev := map[string]any{
@@ -2443,20 +2434,12 @@ func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfig
 
 	// PCIe and PCI require a port device name to hotplug the NIC into.
 	if slices.Contains([]string{"pcie", "pci"}, qemuBus) {
-		pciDevID := qemuPCIDeviceIDStart
-
-		// Iterate through all the instance devices in the same sorted order as is used when allocating the
-		// boot time devices in order to find the PCI bus slot device we would have used at boot time.
-		// Then attempt to use that same device, assuming it is available.
-		for _, dev := range d.expandedDevices.Sorted() {
-			if dev.Name == deviceName {
-				break // Found our device.
-			}
-
-			pciDevID++
+		// Try to get a PCI address for hotplugging.
+		pciDeviceName, err := d.getPCIHotplug()
+		if err != nil {
+			return err
 		}
 
-		pciDeviceName := fmt.Sprintf("%s%d", busDevicePortPrefix, pciDevID)
 		d.logger.Debug("Using PCI bus device to hotplug NIC into", logger.Ctx{"device": deviceName, "port": pciDeviceName})
 		qemuDev["bus"] = pciDeviceName
 		qemuDev["addr"] = "00.0"
@@ -2473,6 +2456,38 @@ func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfig
 	}
 
 	return nil
+}
+
+// getPCIHotplug returns an available PCI device ID that can be used for hotplugging.
+func (d *qemu) getPCIHotplug() (string, error) {
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return "", err
+	}
+
+	// Get the current PCI devices.
+	devices, err := monitor.QueryPCI()
+	if err != nil {
+		return "", err
+	}
+
+	for _, dev := range devices {
+		// Skip built-in devices.
+		if dev.DevID == "" {
+			continue
+		}
+
+		// Skip used bridges.
+		if len(dev.Bridge.Devices) > 0 {
+			continue
+		}
+
+		// Found an empty slot.
+		return dev.DevID, nil
+	}
+
+	return "", errors.New("No available PCI hotplug slots could be found")
 }
 
 // deviceAttachPCI live attaches a generic PCI device to the instance.
@@ -2508,22 +2523,15 @@ func (d *qemu) deviceAttachPCI(deviceName string, pciConfig []deviceConfig.RunCo
 		return errors.New("Attempting PCI passthrough on a non-PCI system")
 	}
 
+	// Try to get a PCI address for hotplugging.
+	pciDeviceName, err := d.getPCIHotplug()
+	if err != nil {
+		return err
+	}
+
 	qemuDev := make(map[string]any)
 	escapedDeviceName := filesystem.PathNameEncode(devName)
 
-	// Iterate through all the instance devices in the same sorted order as is used when allocating the
-	// boot time devices in order to find the PCI bus slot device we would have used at boot time.
-	// Then attempt to use that same device, assuming it is available.
-	pciDevID := qemuPCIDeviceIDStart
-	for _, dev := range d.expandedDevices.Sorted() {
-		if dev.Name == deviceName {
-			break // Found our device.
-		}
-
-		pciDevID++
-	}
-
-	pciDeviceName := fmt.Sprintf("%s%d", busDevicePortPrefix, pciDevID)
 	d.logger.Debug("Using PCI bus device to hotplug device into", logger.Ctx{"device": deviceName, "port": pciDeviceName})
 
 	qemuDev["bus"] = pciDeviceName
@@ -4229,21 +4237,12 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 	} else if slices.Contains([]string{"nvme", "virtio-blk"}, bus) {
 		qemuDevBus, ok := qemuDev["bus"].(string)
 		if !ok || qemuDevBus == "" {
-			// Figure out a hotplug slot.
-			pciDevID := qemuPCIDeviceIDStart
-
-			// Iterate through all the instance devices in the same sorted order as is used when allocating the
-			// boot time devices in order to find the PCI bus slot device we would have used at boot time.
-			// Then attempt to use that same device, assuming it is available.
-			for _, dev := range d.expandedDevices.Sorted() {
-				if dev.Name == driveConf.DevName {
-					break // Found our device.
-				}
-
-				pciDevID++
+			// Try to get a PCI address for hotplugging.
+			pciDeviceName, err := d.getPCIHotplug()
+			if err != nil {
+				return nil, err
 			}
 
-			pciDeviceName := fmt.Sprintf("%s%d", busDevicePortPrefix, pciDevID)
 			d.logger.Debug("Using PCI bus device to hotplug drive into", logger.Ctx{"device": driveConf.DevName, "port": pciDeviceName})
 			qemuDev["bus"] = pciDeviceName
 			qemuDev["addr"] = "00.0"
