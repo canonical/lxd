@@ -47,8 +47,10 @@ type cmdMigrate struct {
 	flagSource       string
 
 	// Target server.
-	flagServer string
-	flagToken  string
+	flagServer   string
+	flagToken    string
+	flagCertPath string
+	flagKeyPath  string
 
 	// Other.
 	flagRsyncArgs      string
@@ -88,6 +90,8 @@ func (c *cmdMigrate) command() *cobra.Command {
 	// Target server.
 	cmd.Flags().StringVar(&c.flagServer, "server", "", "Unix or HTTPS URL of the target server"+"``")
 	cmd.Flags().StringVar(&c.flagToken, "token", "", "Authentication token for HTTPS remote"+"``")
+	cmd.Flags().StringVar(&c.flagCertPath, "cert-path", "", "Trusted certificate path"+"``")
+	cmd.Flags().StringVar(&c.flagKeyPath, "key-path", "", "Trusted certificate key path"+"``")
 
 	// Other flags.
 	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "", "Extra arguments to pass to rsync"+"``")
@@ -155,6 +159,11 @@ func (c *cmdMigrateData) render() string {
 func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	var serverURL string
 	var err error
+
+	// Ensure trust token is not used along trust certificate and/or its corresponding key.
+	if c.flagToken != "" && (c.flagCertPath != "" || c.flagKeyPath != "") {
+		return nil, "", fmt.Errorf("Authentication token is mutually exclusive with certificate path and key")
+	}
 
 	if c.flagNonInteractive || c.flagServer != "" {
 		// Try to connect to unix socket if server URL is empty or has a "unix:" prefix.
@@ -261,6 +270,17 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 		if err != nil {
 			return nil, "", fmt.Errorf("Failed to decode certificate token: %w", err)
 		}
+	} else if c.flagKeyPath != "" || c.flagCertPath != "" {
+		if c.flagKeyPath == "" {
+			return nil, "", errors.New("Certificate path is required when certificate key is set")
+		}
+
+		if c.flagCertPath == "" {
+			return nil, "", errors.New("Certificate key path is required when certificate path is set")
+		}
+
+		certPath = c.flagCertPath
+		keyPath = c.flagKeyPath
 	} else {
 		if c.flagNonInteractive {
 			return nil, "", errors.New("Authentication token is required for HTTPS remote in non-interactive mode")
