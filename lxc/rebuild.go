@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -57,11 +58,11 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 		}
 
 	default:
-		return fmt.Errorf(i18n.G("Missing instance name"))
+		return errors.New(i18n.G("Missing instance name"))
 	}
 
 	if c.flagEmpty && len(args) > 1 {
-		return fmt.Errorf(i18n.G("--empty cannot be combined with an image name"))
+		return errors.New(i18n.G("--empty cannot be combined with an image name"))
 	}
 
 	d, err := conf.GetInstanceServer(remote)
@@ -116,7 +117,7 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 
 	if !c.flagEmpty {
 		if image == "" && iremote == "" {
-			return fmt.Errorf(i18n.G("You need to specify an image name or use --empty"))
+			return errors.New(i18n.G("You need to specify an image name or use --empty"))
 		}
 
 		iremote, image := guessImage(conf, d, remote, iremote, image)
@@ -127,7 +128,7 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 
 		if conf.Remotes[iremote].Protocol != "simplestreams" {
 			if imgInfo.Type != "virtual-machine" && current.Type == "virtual-machine" {
-				return fmt.Errorf(i18n.G("Asked for a VM but image is of type container"))
+				return errors.New(i18n.G("Asked for a VM but image is of type container"))
 			}
 		}
 
@@ -157,7 +158,7 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 	} else {
 		// This is a rebuild as an empty instance
 		if image != "" || iremote != "" {
-			return fmt.Errorf(i18n.G("Can't use an image with --empty"))
+			return errors.New(i18n.G("Can't use an image with --empty"))
 		}
 
 		req.Source.Type = "none"
