@@ -36,6 +36,24 @@ type fanotifyEventInfoFid struct {
 	FSID uint64
 }
 
+var fanotifyEventToFSMonitorEvent = map[uint64]fsmonitor.Event{
+	unix.FAN_CREATE:      fsmonitor.EventAdd,
+	unix.FAN_DELETE:      fsmonitor.EventRemove,
+	unix.FAN_DELETE_SELF: fsmonitor.EventRemove,
+	unix.FAN_CLOSE_WRITE: fsmonitor.EventWrite,
+	unix.FAN_MOVED_TO:    fsmonitor.EventRename,
+}
+
+func (d *fanotify) toFSMonitorEvent(mask uint64) (fsmonitor.Event, error) {
+	for knownFANotifyEvent, event := range fanotifyEventToFSMonitorEvent {
+		if mask&knownFANotifyEvent != 0 {
+			return event, nil
+		}
+	}
+
+	return -1, fmt.Errorf(`Unknown fanotify event "%d"`, mask)
+}
+
 // DriverName returns the name of the driver.
 func (d *fanotify) DriverName() string {
 	return "fanotify"
@@ -199,12 +217,10 @@ func (d *fanotify) getEvents(ctx context.Context, mountFd int) {
 				continue
 			}
 
-			var action fsmonitor.Event
-
-			if event.Mask&unix.FAN_CREATE != 0 {
-				action = fsmonitor.EventAdd
-			} else if event.Mask&unix.FAN_DELETE != 0 || event.Mask&unix.FAN_DELETE_SELF != 0 {
-				action = fsmonitor.EventRemove
+			action, err := d.toFSMonitorEvent(event.Mask)
+			if err != nil {
+				logger.Warn("Failed to match fanotify event, skipping", logger.Ctx{"err": err})
+				continue
 			}
 
 			for identifier, f := range d.watches[path] {

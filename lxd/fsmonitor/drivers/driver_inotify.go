@@ -23,6 +23,24 @@ type inotify struct {
 	watcher *in.Watcher
 }
 
+var inotifyEventToFSMonitorEvent = map[uint32]fsmonitor.Event{
+	in.InCreate:     fsmonitor.EventAdd,
+	in.InDelete:     fsmonitor.EventRemove,
+	in.InDeleteSelf: fsmonitor.EventRemove,
+	in.InCloseWrite: fsmonitor.EventWrite,
+	in.InMovedTo:    fsmonitor.EventRename,
+}
+
+func (d *inotify) toFSMonitorEvent(mask uint32) (fsmonitor.Event, error) {
+	for knownINotifyEvent, event := range inotifyEventToFSMonitorEvent {
+		if mask&knownINotifyEvent != 0 {
+			return event, nil
+		}
+	}
+
+	return -1, fmt.Errorf(`Unknown inotify event "%d"`, mask)
+}
+
 // DriverName returns the name of the driver.
 func (d *inotify) DriverName() string {
 	return "inotify"
@@ -64,31 +82,21 @@ func (d *inotify) getEvents(ctx context.Context) {
 			return
 		case event := <-d.watcher.Event:
 			event.Name = filepath.Clean(event.Name)
-			isCreate := event.Mask&in.InCreate != 0
-			isDelete := event.Mask&in.InDelete != 0
-
-			// Only consider create and delete events.
-			if !isCreate && !isDelete {
+			action, err := d.toFSMonitorEvent(event.Mask)
+			if err != nil {
+				logger.Warn("Failed to match inotify event, skipping", logger.Ctx{"err": err})
 				continue
 			}
 
 			// New event for a directory.
 			if event.Mask&in.InIsdir != 0 {
 				// If it's a create event, then setup watches on any sub-directories.
-				if isCreate {
+				if action == fsmonitor.EventAdd {
 					_ = d.watchFSTree(event.Name)
 				}
 
 				// Check whether there's a watch on the directory.
 				d.mu.Lock()
-				var action fsmonitor.Event
-
-				if isCreate {
-					action = fsmonitor.EventAdd
-				} else {
-					action = fsmonitor.EventRemove
-				}
-
 				for path := range d.watches {
 					// Always call the handlers that have a prefix of the event path,
 					// in case a watched file is inside the newly created or now deleted
@@ -115,13 +123,6 @@ func (d *inotify) getEvents(ctx context.Context) {
 
 			// Check whether there's a watch on a specific file or directory.
 			d.mu.Lock()
-			var action fsmonitor.Event
-			if isCreate {
-				action = fsmonitor.EventAdd
-			} else {
-				action = fsmonitor.EventRemove
-			}
-
 			for path := range d.watches {
 				if event.Name != path {
 					continue
