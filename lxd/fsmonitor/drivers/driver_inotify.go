@@ -83,9 +83,9 @@ func (d *inotify) getEvents(ctx context.Context) {
 				var action fsmonitor.Event
 
 				if isCreate {
-					action = fsmonitor.Add
+					action = fsmonitor.EventAdd
 				} else {
-					action = fsmonitor.Remove
+					action = fsmonitor.EventRemove
 				}
 
 				for path := range d.watches {
@@ -116,9 +116,9 @@ func (d *inotify) getEvents(ctx context.Context) {
 			d.mu.Lock()
 			var action fsmonitor.Event
 			if isCreate {
-				action = fsmonitor.Add
+				action = fsmonitor.EventAdd
 			} else {
-				action = fsmonitor.Remove
+				action = fsmonitor.EventRemove
 			}
 
 			for path := range d.watches {

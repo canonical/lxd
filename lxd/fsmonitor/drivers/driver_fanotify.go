@@ -196,9 +196,9 @@ func (d *fanotify) getEvents(ctx context.Context, mountFd int) {
 			var action fsmonitor.Event
 
 			if event.Mask&unix.FAN_CREATE != 0 {
-				action = fsmonitor.Add
+				action = fsmonitor.EventAdd
 			} else if event.Mask&unix.FAN_DELETE != 0 || event.Mask&unix.FAN_DELETE_SELF != 0 {
-				action = fsmonitor.Remove
+				action = fsmonitor.EventRemove
 			}
 
 			for identifier, f := range d.watches[path] {
