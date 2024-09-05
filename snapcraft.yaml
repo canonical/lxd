@@ -1539,7 +1539,7 @@ parts:
 
       # Setup bash completion
       mkdir -p "${CRAFT_PART_INSTALL}/etc/bash_completion.d/"
-      cp scripts/bash/lxd-client "${CRAFT_PART_INSTALL}/etc/bash_completion.d/snap.lxd.lxc"
+      "${CRAFT_PART_INSTALL}/bin/lxc" completion bash > "${CRAFT_PART_INSTALL}/etc/bash_completion.d/snap.lxd.lxc"
     organize:
       usr/bin/: bin/
       usr/lib/: lib/
