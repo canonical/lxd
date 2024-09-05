@@ -107,7 +107,7 @@ func (d *inotify) getEvents(ctx context.Context) {
 					}
 
 					for identifier, f := range d.watches[path] {
-						ret := f(path, action.String())
+						ret := f(path, action)
 						if !ret {
 							delete(d.watches[path], identifier)
 
@@ -129,7 +129,7 @@ func (d *inotify) getEvents(ctx context.Context) {
 				}
 
 				for identifier, f := range d.watches[path] {
-					ret := f(path, action.String())
+					ret := f(path, action)
 					if !ret {
 						delete(d.watches[path], identifier)
 
