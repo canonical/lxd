@@ -39,7 +39,6 @@ Separate commits should be used for:
 - API structure (`shared/api: Add XYZ` for changes to `shared/api/`)
 - Go client package (`client: Add XYZ` for changes to `client/`)
 - CLI (`lxc/<command>: Change XYZ` for changes to `lxc/`)
-- Scripts (`scripts: Update bash completion for XYZ` for changes to `scripts/`)
 - LXD daemon (`lxd/<package>: Add support for XYZ` for changes to `lxd/`)
 - Tests (`tests: Add test for XYZ` for changes to `tests/`)
 

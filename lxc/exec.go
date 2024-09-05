@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"io"
 	"os"
 	"strconv"
@@ -60,6 +60,14 @@ Mode defaults to non-interactive, interactive mode is selected if both stdin AND
 	cmd.Flags().Uint32Var(&c.flagGroup, "group", 0, i18n.G("Group ID to run the command as (default 0)")+"``")
 	cmd.Flags().StringVar(&c.flagCwd, "cwd", "", i18n.G("Directory to run the command in (default /root)")+"``")
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpInstances(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -90,11 +98,11 @@ func (c *cmdExec) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.flagForceInteractive && c.flagForceNonInteractive {
-		return fmt.Errorf(i18n.G("You can't pass -t and -T at the same time"))
+		return errors.New(i18n.G("You can't pass -t and -T at the same time"))
 	}
 
 	if c.flagMode != "auto" && (c.flagForceInteractive || c.flagForceNonInteractive) {
-		return fmt.Errorf(i18n.G("You can't pass -t or -T at the same time as --mode"))
+		return errors.New(i18n.G("You can't pass -t or -T at the same time as --mode"))
 	}
 
 	// Connect to the daemon

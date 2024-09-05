@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,6 +36,19 @@ type cmdStorageVolume struct {
 	global                *cmdGlobal
 	storage               *cmdStorage
 	flagDestinationTarget string
+}
+
+func parseVolume(defaultType string, name string) (volName string, volType string) {
+	fields := strings.SplitN(name, "/", 2)
+	if len(fields) == 1 {
+		volName, volType = fields[0], defaultType
+	} else if len(fields) == 2 && !slices.Contains([]string{"custom", "image", "container", "virtual-machine"}, fields[0]) {
+		volName, volType = name, defaultType
+	} else {
+		volName, volType = fields[1], fields[0]
+	}
+
+	return volName, volType
 }
 
 func (c *cmdStorageVolume) command() *cobra.Command {
@@ -132,17 +146,6 @@ Unless specified through a prefix, all volume operations affect "custom" (user c
 	return cmd
 }
 
-func (c *cmdStorageVolume) parseVolume(defaultType string, name string) (volumeName string, volumeType string) {
-	fields := strings.SplitN(name, "/", 2)
-	if len(fields) == 1 {
-		return fields[0], defaultType
-	} else if len(fields) == 2 && !shared.ValueInSlice(fields[0], []string{"custom", "image", "container", "virtual-machine"}) {
-		return name, defaultType
-	}
-
-	return fields[1], fields[0]
-}
-
 func (c *cmdStorageVolume) parseVolumeWithPool(name string) (volumeName string, poolName string) {
 	fields := strings.SplitN(name, "/", 2)
 	if len(fields) == 1 {
@@ -168,6 +171,22 @@ func (c *cmdStorageVolumeAttach) command() *cobra.Command {
 
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePoolVolumes(args[0])
+		}
+
+		if len(args) == 2 {
+			return c.global.cmpInstanceNamesFromRemote(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -190,7 +209,7 @@ func (c *cmdStorageVolumeAttach) run(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.G("Missing pool name"))
 	}
 
-	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+	volName, volType := parseVolume("custom", args[1])
 	if volType != "custom" {
 		return errors.New(i18n.G("Only \"custom\" volumes can be attached to instances"))
 	}
@@ -266,6 +285,22 @@ func (c *cmdStorageVolumeAttachProfile) command() *cobra.Command {
 
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePoolVolumes(args[0])
+		}
+
+		if len(args) == 2 {
+			return c.global.cmpProfileNamesFromRemote(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -303,7 +338,7 @@ func (c *cmdStorageVolumeAttachProfile) run(cmd *cobra.Command, args []string) e
 		devPath = args[4]
 	}
 
-	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+	volName, volType := parseVolume("custom", args[1])
 	if volType != "custom" {
 		return errors.New(i18n.G("Only \"custom\" volumes can be attached to instances"))
 	}
@@ -362,6 +397,18 @@ func (c *cmdStorageVolumeCopy) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
 	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, i18n.G("Refresh and update the existing storage volume copies"))
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePoolWithVolume(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
@@ -566,6 +613,14 @@ lxc storage volume create p1 v1 < config.yaml
 	cmd.Flags().StringVar(&c.flagContentType, "type", "filesystem", i18n.G("Content type, block or filesystem")+"``")
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -604,7 +659,7 @@ func (c *cmdStorageVolumeCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse the input
-	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+	volName, volType := parseVolume("custom", args[1])
 
 	// Create the storage volume entry
 	vol := api.StorageVolumesPost{
@@ -662,6 +717,18 @@ func (c *cmdStorageVolumeDelete) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePoolVolumes(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -686,7 +753,7 @@ func (c *cmdStorageVolumeDelete) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	// Parse the input
-	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+	volName, volType := parseVolume("custom", args[1])
 
 	// If a target was specified, delete the volume on the given member.
 	if c.storage.flagTarget != "" {
@@ -735,6 +802,22 @@ func (c *cmdStorageVolumeDetach) command() *cobra.Command {
 		`Detach storage volumes from instances`))
 
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePoolVolumes(args[0])
+		}
+
+		if len(args) == 2 {
+			return c.global.cmpStoragePoolVolumeInstances(args[0], args[1])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
@@ -817,6 +900,22 @@ func (c *cmdStorageVolumeDetachProfile) command() *cobra.Command {
 		`Detach storage volumes from profiles`))
 
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePoolVolumes(args[0])
+		}
+
+		if len(args) == 2 {
+			return c.global.cmpStoragePoolVolumeProfiles(args[0], args[1])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
@@ -906,6 +1005,18 @@ lxc storage volume edit [<remote>:]<pool> [<type>/]<volume> < volume.yaml
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePoolVolumes(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -945,7 +1056,7 @@ func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	// Parse the input
-	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+	volName, volType := parseVolume("custom", args[1])
 
 	isSnapshot := false
 	fields := strings.Split(volName, "/")
@@ -1121,6 +1232,22 @@ lxc storage volume get default virtual-machine/data snapshots.expiry
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a storage volume property"))
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePoolVolumes(args[0])
+		}
+
+		if len(args) == 2 {
+			return c.global.cmpStoragePoolVolumeConfigs(args[0], args[1])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -1146,7 +1273,7 @@ func (c *cmdStorageVolumeGet) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	// Parse input
-	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+	volName, volType := parseVolume("custom", args[1])
 
 	isSnapshot := false
 	fields := strings.Split(volName, "/")
@@ -1233,6 +1360,18 @@ lxc storage volume info default virtual-machine/data
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePoolVolumes(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -1258,7 +1397,7 @@ func (c *cmdStorageVolumeInfo) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	// Parse the input
-	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+	volName, volType := parseVolume("custom", args[1])
 
 	isSnapshot := false
 	fields := strings.Split(volName, "/")
@@ -1469,6 +1608,14 @@ Column shorthand chars:
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
@@ -1703,6 +1850,18 @@ func (c *cmdStorageVolumeMove) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.storageVolumeCopy.flagTargetProject, "target-project", "", i18n.G("Move to a project different from the source")+"``")
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePoolWithVolume(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -1781,6 +1940,18 @@ func (c *cmdStorageVolumeRename) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePoolVolumes(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -1806,7 +1977,7 @@ func (c *cmdStorageVolumeRename) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	// Parse the input
-	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+	volName, volType := parseVolume("custom", args[1])
 
 	isSnapshot := false
 	fields := strings.Split(volName, "/")
@@ -1909,6 +2080,20 @@ lxc storage volume set default virtual-machine/data snapshots.expiry=7d
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a storage volume property"))
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePoolVolumes(args[0])
+		}
+
+		// TODO all volume config keys
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -1939,7 +2124,7 @@ func (c *cmdStorageVolumeSet) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse the input.
-	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+	volName, volType := parseVolume("custom", args[1])
 
 	isSnapshot := false
 	fields := strings.Split(volName, "/")
@@ -2054,6 +2239,18 @@ lxc storage volume show default virtual-machine/data/snap0
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePoolVolumes(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -2079,7 +2276,7 @@ func (c *cmdStorageVolumeShow) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	// Parse the input
-	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+	volName, volType := parseVolume("custom", args[1])
 
 	isSnapshot := false
 	fields := strings.Split(volName, "/")
@@ -2159,6 +2356,22 @@ lxc storage volume unset default virtual-machine/data snapshots.expiry
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a storage volume property"))
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePoolVolumes(args[0])
+		}
+
+		if len(args) == 2 {
+			return c.global.cmpStoragePoolVolumeConfigs(args[0], args[1])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -2201,6 +2414,19 @@ lxc storage volume snapshot create default v1 snap0 < config.yaml
 	cmd.Flags().BoolVar(&c.flagNoExpiry, "no-expiry", false, i18n.G("Ignore any configured auto-expiry for the storage volume"))
 	cmd.Flags().BoolVar(&c.flagReuse, "reuse", false, i18n.G("If the snapshot name already exists, delete and create a new one"))
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePoolVolumes(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
@@ -2246,7 +2472,7 @@ func (c *cmdStorageVolumeSnapshot) run(cmd *cobra.Command, args []string) error 
 	}
 
 	// Parse the input
-	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+	volName, volType := parseVolume("custom", args[1])
 	if volType != "custom" {
 		return errors.New(i18n.G("Only \"custom\" volumes can be snapshotted"))
 	}
@@ -2317,6 +2543,22 @@ func (c *cmdStorageVolumeRestore) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePoolVolumes(args[0])
+		}
+
+		if len(args) == 2 {
+			return c.global.cmpStoragePoolVolumeSnapshots(args[0], args[1])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
@@ -2389,6 +2631,18 @@ func (c *cmdStorageVolumeExport) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpStoragePoolVolumes(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveDefault
+	}
+
 	return cmd
 }
 
@@ -2419,7 +2673,7 @@ func (c *cmdStorageVolumeExport) run(cmd *cobra.Command, args []string) error {
 
 	volumeOnly := c.flagVolumeOnly
 
-	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+	volName, volType := parseVolume("custom", args[1])
 	if volType != "custom" {
 		return errors.New(i18n.G("Only \"custom\" volumes can be exported"))
 	}
@@ -2541,6 +2795,14 @@ func (c *cmdStorageVolumeImport) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
 	cmd.Flags().StringVar(&c.flagType, "type", "", i18n.G("Import type, backup or iso (default \"backup\")")+"``")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpStoragePools(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveDefault
+	}
 
 	return cmd
 }
