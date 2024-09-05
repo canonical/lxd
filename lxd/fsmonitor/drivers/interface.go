@@ -11,6 +11,6 @@ import (
 type driver interface {
 	fsmonitor.FSMonitor
 
-	init(logger logger.Logger, path string)
+	init(logger logger.Logger, path string, events []fsmonitor.Event)
 	load(ctx context.Context) error
 }

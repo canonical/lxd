@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/fsmonitor"
@@ -14,7 +15,11 @@ var drivers = map[string]func() driver{
 }
 
 // Load returns a new fsmonitor.FSMonitor with an applicable Driver.
-func Load(ctx context.Context, path string) (fsmonitor.FSMonitor, error) {
+func Load(ctx context.Context, path string, events ...fsmonitor.Event) (fsmonitor.FSMonitor, error) {
+	if len(events) == 0 {
+		return nil, errors.New("Event types must be specified")
+	}
+
 	startMonitor := func(driverName string) (fsmonitor.FSMonitor, error) {
 		logger := logger.AddContext(logger.Ctx{"driver": driverName})
 
@@ -25,7 +30,7 @@ func Load(ctx context.Context, path string) (fsmonitor.FSMonitor, error) {
 
 		d := df()
 
-		d.init(logger, path)
+		d.init(logger, path, events)
 
 		err := d.load(ctx)
 		if err != nil {
