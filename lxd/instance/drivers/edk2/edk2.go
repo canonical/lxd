@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/osarch"
 )
 
@@ -170,9 +171,17 @@ func GetArchitectureFirmwarePairsForUsage(hostArch int, usage FirmwareUsage) []F
 		if found {
 			for _, firmwarePair := range usage {
 				for _, searchPath := range installation.Paths {
+					codePath := filepath.Join(searchPath, firmwarePair.Code)
+					varsPath := filepath.Join(searchPath, firmwarePair.Vars)
+
+					// Check both firmware code and vars paths exist - otherwise skip pair.
+					if !shared.PathExists(codePath) || !shared.PathExists(varsPath) {
+						continue
+					}
+
 					firmwares = append(firmwares, FirmwarePair{
-						Code: filepath.Join(searchPath, firmwarePair.Code),
-						Vars: filepath.Join(searchPath, firmwarePair.Vars),
+						Code: codePath,
+						Vars: varsPath,
 					})
 				}
 			}
