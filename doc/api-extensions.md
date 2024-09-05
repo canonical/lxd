@@ -2457,3 +2457,6 @@ This can be used by a virtual machine running LXD to access raw images from the 
 
 Adds a new `virtio-blk` value for `io.bus` on `disk` devices which allows
 for the attached disk to be connected to the `virtio-blk` bus.
+
+## `storage_ceph_osd_pool_size`
+This introduces the configuration keys {config:option}`storage-ceph-pool-conf:ceph.osd.pool_size`, and {config:option}`storage-cephfs-pool-conf:cephfs.osd_pool_size` to be used when adding or updating a `ceph` or `cephfs` storage pool to instruct LXD to create set the replication size for the underlying OSD pools.
