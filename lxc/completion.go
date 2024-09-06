@@ -210,8 +210,33 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 	return results, cmpDirectives
 }
 
-func (g *cmdGlobal) cmpInstanceAllKeys() ([]string, cobra.ShellCompDirective) {
-	keys := []string{}
+func (g *cmdGlobal) cmpInstanceAllKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
+	resources, err := g.ParseServers(instanceName)
+	if err != nil || len(resources) == 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	instanceNameOnly, _, err := client.GetInstance(instanceName)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	var keys []string
+	instanceType := instanceNameOnly.Type
+
+	if instanceType == "container" {
+		for k := range instancetype.InstanceConfigKeysContainer {
+			keys = append(keys, k)
+		}
+	} else if instanceType == "virtual-machine" {
+		for k := range instancetype.InstanceConfigKeysVM {
+			keys = append(keys, k)
+		}
+	}
+
 	for k := range instancetype.InstanceConfigKeysAny {
 		keys = append(keys, k)
 	}
