@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
@@ -101,7 +102,10 @@ func TrackStartedRequest(r *http.Request) {
 // The callback function is used to mark the request as completed for the API metrics.
 func UseMetricsCallback(req *http.Request, result RequestResult) {
 	callback, err := request.GetCtxValue[func(RequestResult)](req.Context(), request.MetricsCallbackFunc)
-	if err != nil && (strings.HasPrefix(req.URL.Path, "/1.0") || req.URL.Path == "/") {
+
+	// Verify the auth method in the request context to determine if the request comes from the /dev/lxd socket.
+	authMethod, _ := auth.GetAuthenticationMethodFromCtx(req.Context())
+	if err != nil && strings.HasPrefix(req.URL.Path, "/1.0") && authMethod != auth.AuthenticationMethodDevLXD {
 		// Log a warning if endpoint is part of the main API, and therefore should be counted fot the API metrics.
 		logger.Warn("Request will not be counted for the API metrics", logger.Ctx{"url": req.URL.Path, "method": req.Method, "remote": req.RemoteAddr})
 	} else if err == nil && callback != nil {
