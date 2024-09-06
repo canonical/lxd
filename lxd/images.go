@@ -4252,7 +4252,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		requestor := request.CreateRequestor(r)
 		s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, projectName, requestor, nil))
 
-		return response.FileResponse(r, files, nil)
+		return response.FileResponse(files, nil)
 	}
 
 	files := make([]response.FileResponseEntry, 1)
@@ -4263,7 +4263,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r)
 	s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, projectName, requestor, nil))
 
-	return response.FileResponse(r, files, nil)
+	return response.FileResponse(files, nil)
 }
 
 // swagger:operation POST /1.0/images/{fingerprint}/export images images_export_post

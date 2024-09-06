@@ -6,27 +6,35 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/canonical/lxd/lxd/metrics"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared/ws"
 )
 
 type operationWebSocket struct {
-	req *http.Request
-	op  *Operation
+	op *Operation
 }
 
 // OperationWebSocket returns a new websocket operation.
-func OperationWebSocket(req *http.Request, op *Operation) response.Response {
-	return &operationWebSocket{req, op}
+func OperationWebSocket(op *Operation) response.Response {
+	return &operationWebSocket{op}
 }
 
-func (r *operationWebSocket) Render(w http.ResponseWriter) error {
-	chanErr, err := r.op.Connect(r.req, w)
+// Render renders a websocket operation response.
+func (r *operationWebSocket) Render(w http.ResponseWriter, req *http.Request) error {
+	chanErr, err := r.op.Connect(req, w)
 	if err != nil {
 		return err
 	}
 
 	err = <-chanErr
+
+	if err == nil {
+		// If there was an error on Render, the callback function will be called during the error handling.
+		request.MetricsCallback(req, metrics.Success)
+	}
+
 	return err
 }
 
@@ -40,19 +48,19 @@ func (r *operationWebSocket) String() string {
 }
 
 type forwardedOperationWebSocket struct {
-	req    *http.Request
 	id     string
 	source *websocket.Conn // Connection to the node were the operation is running
 }
 
-// ForwardedOperationWebSocket returns a new forwarted websocket operation.
-func ForwardedOperationWebSocket(req *http.Request, id string, source *websocket.Conn) response.Response {
-	return &forwardedOperationWebSocket{req, id, source}
+// ForwardedOperationWebSocket returns a new forwarded websocket operation.
+func ForwardedOperationWebSocket(id string, source *websocket.Conn) response.Response {
+	return &forwardedOperationWebSocket{id, source}
 }
 
-func (r *forwardedOperationWebSocket) Render(w http.ResponseWriter) error {
+// Render renders a forwarded websocket operation response.
+func (r *forwardedOperationWebSocket) Render(w http.ResponseWriter, req *http.Request) error {
 	// Upgrade target connection to websocket.
-	target, err := ws.Upgrader.Upgrade(w, r.req, nil)
+	target, err := ws.Upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		return err
 	}
@@ -63,6 +71,9 @@ func (r *forwardedOperationWebSocket) Render(w http.ResponseWriter) error {
 	// Make sure both sides are closed.
 	_ = r.source.Close()
 	_ = target.Close()
+
+	// If there was an error on Render, the callback function will be called during the error handling.
+	request.MetricsCallback(req, metrics.Success)
 
 	return nil
 }

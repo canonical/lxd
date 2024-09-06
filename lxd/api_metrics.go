@@ -167,6 +167,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	// If all valid, return immediately.
 	if len(projectsToFetch) == 0 {
+		metricSet.Merge(intMetrics)
 		return getFilteredMetrics(s, r, compress, metricSet)
 	}
 
@@ -192,6 +193,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	// If all valid, return immediately.
 	if len(projectsToFetch) == 0 {
+		metricSet.Merge(intMetrics)
 		return getFilteredMetrics(s, r, compress, metricSet)
 	}
 
@@ -315,10 +317,6 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	updatedProjects := []string{}
 	for project, entries := range newMetrics {
-		if project == api.ProjectDefaultName {
-			entries.Merge(intMetrics) // internal metrics are always considered new. Add them to the default project.
-		}
-
 		counterMetric, ok := counterMetrics[project]
 		if ok {
 			entries.Merge(counterMetric)
@@ -344,6 +342,8 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	metricsCacheLock.Unlock()
+
+	metricSet.Merge(intMetrics) // Include the internal metrics after caching so they are not cached.
 
 	return getFilteredMetrics(s, r, compress, metricSet)
 }
@@ -394,6 +394,27 @@ func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.Clus
 	} else {
 		// Total number of operations
 		out.AddSamples(metrics.OperationsTotal, metrics.Sample{Value: float64(len(operations))})
+	}
+
+	// API request metrics
+	for _, entityType := range entity.APIMetricsEntityTypes() {
+		out.AddSamples(
+			metrics.APIOngoingRequests,
+			metrics.Sample{
+				Labels: map[string]string{"entity_type": entityType.String()},
+				Value:  float64(metrics.GetOngoingRequests(entityType)),
+			},
+		)
+
+		for result, resultName := range metrics.GetRequestResultsNames() {
+			out.AddSamples(
+				metrics.APICompletedRequests,
+				metrics.Sample{
+					Labels: map[string]string{"entity_type": entityType.String(), "result": resultName},
+					Value:  float64(metrics.GetCompletedRequests(entityType, result)),
+				},
+			)
+		}
 	}
 
 	// Daemon uptime

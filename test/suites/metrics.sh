@@ -125,6 +125,35 @@ test_metrics() {
   curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep "lxd_filesystem_avail_bytes" | grep "type=\"container\""
   curl -k -s -X GET "https://${metrics_addr}/1.0/metrics?project=default" | grep "lxd_filesystem_avail_bytes" | grep "type=\"container\""
 
+  # API requests metrics should be included
+  curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep "lxd_api_requests_completed_total" | grep "entity_type=\"server\""
+  curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep "lxd_api_requests_completed_total" | grep "result=\"succeeded\""
+  curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep "lxd_api_requests_ongoing" | grep "entity_type=\"server\""
+
+  # Test lxd_api_requests_completed_total increment with different results.
+  previous="$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_completed_total{entity_type="instance",result="succeeded"}' | awk '{print $2}')"
+  lxc ls # Uses /1.0/instances
+  [ "$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_completed_total{entity_type="instance",result="succeeded"}' | awk '{print $2}')" -eq $((previous+1)) ]
+
+  previous="$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_completed_total{entity_type="server",result="error_client"}' | awk '{print $2}')"
+  ! lxc query "/not/an/endpoint" || false # returns a 404 status code and is considered a client error.
+  [ "$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_completed_total{entity_type="server",result="error_client"}' | awk '{print $2}')" -eq $((previous+1)) ]
+
+  previous="$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_completed_total{entity_type="instance",result="error_server"}' | awk '{print $2}')"
+  lxc storage create broken dir
+  sudo rmdir "$(lxc storage get broken source)"/containers # Break the storage pool.
+  ! lxc init testimage failed-container -s broken || false  # Error when creating a container on broken.
+  [ "$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_completed_total{entity_type="instance",result="error_server"}' | awk '{print $2}')" -eq $((previous+1)) ]
+
+  # Test lxd_api_requests_ongoing increment and decrement.
+  previous="$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_ongoing{entity_type="instance"}' | awk '{print $2}')"
+  lxc exec c1 -- sleep 2 &
+  sleep 1
+  [ "$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_ongoing{entity_type="instance"}' | awk '{print $2}')" -eq $((previous+1)) ]
+  wait $!
+  [ "$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_ongoing{entity_type="instance"}' | awk '{print $2}')" -eq "$previous" ]
+
+  lxc storage delete broken
   lxc delete -f c1 c2
   lxc delete -f c3 --project foo
   lxc delete -f c4 --project foo2

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/canonical/lxd/lxd/metrics"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
@@ -21,7 +23,20 @@ func OperationResponse(op *Operation) response.Response {
 	return &operationResponse{op}
 }
 
-func (r *operationResponse) Render(w http.ResponseWriter) error {
+// Render builds operationResponse and writes it to http.ResponseWriter.
+func (r *operationResponse) Render(w http.ResponseWriter, req *http.Request) error {
+	// Inject callback function on operation.
+	// If the operation was completed as expected or cancelled by an user, it is considered a success.
+	// Otherwise it is considered a failure.
+	r.op.SetOnDone(func(op *Operation) {
+		sc := op.Status()
+		if sc == api.Success || sc == api.Cancelled {
+			request.MetricsCallback(req, metrics.Success)
+		} else {
+			request.MetricsCallback(req, metrics.ErrorServer)
+		}
+	})
+
 	err := r.op.Start()
 	if err != nil {
 		return err
@@ -79,7 +94,8 @@ func ForwardedOperationResponse(project string, op *api.Operation) response.Resp
 	}
 }
 
-func (r *forwardedOperationResponse) Render(w http.ResponseWriter) error {
+// Render builds forwardedOperationResponse and writes it to http.ResponseWriter.
+func (r *forwardedOperationResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	url := fmt.Sprintf("/%s/operations/%s", version.APIVersion, r.op.ID)
 	if r.project != "" {
 		url += fmt.Sprintf("?project=%s", r.project)
@@ -103,7 +119,14 @@ func (r *forwardedOperationResponse) Render(w http.ResponseWriter) error {
 		debugLogger = logger.AddContext(logger.Ctx{"http_code": code})
 	}
 
-	return util.WriteJSON(w, body, debugLogger)
+	err := util.WriteJSON(w, body, debugLogger)
+
+	if err == nil {
+		// If there was an error on Render, the callback function will be called during the error handling.
+		request.MetricsCallback(req, metrics.Success)
+	}
+
+	return err
 }
 
 func (r *forwardedOperationResponse) String() string {

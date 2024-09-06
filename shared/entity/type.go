@@ -18,6 +18,18 @@ type typeInfo interface {
 
 	// path returns the API path for the resource. The pathPlaceholder constant should be used in place of mux variables.
 	path() []string
+
+	// apiMetricsURLPrefix defines the endpoint URL prefixes related to that type.
+	// This is used to categorize endpoints for the API rates metrics using entity types.
+	// If a type is not relevant for the metrics, this will return an empty slice.
+	apiMetricsURLPrefixes() []string
+}
+
+// noEndpointPrefix is used to indicate an entity type is not relevant for classifying endpoints.
+type noEndpointPrefix struct{}
+
+func (t noEndpointPrefix) apiMetricsURLPrefixes() []string {
+	return []string{}
 }
 
 const (
@@ -158,7 +170,25 @@ var entityTypes = map[Type]typeInfo{
 	TypeIdentityProviderGroup: identityProviderGroup{},
 }
 
-type container struct{}
+// APIMetricsEntityTypes returns a slice containing the entity types that are relevant for the API metrics.
+func APIMetricsEntityTypes() []Type {
+	var apiMetricsEntityTypes []Type
+
+	// TypeServer is not related to any prefix but is used as a default values
+	apiMetricsEntityTypes = append(apiMetricsEntityTypes, TypeServer)
+
+	for entityType, info := range entityTypes {
+		if len(info.apiMetricsURLPrefixes()) > 0 {
+			apiMetricsEntityTypes = append(apiMetricsEntityTypes, entityType)
+		}
+	}
+
+	return apiMetricsEntityTypes
+}
+
+type container struct {
+	noEndpointPrefix
+}
 
 func (container) requiresProject() bool {
 	return true
@@ -178,6 +208,10 @@ func (image) path() []string {
 	return []string{"images", pathPlaceholder}
 }
 
+func (image) apiMetricsURLPrefixes() []string {
+	return []string{"images"}
+}
+
 type profile struct{}
 
 func (profile) requiresProject() bool {
@@ -186,6 +220,10 @@ func (profile) requiresProject() bool {
 
 func (profile) path() []string {
 	return []string{"profiles", pathPlaceholder}
+}
+
+func (profile) apiMetricsURLPrefixes() []string {
+	return []string{"profiles"}
 }
 
 type project struct{}
@@ -198,7 +236,13 @@ func (project) path() []string {
 	return []string{"projects", pathPlaceholder}
 }
 
-type certificate struct{}
+func (project) apiMetricsURLPrefixes() []string {
+	return []string{"projects"}
+}
+
+type certificate struct {
+	noEndpointPrefix
+}
 
 func (certificate) requiresProject() bool {
 	return false
@@ -218,7 +262,13 @@ func (instance) path() []string {
 	return []string{"instances", pathPlaceholder}
 }
 
-type instanceBackup struct{}
+func (instance) apiMetricsURLPrefixes() []string {
+	return []string{"instances", "containers", "virtual-machines"}
+}
+
+type instanceBackup struct {
+	noEndpointPrefix
+}
 
 func (instanceBackup) requiresProject() bool {
 	return true
@@ -228,7 +278,9 @@ func (instanceBackup) path() []string {
 	return []string{"instances", pathPlaceholder, "backups", pathPlaceholder}
 }
 
-type instanceSnapshot struct{}
+type instanceSnapshot struct {
+	noEndpointPrefix
+}
 
 func (instanceSnapshot) requiresProject() bool {
 	return true
@@ -248,7 +300,13 @@ func (network) path() []string {
 	return []string{"networks", pathPlaceholder}
 }
 
-type networkACL struct{}
+func (network) apiMetricsURLPrefixes() []string {
+	return []string{"networks", "network-acls", "network-zones"}
+}
+
+type networkACL struct {
+	noEndpointPrefix
+}
 
 func (networkACL) requiresProject() bool {
 	return true
@@ -268,6 +326,10 @@ func (clusterMember) path() []string {
 	return []string{"cluster", "members", pathPlaceholder}
 }
 
+func (clusterMember) apiMetricsURLPrefixes() []string {
+	return []string{"cluster"}
+}
+
 type operation struct{}
 
 func (operation) requiresProject() bool {
@@ -276,6 +338,10 @@ func (operation) requiresProject() bool {
 
 func (operation) path() []string {
 	return []string{"operations", pathPlaceholder}
+}
+
+func (operation) apiMetricsURLPrefixes() []string {
+	return []string{"operations"}
 }
 
 type storagePool struct{}
@@ -288,7 +354,13 @@ func (storagePool) path() []string {
 	return []string{"storage-pools", pathPlaceholder}
 }
 
-type storageVolume struct{}
+func (storagePool) apiMetricsURLPrefixes() []string {
+	return []string{"storage-pools", "storage-volumes"}
+}
+
+type storageVolume struct {
+	noEndpointPrefix
+}
 
 func (storageVolume) requiresProject() bool {
 	return true
@@ -298,7 +370,9 @@ func (storageVolume) path() []string {
 	return []string{"storage-pools", pathPlaceholder, "volumes", pathPlaceholder, pathPlaceholder}
 }
 
-type storageVolumeBackup struct{}
+type storageVolumeBackup struct {
+	noEndpointPrefix
+}
 
 func (storageVolumeBackup) requiresProject() bool {
 	return true
@@ -308,7 +382,9 @@ func (storageVolumeBackup) path() []string {
 	return []string{"storage-pools", pathPlaceholder, "volumes", pathPlaceholder, pathPlaceholder, "backups", pathPlaceholder}
 }
 
-type storageVolumeSnapshot struct{}
+type storageVolumeSnapshot struct {
+	noEndpointPrefix
+}
 
 func (storageVolumeSnapshot) requiresProject() bool {
 	return true
@@ -328,7 +404,13 @@ func (warning) path() []string {
 	return []string{"warnings", pathPlaceholder}
 }
 
-type clusterGroup struct{}
+func (warning) apiMetricsURLPrefixes() []string {
+	return []string{"warnings"}
+}
+
+type clusterGroup struct {
+	noEndpointPrefix
+}
 
 func (clusterGroup) requiresProject() bool {
 	return false
@@ -338,7 +420,9 @@ func (clusterGroup) path() []string {
 	return []string{"cluster", "groups", pathPlaceholder}
 }
 
-type storageBucket struct{}
+type storageBucket struct {
+	noEndpointPrefix
+}
 
 func (storageBucket) requiresProject() bool {
 	return true
@@ -348,7 +432,10 @@ func (storageBucket) path() []string {
 	return []string{"storage-pools", pathPlaceholder, "buckets", pathPlaceholder}
 }
 
-type server struct{}
+type server struct {
+	// This type is used as a default type for an endpoint so it does not need to explicitly define its prefixes.
+	noEndpointPrefix
+}
 
 func (server) requiresProject() bool {
 	return false
@@ -358,7 +445,9 @@ func (server) path() []string {
 	return []string{}
 }
 
-type imageAlias struct{}
+type imageAlias struct {
+	noEndpointPrefix
+}
 
 func (imageAlias) requiresProject() bool {
 	return true
@@ -368,7 +457,9 @@ func (imageAlias) path() []string {
 	return []string{"images", "aliases", pathPlaceholder}
 }
 
-type networkZone struct{}
+type networkZone struct {
+	noEndpointPrefix
+}
 
 func (networkZone) requiresProject() bool {
 	return true
@@ -388,7 +479,14 @@ func (identity) path() []string {
 	return []string{"auth", "identities", pathPlaceholder, pathPlaceholder}
 }
 
-type authGroup struct{}
+func (identity) apiMetricsURLPrefixes() []string {
+	// For /{version}/auth and /{version}/certificates endpoints.
+	return []string{"auth", "certificates"}
+}
+
+type authGroup struct {
+	noEndpointPrefix
+}
 
 func (authGroup) requiresProject() bool {
 	return false
@@ -398,7 +496,9 @@ func (authGroup) path() []string {
 	return []string{"auth", "groups", pathPlaceholder}
 }
 
-type identityProviderGroup struct{}
+type identityProviderGroup struct {
+	noEndpointPrefix
+}
 
 func (identityProviderGroup) requiresProject() bool {
 	return false
