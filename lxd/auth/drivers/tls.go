@@ -64,29 +64,22 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 		return nil
 	}
 
-	entityType, projectName, _, _, err := entity.ParseURL(entityURL.URL)
+	entityType, projectName, _, pathArguments, err := entity.ParseURL(entityURL.URL)
 	if err != nil {
 		return fmt.Errorf("Failed to parse entity URL: %w", err)
 	}
 
-	// Check server level object types
-	switch entityType {
-	case entity.TypeServer:
-		if entitlement == auth.EntitlementCanView || entitlement == auth.EntitlementCanViewResources || entitlement == auth.EntitlementCanViewMetrics {
-			return nil
-		}
-
-		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
-	case entity.TypeStoragePool, entity.TypeCertificate:
-		if entitlement == auth.EntitlementCanView {
-			return nil
-		}
-
-		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
+	projectSpecific, err := entityType.RequiresProject()
+	if err != nil {
+		return fmt.Errorf("Failed to check project specificity of entity type %q: %w", entityType, err)
 	}
 
-	// Don't allow project modifications.
-	if entityType == entity.TypeProject && (entitlement == auth.EntitlementCanEdit || entitlement == auth.EntitlementCanDelete) {
+	// Check non- project-specific entity types.
+	if !projectSpecific {
+		if t.allowProjectUnspecificEntityType(entitlement, entityType, id, projectName, pathArguments) {
+			return nil
+		}
+
 		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
 	}
 
@@ -128,28 +121,14 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 		return allowFunc(true), nil
 	}
 
-	// Check server level object types
-	switch entityType {
-	case entity.TypeServer:
-		// We have to keep EntitlementCanViewMetrics here for backwards compatibility with older versions of LXD.
-		// Historically when viewing the metrics endpoint for a specific project with a restricted certificate
-		// also the internal server metrics get returned.
-		if entitlement == auth.EntitlementCanView || entitlement == auth.EntitlementCanViewResources || entitlement == auth.EntitlementCanViewMetrics {
-			return allowFunc(true), nil
-		}
-
-		return allowFunc(false), nil
-	case entity.TypeStoragePool, entity.TypeCertificate:
-		if entitlement == auth.EntitlementCanView {
-			return allowFunc(true), nil
-		}
-
-		return allowFunc(false), nil
+	projectSpecific, err := entityType.RequiresProject()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to check project specificity of entity type %q: %w", entityType, err)
 	}
 
 	// Filter objects by project.
 	return func(entityURL *api.URL) bool {
-		eType, project, _, _, err := entity.ParseURL(entityURL.URL)
+		eType, project, _, pathArguments, err := entity.ParseURL(entityURL.URL)
 		if err != nil {
 			logger.Warn("Permission checker failed to parse entity URL", logger.Ctx{"entity_url": entityURL, "err": err})
 			return false
@@ -161,7 +140,51 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 			return false
 		}
 
+		// Check non- project-specific entity types.
+		if !projectSpecific {
+			return t.allowProjectUnspecificEntityType(entitlement, entityType, id, project, pathArguments)
+		}
+
 		// Otherwise, check if the project is in the list of allowed projects for the entity.
 		return shared.ValueInSlice(project, id.Projects)
 	}, nil
+}
+
+func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, entityType entity.Type, id *identity.CacheEntry, projectName string, pathArguments []string) bool {
+	switch entityType {
+	case entity.TypeServer:
+		// Restricted TLS certificates have the following entitlements on server.
+		return shared.ValueInSlice(entitlement, []auth.Entitlement{auth.EntitlementCanView, auth.EntitlementCanViewResources, auth.EntitlementCanViewMetrics})
+	case entity.TypeStoragePool:
+		// Restricted TLS certificates can view all storage pools.
+		return entitlement == auth.EntitlementCanView
+	case entity.TypeIdentity:
+		// If the entity URL refers to the identity that made the request, then the second path argument of the URL is
+		// the identifier of the identity. This line allows the caller to view their own identity and no one else's.
+		return entitlement == auth.EntitlementCanView && len(pathArguments) > 1 && pathArguments[1] == id.Identifier
+	case entity.TypeCertificate:
+		// If the certificate URL refers to the identity that made the request, then the first path argument of the URL is
+		// the identifier of the identity (their fingerprint). This line allows the caller to view their own certificate and no one else's.
+		return entitlement == auth.EntitlementCanView && len(pathArguments) > 0 && pathArguments[0] == id.Identifier
+	case entity.TypeProject:
+		// If the project is in the list of projects that the identity is restricted to, then they have the following
+		// entitlements.
+		return shared.ValueInSlice(projectName, id.Projects) && shared.ValueInSlice(entitlement, []auth.Entitlement{
+			auth.EntitlementCanView,
+			auth.EntitlementCanCreateImages,
+			auth.EntitlementCanCreateImageAliases,
+			auth.EntitlementCanCreateInstances,
+			auth.EntitlementCanCreateNetworks,
+			auth.EntitlementCanCreateNetworkACLs,
+			auth.EntitlementCanCreateNetworkZones,
+			auth.EntitlementCanCreateProfiles,
+			auth.EntitlementCanCreateStorageVolumes,
+			auth.EntitlementCanCreateStorageBuckets,
+			auth.EntitlementCanViewEvents,
+			auth.EntitlementCanViewOperations,
+			auth.EntitlementCanViewMetrics,
+		})
+	default:
+		return false
+	}
 }
