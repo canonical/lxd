@@ -268,7 +268,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 
 		i := 1
 
-		if shared.ValueInSlice(api.AuthenticationMethodTLS, apiServer.AuthMethods) {
+		if slices.Contains(apiServer.AuthMethods, api.AuthenticationMethodTLS) {
 			fmt.Printf("%d) Use a certificate token\n", i)
 			availableAuthMethods = append(availableAuthMethods, authMethodTLSCertificateToken)
 			i++
@@ -279,7 +279,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 			availableAuthMethods = append(availableAuthMethods, authMethodTLSTemporaryCertificate)
 		}
 
-		if len(apiServer.AuthMethods) > 1 || shared.ValueInSlice(api.AuthenticationMethodTLS, apiServer.AuthMethods) {
+		if len(apiServer.AuthMethods) > 1 || slices.Contains(apiServer.AuthMethods, api.AuthenticationMethodTLS) {
 			authMethodInt, err := c.global.asker.AskInt("Please pick an authentication mechanism above: ", 1, int64(i), "", nil)
 			if err != nil {
 				return nil, "", err
@@ -373,7 +373,7 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 			return nil, err
 		}
 
-		if !shared.ValueInSlice(c.flagProject, projectNames) {
+		if !slices.Contains(projectNames, c.flagProject) {
 			return nil, fmt.Errorf("Project %q does not exist", c.flagProject)
 		}
 
@@ -388,7 +388,7 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 			return nil, err
 		}
 
-		if shared.ValueInSlice(c.flagInstanceName, instanceNames) {
+		if slices.Contains(instanceNames, c.flagInstanceName) {
 			return nil, fmt.Errorf("Instance %q already exists", c.flagInstanceName)
 		}
 
@@ -415,7 +415,7 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 		}
 
 		for _, profile := range c.flagProfiles {
-			if !shared.ValueInSlice(profile, profileNames) {
+			if !slices.Contains(profileNames, profile) {
 				return nil, fmt.Errorf("Profile %q not found", profile)
 			}
 		}
@@ -448,7 +448,7 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 			return nil, errors.New("No storage pools available")
 		}
 
-		if !shared.ValueInSlice(c.flagStorage, storagePools) {
+		if !slices.Contains(storagePools, c.flagStorage) {
 			return nil, fmt.Errorf("Storage pool %q not found", c.flagStorage)
 		}
 
@@ -475,7 +475,7 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 			return nil, err
 		}
 
-		if !shared.ValueInSlice(c.flagNetwork, networks) {
+		if !slices.Contains(networks, c.flagNetwork) {
 			return nil, fmt.Errorf("Network %q not found", c.flagNetwork)
 		}
 
@@ -563,7 +563,7 @@ func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceS
 				return err
 			}
 
-			if shared.ValueInSlice(instanceName, instanceNames) {
+			if slices.Contains(instanceNames, instanceName) {
 				fmt.Printf("Instance %q already exists\n", instanceName)
 				continue
 			}
@@ -592,7 +592,7 @@ func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceS
 	if !c.flagNonInteractive && config.InstanceArgs.Type == api.InstanceTypeVM {
 		architectureName, _ := osarch.ArchitectureGetLocal()
 
-		if shared.ValueInSlice(architectureName, []string{"x86_64", "aarch64"}) {
+		if slices.Contains([]string{"x86_64", "aarch64"}, architectureName) {
 			hasSecureBoot, err := c.global.asker.AskBool("Does the VM support UEFI Secure Boot? [default=no]: ", "no")
 			if err != nil {
 				return err
@@ -949,7 +949,7 @@ func (c *cmdMigrate) askProfiles(server lxd.InstanceServer, config *cmdMigrateDa
 		profiles := strings.Split(s, " ")
 
 		for _, profile := range profiles {
-			if !shared.ValueInSlice(profile, profileNames) {
+			if !slices.Contains(profileNames, profile) {
 				return fmt.Errorf("Unknown profile %q", profile)
 			}
 		}
