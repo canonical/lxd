@@ -368,10 +368,6 @@ If the VM was installed from an ISO is a Linux distribution using `systemd`, it 
     umount /mnt
     reboot
 
-```{note}
-On SELinux enabled distribution, it might be necessary to disable SELinux or set it to `permissive` mode. Please refer to your OS vendor documentation for how to do this.
-```
-
 ````
 ````{group-tab} API
 ```{include} instances_create.md
