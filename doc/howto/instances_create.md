@@ -356,17 +356,9 @@ You should now see the installer. After the installation is done, detach the cus
 Now the VM can be rebooted, and it will boot from disk.
 <!-- iso_vm_step7 end -->
 
-<!-- iso_vm_step8 start -->
-If the VM was installed from an ISO is a Linux distribution using `systemd`, it is possible to install the LXD agent inside of it. This can be done manually as the root user inside the VM:
-<!-- iso_vm_step8 end -->
-
-    modprobe 9pnet_virtio
-    mount -t 9p config /mnt -o access=0,transport=virtio || mount -t virtiofs config /mnt
-    cd /mnt
-    ./install.sh
-    cd /
-    umount /mnt
-    reboot
+```{note}
+On Linux virtual machines, the {ref}`LXD agent can be manually installed <lxd-agent-manual-install>`.
+```
 
 ````
 ````{group-tab} API
@@ -480,6 +472,7 @@ You can then upload your ISO file and install a VM from it.
 ````
 `````
 
+(lxd-agent-manual-install)=
 ### Install the LXD agent into virtual machine instances
 
 In order for features like direct command execution (`lxc exec` & `lxc shell`), file transfers (`lxc file`) and detailed usage metrics (`lxc info`)
