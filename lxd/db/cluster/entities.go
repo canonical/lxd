@@ -76,7 +76,6 @@ var entityTypes = map[entity.Type]entityTypeDBInfo{
 	entity.TypeImage:                 entityTypeImage{},
 	entity.TypeProfile:               entityTypeProfile{},
 	entity.TypeProject:               entityTypeProject{},
-	entity.TypeCertificate:           entityTypeCertificate{},
 	entity.TypeInstance:              entityTypeInstance{},
 	entity.TypeInstanceBackup:        entityTypeInstanceBackup{},
 	entity.TypeInstanceSnapshot:      entityTypeInstanceSnapshot{},
@@ -100,12 +99,16 @@ var entityTypes = map[entity.Type]entityTypeDBInfo{
 }
 
 const (
-	entityTypeCodeNone                  int64 = -1
-	entityTypeCodeContainer             int64 = 0
-	entityTypeCodeImage                 int64 = 1
-	entityTypeCodeProfile               int64 = 2
-	entityTypeCodeProject               int64 = 3
-	entityTypeCodeCertificate           int64 = 4
+	entityTypeCodeNone      int64 = -1
+	entityTypeCodeContainer int64 = 0
+	entityTypeCodeImage     int64 = 1
+	entityTypeCodeProfile   int64 = 2
+	entityTypeCodeProject   int64 = 3
+
+	// DEPRECATION: The entity type code "4" was used for the certificate entity type. This is now redundant because a)
+	// there is no longer a certificates table, and b) the identities table contains all certificates (TLS identities).
+	// Use the "identity" entity type to reference a certificate, either for permissions or warnings.
+	_                                   int64 = 4
 	entityTypeCodeInstance              int64 = 5
 	entityTypeCodeInstanceBackup        int64 = 6
 	entityTypeCodeInstanceSnapshot      int64 = 7
