@@ -115,7 +115,12 @@ The steps for enabling PKI mode differ slightly depending on whether you use an 
 
 `````{tabs}
 ````{group-tab} Only PKI
-If you use a PKI system, both the server certificates and the client certificates are issued by a secondary CA.
+If you use a PKI system, both the server and client certificates are issued by intermediate CA(s).
+The `client.ca` file contains the certificate used by the client to verify the server certificate it receives when making a connection to a remote.
+The `server.ca` file contains the certificate used by the server to verify the client certificate associated with an incoming connection.
+
+Both files contain trust anchors used to evaluate if the received leaf certificate from the other end of the connection is to be trusted or not.
+If the leaf certificate's chain of trust leads to one of the trusted anchors it will be trusted (unless revoked).
 
 1. Add the CA certificate to all machines:
    - Place the `client.ca` file in the clients' configuration directories (`~/.config/lxc` or `~/snap/lxd/common/config` for snap users).
