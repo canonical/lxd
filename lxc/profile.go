@@ -932,7 +932,7 @@ For backward compatibility, a single configuration key may still be set with:
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpInstanceAllKeys()
+			return c.global.cmpInstanceAllKeys(args[0])
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
