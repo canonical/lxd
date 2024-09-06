@@ -149,16 +149,21 @@ var architectureInstallations = map[int][]Installation{
 	}},
 }
 
-// GetAchitectureFirmwarePairs creates an array of FirmwarePair for a
-// specific host architecture.
-func GetAchitectureFirmwarePairs(hostArch int) []FirmwarePair {
-	firmwares := make([]FirmwarePair, 0)
-
-	for _, usage := range []FirmwareUsage{GENERIC, SECUREBOOT, CSM} {
-		firmwares = append(firmwares, GetArchitectureFirmwarePairsForUsage(hostArch, usage)...)
+// GetAchitectureFirmwareVarsCandidates returns a unique list of candidate vars names for hostArch for all usages.
+// It does not check whether the associated firmware files are present on the host now.
+// This can be used to check for the existence of previously used firmware vars files in an existing VM instance.
+func GetAchitectureFirmwareVarsCandidates(hostArch int) (varsNames []string) {
+	for _, installation := range architectureInstallations[hostArch] {
+		for _, usage := range installation.Usage {
+			for _, fwPair := range usage {
+				if !shared.ValueInSlice(fwPair.Vars, varsNames) {
+					varsNames = append(varsNames, fwPair.Vars)
+				}
+			}
+		}
 	}
 
-	return firmwares
+	return varsNames
 }
 
 // GetArchitectureFirmwarePairsForUsage creates an array of FirmwarePair
