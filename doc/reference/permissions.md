@@ -60,14 +60,6 @@ Entitlements that are granted at the `project` level might cascade to project sp
     :end-before: <!-- entity group identity_provider_group end -->
 ```
 
-## Certificate
-> Entity type name: `certificate`
-
-```{include} ../metadata.txt
-    :start-after: <!-- entity group certificate start -->
-    :end-before: <!-- entity group certificate end -->
-```
-
 ## Instance
 > Entity type name: `instance`
 
