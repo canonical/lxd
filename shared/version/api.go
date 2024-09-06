@@ -418,6 +418,7 @@ var APIExtensions = []string{
 	"network_allocations_ovn_uplink",
 	"network_ovn_uplink_vlan",
 	"shared_custom_block_volumes",
+	"metrics_api_requests",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
