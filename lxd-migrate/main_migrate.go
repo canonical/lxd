@@ -693,6 +693,36 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Check the required flags in non-interactive mode.
+	if c.flagNonInteractive {
+		if c.flagInstanceType == "" {
+			return errors.New("Instance type is required in non-interactive mode")
+		}
+
+		if c.flagSource == "" {
+			return errors.New("Source path is required in non-interactive mode")
+		}
+	}
+
+	// Precheck instance type.
+	if c.flagInstanceType != "" && !slices.Contains([]string{"container", "vm"}, c.flagInstanceType) {
+		return fmt.Errorf("Invalid instance type %q: Valid values are [%s]", c.flagInstanceType, strings.Join([]string{"container", "vm"}, ", "))
+	}
+
+	// Check source path. This is only precheck, as we cannot know the whether
+	// conversion is supported until the connection with the server is established.
+	if c.flagSource != "" {
+		err := c.checkSource(c.flagSource, "", "")
+		if err != nil {
+			return fmt.Errorf("Invalid source path %q: %w", c.flagSource, err)
+		}
+	}
+
+	// Ensure no-profiles and profiles flags are not used together.
+	if c.flagNoProfiles && len(c.flagProfiles) > 0 {
+		return errors.New("Flags --no-profiles and --profiles are mutually exclusive")
+	}
+
 	_, err := exec.LookPath("rsync")
 	if err != nil {
 		return err
