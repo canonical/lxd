@@ -64,7 +64,7 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 		return nil
 	}
 
-	entityType, projectName, _, _, err := entity.ParseURL(entityURL.URL)
+	entityType, projectName, _, pathArguments, err := entity.ParseURL(entityURL.URL)
 	if err != nil {
 		return fmt.Errorf("Failed to parse entity URL: %w", err)
 	}
@@ -77,8 +77,16 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 		}
 
 		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
-	case entity.TypeStoragePool, entity.TypeCertificate:
+	case entity.TypeStoragePool:
 		if entitlement == auth.EntitlementCanView {
+			return nil
+		}
+
+		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
+	case entity.TypeIdentity:
+		// Allow identities (certificates if using this authorizer) to view themselves.
+		// (certificates can be edited or deleted by the client with that certificate, but this is handled in the certificate API handler).
+		if entitlement == auth.EntitlementCanView && len(pathArguments) > 1 && pathArguments[1] == id.Identifier {
 			return nil
 		}
 
@@ -139,7 +147,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 		}
 
 		return allowFunc(false), nil
-	case entity.TypeStoragePool, entity.TypeCertificate:
+	case entity.TypeStoragePool:
 		if entitlement == auth.EntitlementCanView {
 			return allowFunc(true), nil
 		}
@@ -149,7 +157,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 
 	// Filter objects by project.
 	return func(entityURL *api.URL) bool {
-		eType, project, _, _, err := entity.ParseURL(entityURL.URL)
+		eType, project, _, pathArguments, err := entity.ParseURL(entityURL.URL)
 		if err != nil {
 			logger.Warn("Permission checker failed to parse entity URL", logger.Ctx{"entity_url": entityURL, "err": err})
 			return false
@@ -159,6 +167,13 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 		if eType != entityType {
 			logger.Warn("Permission checker received URL with unexpected entity type", logger.Ctx{"expected": entityType, "actual": eType, "entity_url": entityURL})
 			return false
+		}
+
+		// Allow identities (certificates if using this authorizer) to view, edit, delete themselves.
+		// Allow identities (certificates if using this authorizer) to view themselves.
+		// (certificates can be edited or deleted by the client with that certificate, but this is handled in the certificate API handler).
+		if eType == entity.TypeIdentity && entitlement == auth.EntitlementCanView && len(pathArguments) > 1 && pathArguments[1] == id.Identifier {
+			return true
 		}
 
 		// Otherwise, check if the project is in the list of allowed projects for the entity.
