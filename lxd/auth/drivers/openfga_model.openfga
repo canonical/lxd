@@ -137,18 +137,6 @@ type server
 
     # Grants permission to view warnings.
     define can_view_warnings: [identity, service_account, group#member] or admin or viewer
-type certificate
-  relations
-    define server: [server]
-
-    # Grants permission to view the certificate.
-    define can_view: [identity, service_account, group#member] or can_edit or can_delete or can_view_identities from server
-
-    # Grants permission to edit the certificate.
-    define can_edit: [identity, service_account, group#member] or can_edit_identities from server
-
-    # Grants permission to delete the certificate.
-    define can_delete: [identity, service_account, group#member] or can_delete_identities from server
 type storage_pool
   relations
     define server: [server]
