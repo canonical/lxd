@@ -275,7 +275,7 @@ func (o *Verifier) getGroupsFromClaims(customClaims map[string]any) []string {
 func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 	err := o.ensureConfig(r.Context(), r.Host)
 	if err != nil {
-		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Login failed: %w", err).Error()).Render(w)
+		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Login failed: %w", err).Error()).Render(w, r)
 		return
 	}
 
@@ -287,7 +287,7 @@ func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 func (o *Verifier) Logout(w http.ResponseWriter, r *http.Request) {
 	err := o.setCookies(w, nil, uuid.UUID{}, "", "", true)
 	if err != nil {
-		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to delete login information: %w", err).Error()).Render(w)
+		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to delete login information: %w", err).Error()).Render(w, r)
 		return
 	}
 
@@ -298,7 +298,7 @@ func (o *Verifier) Logout(w http.ResponseWriter, r *http.Request) {
 func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 	err := o.ensureConfig(r.Context(), r.Host)
 	if err != nil {
-		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("OIDC callback failed: %w", err).Error()).Render(w)
+		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("OIDC callback failed: %w", err).Error()).Render(w, r)
 		return
 	}
 
@@ -306,13 +306,13 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 		sessionID := uuid.New()
 		secureCookie, err := o.secureCookieFromSession(sessionID)
 		if err != nil {
-			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to start a new session: %w", err).Error()).Render(w)
+			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to start a new session: %w", err).Error()).Render(w, r)
 			return
 		}
 
 		err = o.setCookies(w, secureCookie, sessionID, tokens.IDToken, tokens.RefreshToken, false)
 		if err != nil {
-			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to set login information: %w", err).Error()).Render(w)
+			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to set login information: %w", err).Error()).Render(w, r)
 			return
 		}
 

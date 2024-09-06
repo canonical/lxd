@@ -25,13 +25,12 @@ var eventsCmd = APIEndpoint{
 }
 
 type eventsServe struct {
-	req *http.Request
-	d   *Daemon
+	d *Daemon
 }
 
 // Render starts event socket.
-func (r *eventsServe) Render(w http.ResponseWriter) error {
-	return eventsSocket(r.d, r.req, w)
+func (r *eventsServe) Render(w http.ResponseWriter, request *http.Request) error {
+	return eventsSocket(r.d, request, w)
 }
 
 func (r *eventsServe) String() string {
@@ -89,7 +88,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 }
 
 func eventsGet(d *Daemon, r *http.Request) response.Response {
-	return &eventsServe{req: r, d: d}
+	return &eventsServe{d: d}
 }
 
 func eventsPost(d *Daemon, r *http.Request) response.Response {

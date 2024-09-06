@@ -264,7 +264,7 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 
 	s.Events.SendLifecycle(projectName, lifecycle.InstanceLogRetrieved.Event(file, inst, request.CreateRequestor(r), nil))
 
-	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil)
+	return response.FileResponse([]response.FileResponseEntry{ent}, nil)
 }
 
 // swagger:operation DELETE /1.0/instances/{name}/logs/{filename} instances instance_log_delete
@@ -581,7 +581,7 @@ func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 
 	s.Events.SendLifecycle(projectName, lifecycle.InstanceLogRetrieved.Event(file, inst, request.CreateRequestor(r), nil))
 
-	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil)
+	return response.FileResponse([]response.FileResponseEntry{ent}, nil)
 }
 
 // swagger:operation DELETE /1.0/instances/{name}/logs/exec-output/{filename} instances instance_exec-output_delete

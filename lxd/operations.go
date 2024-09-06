@@ -983,17 +983,17 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 			// Wait for the operation.
 			err = op.Wait(ctx)
 			if err != nil {
-				_ = response.SmartError(err).Render(w)
+				_ = response.SmartError(err).Render(w, r)
 				return nil
 			}
 
 			_, body, err := op.Render()
 			if err != nil {
-				_ = response.SmartError(err).Render(w)
+				_ = response.SmartError(err).Render(w, r)
 				return nil
 			}
 
-			_ = response.SyncResponse(true, body).Render(w)
+			_ = response.SyncResponse(true, body).Render(w, r)
 			return nil
 		}
 
@@ -1032,32 +1032,6 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.ForwardedResponse(client, r)
-}
-
-type operationWebSocket struct {
-	req *http.Request
-	op  *operations.Operation
-}
-
-// Render implements response.Response for operationWebSocket.
-func (r *operationWebSocket) Render(w http.ResponseWriter) error {
-	chanErr, err := r.op.Connect(r.req, w)
-	if err != nil {
-		return err
-	}
-
-	err = <-chanErr
-	return err
-}
-
-// String implements fmt.Stringer for operationWebSocket.
-func (r *operationWebSocket) String() string {
-	_, md, err := r.op.Render()
-	if err != nil {
-		return fmt.Sprintf("error: %s", err)
-	}
-
-	return md.ID
 }
 
 // swagger:operation GET /1.0/operations/{id}/websocket?public operations operation_websocket_get_untrusted
@@ -1125,7 +1099,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)
 	if err == nil {
-		return &operationWebSocket{r, op}
+		return operations.OperationWebSocket(op)
 	}
 
 	// Then check if the query is from an operation on another node, and, if so, forward it
@@ -1169,7 +1143,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return operations.ForwardedOperationWebSocket(r, id, source)
+	return operations.ForwardedOperationWebSocket(id, source)
 }
 
 func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {

@@ -10,6 +10,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/events"
+	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -30,13 +31,19 @@ var eventsCmd = APIEndpoint{
 }
 
 type eventsServe struct {
-	req *http.Request
-	s   *state.State
+	s *state.State
 }
 
 // Render starts event socket.
-func (r *eventsServe) Render(w http.ResponseWriter) error {
-	return eventsSocket(r.s, r.req, w)
+func (r *eventsServe) Render(w http.ResponseWriter, req *http.Request) error {
+	err := eventsSocket(r.s, req, w)
+
+	if err == nil {
+		// If there was an error on Render, the callback function will be called during the error handling.
+		request.MetricsCallback(req, metrics.Success)
+	}
+
+	return err
 }
 
 func (r *eventsServe) String() string {
@@ -209,5 +216,5 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func eventsGet(d *Daemon, r *http.Request) response.Response {
-	return &eventsServe{req: r, s: d.State()}
+	return &eventsServe{s: d.State()}
 }

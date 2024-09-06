@@ -175,7 +175,7 @@ var devLxdEventsGet = devLxdHandler{
 }
 
 func devlxdEventsGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
-	err := eventsGet(d, r).Render(w)
+	err := eventsGet(d, r).Render(w, r)
 	if err != nil {
 		return smartResponse(err)
 	}
