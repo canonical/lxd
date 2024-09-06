@@ -166,8 +166,8 @@ func GetAchitectureFirmwareVarsCandidates(hostArch int) (varsNames []string) {
 	return varsNames
 }
 
-// GetArchitectureFirmwarePairsForUsage creates an array of FirmwarePair
-// for a specific host architecture and usage combination.
+// GetArchitectureFirmwarePairsForUsage returns FirmwarePair slice for a host architecture and usage combination.
+// It only includes FirmwarePairs where both the firmware and its vars file are found on the host.
 func GetArchitectureFirmwarePairsForUsage(hostArch int, usage FirmwareUsage) []FirmwarePair {
 	firmwares := make([]FirmwarePair, 0)
 
