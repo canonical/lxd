@@ -482,26 +482,28 @@ You can then upload your ISO file and install a VM from it.
 
 ### Install the LXD agent into virtual machine instances
 
-In order for features like direct command execution (`lxc exec`), file transfers (`lxc file`) and detailed usage metrics (`lxc info`)
+In order for features like direct command execution (`lxc exec` & `lxc shell`), file transfers (`lxc file`) and detailed usage metrics (`lxc info`)
 to work properly with virtual machines, an agent software is provided by LXD.
 
-The virtual machine images from the [images](https://images.lxd.canonical.com) remote are pre-configured to load that agent on startup.
+The virtual machine images from the official {ref}`remote image servers <remote-image-servers>` are pre-configured to load that agent on startup.
 
 For other virtual machines, you may want to manually install the agent.
 
 ```{note}
-The LXD agent is currently available only on Linux virtual machines.
+The LXD agent is currently available only on Linux virtual machines using `systemd`.
 ```
 
-LXD provides the agent through a remote `9p` file system with mount name `config`.
-To install the agent, you'll need to get access to the virtual machine and run the following commands:
+LXD provides the agent through a remote `9p` file system and a `virtiofs` one that are both available under the mount name `config`.
+To install the agent, you'll need to get access to the virtual machine and run the following commands as root:
 
-    mount -t 9p config /mnt
+    modprobe 9pnet_virtio
+    mount -t 9p config /mnt -o access=0,transport=virtio || mount -t virtiofs config /mnt
     cd /mnt
     ./install.sh
+    cd /
+    umount /mnt
+    reboot
 
-The first line will mount the remote file system on the mount point `/mnt`.
-The subsequent commands will run the installation script `install.sh` to install and run the LXD agent.
 You need to perform this task once.
 
 ### Create a Windows VM
