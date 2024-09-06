@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/osarch"
 )
 
@@ -148,20 +149,25 @@ var architectureInstallations = map[int][]Installation{
 	}},
 }
 
-// GetAchitectureFirmwarePairs creates an array of FirmwarePair for a
-// specific host architecture.
-func GetAchitectureFirmwarePairs(hostArch int) []FirmwarePair {
-	firmwares := make([]FirmwarePair, 0)
-
-	for _, usage := range []FirmwareUsage{GENERIC, SECUREBOOT, CSM} {
-		firmwares = append(firmwares, GetArchitectureFirmwarePairsForUsage(hostArch, usage)...)
+// GetAchitectureFirmwareVarsCandidates returns a unique list of candidate vars names for hostArch for all usages.
+// It does not check whether the associated firmware files are present on the host now.
+// This can be used to check for the existence of previously used firmware vars files in an existing VM instance.
+func GetAchitectureFirmwareVarsCandidates(hostArch int) (varsNames []string) {
+	for _, installation := range architectureInstallations[hostArch] {
+		for _, usage := range installation.Usage {
+			for _, fwPair := range usage {
+				if !shared.ValueInSlice(fwPair.Vars, varsNames) {
+					varsNames = append(varsNames, fwPair.Vars)
+				}
+			}
+		}
 	}
 
-	return firmwares
+	return varsNames
 }
 
-// GetArchitectureFirmwarePairsForUsage creates an array of FirmwarePair
-// for a specific host architecture and usage combination.
+// GetArchitectureFirmwarePairsForUsage returns FirmwarePair slice for a host architecture and usage combination.
+// It only includes FirmwarePairs where both the firmware and its vars file are found on the host.
 func GetArchitectureFirmwarePairsForUsage(hostArch int, usage FirmwareUsage) []FirmwarePair {
 	firmwares := make([]FirmwarePair, 0)
 
@@ -170,9 +176,17 @@ func GetArchitectureFirmwarePairsForUsage(hostArch int, usage FirmwareUsage) []F
 		if found {
 			for _, firmwarePair := range usage {
 				for _, searchPath := range installation.Paths {
+					codePath := filepath.Join(searchPath, firmwarePair.Code)
+					varsPath := filepath.Join(searchPath, firmwarePair.Vars)
+
+					// Check both firmware code and vars paths exist - otherwise skip pair.
+					if !shared.PathExists(codePath) || !shared.PathExists(varsPath) {
+						continue
+					}
+
 					firmwares = append(firmwares, FirmwarePair{
-						Code: filepath.Join(searchPath, firmwarePair.Code),
-						Vars: filepath.Join(searchPath, firmwarePair.Vars),
+						Code: codePath,
+						Vars: varsPath,
 					})
 				}
 			}

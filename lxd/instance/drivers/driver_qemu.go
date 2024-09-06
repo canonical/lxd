@@ -1938,11 +1938,11 @@ func (d *qemu) setupNvram() error {
 
 	d.logger.Debug("Generating NVRAM")
 
-	// Cleanup existing variables.
-	for _, firmwarePair := range edk2.GetAchitectureFirmwarePairs(d.architecture) {
-		err := os.Remove(filepath.Join(d.Path(), filepath.Base(firmwarePair.Vars)))
+	// Cleanup existing variables file.
+	for _, varsName := range edk2.GetAchitectureFirmwareVarsCandidates(d.architecture) {
+		err := os.Remove(filepath.Join(d.Path(), varsName))
 		if err != nil && !os.IsNotExist(err) {
-			return err
+			return fmt.Errorf("Failed removing firmware vars file %q: %w", varsName, err)
 		}
 	}
 
@@ -1982,14 +1982,13 @@ func (d *qemu) setupNvram() error {
 		return err
 	}
 
-	// Generate a symlink if needed.
+	// Generate a symlink.
 	// This is so qemu.nvram can always be assumed to be the EDK2 vars file.
 	// The real file name is then used to determine what firmware must be selected.
-	if !shared.PathExists(d.nvramPath()) {
-		err = os.Symlink(vmFirmwareName, d.nvramPath())
-		if err != nil {
-			return err
-		}
+	_ = os.Remove(d.nvramPath())
+	err = os.Symlink(vmFirmwareName, d.nvramPath())
+	if err != nil {
+		return err
 	}
 
 	return nil
