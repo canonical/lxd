@@ -45,9 +45,6 @@ const (
 	// TypeProject represents project resources.
 	TypeProject Type = "project"
 
-	// TypeCertificate represents certificate resources.
-	TypeCertificate Type = "certificate"
-
 	// TypeInstance represents instance resources.
 	TypeInstance Type = "instance"
 
@@ -147,7 +144,6 @@ var entityTypes = map[Type]typeInfo{
 	TypeImage:                 image{},
 	TypeProfile:               profile{},
 	TypeProject:               project{},
-	TypeCertificate:           certificate{},
 	TypeInstance:              instance{},
 	TypeInstanceBackup:        instanceBackup{},
 	TypeInstanceSnapshot:      instanceSnapshot{},
@@ -238,18 +234,6 @@ func (project) path() []string {
 
 func (project) apiMetricsURLPrefixes() []string {
 	return []string{"projects"}
-}
-
-type certificate struct {
-	noEndpointPrefix
-}
-
-func (certificate) requiresProject() bool {
-	return false
-}
-
-func (certificate) path() []string {
-	return []string{"certificates", pathPlaceholder}
 }
 
 type instance struct{}

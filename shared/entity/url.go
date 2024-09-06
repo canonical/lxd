@@ -199,11 +199,6 @@ func ServerURL() *api.URL {
 	return TypeServer.urlMust("", "")
 }
 
-// CertificateURL returns an *api.URL to a certificate.
-func CertificateURL(fingerprint string) *api.URL {
-	return TypeCertificate.urlMust("", "", fingerprint)
-}
-
 // ImageURL returns an *api.URL to an image.
 func ImageURL(projectName string, imageName string) *api.URL {
 	return TypeImage.urlMust(projectName, "", imageName)

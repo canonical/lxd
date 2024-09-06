@@ -64,15 +64,6 @@ func TestURL(t *testing.T) {
 			expectedErr:           nil,
 		},
 		{
-			name:                  "certificates",
-			rawURL:                "/1.0/certificates/foawienfoawnefkanwelfknsfl",
-			expectedNormalisedURL: "/1.0/certificates/foawienfoawnefkanwelfknsfl",
-			expectedEntityType:    TypeCertificate,
-			expectedProject:       "",
-			expectedPathArgs:      []string{"foawienfoawnefkanwelfknsfl"},
-			expectedErr:           nil,
-		},
-		{
 			name:                  "instances",
 			rawURL:                "/1.0/instances/my-instance",
 			expectedNormalisedURL: "/1.0/instances/my-instance?project=default",
