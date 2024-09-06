@@ -5877,18 +5877,6 @@ container or containers that use it. This allows using the `zfs` command in the 
 ```
 
 <!-- config group storage-zfs-volume-conf end -->
-<!-- entity group certificate start -->
-`can_view`
-: Grants permission to view the certificate.
-
-`can_edit`
-: Grants permission to edit the certificate.
-
-`can_delete`
-: Grants permission to delete the certificate.
-
-
-<!-- entity group certificate end -->
 <!-- entity group group start -->
 `can_view`
 : Grants permission to view the group. Identities can always view groups that they are a member of.

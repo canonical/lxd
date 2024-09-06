@@ -6572,20 +6572,6 @@
 		}
 	},
 	"entities": {
-		"certificate": [
-			{
-				"name": "can_view",
-				"description": "Grants permission to view the certificate."
-			},
-			{
-				"name": "can_edit",
-				"description": "Grants permission to edit the certificate."
-			},
-			{
-				"name": "can_delete",
-				"description": "Grants permission to delete the certificate."
-			}
-		],
 		"group": [
 			{
 				"name": "can_view",
