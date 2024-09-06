@@ -4135,6 +4135,8 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 				permissions = unix.O_RDONLY
 			}
 
+			permissions |= unix.O_DIRECT
+
 			f, err := os.OpenFile(pathSource.Path, permissions, 0)
 			if err != nil {
 				return fmt.Errorf("Failed opening file descriptor for disk device %q: %w", driveConf.DevName, err)
