@@ -93,6 +93,7 @@ var patches = []patch{
 	{name: "storage_unset_invalid_block_settings_v2", stage: patchPostDaemonStorage, run: patchStorageUnsetInvalidBlockSettingsV2},
 	{name: "config_remove_core_trust_password", stage: patchPreLoadClusterConfig, run: patchRemoveCoreTrustPassword},
 	{name: "instance_remove_volatile_last_state_ip_addresses", stage: patchPostDaemonStorage, run: patchInstanceRemoveVolatileLastStateIPAddresses},
+	{name: "entity_type_certificate_remove", stage: patchPreLoadClusterConfig, run: patchRemoveEntityTypeCertificate},
 }
 
 type patch struct {
@@ -1415,6 +1416,36 @@ func patchInstanceRemoveVolatileLastStateIPAddresses(_ string, d *Daemon) error 
 	})
 	if err != nil {
 		return fmt.Errorf("Failed removing volatile.*.last_state.ip_addresses config keys: %w", err)
+	}
+
+	return nil
+}
+
+func patchRemoveEntityTypeCertificate(_ string, d *Daemon) error {
+	s := d.State()
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Using "UPDATE OR REPLACE" in case the uniqueness constraint on auth_groups_permissions is violated by the update.
+		// This would be because two permissions were granted on a group that reference the same identity. E.g.:
+		// 	lxc auth group permission add <group> certificate <fingerprint> can_view
+		//	lxc auth group permission add <group> identity tls/<fingerprint> can_view
+		// Even though these reference the same row in the identities table, the permissions are different because the
+		// entity type codes are different. Updating the code of the certificate permission would then cause a uniqueness
+		// constraint violation.
+		_, err := tx.Tx().Exec(`UPDATE OR REPLACE auth_groups_permissions SET entity_type = 24 WHERE entity_type = 4`)
+		if err != nil {
+			return fmt.Errorf("Failed replacing certificate entities with identity entities in permissions table: %w", err)
+		}
+
+		// Not using "OR REPLACE" here because warnings do not have a uniqueness constraint applied to the entity_type_code column.
+		_, err = tx.Tx().Exec(`UPDATE warnings SET entity_type_code = 24 WHERE entity_type_code = 4`)
+		if err != nil {
+			return fmt.Errorf("Failed replacing certificate entities with identity entities in warnings table: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to replace certificate entity type code with identity entity type code: %w", err)
 	}
 
 	return nil
