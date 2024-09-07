@@ -49,7 +49,7 @@ not supported  | ❌
 ### LXD agent
 
 The LXD agent provides the ability to execute commands inside of the virtual machine guest without relying on traditional access solution like secure shell (SSH) or Remote Desktop Protocol (RDP). This agent is only supported on Linux guests using `systemd`.
-See {ref}`instances-create-iso` for instructions on how to install the LXD agent manually.
+For how to manually setup the agent, see {ref}`lxd-agent-manual-install`.
 
 ### CSM/BIOS boot
 
