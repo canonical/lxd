@@ -8009,39 +8009,6 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 	return newDevice, nil
 }
 
-func (d *lxc) removeDiskDevices() error {
-	// Check that we indeed have devices to remove
-	if !shared.PathExists(d.DevicesPath()) {
-		return nil
-	}
-
-	// Load the directory listing
-	dents, err := os.ReadDir(d.DevicesPath())
-	if err != nil {
-		return err
-	}
-
-	// Go through all the unix devices
-	for _, f := range dents {
-		// Skip non-disk devices
-		if !strings.HasPrefix(f.Name(), "disk.") {
-			continue
-		}
-
-		// Always try to unmount the host side
-		_ = unix.Unmount(filepath.Join(d.DevicesPath(), f.Name()), unix.MNT_DETACH)
-
-		// Remove the entry
-		diskPath := filepath.Join(d.DevicesPath(), f.Name())
-		err := os.Remove(diskPath)
-		if err != nil {
-			d.logger.Error("Failed to remove disk device path", logger.Ctx{"err": err, "path": diskPath})
-		}
-	}
-
-	return nil
-}
-
 // IsFrozen returns if instance is frozen.
 func (d *lxc) IsFrozen() bool {
 	return d.statusCode() == api.Frozen
