@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/db"
@@ -1697,6 +1698,39 @@ func (d *common) removeUnixDevices() error {
 		err := os.Remove(devicePath)
 		if err != nil {
 			d.logger.Error("Failed removing unix device", logger.Ctx{"err": err, "path": devicePath})
+		}
+	}
+
+	return nil
+}
+
+func (d *common) removeDiskDevices() error {
+	// Check that we indeed have devices to remove
+	if !shared.PathExists(d.DevicesPath()) {
+		return nil
+	}
+
+	// Load the directory listing
+	dents, err := os.ReadDir(d.DevicesPath())
+	if err != nil {
+		return err
+	}
+
+	// Go through all the unix devices
+	for _, f := range dents {
+		// Skip non-disk devices
+		if !strings.HasPrefix(f.Name(), "disk.") {
+			continue
+		}
+
+		// Always try to unmount the host side
+		_ = unix.Unmount(filepath.Join(d.DevicesPath(), f.Name()), unix.MNT_DETACH)
+
+		// Remove the entry
+		diskPath := filepath.Join(d.DevicesPath(), f.Name())
+		err := os.Remove(diskPath)
+		if err != nil {
+			d.logger.Error("Failed to remove disk device path", logger.Ctx{"err": err, "path": diskPath})
 		}
 	}
 
