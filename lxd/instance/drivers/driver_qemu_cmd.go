@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
+	"syscall"
 
 	"golang.org/x/sys/unix"
 
@@ -12,6 +14,9 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
+
+// ErrExecDisconnected is returned when the guest disconnects the exec session.
+var ErrExecDisconnected = fmt.Errorf("Disconnected")
 
 // Cmd represents a running command for an Qemu VM.
 type qemuCmd struct {
@@ -77,8 +82,10 @@ func (c *qemuCmd) Wait() (int, error) {
 		// Error of type EOF indicates the session ended unexpectedly,
 		// so we inform the client of the disconnection with a more
 		// descriptive message.
-		if errors.Is(err, io.EOF) {
-			return exitStatus, fmt.Errorf("Disconnected")
+		// The error can be different depending on why the VM disconnected
+		// so we handle these cases similarly.
+		if errors.Is(err, io.EOF) || strings.Contains(err.Error(), io.ErrUnexpectedEOF.Error()) || strings.Contains(err.Error(), syscall.ECONNRESET.Error()) {
+			return exitStatus, ErrExecDisconnected
 		}
 
 		return exitStatus, err
