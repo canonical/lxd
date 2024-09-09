@@ -7,9 +7,9 @@ on:
   pull_request:
 
 env:
-  CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
   LXD_REQUIRED_TESTS: "storage_buckets"
   LXD_SKIP_TESTS: "clustering_upgrade clustering_upgrade_large"
+  GOCOVERDIR: "/home/runner/work/lxd/lxd/coverage"
 
 permissions:
   contents: read
@@ -27,9 +27,11 @@ defaults:
 jobs:
   code-tests:
     env:
-      CGO_CFLAGS: "-I/home/runner/work/lxd/lxd-test/vendor/dqlite/include/"
-      CGO_LDFLAGS: "-L/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
-      LD_LIBRARY_PATH: "/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
+      CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/"
+      CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
+      LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
+      LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
+      CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
     name: Code
     runs-on: ubuntu-22.04
     steps:
@@ -93,10 +95,28 @@ jobs:
 
           python3 -m pip install flake8
 
+          # Download minio ready to include in dependencies for system tests.
+          mkdir -p "$(go env GOPATH)/bin"
+          curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
+          chmod +x "$(go env GOPATH)/bin/minio"
+
+          # Also grab the latest minio client to maintain compatibility with the server.
+          curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc --output "$(go env GOPATH)/bin/mc"
+          chmod +x "$(go env GOPATH)/bin/mc"
+
       - name: Download go dependencies
         run: |
           set -eux
           go mod download
+
+      - name: Check compatibility with min Go version
+        run: |
+          set -eux
+          GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
+          go mod tidy -go="${GOMIN}"
+
+          DOC_GOMIN="$(sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md)"
+          [ "${GOMIN}" = "${DOC_GOMIN}" ]
 
       - name: Make LXD tarball and unpack it
         env:
@@ -104,19 +124,25 @@ jobs:
         run: |
           set -eux
           make dist
-          tar -xzf lxd-test.tar.gz -C ~/work/lxd/
+          tar -xzf lxd-test.tar.gz -C /home/runner/work/lxd/
           rm lxd-test.tar.gz
 
       - name: Build LXD dependencies
         run: |
           set -eux
-          cd ~/work/lxd/lxd-test
+          cd /home/runner/work/lxd/lxd-test
           make deps
 
-      - name: Run LXD build
+          # Include dqlite libs in dependencies for system tests.
+          mkdir /home/runner/go/bin/dqlite
+          mv /home/runner/work/lxd/lxd-test/vendor/dqlite/include /home/runner/go/bin/dqlite/include
+          mv /home/runner/work/lxd/lxd-test/vendor/dqlite/.libs /home/runner/go/bin/dqlite/libs
+
+      - name: Build binaries
         run: |
           set -eux
-          make lxd
+          make
+          strip --strip-all /home/runner/go/bin/{lxc*,lxd*} -v
 
       - name: Check lxc/lxd-agent binary sizes
         run: |
@@ -162,12 +188,32 @@ jobs:
           sudo chmod o+w ./lxd/metadata/configuration.json
           sudo chmod o+w ./doc/metadata.txt
           sudo chmod o+w ./po/*
+          mkdir -p "${GOCOVERDIR}"
           make static-analysis
 
       - name: Unit tests (all)
         run: |
           set -eux
-          sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" go test -v ./...
+          mkdir -p "${GOCOVERDIR}"
+          sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,GOCOVERDIR,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" make check-unit
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit
+          path: /home/runner/work/lxd/lxd/coverage
+
+      - name: Upload system test dependencies
+        uses: actions/upload-artifact@v4
+        with:
+          name: system-test-deps
+          path: |
+            /home/runner/go/bin/lxc*
+            /home/runner/go/bin/lxd*
+            /home/runner/go/bin/mc
+            /home/runner/go/bin/minio
+            /home/runner/go/bin/dqlite
+          retention-days: 1
 
   system-tests:
     env:
@@ -180,6 +226,7 @@ jobs:
       LXD_TMPFS: "1"
     name: System
     runs-on: ubuntu-22.04
+    needs: code-tests
     strategy:
       fail-fast: false
       matrix:
@@ -242,20 +289,10 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
-      - name: Check compatibility with min Go version
-        run: |
-          set -eux
-          GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
-          go mod tidy -go="${GOMIN}"
-
-          DOC_GOMIN="$(sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md)"
-          [ "${GOMIN}" = "${DOC_GOMIN}" ]
-
       - name: Install dependencies
         run: |
           set -eux
           sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
-          sudo add-apt-repository ppa:dqlite/dev -y --no-update
           sudo apt-get update
 
           sudo systemctl mask lxc.service lxc-net.service
@@ -266,7 +303,6 @@ jobs:
             libacl1-dev \
             libcap-dev \
             libdbus-1-dev \
-            libdqlite-dev \
             liblxc-dev \
             libseccomp-dev \
             libselinux-dev \
@@ -304,23 +340,17 @@ jobs:
           # reclaim some space
           sudo apt-get clean
 
-          mkdir -p "$(go env GOPATH)/bin"
-          curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
-          chmod +x "$(go env GOPATH)/bin/minio"
+      - name: Download system test dependencies
+        uses: actions/download-artifact@v4
+        with:
+          name: system-test-deps
+          merge-multiple: true
+          path: /home/runner/go/bin
 
-          # Also grab the latest minio client to maintain compatibility with the server.
-          curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc --output "$(go env GOPATH)/bin/mc"
-          chmod +x "$(go env GOPATH)/bin/mc"
-
-      - name: Download go dependencies
+      - name: Set exec perms on LXD binaries
         run: |
-          set -eux
-          go mod download
-
-      - name: Run LXD build
-        run: |
-          set -eux
-          make lxd
+          ls -lR /home/runner/go/bin/
+          chmod uog+x /home/runner/go/bin/*
 
       - name: Setup MicroCeph
         if: ${{ matrix.backend == 'ceph' }}
@@ -391,8 +421,15 @@ jobs:
           set -eux
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
+          mkdir -p "${GOCOVERDIR}"
           cd test
-          sudo --preserve-env=PATH,GOPATH,GITHUB_ACTIONS,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.go }}-${{ matrix.suite }}-${{ matrix.backend }}
+          path: /home/runner/work/lxd/lxd/coverage
 
   client:
     name: Client
@@ -471,7 +508,7 @@ jobs:
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-          name: ${{ runner.os }}
+          name: lxd-clients-${{ runner.os }}
           path: bin/
 
   documentation:
