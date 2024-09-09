@@ -33,27 +33,27 @@ ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing dqlite, run \"make deps\" to setup."
 	exit 1
 endif
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./lxd ./lxc-to-lxd ./lxd-user ./lxd-benchmark
+	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath $(DEBUG) ./lxd ./lxc-to-lxd ./lxd-user ./lxd-benchmark
 	@echo "LXD built successfully"
 
 .PHONY: client
 client:
-	go install -v $(DEBUG) ./lxc
+	go install -v -trimpath $(DEBUG) ./lxc
 	@echo "LXD client built successfully"
 
 .PHONY: lxd-agent
 lxd-agent:
-	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
+	CGO_ENABLED=0 go install -v -trimpath -tags agent,netgo ./lxd-agent
 	@echo "LXD agent built successfully"
 
 .PHONY: lxd-metadata
 lxd-metadata:
-	CGO_ENABLED=0 go install -v -tags lxd-metadata ./lxd/lxd-metadata
+	CGO_ENABLED=0 go install -v -trimpath -tags lxd-metadata ./lxd/lxd-metadata
 	@echo "LXD metadata built successfully"
 
 .PHONY: lxd-migrate
 lxd-migrate:
-	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
+	CGO_ENABLED=0 go install -v -trimpath -tags netgo ./lxd-migrate
 	@echo "LXD-MIGRATE built successfully"
 
 .PHONY: deps
@@ -97,7 +97,7 @@ update-protobuf:
 
 .PHONY: update-schema
 update-schema:
-	cd lxd/db/generate && go build -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG) && cd -
+	cd lxd/db/generate && go build -v -trimpath -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG) && cd -
 	go generate ./...
 	gofmt -s -w ./lxd/db/
 	goimports -w ./lxd/db/
@@ -134,8 +134,8 @@ ifeq "$(TAG_SQLITE3)" ""
 endif
 
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3) logdebug" $(DEBUG) ./...
-	CGO_ENABLED=0 go install -v -tags "netgo,logdebug" ./lxd-migrate
-	CGO_ENABLED=0 go install -v -tags "agent,netgo,logdebug" ./lxd-agent
+	CGO_ENABLED=0 go install -v -trimpath -tags "netgo,logdebug" ./lxd-migrate
+	CGO_ENABLED=0 go install -v -trimpath -tags "agent,netgo,logdebug" ./lxd-agent
 	@echo "LXD built successfully"
 
 .PHONY: nocache
@@ -146,8 +146,8 @@ ifeq "$(TAG_SQLITE3)" ""
 endif
 
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -a -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
-	CGO_ENABLED=0 go install -a -v -tags netgo ./lxd-migrate
-	CGO_ENABLED=0 go install -a -v -tags agent,netgo ./lxd-agent
+	CGO_ENABLED=0 go install -a -v -trimpath -tags netgo ./lxd-migrate
+	CGO_ENABLED=0 go install -a -v -trimpath -tags agent,netgo ./lxd-agent
 	@echo "LXD built successfully"
 
 race:
@@ -157,8 +157,8 @@ ifeq "$(TAG_SQLITE3)" ""
 endif
 
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -race -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
-	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
-	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
+	CGO_ENABLED=0 go install -v -trimpath -tags netgo ./lxd-migrate
+	CGO_ENABLED=0 go install -v -trimpath -tags agent,netgo ./lxd-agent
 	@echo "LXD built successfully"
 
 .PHONY: check
