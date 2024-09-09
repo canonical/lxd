@@ -283,7 +283,6 @@ jobs:
         run: |
           set -eux
           sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
-          sudo add-apt-repository ppa:dqlite/dev -y --no-update
           sudo apt-get update
 
           sudo systemctl mask lxc.service lxc-net.service
@@ -294,7 +293,6 @@ jobs:
             libacl1-dev \
             libcap-dev \
             libdbus-1-dev \
-            libdqlite-dev \
             liblxc-dev \
             libseccomp-dev \
             libselinux-dev \
