@@ -38,7 +38,7 @@ endif
 
 .PHONY: client
 client:
-	go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./lxc
+	go install -v $(DEBUG) ./lxc
 	@echo "LXD client built successfully"
 
 .PHONY: lxd-agent
