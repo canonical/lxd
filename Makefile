@@ -12,6 +12,7 @@ CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
 GOMIN=1.22.5
+GOCOVERDIR ?= $(shell go env GOCOVERDIR)
 
 ifneq "$(wildcard vendor)" ""
 	DQLITE_PATH=$(CURDIR)/vendor/dqlite
@@ -33,27 +34,53 @@ ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing dqlite, run \"make deps\" to setup."
 	exit 1
 endif
+
+ifeq "$(GOCOVERDIR)" ""
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath $(DEBUG) ./lxd ./lxc-to-lxd ./lxd-user ./lxd-benchmark
+else
+	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath -cover $(DEBUG) ./lxd ./lxc-to-lxd ./lxd-user ./lxd-benchmark
+endif
+
 	@echo "LXD built successfully"
 
 .PHONY: client
 client:
+ifeq "$(GOCOVERDIR)" ""
 	go install -v -trimpath $(DEBUG) ./lxc
+else
+	go install -v -trimpath -cover $(DEBUG) ./lxc
+endif
+
 	@echo "LXD client built successfully"
 
 .PHONY: lxd-agent
 lxd-agent:
+ifeq "$(GOCOVERDIR)" ""
 	CGO_ENABLED=0 go install -v -trimpath -tags agent,netgo ./lxd-agent
+else
+	CGO_ENABLED=0 go install -v -trimpath -cover -tags agent,netgo ./lxd-agent
+endif
+
 	@echo "LXD agent built successfully"
 
 .PHONY: lxd-metadata
 lxd-metadata:
+ifeq "$(GOCOVERDIR)" ""
 	CGO_ENABLED=0 go install -v -trimpath -tags lxd-metadata ./lxd/lxd-metadata
+else
+	CGO_ENABLED=0 go install -v -trimpath -cover -tags lxd-metadata ./lxd/lxd-metadata
+endif
+
 	@echo "LXD metadata built successfully"
 
 .PHONY: lxd-migrate
 lxd-migrate:
+ifeq "$(GOCOVERDIR)" ""
 	CGO_ENABLED=0 go install -v -trimpath -tags netgo ./lxd-migrate
+else
+	CGO_ENABLED=0 go install -v -trimpath -cover -tags netgo ./lxd-migrate
+endif
+
 	@echo "LXD-MIGRATE built successfully"
 
 .PHONY: deps
@@ -167,7 +194,11 @@ check: default check-unit
 
 .PHONY: unit
 check-unit:
+ifeq "$(GOCOVERDIR)" ""
 	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+else
+	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... -cover -test.gocoverdir="${GOCOVERDIR}"
+endif
 
 .PHONY: dist
 dist: doc
