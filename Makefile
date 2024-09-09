@@ -163,7 +163,7 @@ endif
 
 .PHONY: check
 check: default
-	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	cd test && ./main.sh
 
 .PHONY: dist
