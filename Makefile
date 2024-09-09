@@ -162,9 +162,12 @@ endif
 	@echo "LXD built successfully"
 
 .PHONY: check
-check: default
-	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+check: default check-unit
 	cd test && ./main.sh
+
+.PHONY: unit
+check-unit:
+	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 
 .PHONY: dist
 dist: doc
