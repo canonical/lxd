@@ -493,7 +493,7 @@ jobs:
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-          name: ${{ runner.os }}
+          name: lxd-clients-${{ runner.os }}
           path: bin/
 
   documentation:
