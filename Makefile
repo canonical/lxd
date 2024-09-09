@@ -23,7 +23,7 @@ endif
 default: all
 
 .PHONY: all
-all: client lxd lxd-agent lxd-benchmark lxd-migrate
+all: client lxd lxd-agent lxd-migrate
 
 .PHONY: build
 build: lxd
@@ -33,7 +33,7 @@ ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing dqlite, run \"make deps\" to setup."
 	exit 1
 endif
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./lxd ./lxc-to-lxd ./lxd-user ./lxd-benchmark
 	@echo "LXD built successfully"
 
 .PHONY: client
@@ -45,11 +45,6 @@ client:
 lxd-agent:
 	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
 	@echo "LXD agent built successfully"
-
-.PHONY: lxd-benchmark
-lxd-benchmark:
-	CGO_ENABLED=0 go install -v ./lxd-benchmark
-	@echo "LXD benchmark built successfully"
 
 .PHONY: lxd-metadata
 lxd-metadata:
