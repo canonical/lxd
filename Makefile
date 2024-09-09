@@ -163,11 +163,6 @@ endif
 
 .PHONY: check
 check: default
-ifeq "$(LXD_OFFLINE)" ""
-	(cd / ; go install github.com/rogpeppe/godeps@latest)
-	(cd / ; go install github.com/tsenart/deadcode@latest)
-	(cd / ; go install golang.org/x/lint/golint@latest)
-endif
 	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	cd test && ./main.sh
 
