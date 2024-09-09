@@ -98,6 +98,15 @@ jobs:
           set -eux
           go mod download
 
+      - name: Check compatibility with min Go version
+        run: |
+          set -eux
+          GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
+          go mod tidy -go="${GOMIN}"
+
+          DOC_GOMIN="$(sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md)"
+          [ "${GOMIN}" = "${DOC_GOMIN}" ]
+
       - name: Make LXD tarball and unpack it
         env:
           CUSTOM_VERSION: "test"
@@ -241,15 +250,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
-
-      - name: Check compatibility with min Go version
-        run: |
-          set -eux
-          GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
-          go mod tidy -go="${GOMIN}"
-
-          DOC_GOMIN="$(sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md)"
-          [ "${GOMIN}" = "${DOC_GOMIN}" ]
 
       - name: Install dependencies
         run: |
