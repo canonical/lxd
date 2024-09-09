@@ -41,6 +41,11 @@ func (c *lxcCmd) Wait() (int, error) {
 		err = ErrExecCommandNotFound
 	case 126:
 		err = ErrExecCommandNotExecutable
+	case 129, 137, 143:
+		// Container disconnections can result in different exit codes depending
+		// on what signal was used internally.
+		// 129 for SIGHUP, 137 for SIGKILL and 143 for SIGTERM are all possible.
+		err = ErrExecDisconnected
 	}
 
 	return exitStatus, err
