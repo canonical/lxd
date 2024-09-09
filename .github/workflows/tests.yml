@@ -141,6 +141,7 @@ jobs:
         run: |
           set -eux
           make
+          strip --strip-all /home/runner/go/bin/{lxc*,lxd*} -v
 
       - name: Check lxc/lxd-agent binary sizes
         run: |
