@@ -161,13 +161,17 @@ Allow egress network traffic flows
 
   Use the following commands to explicitly allow egress network traffic flows from your LXD managed bridge interface:
 
-      iptables -I DOCKER-USER -i <network_bridge> -j ACCEPT
-      iptables -I DOCKER-USER -o <network_bridge> -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+      iptables  -I DOCKER-USER -i <network_bridge> -j ACCEPT
+      ip6tables -I DOCKER-USER -i <network_bridge> -j ACCEPT
+      iptables  -I DOCKER-USER -o <network_bridge> -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+      ip6tables -I DOCKER-USER -o <network_bridge> -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 
   For example, if your LXD managed bridge is called `lxdbr0`, you can allow egress traffic to flow using the following commands:
 
-      iptables -I DOCKER-USER -i lxdbr0 -j ACCEPT
-      iptables -I DOCKER-USER -o lxdbr0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+      iptables  -I DOCKER-USER -i lxdbr0 -j ACCEPT
+      ip6tables -I DOCKER-USER -i lxdbr0 -j ACCEPT
+      iptables  -I DOCKER-USER -o lxdbr0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+      ip6tables -I DOCKER-USER -o lxdbr0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 
   ```{important}
   You  must make these firewall rules persistent across host reboots.
