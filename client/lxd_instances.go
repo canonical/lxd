@@ -993,7 +993,7 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 		target.Certificate = info.Certificate
 		sourceReq.Target = &target
 
-		return r.tryMigrateInstance(source, instance.Name, sourceReq, info.Addresses)
+		return r.tryMigrateInstance(source, instance.Name, sourceReq, info.Addresses, op)
 	}
 
 	// Get source server connection information
@@ -1114,7 +1114,7 @@ func (r *ProtocolLXD) RenameInstance(name string, instance api.InstancePost) (Op
 
 // tryMigrateInstance attempts to migrate a specific instance from a source server to one of the target URLs.
 // The function runs the migration operation asynchronously and returns a RemoteOperation to track the progress and handle any errors.
-func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req api.InstancePost, urls []string) (RemoteOperation, error) {
+func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req api.InstancePost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The target server isn't listening on the network")
 	}
@@ -1126,6 +1126,9 @@ func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req
 	operation := req.Target.Operation
 
 	// Forward targetOp to remote op
+	chConnect := make(chan error, 1)
+	chWait := make(chan error, 1)
+
 	go func() {
 		success := false
 		var errors []remoteOperationResult
@@ -1159,10 +1162,35 @@ func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req
 			break
 		}
 
-		if !success {
-			rop.err = remoteOperationError("Failed instance migration", errors)
+		if success {
+			chConnect <- nil
+			close(chConnect)
+		} else {
+			chConnect <- remoteOperationError("Failed instance migration", errors)
+			close(chConnect)
+
+			if op != nil {
+				_ = op.Cancel()
+			}
+		}
+	}()
+
+	if op != nil {
+		go func() {
+			chWait <- op.Wait()
+			close(chWait)
+		}()
+	}
+
+	go func() {
+		var err error
+
+		select {
+		case err = <-chConnect:
+		case err = <-chWait:
 		}
 
+		rop.err = err
 		close(rop.chDone)
 	}()
 
