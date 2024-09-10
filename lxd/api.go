@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
@@ -221,6 +222,9 @@ func restServer(d *Daemon) *http.Server {
 
 func hoistReqVM(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Set devlxd auth method to identify this request as coming from the /dev/lxd socket.
+		lxdRequest.SetCtxValue(r, lxdRequest.CtxProtocol, auth.AuthenticationMethodDevLXD)
+
 		trusted, inst, err := authenticateAgentCert(d.State(), r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
