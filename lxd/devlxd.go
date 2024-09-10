@@ -31,8 +31,6 @@ import (
 	"github.com/canonical/lxd/shared/ws"
 )
 
-const devlxdRemoteAddress = "@devlxd"
-
 type hoistFunc func(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request)
 
 type devlxdHandlerFunc func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response
