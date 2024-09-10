@@ -120,9 +120,6 @@ func devlxdImageExportHandler(d *Daemon, c instance.Instance, w http.ResponseWri
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
 
-	// Use by security checks to distinguish devlxd vs lxd APIs
-	r.RemoteAddr = devlxdRemoteAddress
-
 	resp := imageExport(d, r)
 
 	err := resp.Render(w, r)
