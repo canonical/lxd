@@ -1522,6 +1522,8 @@ parts:
       CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-agent" -tags=agent,netgo github.com/canonical/lxd/lxd-agent
       go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-user" github.com/canonical/lxd/lxd-user
 
+      # Some python dependencies are not available for riscv64 or just require a build from source.
+      # Not worth the effort for now.
       if [ "$(uname -m)" != "riscv64" ]; then
         # Build the static website
         make doc
@@ -1532,9 +1534,9 @@ parts:
         rm doc/_build/.buildinfo
         rm -rf doc/_build/_sphinx_design_static/
 
-        # Stage the static website
-        mkdir -p "${CRAFT_STAGE}/share/lxd-documentation"
-        cp -a doc/_build/. "${CRAFT_STAGE}/share/lxd-documentation/"
+        # Copy the static website
+        mkdir -p "${CRAFT_PART_INSTALL}/share/lxd-documentation"
+        cp -a doc/_build/. "${CRAFT_PART_INSTALL}/share/lxd-documentation/"
       fi
 
       # Setup bash completion
@@ -1562,6 +1564,7 @@ parts:
 
       - etc/bash_completion.d/snap.lxd.lxc
 
+      - share/lxd-documentation*
       - share/misc/pci.ids
       - share/misc/usb.ids
 
@@ -1676,13 +1679,6 @@ parts:
         -not -path "${CRAFT_PRIME}/lib/python3/*" \
         -not -path "${CRAFT_PRIME}/lib/liblxcfs.so" \
         -exec strip -s {} +
-
-      if [ "$(uname -m)" != "riscv64" ]; then
-          # Prime the documentation only if the arch is not riscv64.
-          # Some python dependencies are not available for riscv64 or just require a build from source.
-          # Not worth the effort for now.
-          cp -r "${CRAFT_STAGE}/share/lxd-documentation" "${CRAFT_PRIME}/share/"
-      fi
 
       # Delete empty directories
       find "${CRAFT_PRIME}/" -type d -empty -print -delete
