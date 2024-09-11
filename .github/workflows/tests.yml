@@ -467,6 +467,120 @@ jobs:
           path: ${{env.GOCOVERDIR}}
         if: env.GOCOVERDIR != ''
 
+  tics:
+    name: Tiobe TICS
+    runs-on: ubuntu-22.04
+    needs: system-tests
+    env:
+      CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/"
+      CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
+      LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
+      CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
+      TICSAUTHTOKEN:  ${{ secrets.TICS_AUTH_TOKEN }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Performance tuning
+        run: |
+          set -eux
+          # optimize ext4 FSes for performance, not reliability
+          for fs in $(findmnt --noheading --type ext4 --list --uniq | awk '{print $1}'); do
+            # nombcache and data=writeback cannot be changed on remount
+            sudo mount -o remount,noatime,barrier=0,commit=6000 "${fs}" || true
+          done
+
+          # disable dpkg from calling sync()
+          echo "force-unsafe-io" | sudo tee /etc/dpkg/dpkg.cfg.d/force-unsafe-io
+
+      - name: Reclaim some space
+        run: |
+          set -eux
+
+          # Purge snaps and snapd.
+          sudo snap remove --purge $(snap list | awk '!/^Name|^core|^snapd/ {print $1}') && sudo apt-get autopurge -y snapd
+
+          # This was inspired from https://github.com/easimon/maximize-build-space
+          df -h /
+
+          # dotnet
+          sudo rm -rf /usr/share/dotnet
+          # android
+          sudo rm -rf /usr/local/lib/android
+          # haskell
+          sudo rm -rf /opt/ghc
+          # codeql
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+
+          df -h /
+
+      - name: Remove docker
+        run: |
+            set -eux
+            sudo apt-get autopurge -y containerd.io moby-containerd docker docker-ce podman uidmap
+            sudo ip link delete docker0
+            sudo nft flush ruleset
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # A non-shallow clone is needed for the Differential ShellCheck
+          fetch-depth: 0
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22.x
+
+      - name: Download coverage data
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          path: ${{env.GOCOVERDIR}}
+          merge-multiple: true
+
+      - name: Download system test dependencies
+        uses: actions/download-artifact@v4
+        with:
+          name: system-test-deps
+          merge-multiple: true
+          path: /home/runner/go/bin
+
+      - name: Install dependencies
+        run: |
+          set -eux
+          sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
+          sudo apt-get update
+
+          sudo systemctl mask lxc.service lxc-net.service
+
+          sudo apt-get install --no-install-recommends -y \
+            libcap-dev \
+            libacl1-dev \
+            libuv1-dev \
+            libudev-dev \
+            liblxc-dev \
+            pkg-config \
+            libdbus-1-dev \
+            libseccomp-dev
+
+          # reclaim some space
+          sudo apt-get clean
+
+          go install github.com/axw/gocov/gocov@latest
+          go install github.com/AlekSi/gocov-xml@latest
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+
+      - name: Convert coverage files
+        run: |
+          go tool covdata textfmt -i="${GOCOVERDIR}" -o "${GOCOVERDIR}"/coverage.out
+          gocov convert "${GOCOVERDIR}"/coverage.out > "${GOCOVERDIR}"/coverage.json
+          gocov-xml < "${GOCOVERDIR}"/coverage.json > "${GOCOVERDIR}"/coverage-go.xml
+
+      - name: Run TICS
+        run: |
+          curl --silent --show-error "https://canonical.tiobe.com/tiobeweb/TICS/api/public/v1/fapi/installtics/Script?cfg=default&platform=linux&url=https://canonical.tiobe.com/tiobeweb/TICS/" > install_tics.sh
+          . ./install_tics.sh
+          TICSQServer -project LXD  -tmpdir /tmp/tics -branchdir .
+
   client:
     name: Client
     strategy:
