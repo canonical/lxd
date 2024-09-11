@@ -40,7 +40,7 @@ func (r *eventsServe) Render(w http.ResponseWriter, req *http.Request) error {
 
 	if err == nil {
 		// If there was an error on Render, the callback function will be called during the error handling.
-		request.MetricsCallback(req, metrics.Success)
+		metrics.UseMetricsCallback(req, metrics.Success)
 	}
 
 	return err

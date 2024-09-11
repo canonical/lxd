@@ -14,7 +14,6 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/metrics"
-	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/ucred"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
@@ -210,9 +209,9 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) (err err
 		// If there was an error on Render, the callback function will be called during the error handling.
 		if err == nil {
 			if r.success {
-				request.MetricsCallback(req, metrics.Success)
+				metrics.UseMetricsCallback(req, metrics.Success)
 			} else {
-				request.MetricsCallback(req, metrics.ErrorServer)
+				metrics.UseMetricsCallback(req, metrics.ErrorServer)
 			}
 		}
 	}()
@@ -368,10 +367,10 @@ func (r *errorResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		// Use the callback function to count the request for the API metrics.
 		if r.code >= 400 && r.code < 500 {
 			// 4* codes are considered client errors on HTTP.
-			request.MetricsCallback(req, metrics.ErrorClient)
+			metrics.UseMetricsCallback(req, metrics.ErrorClient)
 		} else {
 			// Any other status code here shoud be higher than or equal to 500 and is considered a server error.
-			request.MetricsCallback(req, metrics.ErrorServer)
+			metrics.UseMetricsCallback(req, metrics.ErrorServer)
 		}
 	}()
 
@@ -437,7 +436,7 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) (err err
 	defer func() {
 		if err == nil {
 			// If there was an error on Render, the callback function will be called during the error handling.
-			request.MetricsCallback(req, metrics.Success)
+			metrics.UseMetricsCallback(req, metrics.Success)
 		}
 	}()
 
@@ -617,7 +616,7 @@ func (r *manualResponse) Render(w http.ResponseWriter, req *http.Request) error 
 
 	if err == nil {
 		// If there was an error on Render, the callback function will be called during the error handling.
-		request.MetricsCallback(req, metrics.Success)
+		metrics.UseMetricsCallback(req, metrics.Success)
 	}
 
 	return err

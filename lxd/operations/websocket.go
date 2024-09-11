@@ -7,7 +7,6 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/canonical/lxd/lxd/metrics"
-	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared/ws"
 )
@@ -32,7 +31,7 @@ func (r *operationWebSocket) Render(w http.ResponseWriter, req *http.Request) er
 
 	if err == nil {
 		// If there was an error on Render, the callback function will be called during the error handling.
-		request.MetricsCallback(req, metrics.Success)
+		metrics.UseMetricsCallback(req, metrics.Success)
 	}
 
 	return err
@@ -73,7 +72,7 @@ func (r *forwardedOperationWebSocket) Render(w http.ResponseWriter, req *http.Re
 	_ = target.Close()
 
 	// If there was an error on Render, the callback function will be called during the error handling.
-	request.MetricsCallback(req, metrics.Success)
+	metrics.UseMetricsCallback(req, metrics.Success)
 
 	return nil
 }
