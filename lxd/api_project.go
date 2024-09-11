@@ -1396,6 +1396,9 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 			// This value is the maximum value of the aggregate disk
 			// space used by all instance volumes, custom volumes, and images of the
 			// project on this specific storage pool.
+			//
+			// When set to 0, the pool is excluded from storage pool list for
+			// the project.
 			// ---
 			//  type: string
 			//  shortdesc: Maximum disk space used by the project on this pool
