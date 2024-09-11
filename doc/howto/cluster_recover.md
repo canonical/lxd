@@ -32,6 +32,10 @@ To determine which members have (or had) database roles, log on to any surviving
 
 ## Recover from quorum loss
 
+```{note}
+LXD automatically takes a backup of the database before making changes (see {ref}`automated_backups`).
+```
+
 If only one cluster member with the database role survives, complete the following
 steps. See [Reconfigure the cluster](#reconfigure-the-cluster) below for recovering
 more than one member.
@@ -59,10 +63,8 @@ See {ref}`cluster-manage-delete-members`.
 
 ## Reconfigure the cluster
 
-```{important}
-It is highly recommended to take a backup of `/var/snap/lxd/common/lxd/database`
-(for snap users) or `/var/lib/lxd/lxd/database` (otherwise) before reconfiguring
-the cluster.
+```{note}
+LXD automatically takes a backup of the database before making changes (see {ref}`automated_backups`).
 ```
 
 If some members of your cluster are no longer reachable, or if the cluster itself is unreachable due to a change in IP address or listening port number, you can reconfigure the cluster.
@@ -132,6 +134,18 @@ Complete the following steps on one database member:
 The cluster should now be fully available again with all surviving members reporting in.
 No information has been deleted from the database.
 All information about the cluster members and their instances is still there.
+
+(automated_backups)=
+## Automated Backups
+LXD automatically creates a backup of the database before making changes during
+recovery. The backup is just a tarball of `/var/snap/lxd/common/lxd/database`
+(for snap users) or `/var/lib/lxd/lxd/database` (otherwise). To reset the state
+of the database in case of a failure, simply delete the database directory and
+unpack the tarball in its place:
+
+    cd /var/snap/lxd/common/lxd
+    sudo rm -r database
+    sudo tar -xf db_backup.TIMESTAMP.tar.gz
 
 ## Manually alter Raft membership
 
