@@ -167,7 +167,7 @@ func (h *HMAC) WriteRequest(r *http.Request) ([]byte, error) {
 func HMACAuthorizationHeader(h HMACFormatter, v any) (string, error) {
 	hmacBytes, err := h.WriteJSON(v)
 	if err != nil {
-		return "", err
+		return "", api.StatusErrorf(http.StatusInternalServerError, "Failed to calculate HMAC from struct: %w", err)
 	}
 
 	return h.HTTPHeader(hmacBytes), nil
@@ -202,7 +202,7 @@ func HMACEqual(h HMACFormatter, r *http.Request) error {
 
 	// Compare if the HMAC from the header matches the one computed over the body.
 	if !hmac.Equal(hmacFromHeader, hmacFromBody) {
-		return api.StatusErrorf(http.StatusForbidden, "Invalid HMAC")
+		return api.NewStatusError(http.StatusForbidden, "Invalid HMAC")
 	}
 
 	return nil
