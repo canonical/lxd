@@ -108,6 +108,9 @@ jobs:
             pkg-config \
             shellcheck
 
+          # reclaim some space
+          sudo apt-get clean
+
           python3 -m pip install flake8
 
           # Download minio ready to include in dependencies for system tests.
@@ -285,12 +288,16 @@ jobs:
 
           # This was inspired from https://github.com/easimon/maximize-build-space
           df -h /
+
           # dotnet
           sudo rm -rf /usr/share/dotnet
           # android
           sudo rm -rf /usr/local/lib/android
           # haskell
           sudo rm -rf /opt/ghc
+          # codeql
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+
           df -h /
 
       - name: Remove docker
@@ -435,6 +442,9 @@ jobs:
           done
           sudo microceph.ceph status
           sudo rm -f /snap/bin/rbd
+
+          # reclaim some space
+          sudo apt-get clean
 
       - name: Make GOCOVERDIR
         run: |
