@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
@@ -311,11 +312,12 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the name.
-	if strings.Contains(req.Name, "/") {
-		return response.BadRequest(fmt.Errorf("Backup names may not contain slashes"))
+	backupName, err := backup.ValidateBackupName(req.Name)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
-	fullName := name + shared.SnapshotDelimiter + req.Name
+	fullName := name + shared.SnapshotDelimiter + backupName
 	instanceOnly := req.InstanceOnly || req.ContainerOnly
 
 	backup := func(op *operations.Operation) error {
@@ -344,7 +346,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	resources["backups"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name, "backups", req.Name)}
+	resources["backups"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName)}
 
 	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask,
 		operationtype.BackupCreate, resources, nil, backup, nil, nil, r)
@@ -508,9 +510,10 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Validate the name
-	if strings.Contains(req.Name, "/") {
-		return response.BadRequest(fmt.Errorf("Backup names may not contain slashes"))
+	// Validate the name.
+	newBackupName, err := backup.ValidateBackupName(req.Name)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
 	oldName := name + shared.SnapshotDelimiter + backupName
@@ -519,7 +522,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	newName := name + shared.SnapshotDelimiter + req.Name
+	newName := name + shared.SnapshotDelimiter + newBackupName
 
 	rename := func(op *operations.Operation) error {
 		err := backup.Rename(newName)
