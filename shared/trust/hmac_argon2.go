@@ -58,38 +58,43 @@ func (h *HMACArgon2) HTTPHeader(hmac []byte) string {
 	return fmt.Sprintf("%s %s:%s", h.conf.Version, hex.EncodeToString(h.salt), hex.EncodeToString(hmac))
 }
 
-// ParseHTTPHeader extracts the actual version, HMAC and it's salt from the Authorization header.
-func (h *HMACArgon2) ParseHTTPHeader(header string) (HMACVersion, []byte, error) {
+// ParseHTTPHeader parses the given header and returns a new instance of the argon2 formatter
+// together with the actual HMAC.
+// It's using the parent formatter's configuration.
+func (h *HMACArgon2) ParseHTTPHeader(header string) (HMACFormatter, []byte, error) {
 	version, hmacStr, err := h.splitVersionFromHMAC(header)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
 
 	// In case of argon2 the HMAC has the salt as prefix.
 	authHeaderDetails := strings.Split(hmacStr, ":")
 	if len(authHeaderDetails) != 2 {
-		return "", nil, errors.New("Argon2 salt or HMAC is missing")
+		return nil, nil, errors.New("Argon2 salt or HMAC is missing")
 	}
 
 	if authHeaderDetails[0] == "" {
-		return "", nil, fmt.Errorf("Argon2 salt cannot be empty")
+		return nil, nil, fmt.Errorf("Argon2 salt cannot be empty")
 	}
 
 	if authHeaderDetails[1] == "" {
-		return "", nil, fmt.Errorf("Argon2 HMAC cannot be empty")
+		return nil, nil, fmt.Errorf("Argon2 HMAC cannot be empty")
 	}
 
-	salt, err := hex.DecodeString(authHeaderDetails[0])
+	saltFromHeader, err := hex.DecodeString(authHeaderDetails[0])
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to decode the argon2 salt: %w", err)
+		return nil, nil, fmt.Errorf("Failed to decode the argon2 salt: %w", err)
 	}
 
-	h.salt = salt
-
-	hmac, err := hex.DecodeString(authHeaderDetails[1])
+	hmacFromHeader, err := hex.DecodeString(authHeaderDetails[1])
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to decode the argon2 HMAC: %w", err)
+		return nil, nil, fmt.Errorf("Failed to decode the argon2 HMAC: %w", err)
 	}
 
-	return version, hmac, nil
+	hNew, err := NewHMACArgon2(h.password, saltFromHeader, NewDefaultHMACConf(version))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return hNew, hmacFromHeader, nil
 }

@@ -29,10 +29,14 @@ type HMACFormatter interface {
 	Version() HMACVersion
 	// HTTPHeader expects the HMAC computed over the payload and returns the final Authorization header.
 	HTTPHeader(hmac []byte) string
-	// ParseHTTPHeader expects an Authorization header and returns the used version and HMAC.
-	ParseHTTPHeader(header string) (HMACVersion, []byte, error)
 	// Equal compares two HMACs and returns true in case of a match.
 	Equal(hmac1 []byte, hmac2 []byte) bool
+	// ParseHTTPHeader expects an Authorization header and returns a new instance of HMACFormatter
+	// using the current implementation.
+	// This allows parsing an Authorization header based on information which is already set
+	// in the parent HMACFormatter like the HMACVersion.
+	// Furthermore it returns the actual HMAC.
+	ParseHTTPHeader(header string) (HMACFormatter, []byte, error)
 }
 
 // HMAC represents the the tooling for creating and validating HMACs.
@@ -99,19 +103,22 @@ func (h *HMAC) Version() HMACVersion {
 	return h.conf.Version
 }
 
-// ParseHTTPHeader extracts the actual version and HMAC from the Authorization header.
-func (h *HMAC) ParseHTTPHeader(header string) (HMACVersion, []byte, error) {
+// ParseHTTPHeader parses the given header and returns a new instance of the default formatter
+// together with the actual HMAC.
+// It's using the parent formatter's configuration.
+func (h *HMAC) ParseHTTPHeader(header string) (HMACFormatter, []byte, error) {
 	version, hmacStr, err := h.splitVersionFromHMAC(header)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
 
-	hmac, err := hex.DecodeString(hmacStr)
+	hmacFromHeader, err := hex.DecodeString(hmacStr)
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to decode the HMAC: %w", err)
+		return nil, nil, fmt.Errorf("Failed to decode the HMAC: %w", err)
 	}
 
-	return version, hmac, nil
+	hNew := NewHMAC(h.key, NewDefaultHMACConf(version))
+	return hNew, hmacFromHeader, nil
 }
 
 // WriteBytes creates a new HMAC hash using the given bytes.
