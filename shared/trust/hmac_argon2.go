@@ -14,11 +14,15 @@ import (
 // bundled with the key derivation function argon2.
 type HMACArgon2 struct {
 	HMAC
-	salt []byte
+
+	salt     []byte
+	password []byte
 }
 
 // NewHMACArgon2 returns a new HMAC implementation using argon2.
-// If the salt is nil a random one is generated.
+// If the salt is nil a random one gets generated.
+// Use ParseHTTPHeader to derive a new implementation of argon2 from a request header.
+// It's using the parents configuration such as the password and config.
 // Recommended defaults according to https://www.rfc-editor.org/rfc/rfc9106#section-4-6.2.
 // We use the second recommended option to not require a system having 2 GiB of memory.
 func NewHMACArgon2(password []byte, salt []byte, conf HMACConf) (HMACFormatter, error) {
@@ -49,7 +53,8 @@ func NewHMACArgon2(password []byte, salt []byte, conf HMACConf) (HMACFormatter, 
 			key:  argon2.IDKey(password, salt, time, memory, threads, keyLen),
 		},
 
-		salt: salt,
+		salt:     salt,
+		password: password,
 	}, nil
 }
 
