@@ -29,8 +29,6 @@ type HMACFormatter interface {
 	Version() HMACVersion
 	// HTTPHeader expects the HMAC computed over the payload and returns the final Authorization header.
 	HTTPHeader(hmac []byte) string
-	// Equal compares two HMACs and returns true in case of a match.
-	Equal(hmac1 []byte, hmac2 []byte) bool
 	// ParseHTTPHeader expects an Authorization header and returns a new instance of HMACFormatter
 	// using the current implementation.
 	// This allows parsing an Authorization header based on information which is already set
@@ -163,9 +161,6 @@ func (h *HMAC) WriteRequest(r *http.Request) ([]byte, error) {
 	return h.WriteBytes(body)
 }
 
-// Equal returns true in case hmac1 is identical to hmac2.
-func (h *HMAC) Equal(hmac1 []byte, hmac2 []byte) bool {
-	return hmac.Equal(hmac1, hmac2)
 }
 
 // HMACEqual extracts the HMAC from the Authorization header and
