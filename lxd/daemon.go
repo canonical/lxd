@@ -54,6 +54,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/loki"
 	"github.com/canonical/lxd/lxd/maas"
+	"github.com/canonical/lxd/lxd/metrics"
 	networkZone "github.com/canonical/lxd/lxd/network/zone"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/request"
@@ -636,7 +637,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		// Only endpoints from the main API (version 1.0) should be counted for the metrics.
 		// This prevents internal endpoints from being included as well.
 		if version == "1.0" {
-			request.CountStartedRequest(r)
+			metrics.TrackStartedRequest(r)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
