@@ -230,12 +230,13 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	var tarballPath string
+	var newNodes []db.RaftNode
 	for {
 		newConfig := ClusterConfig{}
 		err = yaml.Unmarshal(content, &newConfig)
 		if err == nil {
 			// Convert ClusterConfig back to RaftNodes.
-			newNodes := []db.RaftNode{}
+			newNodes = []db.RaftNode{}
 			var newNode *db.RaftNode
 			for _, node := range newConfig.Members {
 				newNode, err = node.ToRaftNode()
@@ -249,9 +250,6 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 			// Ensure new configuration is valid.
 			if err == nil {
 				err = validateNewConfig(nodes, newNodes)
-				if err == nil {
-					tarballPath, err = cluster.Reconfigure(database, newNodes)
-				}
 			}
 		}
 
@@ -272,6 +270,12 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		break
+	}
+
+	tarballPath, err = cluster.Reconfigure(database, newNodes)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Cluster reconfiguration failed; restore from backup.\n")
+		return err
 	}
 
 	fmt.Printf("Cluster changes applied; new database state saved to %s\n\n", tarballPath)
