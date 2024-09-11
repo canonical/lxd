@@ -74,6 +74,8 @@ func NewHMAC(key []byte, conf HMACConf) HMACFormatter {
 	}
 }
 
+// splitVersionFromHMAC is a helper to separate the HMAC version from the actual HMAC.
+// Depending on the used format the HMAC value has to be splitted further (see argon2).
 func (h *HMAC) splitVersionFromHMAC(header string) (HMACVersion, string, error) {
 	authHeaderSplit := strings.Split(header, " ")
 	if len(authHeaderSplit) != 2 {
@@ -91,14 +93,14 @@ func (h *HMAC) splitVersionFromHMAC(header string) (HMACVersion, string, error) 
 	return HMACVersion(authHeaderSplit[0]), authHeaderSplit[1], nil
 }
 
-// HTTPHeader returns the actual HMAC together with the used version.
-func (h *HMAC) HTTPHeader(hmac []byte) string {
-	return fmt.Sprintf("%s %s", h.conf.Version, hex.EncodeToString(hmac))
-}
-
 // Version returns the used HMAC version.
 func (h *HMAC) Version() HMACVersion {
 	return h.conf.Version
+}
+
+// HTTPHeader returns the actual HMAC together with the used version.
+func (h *HMAC) HTTPHeader(hmac []byte) string {
+	return fmt.Sprintf("%s %s", h.conf.Version, hex.EncodeToString(hmac))
 }
 
 // ParseHTTPHeader parses the given header and returns a new instance of the default formatter
@@ -161,6 +163,14 @@ func (h *HMAC) WriteRequest(r *http.Request) ([]byte, error) {
 	return h.WriteBytes(body)
 }
 
+// HMACAuthorizationHeader returns the HMAC as an Authorization header using the given formatter.
+func HMACAuthorizationHeader(h HMACFormatter, v any) (string, error) {
+	hmacBytes, err := h.WriteJSON(v)
+	if err != nil {
+		return "", err
+	}
+
+	return h.HTTPHeader(hmacBytes), nil
 }
 
 // HMACEqual checks whether or not the Authorization header matches the HMAC
@@ -196,14 +206,4 @@ func HMACEqual(h HMACFormatter, r *http.Request) error {
 	}
 
 	return nil
-}
-
-// HMACAuthorizationHeader returns the HMAC as an Authorization header using the given formatter.
-func HMACAuthorizationHeader(h HMACFormatter, v any) (string, error) {
-	hmacBytes, err := h.WriteJSON(v)
-	if err != nil {
-		return "", err
-	}
-
-	return h.HTTPHeader(hmacBytes), nil
 }
