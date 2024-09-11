@@ -60,7 +60,7 @@ func TestCreateHMAC(t *testing.T) {
 			conf:        NewDefaultHMACConf("LXD1.0"),
 			key:         []byte("foo"),
 			payload:     make(chan bool),
-			expectedErr: errors.New("Failed to marshal payload: json: unsupported type: chan bool"),
+			expectedErr: errors.New("Failed to calculate HMAC from struct: Failed to marshal payload: json: unsupported type: chan bool"),
 		},
 	}
 
@@ -96,7 +96,6 @@ func TestValidateHMAC(t *testing.T) {
 		conf        HMACConf
 		key         []byte
 		password    []byte
-		hexSalt     string
 		request     *http.Request
 		expectedErr error
 	}{
@@ -127,7 +126,6 @@ func TestValidateHMAC(t *testing.T) {
 			name:     "Validate HMAC from request header using argon2 as KDF",
 			conf:     NewDefaultHMACConf("LXD1.0"),
 			password: []byte("foo"),
-			hexSalt:  "caffee",
 			request: &http.Request{
 				Header: http.Header{
 					"Authorization": []string{"LXD1.0 caffee:b4b19532928620a1d54e7d1c58e4baaa916a8e0023ed8a08b2b05038d6da189a"},
@@ -139,7 +137,6 @@ func TestValidateHMAC(t *testing.T) {
 			name:     "Validate non-matching HMAC from request header using argon2 as KDF",
 			conf:     NewDefaultHMACConf("LXD1.0"),
 			password: []byte("foo"),
-			hexSalt:  "caffee",
 			request: &http.Request{
 				Header: http.Header{
 					"Authorization": []string{"LXD1.0 caffee:b4b19532928620a1d54e7d1c58e4baaa916a8e0023ed8a08b2b05038d6da189a"},
@@ -163,7 +160,6 @@ func TestValidateHMAC(t *testing.T) {
 			name:     "Reject header missing the version using argon2 as KDF",
 			conf:     NewDefaultHMACConf("LXD1.0"),
 			password: []byte("foo"),
-			hexSalt:  "caffee",
 			request: &http.Request{
 				Header: http.Header{
 					"Authorization": []string{"invalid"},
@@ -175,7 +171,6 @@ func TestValidateHMAC(t *testing.T) {
 			name:     "Reject header missing the HMAC and salt combination using argon2 as KDF",
 			conf:     NewDefaultHMACConf("LXD1.0"),
 			password: []byte("foo"),
-			hexSalt:  "caffee",
 			request: &http.Request{
 				Header: http.Header{
 					"Authorization": []string{"LXD1.0 caffee"},
@@ -187,7 +182,6 @@ func TestValidateHMAC(t *testing.T) {
 			name:     "Reject header with a non hex salt using argon2 as KDF",
 			conf:     NewDefaultHMACConf("LXD1.0"),
 			password: []byte("foo"),
-			hexSalt:  "caffee",
 			request: &http.Request{
 				Header: http.Header{
 					"Authorization": []string{"LXD1.0 nonhex:abc"},
@@ -199,7 +193,6 @@ func TestValidateHMAC(t *testing.T) {
 			name:     "Reject header with a non hex HMAC using argon2 as KDF",
 			conf:     NewDefaultHMACConf("LXD1.0"),
 			password: []byte("foo"),
-			hexSalt:  "caffee",
 			request: &http.Request{
 				Header: http.Header{
 					"Authorization": []string{"LXD1.0 caffee:nonhex"},
@@ -210,6 +203,7 @@ func TestValidateHMAC(t *testing.T) {
 		{
 			name:        "Reject request with missing Authorization header",
 			conf:        NewDefaultHMACConf("LXD1.0"),
+			key:         []byte("foo"),
 			request:     &http.Request{},
 			expectedErr: errors.New("Authorization header is missing"),
 		},
@@ -288,7 +282,6 @@ func TestValidateHMAC(t *testing.T) {
 			name:     "Reject request with empty argon2 salt",
 			conf:     NewDefaultHMACConf("LXD1.0"),
 			password: []byte("foo"),
-			hexSalt:  "caffee",
 			request: &http.Request{
 				Header: http.Header{
 					"Authorization": []string{"LXD1.0 :abc"},
@@ -300,7 +293,6 @@ func TestValidateHMAC(t *testing.T) {
 			name:     "Reject request with empty argon2 HMAC",
 			conf:     NewDefaultHMACConf("LXD1.0"),
 			password: []byte("foo"),
-			hexSalt:  "caffee",
 			request: &http.Request{
 				Header: http.Header{
 					"Authorization": []string{"LXD1.0 caffee:"},
@@ -316,13 +308,8 @@ func TestValidateHMAC(t *testing.T) {
 			var hmac HMACFormatter
 			if tt.key != nil {
 				hmac = NewHMAC(tt.key, tt.conf)
-			}
-
-			if tt.password != nil {
-				salt, err := hex.DecodeString(tt.hexSalt)
-				require.NoError(t, err)
-
-				hmac, err = NewHMACArgon2(tt.password, salt, tt.conf)
+			} else if tt.password != nil {
+				hmac, err = NewHMACArgon2(tt.password, nil, tt.conf)
 				require.NoError(t, err)
 			}
 
