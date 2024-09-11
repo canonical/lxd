@@ -5,11 +5,12 @@ on:
       - main
       - stable-*
   pull_request:
+  workflow_dispatch:
 
 env:
   LXD_REQUIRED_TESTS: "storage_buckets"
   LXD_SKIP_TESTS: "clustering_upgrade clustering_upgrade_large"
-  GOCOVERDIR: "/home/runner/work/lxd/lxd/coverage"
+  GOCOVERDIR: ${{ github.event_name == 'workflow_dispatch' && '/home/runner/work/lxd/lxd/coverage' || '' }}
 
 permissions:
   contents: read
@@ -113,6 +114,7 @@ jobs:
         run: |
           set -eux
           GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
+          sudo chmod o+w {go.mod,go.sum}
           go mod tidy -go="${GOMIN}"
 
           DOC_GOMIN="$(sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md)"
@@ -180,6 +182,10 @@ jobs:
             echo "OK: ${bin} is between ${min} and ${max}MiB"
           done <<< ${SIZES}
 
+      - name: Make GOCOVERDIR
+        run: mkdir -p "${GOCOVERDIR}"
+        if: env.GOCOVERDIR != ''
+
       - name: Run static analysis
         env:
           GITHUB_BEFORE: ${{ github.event.before }}
@@ -188,20 +194,19 @@ jobs:
           sudo chmod o+w ./lxd/metadata/configuration.json
           sudo chmod o+w ./doc/metadata.txt
           sudo chmod o+w ./po/*
-          mkdir -p "${GOCOVERDIR}"
           make static-analysis
 
       - name: Unit tests (all)
         run: |
           set -eux
-          mkdir -p "${GOCOVERDIR}"
           sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,GOCOVERDIR,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" make check-unit
 
       - name: Upload coverage data
         uses: actions/upload-artifact@v4
         with:
           name: coverage-unit
-          path: /home/runner/work/lxd/lxd/coverage
+          path: ${{env.GOCOVERDIR}}
+        if: env.GOCOVERDIR != ''
 
       - name: Upload system test dependencies
         uses: actions/upload-artifact@v4
@@ -416,12 +421,15 @@ jobs:
           sudo microceph.ceph status
           sudo rm -f /snap/bin/rbd
 
+      - name: Make GOCOVERDIR
+        run: mkdir -p "${GOCOVERDIR}"
+        if: env.GOCOVERDIR != ''
+
       - name: "Run system tests (${{ matrix.go }}, ${{ matrix.suite }}, ${{ matrix.backend }})"
         run: |
           set -eux
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
-          mkdir -p "${GOCOVERDIR}"
           cd test
           sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
 
@@ -429,7 +437,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.go }}-${{ matrix.suite }}-${{ matrix.backend }}
-          path: /home/runner/work/lxd/lxd/coverage
+          path: ${{env.GOCOVERDIR}}
+        if: env.GOCOVERDIR != ''
 
   client:
     name: Client
