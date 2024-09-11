@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/canonical/lxd/lxd/metrics"
-	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
@@ -31,9 +30,9 @@ func (r *operationResponse) Render(w http.ResponseWriter, req *http.Request) err
 	r.op.SetOnDone(func(op *Operation) {
 		sc := op.Status()
 		if sc == api.Success || sc == api.Cancelled {
-			request.MetricsCallback(req, metrics.Success)
+			metrics.UseMetricsCallback(req, metrics.Success)
 		} else {
-			request.MetricsCallback(req, metrics.ErrorServer)
+			metrics.UseMetricsCallback(req, metrics.ErrorServer)
 		}
 	})
 
@@ -123,7 +122,7 @@ func (r *forwardedOperationResponse) Render(w http.ResponseWriter, req *http.Req
 
 	if err == nil {
 		// If there was an error on Render, the callback function will be called during the error handling.
-		request.MetricsCallback(req, metrics.Success)
+		metrics.UseMetricsCallback(req, metrics.Success)
 	}
 
 	return err
