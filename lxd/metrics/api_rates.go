@@ -97,9 +97,9 @@ func CountStartedRequest(r *http.Request) {
 	TrackStartedRequest(requestURL)
 }
 
-// MetricsCallback retrieves a callback function from the request context and calls it.
+// UseMetricsCallback retrieves a callback function from the request context and calls it.
 // The callback function is used to mark the request as completed for the API metrics.
-func MetricsCallback(req *http.Request, result RequestResult) {
+func UseMetricsCallback(req *http.Request, result RequestResult) {
 	callback, err := request.GetCtxValue[func(RequestResult)](req.Context(), request.MetricsCallbackFunc)
 	if err != nil && (strings.HasPrefix(req.URL.Path, "/1.0") || req.URL.Path == "/") {
 		// Log a warning if endpoint is part of the main API, and therefore should be counted fot the API metrics.
