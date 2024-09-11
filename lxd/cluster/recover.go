@@ -82,6 +82,11 @@ func localRaftNode(database *db.Node) (*db.RaftNode, error) {
 // member in the cluster. Use `Reconfigure` if more members should remain in
 // the raft configuration.
 func Recover(database *db.Node) error {
+	_, err := createDatabaseBackup(database.Dir())
+	if err != nil {
+		return fmt.Errorf("Failed creating backup: %w", err)
+	}
+
 	info, err := localRaftNode(database)
 	if err != nil {
 		return err
@@ -196,6 +201,11 @@ func writeGlobalNodesPatch(database *db.Node, nodes []db.RaftNode) error {
 // Addresses and node roles may be updated. Node IDs are read-only.
 // Returns the path to the new database state (recovery tarball).
 func Reconfigure(database *db.Node, raftNodes []db.RaftNode) (string, error) {
+	_, err := createDatabaseBackup(database.Dir())
+	if err != nil {
+		return "", fmt.Errorf("Failed creating backup: %w", err)
+	}
+
 	info, err := localRaftNode(database)
 	if err != nil {
 		return "", err
@@ -305,7 +315,12 @@ func DatabaseReplaceFromTarball(tarballPath string, database *db.Node) error {
 
 	logger.Warn("Recovery tarball located; attempting DB recovery", logger.Ctx{"tarball": tarballPath})
 
-	err := unpackTarball(tarballPath, unpackDir)
+	_, err := createDatabaseBackup(database.Dir())
+	if err != nil {
+		return fmt.Errorf("Failed creating backup: %w", err)
+	}
+
+	err = unpackTarball(tarballPath, unpackDir)
 	if err != nil {
 		return err
 	}
