@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -532,6 +533,96 @@ func unpackTarball(tarballPath string, destRoot string) error {
 				return err
 			}
 		}
+	}
+
+	reverter.Success()
+
+	return nil
+}
+
+// createTarball creates tarball at tarballPath, rooted at rootDir and including
+// all files in walkDir except those paths found in excludeFiles.
+// walkDir and excludeFiles elements are relative to rootDir.
+func createTarball(tarballPath string, rootDir string, walkDir string, excludeFiles []string) error {
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	tarball, err := os.Create(tarballPath)
+	if err != nil {
+		return err
+	}
+
+	reverter.Add(func() { _ = os.Remove(tarballPath) })
+
+	gzWriter := gzip.NewWriter(tarball)
+	tarWriter := tar.NewWriter(gzWriter)
+
+	filesys := os.DirFS(rootDir)
+
+	err = fs.WalkDir(filesys, walkDir, func(filepath string, stat fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if slices.Contains(excludeFiles, filepath) {
+			return nil
+		}
+
+		info, err := stat.Info()
+		if err != nil {
+			return err
+		}
+
+		header, err := tar.FileInfoHeader(info, filepath)
+		if err != nil {
+			return fmt.Errorf("Failed creating tar header for %q: %w", filepath, err)
+		}
+
+		// header.Name is the basename of `stat` by default
+		header.Name = filepath
+
+		err = tarWriter.WriteHeader(header)
+		if err != nil {
+			return err
+		}
+
+		// Only write contents for regular files
+		if header.Typeflag == tar.TypeReg {
+			file, err := os.Open(path.Join(rootDir, filepath))
+			if err != nil {
+				return err
+			}
+
+			_, err = io.Copy(tarWriter, file)
+			if err != nil {
+				return err
+			}
+
+			err = file.Close()
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	err = tarWriter.Close()
+	if err != nil {
+		return err
+	}
+
+	err = gzWriter.Close()
+	if err != nil {
+		return err
+	}
+
+	err = tarball.Close()
+	if err != nil {
+		return err
 	}
 
 	reverter.Success()
