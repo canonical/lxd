@@ -163,29 +163,34 @@ func (h *HMAC) WriteRequest(r *http.Request) ([]byte, error) {
 
 }
 
-// HMACEqual extracts the HMAC from the Authorization header and
-// validates if it is equal to the HMAC created from the request's body using the given formatter.
+// HMACEqual checks whether or not the Authorization header matches the HMAC
+// derived using the given formatter.
+// The formatter indicates the used format together with some basic HMAC configuration (e.g. key and version).
 func HMACEqual(h HMACFormatter, r *http.Request) error {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
-		return api.StatusErrorf(http.StatusBadRequest, "Authorization header is missing")
+		return api.NewStatusError(http.StatusBadRequest, "Authorization header is missing")
 	}
 
-	version, hmacFromHeader, err := h.ParseHTTPHeader(authHeader)
+	hFromHeader, hmacFromHeader, err := h.ParseHTTPHeader(authHeader)
 	if err != nil {
-		return api.StatusErrorf(http.StatusBadRequest, "Failed to parse Authorization header: %w", err)
+		return api.StatusErrorf(http.StatusInternalServerError, "Failed to parse Authorization header: %w", err)
 	}
 
-	hmacVersion := h.Version()
-	if version != hmacVersion {
-		return api.StatusErrorf(http.StatusBadRequest, "Authorization header uses version %q but expected %q", version, hmacVersion)
+	// Check if the HMAC version from the formatter matches the one found in the request header.
+	headerVersion := hFromHeader.Version()
+	expectedVersion := h.Version()
+	if headerVersion != expectedVersion {
+		return api.StatusErrorf(http.StatusBadRequest, "Authorization header uses version %q but expected %q", headerVersion, expectedVersion)
 	}
 
-	hmacFromBody, err := h.WriteRequest(r)
+	// Use the formatter derived from the header to re-create the HMAC from the request's body.
+	hmacFromBody, err := hFromHeader.WriteRequest(r)
 	if err != nil {
 		return api.StatusErrorf(http.StatusInternalServerError, "Failed to calculate HMAC from request body: %w", err)
 	}
 
+	// Compare if the HMAC from the header matches the one computed over the body.
 	if !hmac.Equal(hmacFromHeader, hmacFromBody) {
 		return api.StatusErrorf(http.StatusForbidden, "Invalid HMAC")
 	}
