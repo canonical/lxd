@@ -506,6 +506,30 @@ func unpackTarball(tarballPath string, destRoot string) error {
 	return nil
 }
 
+func createDatabaseBackup(databaseDir string) (string, error) {
+	varDir := path.Dir(databaseDir)
+
+	// tar interprets `:` as a remote drive; ISO8601 allows a 'basic format'
+	// with the colons omitted (as opposed to time.RFC3339)
+	// https://en.wikipedia.org/wiki/ISO_8601
+	backupFileName := fmt.Sprintf("db_backup.%s.tar.gz", time.Now().Format("2006-01-02T150405Z0700"))
+	tarballPath := filepath.Join(varDir, backupFileName)
+
+	walkDir := path.Base(databaseDir)
+
+	logger.Info("Creating database backup", logger.Ctx{"path": tarballPath})
+
+	// Don't include the recovery tarball in a backup tarball
+	excludeFiles := []string{path.Join(walkDir, RecoveryTarballName)}
+
+	err := createTarball(tarballPath, varDir, walkDir, excludeFiles)
+	if err != nil {
+		return "", err
+	}
+
+	return tarballPath, nil
+}
+
 // createTarball creates tarball at tarballPath, rooted at rootDir and including
 // all files in walkDir except those paths found in excludeFiles.
 // walkDir and excludeFiles elements are relative to rootDir.
