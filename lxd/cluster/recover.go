@@ -258,49 +258,22 @@ func Reconfigure(database *db.Node, raftNodes []db.RaftNode) (string, error) {
 // Create a tarball of the global database dir to be copied to all other
 // remaining cluster members.
 func writeRecoveryTarball(databaseDir string, raftNodes []db.RaftNode) (string, error) {
-	reverter := revert.New()
-	defer reverter.Fail()
-
 	tarballPath := filepath.Join(databaseDir, RecoveryTarballName)
+	globalDBDirPath := filepath.Join(databaseDir, "global")
 
-	tarball, err := os.Create(tarballPath)
-	if err != nil {
-		return "", err
-	}
-
-	reverter.Add(func() { _ = os.Remove(tarballPath) })
-
-	gzWriter := gzip.NewWriter(tarball)
-	tarWriter := tar.NewWriter(gzWriter)
-
-	globalDBDirFS := os.DirFS(filepath.Join(databaseDir, "global"))
-
-	err = tarWriter.AddFS(globalDBDirFS)
-	if err != nil {
-		return "", err
-	}
+	raftNodesPath := filepath.Join(globalDBDirPath, raftNodesFilename)
 
 	raftNodesYaml, err := yaml.Marshal(raftNodes)
 	if err != nil {
 		return "", err
 	}
 
-	raftNodesHeader := tar.Header{
-		Typeflag: tar.TypeReg,
-		Name:     raftNodesFilename,
-		Size:     int64(len(raftNodesYaml)),
-		Mode:     0o644,
-		Uid:      0,
-		Gid:      0,
-		Format:   tar.FormatPAX,
-	}
-
-	err = tarWriter.WriteHeader(&raftNodesHeader)
+	raftNodesFd, err := os.Create(raftNodesPath)
 	if err != nil {
 		return "", err
 	}
 
-	written, err := tarWriter.Write(raftNodesYaml)
+	written, err := raftNodesFd.Write(raftNodesYaml)
 	if err != nil {
 		return "", err
 	}
@@ -309,22 +282,15 @@ func writeRecoveryTarball(databaseDir string, raftNodes []db.RaftNode) (string, 
 		return "", fmt.Errorf("Wrote %d bytes but expected to write %d", written, len(raftNodesYaml))
 	}
 
-	err = tarWriter.Close()
+	err = raftNodesFd.Close()
 	if err != nil {
 		return "", err
 	}
 
-	err = gzWriter.Close()
+	err = createTarball(tarballPath, globalDBDirPath, ".", []string{})
 	if err != nil {
 		return "", err
 	}
-
-	err = tarball.Close()
-	if err != nil {
-		return "", err
-	}
-
-	reverter.Success()
 
 	return tarballPath, nil
 }
