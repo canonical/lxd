@@ -175,7 +175,7 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter, req *http.Request) err
 
 	wg.Wait() // Wait for copy go routine to finish.
 
-	request.MetricsCallback(req, metrics.Success)
+	metrics.UseMetricsCallback(req, metrics.Success)
 
 	return nil
 }
