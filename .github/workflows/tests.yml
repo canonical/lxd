@@ -114,6 +114,7 @@ jobs:
         run: |
           set -eux
           GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
+          sudo chmod o+w {go.mod,go.sum}
           go mod tidy -go="${GOMIN}"
 
           DOC_GOMIN="$(sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md)"
