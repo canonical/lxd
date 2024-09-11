@@ -7,6 +7,9 @@
 This value is the maximum value of the aggregate disk
 space used by all instance volumes, custom volumes, and images of the
 project on this specific storage pool.
+
+When set to 0, the pool is excluded from storage pool list for
+the project.
 ```
 
 <!-- config group -limits, end -->
