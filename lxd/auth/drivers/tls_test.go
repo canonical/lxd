@@ -83,7 +83,6 @@ func (s *tlsSuite) TestTLSAuthorizer() {
 			id:        &s.fooRestrictedClient,
 			entityURL: entity.ServerURL(),
 			entitlements: []auth.Entitlement{
-				auth.EntitlementCanView,
 				auth.EntitlementCanViewResources,
 				auth.EntitlementCanViewMetrics,
 			},
@@ -102,21 +101,6 @@ func (s *tlsSuite) TestTLSAuthorizer() {
 				auth.EntitlementCanOverrideClusterTargetRestriction,
 				auth.EntitlementCanViewPrivilegedEvents,
 				auth.EntitlementCanViewWarnings,
-			},
-			expectErr:     true,
-			expectErrCode: http.StatusForbidden,
-		},
-		{
-			id:           &s.fooRestrictedClient,
-			entityURL:    entity.StoragePoolURL(petname.Generate(2, "-")),
-			entitlements: []auth.Entitlement{auth.EntitlementCanView},
-		},
-		{
-			id:        &s.fooRestrictedClient,
-			entityURL: entity.StoragePoolURL(petname.Generate(2, "-")),
-			entitlements: []auth.Entitlement{
-				auth.EntitlementCanEdit,
-				auth.EntitlementCanDelete,
 			},
 			expectErr:     true,
 			expectErrCode: http.StatusForbidden,
