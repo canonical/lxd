@@ -41,6 +41,16 @@ func (t *tls) load(ctx context.Context, identityCache *identity.Cache, opts Opts
 
 // CheckPermission returns an error if the user does not have the given Entitlement on the given Object.
 func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement) error {
+	entityType, projectName, _, pathArguments, err := entity.ParseURL(entityURL.URL)
+	if err != nil {
+		return fmt.Errorf("Failed to parse entity URL: %w", err)
+	}
+
+	err = auth.ValidateEntitlement(entityType, entitlement)
+	if err != nil {
+		return fmt.Errorf("Cannot check permissions for entity type %q and entitlement %q: %w", entityType, entitlement, err)
+	}
+
 	// Untrusted requests are denied.
 	if !auth.IsTrusted(ctx) {
 		return api.NewGenericStatusError(http.StatusForbidden)
@@ -62,11 +72,6 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 
 	if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
 		return nil
-	}
-
-	entityType, projectName, _, pathArguments, err := entity.ParseURL(entityURL.URL)
-	if err != nil {
-		return fmt.Errorf("Failed to parse entity URL: %w", err)
 	}
 
 	projectSpecific, err := entityType.RequiresProject()
@@ -93,6 +98,11 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 
 // GetPermissionChecker returns a function that can be used to check whether a user has the required entitlement on an authorization object.
 func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
+	err := auth.ValidateEntitlement(entityType, entitlement)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot get a permission checker for entity type %q and entitlement %q: %w", entityType, entitlement, err)
+	}
+
 	allowFunc := func(b bool) func(*api.URL) bool {
 		return func(*api.URL) bool {
 			return b
