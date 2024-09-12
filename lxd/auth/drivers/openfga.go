@@ -242,7 +242,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 		// (Otherwise we just get "rpc error (4000): Internal Server Error" or similar which isn't useful).
 		var openFGAInternalError openFGAErrors.InternalError
 		if errors.As(err, &openFGAInternalError) {
-			err = openFGAInternalError.Internal()
+			err = openFGAInternalError.Unwrap()
 		}
 
 		return fmt.Errorf("Failed to check OpenFGA relation: %w", err)
@@ -264,7 +264,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 				// (Otherwise we just get "rpc error (4000): Internal Server Error" or similar which isn't useful).
 				var openFGAInternalError openFGAErrors.InternalError
 				if errors.As(err, &openFGAInternalError) {
-					err = openFGAInternalError.Internal()
+					err = openFGAInternalError.Unwrap()
 				}
 
 				return fmt.Errorf("Failed to check OpenFGA relation: %w", err)
@@ -408,7 +408,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 		// (Otherwise we just get "rpc error (4000): Internal Server Error" or similar which isn't useful).
 		var openFGAInternalError openFGAErrors.InternalError
 		if errors.As(err, &openFGAInternalError) {
-			err = openFGAInternalError.Internal()
+			err = openFGAInternalError.Unwrap()
 		}
 
 		return nil, fmt.Errorf("Failed to list OpenFGA objects of type %q with entitlement %q for user %q: %w", entityType.String(), entitlement, id.Identifier, err)
