@@ -239,12 +239,9 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		AuthMethods:   authMethods,
 	}
 
-	// If not authorized, return now. Untrusted users are not authorized.
-	err := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanView)
-	if err != nil && auth.IsDeniedError(err) {
+	// If not authenticated, return now.
+	if !auth.IsTrusted(r.Context()) {
 		return response.SyncResponseETag(true, srv, nil)
-	} else if err != nil {
-		return response.SmartError(err)
 	}
 
 	// If a target was specified, forward the request to the relevant node.
