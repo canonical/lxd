@@ -120,6 +120,8 @@ endif
 	go get github.com/openfga/api/proto@v0.0.0-20240807201305-c96ec773cae9 # Due to build errors (API breakages)
 	go get github.com/openfga/openfga@v1.5.9 # Due to build errors (API breakages)
 
+	# Enforce minimum go version
+	go get toolchain@none # Use the bundled toolchain that meets the minimum go version
 	go mod tidy -go=$(GOMIN)
 
 	@echo "Dependencies updated"
