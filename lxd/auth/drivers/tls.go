@@ -154,10 +154,7 @@ func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, ent
 	switch entityType {
 	case entity.TypeServer:
 		// Restricted TLS certificates have the following entitlements on server.
-		return shared.ValueInSlice(entitlement, []auth.Entitlement{auth.EntitlementCanView, auth.EntitlementCanViewResources, auth.EntitlementCanViewMetrics})
-	case entity.TypeStoragePool:
-		// Restricted TLS certificates can view all storage pools.
-		return entitlement == auth.EntitlementCanView
+		return shared.ValueInSlice(entitlement, []auth.Entitlement{auth.EntitlementCanViewResources, auth.EntitlementCanViewMetrics})
 	case entity.TypeIdentity:
 		// If the entity URL refers to the identity that made the request, then the second path argument of the URL is
 		// the identifier of the identity. This line allows the caller to view their own identity and no one else's.
