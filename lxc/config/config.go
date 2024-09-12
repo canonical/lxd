@@ -80,7 +80,7 @@ func (c *Config) SaveOIDCTokens() {
 	tokenParentPath := c.ConfigPath("oidctokens")
 
 	if !shared.PathExists(tokenParentPath) {
-		_ = os.MkdirAll(tokenParentPath, 0755)
+		_ = os.MkdirAll(tokenParentPath, 0750)
 	}
 
 	for remote, tokens := range c.oidcTokens {
