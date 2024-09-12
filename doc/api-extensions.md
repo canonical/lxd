@@ -2464,3 +2464,9 @@ Adds the following internal metrics:
 
 * Total completed requests
 * Number of ongoing requests
+
+## `projects_limits_disk_pool`
+
+This introduces per-pool project disk limits, introducing a `limits.disk.pool.NAME`
+configuration option to the project limits. When `limits.disk.pool.POOLNAME: 0`
+for a project, the pool is excluded from `lxc storage list` in that project.
