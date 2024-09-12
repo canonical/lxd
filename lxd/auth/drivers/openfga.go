@@ -256,11 +256,14 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 
 	// If not allowed, decide if the user can view the resource.
 	if !resp.GetAllowed() {
+		err := auth.ValidateEntitlement(entityType, auth.EntitlementCanView)
+		doCheckCanView := err == nil
+
 		responseCode := http.StatusForbidden
 		if entitlement == auth.EntitlementCanView {
 			responseCode = http.StatusNotFound
-		} else {
-			// Otherwise, check if we can view the resource.
+		} else if doCheckCanView {
+			// Otherwise, if `can_view` is a valid entitlement for the entity type, check if the identity can view the resource.
 			req.TupleKey.Relation = string(auth.EntitlementCanView)
 
 			l.Debug("Checking OpenFGA relation")
