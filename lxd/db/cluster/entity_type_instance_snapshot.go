@@ -40,7 +40,7 @@ WHERE projects.name = ?
 }
 
 func (e entityTypeInstanceSnapshot) onDeleteTriggerSQL() (name string, sql string) {
-	name = "on_instance_snaphot_delete" // TODO: Spelling was wrong originally. We need a patch to fix this.
+	name = "on_instance_snapshot_delete"
 	return name, fmt.Sprintf(`
 CREATE TRIGGER %s
 	AFTER DELETE ON instances_snapshots
