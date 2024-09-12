@@ -255,13 +255,6 @@ jobs:
             backend: dir
 
     steps:
-      - name: Remove docker
-        run: |
-          set -eux
-          sudo apt-get autopurge -y containerd.io moby-containerd docker docker-ce podman uidmap
-          sudo ip link delete docker0
-          sudo nft flush ruleset
-
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -270,6 +263,9 @@ jobs:
 
       - name: Reclaim disk space
         uses: ./.github/actions/reclaim-disk-space
+
+      - name: Remove docker
+        uses: ./.github/actions/disable-docker
 
       - name: Install Go (${{ matrix.go }})
         uses: actions/setup-go@v5
@@ -440,13 +436,6 @@ jobs:
       TICSAUTHTOKEN:  ${{ secrets.TICS_AUTH_TOKEN }}
     if: ${{ github.event_name == 'workflow_dispatch' }}
     steps:
-      - name: Remove docker
-        run: |
-            set -eux
-            sudo apt-get autopurge -y containerd.io moby-containerd docker docker-ce podman uidmap
-            sudo ip link delete docker0
-            sudo nft flush ruleset
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -458,6 +447,9 @@ jobs:
 
       - name: Reclaim disk space
         uses: ./.github/actions/reclaim-disk-space
+
+      - name: Remove docker
+        uses: ./.github/actions/disable-docker
 
       - name: Install Go
         uses: actions/setup-go@v5
