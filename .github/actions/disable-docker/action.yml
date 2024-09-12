@@ -1,0 +1,13 @@
+name: Disable Docker
+description: Removes docker and resets the firewall
+
+runs:
+  using: composite
+  steps:
+    - name: Disable Docker
+      shell: bash
+      run: |
+        set -eux
+        sudo apt-get autopurge -y containerd.io moby-containerd docker docker-ce podman uidmap
+        sudo ip link delete docker0
+        sudo nft flush ruleset
