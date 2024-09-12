@@ -561,6 +561,43 @@ test_projects_limits() {
 
   deps/import-busybox --project p1 --alias testimage
 
+  # Test per-pool limits.
+  lxc storage create limit1 dir
+  lxc storage create limit2 dir
+
+  lxc project set p1 limits.disk=50MiB
+  lxc project set p1 limits.disk.pool.limit1=0
+  lxc project set p1 limits.disk.pool.limit2=0
+
+  ! lxc storage list | grep -q limit1 || false
+  ! lxc storage list | grep -q limit2 || false
+
+  lxc storage volume create "${pool}" foo size=10MiB
+  ! lxc storage volume create "${pool}" bar size=50MiB || false
+  lxc storage volume delete "${pool}" foo
+
+  ! lxc storage volume create limit1 foo size=10GiB || false
+  ! lxc storage volume create limit2 foo size=10GiB || false
+
+  lxc project set p1 limits.disk.pool.limit1=10MiB
+  lxc project set p1 limits.disk.pool.limit2=10MiB
+  lxc storage volume create limit1 foo size=10MiB
+  ! lxc storage volume create limit1 bar size=10MiB || false
+  lxc storage volume create limit2 foo size=10MiB
+  ! lxc storage volume create limit2 bar size=10MiB || false
+
+  ! lxc storage volume create "${pool}" foo size=40MiB || false
+  lxc storage volume delete limit1 foo
+  lxc storage volume delete limit2 foo
+  lxc storage volume create "${pool}" foo size=40MiB
+
+  lxc storage volume delete "${pool}" foo
+  lxc project unset p1 limits.disk.pool.limit1
+  lxc project unset p1 limits.disk.pool.limit2
+  lxc project unset p1 limits.disk
+  lxc storage delete limit1
+  lxc storage delete limit2
+
   # Create a couple of containers in the project.
   lxc init testimage c1
   lxc init testimage c2

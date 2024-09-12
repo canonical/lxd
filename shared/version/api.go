@@ -415,6 +415,7 @@ var APIExtensions = []string{
 	"devlxd_images_vm",
 	"disk_io_bus_virtio_blk",
 	"metrics_api_requests",
+	"projects_limits_disk_pool",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
