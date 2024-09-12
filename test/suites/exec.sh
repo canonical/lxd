@@ -93,5 +93,19 @@ test_exec_exit_code() {
   lxc exec x1 -- invalid-command || exitCode=$?
   [ "${exitCode:-0}" -eq 127 ]
 
+  # Try disconnecting a container stopping forcefully and gracefully to make sure they differ appropriately.
+  (sleep 1 && lxc stop -f x1) &
+  lxc exec x1 -- sleep 10 || exitCode=$?
+  [ "${exitCode:-0}" -eq 137 ]
+
+  wait $!
+  lxc start x1
+  sleep 2
+  (sleep 1 && lxc stop x1) &
+  lxc exec x1 -- sleep 10 || exitCode=$?
+  # Both 129 and 143 have been seen and both make sense here.
+  [ "${exitCode:-0}" -eq 129 ] || [ "${exitCode:-0}" -eq 143 ]
+
+  wait $!
   lxc delete --force x1
 }
