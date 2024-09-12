@@ -11,7 +11,7 @@ GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
-GOMIN=1.22.5
+GOMIN=1.22.6
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
 
 ifneq "$(wildcard vendor)" ""
@@ -111,9 +111,17 @@ ifneq "$(LXD_OFFLINE)" ""
 	@echo "The update-gomod target cannot be run in offline mode."
 	exit 1
 endif
-	go get -t -v -d -u ./...
+	# Update gomod dependencies
+	go get -t -v -u ./...
+
+	# Static pins
 	go get github.com/dell/goscaleio@v1.15.0 # Due to pending testing of newer version
 	go get github.com/gorilla/websocket@v1.5.1 # Due to riscv64 crashes in LP
+	go get github.com/openfga/api/proto@v0.0.0-20240807201305-c96ec773cae9 # Due to build errors (API breakages)
+	go get github.com/openfga/openfga@v1.5.9 # Due to build errors (API breakages)
+
+	# Enforce minimum go version
+	go get toolchain@none # Use the bundled toolchain that meets the minimum go version
 	go mod tidy -go=$(GOMIN)
 
 	@echo "Dependencies updated"
