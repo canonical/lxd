@@ -36,23 +36,14 @@ jobs:
     name: Code
     runs-on: ubuntu-22.04
     steps:
-      - name: Performance tuning
-        run: |
-          set -eux
-          # optimize ext4 FSes for performance, not reliability
-          for fs in $(findmnt --noheading --type ext4 --list --uniq | awk '{print $1}'); do
-            # nombcache and data=writeback cannot be changed on remount
-            sudo mount -o remount,noatime,barrier=0,commit=6000 "${fs}" || true
-          done
-
-          # disable dpkg from calling sync()
-          echo "force-unsafe-io" | sudo tee /etc/dpkg/dpkg.cfg.d/force-unsafe-io
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
+
+      - name: Tune disk performance
+        uses: ./.github/actions/tune-disk-performance
 
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
@@ -264,18 +255,6 @@ jobs:
             backend: dir
 
     steps:
-      - name: Performance tuning
-        run: |
-          set -eux
-          # optimize ext4 FSes for performance, not reliability
-          for fs in $(findmnt --noheading --type ext4 --list --uniq | awk '{print $1}'); do
-            # nombcache and data=writeback cannot be changed on remount
-            sudo mount -o remount,noatime,barrier=0,commit=6000 "${fs}" || true
-          done
-
-          # disable dpkg from calling sync()
-          echo "force-unsafe-io" | sudo tee /etc/dpkg/dpkg.cfg.d/force-unsafe-io
-
       - name: Remove docker
         run: |
           set -eux
@@ -285,6 +264,9 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Tune disk performance
+        uses: ./.github/actions/tune-disk-performance
 
       - name: Reclaim disk space
         uses: ./.github/actions/reclaim-disk-space
@@ -458,18 +440,6 @@ jobs:
       TICSAUTHTOKEN:  ${{ secrets.TICS_AUTH_TOKEN }}
     if: ${{ github.event_name == 'workflow_dispatch' }}
     steps:
-      - name: Performance tuning
-        run: |
-          set -eux
-          # optimize ext4 FSes for performance, not reliability
-          for fs in $(findmnt --noheading --type ext4 --list --uniq | awk '{print $1}'); do
-            # nombcache and data=writeback cannot be changed on remount
-            sudo mount -o remount,noatime,barrier=0,commit=6000 "${fs}" || true
-          done
-
-          # disable dpkg from calling sync()
-          echo "force-unsafe-io" | sudo tee /etc/dpkg/dpkg.cfg.d/force-unsafe-io
-
       - name: Remove docker
         run: |
             set -eux
@@ -482,6 +452,9 @@ jobs:
         with:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
+
+      - name: Tune disk performance
+        uses: ./.github/actions/tune-disk-performance
 
       - name: Reclaim disk space
         uses: ./.github/actions/reclaim-disk-space
