@@ -276,30 +276,6 @@ jobs:
           # disable dpkg from calling sync()
           echo "force-unsafe-io" | sudo tee /etc/dpkg/dpkg.cfg.d/force-unsafe-io
 
-      - name: Reclaim some space
-        run: |
-          set -eux
-
-          sudo snap remove lxd --purge
-          # Purge older snap revisions that are disabled/superseded by newer revisions of the same snap
-          snap list --all | while read -r name _ rev _ _ notes _; do
-            [[ "${notes}" =~ disabled$ ]] && snap remove "${name}" --revision "${rev}" --purge
-          done || true
-
-          # This was inspired from https://github.com/easimon/maximize-build-space
-          df -h /
-
-          # dotnet
-          sudo rm -rf /usr/share/dotnet
-          # android
-          sudo rm -rf /usr/local/lib/android
-          # haskell
-          sudo rm -rf /opt/ghc
-          # codeql
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-
-          df -h /
-
       - name: Remove docker
         run: |
           set -eux
@@ -309,6 +285,9 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Reclaim disk space
+        uses: ./.github/actions/reclaim-disk-space
 
       - name: Install Go (${{ matrix.go }})
         uses: actions/setup-go@v5
@@ -491,27 +470,6 @@ jobs:
           # disable dpkg from calling sync()
           echo "force-unsafe-io" | sudo tee /etc/dpkg/dpkg.cfg.d/force-unsafe-io
 
-      - name: Reclaim some space
-        run: |
-          set -eux
-
-          # Purge snaps and snapd.
-          sudo snap remove --purge $(snap list | awk '!/^Name|^core|^snapd/ {print $1}') && sudo apt-get autopurge -y snapd
-
-          # This was inspired from https://github.com/easimon/maximize-build-space
-          df -h /
-
-          # dotnet
-          sudo rm -rf /usr/share/dotnet
-          # android
-          sudo rm -rf /usr/local/lib/android
-          # haskell
-          sudo rm -rf /opt/ghc
-          # codeql
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-
-          df -h /
-
       - name: Remove docker
         run: |
             set -eux
@@ -524,6 +482,9 @@ jobs:
         with:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
+
+      - name: Reclaim disk space
+        uses: ./.github/actions/reclaim-disk-space
 
       - name: Install Go
         uses: actions/setup-go@v5
