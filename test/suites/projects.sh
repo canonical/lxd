@@ -1146,3 +1146,16 @@ EOF
   lxc image delete testimage --project test-project-yaml
   lxc project delete test-project-yaml
 }
+
+# Test project operations with an uninitialized LXD.
+test_projects_before_init() {
+  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_INIT_DIR}"
+  spawn_lxd "${LXD_INIT_DIR}" false
+
+  # Check if projects can be created and modified without any pre-existing storage pools.
+  LXD_DIR=${LXD_INIT_DIR} lxc project create foo
+  LXD_DIR=${LXD_INIT_DIR} lxc project set foo user.foo test
+
+  shutdown_lxd "${LXD_INIT_DIR}"
+}
