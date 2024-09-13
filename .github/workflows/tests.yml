@@ -6,11 +6,13 @@ on:
       - stable-*
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'  # Test TICS daily
 
 env:
   LXD_REQUIRED_TESTS: "storage_buckets"
   LXD_SKIP_TESTS: "clustering_upgrade clustering_upgrade_large"
-  GOCOVERDIR: ${{ github.event_name == 'workflow_dispatch' && '/home/runner/work/lxd/lxd/coverage' || '' }}
+  GOCOVERDIR: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && '/home/runner/work/lxd/lxd/coverage' || '' }}
 
 permissions:
   contents: read
@@ -434,7 +436,7 @@ jobs:
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
       TICSAUTHTOKEN:  ${{ secrets.TICS_AUTH_TOKEN }}
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
