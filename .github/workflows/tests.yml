@@ -73,37 +73,11 @@ jobs:
         with:
           go-version: 1.22.x
 
-      - name: Install dependencies
+      - name: Install build dependencies
+        uses: ./.github/actions/install-lxd-builddeps
+
+      - name: Install test dependencies
         run: |
-          set -eux
-          sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
-          sudo apt-get update
-
-          sudo systemctl mask lxc.service lxc-net.service
-
-          sudo apt-get install --no-install-recommends -y \
-            build-essential \
-            curl \
-            gettext \
-            git \
-            libacl1-dev \
-            libcap-dev \
-            libdbus-1-dev \
-            liblxc-dev \
-            lxc-templates \
-            libseccomp-dev \
-            libselinux-dev \
-            libsqlite3-dev \
-            libtool \
-            libudev-dev \
-            libuv1-dev \
-            make \
-            pkg-config \
-            shellcheck
-
-          # reclaim some space
-          sudo apt-get clean
-
           python3 -m pip install flake8
 
           # Download minio ready to include in dependencies for system tests.
@@ -142,6 +116,8 @@ jobs:
       - name: Build LXD dependencies
         run: |
           set -eux
+
+          # Build from unpacked dist tarball.
           cd /home/runner/work/lxd/lxd-test
           make deps
 
@@ -153,7 +129,11 @@ jobs:
       - name: Build binaries
         run: |
           set -eux
+
+          # Build from unpacked dist tarball.
+          cd /home/runner/work/lxd/lxd-test
           make
+
           strip --strip-all /home/runner/go/bin/{lxc*,lxd*} -v
 
       - name: Check lxc/lxd-agent binary sizes
@@ -435,7 +415,6 @@ jobs:
       CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
-      TICSAUTHTOKEN:  ${{ secrets.TICS_AUTH_TOKEN }}
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) }}
     steps:
       - name: Checkout
@@ -472,27 +451,11 @@ jobs:
           merge-multiple: true
           path: /home/runner/go/bin
 
+      - name: Install build dependencies
+        uses: ./.github/actions/install-lxd-builddeps
+
       - name: Install dependencies
         run: |
-          set -eux
-          sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
-          sudo apt-get update
-
-          sudo systemctl mask lxc.service lxc-net.service
-
-          sudo apt-get install --no-install-recommends -y \
-            libcap-dev \
-            libacl1-dev \
-            libuv1-dev \
-            libudev-dev \
-            liblxc-dev \
-            pkg-config \
-            libdbus-1-dev \
-            libseccomp-dev
-
-          # reclaim some space
-          sudo apt-get clean
-
           go install github.com/axw/gocov/gocov@latest
           go install github.com/AlekSi/gocov-xml@latest
           go install honnef.co/go/tools/cmd/staticcheck@latest
@@ -504,10 +467,15 @@ jobs:
           gocov-xml < "${GOCOVERDIR}"/coverage.json > "${GOCOVERDIR}"/coverage-go.xml
 
       - name: Run TICS
-        run: |
-          curl --silent --show-error "https://canonical.tiobe.com/tiobeweb/TICS/api/public/v1/fapi/installtics/Script?cfg=default&platform=linux&url=https://canonical.tiobe.com/tiobeweb/TICS/" > install_tics.sh
-          . ./install_tics.sh
-          TICSQServer -project LXD  -tmpdir /tmp/tics -branchdir .
+        uses: tiobe/tics-github-action@v3
+        with:
+          mode: qserver
+          project: LXD
+          viewerUrl: https://canonical.tiobe.com/tiobeweb/TICS/api/cfg?name=default
+          branchdir: ${{ github.workspace }}
+          ticsAuthToken: ${{ secrets.TICS_AUTH_TOKEN }}
+          installTics: true
+          calc: ALL
 
   client:
     name: Client
