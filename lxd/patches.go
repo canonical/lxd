@@ -92,8 +92,6 @@ type patch struct {
 }
 
 func (p *patch) apply(d *Daemon) error {
-	logger.Info("Applying patch", logger.Ctx{"name": p.name})
-
 	err := p.run(p.name, d)
 	if err != nil {
 		return fmt.Errorf("Failed applying patch %q: %w", p.name, err)
@@ -121,8 +119,9 @@ func patchesGetNames() []string {
 	return names
 }
 
-// patchesApplyPostDaemonStorage applies the patches that need to run after the daemon storage is initialised.
+// patchesApply applies the patches for the specified stage.
 func patchesApply(d *Daemon, stage patchStage) error {
+	logger.Debug("Checking for patches", logger.Ctx{"stage": stage})
 	appliedPatches, err := d.db.Node.GetAppliedPatches()
 	if err != nil {
 		return err
@@ -133,10 +132,15 @@ func patchesApply(d *Daemon, stage patchStage) error {
 			return fmt.Errorf("Patch %q has no stage set: %d", patch.name, patch.stage)
 		}
 
+		if patch.stage != stage {
+			continue
+		}
+
 		if shared.StringInSlice(patch.name, appliedPatches) {
 			continue
 		}
 
+		logger.Info("Applying patch", logger.Ctx{"name": patch.name, "stage": stage})
 		err := patch.apply(d)
 		if err != nil {
 			return err
@@ -481,7 +485,7 @@ func patchVMRenameUUIDKey(name string, d *Daemon) error {
 			}
 
 			for _, snap := range snaps {
-				config, err := dbCluster.GetInstanceConfig(ctx, tx.Tx(), snap.ID)
+				config, err := dbCluster.GetInstanceSnapshotConfig(ctx, tx.Tx(), snap.ID)
 				if err != nil {
 					return err
 				}

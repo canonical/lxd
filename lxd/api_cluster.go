@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -193,6 +194,26 @@ func clusterGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Sort the member config.
+	sort.Slice(memberConfig, func(i, j int) bool {
+		left := memberConfig[i]
+		right := memberConfig[j]
+
+		if left.Entity != right.Entity {
+			return left.Entity < right.Entity
+		}
+
+		if left.Name != right.Name {
+			return left.Name < right.Name
+		}
+
+		if left.Key != right.Key {
+			return left.Key < right.Key
+		}
+
+		return left.Description < right.Description
+	})
+
 	cluster := api.Cluster{
 		ServerName:   serverName,
 		Enabled:      serverName != "",
@@ -326,6 +347,10 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("ServerName may not start with %q", targetGroupPrefix))
 	}
 
+	if req.ServerName == "none" {
+		return response.BadRequest(fmt.Errorf("ServerName cannot be %q", req.ServerName))
+	}
+
 	// Disable clustering.
 	if !req.Enabled {
 		return clusterPutDisable(d, r, req)
@@ -354,6 +379,10 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 		d.globalConfigMu.Unlock()
 
 		d.events.SetLocalLocation(d.serverName)
+
+		// Refresh the state.
+		s = d.State()
+
 		// Start clustering tasks
 		d.startClusterTasks()
 
@@ -775,6 +804,9 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		if err != nil {
 			return err
 		}
+
+		// Refresh the state.
+		s = d.State()
 
 		// Start up networks so any post-join changes can be applied now that we have a Node ID.
 		logger.Debug("Starting networks after cluster join")
@@ -1278,6 +1310,10 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 
 	if !s.ServerClustered {
 		return response.BadRequest(fmt.Errorf("This server is not clustered"))
+	}
+
+	if req.ServerName == "none" {
+		return response.BadRequest(fmt.Errorf("Join token name cannot be %q", req.ServerName))
 	}
 
 	expiry, err := shared.GetExpiry(time.Now(), s.GlobalConfig.ClusterJoinTokenExpiry())
