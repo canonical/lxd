@@ -116,6 +116,8 @@ jobs:
       - name: Build LXD dependencies
         run: |
           set -eux
+
+          # Build from unpacked dist tarball.
           cd /home/runner/work/lxd/lxd-test
           make deps
 
@@ -127,7 +129,11 @@ jobs:
       - name: Build binaries
         run: |
           set -eux
+
+          # Build from unpacked dist tarball.
+          cd /home/runner/work/lxd/lxd-test
           make
+
           strip --strip-all /home/runner/go/bin/{lxc*,lxd*} -v
 
       - name: Check lxc/lxd-agent binary sizes
