@@ -73,37 +73,11 @@ jobs:
         with:
           go-version: 1.22.x
 
-      - name: Install dependencies
+      - name: Install build dependencies
+        uses: ./.github/actions/install-lxd-builddeps
+
+      - name: Install test dependencies
         run: |
-          set -eux
-          sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
-          sudo apt-get update
-
-          sudo systemctl mask lxc.service lxc-net.service
-
-          sudo apt-get install --no-install-recommends -y \
-            build-essential \
-            curl \
-            gettext \
-            git \
-            libacl1-dev \
-            libcap-dev \
-            libdbus-1-dev \
-            liblxc-dev \
-            lxc-templates \
-            libseccomp-dev \
-            libselinux-dev \
-            libsqlite3-dev \
-            libtool \
-            libudev-dev \
-            libuv1-dev \
-            make \
-            pkg-config \
-            shellcheck
-
-          # reclaim some space
-          sudo apt-get clean
-
           python3 -m pip install flake8
 
           # Download minio ready to include in dependencies for system tests.
@@ -472,27 +446,11 @@ jobs:
           merge-multiple: true
           path: /home/runner/go/bin
 
+      - name: Install build dependencies
+        uses: ./.github/actions/install-lxd-builddeps
+
       - name: Install dependencies
         run: |
-          set -eux
-          sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
-          sudo apt-get update
-
-          sudo systemctl mask lxc.service lxc-net.service
-
-          sudo apt-get install --no-install-recommends -y \
-            libcap-dev \
-            libacl1-dev \
-            libuv1-dev \
-            libudev-dev \
-            liblxc-dev \
-            pkg-config \
-            libdbus-1-dev \
-            libseccomp-dev
-
-          # reclaim some space
-          sudo apt-get clean
-
           go install github.com/axw/gocov/gocov@latest
           go install github.com/AlekSi/gocov-xml@latest
           go install honnef.co/go/tools/cmd/staticcheck@latest
