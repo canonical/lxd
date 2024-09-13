@@ -387,11 +387,6 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 		return true, "", auth.AuthenticationMethodUnix, nil, nil
 	}
 
-	// Devlxd unix socket credentials on main API.
-	if r.RemoteAddr == devlxdRemoteAddress {
-		return false, "", "", nil, fmt.Errorf("Main API query can't come from /dev/lxd socket")
-	}
-
 	// Cluster notification with wrong certificate.
 	if isClusterNotification(r) {
 		return false, "", "", nil, fmt.Errorf("Cluster notification isn't using trusted server certificate")
