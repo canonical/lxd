@@ -240,10 +240,9 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 		return nil, fmt.Errorf("Failed converting identity type to certificate type: %w", err)
 	}
 
-	var metadata CertificateMetadata
-	err = json.Unmarshal([]byte(i.Metadata), &metadata)
+	metadata, err := i.CertificateMetadata()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
+		return nil, fmt.Errorf("Failed getting certificate metadata: %w", err)
 	}
 
 	isRestricted, err := identity.IsRestrictedIdentityType(string(i.Type))
@@ -270,16 +269,26 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 	return c, nil
 }
 
-// X509 returns an x509.Certificate from the identity metadata. The AuthMethod of the Identity must be api.AuthenticationMethodTLS.
-func (i Identity) X509() (*x509.Certificate, error) {
+// CertificateMetadata returns the CertificateMetadata. The AuthMethod of the Identity must be api.AuthenticationMethodTLS.
+func (i Identity) CertificateMetadata() (*CertificateMetadata, error) {
 	if i.AuthMethod != api.AuthenticationMethodTLS {
-		return nil, fmt.Errorf("Cannot extract X509 certificate from identity: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodTLS)
+		return nil, fmt.Errorf("Cannot get certificate metadata from identity: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodTLS)
 	}
 
 	var metadata CertificateMetadata
 	err := json.Unmarshal([]byte(i.Metadata), &metadata)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
+	}
+
+	return &metadata, nil
+}
+
+// X509 returns an x509.Certificate from the identity metadata. The AuthMethod of the Identity must be api.AuthenticationMethodTLS.
+func (i Identity) X509() (*x509.Certificate, error) {
+	metadata, err := i.CertificateMetadata()
+	if err != nil {
+		return nil, fmt.Errorf("Cannot extract X509 certificate from identity: %w", err)
 	}
 
 	return metadata.X509()
@@ -290,23 +299,54 @@ type OIDCMetadata struct {
 	Subject string `json:"subject"`
 }
 
-// Subject returns OIDC subject from the identity metadata. The AuthMethod of the Identity must be api.AuthenticationMethodOIDC.
-func (i Identity) Subject() (string, error) {
+// OIDCMetadata returns the OIDCMetadata. The AuthMethod of the Identity must be api.AuthenticationMethodOIDC.
+func (i Identity) OIDCMetadata() (*OIDCMetadata, error) {
 	if i.AuthMethod != api.AuthenticationMethodOIDC {
-		return "", fmt.Errorf("Cannot extract subject from identity: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodOIDC)
+		return nil, fmt.Errorf("Cannot extract subject from identity: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodOIDC)
 	}
 
 	var metadata OIDCMetadata
 	err := json.Unmarshal([]byte(i.Metadata), &metadata)
 	if err != nil {
-		return "", fmt.Errorf("Failed to unmarshal subject metadata: %w", err)
+		return nil, fmt.Errorf("Failed to unmarshal subject metadata: %w", err)
+	}
+
+	return &metadata, nil
+}
+
+// Subject returns OIDC subject from the identity metadata. The AuthMethod of the Identity must be api.AuthenticationMethodOIDC.
+func (i Identity) Subject() (string, error) {
+	metadata, err := i.OIDCMetadata()
+	if err != nil {
+		return "", fmt.Errorf("Failed getting OIDC identity metadata: %w", err)
 	}
 
 	return metadata.Subject, nil
 }
 
+// APIMetadata returns the api.IdentityMetadata corresponding to the Identity.
+func (i Identity) APIMetadata() (*api.IdentityMetadata, error) {
+	if i.AuthMethod == api.AuthenticationMethodTLS {
+		metadata, err := i.CertificateMetadata()
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting TLS identity metadata: %w", err)
+		}
+
+		return &api.IdentityMetadata{Certificate: &metadata.Certificate}, nil
+	} else if i.AuthMethod == api.AuthenticationMethodOIDC {
+		metadata, err := i.OIDCMetadata()
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting OIDC identity metadata: %w", err)
+		}
+
+		return &api.IdentityMetadata{Subject: &metadata.Subject}, nil
+	}
+
+	return &api.IdentityMetadata{}, nil
+}
+
 // ToAPI converts an Identity to an api.Identity, executing database queries as necessary.
-func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.Identity, error) {
+func (i Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.Identity, error) {
 	groups, err := GetAuthGroupsByIdentityID(ctx, tx, i.ID)
 	if err != nil {
 		return nil, err
@@ -319,12 +359,18 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 		}
 	}
 
+	apiMetadata, err := i.APIMetadata()
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting identity metadata: %w", err)
+	}
+
 	return &api.Identity{
 		AuthenticationMethod: string(i.AuthMethod),
 		Type:                 string(i.Type),
 		Identifier:           i.Identifier,
 		Name:                 i.Name,
 		Groups:               groupNames,
+		Metadata:             *apiMetadata,
 	}, nil
 }
 
