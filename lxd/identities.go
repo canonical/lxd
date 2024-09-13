@@ -463,12 +463,18 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 
 			apiIdentities := make([]api.Identity, 0, len(identities))
 			for _, id := range identities {
+				metadata, err := id.APIMetadata()
+				if err != nil {
+					return response.SmartError(fmt.Errorf("Failed to get identity metadata: %w", err))
+				}
+
 				apiIdentities = append(apiIdentities, api.Identity{
 					AuthenticationMethod: string(id.AuthMethod),
 					Type:                 string(id.Type),
 					Identifier:           id.Identifier,
 					Name:                 id.Name,
 					Groups:               groupNamesByIdentityID[id.ID],
+					Metadata:             *metadata,
 				})
 			}
 
