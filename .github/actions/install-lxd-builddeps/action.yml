@@ -1,0 +1,37 @@
+name: Install LXD build dependencies
+description: Installs LXD build dependencies
+
+runs:
+  using: composite
+  steps:
+    - name: Installs LXD build dependencies
+      shell: bash
+      run: |
+        set -eux
+        sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
+        sudo apt-get update
+
+        sudo systemctl mask lxc.service lxc-net.service
+
+        sudo apt-get install --no-install-recommends -y \
+          build-essential \
+          curl \
+          gettext \
+          git \
+          libacl1-dev \
+          libcap-dev \
+          libdbus-1-dev \
+          liblxc-dev \
+          lxc-templates \
+          libseccomp-dev \
+          libselinux-dev \
+          libsqlite3-dev \
+          libtool \
+          libudev-dev \
+          libuv1-dev \
+          make \
+          pkg-config \
+          shellcheck
+
+        # reclaim some space
+        sudo apt-get clean
