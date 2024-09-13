@@ -160,6 +160,9 @@ linkcheck_ignore = [
     'http://localhost:8000',
     r'/lxd/en/latest/api/.*',
     r'/api/.*',
+    # Those links may fail from time to time
+    'https://www.dell.com/',
+    'https://www.dell.com/en-us/shop/powerflex/sf/powerflex',
     ]
 
 # Pages on which to ignore anchors
