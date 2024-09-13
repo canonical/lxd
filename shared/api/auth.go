@@ -55,6 +55,23 @@ type Identity struct {
 	// Groups is the list of groups for which the identity is a member.
 	// Example: ["foo", "bar"]
 	Groups []string `json:"groups" yaml:"groups"`
+
+	// Metadata contains supplementary information about an identity.
+	// API extension: identity_management
+	Metadata IdentityMetadata `json:"metadata" yaml:"metadata"`
+}
+
+// IdentityMetadata contains supplementary information about an identity.
+//
+// swagger:model
+//
+// API extension: identity_management.
+type IdentityMetadata struct {
+	// Certificate is the PEM encoded public certificate of the identity if authenticated with TLS.
+	Certificate *string `json:"certificate,omitempty" yaml:"certificate,omitempty"`
+
+	// Subject is the OIDC subject of the identity if authenticated with OIDC.
+	Subject *string `json:"subject,omitempty" yaml:"subject,omitempty"`
 }
 
 // Writable converts a Identity struct into a IdentityPut struct (filters read-only fields).
