@@ -1,5 +1,9 @@
 test_devlxd() {
   ensure_import_testimage
+  fingerprint="$(lxc image info testimage | awk '/^Fingerprint:/ {print $2}')"
+
+  # Ensure testimage is not set as cached.
+  lxd sql global "UPDATE images SET cached=0 WHERE fingerprint=\"${fingerprint}\""
 
   (
     cd devlxd-client || return
@@ -13,6 +17,16 @@ test_devlxd() {
   lxc config unset devlxd security.devlxd
   lxc exec devlxd -- test -S /dev/lxd/sock
   lxc file push --mode 0755 "devlxd-client/devlxd-client" devlxd/bin/
+
+  # Try to get a host's private image from devlxd.
+  [ "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" = "not authorized" ]
+  lxc config set devlxd security.devlxd.images true
+  # Trying to get a private image should return a not found error so that the client can't infer the existence
+  # of an image with the provided fingerprint.
+  [ "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}" | jq -r '.error')" = "not found" ]
+  lxd sql global "UPDATE images SET cached=1 WHERE fingerprint=\"${fingerprint}\""
+  # No output means the export succeeded.
+  [ -z "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" ]
 
   lxc config set devlxd user.foo bar
   [ "$(lxc exec devlxd -- devlxd-client user.foo)" = "bar" ]
