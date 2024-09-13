@@ -183,17 +183,15 @@ func main() {
 	}
 
 	if len(os.Args) > 1 {
-		if os.Args[1] == "monitor-websocket" {
+		var path string
+		switch os.Args[1] {
+		case "monitor-websocket":
 			devlxdMonitorWebsocket(c)
 			os.Exit(0)
-		}
-
-		if os.Args[1] == "monitor-stream" {
+		case "monitor-stream":
 			devlxdMonitorStream()
 			os.Exit(0)
-		}
-
-		if os.Args[1] == "ready-state" {
+		case "ready-state":
 			ready, err := strconv.ParseBool(os.Args[2])
 			if err != nil {
 				fmt.Println(err)
@@ -202,12 +200,16 @@ func main() {
 
 			devlxdState(ready)
 			os.Exit(0)
-		}
-
-		var path string
-		if os.Args[1] == "devices" {
+		case "devices":
 			path = "devices"
-		} else {
+		case "image-export":
+			if len(os.Args) < 3 {
+				fmt.Println("Image fingerprint is needed as second argument")
+				os.Exit(1)
+			}
+
+			path = fmt.Sprintf("images/%s/export", os.Args[2])
+		default:
 			path = fmt.Sprintf("config/%s", os.Args[1])
 		}
 
@@ -217,13 +219,16 @@ func main() {
 			os.Exit(1)
 		}
 
-		value, err := io.ReadAll(raw.Body)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+		// Avoid printing the entire image to stdout
+		if !(os.Args[1] == "image-export" && (raw.StatusCode == 0 || raw.StatusCode == http.StatusOK)) {
+			value, err := io.ReadAll(raw.Body)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
 
-		fmt.Println(string(value))
+			fmt.Println(string(value))
+		}
 	} else {
 		fmt.Println("/dev/lxd ok")
 	}
