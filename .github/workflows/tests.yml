@@ -56,12 +56,10 @@ jobs:
           path: ${{ steps.ShellCheck.outputs.sarif }}
         if: github.event_name == 'pull_request'
 
-      # XXX: using 1.21 to workaround swagger crashing under 1.22
-      #      https://github.com/go-swagger/go-swagger/issues/3070
-      - name: Install Go (1.21)
+      - name: Install Go (1.22)
         uses: actions/setup-go@v5
         with:
-          go-version: 1.21.x
+          go-version: 1.22.x
 
       - name: Install dependencies
         run: |
@@ -182,10 +180,10 @@ jobs:
         suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
         include:
-          - go: "1.21.x"
+          - go: "1.22.x"
             suite: cluster
             backend: dir
-          - go: "1.21.x"
+          - go: "1.22.x"
             suite: standalone
             backend: dir
           - go: stable
@@ -244,7 +242,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Check compatibility with min Go version (${{ matrix.go }})
-        if: matrix.go == '1.21.x'
+        if: matrix.go == '1.22.x'
         run: |
           set -eux
           GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
@@ -476,10 +474,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Go (1.21)
+      - name: Install Go (1.22)
         uses: actions/setup-go@v5
         with:
-          go-version: 1.21.x
+          go-version: 1.22.x
 
       - name: Install dependencies
         run: |
@@ -548,7 +546,7 @@ jobs:
       - name: Install Go (${{ matrix.go }})
         uses: actions/setup-go@v5
         with:
-          go-version: 1.21.x
+          go-version: 1.22.x
 
       - name: Trigger Launchpad snap build
         env:
