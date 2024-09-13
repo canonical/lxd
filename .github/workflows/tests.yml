@@ -415,7 +415,6 @@ jobs:
       CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
-      TICSAUTHTOKEN:  ${{ secrets.TICS_AUTH_TOKEN }}
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) }}
     steps:
       - name: Checkout
@@ -468,10 +467,15 @@ jobs:
           gocov-xml < "${GOCOVERDIR}"/coverage.json > "${GOCOVERDIR}"/coverage-go.xml
 
       - name: Run TICS
-        run: |
-          curl --silent --show-error "https://canonical.tiobe.com/tiobeweb/TICS/api/public/v1/fapi/installtics/Script?cfg=default&platform=linux&url=https://canonical.tiobe.com/tiobeweb/TICS/" > install_tics.sh
-          . ./install_tics.sh
-          TICSQServer -project LXD  -tmpdir /tmp/tics -branchdir .
+        uses: tiobe/tics-github-action@v3
+        with:
+          mode: qserver
+          project: LXD
+          viewerUrl: https://canonical.tiobe.com/tiobeweb/TICS/api/cfg?name=default
+          branchdir: ${{ github.workspace }}
+          ticsAuthToken: ${{ secrets.TICS_AUTH_TOKEN }}
+          installTics: true
+          calc: ALL
 
   client:
     name: Client
