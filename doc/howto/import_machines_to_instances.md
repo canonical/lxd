@@ -47,8 +47,8 @@ The tool can also inject the required VIRTIO drivers into the image:
    * Download [`rhsrvany.exe` and `pnp_wait.exe`](https://github.com/rwmjones/rhsrvany?tab=readme-ov-file#binary-releases), and place them in the `/usr/share/virt-tools/` directory.
 
    ````{tip}
-   If you want to convert a Windows VM from a foreign hypervisor manually,
-   you must install both the required Windows drivers (as described above) and `virt-v2v` (>= 2.3.4).
+   The `lxd-migrate` command with the `--conversion=format,virtio` option automatically converts the image and injects the VIRTIO drivers during the conversion.
+   However, if you want to manually convert a Windows VM from a foreign hypervisor, you must install both the required Windows drivers (as described above) and `virt-v2v` (>= 2.3.4).
 
    <details>
    <summary>Expand to see how to convert your Windows VM using <code>virt-v2v</code></summary>
