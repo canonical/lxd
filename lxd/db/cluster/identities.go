@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/certificate"
@@ -313,6 +314,27 @@ func (i Identity) Subject() (string, error) {
 	}
 
 	return metadata.Subject, nil
+}
+
+// PendingTLSMetadata contains metadata for the pending TLS certificate identity type.
+type PendingTLSMetadata struct {
+	Secret string    `json:"secret"`
+	Expiry time.Time `json:"expiry"`
+}
+
+// PendingTLSMetadata returns the pending TLS identity metadata.
+func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
+	if i.Type != api.IdentityTypeCertificateClientPending {
+		return nil, fmt.Errorf("Cannot extract pending TLS identity secret: Identity is not pending")
+	}
+
+	var metadata PendingTLSMetadata
+	err := json.Unmarshal([]byte(i.Metadata), &metadata)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal pending TLS identity metadata: %w", err)
+	}
+
+	return &metadata, nil
 }
 
 // ToAPI converts an Identity to an api.Identity, executing database queries as necessary.
