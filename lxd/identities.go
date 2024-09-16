@@ -785,7 +785,7 @@ func updateIdentity(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
 	}
 
-	if id.AuthMethod == api.AuthenticationMethodTLS && len(identityPut.Groups) > 0 {
+	if id.AuthMethod == api.AuthenticationMethodTLS && id.Type != api.IdentityTypeCertificateClient && len(identityPut.Groups) > 0 {
 		return response.NotImplemented(fmt.Errorf("Adding TLS identities to groups is currently not supported"))
 	}
 
@@ -906,7 +906,7 @@ func patchIdentity(d *Daemon, r *http.Request) response.Response {
 	}
 
 	authenticationMethod := mux.Vars(r)["authenticationMethod"]
-	if authenticationMethod == api.AuthenticationMethodTLS && len(identityPut.Groups) > 0 {
+	if authenticationMethod == api.AuthenticationMethodTLS && id.Type != api.IdentityTypeCertificateClient && len(identityPut.Groups) > 0 {
 		return response.NotImplemented(fmt.Errorf("Adding TLS identities to groups is currently not supported"))
 	}
 
