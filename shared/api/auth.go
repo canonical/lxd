@@ -15,6 +15,9 @@ const (
 	// IdentityTypeCertificateClientUnrestricted represents identities that authenticate using TLS and are privileged.
 	IdentityTypeCertificateClientUnrestricted = "Client certificate (unrestricted)"
 
+	// IdentityTypeCertificateClient represents identities that authenticate using TLS and whose permissions are managed via group membership.
+	IdentityTypeCertificateClient = "Client certificate"
+
 	// IdentityTypeCertificateServer represents cluster member authentication.
 	IdentityTypeCertificateServer = "Server certificate"
 
@@ -26,6 +29,9 @@ const (
 
 	// IdentityTypeOIDCClient represents an identity that authenticates with OIDC.
 	IdentityTypeOIDCClient = "OIDC client"
+
+	// IdentityTypeCertificateClientPending represents identities for which a token has been issued but who have not yet authenticated with LXD.
+	IdentityTypeCertificateClientPending = "Client certificate (pending)"
 )
 
 // Identity is the type for an authenticated party that can make requests to the HTTPS API.
