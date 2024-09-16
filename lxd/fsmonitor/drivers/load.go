@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/canonical/lxd/lxd/fsmonitor"
 	"github.com/canonical/lxd/shared/logger"
@@ -38,6 +39,11 @@ func Load(ctx context.Context, path string, events ...fsmonitor.Event) (fsmonito
 		}
 
 		return d, nil
+	}
+
+	driverName := os.Getenv("LXD_FSMONITOR_DRIVER")
+	if driverName != "" {
+		return startMonitor(driverName)
 	}
 
 	driver, err := startMonitor("fanotify")
