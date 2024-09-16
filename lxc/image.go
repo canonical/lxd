@@ -665,7 +665,9 @@ func (c *cmdImageImport) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Import image into the image store
 
-Directory import is only available on Linux and must be performed as root.`))
+Directory import is only available on Linux and must be performed as root.
+
+Descriptive properties can be set by providing key=value pairs. Example: os=Ubuntu release=noble variant=cloud.`))
 
 	cmd.Flags().BoolVar(&c.flagPublic, "public", false, i18n.G("Make image public"))
 	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, i18n.G("New aliases to add to the image")+"``")
