@@ -4,6 +4,7 @@ package drivers
 
 import (
 	"context"
+	// embed is used to read the OpenFGA authorization model from openfga_model.openfga.
 	_ "embed"
 	"errors"
 	"fmt"
