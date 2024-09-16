@@ -10,11 +10,10 @@ import (
 
 	in "k8s.io/utils/inotify"
 
+	"github.com/canonical/lxd/lxd/fsmonitor"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 )
-
-var inotifyLoaded bool
 
 type inotify struct {
 	common
@@ -22,15 +21,58 @@ type inotify struct {
 	watcher *in.Watcher
 }
 
-func (d *inotify) Name() string {
+var inotifyEventToFSMonitorEvent = map[uint32]fsmonitor.Event{
+	in.InCreate:     fsmonitor.EventAdd,
+	in.InDelete:     fsmonitor.EventRemove,
+	in.InDeleteSelf: fsmonitor.EventRemove,
+	in.InCloseWrite: fsmonitor.EventWrite,
+	in.InMovedTo:    fsmonitor.EventRename,
+}
+
+var fsMonitorEventToINotifyEvent = map[fsmonitor.Event]uint32{
+	fsmonitor.EventAdd:    in.InCreate,
+	fsmonitor.EventRemove: in.InDelete | in.InDeleteSelf,
+	fsmonitor.EventWrite:  in.InCloseWrite,
+	fsmonitor.EventRename: in.InMovedTo,
+}
+
+func (d *inotify) toFSMonitorEvent(mask uint32) (fsmonitor.Event, error) {
+	for knownINotifyEvent, event := range inotifyEventToFSMonitorEvent {
+		if mask&knownINotifyEvent != 0 {
+			return event, nil
+		}
+	}
+
+	return -1, fmt.Errorf(`Unknown inotify event "%d"`, mask)
+}
+
+func (d *inotify) eventMask() (uint32, error) {
+	// in.Create is required so that we can determine when a new directory is created and set up a watcher on it and
+	// it's subdirectories.
+	mask := in.InCreate
+	for _, e := range d.events {
+		inotifyEvent, ok := fsMonitorEventToINotifyEvent[e]
+		if !ok {
+			return 0, fmt.Errorf(`Unknown fsmonitor event "%d"`, e)
+		}
+
+		// Skip in.InCreate as it is already part of the mask.
+		if inotifyEvent&in.InCreate != 0 {
+			continue
+		}
+
+		mask = mask | inotifyEvent
+	}
+
+	return mask, nil
+}
+
+// DriverName returns the name of the driver.
+func (d *inotify) DriverName() string {
 	return "inotify"
 }
 
 func (d *inotify) load(ctx context.Context) error {
-	if inotifyLoaded {
-		return nil
-	}
-
 	var err error
 
 	d.watcher, err = in.NewWatcher()
@@ -41,13 +83,10 @@ func (d *inotify) load(ctx context.Context) error {
 	err = d.watchFSTree(d.prefixPath)
 	if err != nil {
 		_ = d.watcher.Close()
-		inotifyLoaded = false
 		return fmt.Errorf("Failed to watch directory %q: %w", d.prefixPath, err)
 	}
 
 	go d.getEvents(ctx)
-
-	inotifyLoaded = true
 
 	return nil
 }
@@ -58,35 +97,24 @@ func (d *inotify) getEvents(ctx context.Context) {
 		// Clean up if context is done.
 		case <-ctx.Done():
 			_ = d.watcher.Close()
-			inotifyLoaded = false
 			return
 		case event := <-d.watcher.Event:
 			event.Name = filepath.Clean(event.Name)
-			isCreate := event.Mask&in.InCreate != 0
-			isDelete := event.Mask&in.InDelete != 0
-
-			// Only consider create and delete events.
-			if !isCreate && !isDelete {
+			action, err := d.toFSMonitorEvent(event.Mask)
+			if err != nil {
+				logger.Warn("Failed to match inotify event, skipping", logger.Ctx{"err": err})
 				continue
 			}
 
 			// New event for a directory.
 			if event.Mask&in.InIsdir != 0 {
 				// If it's a create event, then setup watches on any sub-directories.
-				if isCreate {
+				if action == fsmonitor.EventAdd {
 					_ = d.watchFSTree(event.Name)
 				}
 
 				// Check whether there's a watch on the directory.
 				d.mu.Lock()
-				var action Event
-
-				if isCreate {
-					action = Add
-				} else {
-					action = Remove
-				}
-
 				for path := range d.watches {
 					// Always call the handlers that have a prefix of the event path,
 					// in case a watched file is inside the newly created or now deleted
@@ -97,7 +125,7 @@ func (d *inotify) getEvents(ctx context.Context) {
 					}
 
 					for identifier, f := range d.watches[path] {
-						ret := f(path, action.String())
+						ret := f(path, action)
 						if !ret {
 							delete(d.watches[path], identifier)
 
@@ -113,20 +141,13 @@ func (d *inotify) getEvents(ctx context.Context) {
 
 			// Check whether there's a watch on a specific file or directory.
 			d.mu.Lock()
-			var action Event
-			if isCreate {
-				action = Add
-			} else {
-				action = Remove
-			}
-
 			for path := range d.watches {
 				if event.Name != path {
 					continue
 				}
 
 				for identifier, f := range d.watches[path] {
-					ret := f(path, action.String())
+					ret := f(path, action)
 					if !ret {
 						delete(d.watches[path], identifier)
 
@@ -167,8 +188,12 @@ func (d *inotify) watchFSTree(path string) error {
 			return nil
 		}
 
-		// Only watch on real paths for CREATE and DELETE events.
-		err = d.watcher.AddWatch(path, in.InCreate|in.InDelete)
+		mask, err := d.eventMask()
+		if err != nil {
+			return fmt.Errorf("Failed to get an inotify event mask: %w", err)
+		}
+
+		err = d.watcher.AddWatch(path, mask)
 		if err != nil {
 			d.logger.Warn("Failed to watch path", logger.Ctx{"path": path, "err": err})
 			return nil

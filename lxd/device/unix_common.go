@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/fsmonitor"
 	"github.com/canonical/lxd/lxd/fsmonitor/drivers"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -192,7 +193,7 @@ func (d *unixCommon) Register() error {
 
 		runConf := deviceConfig.RunConfig{}
 
-		if e.Action == "add" {
+		if e.Action == fsmonitor.EventAdd {
 			// Skip if host side instance device file already exists.
 			if shared.PathExists(devPath) {
 				return nil, nil
@@ -218,7 +219,7 @@ func (d *unixCommon) Register() error {
 			if err != nil {
 				return nil, err
 			}
-		} else if e.Action == "remove" {
+		} else if e.Action == fsmonitor.EventRemove {
 			// Skip if host side instance device file doesn't exist.
 			if !shared.PathExists(devPath) {
 				return nil, nil
