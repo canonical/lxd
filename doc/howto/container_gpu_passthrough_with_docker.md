@@ -61,16 +61,14 @@ After adding the device, let's try to run a basic [MNIST](https://en.wikipedia.o
           - sh install-docker.sh --version 24.0
           # The following installs the NVIDIA container toolkit
           # as explained in the official doc website: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#installing-with-apt
-          - curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg
-            --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+          - curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
           - curl -fsSL https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | sed -e 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' -e '/experimental/ s/^#//g' | tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
           # Now that an new apt source/key was added, update the package definitions.
           - apt-get update
           # Install NVIDIA container toolkit
           - DEBIAN_FRONTEND=noninteractive apt-get install -y nvidia-container-toolkit
           # Ultimately, we need to tell Docker, our container runtime, to use `nvidia-ctk` as a runtime.
-          - nvidia-ctk runtime configure --runtime=docker
-            --config=/etc/docker/daemon.json
+          - nvidia-ctk runtime configure --runtime=docker --config=/etc/docker/daemon.json
           - systemctl restart docker
 
 1. Apply this `cloud-init` setup to your instance:
