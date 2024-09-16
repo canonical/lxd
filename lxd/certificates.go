@@ -153,6 +153,10 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 
 			certResponses = make([]api.Certificate, 0, len(baseCerts))
 			for _, baseCert := range baseCerts {
+				if baseCert.ToAPIType() == api.CertificateTypeUnknown {
+					continue
+				}
+
 				if !userHasPermission(entity.CertificateURL(baseCert.Fingerprint)) {
 					continue
 				}
@@ -176,6 +180,10 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 
 	body := []string{}
 	for _, identity := range d.identityCache.GetByAuthenticationMethod(api.AuthenticationMethodTLS) {
+		if identity.IdentityType == api.IdentityTypeCertificateClient || identity.IdentityType == api.IdentityTypeCertificateClientPending {
+			continue
+		}
+
 		if !userHasPermission(entity.CertificateURL(identity.Identifier)) {
 			continue
 		}
@@ -741,6 +749,10 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		if dbCertInfo.ToAPIType() == api.CertificateTypeUnknown {
+			return api.NewGenericStatusError(http.StatusNotFound)
+		}
+
 		cert, err = dbCertInfo.ToAPI(ctx, tx.Tx())
 		return err
 	})
@@ -797,6 +809,10 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 		oldEntry, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
+		}
+
+		if oldEntry.ToAPIType() == api.CertificateTypeUnknown {
+			return api.NewGenericStatusError(http.StatusNotFound)
 		}
 
 		apiEntry, err = oldEntry.ToAPI(ctx, tx.Tx())
@@ -864,6 +880,10 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 		oldEntry, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
+		}
+
+		if oldEntry.ToAPIType() == api.CertificateTypeUnknown {
+			return api.NewGenericStatusError(http.StatusNotFound)
 		}
 
 		apiEntry, err = oldEntry.ToAPI(ctx, tx.Tx())
@@ -1053,6 +1073,10 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 		certInfo, err = dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
+		}
+
+		if certInfo.ToAPIType() == api.CertificateTypeUnknown {
+			return api.NewGenericStatusError(http.StatusNotFound)
 		}
 
 		return nil
