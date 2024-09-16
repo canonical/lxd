@@ -7,16 +7,16 @@ import (
 	"sync"
 
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/fsmonitor"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/state"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 )
 
 // UnixEvent represents the properties of a Unix device inotify event.
 type UnixEvent struct {
-	Action string // The type of event, either add or remove.
-	Path   string // The absolute source path on the host.
+	Action fsmonitor.Event // The type of event, either add or remove.
+	Path   string          // The absolute source path on the host.
 }
 
 // UnixSubscription used to subcribe to specific events.
@@ -52,7 +52,7 @@ func unixRegisterHandler(s *state.State, inst instance.Instance, deviceName, pat
 	path = filepath.Clean(path)
 
 	// Add inotify watcher to its nearest existing ancestor.
-	err := s.DevMonitor.Watch(path, identifier, func(path, event string) bool {
+	err := s.DevMonitor.Watch(path, identifier, func(path string, event fsmonitor.Event) bool {
 		e := unixNewEvent(event, path)
 		unixRunHandlers(s, &e)
 		return true
@@ -140,18 +140,7 @@ func unixRunHandlers(state *state.State, event *UnixEvent) {
 }
 
 // unixNewEvent returns a newly created Unix device event struct.
-// If an empty action is supplied then the action of the event is derived from whether the path
-// exists (add) or not (removed). This allows the peculiarities of the inotify API to be somewhat
-// masked by the consuming event handler functions.
-func unixNewEvent(action string, path string) UnixEvent {
-	if action == "" {
-		if shared.PathExists(path) {
-			action = "add"
-		} else {
-			action = "remove"
-		}
-	}
-
+func unixNewEvent(action fsmonitor.Event, path string) UnixEvent {
 	return UnixEvent{
 		Action: action,
 		Path:   path,
