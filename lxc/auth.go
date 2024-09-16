@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -747,6 +749,12 @@ func (c *cmdIdentity) command() *cobra.Command {
 	identityGroupCmd := cmdIdentityGroup{global: c.global}
 	cmd.AddCommand(identityGroupCmd.command())
 
+	identityCreateCmd := cmdIdentityCreate{global: c.global}
+	cmd.AddCommand(identityCreateCmd.command())
+
+	identityDeleteCmd := cmdIdentityDelete{global: c.global}
+	cmd.AddCommand(identityDeleteCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -1221,6 +1229,124 @@ func (c *cmdIdentityGroupRemove) run(cmd *cobra.Command, args []string) error {
 
 	identity.Groups = groups
 	return resource.server.UpdateIdentity(authenticationMethod, nameOrID, identity.Writable(), eTag)
+}
+
+type cmdIdentityCreate struct {
+	global *cmdGlobal
+}
+
+func (c *cmdIdentityCreate) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("create", i18n.G("[<remote>:]tls/<name> [<path to PEM encoded certificate>]"))
+	cmd.Short = i18n.G("Create a TLS identity")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Create a TLS identity`))
+
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	authMethod, name, ok := strings.Cut(resource.name, "/")
+	if !ok {
+		return fmt.Errorf("Invalid identity string %q (must be <authentication_method>/<name>", resource.name)
+	}
+
+	if resource.name == "" {
+		return errors.New(i18n.G("Missing identity argument"))
+	}
+
+	if authMethod != api.AuthenticationMethodTLS {
+		return fmt.Errorf("Identity creation only supported for TLS identities")
+	}
+
+	if len(args) == 1 {
+		token, err := resource.server.CreateTLSIdentityToken(api.TLSIdentitiesPost{
+			Name:  name,
+			Token: true,
+		})
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(token.TrustToken)
+		return nil
+	}
+
+	cert, err := shared.ReadCert(args[1])
+	if err != nil {
+		return err
+	}
+
+	pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+	base64PEMCert := base64.StdEncoding.EncodeToString(pemCert)
+	return resource.server.CreateTLSIdentity(api.TLSIdentitiesPost{
+		Name:        name,
+		Certificate: base64PEMCert,
+	})
+}
+
+type cmdIdentityDelete struct {
+	global *cmdGlobal
+}
+
+func (c *cmdIdentityDelete) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier>"))
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = i18n.G("Add a group to an identity")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Add a group to an identity`))
+
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+func (c *cmdIdentityDelete) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New(i18n.G("Missing identity argument"))
+	}
+
+	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
+	if !ok {
+		return fmt.Errorf("Malformed argument, expected `[<remote>:]<authentication_method>/<name_or_identifier>`, got %q", args[0])
+	}
+
+	_, eTag, err := resource.server.GetIdentity(authenticationMethod, nameOrID)
+	if err != nil {
+		return err
+	}
+
+	return resource.server.DeleteIdentity(authenticationMethod, nameOrID, eTag)
 }
 
 type cmdPermission struct {
