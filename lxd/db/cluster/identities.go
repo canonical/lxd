@@ -14,10 +14,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/identity"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
@@ -408,6 +411,41 @@ func (i Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Permi
 		Groups:               groupNames,
 		Metadata:             *apiMetadata,
 	}, nil
+}
+
+// UnpendTLSIdentity updates a TLS identity to make it valid by adding the fingerprint, PEM encoded certificate, and setting
+// the type to api.IdentityTypeCertificateClient.
+func UnpendTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate) error {
+	fingerprint := shared.CertFingerprint(cert)
+	_, err := GetIdentityID(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
+	if err == nil {
+		return api.StatusErrorf(http.StatusConflict, "Identity already exists")
+	}
+
+	metadata := CertificateMetadata{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))}
+	b, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("Failed to encode certificate metadata: %w", err)
+	}
+
+	stmt := `UPDATE identities SET type = ?, identifier = ?, metadata = ? WHERE identifier = ? AND auth_method = ?`
+	res, err := tx.ExecContext(ctx, stmt, identityTypeCertificateClient, fingerprint, string(b), identifier.String(), authMethodTLS)
+	if err != nil {
+		return fmt.Errorf("Failed to unpend TLS identity: %w", err)
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed to check affected rows after unpending a TLS identity: %w", err)
+	}
+
+	if n == 0 {
+		return api.StatusErrorf(http.StatusNotFound, "No pending TLS identity found with identifier %q", identifier)
+	} else if n > 1 {
+		return fmt.Errorf("Unknown error occurred when unpending a TLS identity: %w", err)
+	}
+
+	return nil
 }
 
 // GetAuthGroupsByIdentityID returns a slice of groups that the identity with the given ID is a member of.
