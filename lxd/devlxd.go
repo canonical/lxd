@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -30,8 +31,6 @@ import (
 	"github.com/canonical/lxd/shared/version"
 	"github.com/canonical/lxd/shared/ws"
 )
-
-const devlxdRemoteAddress = "@devlxd"
 
 type hoistFunc func(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request)
 
@@ -119,9 +118,6 @@ func devlxdImageExportHandler(d *Daemon, c instance.Instance, w http.ResponseWri
 	if shared.IsFalseOrEmpty(c.ExpandedConfig()["security.devlxd.images"]) {
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
-
-	// Use by security checks to distinguish devlxd vs lxd APIs
-	r.RemoteAddr = devlxdRemoteAddress
 
 	resp := imageExport(d, r)
 
@@ -315,6 +311,9 @@ var handlers = []devLxdHandler{
 
 func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Set devlxd auth method to identify this request as coming from the /dev/lxd socket.
+		request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
+
 		conn := ucred.GetConnFromContext(r.Context())
 		cred, ok := pidMapper.m[conn.(*net.UnixConn)]
 		if !ok {

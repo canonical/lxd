@@ -26,6 +26,9 @@ const (
 	// Note: Regardless of whether `core.trust_ca_certificates` is enabled, we still check if the client certificate
 	// fingerprint is in the identity cache. If they are found, standard TLS restrictions will apply.
 	AuthenticationMethodPKI string = "pki"
+
+	// AuthenticationMethodDevLXD is the authentication method for interacting with the devlxd API.
+	AuthenticationMethodDevLXD = "devlxd"
 )
 
 // PermissionChecker is a type alias for a function that returns whether a user has required permissions on an object.
