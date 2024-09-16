@@ -36,11 +36,17 @@ var fsMonitorEventToINotifyEvent = map[fsmonitor.Event]uint32{
 	fsmonitor.EventRename: in.InMovedTo,
 }
 
+var errIgnoreEvent = errors.New("Intentionally ignored event")
+
 func (d *inotify) toFSMonitorEvent(mask uint32) (fsmonitor.Event, error) {
 	for knownINotifyEvent, event := range inotifyEventToFSMonitorEvent {
 		if mask&knownINotifyEvent != 0 {
 			return event, nil
 		}
+	}
+
+	if mask&in.InIgnored != 0 || mask&(in.InUnmount|in.InIsdir) != 0 {
+		return -1, errIgnoreEvent
 	}
 
 	return -1, fmt.Errorf(`Unknown inotify event "%d"`, mask)
@@ -102,7 +108,10 @@ func (d *inotify) getEvents(ctx context.Context) {
 			event.Name = filepath.Clean(event.Name)
 			action, err := d.toFSMonitorEvent(event.Mask)
 			if err != nil {
-				logger.Warn("Failed to match inotify event, skipping", logger.Ctx{"err": err})
+				if !errors.Is(err, errIgnoreEvent) {
+					logger.Warn("Failed to match inotify event, skipping", logger.Ctx{"err": err})
+				}
+
 				continue
 			}
 
