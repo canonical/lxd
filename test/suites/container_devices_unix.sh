@@ -33,8 +33,8 @@ _container_devices_unix() {
     deviceTypeDesc="character special file"
   fi
 
-  if [ "$deviceTypeCode" = "" ]; then
-    echo "invalid device type specified in test"
+  if [ "$deviceTypeCode" = "" ] || [ "$deviceTypeDesc" = "" ]; then
+    echo "invalid device type/desc specified in test"
     false
   fi
 
