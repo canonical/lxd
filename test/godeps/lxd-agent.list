@@ -33,7 +33,6 @@ github.com/canonical/lxd/lxd/events
 github.com/canonical/lxd/lxd/firewall
 github.com/canonical/lxd/lxd/firewall/drivers
 github.com/canonical/lxd/lxd/fsmonitor
-github.com/canonical/lxd/lxd/fsmonitor/drivers
 github.com/canonical/lxd/lxd/identity
 github.com/canonical/lxd/lxd/idmap
 github.com/canonical/lxd/lxd/include
@@ -329,7 +328,6 @@ gopkg.in/mgo.v2/internal/json
 gopkg.in/tomb.v2
 gopkg.in/yaml.v2
 gopkg.in/yaml.v3
-k8s.io/utils/inotify
 vendor/golang.org/x/crypto/chacha20
 vendor/golang.org/x/crypto/chacha20poly1305
 vendor/golang.org/x/crypto/cryptobyte
