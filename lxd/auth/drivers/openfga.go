@@ -13,6 +13,7 @@ import (
 	"github.com/oklog/ulid/v2"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/openfga/language/pkg/go/transformer"
+	openfgaLog "github.com/openfga/openfga/pkg/logger"
 	"github.com/openfga/openfga/pkg/server"
 	openFGAErrors "github.com/openfga/openfga/pkg/server/errors"
 	"go.uber.org/zap"
@@ -497,6 +498,11 @@ func (o openfgaLogger) Panic(s string, field ...zap.Field) {
 // Fatal delegates to the authorizers logger.
 func (o openfgaLogger) Fatal(s string, field ...zap.Field) {
 	o.l.Fatal(s, logCtxFromFields(field))
+}
+
+// With creates a child logger and adds structured context to it.
+func (o openfgaLogger) With(field ...zap.Field) openfgaLog.Logger {
+	return openfgaLogger{l: o.l.AddContext(logCtxFromFields(field))}
 }
 
 // DebugWithContext delegates to the authorizers logger.
