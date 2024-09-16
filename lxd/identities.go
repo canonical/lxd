@@ -88,6 +88,10 @@ var tlsIdentityCmd = APIEndpoint{
 		Handler:       patchIdentity,
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodTLS, auth.EntitlementCanEdit),
 	},
+	Delete: APIEndpointAction{
+		Handler:       deleteIdentity,
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodTLS, auth.EntitlementCanDelete),
+	},
 }
 
 var oidcIdentityCmd = APIEndpoint{
@@ -104,6 +108,10 @@ var oidcIdentityCmd = APIEndpoint{
 	Patch: APIEndpointAction{
 		Handler:       patchIdentity,
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanEdit),
+	},
+	Delete: APIEndpointAction{
+		Handler:       deleteIdentity,
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanDelete),
 	},
 }
 
@@ -1340,6 +1348,100 @@ func tlsIdentityTokenValid(s *state.State, r *http.Request, token api.Certificat
 	}
 
 	return uuid.UUID{}, api.NewStatusError(http.StatusForbidden, "Invalid secret")
+}
+
+// swagger:operation DELETE /1.0/auth/identities/tls/{nameOrIdentifier} identities identity_delete_tls
+//
+//	Delete the TLS identity
+//
+//	Removes the TLS identity and revokes trust.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+
+// swagger:operation DELETE /1.0/auth/identities/oidc/{nameOrIdentifier} identities identity_delete_oidc
+//
+//	Delete the OIDC identity
+//
+//	Removes the OIDC identity.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func deleteIdentity(d *Daemon, r *http.Request) response.Response {
+	id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	s := d.State()
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		apiIdentity, err := id.ToAPI(ctx, tx.Tx(), canViewGroup)
+		if err != nil {
+			return err
+		}
+
+		err = util.EtagCheck(r, apiIdentity)
+		if err != nil {
+			return err
+		}
+
+		err = dbCluster.DeleteIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Notify other cluster members to update their identity cache.
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = notifier(func(client lxd.InstanceServer) error {
+		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Send a lifecycle event for the identity update.
+	lc := lifecycle.IdentityUpdated.Event(string(id.AuthMethod), id.Identifier, request.CreateRequestor(r), nil)
+	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
+
+	s.UpdateIdentityCache()
+
+	return response.EmptySyncResponse
 }
 
 // updateIdentityCache reads all identities from the database and sets them in the identity.Cache.
