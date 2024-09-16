@@ -1547,6 +1547,7 @@ func updateIdentityCache(d *Daemon) {
 			cert, err := id.ToCertificate()
 			if err != nil {
 				logger.Warn("Failed to convert TLS identity to server certificate", logger.Ctx{"err": err})
+				continue
 			}
 
 			localServerCerts = append(localServerCerts, *cert)
