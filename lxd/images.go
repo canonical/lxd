@@ -796,6 +796,13 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		return nil, err
 	}
 
+	unlock, err := imageOperationLock(info.Fingerprint)
+	if err != nil {
+		return nil, err
+	}
+
+	defer unlock()
+
 	imageMeta, imageType, err := getImageMetadata(imageTmpFilename)
 	if err != nil {
 		l.Error("Failed to get image metadata", logger.Ctx{"err": err})
