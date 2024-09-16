@@ -1392,7 +1392,7 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 
 		// Add the storage-pool specific config keys.
 		for _, poolName := range pools {
-			// lxdmeta:generate(entity=project, group=limits, key=limits.disk.pool.POOL_NAME)
+			// lxdmeta:generate(entities=project; group=limits; key=limits.disk.pool.POOL_NAME)
 			// This value is the maximum value of the aggregate disk
 			// space used by all instance volumes, custom volumes, and images of the
 			// project on this specific storage pool.
