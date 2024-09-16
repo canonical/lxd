@@ -1503,9 +1503,23 @@ func updateIdentityCache(d *Daemon) {
 		return
 	}
 
+	cacheableIdentityTypes := []string{
+		api.IdentityTypeCertificateClientRestricted,
+		api.IdentityTypeCertificateClientUnrestricted,
+		api.IdentityTypeCertificateClient,
+		api.IdentityTypeCertificateServer,
+		api.IdentityTypeCertificateMetricsRestricted,
+		api.IdentityTypeCertificateMetricsUnrestricted,
+		api.IdentityTypeOIDCClient,
+	}
+
 	identityCacheEntries := make([]identity.CacheEntry, 0, len(identities))
 	var localServerCerts []dbCluster.Certificate
 	for _, id := range identities {
+		if !shared.ValueInSlice(string(id.Type), cacheableIdentityTypes) {
+			continue
+		}
+
 		cacheEntry := identity.CacheEntry{
 			Identifier:           id.Identifier,
 			Name:                 id.Name,
