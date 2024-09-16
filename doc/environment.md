@@ -40,3 +40,4 @@ Name                            | Description
 `LXD_QEMU_FW_PATH`              | Path (or `:` separated list of paths) to firmware (OVMF, SeaBIOS) to be used by QEMU
 `LXD_IDMAPPED_MOUNTS_DISABLE`   | Disable idmapped mounts support (useful when testing traditional UID shifting)
 `LXD_DEVMONITOR_DIR`            | Path to be monitored by the device monitor. This is primarily for testing.
+`LXD_FSMONITOR_DRIVER`          | Driver to be used for file system monitoring. This is primarily for testing.
