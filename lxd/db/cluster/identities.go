@@ -365,7 +365,7 @@ func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
 
 // APIMetadata returns the api.IdentityMetadata corresponding to the Identity.
 func (i Identity) APIMetadata() (*api.IdentityMetadata, error) {
-	if i.AuthMethod == api.AuthenticationMethodTLS {
+	if i.AuthMethod == api.AuthenticationMethodTLS && i.Type != api.IdentityTypeCertificateClientPending {
 		metadata, err := i.CertificateMetadata()
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting TLS identity metadata: %w", err)
