@@ -105,6 +105,32 @@ type IdentityPut struct {
 	Groups []string `json:"groups" yaml:"groups"`
 }
 
+// IdentitiesTLSPost contains required information for the creation of a TLS identity.
+//
+// swagger:model
+//
+// API extension: access_management_tls.
+type IdentitiesTLSPost struct {
+	// Name associated with the identity
+	// Example: foo
+	Name string `json:"name" yaml:"name"`
+
+	// Trust token (used to add an untrusted client)
+	// Example: blah
+	TrustToken string `json:"trust_token" yaml:"trust_token"`
+
+	// Whether to create a certificate add token
+	// Example: true
+	Token bool `json:"token" yaml:"token"`
+
+	// The PEM encoded x509 certificate of the identity
+	Certificate string `json:"certificate" yaml:"certificate"`
+
+	// Groups is the list of groups for which the identity is a member.
+	// Example: ["foo", "bar"]
+	Groups []string `json:"groups" yaml:"groups"`
+}
+
 // AuthGroup is the type for a LXD group.
 //
 // swagger:model
