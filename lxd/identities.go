@@ -1519,6 +1519,10 @@ func updateIdentityCache(d *Daemon) {
 		}
 
 		if cacheEntry.AuthenticationMethod == api.AuthenticationMethodTLS {
+			if cacheEntry.IdentityType == api.IdentityTypeCertificateClientPending {
+				continue
+			}
+
 			cert, err := id.X509()
 			if err != nil {
 				logger.Warn("Failed to extract x509 certificate from TLS identity metadata", logger.Ctx{"err": err})
