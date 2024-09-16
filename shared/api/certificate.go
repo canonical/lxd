@@ -184,6 +184,12 @@ type CertificateAddToken struct {
 	// The token's expiry date.
 	// Example: 2021-03-23T17:38:37.753398689-04:00
 	ExpiresAt time.Time `json:"expires_at" yaml:"expires_at"`
+
+	// Identity is an indicator for which API (certificates or identities) to send the token.
+	// Example: true
+	//
+	// API extension: identity_management
+	Identity bool `json:"identity_type" yaml:"identity_type"`
 }
 
 // String encodes the certificate add token as JSON and then base64.
