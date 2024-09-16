@@ -2470,3 +2470,7 @@ Adds the following internal metrics:
 This introduces per-pool project disk limits, introducing a `limits.disk.pool.NAME`
 configuration option to the project limits. When `limits.disk.pool.POOLNAME: 0`
 for a project, the pool is excluded from `lxc storage list` in that project.
+
+## `identity_management`
+
+Adds functionality to create and delete TLS identities whose permissions can be managed via group membership.

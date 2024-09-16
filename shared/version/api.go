@@ -416,6 +416,7 @@ var APIExtensions = []string{
 	"disk_io_bus_virtio_blk",
 	"metrics_api_requests",
 	"projects_limits_disk_pool",
+	"identity_management",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
