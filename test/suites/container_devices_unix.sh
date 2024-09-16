@@ -1,32 +1,16 @@
-test_container_devices_unix_block() {
+test_container_devices_unix() {
   lxdFSMonitorDriver=${LXD_FSMONITOR_DRIVER:-}
 
   shutdown_lxd "${LXD_DIR}"
   export LXD_FSMONITOR_DRIVER="fanotify"
   respawn_lxd "${LXD_DIR}" true
   _container_devices_unix "unix-block"
-
-  shutdown_lxd "${LXD_DIR}"
-  export LXD_FSMONITOR_DRIVER="inotify"
-  respawn_lxd "${LXD_DIR}" true
-  _container_devices_unix "unix-block"
-
-  shutdown_lxd "${LXD_DIR}"
-  export LXD_FSMONITOR_DRIVER="${lxdFSMonitorDriver}"
-  respawn_lxd "${LXD_DIR}" true
-}
-
-test_container_devices_unix_char() {
-  lxdFSMonitorDriver=${LXD_FSMONITOR_DRIVER:-}
-
-  shutdown_lxd "${LXD_DIR}"
-  export LXD_FSMONITOR_DRIVER="fanotify"
-  respawn_lxd "${LXD_DIR}" true
   _container_devices_unix "unix-char"
 
   shutdown_lxd "${LXD_DIR}"
   export LXD_FSMONITOR_DRIVER="inotify"
   respawn_lxd "${LXD_DIR}" true
+  _container_devices_unix "unix-block"
   _container_devices_unix "unix-char"
 
   shutdown_lxd "${LXD_DIR}"
