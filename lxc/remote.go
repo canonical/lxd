@@ -167,7 +167,7 @@ func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.Certi
 	for _, addr := range rawToken.Addresses {
 		addr = fmt.Sprintf("https://%s", addr)
 
-		err := c.addRemoteFromToken(addr, server, token, rawToken.Fingerprint)
+		err := c.addRemoteFromToken(addr, server, token, rawToken)
 		if err != nil {
 			if api.StatusErrorCheck(err, http.StatusServiceUnavailable) {
 				continue
@@ -191,7 +191,7 @@ func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.Certi
 		return errors.New(i18n.G("Failed to add remote"))
 	}
 
-	err = c.addRemoteFromToken(string(line), server, token, rawToken.Fingerprint)
+	err = c.addRemoteFromToken(string(line), server, token, rawToken)
 	if err != nil {
 		return err
 	}
@@ -199,7 +199,7 @@ func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.Certi
 	return nil
 }
 
-func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token string, fingerprint string) error {
+func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token string, rawToken *api.CertificateAddToken) error {
 	conf := c.global.conf
 
 	var certificate *x509.Certificate
@@ -215,7 +215,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 		}
 
 		certDigest := shared.CertFingerprint(certificate)
-		if fingerprint != certDigest {
+		if rawToken.Fingerprint != certDigest {
 			return fmt.Errorf(i18n.G("Certificate fingerprint mismatch between certificate token and server %q"), addr)
 		}
 
@@ -248,27 +248,40 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 		return api.StatusErrorf(http.StatusServiceUnavailable, "%s: %w", i18n.G("Unavailable remote server"), err)
 	}
 
-	req := api.CertificatesPost{}
-	if d.HasExtension("explicit_trust_token") {
-		req.TrustToken = token
-	} else {
-		req.Password = token
+	if !rawToken.Identity {
+		req := api.CertificatesPost{}
+		if d.HasExtension("explicit_trust_token") {
+			req.TrustToken = token
+		} else {
+			req.Password = token
+		}
+
+		err = d.CreateCertificate(req)
+		if err != nil {
+			return fmt.Errorf(i18n.G("Failed to create certificate: %w"), err)
+		}
+
+		// Handle project.
+		remote := conf.Remotes[server]
+		project, err := c.findProject(d, c.flagProject)
+		if err != nil {
+			return fmt.Errorf(i18n.G("Failed to find project: %w"), err)
+		}
+
+		remote.Project = project
+		conf.Remotes[server] = remote
+
+		return conf.SaveConfig(c.global.confPath)
 	}
 
-	err = d.CreateCertificate(req)
+	req := api.TLSIdentitiesPost{
+		TrustToken: token,
+	}
+
+	err = d.CreateTLSIdentity(req)
 	if err != nil {
-		return fmt.Errorf(i18n.G("Failed to create certificate: %w"), err)
+		return fmt.Errorf("%s: %w", i18n.G("Failed to create TLS identity"), err)
 	}
-
-	// Handle project.
-	remote := conf.Remotes[server]
-	project, err := c.findProject(d, c.flagProject)
-	if err != nil {
-		return fmt.Errorf(i18n.G("Failed to find project: %w"), err)
-	}
-
-	remote.Project = project
-	conf.Remotes[server] = remote
 
 	return conf.SaveConfig(c.global.confPath)
 }
@@ -561,8 +574,6 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	// Check if additional authentication is required.
 	if srv.Auth != "trusted" {
 		if c.flagAuthType == api.AuthenticationMethodTLS {
-			req := api.CertificatesPost{}
-
 			// If the password flag isn't provided and the server supports the explicit_trust_token extension,
 			// use the token instead and prompt for it if not present.
 			if d.(lxd.InstanceServer).HasExtension("explicit_trust_token") && c.flagPassword == "" {
@@ -573,8 +584,6 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 						return err
 					}
 				}
-
-				req.TrustToken = c.flagToken
 			} else {
 				// Prompt for trust password if token is not supported by the server.
 				if c.flagPassword == "" {
@@ -589,16 +598,28 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 					}
 
 					fmt.Println("")
-					req.Password = string(pwd)
-				} else {
-					req.Password = c.flagPassword
+					c.flagPassword = string(pwd)
 				}
 			}
 
-			req.Type = api.CertificateTypeClient
+			req := api.CertificatesPost{Type: api.CertificateTypeClient}
+			if c.flagToken != "" {
+				rawToken, err = shared.CertificateTokenDecode(c.flagToken)
+				if err != nil {
+					return err
+				}
 
-			// Add client certificate to trust store.
-			err = d.(lxd.InstanceServer).CreateCertificate(req)
+				if rawToken.Identity {
+					err = d.(lxd.InstanceServer).CreateTLSIdentity(api.TLSIdentitiesPost{TrustToken: c.flagToken})
+				} else {
+					req.TrustToken = c.flagToken
+					err = d.(lxd.InstanceServer).CreateCertificate(req)
+				}
+			} else {
+				req.Password = c.flagPassword
+				err = d.(lxd.InstanceServer).CreateCertificate(req)
+			}
+
 			if err != nil {
 				return err
 			}
