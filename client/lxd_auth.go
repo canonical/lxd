@@ -261,6 +261,56 @@ func (r *ProtocolLXD) UpdateIdentity(authenticationMethod string, nameOrIdentife
 	return nil
 }
 
+// DeleteIdentity deletes the specified identity.
+func (r *ProtocolLXD) DeleteIdentity(authenticationMethod string, nameOrIdentifier string, ETag string) error {
+	err := r.CheckExtension("identity_management")
+	if err != nil {
+		return err
+	}
+
+	_, _, err = r.query(http.MethodDelete, api.NewURL().Path("auth", "identities", authenticationMethod, nameOrIdentifier).String(), nil, ETag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CreateTLSIdentity creates a TLS identity.
+func (r *ProtocolLXD) CreateTLSIdentity(tlsIdentitiesPost api.TLSIdentitiesPost) error {
+	err := r.CheckExtension("identity_management")
+	if err != nil {
+		return err
+	}
+
+	_, _, err = r.query(http.MethodPost, api.NewURL().Path("auth", "identities", api.AuthenticationMethodTLS).String(), tlsIdentitiesPost, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CreateTLSIdentityToken creates an identity token that can be used by an untrusted client to set up authentication with LXD.
+func (r *ProtocolLXD) CreateTLSIdentityToken(tlsIdentitiesPost api.TLSIdentitiesPost) (*api.TLSIdentityToken, error) {
+	err := r.CheckExtension("identity_management")
+	if err != nil {
+		return nil, err
+	}
+
+	if !tlsIdentitiesPost.Token {
+		return nil, fmt.Errorf("Token needs to be true if requesting a token")
+	}
+
+	var token api.TLSIdentityToken
+	_, err = r.queryStruct(http.MethodPost, api.NewURL().Path("auth", "identities", api.AuthenticationMethodTLS).String(), tlsIdentitiesPost, "", &token)
+	if err != nil {
+		return nil, err
+	}
+
+	return &token, nil
+}
+
 // GetIdentityProviderGroupNames returns a list of identity provider group names.
 func (r *ProtocolLXD) GetIdentityProviderGroupNames() ([]string, error) {
 	err := r.CheckExtension("access_management")
