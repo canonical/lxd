@@ -4107,7 +4107,10 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	isDevLXDQuery := r.RemoteAddr == devlxdRemoteAddress
+	// Verify the auth method in the request context to determine if the request comes from the /dev/lxd socket.
+	authMethod, _ := auth.GetAuthenticationMethodFromCtx(r.Context())
+	isDevLXDQuery := authMethod == auth.AuthenticationMethodDevLXD
+
 	secret := r.FormValue("secret")
 	trusted := auth.IsTrusted(r.Context())
 

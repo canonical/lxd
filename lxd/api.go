@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
@@ -204,7 +205,7 @@ func restServer(d *Daemon) *http.Server {
 	}
 
 	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		lxdRequest.CountStartedRequest(r)
+		metrics.TrackStartedRequest(r)
 		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
 		w.Header().Set("Content-Type", "application/json")
 		_ = response.NotFound(nil).Render(w, r)
@@ -221,6 +222,9 @@ func restServer(d *Daemon) *http.Server {
 
 func hoistReqVM(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Set devlxd auth method to identify this request as coming from the /dev/lxd socket.
+		lxdRequest.SetCtxValue(r, lxdRequest.CtxProtocol, auth.AuthenticationMethodDevLXD)
+
 		trusted, inst, err := authenticateAgentCert(d.State(), r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -260,7 +264,7 @@ func metricsServer(d *Daemon) *http.Server {
 	d.createCmd(mux, "1.0", metricsCmd)
 
 	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		lxdRequest.CountStartedRequest(r)
+		metrics.TrackStartedRequest(r)
 		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
 		w.Header().Set("Content-Type", "application/json")
 		_ = response.NotFound(nil).Render(w, r)
