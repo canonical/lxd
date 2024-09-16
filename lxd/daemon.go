@@ -329,6 +329,9 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 	case api.IdentityTypeOIDCClient:
 		// OIDC authenticated clients are governed by fine-grained auth. They can call the endpoint but may see an empty list.
 		return response.EmptySyncResponse
+	case api.IdentityTypeCertificateClient:
+		// Fine-grained TLS identities can list resources in any project. They may see an empty list.
+		return response.EmptySyncResponse
 	case api.IdentityTypeCertificateClientRestricted:
 		// A restricted client may be able to call the endpoint, continue.
 	default:
