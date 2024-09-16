@@ -39,8 +39,8 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/openfga/api/proto v0.0.0-20240807201305-c96ec773cae9
-	github.com/openfga/language/pkg/go v0.2.0-beta.0
+	github.com/openfga/api/proto v0.0.0-20240905181937-3583905f61a6
+	github.com/openfga/language/pkg/go v0.2.0-beta.2
 	github.com/openfga/openfga v1.6.0
 	github.com/osrg/gobgp/v3 v3.29.0
 	github.com/pkg/sftp v1.13.6
