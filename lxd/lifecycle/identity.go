@@ -12,6 +12,7 @@ type IdentityAction string
 const (
 	IdentityCreated = IdentityAction(api.EventLifecycleIdentityCreated)
 	IdentityUpdated = IdentityAction(api.EventLifecycleIdentityUpdated)
+	IdentityDeleted = IdentityAction(api.EventLifecycleIdentityDeleted)
 )
 
 // Event creates the lifecycle event for an action on a Certificate.
