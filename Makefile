@@ -232,6 +232,11 @@ ifeq "$(LXD_OFFLINE)" ""
 	(cd / ; go install github.com/snapcore/snapd/i18n/xgettext-go@2.57.1)
 endif
 	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxd@lists.canonical.com --keyword=i18n.G --keyword-plural=i18n.NG lxc/*.go lxc/*/*.go
+	if [ -t 0 ] && ! git diff --quiet --ignore-matching-lines='^\s*"POT-Creation-Date: .*\n"' -- po/*.pot; then \
+		read -rp "Would you like to commit i18n template changes (Y/n)? " answer; git diff -- po/*.pot; \
+			if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
+				git commit -sm "i18n: Update translation templates." -- po/*.pot; fi; \
+	fi
 
 .PHONY: build-mo
 build-mo: $(MOFILES)
