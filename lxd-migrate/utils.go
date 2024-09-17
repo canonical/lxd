@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -116,7 +117,7 @@ func transferRootDiskForMigration(ctx context.Context, op lxd.Operation, rootfs 
 	}
 
 	if !msg.GetSuccess() {
-		return fmt.Errorf(msg.GetMessage())
+		return errors.New(msg.GetMessage())
 	}
 
 	return nil
@@ -148,11 +149,11 @@ func transferRootDiskForConversion(ctx context.Context, op lxd.Operation, rootfs
 	return op.Wait()
 }
 
-func (c *cmdMigrate) connectLocal() (lxd.InstanceServer, error) {
+func (c *cmdMigrate) connectLocal(path string) (lxd.InstanceServer, error) {
 	args := lxd.ConnectionArgs{}
 	args.UserAgent = fmt.Sprintf("LXD-MIGRATE %s", version.Version)
 
-	return lxd.ConnectLXDUnix("", &args)
+	return lxd.ConnectLXDUnix(path, &args)
 }
 
 func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, authType string, token string) (lxd.InstanceServer, string, error) {
@@ -253,6 +254,14 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 			if err != nil {
 				return nil, "", fmt.Errorf("Failed to create certificate: %w", err)
 			}
+		} else if c.flagNonInteractive {
+			// In non-interactive mode stop at this point, as we know that the server
+			// does not trust us, but we should not make any further interaction with the caller.
+			if certPath != "" || keyPath != "" {
+				return nil, "", fmt.Errorf("Provided certificate is not trusted by the server")
+			}
+
+			return nil, "", errors.New("Failed to authenticate with the server: Please, either provide a trust token or an already trusted certificate")
 		} else if instanceServer.HasExtension("explicit_trust_token") {
 			fmt.Println("A temporary client certificate was generated, use `lxc config trust add` on the target server.")
 			fmt.Println("")
@@ -315,7 +324,7 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 	}
 
 	if srv.Auth == "untrusted" {
-		return nil, "", fmt.Errorf("Server doesn't trust us after authentication")
+		return nil, "", errors.New("Server doesn't trust us after authentication")
 	}
 
 	fmt.Printf("\nRemote LXD server:\n  Hostname: %s\n  Version: %s\n\n", srv.Environment.ServerName, srv.Environment.ServerVersion)
