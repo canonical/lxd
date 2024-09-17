@@ -425,27 +425,51 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 		}
 
 		if useExistingInterface {
+			networks, err := d.GetNetworks()
+			if err != nil {
+				return err
+			}
+
 			for {
 				interfaceName, err := c.global.asker.AskString("Name of the existing bridge or host interface: ", "", nil)
 				if err != nil {
 					return err
 				}
 
-				if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", interfaceName)) {
+				// Try to find the existing network.
+				var network *api.Network
+				for _, n := range networks {
+					if n.Name == interfaceName {
+						network = &n
+						break
+					}
+				}
+
+				if network == nil {
 					fmt.Println("The requested interface doesn't exist. Please choose another one.")
 					continue
 				}
 
-				// Add to the default profile
-				config.Node.Profiles[0].Devices["eth0"] = map[string]string{
-					"type":    "nic",
-					"nictype": "macvlan",
-					"name":    "eth0",
-					"parent":  interfaceName,
-				}
+				// Add to the default profile.
+				if network.Managed {
+					// Add managed network.
+					config.Node.Profiles[0].Devices["eth0"] = map[string]string{
+						"name":    "eth0",
+						"type":    "nic",
+						"network": network.Name,
+					}
+				} else {
+					// Add unmanaged network.
+					config.Node.Profiles[0].Devices["eth0"] = map[string]string{
+						"name":    "eth0",
+						"type":    "nic",
+						"nictype": "macvlan",
+						"parent":  network.Name,
+					}
 
-				if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", interfaceName)) {
-					config.Node.Profiles[0].Devices["eth0"]["nictype"] = "bridged"
+					if network.Type == "bridge" {
+						config.Node.Profiles[0].Devices["eth0"]["nictype"] = "bridged"
+					}
 				}
 
 				if config.Node.Config["maas.api.url"] != nil {
