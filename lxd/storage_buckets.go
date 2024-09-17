@@ -548,6 +548,25 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	targetMember := request.QueryParam(r, "target")
+	memberSpecific := targetMember != ""
+
+	// Get existing storage bucket.
+	var bucket *db.StorageBucket
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		bucket, err = tx.GetStoragePoolBucket(ctx, details.pool.ID(), effectiveProjectName, memberSpecific, details.bucketName)
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Validate the ETag.
+	err = util.EtagCheck(r, bucket.Etag())
+	if err != nil {
+		return response.PreconditionFailed(err)
+	}
+
 	// Decode the request.
 	req := api.StorageBucketPut{}
 	err = json.NewDecoder(r.Body).Decode(&req)
@@ -556,18 +575,6 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if r.Method == http.MethodPatch {
-		targetMember := request.QueryParam(r, "target")
-		memberSpecific := targetMember != ""
-
-		var bucket *db.StorageBucket
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			bucket, err = tx.GetStoragePoolBucket(ctx, details.pool.ID(), effectiveProjectName, memberSpecific, details.bucketName)
-			return err
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
-
 		// If config being updated via "patch" method, then merge all existing config with the keys that
 		// are present in the request config.
 		for k, v := range bucket.Config {
