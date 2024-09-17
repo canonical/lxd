@@ -33,8 +33,29 @@ import (
 type cmdMigrate struct {
 	global *cmdGlobal
 
+	// Instance options.
+	flagInstanceName string
+	flagInstanceType string
+	flagProject      string
+	flagProfiles     []string
+	flagNoProfiles   bool
+	flagStorage      string
+	flagStorageSize  string
+	flagNetwork      string
+	flagMountPaths   []string
+	flagConfig       []string
+	flagSource       string
+
+	// Target server.
+	flagServer   string
+	flagToken    string
+	flagCertPath string
+	flagKeyPath  string
+
+	// Other.
 	flagRsyncArgs      string
 	flagConversionOpts []string
+	flagNonInteractive bool
 }
 
 func (c *cmdMigrate) command() *cobra.Command {
@@ -50,12 +71,32 @@ func (c *cmdMigrate) command() *cobra.Command {
   It will setup a clean mount tree made of the root filesystem and any
   additional mount you list, then transfer this through LXD's migration
   API to create a new instance from it.
-
-  The same set of options as ` + "`lxc launch`" + ` are also supported.
 `
 	cmd.RunE = c.run
+
+	// Instance flags.
+	cmd.Flags().StringVar(&c.flagInstanceName, "name", "", "Name of the new instance"+"``")
+	cmd.Flags().StringVar(&c.flagInstanceType, "type", "", "Type of the instance to create (container or vm)"+"``")
+	cmd.Flags().StringVar(&c.flagProject, "project", "", "Project name"+"``")
+	cmd.Flags().StringSliceVar(&c.flagProfiles, "profiles", nil, "Profiles to apply on the new instance"+"``")
+	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the instance with no profiles applied"+"``")
+	cmd.Flags().StringVar(&c.flagStorage, "storage", "", "Storage pool name"+"``")
+	cmd.Flags().StringVar(&c.flagStorageSize, "storage-size", "", "Size of the instance's storage volume"+"``")
+	cmd.Flags().StringVar(&c.flagNetwork, "network", "", "Network name"+"``")
+	cmd.Flags().StringArrayVar(&c.flagMountPaths, "mount-path", nil, "Additional container mount paths"+"``")
+	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, "Config key/value to apply to the new instance"+"``")
+	cmd.Flags().StringVar(&c.flagSource, "source", "", "Path to the root filesystem for containers, or to the block device or disk image file for virtual machines"+"``")
+
+	// Target server.
+	cmd.Flags().StringVar(&c.flagServer, "server", "", "Unix or HTTPS URL of the target server"+"``")
+	cmd.Flags().StringVar(&c.flagToken, "token", "", "Authentication token for HTTPS remote"+"``")
+	cmd.Flags().StringVar(&c.flagCertPath, "cert-path", "", "Trusted certificate path"+"``")
+	cmd.Flags().StringVar(&c.flagKeyPath, "key-path", "", "Trusted certificate key path"+"``")
+
+	// Other flags.
 	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "", "Extra arguments to pass to rsync"+"``")
 	cmd.Flags().StringSliceVar(&c.flagConversionOpts, "conversion", []string{"format"}, "Comma-separated list of conversion options to apply. Allowed values are: [format, virtio]")
+	cmd.Flags().BoolVar(&c.flagNonInteractive, "non-interactive", false, "Prevent further interaction if migration questions are incomplete"+"``")
 
 	return cmd
 }
@@ -104,7 +145,7 @@ func (c *cmdMigrateData) render() string {
 
 	network, ok := c.InstanceArgs.Devices["eth0"]
 	if ok {
-		data.Network = network["parent"]
+		data.Network = network["network"]
 	}
 
 	out, err := yaml.Marshal(&data)
@@ -116,28 +157,55 @@ func (c *cmdMigrateData) render() string {
 }
 
 func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
-	// Detect local server.
-	local, err := c.connectLocal()
-	if err == nil {
-		useLocal, err := c.global.asker.AskBool("The local LXD server is the target [default=yes]: ", "yes")
+	var serverURL string
+	var err error
+
+	// Ensure trust token is not used along trust certificate and/or its corresponding key.
+	if c.flagToken != "" && (c.flagCertPath != "" || c.flagKeyPath != "") {
+		return nil, "", fmt.Errorf("Authentication token is mutually exclusive with certificate path and key")
+	}
+
+	if c.flagNonInteractive || c.flagServer != "" {
+		// Try to connect to unix socket if server URL is empty or has a "unix:" prefix.
+		if c.flagServer == "" || strings.HasPrefix(c.flagServer, "unix:") {
+			path := strings.TrimLeft(strings.TrimPrefix(c.flagServer, "unix:"), "/")
+			local, err := c.connectLocal(path)
+			if err != nil {
+				return nil, "", err
+			}
+
+			return local, "", err
+		}
+
+		// Otherwise, just parse the provided address.
+		serverURL, err = parseURL(c.flagServer)
+		if err != nil {
+			return nil, "", err
+		}
+	} else {
+		// Suggest connection to local server, if accessible.
+		local, err := c.connectLocal("")
+		if err == nil {
+			useLocal, err := c.global.asker.AskBool("The local LXD server is the target [default=yes]: ", "yes")
+			if err != nil {
+				return nil, "", err
+			}
+
+			if useLocal {
+				return local, "", nil
+			}
+		}
+
+		// Parse server address.
+		serverURL, err = c.global.asker.AskString("Please provide LXD server URL: ", "", nil)
 		if err != nil {
 			return nil, "", err
 		}
 
-		if useLocal {
-			return local, "", nil
+		serverURL, err = parseURL(serverURL)
+		if err != nil {
+			return nil, "", err
 		}
-	}
-
-	// Server address
-	serverURL, err := c.global.asker.AskString("Please provide LXD server URL: ", "", nil)
-	if err != nil {
-		return nil, "", err
-	}
-
-	serverURL, err = parseURL(serverURL)
-	if err != nil {
-		return nil, "", err
 	}
 
 	args := lxd.ConnectionArgs{
@@ -152,15 +220,20 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 
 	digest := shared.CertFingerprint(certificate)
 
-	fmt.Println("Certificate fingerprint:", digest)
-	fmt.Print("ok (y/n)? ")
-	line, err := shared.ReadStdin()
-	if err != nil {
-		return nil, "", err
-	}
+	if !c.flagNonInteractive {
+		fmt.Println("Certificate fingerprint:", digest)
+		fmt.Print("ok (y/n)? ")
 
-	if len(line) < 1 || line[0] != 'y' && line[0] != 'Y' {
-		return nil, "", fmt.Errorf("Server certificate rejected by user")
+		line, err := shared.ReadStdin()
+		if err != nil {
+			return nil, "", err
+		}
+
+		if len(line) < 1 || !strings.EqualFold(string(line[0]), "y") {
+			return nil, "", errors.New("Server certificate rejected by user")
+		}
+
+		fmt.Println("")
 	}
 
 	server, err := lxd.ConnectLXD(serverURL, &args)
@@ -173,8 +246,6 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 		return nil, "", fmt.Errorf("Failed to get server: %w", err)
 	}
 
-	fmt.Println("")
-
 	type AuthMethod int
 
 	const (
@@ -186,70 +257,93 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	// TLS is always available for LXD servers
 	var availableAuthMethods []AuthMethod
 	var authMethod AuthMethod
-
-	i := 1
-
-	if shared.ValueInSlice(api.AuthenticationMethodTLS, apiServer.AuthMethods) {
-		fmt.Printf("%d) Use a certificate token\n", i)
-		availableAuthMethods = append(availableAuthMethods, authMethodTLSCertificateToken)
-		i++
-		fmt.Printf("%d) Use an existing TLS authentication certificate\n", i)
-		availableAuthMethods = append(availableAuthMethods, authMethodTLSCertificate)
-		i++
-		fmt.Printf("%d) Generate a temporary TLS authentication certificate\n", i)
-		availableAuthMethods = append(availableAuthMethods, authMethodTLSTemporaryCertificate)
-	}
-
-	if len(apiServer.AuthMethods) > 1 || shared.ValueInSlice(api.AuthenticationMethodTLS, apiServer.AuthMethods) {
-		authMethodInt, err := c.global.asker.AskInt("Please pick an authentication mechanism above: ", 1, int64(i), "", nil)
-		if err != nil {
-			return nil, "", err
-		}
-
-		authMethod = availableAuthMethods[authMethodInt-1]
-	}
-
+	var authType string
 	var certPath string
 	var keyPath string
 	var token string
 
-	if authMethod == authMethodTLSCertificate {
-		certPath, err = c.global.asker.AskString("Please provide the certificate path: ", "", func(path string) error {
-			if !shared.PathExists(path) {
-				return errors.New("File does not exist")
-			}
+	if c.flagToken != "" {
+		token = c.flagToken
+		authMethod = authMethodTLSCertificateToken
 
-			return nil
-		})
+		_, err = shared.CertificateTokenDecode(token)
 		if err != nil {
-			return nil, "", err
+			return nil, "", fmt.Errorf("Failed to decode certificate token: %w", err)
+		}
+	} else if c.flagKeyPath != "" || c.flagCertPath != "" {
+		if c.flagKeyPath == "" {
+			return nil, "", errors.New("Certificate path is required when certificate key is set")
 		}
 
-		keyPath, err = c.global.asker.AskString("Please provide the keyfile path: ", "", func(path string) error {
-			if !shared.PathExists(path) {
-				return errors.New("File does not exist")
-			}
-
-			return nil
-		})
-		if err != nil {
-			return nil, "", err
+		if c.flagCertPath == "" {
+			return nil, "", errors.New("Certificate key path is required when certificate path is set")
 		}
-	} else if authMethod == authMethodTLSCertificateToken {
-		token, err = c.global.asker.AskString("Please provide the certificate token: ", "", func(token string) error {
-			_, err := shared.CertificateTokenDecode(token)
+
+		certPath = c.flagCertPath
+		keyPath = c.flagKeyPath
+	} else {
+		if c.flagNonInteractive {
+			return nil, "", errors.New("Authentication token is required for HTTPS remote in non-interactive mode")
+		}
+
+		i := 1
+
+		if slices.Contains(apiServer.AuthMethods, api.AuthenticationMethodTLS) {
+			fmt.Printf("%d) Use a certificate token\n", i)
+			availableAuthMethods = append(availableAuthMethods, authMethodTLSCertificateToken)
+			i++
+			fmt.Printf("%d) Use an existing TLS authentication certificate\n", i)
+			availableAuthMethods = append(availableAuthMethods, authMethodTLSCertificate)
+			i++
+			fmt.Printf("%d) Generate a temporary TLS authentication certificate\n", i)
+			availableAuthMethods = append(availableAuthMethods, authMethodTLSTemporaryCertificate)
+		}
+
+		if len(apiServer.AuthMethods) > 1 || slices.Contains(apiServer.AuthMethods, api.AuthenticationMethodTLS) {
+			authMethodInt, err := c.global.asker.AskInt("Please pick an authentication mechanism above: ", 1, int64(i), "", nil)
 			if err != nil {
-				return err
+				return nil, "", err
 			}
 
-			return nil
-		})
-		if err != nil {
-			return nil, "", err
+			authMethod = availableAuthMethods[authMethodInt-1]
+		}
+
+		if authMethod == authMethodTLSCertificate {
+			certPath, err = c.global.asker.AskString("Please provide the certificate path: ", "", func(path string) error {
+				if !shared.PathExists(path) {
+					return errors.New("File does not exist")
+				}
+
+				return nil
+			})
+			if err != nil {
+				return nil, "", err
+			}
+
+			keyPath, err = c.global.asker.AskString("Please provide the keyfile path: ", "", func(path string) error {
+				if !shared.PathExists(path) {
+					return errors.New("File does not exist")
+				}
+
+				return nil
+			})
+			if err != nil {
+				return nil, "", err
+			}
+		} else if authMethod == authMethodTLSCertificateToken {
+			token, err = c.global.asker.AskString("Please provide the certificate token: ", "", func(token string) error {
+				_, err := shared.CertificateTokenDecode(token)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			})
+			if err != nil {
+				return nil, "", err
+			}
 		}
 	}
-
-	var authType string
 
 	switch authMethod {
 	case authMethodTLSCertificate, authMethodTLSTemporaryCertificate, authMethodTLSCertificateToken:
@@ -259,17 +353,17 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	return c.connectTarget(serverURL, certPath, keyPath, authType, token)
 }
 
-func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, error) {
-	var err error
-
-	config := cmdMigrateData{}
-
-	config.InstanceArgs = api.InstancesPost{
-		Source: api.InstanceSource{
-			Type:              "conversion",
-			Mode:              "push",
-			ConversionOptions: c.flagConversionOpts,
-		},
+// newMigrateData creates a new migration configuration from the provided flags. The configuration is
+// validated and an error is returned if any of the flags contain an invalid value. A server connection
+// is required for some of the validations, such as checking if the instance name is available.
+func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData, error) {
+	config := &cmdMigrateData{}
+	config.InstanceArgs.Config = map[string]string{}
+	config.InstanceArgs.Devices = map[string]map[string]string{}
+	config.InstanceArgs.Source = api.InstanceSource{
+		Type:              "conversion",
+		Mode:              "push",
+		ConversionOptions: c.flagConversionOpts,
 	}
 
 	// If server does not support conversion, fallback to migration.
@@ -280,111 +374,248 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 		config.InstanceArgs.Source.Type = "migration"
 	}
 
-	config.InstanceArgs.Config = map[string]string{}
-	config.InstanceArgs.Devices = map[string]map[string]string{}
-
-	// Provide instance type
-	instanceType, err := c.global.asker.AskInt("Would you like to create a container (1) or virtual-machine (2)?: ", 1, 2, "1", nil)
-	if err != nil {
-		return cmdMigrateData{}, err
+	// Parse instance type from a flag.
+	if c.flagInstanceType != "" {
+		switch c.flagInstanceType {
+		case "container":
+			config.InstanceArgs.Type = api.InstanceTypeContainer
+		case "vm":
+			config.InstanceArgs.Type = api.InstanceTypeVM
+		default:
+			return nil, fmt.Errorf("Invalid instance type %q: Valid values are [%s]", c.flagInstanceType, strings.Join([]string{"container", "vm"}, ", "))
+		}
 	}
 
-	if instanceType == 1 {
-		config.InstanceArgs.Type = api.InstanceTypeContainer
-	} else if instanceType == 2 {
-		config.InstanceArgs.Type = api.InstanceTypeVM
-	}
-
-	// Project
-	projectNames, err := server.GetProjectNames()
-	if err != nil {
-		return cmdMigrateData{}, err
-	}
-
-	if len(projectNames) > 1 {
-		project, err := c.global.asker.AskChoice("Project to create the instance in [default=default]: ", projectNames, "default")
+	// Determine project from flags.
+	if c.flagProject != "" {
+		projectNames, err := server.GetProjectNames()
 		if err != nil {
-			return cmdMigrateData{}, err
+			return nil, err
 		}
 
-		config.Project = project
+		if !slices.Contains(projectNames, c.flagProject) {
+			return nil, fmt.Errorf("Project %q does not exist", c.flagProject)
+		}
+
+		config.Project = c.flagProject
 		server = server.UseProject(config.Project)
-	} else {
-		config.Project = "default"
 	}
 
-	// Instance name
-	instanceNames, err := server.GetInstanceNames(api.InstanceTypeAny)
-	if err != nil {
-		return cmdMigrateData{}, err
-	}
-
-	for {
-		instanceName, err := c.global.asker.AskString("Name of the new instance: ", "", nil)
+	// Parse instance name from a flag.
+	if c.flagInstanceName != "" {
+		instanceNames, err := server.GetInstanceNames(api.InstanceTypeAny)
 		if err != nil {
-			return cmdMigrateData{}, err
+			return nil, err
 		}
 
-		if shared.ValueInSlice(instanceName, instanceNames) {
-			fmt.Printf("Instance %q already exists\n", instanceName)
-			continue
+		if slices.Contains(instanceNames, c.flagInstanceName) {
+			return nil, fmt.Errorf("Instance %q already exists", c.flagInstanceName)
 		}
 
-		config.InstanceArgs.Name = instanceName
-		break
+		config.InstanceArgs.Name = c.flagInstanceName
 	}
 
-	var question string
+	// Parse source path from a flag.
+	if c.flagSource != "" {
+		err := c.checkSource(c.flagSource, config.InstanceArgs.Type, config.InstanceArgs.Source.Type)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid source path %q: %w", c.flagSource, err)
+		}
 
-	// Provide source path
-	if config.InstanceArgs.Type == api.InstanceTypeVM {
-		question = "Please provide the path to a disk, partition, or image file: "
+		config.SourcePath = c.flagSource
+	}
+
+	// Configure profiles from flags.
+	if c.flagNoProfiles {
+		config.InstanceArgs.Profiles = []string{}
+	} else if len(c.flagProfiles) > 0 {
+		profileNames, err := server.GetProfileNames()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, profile := range c.flagProfiles {
+			if !slices.Contains(profileNames, profile) {
+				return nil, fmt.Errorf("Profile %q not found", profile)
+			}
+		}
+
+		config.InstanceArgs.Profiles = c.flagProfiles
 	} else {
-		question = "Please provide the path to a root filesystem: "
+		config.InstanceArgs.Profiles = []string{"default"}
 	}
 
-	config.SourcePath, err = c.global.asker.AskString(question, "", func(s string) error {
-		if !shared.PathExists(s) {
-			return errors.New("Path does not exist")
+	// Parse instance config from flags.
+	if len(c.flagConfig) > 0 {
+		for _, entry := range c.flagConfig {
+			key, value, found := strings.Cut(entry, "=")
+			if !found {
+				return nil, fmt.Errorf("Invalid configuration entry: Entry %q is not in key=value format", entry)
+			}
+
+			config.InstanceArgs.Config[key] = value
+		}
+	}
+
+	// Configure root storage disk from flags.
+	if c.flagStorage != "" {
+		storagePools, err := server.GetStoragePoolNames()
+		if err != nil {
+			return nil, err
 		}
 
-		if config.InstanceArgs.Type == api.InstanceTypeVM && config.InstanceArgs.Source.Type == "migration" {
-			isImageTypeRaw, err := isImageTypeRaw(s)
+		if len(storagePools) == 0 {
+			return nil, errors.New("No storage pools available")
+		}
+
+		if !slices.Contains(storagePools, c.flagStorage) {
+			return nil, fmt.Errorf("Storage pool %q not found", c.flagStorage)
+		}
+
+		config.InstanceArgs.Devices["root"] = map[string]string{
+			"type": "disk",
+			"pool": c.flagStorage,
+			"path": "/",
+		}
+
+		if c.flagStorageSize != "" {
+			_, err := units.ParseByteSizeString(c.flagStorageSize)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
-			if !isImageTypeRaw {
-				return fmt.Errorf(`Source disk format cannot be converted by server. Source disk should be in raw format`)
-			}
+			config.InstanceArgs.Devices["root"]["size"] = c.flagStorageSize
+		}
+	}
+
+	// Configure instance NIC connected to network from a flag.
+	if c.flagNetwork != "" {
+		networks, err := server.GetNetworkNames()
+		if err != nil {
+			return nil, err
 		}
 
-		file, err := os.Open(s)
+		if !slices.Contains(networks, c.flagNetwork) {
+			return nil, fmt.Errorf("Network %q not found", c.flagNetwork)
+		}
+
+		config.InstanceArgs.Devices["eth0"] = map[string]string{
+			"name":    "eth0",
+			"type":    "nic",
+			"network": c.flagNetwork,
+		}
+	}
+
+	// Configure additional mounts for containers.
+	if len(c.flagMountPaths) > 0 {
+		if config.InstanceArgs.Type != "" && config.InstanceArgs.Type != api.InstanceTypeContainer {
+			return nil, errors.New("Additional mount paths are supported only for containers")
+		}
+
+		for _, path := range c.flagMountPaths {
+			if !shared.PathExists(path) {
+				return nil, fmt.Errorf("Invalid mount path %q: Path does not exist", path)
+			}
+
+			config.Mounts = append(config.Mounts, path)
+		}
+	}
+
+	return config, nil
+}
+
+// runInteractive populates the migration request by interacting with the user. If any value is already
+// provided using flags, the corresponding questions are skipped.
+func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceServer) error {
+	var err error
+
+	// Instance type.
+	if config.InstanceArgs.Type == "" {
+		instanceType, err := c.global.asker.AskInt("Would you like to create a container (1) or virtual-machine (2)?: ", 1, 2, "1", nil)
 		if err != nil {
 			return err
 		}
 
-		defer file.Close()
-
-		// Ensure the source file is not a tarball.
-		_, err = tar.NewReader(file).Next()
-		if err == nil {
-			return fmt.Errorf("Source cannot be a tar archive or OVA file")
+		if instanceType == 1 {
+			config.InstanceArgs.Type = api.InstanceTypeContainer
+		} else if instanceType == 2 {
+			config.InstanceArgs.Type = api.InstanceTypeVM
 		}
-
-		return nil
-	})
-	if err != nil {
-		return cmdMigrateData{}, err
 	}
 
-	if config.InstanceArgs.Type == api.InstanceTypeVM {
+	// As soon as we know the instance type, we can check if additional mount paths are supported.
+	// This applies only in case if additional mounts were configured using flags.
+	if len(config.Mounts) > 0 && config.InstanceArgs.Type != api.InstanceTypeContainer {
+		return errors.New("Additional mount paths are supported only for containers")
+	}
+
+	// Project.
+	if config.Project == "" {
+		config.Project = "default"
+
+		projectNames, err := server.GetProjectNames()
+		if err != nil {
+			return err
+		}
+
+		if len(projectNames) > 1 {
+			project, err := c.global.asker.AskChoice("Project to create the instance in [default=default]: ", projectNames, "default")
+			if err != nil {
+				return err
+			}
+
+			config.Project = project
+		}
+	}
+
+	server = server.UseProject(config.Project)
+
+	// Instance name
+	if config.InstanceArgs.Name == "" {
+		instanceNames, err := server.GetInstanceNames(api.InstanceTypeAny)
+		if err != nil {
+			return err
+		}
+
+		for {
+			instanceName, err := c.global.asker.AskString("Name of the new instance: ", "", nil)
+			if err != nil {
+				return err
+			}
+
+			if slices.Contains(instanceNames, instanceName) {
+				fmt.Printf("Instance %q already exists\n", instanceName)
+				continue
+			}
+
+			config.InstanceArgs.Name = instanceName
+			break
+		}
+	}
+
+	if config.SourcePath == "" {
+		question := "Please provide the path to a root filesystem: "
+		if config.InstanceArgs.Type == api.InstanceTypeVM {
+			question = "Please provide the path to the block device or disk image file: "
+		}
+
+		config.SourcePath, err = c.global.asker.AskString(question, "", func(s string) error {
+			return c.checkSource(s, config.InstanceArgs.Type, config.InstanceArgs.Source.Type)
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	// Ask VM supports the secureboot. In non-interactive mode, security.secureboot can be
+	// configured using --config flag.
+	if !c.flagNonInteractive && config.InstanceArgs.Type == api.InstanceTypeVM {
 		architectureName, _ := osarch.ArchitectureGetLocal()
 
-		if shared.ValueInSlice(architectureName, []string{"x86_64", "aarch64"}) {
+		if slices.Contains([]string{"x86_64", "aarch64"}, architectureName) {
 			hasSecureBoot, err := c.global.asker.AskBool("Does the VM support UEFI Secure Boot? [default=no]: ", "no")
 			if err != nil {
-				return cmdMigrateData{}, err
+				return err
 			}
 
 			if !hasSecureBoot {
@@ -393,18 +624,16 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 		}
 	}
 
-	var mounts []string
-
 	// Additional mounts for containers
 	if config.InstanceArgs.Type == api.InstanceTypeContainer {
 		addMounts, err := c.global.asker.AskBool("Do you want to add additional filesystem mounts? [default=no]: ", "no")
 		if err != nil {
-			return cmdMigrateData{}, err
+			return err
 		}
 
 		if addMounts {
 			for {
-				path, err := c.global.asker.AskString("Please provide a path the filesystem mount path [empty value to continue]: ", "", func(s string) error {
+				path, err := c.global.asker.AskString("Please provide the filesystem mount path [empty value to continue]: ", "", func(s string) error {
 					if s != "" {
 						if shared.PathExists(s) {
 							return nil
@@ -416,17 +645,15 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 					return nil
 				})
 				if err != nil {
-					return cmdMigrateData{}, err
+					return err
 				}
 
 				if path == "" {
 					break
 				}
 
-				mounts = append(mounts, path)
+				config.Mounts = append(config.Mounts, path)
 			}
-
-			config.Mounts = append(config.Mounts, mounts...)
 		}
 	}
 
@@ -450,20 +677,20 @@ Additional overrides can be applied at this stage:
 
 		choice, err := c.global.asker.AskInt("Please pick one of the options above [default=1]: ", 1, 5, "1", nil)
 		if err != nil {
-			return cmdMigrateData{}, err
+			return err
 		}
 
 		switch choice {
 		case 1:
-			return config, nil
+			return nil
 		case 2:
-			err = c.askProfiles(server, &config)
+			err = c.askProfiles(server, config)
 		case 3:
-			err = c.askConfig(&config)
+			err = c.askConfig(config)
 		case 4:
-			err = c.askStorage(server, &config)
+			err = c.askStorage(server, config)
 		case 5:
-			err = c.askNetwork(server, &config)
+			err = c.askNetwork(server, config)
 		}
 
 		if err != nil {
@@ -475,7 +702,7 @@ Additional overrides can be applied at this stage:
 func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if os.Geteuid() != 0 {
-		return fmt.Errorf("This tool must be run as root")
+		return errors.New("This tool must be run as root")
 	}
 
 	// Check conversion options.
@@ -484,6 +711,36 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		if !slices.Contains(supportedConversionOptions, opt) {
 			return fmt.Errorf("Unsupported conversion option %q, supported conversion options are %v", opt, supportedConversionOptions)
 		}
+	}
+
+	// Check the required flags in non-interactive mode.
+	if c.flagNonInteractive {
+		if c.flagInstanceType == "" {
+			return errors.New("Instance type is required in non-interactive mode")
+		}
+
+		if c.flagSource == "" {
+			return errors.New("Source path is required in non-interactive mode")
+		}
+	}
+
+	// Precheck instance type.
+	if c.flagInstanceType != "" && !slices.Contains([]string{"container", "vm"}, c.flagInstanceType) {
+		return fmt.Errorf("Invalid instance type %q: Valid values are [%s]", c.flagInstanceType, strings.Join([]string{"container", "vm"}, ", "))
+	}
+
+	// Check source path. This is only precheck, as we cannot know the whether
+	// conversion is supported until the connection with the server is established.
+	if c.flagSource != "" {
+		err := c.checkSource(c.flagSource, "", "")
+		if err != nil {
+			return fmt.Errorf("Invalid source path %q: %w", c.flagSource, err)
+		}
+	}
+
+	// Ensure no-profiles and profiles flags are not used together.
+	if c.flagNoProfiles && len(c.flagProfiles) > 0 {
+		return errors.New("Flags --no-profiles and --profiles are mutually exclusive")
 	}
 
 	_, err := exec.LookPath("rsync")
@@ -525,9 +782,25 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		defer func() { _ = server.DeleteCertificate(clientFingerprint) }()
 	}
 
-	config, err := c.runInteractive(server)
+	config, err := c.newMigrateData(server)
 	if err != nil {
 		return err
+	}
+
+	if c.flagNonInteractive {
+		// In non-interactive mode, print the instance to be created and continue with the migration.
+		fmt.Println("\nInstance to be created:")
+		scanner := bufio.NewScanner(strings.NewReader(config.render()))
+		for scanner.Scan() {
+			fmt.Printf("  %s\n", scanner.Text())
+		}
+	} else {
+		// Otherwise, run in interactive mode where user is asked for missing information
+		// and given the opportunity to review and modify the instance configuration.
+		err = c.runInteractive(config, server)
+		if err != nil {
+			return err
+		}
 	}
 
 	if config.Project != "" {
@@ -696,7 +969,7 @@ func (c *cmdMigrate) askProfiles(server lxd.InstanceServer, config *cmdMigrateDa
 		profiles := strings.Split(s, " ")
 
 		for _, profile := range profiles {
-			if !shared.ValueInSlice(profile, profileNames) {
+			if !slices.Contains(profileNames, profile) {
 				return fmt.Errorf("Unknown profile %q", profile)
 			}
 		}
@@ -747,7 +1020,7 @@ func (c *cmdMigrate) askStorage(server lxd.InstanceServer, config *cmdMigrateDat
 	}
 
 	if len(storagePools) == 0 {
-		return fmt.Errorf("No storage pools available")
+		return errors.New("No storage pools available")
 	}
 
 	storagePool, err := c.global.asker.AskChoice("Please provide the storage pool to use: ", storagePools, "")
@@ -793,10 +1066,43 @@ func (c *cmdMigrate) askNetwork(server lxd.InstanceServer, config *cmdMigrateDat
 	}
 
 	config.InstanceArgs.Devices["eth0"] = map[string]string{
-		"type":    "nic",
-		"nictype": "bridged",
-		"parent":  network,
 		"name":    "eth0",
+		"type":    "nic",
+		"network": network,
+	}
+
+	return nil
+}
+
+// checkSource checks if the source path is valid and can be used for migration.
+// Source path can represent a disk, image, or partition.
+func (c *cmdMigrate) checkSource(path string, instanceType api.InstanceType, migrationMode string) error {
+	if !shared.PathExists(path) {
+		return errors.New("Path does not exist")
+	}
+
+	if instanceType == api.InstanceTypeVM && migrationMode == "migration" {
+		isImageTypeRaw, err := isImageTypeRaw(path)
+		if err != nil {
+			return err
+		}
+
+		if !isImageTypeRaw {
+			return errors.New("Source disk format cannot be converted by server. Source disk should be in raw format")
+		}
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	// Ensure the source file is not a tarball.
+	_, err = tar.NewReader(file).Next()
+	if err == nil {
+		return errors.New("Source cannot be a tar archive or OVA file")
 	}
 
 	return nil
