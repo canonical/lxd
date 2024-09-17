@@ -1,18 +1,5 @@
 {
 	"configs": {
-		"": {
-			"limits,": {
-				"keys": [
-					{
-						"limits.disk.pool.POOL_NAME": {
-							"longdesc": "This value is the maximum value of the aggregate disk\nspace used by all instance volumes, custom volumes, and images of the\nproject on this specific storage pool.\n\nWhen set to 0, the pool is excluded from storage pool list for\nthe project.",
-							"shortdesc": "Maximum disk space used by the project on this pool",
-							"type": "string"
-						}
-					}
-				]
-			}
-		},
 		"cluster": {
 			"cluster": {
 				"keys": [
@@ -4475,6 +4462,13 @@
 						"limits.disk": {
 							"longdesc": "This value is the maximum value of the aggregate disk space used by all instance volumes, custom volumes, and images of the project.",
 							"shortdesc": "Maximum disk space used by the project",
+							"type": "string"
+						}
+					},
+					{
+						"limits.disk.pool.POOL_NAME": {
+							"longdesc": "This value is the maximum value of the aggregate disk\nspace used by all instance volumes, custom volumes, and images of the\nproject on this specific storage pool.\n\nWhen set to 0, the pool is excluded from storage pool list for\nthe project.",
+							"shortdesc": "Maximum disk space used by the project on this pool",
 							"type": "string"
 						}
 					},
