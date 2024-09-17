@@ -3188,6 +3188,21 @@ test_clustering_edit_configuration() {
   # Let the heartbeats catch up
   sleep 12
 
+  # Sanity check of the automated backup
+  # We can't check that the backup has the same files as even LXD_ONE_DIR, because
+  # the recovery process adds a segment to the global db dir, and may otherwise
+  # alter dqlite files. This makes sure that the backup at least looks like `database/`.
+  for dir in "${LXD_ONE_DIR}" "${LXD_TWO_DIR}" "${LXD_THREE_DIR}" "${LXD_FOUR_DIR}" "${LXD_FIVE_DIR}" "${LXD_SIX_DIR}"; do
+    backupFilename=$(find "${dir}" -name "db_backup.*.tar.gz")
+    files=$(tar --list -f "${backupFilename}")
+    # Check for dqlite segment files
+    echo "${files}" | grep -E '[0-9]{16}-[0-9]{16}' || echo "${files}" | grep -E 'open-[0-9]'
+    echo "${files}" | grep local.db
+
+    # Recovery tarballs shouldn't be included in backups
+    ! echo "${files}" | grep -q lxd_recovery_db.tar.gz || false
+  done
+
   # Ensure successful communication
   LXD_DIR="${LXD_ONE_DIR}"   lxc info --target node2 | grep -q "server_name: node2"
   LXD_DIR="${LXD_TWO_DIR}"   lxc info --target node1 | grep -q "server_name: node1"

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -81,6 +82,11 @@ func localRaftNode(database *db.Node) (*db.RaftNode, error) {
 // member in the cluster. Use `Reconfigure` if more members should remain in
 // the raft configuration.
 func Recover(database *db.Node) error {
+	_, err := createDatabaseBackup(database.Dir())
+	if err != nil {
+		return fmt.Errorf("Failed creating backup: %w", err)
+	}
+
 	info, err := localRaftNode(database)
 	if err != nil {
 		return err
@@ -195,6 +201,11 @@ func writeGlobalNodesPatch(database *db.Node, nodes []db.RaftNode) error {
 // Addresses and node roles may be updated. Node IDs are read-only.
 // Returns the path to the new database state (recovery tarball).
 func Reconfigure(database *db.Node, raftNodes []db.RaftNode) (string, error) {
+	_, err := createDatabaseBackup(database.Dir())
+	if err != nil {
+		return "", fmt.Errorf("Failed creating backup: %w", err)
+	}
+
 	info, err := localRaftNode(database)
 	if err != nil {
 		return "", err
@@ -257,49 +268,22 @@ func Reconfigure(database *db.Node, raftNodes []db.RaftNode) (string, error) {
 // Create a tarball of the global database dir to be copied to all other
 // remaining cluster members.
 func writeRecoveryTarball(databaseDir string, raftNodes []db.RaftNode) (string, error) {
-	reverter := revert.New()
-	defer reverter.Fail()
-
 	tarballPath := filepath.Join(databaseDir, RecoveryTarballName)
+	globalDBDirPath := filepath.Join(databaseDir, "global")
 
-	tarball, err := os.Create(tarballPath)
-	if err != nil {
-		return "", err
-	}
-
-	reverter.Add(func() { _ = os.Remove(tarballPath) })
-
-	gzWriter := gzip.NewWriter(tarball)
-	tarWriter := tar.NewWriter(gzWriter)
-
-	globalDBDirFS := os.DirFS(filepath.Join(databaseDir, "global"))
-
-	err = tarWriter.AddFS(globalDBDirFS)
-	if err != nil {
-		return "", err
-	}
+	raftNodesPath := filepath.Join(globalDBDirPath, raftNodesFilename)
 
 	raftNodesYaml, err := yaml.Marshal(raftNodes)
 	if err != nil {
 		return "", err
 	}
 
-	raftNodesHeader := tar.Header{
-		Typeflag: tar.TypeReg,
-		Name:     raftNodesFilename,
-		Size:     int64(len(raftNodesYaml)),
-		Mode:     0o644,
-		Uid:      0,
-		Gid:      0,
-		Format:   tar.FormatPAX,
-	}
-
-	err = tarWriter.WriteHeader(&raftNodesHeader)
+	raftNodesFd, err := os.Create(raftNodesPath)
 	if err != nil {
 		return "", err
 	}
 
-	written, err := tarWriter.Write(raftNodesYaml)
+	written, err := raftNodesFd.Write(raftNodesYaml)
 	if err != nil {
 		return "", err
 	}
@@ -308,22 +292,15 @@ func writeRecoveryTarball(databaseDir string, raftNodes []db.RaftNode) (string, 
 		return "", fmt.Errorf("Wrote %d bytes but expected to write %d", written, len(raftNodesYaml))
 	}
 
-	err = tarWriter.Close()
+	err = raftNodesFd.Close()
 	if err != nil {
 		return "", err
 	}
 
-	err = gzWriter.Close()
+	err = createTarball(tarballPath, globalDBDirPath, ".", []string{})
 	if err != nil {
 		return "", err
 	}
-
-	err = tarball.Close()
-	if err != nil {
-		return "", err
-	}
-
-	reverter.Success()
 
 	return tarballPath, nil
 }
@@ -338,7 +315,12 @@ func DatabaseReplaceFromTarball(tarballPath string, database *db.Node) error {
 
 	logger.Warn("Recovery tarball located; attempting DB recovery", logger.Ctx{"tarball": tarballPath})
 
-	err := unpackTarball(tarballPath, unpackDir)
+	_, err := createDatabaseBackup(database.Dir())
+	if err != nil {
+		return fmt.Errorf("Failed creating backup: %w", err)
+	}
+
+	err = unpackTarball(tarballPath, unpackDir)
 	if err != nil {
 		return err
 	}
@@ -532,6 +514,120 @@ func unpackTarball(tarballPath string, destRoot string) error {
 				return err
 			}
 		}
+	}
+
+	reverter.Success()
+
+	return nil
+}
+
+func createDatabaseBackup(databaseDir string) (string, error) {
+	varDir := path.Dir(databaseDir)
+
+	// tar interprets `:` as a remote drive; ISO8601 allows a 'basic format'
+	// with the colons omitted (as opposed to time.RFC3339)
+	// https://en.wikipedia.org/wiki/ISO_8601
+	backupFileName := fmt.Sprintf("db_backup.%s.tar.gz", time.Now().Format("2006-01-02T150405Z0700"))
+	tarballPath := filepath.Join(varDir, backupFileName)
+
+	walkDir := path.Base(databaseDir)
+
+	logger.Info("Creating database backup", logger.Ctx{"path": tarballPath})
+
+	// Don't include the recovery tarball in a backup tarball
+	excludeFiles := []string{path.Join(walkDir, RecoveryTarballName)}
+
+	err := createTarball(tarballPath, varDir, walkDir, excludeFiles)
+	if err != nil {
+		return "", err
+	}
+
+	return tarballPath, nil
+}
+
+// createTarball creates tarball at tarballPath, rooted at rootDir and including
+// all files in walkDir except those paths found in excludeFiles.
+// walkDir and excludeFiles elements are relative to rootDir.
+func createTarball(tarballPath string, rootDir string, walkDir string, excludeFiles []string) error {
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	tarball, err := os.Create(tarballPath)
+	if err != nil {
+		return err
+	}
+
+	reverter.Add(func() { _ = os.Remove(tarballPath) })
+
+	gzWriter := gzip.NewWriter(tarball)
+	tarWriter := tar.NewWriter(gzWriter)
+
+	filesys := os.DirFS(rootDir)
+
+	err = fs.WalkDir(filesys, walkDir, func(filepath string, stat fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if slices.Contains(excludeFiles, filepath) {
+			return nil
+		}
+
+		info, err := stat.Info()
+		if err != nil {
+			return err
+		}
+
+		header, err := tar.FileInfoHeader(info, filepath)
+		if err != nil {
+			return fmt.Errorf("Failed creating tar header for %q: %w", filepath, err)
+		}
+
+		// header.Name is the basename of `stat` by default
+		header.Name = filepath
+
+		err = tarWriter.WriteHeader(header)
+		if err != nil {
+			return err
+		}
+
+		// Only write contents for regular files
+		if header.Typeflag == tar.TypeReg {
+			file, err := os.Open(path.Join(rootDir, filepath))
+			if err != nil {
+				return err
+			}
+
+			_, err = io.Copy(tarWriter, file)
+			if err != nil {
+				return err
+			}
+
+			err = file.Close()
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	err = tarWriter.Close()
+	if err != nil {
+		return err
+	}
+
+	err = gzWriter.Close()
+	if err != nil {
+		return err
+	}
+
+	err = tarball.Close()
+	if err != nil {
+		return err
 	}
 
 	reverter.Success()
