@@ -20,6 +20,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -550,7 +551,7 @@ func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceS
 
 	server = server.UseProject(config.Project)
 
-	// Instance name
+	// Instance name.
 	if config.InstanceArgs.Name == "" {
 		instanceNames, err := server.GetInstanceNames(api.InstanceTypeAny)
 		if err != nil {
@@ -563,6 +564,14 @@ func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceS
 				return err
 			}
 
+			// Validate instance name.
+			err = instancetype.ValidName(instanceName, false)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			// Ensure instance name is not already used.
 			if slices.Contains(instanceNames, instanceName) {
 				fmt.Printf("Instance %q already exists\n", instanceName)
 				continue
@@ -704,9 +713,17 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Precheck instance type.
+	// Check instance type.
 	if c.flagInstanceType != "" && !slices.Contains([]string{"container", "vm"}, c.flagInstanceType) {
 		return fmt.Errorf("Invalid instance type %q: Valid values are [%s]", c.flagInstanceType, strings.Join([]string{"container", "vm"}, ", "))
+	}
+
+	// Check instance name.
+	if c.flagInstanceName != "" {
+		err := instancetype.ValidName(c.flagInstanceName, false)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Check source path. This is only precheck, as we cannot know the whether
