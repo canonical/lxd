@@ -1501,7 +1501,7 @@ parts:
       ln -s "$(pwd)" "${GOPATH}/src/github.com/canonical/lxd"
 
       # Download the dependencies
-      go get -d -v ./...
+      go get -v ./...
     override-build: |
       set -ex
 
