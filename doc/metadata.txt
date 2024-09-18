@@ -3651,7 +3651,7 @@ Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
 :condition: "IPv4 address"
 :shortdesc: "Additional IPv4 CIDR subnets"
 :type: "string"
-Specify a comma-separated list of IPv4 CIDR subnets that can be used with the child OVN network's {config:option}`device-nic-ovn-device-conf:ipv4.routes.external` setting.
+Specify a comma-separated list of IPv4 CIDR subnets that can be used with child OVN network forwarders, load-balancers and {config:option}`device-nic-ovn-device-conf:ipv4.routes.external` setting.
 ```
 
 ```{config:option} ipv4.routes.anycast network-physical-network-conf
@@ -3679,7 +3679,7 @@ Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
 :condition: "IPv6 address"
 :shortdesc: "Additional IPv6 CIDR subnets"
 :type: "string"
-Specify a comma-separated list of IPv6 CIDR subnets that can be used with the child OVN network's {config:option}`device-nic-ovn-device-conf:ipv6.routes.external` setting.
+Specify a comma-separated list of IPv6 CIDR subnets that can be used with child OVN network forwarders, load-balancers and {config:option}`device-nic-ovn-device-conf:ipv6.routes.external` setting.
 ```
 
 ```{config:option} ipv6.routes.anycast network-physical-network-conf
@@ -4142,7 +4142,7 @@ Note that this setting depends on the {config:option}`project-restricted:restric
 :defaultdesc: "`block`"
 :shortdesc: "Which network subnets are allocated for use in this project"
 :type: "string"
-Specify a comma-delimited list of network subnets from the uplink networks that are allocated for use in this project.
+Specify a comma-delimited list of CIDR network routes from the uplink network's {config:option}`network-physical-network-conf:ipv4.routes` {config:option}`network-physical-network-conf:ipv6.routes` that are allowed for use in this project.
 Use the form `<uplink>:<subnet>`.
 ```
 
