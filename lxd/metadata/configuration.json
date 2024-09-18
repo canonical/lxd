@@ -4148,7 +4148,7 @@
 					{
 						"ipv4.routes": {
 							"condition": "IPv4 address",
-							"longdesc": "Specify a comma-separated list of IPv4 CIDR subnets that can be used with the child OVN network's {config:option}`device-nic-ovn-device-conf:ipv4.routes.external` setting.",
+							"longdesc": "Specify a comma-separated list of IPv4 CIDR subnets that can be used with child OVN network forwarders, load-balancers and {config:option}`device-nic-ovn-device-conf:ipv4.routes.external` setting.",
 							"shortdesc": "Additional IPv4 CIDR subnets",
 							"type": "string"
 						}
@@ -4180,7 +4180,7 @@
 					{
 						"ipv6.routes": {
 							"condition": "IPv6 address",
-							"longdesc": "Specify a comma-separated list of IPv6 CIDR subnets that can be used with the child OVN network's {config:option}`device-nic-ovn-device-conf:ipv6.routes.external` setting.",
+							"longdesc": "Specify a comma-separated list of IPv6 CIDR subnets that can be used with child OVN network forwarders, load-balancers and {config:option}`device-nic-ovn-device-conf:ipv6.routes.external` setting.",
 							"shortdesc": "Additional IPv6 CIDR subnets",
 							"type": "string"
 						}
@@ -4685,7 +4685,7 @@
 					{
 						"restricted.networks.subnets": {
 							"defaultdesc": "`block`",
-							"longdesc": "Specify a comma-delimited list of network subnets from the uplink networks that are allocated for use in this project.\nUse the form `\u003cuplink\u003e:\u003csubnet\u003e`.",
+							"longdesc": "Specify a comma-delimited list of CIDR network routes from the uplink network's {config:option}`network-physical-network-conf:ipv4.routes` {config:option}`network-physical-network-conf:ipv6.routes` that are allowed for use in this project.\nUse the form `\u003cuplink\u003e:\u003csubnet\u003e`.",
 							"shortdesc": "Which network subnets are allocated for use in this project",
 							"type": "string"
 						}
