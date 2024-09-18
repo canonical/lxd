@@ -314,7 +314,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check the new instance name is valid.
-	err = instance.ValidName(req.Name, false)
+	err = instancetype.ValidName(req.Name, false)
 	if err != nil {
 		return response.BadRequest(err)
 	}
