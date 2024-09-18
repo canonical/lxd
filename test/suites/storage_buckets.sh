@@ -111,6 +111,7 @@ EOF
   # Test putting a file into a bucket.
   lxdTestFile="bucketfile_${bucketPrefix}.txt"
   head -c 5M /dev/urandom > "${lxdTestFile}"
+  ORIG_MD5SUM="$(md5sum < "${lxdTestFile}")"
   s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo"
   ! s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo" || false
 
@@ -119,9 +120,15 @@ EOF
   s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" ls "s3://${bucketPrefix}.foo" | grep -F "${lxdTestFile}"
 
   # Test getting a file from a bucket.
+  INFO_MD5SUM="$(s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" info "s3://${bucketPrefix}.foo/${lxdTestFile}" | awk '{ if ($1 == "MD5") {print $3}}')  -"
   s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" get "s3://${bucketPrefix}.foo/${lxdTestFile}" "${lxdTestFile}.get"
+  [ "${ORIG_MD5SUM}" = "${INFO_MD5SUM}" ]
+  [ "${ORIG_MD5SUM}" = "$(md5sum < "${lxdTestFile}.get")" ]
   rm "${lxdTestFile}.get"
+  INFO_MD5SUM="$(s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" info "s3://${bucketPrefix}.foo/${lxdTestFile}" | awk '{ if ($1 == "MD5") {print $3}}')  -"
   s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" get "s3://${bucketPrefix}.foo/${lxdTestFile}" "${lxdTestFile}.get"
+  [ "${ORIG_MD5SUM}" = "${INFO_MD5SUM}" ]
+  [ "${ORIG_MD5SUM}" = "$(md5sum < "${lxdTestFile}.get")" ]
   rm "${lxdTestFile}.get"
 
   # Test setting bucket policy to allow anonymous access (also tests bucket URL generation).
