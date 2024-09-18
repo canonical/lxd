@@ -1278,7 +1278,7 @@ parts:
 
   apparmor:
     source: https://gitlab.com/apparmor/apparmor.git
-    source-commit: 84a6bc1b6dcdfeabb1ed3597f01e314f3bcee5c1 # v4.0.2
+    source-commit: b4dfdf50f50ed1d64161424d036a2453645f0cfe # v4.0.3
     source-depth: 1
     source-type: git
     plugin: autotools
