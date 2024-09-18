@@ -12,6 +12,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
@@ -153,7 +154,7 @@ func instanceLogsGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	err = instance.ValidName(name, false)
+	err = instancetype.ValidName(name, false)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -248,7 +249,7 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = instance.ValidName(name, false)
+	err = instancetype.ValidName(name, false)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -332,7 +333,7 @@ func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = instance.ValidName(name, false)
+	err = instancetype.ValidName(name, false)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -439,7 +440,7 @@ func instanceExecOutputsGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	err = instance.ValidName(name, false)
+	err = instancetype.ValidName(name, false)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -549,7 +550,7 @@ func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = instance.ValidName(name, false)
+	err = instancetype.ValidName(name, false)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -649,7 +650,7 @@ func instanceExecOutputDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = instance.ValidName(name, false)
+	err = instancetype.ValidName(name, false)
 	if err != nil {
 		return response.BadRequest(err)
 	}

@@ -36,7 +36,6 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
-	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -648,38 +647,6 @@ func SuitableArchitectures(ctx context.Context, s *state.State, tx *db.ClusterTx
 	return nil, api.StatusErrorf(http.StatusBadRequest, "Unknown instance source type %q", req.Source.Type)
 }
 
-// ValidName validates an instance name. There are different validation rules for instance snapshot names
-// so it takes an argument indicating whether the name is to be used for a snapshot or not.
-func ValidName(instanceName string, isSnapshot bool) error {
-	if isSnapshot {
-		parentName, snapshotName, _ := api.GetParentAndSnapshotName(instanceName)
-		err := validate.IsHostname(parentName)
-		if err != nil {
-			return fmt.Errorf("Invalid instance name %q: %w", parentName, err)
-		}
-
-		// Snapshot part is more flexible, but doesn't allow "..", space or / characters.
-		if snapshotName == ".." {
-			return fmt.Errorf("Invalid instance snapshot name %q", snapshotName)
-		}
-
-		if strings.ContainsAny(snapshotName, " /") {
-			return fmt.Errorf("Invalid instance snapshot name %q: Cannot contain spaces or slashes", snapshotName)
-		}
-	} else {
-		if strings.Contains(instanceName, shared.SnapshotDelimiter) {
-			return fmt.Errorf("Invalid instance name %q: Cannot contain slashes", instanceName)
-		}
-
-		err := validate.IsHostname(instanceName)
-		if err != nil {
-			return fmt.Errorf("Invalid instance name %q: %w", instanceName, err)
-		}
-	}
-
-	return nil
-}
-
 // CreateInternal creates an instance record and storage volume record in the database and sets up devices.
 // Accepts a reverter that revert steps this function does will be added to. It is up to the caller to
 // call the revert's Fail() or Success() function as needed.
@@ -734,7 +701,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 		args.Architecture = s.OS.Architectures[0]
 	}
 
-	err = ValidName(args.Name, args.Snapshot)
+	err = instancetype.ValidName(args.Name, args.Snapshot)
 	if err != nil {
 		return nil, nil, nil, err
 	}
