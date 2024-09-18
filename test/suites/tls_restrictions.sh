@@ -443,11 +443,10 @@ test_tls_version() {
     my_curl --tls-max 1.2 --ciphers "${cipher}" -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" | grep -F "alert handshake failure"
   done
 
-  echo "TLS 1.2 with ciphers known to be a broken pipe error"
+  echo "TLS 1.2 with ciphers known to be cause broken pipe errors or empty replies or connection resets"
   for cipher in ECDHE-ECDSA-AES128-SHA ECDHE-ECDSA-AES256-SHA; do
     echo "Testing TLS 1.2: ${cipher}"
     ! my_curl --tls-max 1.2 --ciphers "${cipher}" -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || false
-    my_curl --tls-max 1.2 --ciphers "${cipher}" -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" | grep -F "Broken pipe, errno"
   done
 
   echo "TLS 1.1 is not working"
