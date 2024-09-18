@@ -1256,7 +1256,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = instance.ValidName(req.Name, false)
+	err = instancetype.ValidName(req.Name, false)
 	if err != nil {
 		return response.BadRequest(err)
 	}
