@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -26,6 +27,38 @@ const (
 
 // ConfigVolatilePrefix indicates the prefix used for volatile config keys.
 const ConfigVolatilePrefix = "volatile."
+
+// ValidName validates an instance name. There are different validation rules for instance snapshot names
+// so it takes an argument indicating whether the name is to be used for a snapshot or not.
+func ValidName(instanceName string, isSnapshot bool) error {
+	if isSnapshot {
+		parentName, snapshotName, _ := api.GetParentAndSnapshotName(instanceName)
+		err := validate.IsHostname(parentName)
+		if err != nil {
+			return fmt.Errorf("Invalid instance name %q: %w", parentName, err)
+		}
+
+		// Snapshot part is more flexible, but doesn't allow "..", space or / characters.
+		if snapshotName == ".." {
+			return fmt.Errorf("Invalid instance snapshot name %q", snapshotName)
+		}
+
+		if strings.ContainsAny(snapshotName, " /") {
+			return fmt.Errorf("Invalid instance snapshot name %q: Cannot contain spaces or slashes", snapshotName)
+		}
+	} else {
+		if strings.Contains(instanceName, shared.SnapshotDelimiter) {
+			return fmt.Errorf("Invalid instance name %q: Cannot contain slashes", instanceName)
+		}
+
+		err := validate.IsHostname(instanceName)
+		if err != nil {
+			return fmt.Errorf("Invalid instance name %q: %w", instanceName, err)
+		}
+	}
+
+	return nil
+}
 
 // IsRootDiskDevice returns true if the given device representation is configured as root disk for
 // an instance. It typically get passed a specific entry of api.Instance.Devices.
