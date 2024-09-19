@@ -1466,6 +1466,7 @@ parts:
       craftctl default
     organize:
       lib/python3.10/site-packages/: lib/python3/dist-packages/
+      bin/uefivars: bin/uefivars.py
     prime:
       - bin/uefivars.py
       - lib/python3/dist-packages/google_crc32c*
