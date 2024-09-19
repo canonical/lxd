@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 
 	"gopkg.in/yaml.v2"
 )
@@ -462,7 +463,7 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 		}
 	}
 
-	entities := make(map[string][]map[string]string)
+	entities := make(map[string]api.MetadataConfigurationEntity)
 	err = json.Unmarshal(jsonDoc.Entities, &entities)
 	if err != nil {
 		return err
@@ -476,11 +477,11 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 	sort.Strings(sortedEntityNames)
 
 	for _, entityName := range sortedEntityNames {
-		entitlements := entities[entityName]
+		entity := entities[entityName]
 		buffer.WriteString(fmt.Sprintf("<!-- entity group %s start -->\n", entityName))
-		for _, entitlement := range entitlements {
-			buffer.WriteString(fmt.Sprintf("`%s`\n", entitlement["name"]))
-			buffer.WriteString(fmt.Sprintf(": %s\n\n", entitlement["description"]))
+		for _, entitlement := range entity.Entitlements {
+			buffer.WriteString(fmt.Sprintf("`%s`\n", entitlement.Name))
+			buffer.WriteString(fmt.Sprintf(": %s\n\n", entitlement.Description))
 		}
 
 		buffer.WriteString("\n")
