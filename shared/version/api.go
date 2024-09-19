@@ -417,6 +417,7 @@ var APIExtensions = []string{
 	"metrics_api_requests",
 	"projects_limits_disk_pool",
 	"ubuntu_pro_guest_attach",
+	"metadata_configuration_entity_types",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
