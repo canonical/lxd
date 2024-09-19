@@ -476,6 +476,7 @@ jobs:
           ticsAuthToken: ${{ secrets.TICS_AUTH_TOKEN }}
           installTics: true
           calc: ALL
+          tmpdir: /tmp/tics
 
   client:
     name: Client
