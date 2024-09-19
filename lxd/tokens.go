@@ -43,7 +43,7 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 		return nil
 	}
 
-	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.RemoveExpiredTokens, nil, nil, opRun, nil, nil, nil)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.RemoveExpiredTokens, s.ServerName, s.Events, opRun, operations.ClusterOptions(s.DB.Cluster.TransactionSQL))
 	if err != nil {
 		logger.Error("Failed creating remove expired tokens operation", logger.Ctx{"err": err})
 		return

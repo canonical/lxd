@@ -1171,7 +1171,7 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 			return autoRemoveOrphanedOperations(ctx, s)
 		}
 
-		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.RemoveOrphanedOperations, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.RemoveOrphanedOperations, s.ServerName, s.Events, opRun, operations.ClusterOptions(s.DB.Cluster.TransactionSQL))
 		if err != nil {
 			logger.Error("Failed creating remove orphaned operations operation", logger.Ctx{"err": err})
 			return

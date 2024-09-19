@@ -161,7 +161,8 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, targetProject.Name, operations.OperationClassTask, operationtype.InstanceRebuild, resources, nil, run, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(targetProject.Name).WithRequest(r).WithResources(resources)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.InstanceRebuild, s.ServerName, s.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}

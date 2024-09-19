@@ -332,6 +332,13 @@ func (c *Cluster) Transaction(ctx context.Context, f func(context.Context, *Clus
 	return c.transaction(ctx, f)
 }
 
+// TransactionSQL is identical to Transaction but the hook has a sql.Tx instead (for import cycle reasons).
+func (c *Cluster) TransactionSQL(ctx context.Context, f func(context.Context, *sql.Tx) error) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.transactionSQL(ctx, f)
+}
+
 // EnterExclusive acquires a lock on the cluster db, so any successive call to
 // Transaction will block until ExitExclusive has been called.
 func (c *Cluster) EnterExclusive() error {
@@ -378,6 +385,21 @@ func (c *Cluster) transaction(ctx context.Context, f func(context.Context, *Clus
 			// So let's retry the transaction once more in case the global database is now available again.
 			logger.Warn("Transaction timed out. Retrying once", logger.Ctx{"member": c.nodeID, "err": err})
 			return query.Transaction(ctx, c.db, txFunc)
+		}
+
+		return err
+	})
+}
+
+func (c *Cluster) transactionSQL(ctx context.Context, f func(context.Context, *sql.Tx) error) error {
+	return query.Retry(ctx, func(ctx context.Context) error {
+		err := query.Transaction(ctx, c.db, f)
+		if errors.Is(err, context.DeadlineExceeded) {
+			// If the query timed out it likely means that the leader has abruptly become unreachable.
+			// Now that this query has been cancelled, a leader election should have taken place by now.
+			// So let's retry the transaction once more in case the global database is now available again.
+			logger.Warn("Transaction timed out. Retrying once", logger.Ctx{"member": c.nodeID, "err": err})
+			return query.Transaction(ctx, c.db, f)
 		}
 
 		return err
@@ -432,7 +454,7 @@ func begin(db *sql.DB) (*sql.Tx, error) {
 	}
 
 	logger.Debugf("DbBegin: DB still locked")
-	logger.Debugf(logger.GetStack())
+	logger.Debug(logger.GetStack())
 	return nil, fmt.Errorf("DB is locked")
 }
 

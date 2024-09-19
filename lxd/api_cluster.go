@@ -461,7 +461,8 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 	d.localConfig = config
 	d.globalConfigMu.Unlock()
 
-	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ClusterBootstrap, resources, nil, run, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.ClusterBootstrap, s.ServerName, s.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -869,7 +870,8 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 	resources := map[string][]api.URL{}
 	resources["cluster"] = []api.URL{}
 
-	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ClusterJoin, resources, nil, run, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.ClusterJoin, s.ServerName, s.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1433,7 +1435,8 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]api.URL{}
 	resources["cluster"] = []api.URL{}
 
-	op, err := operations.OperationCreate(s, api.ProjectDefaultName, operations.OperationClassToken, operationtype.ClusterJoinToken, resources, meta, nil, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(api.ProjectDefaultName).WithResources(resources).WithMetadata(meta).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassToken, operationtype.ClusterJoinToken, s.ServerName, s.Events, nil, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -3276,7 +3279,8 @@ func evacuateClusterMember(s *state.State, gateway *cluster.Gateway, r *http.Req
 		return nil
 	}
 
-	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ClusterMemberEvacuate, nil, nil, run, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.ClusterMemberEvacuate, s.ServerName, s.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -3601,7 +3605,8 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ClusterMemberRestore, nil, nil, run, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.ClusterMemberRestore, s.ServerName, s.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -4492,7 +4497,7 @@ func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
 			return nil
 		}
 
-		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ClusterHeal, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.ClusterHeal, s.ServerName, s.Events, opRun, operations.ClusterOptions(s.DB.Cluster.TransactionSQL))
 		if err != nil {
 			logger.Error("Failed creating cluster instances heal operation", logger.Ctx{"err": err})
 			return

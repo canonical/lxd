@@ -136,7 +136,8 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 
 	resources := map[string][]api.URL{}
 
-	op, err := operations.OperationCreate(nil, "", operations.OperationClassWebsocket, operationtype.CommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect, r)
+	operationOpts := operations.Options().WithResources(resources).WithMetadata(ws.Metadata()).WithOnConnect(ws.Connect).WithRequest(r)
+	op, err := operations.OperationCreate(context.Background(), operations.OperationClassWebsocket, operationtype.CommandExec, "lxd-agent", d.events, ws.Do, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -163,6 +164,7 @@ type execWs struct {
 	cwd                   string
 }
 
+// Metadata returns information required for the client to interact with the exec websocket.
 func (s *execWs) Metadata() any {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
@@ -181,6 +183,7 @@ func (s *execWs) Metadata() any {
 	}
 }
 
+// Connect is the websocket connect hook for the exec operation.
 func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
@@ -211,9 +214,9 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 				return nil
 			} else if !found {
 				return fmt.Errorf("Unknown websocket number")
-			} else {
-				return fmt.Errorf("Websocket number already connected")
 			}
+
+			return fmt.Errorf("Websocket number already connected")
 		}
 	}
 
@@ -222,6 +225,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 	return os.ErrPermission
 }
 
+// Do runs waits for the websocket to connect, then proxies the VM ttys through the websocket.
 func (s *execWs) Do(op *operations.Operation) error {
 	// Once this function ends ensure that any connected websockets are closed.
 	defer func() {
@@ -239,7 +243,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 	logger.Debug("Waiting for exec websockets to connect")
 	select {
 	case <-s.requiredConnectedCtx.Done():
-		break
 	case <-time.After(time.Second * 5):
 		return fmt.Errorf("Timed out waiting for websockets to connect")
 	}

@@ -141,7 +141,8 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, p.Name, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(p.Name).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.InstanceCreate, s.ServerName, s.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -198,7 +199,8 @@ func createFromNone(s *state.State, r *http.Request, projectName string, profile
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(projectName).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.InstanceCreate, s.ServerName, s.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -360,17 +362,18 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 		resources["containers"] = resources["instances"]
 	}
 
-	var op *operations.Operation
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(projectName).WithResources(resources).WithRequest(r)
+	var operationClass operations.OperationClass
 	if push {
-		op, err = operations.OperationCreate(s, projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect, r)
-		if err != nil {
-			return response.InternalError(err)
-		}
+		operationClass = operations.OperationClassWebsocket
+		operationOpts = operationOpts.WithMetadata(sink.Metadata()).WithOnConnect(sink.Connect)
 	} else {
-		op, err = operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
-		if err != nil {
-			return response.InternalError(err)
-		}
+		operationClass = operations.OperationClassTask
+	}
+
+	op, err := operations.OperationCreate(s.ShutdownCtx, operationClass, operationtype.InstanceCreate, s.ServerName, s.Events, run, operationOpts)
+	if err != nil {
+		return response.InternalError(err)
 	}
 
 	revert.Success()
@@ -474,7 +477,8 @@ func createFromConversion(s *state.State, r *http.Request, projectName string, p
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(projectName).WithResources(resources).WithMetadata(sink.Metadata()).WithOnConnect(sink.Connect).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassWebsocket, operationtype.InstanceCreate, s.ServerName, s.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -637,7 +641,8 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, targetProject, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(targetProject).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.InstanceCreate, s.ServerName, s.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -859,7 +864,8 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	resources := map[string][]api.URL{}
 	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", bInfo.Name)}
 
-	op, err := operations.OperationCreate(s, bInfo.Project, operations.OperationClassTask, operationtype.BackupRestore, resources, nil, run, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(bInfo.Project).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.BackupRestore, s.ServerName, s.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}

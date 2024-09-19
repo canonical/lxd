@@ -275,7 +275,8 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		resources["instances"] = append(resources["instances"], *api.NewURL().Path(version.APIVersion, "instances", instName))
 	}
 
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(projectName).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, opType, s.ServerName, s.Events, do, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}

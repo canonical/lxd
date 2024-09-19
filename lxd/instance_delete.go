@@ -95,7 +95,8 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceDelete, resources, nil, rmct, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(projectName).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.InstanceDelete, s.ServerName, s.Events, rmct, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}

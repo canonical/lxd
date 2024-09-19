@@ -1184,7 +1184,8 @@ func doCustomVolumeRefresh(s *state.State, r *http.Request, requestProjectName s
 		return nil
 	}
 
-	op, err := operations.OperationCreate(s, requestProjectName, operations.OperationClassTask, operationtype.VolumeCopy, nil, nil, run, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(requestProjectName).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.VolumeCopy, s.ServerName, s.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1238,7 +1239,8 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 	}
 
 	// Volume copy operations potentially take a long time, so run as an async operation.
-	op, err := operations.OperationCreate(s, requestProjectName, operations.OperationClassTask, operationtype.VolumeCopy, nil, nil, run, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(requestProjectName).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.VolumeCopy, s.ServerName, s.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1311,17 +1313,21 @@ func doVolumeMigration(s *state.State, r *http.Request, requestProjectName strin
 		return nil
 	}
 
-	var op *operations.Operation
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(requestProjectName).WithResources(resources).WithRequest(r)
+	var operationType operationtype.Type
+	var operationClass operations.OperationClass
 	if push {
-		op, err = operations.OperationCreate(s, requestProjectName, operations.OperationClassWebsocket, operationtype.VolumeCreate, resources, sink.Metadata(), run, nil, sink.Connect, r)
-		if err != nil {
-			return response.InternalError(err)
-		}
+		operationClass = operations.OperationClassWebsocket
+		operationType = operationtype.VolumeCreate
+		operationOpts = operationOpts.WithMetadata(sink.Metadata()).WithOnConnect(sink.Connect)
 	} else {
-		op, err = operations.OperationCreate(s, requestProjectName, operations.OperationClassTask, operationtype.VolumeCopy, resources, nil, run, nil, nil, r)
-		if err != nil {
-			return response.InternalError(err)
-		}
+		operationClass = operations.OperationClassTask
+		operationType = operationtype.VolumeCopy
+	}
+
+	op, err := operations.OperationCreate(s.ShutdownCtx, operationClass, operationType, s.ServerName, s.Events, run, operationOpts)
+	if err != nil {
+		return response.InternalError(err)
 	}
 
 	return operations.OperationResponse(op)
@@ -1566,7 +1572,8 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		resources := map[string][]api.URL{}
 		resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", "custom", details.volumeName)}
 
-		op, err := operations.OperationCreate(s, effectiveProjectName, operations.OperationClassTask, operationtype.VolumeMigrate, resources, nil, run, nil, nil, r)
+		operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(effectiveProjectName).WithResources(resources).WithRequest(r)
+		op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.VolumeMigrate, s.ServerName, s.Events, run, operationOpts)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -1778,7 +1785,8 @@ func storageVolumePostClusteringMigrate(s *state.State, r *http.Request, srcPool
 			return nil
 		}
 
-		srcOp, err := operations.OperationCreate(s, srcProjectName, operations.OperationClassWebsocket, operationtype.VolumeMigrate, resources, srcMigration.Metadata(), run, cancel, srcMigration.Connect, r)
+		operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(srcProjectName).WithResources(resources).WithMetadata(srcMigration.Metadata()).WithOnCancel(cancel).WithOnConnect(srcMigration.Connect).WithRequest(r)
+		srcOp, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassWebsocket, operationtype.VolumeMigrate, s.ServerName, s.Events, run, operationOpts)
 		if err != nil {
 			return err
 		}
@@ -1837,9 +1845,10 @@ func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, req
 		return ws.DoStorage(state, projectName, poolName, volumeName, op)
 	}
 
+	operationOpts := operations.ClusterOptions(state.DB.Cluster.TransactionSQL).WithProjectName(requestProjectName).WithResources(resources).WithRequest(r)
 	if req.Target != nil {
 		// Push mode.
-		op, err := operations.OperationCreate(state, requestProjectName, operations.OperationClassTask, operationtype.VolumeMigrate, resources, nil, run, nil, nil, r)
+		op, err := operations.OperationCreate(state.ShutdownCtx, operations.OperationClassTask, operationtype.VolumeMigrate, state.ServerName, state.Events, run, operationOpts)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -1848,7 +1857,8 @@ func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, req
 	}
 
 	// Pull mode.
-	op, err := operations.OperationCreate(state, requestProjectName, operations.OperationClassWebsocket, operationtype.VolumeMigrate, resources, ws.Metadata(), run, nil, ws.Connect, r)
+	operationOpts = operationOpts.WithMetadata(ws.Metadata()).WithOnConnect(ws.Connect)
+	op, err := operations.OperationCreate(state.ShutdownCtx, operations.OperationClassWebsocket, operationtype.VolumeMigrate, state.ServerName, state.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1936,7 +1946,8 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, poolName str
 		return nil
 	}
 
-	op, err := operations.OperationCreate(s, requestProjectName, operations.OperationClassTask, operationtype.VolumeMove, nil, nil, run, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(requestProjectName).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.VolumeMove, s.ServerName, s.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -2481,7 +2492,8 @@ func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProj
 	resources := map[string][]api.URL{}
 	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", pool, "volumes", "custom", volName)}
 
-	op, err := operations.OperationCreate(s, requestProjectName, operations.OperationClassTask, operationtype.VolumeCreate, resources, nil, run, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(requestProjectName).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.VolumeCreate, s.ServerName, s.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -2647,7 +2659,8 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 	resources := map[string][]api.URL{}
 	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", bInfo.Pool, "volumes", string(bInfo.Type), bInfo.Name)}
 
-	op, err := operations.OperationCreate(s, requestProjectName, operations.OperationClassTask, operationtype.CustomVolumeBackupRestore, resources, nil, run, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(requestProjectName).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.CustomVolumeBackupRestore, s.ServerName, s.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}

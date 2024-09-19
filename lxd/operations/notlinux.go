@@ -10,7 +10,7 @@ import (
 )
 
 func registerDBOperation(op *Operation, opType operationtype.Type) error {
-	if op.state != nil {
+	if op.transaction != nil {
 		return fmt.Errorf("registerDBOperation not supported on this platform")
 	}
 
@@ -18,7 +18,7 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 }
 
 func removeDBOperation(op *Operation) error {
-	if op.state != nil {
+	if op.transaction != nil {
 		return fmt.Errorf("registerDBOperation not supported on this platform")
 	}
 

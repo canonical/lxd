@@ -5467,12 +5467,11 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 				}
 
 				actionScriptOp, err := operations.OperationCreate(
-					d.state,
-					d.Project().Name,
+					d.state.ShutdownCtx,
 					operations.OperationClassWebsocket,
 					operationtype.InstanceLiveMigrate,
-					nil,
-					nil,
+					d.state.ServerName,
+					d.state.Events,
 					func(op *operations.Operation) error {
 						result := <-restoreSuccess
 						if !result {
@@ -5481,28 +5480,28 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 
 						return nil
 					},
-					nil,
-					func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
-						secret := r.FormValue("secret")
-						if secret == "" {
-							return fmt.Errorf("Missing action script secret")
-						}
+					operations.ClusterOptions(d.state.DB.Cluster.TransactionSQL).
+						WithProjectName(d.Project().Name).
+						WithOnConnect(func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+							secret := r.FormValue("secret")
+							if secret == "" {
+								return fmt.Errorf("Missing action script secret")
+							}
 
-						if secret != actionScriptOpSecret {
-							return os.ErrPermission
-						}
+							if secret != actionScriptOpSecret {
+								return os.ErrPermission
+							}
 
-						c, err := ws.Upgrader.Upgrade(w, r, nil)
-						if err != nil {
-							return err
-						}
+							c, err := ws.Upgrader.Upgrade(w, r, nil)
+							if err != nil {
+								return err
+							}
 
-						dumpDone <- true
+							dumpDone <- true
 
-						closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-						return c.WriteMessage(websocket.CloseMessage, closeMsg)
-					},
-					nil,
+							closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+							return c.WriteMessage(websocket.CloseMessage, closeMsg)
+						}),
 				)
 				if err != nil {
 					_ = os.RemoveAll(checkpointDir)

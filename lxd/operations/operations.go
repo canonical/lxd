@@ -2,6 +2,8 @@ package operations
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -14,7 +16,6 @@ import (
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
@@ -123,21 +124,81 @@ type Operation struct {
 	// Locking for concurent access to the Operation
 	lock sync.Mutex
 
-	state  *state.State
-	events *events.Server
+	shutdownCtx context.Context
+	location    string
+	transaction func(ctx context.Context, f func(context.Context, *sql.Tx) error) error
+	events      *events.Server
+}
+
+// Opts contains optional fields of an operation.
+type Opts struct {
+	projectName string
+	resources   map[string][]api.URL
+	transaction func(ctx context.Context, f func(context.Context, *sql.Tx) error) error
+	metadata    any
+	request     *http.Request
+	onCancel    func(*Operation) error
+	onConnect   func(*Operation, *http.Request, http.ResponseWriter) error
+}
+
+// Options returns an empty Opts. It can be used with the LXD agent.
+func Options() *Opts {
+	return &Opts{}
+}
+
+// ClusterOptions expects a transaction hook. This should be used for all LXD Daemon operations.
+func ClusterOptions(transaction func(ctx context.Context, f func(context.Context, *sql.Tx) error) error) *Opts {
+	return &Opts{
+		transaction: transaction,
+	}
+}
+
+// WithProjectName sets the project name for the operation.
+func (o *Opts) WithProjectName(projectName string) *Opts {
+	o.projectName = projectName
+	return o
+}
+
+// WithResources sets the operation resources.
+func (o *Opts) WithResources(resources map[string][]api.URL) *Opts {
+	o.resources = resources
+	return o
+}
+
+// WithMetadata sets the operation metadata.
+func (o *Opts) WithMetadata(metadata any) *Opts {
+	o.metadata = metadata
+	return o
+}
+
+// WithRequest sets the request.
+func (o *Opts) WithRequest(r *http.Request) *Opts {
+	o.request = r
+	return o
+}
+
+// WithOnCancel sets the onCancel hook.
+func (o *Opts) WithOnCancel(onCancel func(*Operation) error) *Opts {
+	o.onCancel = onCancel
+	return o
+}
+
+// WithOnConnect sets the onConnect hook.
+func (o *Opts) WithOnConnect(onConnect func(*Operation, *http.Request, http.ResponseWriter) error) *Opts {
+	o.onConnect = onConnect
+	return o
 }
 
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
-func OperationCreate(s *state.State, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error, r *http.Request) (*Operation, error) {
+func OperationCreate(shutdownCtx context.Context, opClass OperationClass, opType operationtype.Type, location string, eventsServer *events.Server, onRun func(*Operation) error, opts *Opts) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
-	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
+	if shutdownCtx != nil && errors.Is(shutdownCtx.Err(), context.Canceled) {
 		return nil, fmt.Errorf("LXD is shutting down")
 	}
 
 	// Main attributes
 	op := Operation{}
-	op.projectName = projectName
 	op.id = uuid.New().String()
 	op.description = opType.Description()
 	op.entityType, op.entitlement = opType.Permission()
@@ -147,26 +208,33 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 	op.updatedAt = op.createdAt
 	op.status = api.Pending
 	op.url = fmt.Sprintf("/%s/operations/%s", version.APIVersion, op.id)
-	op.resources = opResources
 	op.finished = cancel.New(context.Background())
-	op.state = s
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
+	op.SetEventServer(eventsServer)
+	op.location = location
 
-	if s != nil {
-		op.SetEventServer(s.Events)
+	if opts != nil {
+		op.projectName = opts.projectName
+		op.resources = opts.resources
+		op.transaction = opts.transaction
+		var newMetadata map[string]any
+		if opts.metadata != nil {
+			var err error
+			newMetadata, err = shared.ParseMetadata(opts.metadata)
+			if err != nil {
+				return nil, err
+			}
+
+			op.metadata = newMetadata
+		}
 	}
-
-	newMetadata, err := shared.ParseMetadata(opMetadata)
-	if err != nil {
-		return nil, err
-	}
-
-	op.metadata = newMetadata
 
 	// Callback functions
 	op.onRun = onRun
-	op.onCancel = onCancel
-	op.onConnect = onConnect
+	if opts != nil {
+		op.onCancel = opts.onCancel
+		op.onConnect = opts.onConnect
+	}
 
 	// Quick check.
 	if op.class != OperationClassWebsocket && op.onConnect != nil {
@@ -186,15 +254,15 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 	}
 
 	// Set requestor if request was provided.
-	if r != nil {
-		op.SetRequestor(r)
+	if opts != nil && opts.request != nil {
+		op.SetRequestor(opts.request)
 	}
 
 	operationsLock.Lock()
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	err = registerDBOperation(&op, opType)
+	err := registerDBOperation(&op, opType)
 	if err != nil {
 		return nil, err
 	}
@@ -248,13 +316,8 @@ func (op *Operation) done() {
 	op.lock.Unlock()
 
 	go func() {
-		shutdownCtx := context.Background()
-		if op.state != nil {
-			shutdownCtx = op.state.ShutdownCtx
-		}
-
 		select {
-		case <-shutdownCtx.Done():
+		case <-op.shutdownCtx.Done():
 			return // Expect all operation records to be removed by waitForOperations in one query.
 		case <-time.After(time.Second * 5): // Wait 5s before removing from internal map and database.
 		}
@@ -269,7 +332,7 @@ func (op *Operation) done() {
 		delete(operations, op.id)
 		operationsLock.Unlock()
 
-		if op.state == nil {
+		if op.transaction == nil {
 			return
 		}
 
@@ -510,10 +573,7 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		Resources:   renderedResources,
 		Metadata:    op.metadata,
 		MayCancel:   op.mayCancel(),
-	}
-
-	if op.state != nil {
-		retOp.Location = op.state.ServerName
+		Location:    op.location,
 	}
 
 	if op.err != nil {

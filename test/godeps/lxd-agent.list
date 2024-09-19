@@ -13,7 +13,6 @@ github.com/canonical/lxd/lxd/metrics
 github.com/canonical/lxd/lxd/operations
 github.com/canonical/lxd/lxd/request
 github.com/canonical/lxd/lxd/response
-github.com/canonical/lxd/lxd/state
 github.com/canonical/lxd/lxd/storage/filesystem
 github.com/canonical/lxd/lxd/storage/memorypipe
 github.com/canonical/lxd/lxd/ucred

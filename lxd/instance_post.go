@@ -337,7 +337,8 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 			resources := map[string][]api.URL{}
 			resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-			op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil, r)
+			operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(projectName).WithResources(resources).WithRequest(r)
+			op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.InstanceMigrate, s.ServerName, s.Events, run, operationOpts)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -373,7 +374,8 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				resources["containers"] = resources["instances"]
 			}
 
-			op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil, r)
+			operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(projectName).WithResources(resources).WithRequest(r)
+			op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.InstanceMigrate, s.ServerName, s.Events, run, operationOpts)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -403,9 +405,10 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 
+		operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(projectName).WithResources(resources).WithRequest(r)
 		if req.Target != nil {
 			// Push mode.
-			op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil, r)
+			op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.InstanceMigrate, s.ServerName, s.Events, run, operationOpts)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -414,7 +417,8 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Pull mode.
-		op, err := operations.OperationCreate(s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, ws.Metadata(), run, cancel, ws.Connect, r)
+		operationOpts = operationOpts.WithOnCancel(cancel).WithOnConnect(ws.Connect).WithMetadata(ws.Metadata())
+		op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassWebsocket, operationtype.InstanceMigrate, s.ServerName, s.Events, run, operationOpts)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -445,7 +449,8 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceRename, resources, nil, run, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(projectName).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.InstanceRename, s.ServerName, s.Events, run, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -737,7 +742,8 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 			return nil
 		}
 
-		srcOp, err := operations.OperationCreate(s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, srcMigration.Metadata(), run, cancel, srcMigration.Connect, r)
+		operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(projectName).WithResources(resources).WithMetadata(srcMigration.Metadata()).WithOnCancel(cancel).WithOnConnect(srcMigration.Connect).WithRequest(r)
+		srcOp, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassWebsocket, operationtype.InstanceMigrate, s.ServerName, s.Events, run, operationOpts)
 		if err != nil {
 			return err
 		}

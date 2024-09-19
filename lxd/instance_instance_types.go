@@ -75,7 +75,7 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 			return instanceRefreshTypes(ctx, s)
 		}
 
-		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.InstanceTypesUpdate, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.InstanceTypesUpdate, s.ServerName, s.Events, opRun, operations.ClusterOptions(s.DB.Cluster.TransactionSQL))
 		if err != nil {
 			logger.Error("Failed creating instance types update operation", logger.Ctx{"err": err})
 			return

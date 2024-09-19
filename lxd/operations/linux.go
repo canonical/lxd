@@ -4,28 +4,33 @@ package operations
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
-	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/shared/api"
 )
 
 func registerDBOperation(op *Operation, opType operationtype.Type) error {
-	if op.state == nil {
+	if op.transaction == nil {
 		return nil
 	}
 
-	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := op.transaction(context.TODO(), func(ctx context.Context, tx *sql.Tx) error {
+		nodeID, err := cluster.GetNodeID(ctx, tx, op.location)
+		if err != nil {
+			return fmt.Errorf("Failed getting node ID: %w", err)
+		}
+
 		opInfo := cluster.Operation{
 			UUID:   op.id,
 			Type:   opType,
-			NodeID: tx.GetNodeID(),
+			NodeID: nodeID,
 		}
 
 		if op.projectName != "" {
-			projectID, err := cluster.GetProjectID(ctx, tx.Tx(), op.projectName)
+			projectID, err := cluster.GetProjectID(ctx, tx, op.projectName)
 			if err != nil {
 				return fmt.Errorf("Fetch project ID: %w", err)
 			}
@@ -33,7 +38,7 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 			opInfo.ProjectID = &projectID
 		}
 
-		_, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), opInfo)
+		_, err = cluster.CreateOrReplaceOperation(ctx, tx, opInfo)
 		return err
 	})
 	if err != nil {
@@ -44,12 +49,12 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 }
 
 func removeDBOperation(op *Operation) error {
-	if op.state == nil {
+	if op.transaction == nil {
 		return nil
 	}
 
-	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return cluster.DeleteOperation(ctx, tx.Tx(), op.id)
+	err := op.transaction(context.TODO(), func(ctx context.Context, tx *sql.Tx) error {
+		return cluster.DeleteOperation(ctx, tx, op.id)
 	})
 
 	return err

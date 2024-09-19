@@ -596,7 +596,8 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			meta["expiresAt"] = expiresAt
 		}
 
-		op, err := operations.OperationCreate(s, api.ProjectDefaultName, operations.OperationClassToken, operationtype.CertificateAddToken, nil, meta, nil, nil, nil, r)
+		operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithRequest(r).WithMetadata(meta).WithProjectName(api.ProjectDefaultName)
+		op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassToken, operationtype.CertificateAddToken, s.ServerName, s.Events, nil, operationOpts)
 		if err != nil {
 			return response.InternalError(err)
 		}

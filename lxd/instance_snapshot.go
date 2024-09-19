@@ -341,7 +341,8 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.SnapshotCreate, resources, nil, snapshot, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(projectName).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.SnapshotCreate, s.ServerName, s.Events, snapshot, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -543,7 +544,8 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) re
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, snapInst.Project().Name, operations.OperationClassTask, opType, resources, nil, do, nil, nil, r)
+	operationOptions := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(snapInst.Project().Name).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, opType, s.ServerName, s.Events, do, operationOptions)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -699,9 +701,10 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 			return ws.Do(s, op)
 		}
 
+		operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(snapInst.Project().Name).WithResources(resources).WithRequest(r)
 		if req.Target != nil {
 			// Push mode.
-			op, err := operations.OperationCreate(s, snapInst.Project().Name, operations.OperationClassTask, operationtype.SnapshotTransfer, resources, nil, run, nil, nil, r)
+			op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.SnapshotTransfer, s.ServerName, s.Events, run, operationOpts)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -710,7 +713,8 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 		}
 
 		// Pull mode.
-		op, err := operations.OperationCreate(s, snapInst.Project().Name, operations.OperationClassWebsocket, operationtype.SnapshotTransfer, resources, ws.Metadata(), run, nil, ws.Connect, r)
+		operationOpts = operationOpts.WithMetadata(ws.Metadata()).WithOnConnect(ws.Connect)
+		op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassWebsocket, operationtype.SnapshotTransfer, s.ServerName, s.Events, run, operationOpts)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -756,7 +760,8 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, snapInst.Project().Name, operations.OperationClassTask, operationtype.SnapshotRename, resources, nil, rename, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(snapInst.Project().Name).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.SnapshotRename, s.ServerName, s.Events, rename, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -805,7 +810,8 @@ func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance)
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, snapInst.Project().Name, operations.OperationClassTask, operationtype.SnapshotDelete, resources, nil, remove, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(snapInst.Project().Name).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.SnapshotDelete, s.ServerName, s.Events, remove, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}

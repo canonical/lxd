@@ -664,7 +664,7 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.
 				return pruneExpiredInstanceSnapshots(ctx, expiredSnapshotInstances)
 			}
 
-			op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.SnapshotsExpire, nil, nil, opRun, nil, nil, nil)
+			op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.SnapshotsExpire, s.ServerName, s.Events, opRun, operations.ClusterOptions(s.DB.Cluster.TransactionSQL))
 			if err != nil {
 				logger.Error("Failed creating instance snapshots expiry operation", logger.Ctx{"err": err})
 			} else {
@@ -690,7 +690,7 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.
 				return autoCreateInstanceSnapshots(ctx, s, instances)
 			}
 
-			op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.SnapshotCreate, nil, nil, opRun, nil, nil, nil)
+			op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.SnapshotCreate, s.ServerName, s.Events, opRun, operations.ClusterOptions(s.DB.Cluster.TransactionSQL))
 			if err != nil {
 				logger.Error("Failed creating scheduled instance snapshot operation", logger.Ctx{"err": err})
 			} else {

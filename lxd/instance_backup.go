@@ -346,8 +346,8 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 
 	resources["backups"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name, "backups", req.Name)}
 
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask,
-		operationtype.BackupCreate, resources, nil, backup, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(projectName).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.BackupCreate, s.ServerName, s.Events, backup, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -536,8 +536,8 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask,
-		operationtype.BackupRename, resources, nil, rename, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(projectName).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.BackupRename, s.ServerName, s.Events, rename, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -625,8 +625,8 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask,
-		operationtype.BackupRemove, resources, nil, remove, nil, nil, r)
+	operationOpts := operations.ClusterOptions(s.DB.Cluster.TransactionSQL).WithProjectName(projectName).WithResources(resources).WithRequest(r)
+	op, err := operations.OperationCreate(s.ShutdownCtx, operations.OperationClassTask, operationtype.BackupRemove, s.ServerName, s.Events, remove, operationOpts)
 	if err != nil {
 		return response.InternalError(err)
 	}
