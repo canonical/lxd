@@ -2456,3 +2456,8 @@ for the attached disk to be connected to the `virtio-blk` bus.
 
 Adds a new {config:option}`instance-miscellaneous:ubuntu_pro.guest_attach` configuration option for instances.
 When set to `on`, if the host has guest attachment enabled, the guest can request a guest token for Ubuntu Pro via `devlxd`.
+
+## `metadata_configuration_entity_types`
+
+This adds entity type metadata to `GET /1.0/metadata/configuration`.
+The entity type metadata is a JSON object under the `entities` key.

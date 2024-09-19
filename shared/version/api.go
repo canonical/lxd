@@ -414,6 +414,7 @@ var APIExtensions = []string{
 	"instance_protection_start",
 	"disk_io_bus_virtio_blk",
 	"ubuntu_pro_guest_attach",
+	"metadata_configuration_entity_types",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
