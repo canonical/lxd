@@ -309,6 +309,13 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 		return nil, fmt.Errorf("Error while marshaling project documentation: %v", err)
 	}
 
+	// Validate that what we've generated is valid against our API definition.
+	var metadataConfiguration api.MetadataConfiguration
+	err = json.Unmarshal(data, &metadataConfiguration)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal generated metadata into MetadataConfiguration API type: %w", err)
+	}
+
 	if outputJSONPath != "" {
 		buf := bytes.NewBufferString("")
 		_, err = buf.Write(data)
