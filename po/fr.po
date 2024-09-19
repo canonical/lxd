@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-09-17 07:40-0600\n"
+"POT-Creation-Date: 2024-09-19 13:11-0600\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -1054,6 +1054,10 @@ msgstr ""
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
+#: lxc/init.go:346
+msgid "Asked for a container but image is of type VM"
+msgstr ""
+
 #: lxc/cluster_group.go:84 lxc/cluster_group.go:85
 #, fuzzy
 msgid "Assign sets of groups to cluster members"
@@ -1131,7 +1135,7 @@ msgstr "Rendre l'image publique"
 msgid "BASE IMAGE"
 msgstr ""
 
-#: lxc/export.go:86
+#: lxc/export.go:106
 #, fuzzy, c-format
 msgid "Backing up instance: %s"
 msgstr "Ignorer l'état du conteneur (seulement pour start)"
@@ -2186,7 +2190,7 @@ msgstr ""
 msgid "Device: %s"
 msgstr "Serveur distant : %s"
 
-#: lxc/init.go:402
+#: lxc/init.go:406
 #, fuzzy
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr "pas d'image, conteneur ou instantané affecté sur ce serveur"
@@ -3329,7 +3333,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
 
-#: lxc/init.go:413
+#: lxc/init.go:417
 #, fuzzy, c-format
 msgid "Instance name is: %s"
 msgstr "Le nom du conteneur est : %s"
@@ -5640,7 +5644,7 @@ msgstr ""
 msgid "Retrieve the container's console log"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/init.go:356
+#: lxc/init.go:360
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "Récupération de l'image : %s"
@@ -6560,7 +6564,7 @@ msgstr ""
 "Le conteneur est en cours d'exécution. Utiliser --force pour qu'il soit "
 "arrêté et redémarré."
 
-#: lxc/init.go:434
+#: lxc/init.go:438
 #, fuzzy
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
@@ -6727,12 +6731,12 @@ msgstr "Temps d'attente du conteneur avant de le tuer"
 msgid "Timestamps:"
 msgstr "Horodatage :"
 
-#: lxc/init.go:436
+#: lxc/init.go:440
 #, fuzzy
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 
-#: lxc/init.go:435
+#: lxc/init.go:439
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
