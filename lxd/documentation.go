@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/shared/api"
 )
 
 var metadataConfigurationCmd = APIEndpoint{
@@ -58,7 +59,7 @@ func metadataConfigurationGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var data map[string]any
+	var data api.MetadataConfiguration
 	err = json.Unmarshal(file, &data)
 	if err != nil {
 		return response.SmartError(err)
