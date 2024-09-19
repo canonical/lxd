@@ -81,6 +81,26 @@ func (c *cmdExport) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Create instance backup: %w", err)
 	}
 
+	var targetName string
+	if len(args) > 1 {
+		targetName = args[1]
+	} else {
+		targetName = name + ".backup"
+	}
+
+	var target *os.File
+	if targetName == "-" {
+		target = os.Stdout
+		c.global.flagQuiet = true
+	} else {
+		target, err = os.Create(shared.HostPathFollow(targetName))
+		if err != nil {
+			return err
+		}
+
+		defer func() { _ = target.Close() }()
+	}
+
 	// Watch the background operation
 	progress := cli.ProgressRenderer{
 		Format: i18n.G("Backing up instance: %s"),
@@ -126,26 +146,6 @@ func (c *cmdExport) run(cmd *cobra.Command, args []string) error {
 			_ = op.Wait()
 		}
 	}()
-
-	var targetName string
-	if len(args) > 1 {
-		targetName = args[1]
-	} else {
-		targetName = name + ".backup"
-	}
-
-	var target *os.File
-	if targetName == "-" {
-		target = os.Stdout
-		c.global.flagQuiet = true
-	} else {
-		target, err = os.Create(shared.HostPathFollow(targetName))
-		if err != nil {
-			return err
-		}
-
-		defer func() { _ = target.Close() }()
-	}
 
 	// Prepare the download request
 	progress = cli.ProgressRenderer{
