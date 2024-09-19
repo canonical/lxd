@@ -631,7 +631,14 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 	}
 
 	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name), *api.NewURL().Path(version.APIVersion, "instances", req.Source.Source)}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
+
+	if shared.IsSnapshot(req.Source.Source) {
+		cName, sName, _ := api.GetParentAndSnapshotName(req.Source.Source)
+		resources["instances_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", cName, "snapshots", sName)}
+	} else {
+		resources["instances"] = append(resources["instances"], *api.NewURL().Path(version.APIVersion, "instances", req.Source.Source))
+	}
 
 	if dbType == instancetype.Container {
 		resources["containers"] = resources["instances"]
