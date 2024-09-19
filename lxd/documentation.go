@@ -47,8 +47,7 @@ var generatedDoc embed.FS
 //	          description: Status code
 //	          example: 200
 //	        metadata:
-//	          type: string
-//	          description: The generated metadata configuration
+//	          $ref: "#/definitions/MetadataConfiguration"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
