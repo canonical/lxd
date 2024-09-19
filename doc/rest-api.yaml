@@ -2774,6 +2774,111 @@ definitions:
         title: InstancesPut represents the fields available for a mass update.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    MetadataConfiguration:
+        properties:
+            configs:
+                additionalProperties:
+                    additionalProperties:
+                        $ref: '#/definitions/MetadataConfigurationConfigKeys'
+                    type: object
+                description: Configs contains all server configuration metadata.
+                type: object
+                x-go-name: Configs
+            entities:
+                additionalProperties:
+                    $ref: '#/definitions/MetadataConfigurationEntity'
+                description: |-
+                    Entities contains all authorization related metadata.
+
+                    API extension: metadata_configuration_entity_types
+                type: object
+                x-go-name: Entities
+        title: MetadataConfiguration contains metadata about the LXD server configuration options.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    MetadataConfigurationConfigKey:
+        properties:
+            condition:
+                description: Condition describes conditions under which the configuration key can be applied.
+                example: Virtual machines only.
+                type: string
+                x-go-name: Condition
+            defaultdesc:
+                description: DefaultDescription contains a description of the configuration key.
+                example: A general description of a configuration key.
+                type: string
+                x-go-name: DefaultDescription
+            longdesc:
+                description: LongDescription contains a long-form description of the configuration key.
+                example: A much more in-depth description of the configuration key, including where and how it is used.
+                type: string
+                x-go-name: LongDescription
+            managed:
+                description: Managed describes whether the configuration key is managed by LXD.
+                example: yes.
+                type: string
+                x-go-name: Managed
+            required:
+                description: Required describes conditions under which the configuration key is required.
+                example: On device creation.
+                type: string
+                x-go-name: Required
+            shortdesc:
+                description: ShortDescription contains a short-form description of the configuration key.
+                example: A key for doing X.
+                type: string
+                x-go-name: ShortDescription
+            type:
+                description: Type describes the type of the key.
+                example: Comma delimited CIDR format subnets.
+                type: string
+                x-go-name: Type
+        title: MetadataConfigurationConfigKey contains metadata about a LXD server configuration option.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    MetadataConfigurationConfigKeys:
+        properties:
+            keys:
+                items:
+                    additionalProperties:
+                        $ref: '#/definitions/MetadataConfigurationConfigKey'
+                    type: object
+                type: array
+                x-go-name: Keys
+        title: MetadataConfigurationConfigKeys contains metadata about LXD server configuration options.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    MetadataConfigurationEntity:
+        properties:
+            entitlements:
+                description: Entitlements contains a list of entitlements that apply to a specific entity type.
+                items:
+                    $ref: '#/definitions/MetadataConfigurationEntityEntitlement'
+                type: array
+                x-go-name: Entitlements
+            project_specific:
+                description: ProjectSpecific indicates whether the entity is project specific.
+                example: true
+                type: boolean
+                x-go-name: ProjectSpecific
+        title: MetadataConfigurationEntity contains metadata about LXD server entities and available entitlements for authorization.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    MetadataConfigurationEntityEntitlement:
+        properties:
+            description:
+                description: Description describes the entitlement.
+                example: Grants permission to do X, Y, and Z.
+                type: string
+                x-go-name: Description
+            name:
+                description: Name contains the name of the entitlement.
+                example: can_edit
+                type: string
+                x-go-name: Name
+        title: MetadataConfigurationEntityEntitlement contains metadata about a LXD server entitlement.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     Network:
         description: Network represents a LXD network
         properties:
@@ -11381,8 +11486,7 @@ paths:
                         description: Sync response
                         properties:
                             metadata:
-                                description: The generated metadata configuration
-                                type: string
+                                $ref: '#/definitions/MetadataConfiguration'
                             status:
                                 description: Status description
                                 example: Success
