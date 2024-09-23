@@ -230,6 +230,8 @@ jobs:
         go: ["1.22.x"]
         suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
+        event_name:
+         - ${{ github.event_name }}
         include:
           - go: stable
             suite: cluster
@@ -237,6 +239,20 @@ jobs:
           - go: stable
             suite: standalone
             backend: dir
+        # FIXME: These exclusions must be removed when https://bugs.launchpad.net/ubuntu/+source/linux/+bug/2081231 is fixed.
+        exclude:
+          - event_name: push
+            backend: ceph
+          - event_name: push
+            backend: lvm
+          - event_name: push
+            backend: random
+          - event_name: schedule
+            backend: ceph
+          - event_name: schedule
+            backend: lvm
+          - event_name: schedule
+            backend: random
 
     steps:
       - name: Checkout
