@@ -129,6 +129,16 @@ func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cach
 // check, but will not automatically allow "punching through" to the effective (default) project. An administrator can
 // allow specific permissions against those entities.
 func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement) error {
+	entityType, projectName, location, pathArguments, err := entity.ParseURL(entityURL.URL)
+	if err != nil {
+		return fmt.Errorf("Failed to parse entity URL: %w", err)
+	}
+
+	err = auth.ValidateEntitlement(entityType, entitlement)
+	if err != nil {
+		return fmt.Errorf("Cannot check permissions for entity type %q and entitlement %q: %w", entityType, entitlement, err)
+	}
+
 	logCtx := logger.Ctx{"entity_url": entityURL.String(), "entitlement": entitlement}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -182,12 +192,6 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 				groups = append(groups, lxdGroup)
 			}
 		}
-	}
-
-	// Deconstruct the given URL.
-	entityType, projectName, location, pathArguments, err := entity.ParseURL(entityURL.URL)
-	if err != nil {
-		return fmt.Errorf("Authorization driver failed to parse entity URL %q: %w", entityURL.String(), err)
 	}
 
 	// The project in the given URL may be for a project that does not have a feature enabled, in this case the auth check
@@ -252,11 +256,14 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 
 	// If not allowed, decide if the user can view the resource.
 	if !resp.GetAllowed() {
+		err := auth.ValidateEntitlement(entityType, auth.EntitlementCanView)
+		doCheckCanView := err == nil
+
 		responseCode := http.StatusForbidden
 		if entitlement == auth.EntitlementCanView {
 			responseCode = http.StatusNotFound
-		} else {
-			// Otherwise, check if we can view the resource.
+		} else if doCheckCanView {
+			// Otherwise, if `can_view` is a valid entitlement for the entity type, check if the identity can view the resource.
 			req.TupleKey.Relation = string(auth.EntitlementCanView)
 
 			l.Debug("Checking OpenFGA relation")
@@ -299,6 +306,11 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 // this function is called. The returned auth.PermissionChecker will expect entity URLs to contain the request URL. These
 // will be re-written to contain the effective project if set, so that they correspond to the list returned by OpenFGA.
 func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
+	err := auth.ValidateEntitlement(entityType, entitlement)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot get a permission checker for entity type %q and entitlement %q: %w", entityType, entitlement, err)
+	}
+
 	logCtx := logger.Ctx{"entity_type": entityType, "entitlement": entitlement}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()

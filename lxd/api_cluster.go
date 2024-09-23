@@ -74,14 +74,14 @@ var targetGroupPrefix = "@"
 var clusterCmd = APIEndpoint{
 	Path: "cluster",
 
-	Get: APIEndpointAction{Handler: clusterGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanView)},
+	Get: APIEndpointAction{Handler: clusterGet, AccessHandler: allowAuthenticated},
 	Put: APIEndpointAction{Handler: clusterPut, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var clusterNodesCmd = APIEndpoint{
 	Path: "cluster/members",
 
-	Get:  APIEndpointAction{Handler: clusterNodesGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanView)},
+	Get:  APIEndpointAction{Handler: clusterNodesGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: clusterNodesPost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
@@ -89,7 +89,7 @@ var clusterNodeCmd = APIEndpoint{
 	Path: "cluster/members/{name}",
 
 	Delete: APIEndpointAction{Handler: clusterNodeDelete, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
-	Get:    APIEndpointAction{Handler: clusterNodeGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanView)},
+	Get:    APIEndpointAction{Handler: clusterNodeGet, AccessHandler: allowAuthenticated},
 	Patch:  APIEndpointAction{Handler: clusterNodePatch, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 	Put:    APIEndpointAction{Handler: clusterNodePut, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 	Post:   APIEndpointAction{Handler: clusterNodePost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
@@ -98,7 +98,7 @@ var clusterNodeCmd = APIEndpoint{
 var clusterNodeStateCmd = APIEndpoint{
 	Path: "cluster/members/{name}/state",
 
-	Get:  APIEndpointAction{Handler: clusterNodeStateGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanView)},
+	Get:  APIEndpointAction{Handler: clusterNodeStateGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: clusterNodeStatePost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
@@ -111,14 +111,14 @@ var clusterCertificateCmd = APIEndpoint{
 var clusterGroupsCmd = APIEndpoint{
 	Path: "cluster/groups",
 
-	Get:  APIEndpointAction{Handler: clusterGroupsGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanView)},
+	Get:  APIEndpointAction{Handler: clusterGroupsGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: clusterGroupsPost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var clusterGroupCmd = APIEndpoint{
 	Path: "cluster/groups/{name}",
 
-	Get:    APIEndpointAction{Handler: clusterGroupGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanView)},
+	Get:    APIEndpointAction{Handler: clusterGroupGet, AccessHandler: allowAuthenticated},
 	Post:   APIEndpointAction{Handler: clusterGroupPost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 	Put:    APIEndpointAction{Handler: clusterGroupPut, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 	Patch:  APIEndpointAction{Handler: clusterGroupPatch, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},

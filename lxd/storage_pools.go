@@ -47,7 +47,7 @@ var storagePoolCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}",
 
 	Delete: APIEndpointAction{Handler: storagePoolDelete, AccessHandler: allowPermission(entity.TypeStoragePool, auth.EntitlementCanDelete, "poolName")},
-	Get:    APIEndpointAction{Handler: storagePoolGet, AccessHandler: allowPermission(entity.TypeStoragePool, auth.EntitlementCanView, "poolName")},
+	Get:    APIEndpointAction{Handler: storagePoolGet, AccessHandler: allowAuthenticated},
 	Patch:  APIEndpointAction{Handler: storagePoolPatch, AccessHandler: allowPermission(entity.TypeStoragePool, auth.EntitlementCanEdit, "poolName")},
 	Put:    APIEndpointAction{Handler: storagePoolPut, AccessHandler: allowPermission(entity.TypeStoragePool, auth.EntitlementCanEdit, "poolName")},
 }
