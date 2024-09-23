@@ -536,25 +536,38 @@ func growFileSystem(fsType string, devPath string, vol Volume) error {
 		fsType = DefaultFilesystem
 	}
 
-	return vol.MountTask(func(mountPath string, op *operations.Operation) error {
-		var err error
-		switch fsType {
-		case "ext4":
-			_, err = shared.TryRunCommand("resize2fs", devPath)
-		case "xfs":
-			_, err = shared.TryRunCommand("xfs_growfs", mountPath)
-		case "btrfs":
-			_, err = shared.TryRunCommand("btrfs", "filesystem", "resize", "max", mountPath)
-		default:
-			return fmt.Errorf("Unrecognised filesystem type %q", fsType)
-		}
+	var err error
+	switch fsType {
+	case "ext4":
+		// Online resize is only required for xfs/btrfs
 
+		// -f - Force a check even if the FS appears clean
+		// -p - "preen" the FS; fix stuff that's safe to do automatically
+		_, err = shared.TryRunCommand("e2fsck", "-f", "-p", devPath)
 		if err != nil {
-			return fmt.Errorf("Could not grow underlying %q filesystem for %q: %w", fsType, devPath, err)
+			break
 		}
 
-		return nil
-	}, nil)
+		_, err = shared.TryRunCommand("resize2fs", devPath)
+	case "xfs":
+		err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+			_, err := shared.TryRunCommand("xfs_growfs", mountPath)
+			return err
+		}, nil)
+	case "btrfs":
+		err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+			_, err := shared.TryRunCommand("btrfs", "filesystem", "resize", "max", mountPath)
+			return err
+		}, nil)
+	default:
+		return fmt.Errorf("Unrecognised filesystem type %q", fsType)
+	}
+
+	if err != nil {
+		return fmt.Errorf("Could not grow underlying %q filesystem for %q: %w", fsType, devPath, err)
+	}
+
+	return nil
 }
 
 // renegerateFilesystemUUIDNeeded returns true if fsType requires UUID regeneration, false if not.
