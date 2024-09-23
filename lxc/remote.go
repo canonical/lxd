@@ -153,8 +153,13 @@ func (c *cmdRemoteAdd) findProject(d lxd.InstanceServer, project string) (string
 	return project, nil
 }
 
-func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.CertificateAddToken) error {
+func (c *cmdRemoteAdd) runToken(addr string, server string, token string, rawToken *api.CertificateAddToken) error {
 	conf := c.global.conf
+
+	// Certificate cannot be blindly accepted when using a trust token.
+	if c.flagAcceptCert {
+		return errors.New(i18n.G("The --accept-certificate flag is not supported when adding a remote using a trust token"))
+	}
 
 	if !conf.HasClientCertificate() {
 		fmt.Fprint(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
@@ -164,6 +169,12 @@ func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.Certi
 		}
 	}
 
+	// If address is provided, use token on that specific address.
+	if addr != "" {
+		return c.addRemoteFromToken(addr, server, token, rawToken.Fingerprint)
+	}
+
+	// Otherwise, iterate over all addresses within the token.
 	for _, addr := range rawToken.Addresses {
 		addr = fmt.Sprintf("https://%s", addr)
 
@@ -179,6 +190,7 @@ func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.Certi
 		return nil
 	}
 
+	// Finally, fallback to manual input.
 	fmt.Println(i18n.G("All server addresses are unavailable"))
 	fmt.Print(i18n.G("Please provide an alternate server address (empty to abort):") + " ")
 
@@ -301,6 +313,11 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.G("Trust token cannot be used for public remotes"))
 	}
 
+	// Certificate cannot be blindly accepted when using a trust token.
+	if c.flagToken != "" && c.flagAcceptCert {
+		return errors.New(i18n.G("The --accept-certificate flag is not supported when adding a remote using a trust token"))
+	}
+
 	// Validate the server name.
 	if strings.Contains(server, ":") {
 		return errors.New(i18n.G("Remote names may not contain colons"))
@@ -326,9 +343,11 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		conf.Remotes = map[string]config.Remote{}
 	}
 
+	// Check if the first argument is a trust token. In such case, we need to
+	// decode it and use it to connect to the remote.
 	rawToken, err := shared.CertificateTokenDecode(addr)
 	if err == nil {
-		return c.runToken(server, addr, rawToken)
+		return c.runToken("", server, addr, rawToken)
 	}
 
 	// Complex remote URL parsing
@@ -442,6 +461,16 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 
 		conf.Remotes[server] = remote
 		return conf.SaveConfig(c.global.confPath)
+	}
+
+	// Handle adding a remote with trust token.
+	if c.flagToken != "" {
+		rawToken, err := shared.CertificateTokenDecode(c.flagToken)
+		if err != nil {
+			return fmt.Errorf(i18n.G("Failed to decode trust token: %w"), err)
+		}
+
+		return c.runToken(addr, server, c.flagToken, rawToken)
 	}
 
 	// Check if the system CA worked for the TLS connection
