@@ -110,6 +110,36 @@ var updates = map[int]schema.Update{
 	71: updateFromV70,
 	72: updateFromV71,
 	73: updateFromV72,
+	74: updateFromV73,
+}
+
+func updateFromV73(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+	CREATE TABLE images_aliases_new (
+		id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+		name TEXT NOT NULL,
+		image_id INTEGER NOT NULL,
+		description TEXT NOT NULL,
+		project_id INTEGER NOT NULL,
+		image_type INTEGER NOT NULL DEFAULT 0,
+		UNIQUE (project_id, name, image_type),
+		FOREIGN KEY (image_id) REFERENCES "images" (id) ON DELETE CASCADE,
+		FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE
+	);
+
+	INSERT INTO images_aliases_new (name, image_id, description, project_id, image_type)
+	SELECT a.name, a.image_id, a.description, a.project_id, i.type
+	FROM images_aliases a
+	JOIN images i ON a.image_id = i.id;
+
+	DROP TABLE images_aliases;
+	ALTER TABLE images_aliases_new RENAME TO images_aliases;
+`)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func updateFromV72(ctx context.Context, tx *sql.Tx) error {
