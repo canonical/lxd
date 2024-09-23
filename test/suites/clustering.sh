@@ -250,7 +250,7 @@ test_clustering_membership() {
 
   # Client certificate are shared across all nodes.
   token="$(LXD_DIR=${LXD_ONE_DIR} lxc config trust add --name foo -q)"
-  lxc remote add cluster 10.1.1.101:8443 --accept-certificate --token="${token}"
+  lxc remote add cluster 10.1.1.101:8443 --token="${token}"
   lxc remote set-url cluster https://10.1.1.102:8443
   lxc network list cluster: | grep -q "${bridge}"
   lxc remote remove cluster
@@ -1895,7 +1895,7 @@ test_clustering_address() {
   # that the REST API is exposed.
   url="https://10.1.1.101:8443"
   token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
-  lxc remote add cluster --token "${token}" --accept-certificate "${url}"
+  lxc remote add cluster --token "${token}" "${url}"
   lxc storage list cluster: | grep -q data
 
   # Add a newline at the end of each line. YAML as weird rules..
@@ -2766,7 +2766,7 @@ test_clustering_image_refresh() {
   token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
   lxc remote add public "https://10.1.1.104:8443" --accept-certificate --token foo --public
   token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
-  lxc remote add cluster "https://10.1.1.101:8443" --accept-certificate --token "${token}"
+  lxc remote add cluster "https://10.1.1.101:8443" --token "${token}"
 
   LXD_DIR="${LXD_REMOTE_DIR}" lxc init testimage c1
 
@@ -3461,7 +3461,7 @@ test_clustering_groups() {
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}"
 
   token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
-  lxc remote add cluster --token "${token}" --accept-certificate "https://10.1.1.101:8443"
+  lxc remote add cluster --token "${token}" "https://10.1.1.101:8443"
 
   # Initially, there is only the default group
   lxc cluster group show cluster:default
@@ -3929,7 +3929,7 @@ test_clustering_trust_add() {
   # and query LXD_ONE for it. LXD_TWO should cancel the operation by sending a DELETE /1.0/operations/{uuid} to LXD_ONE
   # and needs to parse the metadata of the operation into the correct type to complete the trust process.
   # The expiry time should be parsed and found to be expired so the add action should fail.
-  ! lxc remote add lxd_two "${lxd_two_address}" --accept-certificate --token "${lxd_one_token}" || false
+  ! lxc remote add lxd_two "${lxd_two_address}" --token "${lxd_one_token}" || false
 
   # Expect the operation to be cancelled.
   LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,CANCELLED"
@@ -3955,7 +3955,7 @@ test_clustering_trust_add() {
   # LXD_TWO does not have the operation running locally, so it should find the UUID of the operation in the database
   # and query LXD_ONE for it. LXD_TWO should cancel the operation by sending a DELETE /1.0/operations/{uuid} to LXD_ONE
   # and needs to parse the metadata of the operation into the correct type to complete the trust process.
-  lxc remote add lxd_two "${lxd_two_address}" --accept-certificate --token "${lxd_one_token}"
+  lxc remote add lxd_two "${lxd_two_address}" --token "${lxd_one_token}"
 
   # Expect the operation to be cancelled.
   LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,CANCELLED"
