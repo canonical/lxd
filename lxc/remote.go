@@ -152,7 +152,7 @@ func (c *cmdRemoteAdd) findProject(d lxd.InstanceServer, project string) (string
 	return project, nil
 }
 
-func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.CertificateAddToken) error {
+func (c *cmdRemoteAdd) runToken(addr string, server string, token string, rawToken *api.CertificateAddToken) error {
 	conf := c.global.conf
 
 	if !conf.HasClientCertificate() {
@@ -163,6 +163,12 @@ func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.Certi
 		}
 	}
 
+	// If address is provided, use token on that specific address.
+	if addr != "" {
+		return c.addRemoteFromToken(addr, server, token, rawToken.Fingerprint)
+	}
+
+	// Otherwise, iterate over all addresses within the token.
 	for _, addr := range rawToken.Addresses {
 		addr = fmt.Sprintf("https://%s", addr)
 
@@ -178,6 +184,7 @@ func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.Certi
 		return nil
 	}
 
+	// Finally, fallback to manual input.
 	fmt.Println(i18n.G("All server addresses are unavailable"))
 	fmt.Printf(i18n.G("Please provide an alternate server address (empty to abort):") + " ")
 
@@ -315,9 +322,11 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		conf.Remotes = map[string]config.Remote{}
 	}
 
+	// Check if the first argument is a trust token. In such case, we need to
+	// decode it and use it to connect to the remote.
 	rawToken, err := shared.CertificateTokenDecode(addr)
 	if err == nil {
-		return c.runToken(server, addr, rawToken)
+		return c.runToken("", server, addr, rawToken)
 	}
 
 	// Complex remote URL parsing
@@ -431,6 +440,15 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 
 		conf.Remotes[server] = remote
 		return conf.SaveConfig(c.global.confPath)
+	}
+
+	// If accept-certificate flag is not set, and trust token is provided using the
+	// password flag, use the token to verify the remote certificate.
+	if !c.flagAcceptCert {
+		rawToken, err = shared.CertificateTokenDecode(c.flagPassword)
+		if err == nil {
+			return c.runToken(addr, server, c.flagPassword, rawToken)
+		}
 	}
 
 	// Check if the system CA worked for the TLS connection
