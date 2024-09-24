@@ -713,8 +713,8 @@ func (c *ClusterTx) MoveImageAlias(ctx context.Context, source int, destination 
 
 // CreateImageAlias inserts an alias ento the database.
 func (c *ClusterTx) CreateImageAlias(ctx context.Context, projectName, aliasName string, imageID int, desc string) error {
-	stmt := `INSERT INTO images_aliases (name, image_id, description, project_id)
-VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
+	stmt := `INSERT INTO images_aliases (name, image_id, description, project_id, image_type)
+VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?), (SELECT type from images where id = ?))
 `
 	enabled, err := cluster.ProjectHasImages(ctx, c.tx, projectName)
 	if err != nil {
@@ -725,7 +725,7 @@ VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
 		projectName = "default"
 	}
 
-	_, err = c.tx.Exec(stmt, aliasName, imageID, desc, projectName)
+	_, err = c.tx.Exec(stmt, aliasName, imageID, desc, projectName, imageID)
 	if err != nil {
 		return err
 	}
