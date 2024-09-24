@@ -1095,7 +1095,7 @@ EOF
     limits.cpu=1 \
     limits.memory=512MiB
 
-  lxc profile device set default root size=3GiB --project test-project-yaml
+  lxc profile device set default root size=300MiB --project test-project-yaml
   deps/import-busybox --project test-project-yaml --alias testimage
 
   lxc init testimage c1 --project test-project-yaml
