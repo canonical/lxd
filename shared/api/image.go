@@ -239,6 +239,10 @@ type ImageAlias struct {
 	// Description of the alias
 	// Example: Our preferred Ubuntu image
 	Description string `json:"description" yaml:"description"`
+
+	// Alias type (container or virtual-machine)
+	// Example: container
+	Type string `json:"type" yaml:"type"`
 }
 
 // ImageSource represents the source of a LXD image
@@ -282,6 +286,10 @@ type ImageAliasesEntryPost struct {
 	// Alias name
 	// Example: ubuntu-24.04
 	Name string `json:"name" yaml:"name"`
+
+	// Alias type (container or virtual-machine)
+	// Example: container
+	Type string `json:"type" yaml:"type"`
 }
 
 // ImageAliasesEntryPut represents the modifiable fields of a LXD image alias
@@ -295,6 +303,10 @@ type ImageAliasesEntryPut struct {
 	// Target fingerprint for the alias
 	// Example: 06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb
 	Target string `json:"target" yaml:"target"`
+
+	// Alias type (container or virtual-machine)
+	// Example: container
+	Type string `json:"type" yaml:"type"`
 }
 
 // ImageAliasesEntry represents a LXD image alias
