@@ -3396,14 +3396,16 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// This is just to see if the alias name already exists.
-		_, _, err = tx.GetImageAlias(ctx, projectName, req.Name, true)
+		// This is just to see if the alias already exists.
+		_, entry, err := tx.GetImageAlias(ctx, projectName, req.Name, true)
 		if !response.IsNotFoundError(err) {
 			if err != nil {
 				return err
 			}
 
-			return api.StatusErrorf(http.StatusConflict, "Alias %q already exists", req.Name)
+			if req.Type == entry.Type {
+				return api.StatusErrorf(http.StatusConflict, "Alias %q already exists for %q", req.Name, req.Type)
+			}
 		}
 
 		imgID, _, err := tx.GetImageByFingerprintPrefix(ctx, req.Target, dbCluster.ImageFilter{Project: &projectName})
@@ -4012,14 +4014,16 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// This is just to see if the alias name already exists.
-		_, _, err := tx.GetImageAlias(ctx, projectName, req.Name, true)
+		// This is just to see if the alias already exists.
+		_, entry, err := tx.GetImageAlias(ctx, projectName, req.Name, true)
 		if !response.IsNotFoundError(err) {
 			if err != nil {
 				return err
 			}
 
-			return api.StatusErrorf(http.StatusConflict, "Alias %q already exists", req.Name)
+			if req.Type == entry.Type {
+				return api.StatusErrorf(http.StatusConflict, "Alias %q already exists for %q", req.Name, req.Type)
+			}
 		}
 
 		imgAliasID, _, err := tx.GetImageAlias(ctx, projectName, name, true)
