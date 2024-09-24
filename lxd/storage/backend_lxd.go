@@ -23,6 +23,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/lxd/apparmor"
@@ -1848,6 +1849,19 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string, op 
 			// Run with low priority to reduce CPU impact on other processes.
 			"nice", "-n19",
 			"qemu-img", "convert", "-p", "-f", imgFormat, "-O", "raw", imgPath, diskPath, "-t", "writeback",
+		}
+
+		// Check for Direct I/O support.
+		from, err := os.OpenFile(imgPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+		if err == nil {
+			cmd = append(cmd, "-T", "none")
+			_ = from.Close()
+		}
+
+		to, err := os.OpenFile(diskPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+		if err == nil {
+			cmd = append(cmd, "-t", "none")
+			_ = to.Close()
 		}
 
 		b.logger.Debug("Image conversion started", logger.Ctx{"from": imgFormat, "to": "raw"})
