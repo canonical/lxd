@@ -449,22 +449,32 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 
 	// Handle certificate prompt
 	if certificate != nil {
+		// Prompt for certificate acceptance if user did not allow us to blindly
+		// accept the remote certificate.
 		if !c.flagAcceptCert {
 			digest := shared.CertFingerprint(certificate)
 
 			fmt.Printf("%s: %s\n", i18n.G("Certificate fingerprint"), digest)
 			fmt.Print(i18n.G("ok (y/n/[fingerprint])?") + " ")
-			line, err := shared.ReadStdin()
-			if err != nil {
-				return err
-			}
+			for {
+				line, err := shared.ReadStdin()
+				if err != nil {
+					return err
+				}
 
-			if string(line) != digest {
+				// Continue with adding the remote if digest matches, or the user
+				// confirmed a fingerprint.
+				if string(line) == digest || strings.ToLower(string(line[0])) == i18n.G("y") {
+					break
+				}
+
+				// Error out if the user didn't confirm the fingerprint.
 				if len(line) < 1 || strings.ToLower(string(line[0])) == i18n.G("n") {
 					return errors.New(i18n.G("Server certificate NACKed by user"))
-				} else if strings.ToLower(string(line[0])) != i18n.G("y") {
-					return errors.New(i18n.G("Please type 'y', 'n' or the fingerprint:"))
 				}
+
+				// Ask again for any other invalid input.
+				fmt.Print(i18n.G("Please type 'y', 'n' or the fingerprint:"))
 			}
 		}
 
