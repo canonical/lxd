@@ -191,19 +191,6 @@ func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fin
 
 	sort.Strings(names)
 
-	resp, err := client.GetImageAliases()
-	if err != nil {
-		return err
-	}
-
-	// Delete existing aliases that match provided ones
-	for _, alias := range GetExistingAliases(names, resp) {
-		err := client.DeleteImageAlias(alias.Name)
-		if err != nil {
-			return fmt.Errorf(i18n.G("Failed to remove alias %s: %w"), alias.Name, err)
-		}
-	}
-
 	// Create new aliases.
 	for _, alias := range aliases {
 		aliasPost := api.ImageAliasesPost{}
