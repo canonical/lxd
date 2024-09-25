@@ -148,8 +148,9 @@ test_remote_url_with_token() {
 }
 
 test_remote_admin() {
-  ! lxc_remote remote add badpass "${LXD_ADDR}" --accept-certificate --token badtoken || false
-  ! lxc_remote list badpass: || false
+  [ "$(lxc_remote remote add badtoken "${LXD_ADDR}" --accept-certificate --token badtoken 2>&1)" = "Error: not authorized" ]
+  ! lxc_remote remote add badtoken "${LXD_ADDR}" --accept-certificate --token badtoken || false
+  ! lxc_remote list badtoken: || false
 
   token="$(lxc config trust add --name foo -q)"
   lxc_remote remote add foo "${LXD_ADDR}" --token "${token}"
