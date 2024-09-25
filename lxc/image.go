@@ -234,7 +234,7 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Resolve image type
-	imageType := ""
+	imageType := "container"
 	if c.flagVM {
 		imageType = "virtual-machine"
 	}
@@ -253,6 +253,7 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 		imgInfo = &api.Image{}
 		imgInfo.Fingerprint = name
 		imgInfo.Public = true
+		imgInfo.Type = imageType
 	} else {
 		// Resolve any alias and then grab the image information from the source
 		imgInfo, _, err = c.image.dereferenceAlias(sourceServer, imageType, name)
@@ -308,11 +309,15 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 	aliases := make([]api.ImageAlias, len(c.flagAliases))
 	for i, entry := range c.flagAliases {
 		aliases[i].Name = entry
+		aliases[i].Type = imageType
 	}
 
 	if c.flagCopyAliases {
 		// Also add the original aliases
 		aliases = append(aliases, imgInfo.Aliases...)
+		for i := range aliases {
+			aliases[i].Type = imageType
+		}
 	}
 
 	err = ensureImageAliases(destinationServer, aliases, fp)
@@ -922,6 +927,7 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 		aliases := make([]api.ImageAlias, len(c.flagAliases))
 		for i, entry := range c.flagAliases {
 			aliases[i].Name = entry
+			aliases[i].Type = imageType
 		}
 
 		err = ensureImageAliases(d, aliases, fingerprint)

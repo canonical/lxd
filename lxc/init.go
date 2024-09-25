@@ -324,15 +324,20 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 
 	var opInfo api.Operation
 	if !c.flagEmpty {
+		imageType := api.InstanceTypeContainer
+		if c.flagVM {
+			imageType = api.InstanceTypeVM
+		}
+
 		// Get the image server and image info
-		iremote, image = guessImage(conf, d, remote, iremote, image)
+		iremote, image = guessImage(conf, d, remote, iremote, image, imageType)
 
 		// Deal with the default image
 		if image == "" {
 			image = "default"
 		}
 
-		imgRemote, imgInfo, err := getImgInfo(d, conf, iremote, remote, image, &req.Source)
+		imgRemote, imgInfo, err := getImgInfo(d, conf, iremote, remote, image, imageType, &req.Source)
 		if err != nil {
 			return nil, "", err
 		}

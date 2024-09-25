@@ -245,7 +245,7 @@ func ensureImage(c lxd.ContainerServer, image string) (string, error) {
 			fingerprint = "default"
 		}
 
-		alias, _, err := imageServer.GetImageAlias(fingerprint)
+		alias, _, err := imageServer.GetImageAlias(fingerprint, "container")
 		if err == nil {
 			fingerprint = alias.Target
 		}
@@ -267,7 +267,7 @@ func ensureImage(c lxd.ContainerServer, image string) (string, error) {
 		}
 	} else {
 		fingerprint = image
-		alias, _, err := c.GetImageAlias(image)
+		alias, _, err := c.GetImageAlias(image, "container")
 		if err == nil {
 			fingerprint = alias.Target
 		} else {

@@ -253,7 +253,7 @@ func (r *ProtocolSimpleStreams) GetImageAliasNames() ([]string, error) {
 }
 
 // GetImageAlias returns an existing alias as an ImageAliasesEntry struct.
-func (r *ProtocolSimpleStreams) GetImageAlias(name string) (*api.ImageAliasesEntry, string, error) {
+func (r *ProtocolSimpleStreams) GetImageAlias(name string, _ api.InstanceType) (*api.ImageAliasesEntry, string, error) {
 	alias, err := r.ssClient.GetAlias("container", name)
 	if err != nil {
 		alias, err = r.ssClient.GetAlias("virtual-machine", name)
@@ -268,7 +268,7 @@ func (r *ProtocolSimpleStreams) GetImageAlias(name string) (*api.ImageAliasesEnt
 // GetImageAliasType returns an existing alias as an ImageAliasesEntry struct.
 func (r *ProtocolSimpleStreams) GetImageAliasType(imageType string, name string) (*api.ImageAliasesEntry, string, error) {
 	if imageType == "" {
-		return r.GetImageAlias(name)
+		return r.GetImageAlias(name, "")
 	}
 
 	alias, err := r.ssClient.GetAlias(imageType, name)

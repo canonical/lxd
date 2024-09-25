@@ -342,11 +342,23 @@ func (r *ProtocolLXD) GetImageAliasNames() ([]string, error) {
 }
 
 // GetImageAlias returns an existing alias as an ImageAliasesEntry struct.
-func (r *ProtocolLXD) GetImageAlias(name string) (*api.ImageAliasesEntry, string, error) {
+func (r *ProtocolLXD) GetImageAlias(name string, instanceType api.InstanceType) (*api.ImageAliasesEntry, string, error) {
 	alias := api.ImageAliasesEntry{}
 
-	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/images/aliases/%s", url.PathEscape(name)), nil, "", &alias)
+	// Build the API path
+	path := fmt.Sprintf("/images/aliases/%s", url.PathEscape(name))
+	var err error
+	path, err = r.setQueryAttributes(path)
+	if err != nil {
+		return nil, "", err
+	}
+
+	path, err = setQueryParam(path, "instance-type", string(instanceType))
+	if err != nil {
+		return nil, "", err
+	}
+
+	etag, err := r.queryStruct("GET", path, nil, "", &alias)
 	if err != nil {
 		return nil, "", err
 	}
@@ -356,7 +368,7 @@ func (r *ProtocolLXD) GetImageAlias(name string) (*api.ImageAliasesEntry, string
 
 // GetImageAliasType returns an existing alias as an ImageAliasesEntry struct.
 func (r *ProtocolLXD) GetImageAliasType(imageType string, name string) (*api.ImageAliasesEntry, string, error) {
-	alias, etag, err := r.GetImageAlias(name)
+	alias, etag, err := r.GetImageAlias(name, api.InstanceType(imageType))
 	if err != nil {
 		return nil, "", err
 	}
@@ -613,11 +625,18 @@ func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (RemoteOpe
 				return
 			}
 
+			imageType, ok := op.Metadata["image_type"].(string)
+			if !ok {
+				rop.err = remoteOperationError("Failed to extract image type from operation metadata", errors)
+				return
+			}
+
 			// Add the aliases
 			for _, entry := range req.Aliases {
 				alias := api.ImageAliasesPost{}
 				alias.Name = entry.Name
 				alias.Target = fingerprint
+				alias.Type = imageType
 
 				err := r.CreateImageAlias(alias)
 				if err != nil {

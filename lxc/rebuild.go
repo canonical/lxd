@@ -120,8 +120,13 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 			return errors.New(i18n.G("You need to specify an image name or use --empty"))
 		}
 
-		iremote, image := guessImage(conf, d, remote, iremote, image)
-		imgRemote, imgInfo, err := getImgInfo(d, conf, iremote, remote, image, &req.Source)
+		imageType := api.InstanceTypeContainer
+		if current.Type == "virtual-machine" {
+			imageType = api.InstanceTypeVM
+		}
+
+		iremote, image := guessImage(conf, d, remote, iremote, image, imageType)
+		imgRemote, imgInfo, err := getImgInfo(d, conf, iremote, remote, image, imageType, &req.Source)
 		if err != nil {
 			return err
 		}

@@ -141,7 +141,7 @@ func parseDeviceOverrides(deviceOverrideArgs []string) (map[string]map[string]st
 
 // IsAliasesSubset returns true if the first array is completely contained in the second array.
 func IsAliasesSubset(a1 []api.ImageAlias, a2 []api.ImageAlias) bool {
-	set := make(map[string]interface{})
+	set := make(map[string]any)
 	for _, alias := range a2 {
 		set[alias.Name] = nil
 	}
@@ -196,6 +196,7 @@ func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fin
 		aliasPost := api.ImageAliasesPost{}
 		aliasPost.Name = alias.Name
 		aliasPost.Target = fingerprint
+		aliasPost.Type = alias.Type
 		err := client.CreateImageAlias(aliasPost)
 		if err != nil {
 			return fmt.Errorf(i18n.G("Failed to create alias %s: %w"), alias.Name, err)
@@ -312,7 +313,7 @@ func structHasField(typ reflect.Type, field string) bool {
 }
 
 // getServerSupportedFilters returns two lists: one with filters supported by server and second one with not supported.
-func getServerSupportedFilters(filters []string, i interface{}) ([]string, []string) {
+func getServerSupportedFilters(filters []string, i any) ([]string, []string) {
 	supportedFilters := []string{}
 	unsupportedFilters := []string{}
 
@@ -334,7 +335,7 @@ func getServerSupportedFilters(filters []string, i interface{}) ([]string, []str
 }
 
 // guessImage checks that the image name (provided by the user) is correct given an instance remote and image remote.
-func guessImage(conf *config.Config, d lxd.InstanceServer, instRemote string, imgRemote string, imageRef string) (string, string) {
+func guessImage(conf *config.Config, d lxd.InstanceServer, instRemote string, imgRemote string, imageRef string, imageType api.InstanceType) (instanceRemote string, imageRemote string) {
 	if instRemote != imgRemote {
 		return imgRemote, imageRef
 	}
@@ -345,7 +346,7 @@ func guessImage(conf *config.Config, d lxd.InstanceServer, instRemote string, im
 		return imgRemote, imageRef
 	}
 
-	_, _, err := d.GetImageAlias(imageRef)
+	_, _, err := d.GetImageAlias(imageRef, imageType)
 	if err == nil {
 		return imgRemote, imageRef
 	}
@@ -366,7 +367,7 @@ func guessImage(conf *config.Config, d lxd.InstanceServer, instRemote string, im
 
 // getImgInfo returns an image server and image info for the given image name (given by a user)
 // an image remote and an instance remote.
-func getImgInfo(d lxd.InstanceServer, conf *config.Config, imgRemote string, instRemote string, imageRef string, source *api.InstanceSource) (lxd.ImageServer, *api.Image, error) {
+func getImgInfo(d lxd.InstanceServer, conf *config.Config, imgRemote string, instRemote string, imageRef string, imageType api.InstanceType, source *api.InstanceSource) (lxd.ImageServer, *api.Image, error) {
 	var imgRemoteServer lxd.ImageServer
 	var imgInfo *api.Image
 	var err error
@@ -389,7 +390,7 @@ func getImgInfo(d lxd.InstanceServer, conf *config.Config, imgRemote string, ins
 		source.Alias = imageRef
 	} else {
 		// Attempt to resolve an image alias
-		alias, _, err := imgRemoteServer.GetImageAlias(imageRef)
+		alias, _, err := imgRemoteServer.GetImageAlias(imageRef, imageType)
 		if err == nil {
 			source.Alias = imageRef
 			imageRef = alias.Target

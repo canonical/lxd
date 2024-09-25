@@ -61,7 +61,7 @@ type ImageServer interface {
 	GetImageAliases() (aliases []api.ImageAliasesEntry, err error)
 	GetImageAliasNames() (names []string, err error)
 
-	GetImageAlias(name string) (alias *api.ImageAliasesEntry, ETag string, err error)
+	GetImageAlias(name string, instanceType api.InstanceType) (alias *api.ImageAliasesEntry, ETag string, err error)
 	GetImageAliasType(imageType string, name string) (alias *api.ImageAliasesEntry, ETag string, err error)
 	GetImageAliasArchitectures(imageType string, name string) (entries map[string]*api.ImageAliasesEntry, err error)
 
