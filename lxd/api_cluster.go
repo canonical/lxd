@@ -1829,6 +1829,28 @@ func clusterValidateConfig(config map[string]string) error {
 		//  defaultdesc: `all`
 		//  shortdesc: Controls how instances are scheduled to run on this member
 		"scheduler.instance": validate.Optional(validate.IsOneOf("all", "group", "manual")),
+
+		// lxdmeta:generate(entities=cluster; group=cluster; key=limits.reserve.cpu)
+		// Number of CPUs to reserve for the LXD server. This setting only limits
+		// the sum of instance `limits.cpu` that can be located on a cluster member.
+		//
+		// When this key is set, all instances on that member must have
+		// `limits.cpu` set.
+		// ---
+		//  type: integer
+		//  shortdesc: Number of CPUs to reserve for the LXD server
+		"limits.reserve.cpu": validate.IsAny,
+
+		// lxdmeta:generate(entities=cluster; group=cluster; key=limits.reserve.memory)
+		// Amount of memory to reserve for the LXD server. This setting only limits
+		// the sum of instance `limits.memory` that can be located on a cluster member.
+		//
+		// When this key is set, all instances on that member must have
+		// `limits.memory` set.
+		// ---
+		//  type: string
+		//  shortdesc: Amount of memory to reserve for the LXD server
+		"limits.reserve.memory": validate.IsAny,
 	}
 
 	for k, v := range config {

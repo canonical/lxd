@@ -734,6 +734,32 @@ var ConfigSchema = config.Schema{
 	//  defaultdesc: Content of `/etc/ovn/key_host` if present
 	//  shortdesc: OVN SSL client key
 	"network.ovn.client_key": {Default: ""},
+
+	// lxdmeta:generate(entities=server; group=miscellaneous; key=limits.reserve.cpu)
+	// Number of CPUs to reserve for the LXD server. This setting only limits
+	// the sum of instance `limits.cpu` that can be located on any cluster member.
+	//
+	// This value is overridden by the corresponding cluster member configuration key.
+	//
+	// When this key is set, all instances must have `limits.cpu` set.
+	// ---
+	//  type: integer
+	//  scope: global
+	//  shortdesc: Number CPUs to reserve for the LXD server
+	"limits.reserve.cpu": {Type: config.Int64},
+
+	// lxdmeta:generate(entities=server; group=miscellaneous; key=limits.reserve.memory)
+	// Amount of memory to reserve for the LXD server. This setting only limits
+	// the sum of instance `limits.memory` that can be located on any cluster member.
+	//
+	// This value is overridden by the corresponding cluster member configuration key.
+	//
+	// When this key is set, all instances must have `limits.memory` set.
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Amount of memory to reserve for the LXD server
+	"limits.reserve.memory": {Type: config.String},
 }
 
 func expiryValidator(value string) error {
