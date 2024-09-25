@@ -1858,7 +1858,7 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string, op 
 			_ = from.Close()
 		}
 
-		to, err := os.OpenFile(diskPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+		to, err := os.OpenFile(diskPath, unix.O_DIRECT|unix.O_WRONLY, 0)
 		if err == nil {
 			cmd = append(cmd, "-t", "none")
 			_ = to.Close()
