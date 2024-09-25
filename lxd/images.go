@@ -3548,7 +3548,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 	var responseStr []string
 	var responseMap []api.ImageAliasesEntry
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		names, _, err := tx.GetImageAliasesTypes(ctx, projectName)
+		names, imageTypes, err := tx.GetImageAliasesTypes(ctx, projectName)
 		if err != nil {
 			return err
 		}
@@ -3559,20 +3559,34 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 			responseStr = make([]string, 0, len(names))
 		}
 
+		visited := make(map[string]map[int]bool)
+
 		for _, name := range names {
-			if !userHasPermission(entity.ImageAliasURL(projectName, name)) {
-				continue
+			if visited[name] == nil {
+				visited[name] = make(map[int]bool)
 			}
 
-			if !recursion {
-				responseStr = append(responseStr, api.NewURL().Path(version.APIVersion, "images", "aliases", name).String())
-			} else {
-				_, alias, err := tx.GetImageAlias(ctx, projectName, name, "", true)
-				if err != nil {
+			for _, imageType := range imageTypes {
+				if visited[name][imageType] {
 					continue
 				}
 
-				responseMap = append(responseMap, alias)
+				if !userHasPermission(entity.ImageAliasURL(projectName, name)) {
+					continue
+				}
+
+				if !recursion {
+					responseStr = append(responseStr, api.NewURL().Path(version.APIVersion, "images", "aliases", name).String())
+				} else {
+					_, alias, err := tx.GetImageAlias(ctx, projectName, name, instancetype.Type(imageType).String(), true)
+					if err != nil {
+						continue
+					}
+
+					responseMap = append(responseMap, alias)
+				}
+
+				visited[name][imageType] = true
 			}
 		}
 
