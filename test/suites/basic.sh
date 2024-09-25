@@ -13,6 +13,10 @@ test_basic_usage() {
   # Test an alias with slashes
   lxc image show "${sum}"
   lxc image alias create a/b/ "${sum}"
+
+  # Ensure aliased image won't launch with vm flag set
+  ! lxc launch a/b/ --vm || false
+
   lxc image alias delete a/b/
 
   # Test alias list filtering
