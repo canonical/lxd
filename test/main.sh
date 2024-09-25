@@ -94,9 +94,22 @@ cleanup() {
 
   if [ "${TEST_RESULT}" != "success" ]; then
     # dmesg may contain oops, IO errors, crashes, etc
-    echo "::group::dmesg logs"
+    # If there's a kernel stack trace, don't generate a collapsible group
+
+    expandDmesg=no
+    if journalctl --quiet --no-hostname --no-pager --boot=0 --lines=100 --dmesg --grep="Call Trace:" > /dev/null; then
+      expandDmesg=yes
+    fi
+
+    if [ "${expandDmesg}" = "no" ]; then
+      echo "::group::dmesg logs"
+    else
+      echo "dmesg logs"
+    fi
     journalctl --quiet --no-hostname --no-pager --boot=0 --lines=100 --dmesg
-    echo "::endgroup::"
+    if [ "${expandDmesg}" = "no" ]; then
+      echo "::endgroup::"
+    fi
   fi
 
   if [ -n "${GITHUB_ACTIONS:-}" ]; then
