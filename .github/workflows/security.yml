@@ -1,0 +1,42 @@
+name: Vulnerability Scanning with Trivy
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'  # Test Trivy daily at midnight
+
+permissions:
+  contents: read
+  security-events: write # for uploading SARIF results to the security tab
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  trivy-repo:
+    name: Trivy vulnerability scanner - Repository
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Run Trivy vulnerability scanner in repo mode
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          format: "sarif"
+          output: "trivy-lxd-repo-scan-results.sarif"
+          severity: "LOW,MEDIUM,HIGH,CRITICAL"
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "trivy-lxd-repo-scan-results.sarif"
+          sha: ${{ github.sha }}
+          ref: refs/heads/main
