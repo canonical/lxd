@@ -1279,7 +1279,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			for _, alias := range req.Aliases {
-				_, _, err := tx.GetImageAlias(ctx, projectName, alias.Name, true)
+				_, _, err := tx.GetImageAlias(ctx, projectName, alias.Name, alias.Type, true)
 				if !response.IsNotFoundError(err) {
 					if err != nil {
 						return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
@@ -3397,14 +3397,14 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// This is just to see if the alias already exists.
-		_, entry, err := tx.GetImageAlias(ctx, projectName, req.Name, true)
+		_, entry, err := tx.GetImageAlias(ctx, projectName, req.Name, req.Type, true)
 		if !response.IsNotFoundError(err) {
 			if err != nil {
 				return err
 			}
 
 			if req.Type == entry.Type {
-				return api.StatusErrorf(http.StatusConflict, "Alias %q already exists for %q", req.Name, req.Type)
+				return api.StatusErrorf(http.StatusConflict, "Alias %q already exists for %q", req.Name, entry.Type)
 			}
 		}
 
@@ -3548,7 +3548,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 	var responseStr []string
 	var responseMap []api.ImageAliasesEntry
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		names, err := tx.GetImageAliases(ctx, projectName)
+		names, _, err := tx.GetImageAliasesTypes(ctx, projectName)
 		if err != nil {
 			return err
 		}
@@ -3567,7 +3567,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 			if !recursion {
 				responseStr = append(responseStr, api.NewURL().Path(version.APIVersion, "images", "aliases", name).String())
 			} else {
-				_, alias, err := tx.GetImageAlias(ctx, projectName, name, true)
+				_, alias, err := tx.GetImageAlias(ctx, projectName, name, "", true)
 				if err != nil {
 					continue
 				}
@@ -3678,6 +3678,11 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return response.SmartError((err))
+	}
+
 	s := d.State()
 	var effectiveProjectName string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -3699,7 +3704,7 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	var alias api.ImageAliasesEntry
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// If `userCanViewImageAlias` is false, the query will be restricted to public images only.
-		_, alias, err = tx.GetImageAlias(ctx, projectName, name, userCanViewImageAlias)
+		_, alias, err = tx.GetImageAlias(ctx, projectName, name, instanceType.String(), userCanViewImageAlias)
 
 		return err
 	})
@@ -3746,8 +3751,13 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		_, _, err = tx.GetImageAlias(ctx, projectName, name, true)
+		_, _, err = tx.GetImageAlias(ctx, projectName, name, instanceType.String(), true)
 		if err != nil {
 			return err
 		}
@@ -3827,7 +3837,7 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var imgAliasID int
 
-		imgAliasID, imgAlias, err = tx.GetImageAlias(ctx, projectName, name, true)
+		imgAliasID, imgAlias, err = tx.GetImageAlias(ctx, projectName, name, req.Type, true)
 		if err != nil {
 			return err
 		}
@@ -3904,6 +3914,11 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	req := shared.Jmap{}
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -3913,7 +3928,7 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 	var imgAlias api.ImageAliasesEntry
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var imgAliasID int
-		imgAliasID, imgAlias, err = tx.GetImageAlias(ctx, projectName, name, true)
+		imgAliasID, imgAlias, err = tx.GetImageAlias(ctx, projectName, name, instanceType.String(), true)
 		if err != nil {
 			return err
 		}
@@ -4015,7 +4030,7 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// This is just to see if the alias already exists.
-		_, entry, err := tx.GetImageAlias(ctx, projectName, req.Name, true)
+		_, entry, err := tx.GetImageAlias(ctx, projectName, req.Name, req.Type, true)
 		if !response.IsNotFoundError(err) {
 			if err != nil {
 				return err
@@ -4026,7 +4041,7 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		imgAliasID, _, err := tx.GetImageAlias(ctx, projectName, name, true)
+		imgAliasID, _, err := tx.GetImageAlias(ctx, projectName, name, req.Type, true)
 		if err != nil {
 			return err
 		}

@@ -667,16 +667,16 @@ WHERE projects.name=?
 }
 
 // GetImageAlias returns the alias with the given name in the given project.
-func (c *ClusterTx) GetImageAlias(ctx context.Context, projectName string, imageName string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
+func (c *ClusterTx) GetImageAlias(ctx context.Context, projectName string, imageName string, imageType string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
 	id := -1
 	entry := api.ImageAliasesEntry{}
-	q := `SELECT images_aliases.id, images.fingerprint, images.type, images_aliases.description
+	q := `SELECT images_aliases.id, images.fingerprint, images_aliases.description
 			 FROM images_aliases
 			 INNER JOIN images
 			 ON images_aliases.image_id=images.id
                          INNER JOIN projects
                          ON images_aliases.project_id=projects.id
-			 WHERE projects.name=? AND images_aliases.name=?`
+			 WHERE projects.name=? AND images_aliases.name=? AND images.type=?`
 	if !isTrustedClient {
 		q = q + ` AND images.public=1`
 	}
@@ -691,10 +691,19 @@ func (c *ClusterTx) GetImageAlias(ctx context.Context, projectName string, image
 	}
 
 	var fingerprint, description string
-	var imageType int
+	var instanceType instancetype.Type
 
-	arg1 := []any{projectName, imageName}
-	arg2 := []any{&id, &fingerprint, &imageType, &description}
+	instanceType = instancetype.Container
+
+	if imageType != "" {
+		instanceType, err = instancetype.New(imageType)
+		if err != nil {
+			return -1, api.ImageAliasesEntry{}, fmt.Errorf("Instance type cannot be resolved")
+		}
+	}
+
+	arg1 := []any{projectName, imageName, instanceType}
+	arg2 := []any{&id, &fingerprint, &description}
 	err = c.tx.QueryRowContext(ctx, q, arg1...).Scan(arg2...)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -707,7 +716,7 @@ func (c *ClusterTx) GetImageAlias(ctx context.Context, projectName string, image
 	entry.Name = imageName
 	entry.Target = fingerprint
 	entry.Description = description
-	entry.Type = instancetype.Type(imageType).String()
+	entry.Type = imageType
 
 	return id, entry, nil
 }

@@ -464,7 +464,7 @@ func BackupLoadByName(s *state.State, project, name string) (*backup.InstanceBac
 }
 
 // ResolveImage takes an instance source and returns a hash suitable for instance creation or download.
-func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, source api.InstanceSource) (string, error) {
+func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, source api.InstanceSource, instType string) (string, error) {
 	if source.Fingerprint != "" {
 		return source.Fingerprint, nil
 	}
@@ -474,7 +474,7 @@ func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, sou
 			return source.Alias, nil
 		}
 
-		_, alias, err := tx.GetImageAlias(ctx, projectName, source.Alias, true)
+		_, alias, err := tx.GetImageAlias(ctx, projectName, source.Alias, instType, true)
 		if err != nil {
 			return "", err
 		}
