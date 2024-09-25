@@ -625,6 +625,47 @@ SELECT images_aliases.name
 	return names, nil
 }
 
+// GetImageAliasesTypes returns the names and image types of the aliases of all images.
+func (c *ClusterTx) GetImageAliasesTypes(ctx context.Context, projectName string) ([]string, []int, error) {
+	var names []string
+	var imageTypes []int
+
+	q := `
+SELECT images_aliases.name
+  FROM images_aliases
+  JOIN projects ON projects.id=images_aliases.project_id
+ WHERE projects.name=?
+`
+
+	enabled, err := cluster.ProjectHasImages(ctx, c.tx, projectName)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Check if project has images: %w", err)
+	}
+
+	if !enabled {
+		projectName = "default"
+	}
+
+	names, err = query.SelectStrings(ctx, c.tx, q, projectName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	q = `
+SELECT images_aliases.image_type
+FROM images_aliases
+JOIN projects ON projects.id=images_aliases.project_id
+WHERE projects.name=?
+	`
+
+	imageTypes, err = query.SelectIntegers(ctx, c.tx, q, projectName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return names, imageTypes, nil
+}
+
 // GetImageAlias returns the alias with the given name in the given project.
 func (c *ClusterTx) GetImageAlias(ctx context.Context, projectName string, imageName string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
 	id := -1
