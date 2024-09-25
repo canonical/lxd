@@ -76,7 +76,7 @@ func (d *fanotify) eventMask() (uint64, error) {
 
 // DriverName returns the name of the driver.
 func (d *fanotify) DriverName() string {
-	return "fanotify"
+	return fsmonitor.DriverNameFANotify
 }
 
 func (d *fanotify) load(ctx context.Context) error {

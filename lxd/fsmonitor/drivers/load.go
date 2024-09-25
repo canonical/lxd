@@ -11,8 +11,8 @@ import (
 )
 
 var drivers = map[string]func() driver{
-	"inotify":  func() driver { return &inotify{} },
-	"fanotify": func() driver { return &fanotify{} },
+	fsmonitor.DriverNameINotify:  func() driver { return &inotify{} },
+	fsmonitor.DriverNameFANotify: func() driver { return &fanotify{} },
 }
 
 // Load returns a new fsmonitor.FSMonitor with an applicable Driver.
@@ -46,10 +46,10 @@ func Load(ctx context.Context, path string, events ...fsmonitor.Event) (fsmonito
 		return startMonitor(driverName)
 	}
 
-	driver, err := startMonitor("fanotify")
+	driver, err := startMonitor(fsmonitor.DriverNameFANotify)
 	if err != nil {
 		logger.Warn("Failed to initialize fanotify, falling back on inotify", logger.Ctx{"err": err})
-		driver, err = startMonitor("inotify")
+		driver, err = startMonitor(fsmonitor.DriverNameINotify)
 		if err != nil {
 			return nil, err
 		}
