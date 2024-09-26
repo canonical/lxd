@@ -641,7 +641,7 @@ func copyDevice(inputPath string, outputPath string) error {
 		_ = from.Close()
 	}
 
-	to, err := os.OpenFile(outputPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+	to, err := os.OpenFile(outputPath, unix.O_DIRECT|unix.O_WRONLY, 0)
 	if err == nil {
 		cmd = append(cmd, "oflag=direct")
 		_ = to.Close()
