@@ -75,7 +75,7 @@ func (d *inotify) eventMask() (uint32, error) {
 
 // DriverName returns the name of the driver.
 func (d *inotify) DriverName() string {
-	return "inotify"
+	return fsmonitor.DriverNameINotify
 }
 
 func (d *inotify) load(ctx context.Context) error {
