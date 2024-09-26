@@ -693,6 +693,12 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 
 	args.Config["volatile.uuid.generation"] = args.Config["volatile.uuid"]
 
+	// Validate pinning strategy when limits.cpu specifies static pinning
+	cpuPinningSpecified := strings.ContainsAny(args.Config["limits.cpu"], ",-")
+	if args.Type == instancetype.VM && cpuPinningSpecified && args.Config["limits.cpu.pin_strategy"] == "auto" {
+		return nil, nil, nil, fmt.Errorf("CPU pinning specified, but pinning strategy is set to 'auto'")
+	}
+
 	if args.Devices == nil {
 		args.Devices = deviceConfig.Devices{}
 	}
