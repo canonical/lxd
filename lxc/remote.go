@@ -294,6 +294,16 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.G("Remote address must not be empty"))
 	}
 
+	// Trust token cannot be used when auth type is set to OIDC.
+	if c.flagToken != "" && c.flagAuthType == "oidc" {
+		return errors.New(i18n.G("Trust token cannot be used with OIDC authentication"))
+	}
+
+	// Trust token cannot be used for public remotes.
+	if c.flagToken != "" && c.flagPublic {
+		return errors.New(i18n.G("Trust token cannot be used for public remotes"))
+	}
+
 	// Validate the server name.
 	if strings.Contains(server, ":") {
 		return errors.New(i18n.G("Remote names may not contain colons"))
