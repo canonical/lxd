@@ -334,10 +334,6 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 				return nil, "", errors.New(i18n.G("Asked for a VM but image is of type container"))
 			}
 
-			if imgInfo.Type != "container" && !c.flagVM {
-				return nil, "", errors.New(i18n.G("Asked for a container but image is of type VM"))
-			}
-
 			req.Type = api.InstanceType(imgInfo.Type)
 		}
 
