@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-09-19 13:11-0600\n"
+"POT-Creation-Date: 2024-09-26 11:55-0600\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/linux-containers/"
@@ -1033,10 +1033,6 @@ msgstr ""
 
 #: lxc/init.go:342 lxc/rebuild.go:131
 msgid "Asked for a VM but image is of type container"
-msgstr ""
-
-#: lxc/init.go:346
-msgid "Asked for a container but image is of type VM"
 msgstr ""
 
 #: lxc/cluster_group.go:84 lxc/cluster_group.go:85
@@ -2083,7 +2079,7 @@ msgstr ""
 msgid "Device: %s"
 msgstr ""
 
-#: lxc/init.go:406
+#: lxc/init.go:402
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
 
@@ -3131,7 +3127,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/init.go:417
+#: lxc/init.go:413
 #, c-format
 msgid "Instance name is: %s"
 msgstr ""
@@ -5207,7 +5203,7 @@ msgstr ""
 msgid "Retrieve the container's console log"
 msgstr ""
 
-#: lxc/init.go:360
+#: lxc/init.go:356
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -6047,7 +6043,7 @@ msgid ""
 "restarted"
 msgstr ""
 
-#: lxc/init.go:438
+#: lxc/init.go:434
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 
@@ -6208,11 +6204,11 @@ msgstr ""
 msgid "Timestamps:"
 msgstr ""
 
-#: lxc/init.go:440
+#: lxc/init.go:436
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:439
+#: lxc/init.go:435
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
