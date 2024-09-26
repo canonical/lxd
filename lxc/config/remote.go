@@ -32,22 +32,22 @@ type Remote struct {
 
 // ParseRemote splits remote and object.
 func (c *Config) ParseRemote(raw string) (remoteName string, resourceName string, err error) {
-	result := strings.SplitN(raw, ":", 2)
-	if len(result) == 1 {
+	remote, object, found := strings.Cut(raw, ":")
+	if !found {
 		return c.DefaultRemote, raw, nil
 	}
 
-	_, ok := c.Remotes[result[0]]
+	_, ok := c.Remotes[remote]
 	if !ok {
 		// Attempt to play nice with snapshots containing ":"
-		if shared.IsSnapshot(raw) && shared.IsSnapshot(result[0]) {
+		if shared.IsSnapshot(raw) && shared.IsSnapshot(remote) {
 			return c.DefaultRemote, raw, nil
 		}
 
-		return "", "", fmt.Errorf("The remote \"%s\" doesn't exist", result[0])
+		return "", "", fmt.Errorf("The remote \"%s\" doesn't exist", remote)
 	}
 
-	return result[0], result[1], nil
+	return remote, object, nil
 }
 
 // GetInstanceServer returns a lxd.InstanceServer for the remote with the given name.
