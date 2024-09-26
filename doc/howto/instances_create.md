@@ -127,7 +127,7 @@ To create a container with an Ubuntu 24.04 LTS image from the `ubuntu` server us
       "source": {
         "alias": "24.04",
         "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases",
+        "server": "https://cloud-images.ubuntu.com/releases/",
         "type": "image"
       }
     }'
@@ -154,7 +154,7 @@ To create a virtual machine with an Ubuntu 24.04 LTS image from the `ubuntu` ser
       "source": {
         "alias": "24.04",
         "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases",
+        "server": "https://cloud-images.ubuntu.com/releases/",
         "type": "image"
       },
       "type": "virtual-machine"
@@ -188,7 +188,7 @@ Or with a bigger disk:
       "source": {
         "alias": "24.04",
         "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases",
+        "server": "https://cloud-images.ubuntu.com/releases/",
         "type": "image"
       },
       "type": "virtual-machine"
@@ -220,7 +220,7 @@ To create a container and limit its resources to one vCPU and 8 GiB of RAM:
       "source": {
         "alias": "24.04",
         "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases",
+        "server": "https://cloud-images.ubuntu.com/releases/",
         "type": "image"
       }
     }'
@@ -247,7 +247,7 @@ To create a virtual machine on the cluster member `micro2`, enter the following 
       "source": {
         "alias": "24.04",
         "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases",
+        "server": "https://cloud-images.ubuntu.com/releases/",
         "type": "image"
       },
       "type": "virtual-machine"
@@ -293,7 +293,7 @@ To create a container with this instance type:
       "source": {
         "alias": "24.04",
         "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases",
+        "server": "https://cloud-images.ubuntu.com/releases/",
         "type": "image"
       }
     }'
