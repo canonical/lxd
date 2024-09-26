@@ -884,3 +884,12 @@ func IsMultipleOfUnit(unit string) func(value string) error {
 		return nil
 	}
 }
+
+// IsStaticCPUPinning validates a static CPU pinning strategy.
+func IsStaticCPUPinning(value string) error {
+	if strings.ContainsAny(value, ",-") {
+		return nil
+	}
+
+	return fmt.Errorf("Invalid static CPU pinning strategy: %s", value)
+}
