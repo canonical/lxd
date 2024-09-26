@@ -1978,6 +1978,18 @@ A comma-separated list of NUMA node IDs or ranges to place the instance CPUs on.
 See {ref}`instance-options-limits-cpu-container` for more information.
 ```
 
+```{config:option} limits.cpu.pin_strategy instance-resource-limits
+:condition: "virtual machine"
+:defaultdesc: "`none`"
+:liveupdate: "no"
+:shortdesc: "VM CPU auto pinning strategy"
+:type: "string"
+Specify the strategy for VM CPU auto pinning.
+Possible values: `none` (disables CPU auto pinning) and `auto` (enables CPU auto pinning).
+
+See {ref}`instance-options-limits-cpu-vm` for more information.
+```
+
 ```{config:option} limits.cpu.priority instance-resource-limits
 :condition: "container"
 :defaultdesc: "`10` (maximum)"
