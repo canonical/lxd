@@ -973,6 +973,11 @@ definitions:
                 example: ubuntu-24.04
                 type: string
                 x-go-name: Name
+            type:
+                description: Alias type (container or virtual-machine)
+                example: container
+                type: string
+                x-go-name: Type
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     ImageAliasesEntry:
@@ -1008,6 +1013,11 @@ definitions:
                 example: ubuntu-24.04
                 type: string
                 x-go-name: Name
+            type:
+                description: Alias type (container or virtual-machine)
+                example: container
+                type: string
+                x-go-name: Type
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     ImageAliasesEntryPut:
@@ -1023,6 +1033,11 @@ definitions:
                 example: 06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb
                 type: string
                 x-go-name: Target
+            type:
+                description: Alias type (container or virtual-machine)
+                example: container
+                type: string
+                x-go-name: Type
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     ImageAliasesPost:
