@@ -7,12 +7,13 @@ import (
 	"os"
 
 	"github.com/canonical/lxd/lxd/fsmonitor"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared/logger"
 )
 
 var drivers = map[string]func() driver{
-	"inotify":  func() driver { return &inotify{} },
-	"fanotify": func() driver { return &fanotify{} },
+	fsmonitor.DriverNameINotify:  func() driver { return &inotify{} },
+	fsmonitor.DriverNameFANotify: func() driver { return &fanotify{} },
 }
 
 // Load returns a new fsmonitor.FSMonitor with an applicable Driver.
@@ -46,10 +47,19 @@ func Load(ctx context.Context, path string, events ...fsmonitor.Event) (fsmonito
 		return startMonitor(driverName)
 	}
 
-	driver, err := startMonitor("fanotify")
-	if err != nil {
-		logger.Warn("Failed to initialize fanotify, falling back on inotify", logger.Ctx{"err": err})
-		driver, err = startMonitor("inotify")
+	var driver fsmonitor.FSMonitor
+	var err error
+	if filesystem.IsMountPoint(path) {
+		// If the file system is a mount point, try to use fanotify but fall back to inotify.
+		driver, err = startMonitor(fsmonitor.DriverNameFANotify)
+		if err != nil {
+			logger.Warn("Failed to initialize fanotify, falling back on inotify", logger.Ctx{"err": err, "path": path})
+		}
+	}
+
+	// If the file system is not a mount point or if setting up fanotify fails for another reason, use inotify.
+	if driver == nil {
+		driver, err = startMonitor(fsmonitor.DriverNameINotify)
 		if err != nil {
 			return nil, err
 		}
