@@ -791,7 +791,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sys
 			_ = from.Close()
 		}
 
-		to, err := os.OpenFile(dstPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+		to, err := os.OpenFile(dstPath, unix.O_DIRECT|unix.O_WRONLY, 0)
 		if err == nil {
 			cmd = append(cmd, "-t", "none")
 			_ = to.Close()
