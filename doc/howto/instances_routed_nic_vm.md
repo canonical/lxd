@@ -17,7 +17,7 @@ To configure the gateways with `cloud-init`, firstly initialize an instance:
       "source": {
         "alias": "24.04",
         "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases",
+        "server": "https://cloud-images.ubuntu.com/releases/",
         "type": "image"
       },
       "type": "virtual-machine"
