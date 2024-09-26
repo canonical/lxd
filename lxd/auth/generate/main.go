@@ -17,6 +17,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -92,7 +93,25 @@ func main() {
 				return fmt.Errorf("Failed to close OpenFGA model file: %w", err)
 			}
 
-			err = json.NewEncoder(os.Stdout).Encode(entityToEntitlements)
+			metadata := make(map[string]api.MetadataConfigurationEntity)
+			for eType, entitlements := range entityToEntitlements {
+				projectSpecific, _ := eType.RequiresProject()
+
+				apiEntitlements := make([]api.MetadataConfigurationEntityEntitlement, 0, len(entitlements))
+				for _, e := range entitlements {
+					apiEntitlements = append(apiEntitlements, api.MetadataConfigurationEntityEntitlement{
+						Name:        e.Relation,
+						Description: e.Description,
+					})
+				}
+
+				metadata[string(eType)] = api.MetadataConfigurationEntity{
+					ProjectSpecific: projectSpecific,
+					Entitlements:    apiEntitlements,
+				}
+			}
+
+			err = json.NewEncoder(os.Stdout).Encode(metadata)
 			if err != nil {
 				return fmt.Errorf("Failed to write entitlement json to stdout: %w", err)
 			}

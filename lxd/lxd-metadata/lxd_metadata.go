@@ -13,11 +13,11 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 
 	"gopkg.in/yaml.v2"
 )
@@ -41,37 +41,6 @@ type IterableAny interface {
 type doc struct {
 	Configs  map[string]map[string]map[string][]any `json:"configs"`
 	Entities json.RawMessage                        `json:"entities"`
-}
-
-// detectType detects the type of a string and returns the corresponding value.
-func detectType(s string) any {
-	i, err := strconv.Atoi(s)
-	if err == nil {
-		return i
-	}
-
-	b, err := strconv.ParseBool(s)
-	if err == nil {
-		return b
-	}
-
-	f, err := strconv.ParseFloat(s, 64)
-	if err == nil {
-		return f
-	}
-
-	t, err := time.Parse(time.RFC3339, s)
-	if err == nil {
-		return t
-	}
-
-	// special characters handling
-	if s == "-" {
-		return ""
-	}
-
-	// If all conversions fail, it's a string
-	return s
 }
 
 // sortConfigKeys alphabetically sorts the entries by key (config option key) within each config group in an entity.
@@ -285,7 +254,7 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 						continue
 					}
 
-					configKeyEntry[metadataMap["key"]].(map[string]any)[dataKVMatch[1]] = detectType(dataKVMatch[2])
+					configKeyEntry[metadataMap["key"]].(map[string]any)[dataKVMatch[1]] = dataKVMatch[2]
 				}
 
 				// There can be multiple entities for a given group
@@ -338,6 +307,13 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 	data, err := json.MarshalIndent(jsonDoc, "", "\t")
 	if err != nil {
 		return nil, fmt.Errorf("Error while marshaling project documentation: %v", err)
+	}
+
+	// Validate that what we've generated is valid against our API definition.
+	var metadataConfiguration api.MetadataConfiguration
+	err = json.Unmarshal(data, &metadataConfiguration)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal generated metadata into MetadataConfiguration API type: %w", err)
 	}
 
 	if outputJSONPath != "" {
@@ -494,7 +470,7 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 		}
 	}
 
-	entities := make(map[string][]map[string]string)
+	entities := make(map[string]api.MetadataConfigurationEntity)
 	err = json.Unmarshal(jsonDoc.Entities, &entities)
 	if err != nil {
 		return err
@@ -508,11 +484,11 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 	sort.Strings(sortedEntityNames)
 
 	for _, entityName := range sortedEntityNames {
-		entitlements := entities[entityName]
+		entity := entities[entityName]
 		buffer.WriteString(fmt.Sprintf("<!-- entity group %s start -->\n", entityName))
-		for _, entitlement := range entitlements {
-			buffer.WriteString(fmt.Sprintf("`%s`\n", entitlement["name"]))
-			buffer.WriteString(fmt.Sprintf(": %s\n\n", entitlement["description"]))
+		for _, entitlement := range entity.Entitlements {
+			buffer.WriteString(fmt.Sprintf("`%s`\n", entitlement.Name))
+			buffer.WriteString(fmt.Sprintf(": %s\n\n", entitlement.Description))
 		}
 
 		buffer.WriteString("\n")
