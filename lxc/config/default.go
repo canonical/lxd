@@ -24,7 +24,7 @@ var UbuntuRemote = Remote{
 
 // UbuntuDailyRemote is the Ubuntu daily image server (over simplestreams).
 var UbuntuDailyRemote = Remote{
-	Addr:     "https://cloud-images.ubuntu.com/daily",
+	Addr:     "https://cloud-images.ubuntu.com/daily/",
 	Static:   true,
 	Public:   true,
 	Protocol: "simplestreams",
