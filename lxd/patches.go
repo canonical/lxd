@@ -29,6 +29,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 )
@@ -94,6 +95,7 @@ var patches = []patch{
 	{name: "config_remove_core_trust_password", stage: patchPreLoadClusterConfig, run: patchRemoveCoreTrustPassword},
 	{name: "entity_type_instance_snapshot_on_delete_trigger_typo_fix", stage: patchPreLoadClusterConfig, run: patchEntityTypeInstanceSnapshotOnDeleteTriggerTypoFix},
 	{name: "instance_remove_volatile_last_state_ip_addresses", stage: patchPostDaemonStorage, run: patchInstanceRemoveVolatileLastStateIPAddresses},
+	{name: "entity_type_identity_certificate_split", stage: patchPreLoadClusterConfig, run: patchSplitIdentityCertificateEntityTypes},
 }
 
 type patch struct {
@@ -1431,6 +1433,44 @@ func patchInstanceRemoveVolatileLastStateIPAddresses(_ string, d *Daemon) error 
 	})
 	if err != nil {
 		return fmt.Errorf("Failed removing volatile.*.last_state.ip_addresses config keys: %w", err)
+	}
+
+	return nil
+}
+
+func patchSplitIdentityCertificateEntityTypes(_ string, d *Daemon) error {
+	s := d.State()
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Notes:
+		// - We don't need to handle warnings, there are no warnings for identities.
+		// - No permissions have been created for OIDC identities against the certificate entity type, because the database
+		//   definition for the certificate entity type ensures that the authentication method is TLS.
+		// - We only need to fix permissions defined with the "identity" entity type that are certificates.
+
+		// Select all permissions with entity type = "identity", that really are certificates (auth_method = "tls")
+		// and set their entity type to "certificate" instead. Use "UPDATE OR REPLACE" in case of UNIQUE constraint violation.
+		stmt := `
+UPDATE OR REPLACE auth_groups_permissions 
+	SET entity_type = ?
+	WHERE id IN (
+	    SELECT auth_groups_permissions.id FROM auth_groups_permissions
+			JOIN identities ON auth_groups_permissions.entity_id = identities.id
+			WHERE auth_groups_permissions.entity_type = ?
+			AND identities.auth_method = ?
+	)
+`
+
+		// Set entity type to:
+		certificateEntityTypeCode, _ := dbCluster.EntityType(entity.TypeCertificate).Value()
+		// where entity type is:
+		identityEntityTypeCode, _ := dbCluster.EntityType(entity.TypeIdentity).Value()
+		// and authentication method is:
+		tlsAuthMethodCode, _ := dbCluster.AuthMethod(api.AuthenticationMethodTLS).Value()
+		_, err := tx.Tx().Exec(stmt, []any{certificateEntityTypeCode, identityEntityTypeCode, tlsAuthMethodCode}...)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to redefine certificate and identity entity types: %w", err)
 	}
 
 	return nil
