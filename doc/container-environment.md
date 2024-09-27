@@ -62,7 +62,7 @@ The following mounts are set up by default:
 
 If they are present on the host, the following paths will also automatically be mounted:
 
-- `/proc/sys/fs/binfmt_misc`
+- `/proc/sys/fs/binfmt_misc` (only on kernels that lack `binfmt_misc` namespace support)
 - `/sys/firmware/efi/efivars`
 - `/sys/fs/fuse/connections`
 - `/sys/fs/pstore`
