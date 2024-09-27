@@ -356,7 +356,7 @@ func GetImageSpaceBudget(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 
 // Check that we would not violate the project limits or restrictions if we
 // were to commit the given instances and profiles.
-func checkRestrictionsAndAggregateLimits(globalConfig *clusterConfig.Config, tx *db.ClusterTx, info *projectInfo) error {
+func checkRestrictionsAndAggregateLimits(globalConfig *clusterConfig.Config, info *projectInfo) error {
 	// List of config keys for which we need to check aggregate values
 	// across all project instances.
 	aggregateKeys := []string{}
