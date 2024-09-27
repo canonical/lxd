@@ -115,7 +115,7 @@
 //	}
 //
 //	// Connect to the remote SimpleStreams server
-//	d, err = lxd.ConnectSimpleStreams("https://cloud-images.ubuntu.com/releases", nil)
+//	d, err = lxd.ConnectSimpleStreams("https://cloud-images.ubuntu.com/releases/", nil)
 //	if err != nil {
 //	  return err
 //	}
