@@ -400,6 +400,10 @@ func (c *cmdConfigGet) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
+			if strings.Contains(toComplete, ".") {
+				return c.global.cmpServerAllKeys(toComplete)
+			}
+
 			return c.global.cmpInstances(toComplete)
 		}
 
@@ -553,6 +557,10 @@ lxc config set core.https_address=[::]:8443
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
+			if strings.Contains(toComplete, ".") {
+				return c.global.cmpServerAllKeys(toComplete)
+			}
+
 			return c.global.cmpInstances(toComplete)
 		}
 
@@ -902,6 +910,10 @@ func (c *cmdConfigUnset) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
+			if strings.Contains(toComplete, ".") {
+				return c.global.cmpServerAllKeys(toComplete)
+			}
+
 			return c.global.cmpInstances(toComplete)
 		}
 
