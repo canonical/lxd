@@ -93,7 +93,7 @@ jobs:
 
       - name: Prepend channel to alert name
         run: |
-          jq '.runs[].tool.driver.rules[] |= (.shortDescription.text |= "Snap scan - " + .)' ${{ matrix.version }}-stable.sarif > tmp.json
+          jq '.runs[].tool.driver.rules[] |= (.shortDescription.text |= "${{ matrix.version }}/stable - " + .)' ${{ matrix.version }}-stable.sarif > tmp.json
           mv tmp.json ${{ matrix.version }}-stable.sarif
 
       - name: Upload Trivy scan results to GitHub Security tab
