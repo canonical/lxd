@@ -2763,7 +2763,6 @@ test_clustering_image_refresh() {
   LXD_DIR="${LXD_REMOTE_DIR}" lxc config set core.https_address "10.1.1.104:8443"
 
   # Add remotes
-  token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
   lxc remote add public "https://10.1.1.104:8443" --accept-certificate --token foo --public
   token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
   lxc remote add cluster "https://10.1.1.101:8443" --token "${token}"
