@@ -2505,7 +2505,7 @@ The template with the given name is triggered upon next startup.
 The hash of the image that the instance was created from (empty if the instance was not created from an image).
 ```
 
-```{config:option} volatile.cloud_init.instance-id instance-volatile
+```{config:option} volatile.cloud-init.instance-id instance-volatile
 :shortdesc: "`instance-id` (UUID) exposed to `cloud-init`"
 :type: "string"
 

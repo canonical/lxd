@@ -435,7 +435,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	//  shortdesc: Hash of the base image
 	"volatile.base_image": validate.IsAny,
 
-	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.cloud_init.instance-id)
+	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.cloud-init.instance-id)
 	//
 	// ---
 	//  type: string

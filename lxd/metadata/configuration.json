@@ -2818,7 +2818,7 @@
 						}
 					},
 					{
-						"volatile.cloud_init.instance-id": {
+						"volatile.cloud-init.instance-id": {
 							"longdesc": "",
 							"shortdesc": "`instance-id` (UUID) exposed to `cloud-init`",
 							"type": "string"
