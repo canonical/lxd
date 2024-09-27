@@ -58,6 +58,9 @@ type ovnUplinkVars struct {
 	// DNS.
 	dnsIPv6 []net.IP
 	dnsIPv4 []net.IP
+
+	// VLAN.
+	vlan uint16
 }
 
 // ovnUplinkPortBridgeVars uplink bridge port variables used for start/stop.
@@ -1127,14 +1130,29 @@ func (n *ovn) setupUplinkPort(routerMAC net.HardwareAddr) (*ovnUplinkVars, error
 		return nil, fmt.Errorf("Failed loading uplink network %q: %w", n.config["network"], err)
 	}
 
+	var uplinkVars *ovnUplinkVars
 	switch uplinkNet.Type() {
 	case "bridge":
-		return n.setupUplinkPortBridge(uplinkNet, routerMAC)
+		uplinkVars, err = n.setupUplinkPortBridge(uplinkNet, routerMAC)
 	case "physical":
-		return n.setupUplinkPortPhysical(uplinkNet, routerMAC)
+		uplinkVars, err = n.setupUplinkPortPhysical(uplinkNet, routerMAC)
+	default:
+		return nil, fmt.Errorf("Failed setting up uplink port, network type %q unsupported as OVN uplink", uplinkNet.Type())
 	}
 
-	return nil, fmt.Errorf("Failed setting up uplink port, network type %q unsupported as OVN uplink", uplinkNet.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	value, err := strconv.ParseUint(uplinkNet.Config()["vlan"], 10, 16)
+
+	if err == nil {
+		uplinkVars.vlan = uint16(value)
+	}
+
+	// TODO: we should be able to determine vlan via the actual network interface parent as opposed to
+	// relying on uplink config via LXD.
+	return uplinkVars, err
 }
 
 // setupUplinkPortBridge allocates external IPs on the uplink bridge.
@@ -2296,7 +2314,10 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		// Create external switch port and link to external provider network.
-		err = client.LogicalSwitchPortAdd(n.getExtSwitchName(), n.getExtSwitchProviderPortName(), nil, update)
+		err = client.LogicalSwitchPortAdd(n.getExtSwitchName(), n.getExtSwitchProviderPortName(), &openvswitch.OVNSwitchPortOpts{
+			VLAN: uplinkNet.vlan,
+		}, update)
+
 		if err != nil {
 			return fmt.Errorf("Failed adding external switch provider port: %w", err)
 		}
@@ -3799,7 +3820,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		MAC:          mac,
 		IPs:          staticIPs,
 		Parent:       nestedPortParentName,
-		VLAN:         nestedPortVLAN,
+		NestedVLAN:   nestedPortVLAN,
 		Location:     n.state.ServerName,
 	}, true)
 	if err != nil {
