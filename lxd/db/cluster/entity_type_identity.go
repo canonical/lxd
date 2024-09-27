@@ -28,10 +28,12 @@ SELECT
 		identities.identifier
 	) 
 FROM identities
+WHERE type IN (%d)
 `,
 		e.code(),
 		authMethodTLS, api.AuthenticationMethodTLS,
 		authMethodOIDC, api.AuthenticationMethodOIDC,
+		identityTypeOIDCClient,
 	)
 }
 
@@ -40,7 +42,7 @@ func (e entityTypeIdentity) urlsByProjectQuery() string {
 }
 
 func (e entityTypeIdentity) urlByIDQuery() string {
-	return fmt.Sprintf(`%s WHERE identities.id = ?`, e.allURLsQuery())
+	return fmt.Sprintf(`%s AND identities.id = ?`, e.allURLsQuery())
 }
 
 func (e entityTypeIdentity) idFromURLQuery() string {
@@ -54,8 +56,11 @@ WHERE '' = ?
 		WHEN %d THEN '%s' 
 	END = ? 
 	AND identities.identifier = ?
+	AND identities.type IN (%d)
 `, authMethodTLS, api.AuthenticationMethodTLS,
-		authMethodOIDC, api.AuthenticationMethodOIDC)
+		authMethodOIDC, api.AuthenticationMethodOIDC,
+		identityTypeOIDCClient,
+	)
 }
 
 func (e entityTypeIdentity) onDeleteTriggerSQL() (name string, sql string) {
