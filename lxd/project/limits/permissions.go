@@ -2,6 +2,7 @@ package limits
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"slices"
@@ -1722,4 +1723,146 @@ func CheckTarget(ctx context.Context, authorizer auth.Authorizer, r *http.Reques
 	}
 
 	return nil, "", nil
+}
+
+var allReservations = []string{
+	"limits.reserve.cpu",
+	"limits.reserve.memory",
+}
+
+func reservationLimit(reservation string) (string, error) {
+	switch reservation {
+	case "limits.reserve.cpu":
+		return "limits.cpu", nil
+	case "limits.reserve.memory":
+		return "limits.memory", nil
+	default:
+		return "", fmt.Errorf("Invalid reservation key %q", reservation)
+	}
+}
+
+func getLimits(reservations map[string]db.OverridableConfig) ([]string, error) {
+	limits := []string{}
+	for reservationKey := range reservations {
+		limit, err := reservationLimit(reservationKey)
+		if err != nil {
+			return nil, err
+		}
+
+		limits = append(limits, limit)
+	}
+
+	return limits, nil
+}
+
+// getClusterMemberReservationTotals returns a map of reservationKey to total
+// resources consumed for a cluster member.
+func getClusterMemberAggregateLimits(instanceLimits []db.InstanceKey, clusterMemberName string, memberConfig map[string]db.OverridableConfig) (map[string]int64, error) {
+	aggregates := map[string]int64{}
+	if len(memberConfig) == 0 {
+		return aggregates, nil
+	}
+
+	for reservationKey := range memberConfig {
+		limitKey, err := reservationLimit(reservationKey)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, instance := range instanceLimits {
+			if instance.Key != limitKey {
+				continue
+			}
+
+			if !instance.Value.Valid {
+				return nil, fmt.Errorf("Missing %q for instance %q on cluster member %q", limitKey, instance.InstanceName, clusterMemberName)
+			}
+
+			parser, hasParser := aggregateLimitConfigValueParsers[limitKey]
+			if !hasParser {
+				return nil, fmt.Errorf("Missing parser for %q", limitKey)
+			}
+
+			value, err := parser(instance.Value.String)
+			if err != nil {
+				return nil, fmt.Errorf("Parse %q for instance %q: %w", limitKey, instance.InstanceName, err)
+			}
+
+			aggregates[limitKey] = value
+		}
+	}
+
+	return aggregates, nil
+}
+
+// CheckClusterMemberReservations returns err if the resource reservation for `clusterMemberName`
+// would be violated by creating `instance`.
+func CheckClusterMemberReservations(ctx context.Context, tx *db.ClusterTx, instance *api.Instance, clusterMemberName string, sysinfo *api.ClusterMemberSysInfo) error {
+	clusterOverrides, err := tx.GetMemberConfigWithGlobalDefault(ctx, []string{clusterMemberName}, allReservations)
+	if err != nil {
+		return err
+	}
+
+	overrides, hasClusterMember := clusterOverrides[clusterMemberName]
+	if !hasClusterMember {
+		// No reservations are set for this cluster member so skip the aggregates query
+		return nil
+	}
+
+	reservations := coalesceOverrides(overrides)
+
+	limits, err := getLimits(overrides)
+	if err != nil {
+		return err
+	}
+
+	instanceLimits, err := tx.GetClusterMemberInstanceConfig(ctx, []string{clusterMemberName}, limits)
+	if err != nil {
+		return err
+	}
+
+	memberInstanceLimits := instanceLimits[clusterMemberName]
+
+	for _, limit := range limits {
+		memberInstanceLimits = append(memberInstanceLimits, db.InstanceKey{
+			InstanceName: instance.Name,
+			Key:          limit,
+			Value: sql.NullString{
+				Valid:  true,
+				String: instance.Config[limit],
+			},
+		})
+	}
+
+	aggregateLimits, err := getClusterMemberAggregateLimits(memberInstanceLimits, clusterMemberName, overrides)
+	if err != nil {
+		return err
+	}
+
+	return checkClusterMemberReservations(reservations, aggregateLimits, sysinfo)
+}
+
+func checkClusterMemberReservations(reservations map[string]string, aggregateLimits map[string]int64, sysinfo *api.ClusterMemberSysInfo) error {
+	totals := map[string]uint64{
+		"limits.cpu":    sysinfo.CPUThreads,
+		"limits.memory": sysinfo.TotalRAM,
+	}
+
+	for reservationKey, reservation := range reservations {
+		limitKey, err := reservationLimit(reservationKey)
+		if err != nil {
+			return err
+		}
+
+		reservation, err := aggregateLimitConfigValueParsers[limitKey](reservation)
+		if err != nil {
+			return err
+		}
+
+		if int64(totals[limitKey])+reservation < aggregateLimits[limitKey] {
+			return fmt.Errorf("%s exceeded", reservationKey)
+		}
+	}
+
+	return nil
 }
