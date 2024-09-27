@@ -119,8 +119,9 @@ type OVNSwitchPortOpts struct {
 	DHCPv4OptsID OVNDHCPOptionsUUID // Optional, if empty, no DHCPv4 enabled on port.
 	DHCPv6OptsID OVNDHCPOptionsUUID // Optional, if empty, no DHCPv6 enabled on port.
 	Parent       OVNSwitchPort      // Optional, if set a nested port is created.
-	VLAN         uint16             // Optional, use with Parent to request a specific VLAN for nested port.
+	NestedVLAN   uint16             // Optional, use with Parent to request a specific VLAN for nested port.
 	Location     string             // Optional, use to indicate the name of the LXD server this port is bound to.
+	VLAN         uint16             // Optional, use to indicate a specific VLAN for the port.
 }
 
 // OVNACLRule represents an ACL rule that can be added to a logical switch or port group.
@@ -1239,7 +1240,7 @@ func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort,
 	if opts != nil {
 		// Created nested VLAN port if requested.
 		if opts.Parent != "" {
-			args = append(args, string(opts.Parent), fmt.Sprintf("%d", opts.VLAN))
+			args = append(args, string(opts.Parent), fmt.Sprintf("%d", opts.NestedVLAN))
 		}
 
 		ipStr := make([]string, 0, len(opts.IPs))
@@ -1268,6 +1269,10 @@ func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort,
 
 		if opts.Location != "" {
 			args = append(args, "--", "set", "logical_switch_port", string(portName), fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDLocation, opts.Location))
+		}
+
+		if opts.VLAN != 0 {
+			args = append(args, "--", "set", "logical_switch_port", string(portName), fmt.Sprintf("tag=%d", opts.VLAN))
 		}
 	}
 
