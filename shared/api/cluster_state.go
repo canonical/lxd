@@ -15,6 +15,7 @@ type ClusterMemberSysInfo struct {
 	TotalSwap    uint64    `json:"total_swap" yaml:"total_swap"`
 	FreeSwap     uint64    `json:"free_swap" yaml:"free_swap"`
 	Processes    uint16    `json:"processes" yaml:"processes"`
+	CPUThreads   uint64    `json:"cpu_threads" yaml:"cpu_threads"`
 }
 
 // ClusterMemberState represents the state of a cluster member.
