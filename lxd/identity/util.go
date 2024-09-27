@@ -8,6 +8,11 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// IsFineGrainedIdentityType returns true if permissions of the identity type are managed via group membership.
+func IsFineGrainedIdentityType(identityType string) bool {
+	return shared.ValueInSlice(identityType, []string{api.IdentityTypeOIDCClient})
+}
+
 // IsRestrictedIdentityType returns whether the given identity is restricted or not. Identity types that are not
 // restricted have full access to LXD. An error is returned if the identity type is not recognised.
 func IsRestrictedIdentityType(identityType string) (bool, error) {
