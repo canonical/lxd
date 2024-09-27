@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -72,6 +73,10 @@ func LocalSysInfo() (*api.ClusterMemberSysInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting load averages: %w", err)
 	}
+
+	// NumCPU gives the number of threads available to the LXD server at startup,
+	// not the currently available number of threads.
+	sysInfo.LogicalCPUs = uint64(runtime.NumCPU())
 
 	return sysInfo, nil
 }
