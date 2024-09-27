@@ -1190,6 +1190,99 @@ func (c *ClusterTx) GetMemberConfigWithGlobalDefault(ctx context.Context, cluste
 	return rows, err
 }
 
+// InstanceKey maps instance name and config key to optional value.
+type InstanceKey struct {
+	InstanceName string
+	Key          string
+	Value        sql.NullString
+}
+
+// GetClusterMemberInstanceConfig returns a map from clusterMemberName -> InstanceKey
+// with optional filters clusterMemberNames and keys. If either slice is nil/empty,
+// the results will include all cluster members/config keys.
+func (c *ClusterTx) GetClusterMemberInstanceConfig(ctx context.Context, clusterMemberNames []string, keys []string) (map[string][]InstanceKey, error) {
+	if len(keys) == 0 {
+		return nil, nil
+	}
+
+	args := make([]any, 0, len(clusterMemberNames)+2*len(keys))
+
+	// Start with all instances and their config
+	s := `
+	WITH instance_configs AS (
+		SELECT
+			nodes.name AS node_name,
+			instances.name AS instance_name,
+			instances_config.key AS key,
+			instances_config.value AS value
+		FROM instances
+		JOIN instances_config
+			ON instances.id = instances_config.instance_id
+		JOIN nodes
+			ON nodes.id = instances.node_id
+	`
+
+	// Then include nulls if an instance doesn't have the required limits set
+	findMissing := `
+		UNION
+
+		SELECT
+			nodes.name,
+			instances.name,
+			?,
+			instances_config.value
+		FROM instances
+		JOIN nodes
+			ON instances.node_id = nodes.id
+		LEFT JOIN instances_config
+			ON instances.id = instances_config.instance_id AND instances_config.key = ?
+		WHERE
+			instances_config.value IS NULL
+	`
+
+	for _, key := range keys {
+		s += findMissing
+		args = append(args, key, key)
+	}
+
+	// Finally, select only the keys and nodes that we're interested in
+	s += `)
+
+	SELECT *
+	FROM instance_configs
+	`
+
+	conditions := []inCondition{
+		{
+			key: "instance_configs.node_name",
+			in:  clusterMemberNames,
+		},
+		{
+			key:       "instance_configs.key",
+			in:        keys,
+			canBeNull: true,
+		},
+	}
+
+	s += whereClause(conditions, &args)
+
+	rslt := map[string][]InstanceKey{}
+	err := query.Scan(ctx, c.tx, s, func(scan func(dest ...any) error) error {
+		var clusterMemberName string
+		var row InstanceKey
+		err := scan(&clusterMemberName, &row.InstanceName, &row.Key, &row.Value)
+		if err != nil {
+			return err
+		}
+
+		rslt[clusterMemberName] = append(rslt[clusterMemberName], row)
+
+		return nil
+	}, args...)
+
+	return rslt, err
+}
+
 // GetCandidateMembers returns cluster members that are online, in created state and don't need manual targeting.
 // It excludes members that do not support any of the targetArchitectures (if non-nil) or not in targetClusterGroup
 // (if non-empty). It also takes into account any restrictions on allowedClusterGroups (if non-nil).
