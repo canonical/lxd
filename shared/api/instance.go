@@ -368,7 +368,7 @@ type InstanceSource struct {
 	Properties map[string]string `json:"properties,omitempty" yaml:"properties,omitempty"`
 
 	// Remote server URL (for remote images)
-	// Example: https://cloud-images.ubuntu.com/releases
+	// Example: https://cloud-images.ubuntu.com/releases/
 	Server string `json:"server,omitempty" yaml:"server,omitempty"`
 
 	// Remote server secret (for remote private images)
