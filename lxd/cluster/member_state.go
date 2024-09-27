@@ -45,34 +45,47 @@ func getLoadAvgs() ([]float64, error) {
 	return loadAvgs, nil
 }
 
-// MemberState retrieves state information about the cluster member.
-func MemberState(ctx context.Context, s *state.State, memberName string) (*api.ClusterMemberState, error) {
-	var err error
-	var memberState api.ClusterMemberState
-
+// LocalSysInfo retrieves system information about a cluster member.
+func LocalSysInfo() (*api.ClusterMemberSysInfo, error) {
 	// Get system info.
 	info := unix.Sysinfo_t{}
-	err = unix.Sysinfo(&info)
+	err := unix.Sysinfo(&info)
 	if err != nil {
 		logger.Warn("Failed getting sysinfo", logger.Ctx{"err": err})
 
 		return nil, err
 	}
 
-	// Account for different representations of Sysinfo_t on different architectures.
-	memberState.SysInfo.Uptime = int64(info.Uptime)
-	memberState.SysInfo.TotalRAM = uint64(info.Totalram)
-	memberState.SysInfo.SharedRAM = uint64(info.Sharedram)
-	memberState.SysInfo.BufferRAM = uint64(info.Bufferram)
-	memberState.SysInfo.FreeRAM = uint64(info.Freeram)
-	memberState.SysInfo.TotalSwap = uint64(info.Totalswap)
-	memberState.SysInfo.FreeSwap = uint64(info.Freeswap)
+	sysInfo := &api.ClusterMemberSysInfo{}
 
-	memberState.SysInfo.Processes = info.Procs
-	memberState.SysInfo.LoadAverages, err = getLoadAvgs()
+	// Account for different representations of Sysinfo_t on different architectures.
+	sysInfo.Uptime = int64(info.Uptime)
+	sysInfo.TotalRAM = uint64(info.Totalram)
+	sysInfo.SharedRAM = uint64(info.Sharedram)
+	sysInfo.BufferRAM = uint64(info.Bufferram)
+	sysInfo.FreeRAM = uint64(info.Freeram)
+	sysInfo.TotalSwap = uint64(info.Totalswap)
+	sysInfo.FreeSwap = uint64(info.Freeswap)
+
+	sysInfo.Processes = info.Procs
+	sysInfo.LoadAverages, err = getLoadAvgs()
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting load averages: %w", err)
 	}
+
+	return sysInfo, nil
+}
+
+// MemberState retrieves state information about the cluster member.
+func MemberState(ctx context.Context, s *state.State, memberName string) (*api.ClusterMemberState, error) {
+	var memberState api.ClusterMemberState
+
+	sysInfo, err := LocalSysInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	memberState.SysInfo = *sysInfo
 
 	// Get storage pool states.
 	stateCreated := db.StoragePoolCreated
