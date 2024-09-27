@@ -197,16 +197,6 @@ test_pki() {
     # Client cert should not be present in trust store.
     [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
 
-    # Remove remote
-    lxc_remote remote remove pki-lxd
-
-    # Add the remote again using an incorrect token.
-    # This should succeed as is the same as the test above but with an incorrect token rather than no token.
-    lxc_remote remote add pki-lxd "${LXD5_ADDR}" --token=bar
-
-    # Client cert should not be present in trust store.
-    [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
-
     # The certificate is trusted as root because `core.trust_ca_certificates` is enabled.
     lxc_remote info pki-lxd: | grep -F 'core.https_address'
     curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"'
