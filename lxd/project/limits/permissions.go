@@ -118,7 +118,7 @@ func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx,
 		return err
 	}
 
-	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkRestrictionsAndAggregateLimits(globalConfig, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if instance creation allowed: %w", err)
 	}
@@ -292,7 +292,7 @@ func AllowVolumeCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 		PoolName: poolName,
 	})
 
-	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkRestrictionsAndAggregateLimits(globalConfig, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if volume creation allowed: %w", err)
 	}
@@ -947,7 +947,7 @@ func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 		return err
 	}
 
-	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkRestrictionsAndAggregateLimits(globalConfig, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if instance update allowed: %w", err)
 	}
@@ -986,7 +986,7 @@ func AllowVolumeUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pro
 		info.Volumes[i].Config = req.Config
 	}
 
-	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkRestrictionsAndAggregateLimits(globalConfig, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if volume update allowed: %w", err)
 	}
@@ -1021,7 +1021,7 @@ func AllowProfileUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pr
 		info.Profiles[i].Devices = req.Devices
 	}
 
-	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkRestrictionsAndAggregateLimits(globalConfig, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if profile update allowed: %w", err)
 	}
