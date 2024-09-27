@@ -960,7 +960,7 @@ func (c *cmdProjectInfo) run(cmd *cobra.Command, args []string) error {
 	byteLimits := []string{"disk", "memory"}
 	data := [][]string{}
 	for k, v := range projectState.Resources {
-		shortKey := strings.SplitN(k, ".", 2)[0]
+		shortKey, _, _ := strings.Cut(k, ".")
 
 		limit := i18n.G("UNLIMITED")
 		if v.Limit >= 0 {
@@ -979,9 +979,9 @@ func (c *cmdProjectInfo) run(cmd *cobra.Command, args []string) error {
 		}
 
 		columnName := strings.ToUpper(k)
-		fields := strings.SplitN(columnName, ".", 2)
-		if len(fields) == 2 {
-			columnName = fmt.Sprintf("%s (%s)", fields[0], fields[1])
+		before, after, found := strings.Cut(columnName, ".")
+		if found {
+			columnName = fmt.Sprintf("%s (%s)", before, after)
 		}
 
 		data = append(data, []string{columnName, limit, usage})

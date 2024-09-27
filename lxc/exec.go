@@ -124,13 +124,10 @@ func (c *cmdExec) run(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, arg := range c.flagEnvironment {
-		pieces := strings.SplitN(arg, "=", 2)
-		value := ""
-		if len(pieces) > 1 {
-			value = pieces[1]
+		variable, value, found := strings.Cut(arg, "=")
+		if found {
+			env[variable] = value
 		}
-
-		env[pieces[0]] = value
 	}
 
 	// Configure the terminal
