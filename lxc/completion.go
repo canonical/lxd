@@ -211,6 +211,18 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 }
 
 func (g *cmdGlobal) cmpInstanceAllKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
+	var keys []string
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
+
+	_, instanceNameOnly, _ := strings.Cut(instanceName, ":")
+	if instanceNameOnly == "" {
+		serverKeys, directives := g.cmpServerAllKeys(instanceName)
+		keys = append(keys, serverKeys...)
+		cmpDirectives = directives
+
+		return keys, cmpDirectives
+	}
+
 	resources, err := g.ParseServers(instanceName)
 	if err != nil || len(resources) == 0 {
 		return nil, cobra.ShellCompDirectiveError
@@ -219,13 +231,12 @@ func (g *cmdGlobal) cmpInstanceAllKeys(instanceName string) ([]string, cobra.She
 	resource := resources[0]
 	client := resource.server
 
-	instanceNameOnly, _, err := client.GetInstance(instanceName)
+	instance, _, err := client.GetInstance(instanceNameOnly)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var keys []string
-	instanceType := instanceNameOnly.Type
+	instanceType := instance.Type
 
 	if instanceType == "container" {
 		for k := range instancetype.InstanceConfigKeysContainer {
@@ -239,6 +250,43 @@ func (g *cmdGlobal) cmpInstanceAllKeys(instanceName string) ([]string, cobra.She
 
 	for k := range instancetype.InstanceConfigKeysAny {
 		keys = append(keys, k)
+	}
+
+	return keys, cmpDirectives
+}
+
+func (g *cmdGlobal) cmpServerAllKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
+	resources, err := g.ParseServers(instanceName)
+	if err != nil || len(resources) == 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	metadataConfiguration, err := client.GetMetadataConfiguration()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	server, ok := metadataConfiguration.Configs["server"]
+	if !ok {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	keyCount := 0
+	for _, field := range server {
+		keyCount += len(field.Keys)
+	}
+
+	keys := make([]string, 0, keyCount)
+
+	for _, field := range server {
+		for _, keyMap := range field.Keys {
+			for key := range keyMap {
+				keys = append(keys, key)
+			}
+		}
 	}
 
 	return keys, cobra.ShellCompDirectiveNoFileComp
@@ -934,6 +982,10 @@ func (g *cmdGlobal) cmpRemotes(includeAll bool) ([]string, cobra.ShellCompDirect
 
 	for remoteName, rc := range g.conf.Remotes {
 		if !includeAll && rc.Protocol != "lxd" && rc.Protocol != "" {
+			continue
+		}
+
+		if remoteName == "local" || rc.Protocol == "simplestreams" {
 			continue
 		}
 
