@@ -912,7 +912,7 @@ func isVMLowLevelOptionForbidden(key string) bool {
 
 // AllowInstanceUpdate returns an error if any project-specific limit or
 // restriction is violated when updating an existing instance.
-func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut, currentConfig map[string]string) error {
+func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, instanceName string, clusterMemberName string, sysinfo *api.ClusterMemberSysInfo, req api.InstancePut, currentConfig map[string]string) error {
 	var updatedInstance *api.Instance
 
 	var globalConfigDump map[string]any
@@ -957,6 +957,11 @@ func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 	err = checkRestrictionsAndAggregateLimits(globalConfig, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if instance update allowed: %w", err)
+	}
+
+	err = CheckClusterMemberReservations(context.TODO(), tx, updatedInstance, clusterMemberName, sysinfo)
+	if err != nil {
+		return err
 	}
 
 	return nil
