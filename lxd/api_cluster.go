@@ -2983,7 +2983,7 @@ func clusterNodeStateGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	memberState, err := cluster.MemberState(r.Context(), s, memberName)
+	memberState, err := cluster.MemberState(r.Context(), s)
 	if err != nil {
 		return response.SmartError(err)
 	}
