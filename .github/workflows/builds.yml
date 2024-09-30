@@ -15,7 +15,7 @@ concurrency:
 jobs:
   snap:
     name: Trigger snap build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: ${{ github.repository == 'canonical/lxd-pkg-snap' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
     steps:
       - name: Checkout code
