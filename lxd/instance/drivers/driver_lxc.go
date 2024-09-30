@@ -4358,7 +4358,8 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	// If raw.lxc changed, re-validate the config.
 	if shared.ValueInSlice("raw.lxc", changedConfig) && d.expandedConfig["raw.lxc"] != "" {
 		// Get a new liblxc instance.
-		cc, err := liblxc.NewContainer(d.name, d.state.OS.LxcPath)
+		cname := project.Instance(d.Project().Name, d.Name())
+		cc, err := liblxc.NewContainer(cname, d.state.OS.LxcPath)
 		if err != nil {
 			return err
 		}
