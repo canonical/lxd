@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/canonical/lxd/lxd/backup"
@@ -8,11 +9,38 @@ import (
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/shared/revert"
+	"github.com/canonical/lxd/shared/units"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 // commonVolumeRules returns validation rules which are common for pool and volume.
 func (d *pure) commonVolumeRules() map[string]func(value string) error {
-	return map[string]func(value string) error{}
+	return map[string]func(value string) error{
+		// lxdmeta:generate(entities=storage-pure; group=volume-conf; key=block.filesystem)
+		// Valid options are: `btrfs`, `ext4`, `xfs`
+		// If not set, `ext4` is assumed.
+		// ---
+		//  type: string
+		//  condition: block-based volume with content type `filesystem`
+		//  defaultdesc: same as `volume.block.filesystem`
+		//  shortdesc: File system of the storage volume
+		"block.filesystem": validate.Optional(validate.IsOneOf(blockBackedAllowedFilesystems...)),
+		// lxdmeta:generate(entities=storage-pure; group=volume-conf; key=block.mount_options)
+		//
+		// ---
+		//  type: string
+		//  condition: block-based volume with content type `filesystem`
+		//  defaultdesc: same as `volume.block.mount_options`
+		//  shortdesc: Mount options for block-backed file system volumes
+		"block.mount_options": validate.IsAny,
+		// lxdmeta:generate(entities=storage-pure; group=volume-conf; key=size)
+		// Default Pure Storage volume size rounded to 512B. The minimum size is 1MiB.
+		// ---
+		//  type: string
+		//  defaultdesc: same as `volume.size`
+		//  shortdesc: Size/quota of the storage volume
+		"size": validate.Optional(validate.IsMultipleOfUnit("512B")),
+	}
 }
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied filler function.
@@ -55,12 +83,77 @@ func (d *pure) HasVolume(vol Volume) (bool, error) {
 
 // FillVolumeConfig populate volume with default config.
 func (d *pure) FillVolumeConfig(vol Volume) error {
+	// Copy volume.* configuration options from pool.
+	// Exclude 'block.filesystem' and 'block.mount_options'
+	// as these ones are handled below in this function and depend on the volume's type.
+	err := d.fillVolumeConfig(&vol, "block.filesystem", "block.mount_options")
+	if err != nil {
+		return err
+	}
+
+	// Only validate filesystem config keys for filesystem volumes or VM block volumes (which have an
+	// associated filesystem volume).
+	if vol.ContentType() == ContentTypeFS || vol.IsVMBlock() {
+		// VM volumes will always use the default filesystem.
+		if vol.IsVMBlock() {
+			vol.config["block.filesystem"] = DefaultFilesystem
+		} else {
+			// Inherit filesystem from pool if not set.
+			if vol.config["block.filesystem"] == "" {
+				vol.config["block.filesystem"] = d.config["volume.block.filesystem"]
+			}
+
+			// Default filesystem if neither volume nor pool specify an override.
+			if vol.config["block.filesystem"] == "" {
+				// Unchangeable volume property: Set unconditionally.
+				vol.config["block.filesystem"] = DefaultFilesystem
+			}
+		}
+
+		// Inherit filesystem mount options from pool if not set.
+		if vol.config["block.mount_options"] == "" {
+			vol.config["block.mount_options"] = d.config["volume.block.mount_options"]
+		}
+
+		// Default filesystem mount options if neither volume nor pool specify an override.
+		if vol.config["block.mount_options"] == "" {
+			// Unchangeable volume property: Set unconditionally.
+			vol.config["block.mount_options"] = "discard"
+		}
+	}
+
 	return nil
 }
 
 // ValidateVolume validates the supplied volume config.
 func (d *pure) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
+	// When creating volumes from ISO images, round its size to the next multiple of 512B.
+	if vol.ContentType() == ContentTypeISO {
+		sizeBytes, err := units.ParseByteSizeString(vol.ConfigSize())
+		if err != nil {
+			return err
+		}
+
+		// If the remainder when dividing by 512 is greater than 0, round the size up
+		// to the next multiple of 512.
+		remainder := sizeBytes % 512
+		if remainder > 0 {
+			sizeBytes = (sizeBytes/512 + 1) * 512
+			vol.SetConfigSize(fmt.Sprintf("%d", sizeBytes))
+		}
+	}
+
 	commonRules := d.commonVolumeRules()
+
+	// Disallow block.* settings for regular custom block volumes. These settings only make sense
+	// when using custom filesystem volumes. LXD will create the filesystem for these volumes,
+	// and use the mount options. When attaching a regular block volume to a VM, these are not
+	// mounted by LXD and therefore don't need these config keys.
+	if vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeBlock {
+		delete(commonRules, "block.filesystem")
+		delete(commonRules, "block.mount_options")
+	}
+
 	return d.validateVolume(vol, commonRules, removeUnknownKeys)
 }
 
