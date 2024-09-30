@@ -162,59 +162,59 @@ type ClusterMemberPost struct {
 type ClusterMember struct {
 	// Name of the cluster member
 	// Example: lxd01
-	ServerName string `json:"server_name" yaml:"server_name"`
+	ServerName string `json:"server_name" yaml:"server_name" diff:"server_name"`
 
 	// URL at which the cluster member can be reached
 	// Example: https://10.0.0.1:8443
-	URL string `json:"url" yaml:"url"`
+	URL string `json:"url" yaml:"url" diff:"url"`
 
 	// Whether the cluster member is a database server
 	// Example: true
-	Database bool `json:"database" yaml:"database"`
+	Database bool `json:"database" yaml:"database" diff:"database"`
 
 	// Current status
 	// Example: Online
-	Status string `json:"status" yaml:"status"`
+	Status string `json:"status" yaml:"status" diff:"status"`
 
 	// Additional status information
 	// Example: fully operational
-	Message string `json:"message" yaml:"message"`
+	Message string `json:"message" yaml:"message" diff:"message"`
 
 	// The primary architecture of the cluster member
 	// Example: x86_64
 	//
 	// API extension: clustering_architecture
-	Architecture string `json:"architecture" yaml:"architecture"`
+	Architecture string `json:"architecture" yaml:"architecture" diff:"architecture"`
 
 	// List of roles held by this cluster member
 	// Example: ["database"]
 	//
 	// API extension: clustering_roles
-	Roles []string `json:"roles" yaml:"roles"`
+	Roles []string `json:"roles" yaml:"roles" diff:"roles"`
 
 	// Name of the failure domain for this cluster member
 	// Example: rack1
 	//
 	// API extension: clustering_failure_domains
-	FailureDomain string `json:"failure_domain" yaml:"failure_domain"`
+	FailureDomain string `json:"failure_domain" yaml:"failure_domain" diff:"failure_domain"`
 
 	// Cluster member description
 	// Example: AMD Epyc 32c/64t
 	//
 	// API extension: clustering_description
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description"`
 
 	// Additional configuration information
 	// Example: {"scheduler.instance": "all"}
 	//
 	// API extension: clustering_config
-	Config map[string]string `json:"config" yaml:"config"`
+	Config map[string]string `json:"config" yaml:"config" diff:"config"`
 
 	// List of cluster groups this member belongs to
 	// Example: ["group1", "group2"]
 	//
 	// API extension: clustering_groups
-	Groups []string `json:"groups" yaml:"groups"`
+	Groups []string `json:"groups" yaml:"groups" diff:"groups"`
 }
 
 // Writable converts a full Profile struct into a ProfilePut struct (filters read-only fields).
@@ -318,15 +318,15 @@ type ClusterGroupsPost struct {
 type ClusterGroup struct {
 	// The new name of the cluster group
 	// Example: group1
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name" yaml:"name" diff:"name"`
 
 	// The description of the cluster group
 	// Example: amd64 servers
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description"`
 
 	// List of members in this group
 	// Example: ["node1", "node3"]
-	Members []string `json:"members" yaml:"members"`
+	Members []string `json:"members" yaml:"members" diff:"members"`
 }
 
 // ClusterGroupPost represents the fields required to rename a cluster group.
