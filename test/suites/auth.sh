@@ -27,14 +27,15 @@ test_authorization() {
   ! lxc auth group permission remove test-group server admin || false # Permission already removed
   ! lxc auth group permission add test-group server not_a_server_entitlement || false # Invalid entitlement
 
-  # Identity permissions.
-  ! lxc auth group permission add test-group identity "${tls_user_fingerprint}" can_view || false # Missing authentication method
-  lxc auth group permission add test-group identity "tls/${tls_user_fingerprint}" can_view # Valid
-  lxc auth group permission remove test-group identity "tls/${tls_user_fingerprint}" can_view
-  ! lxc auth group permission remove test-group identity "tls/${tls_user_fingerprint}" can_view || false # Already removed
+  # Certificate permissions.
+  ! lxc auth group permission add test-group certificate notacertificate can_view || false # Not found
+  lxc auth group permission add test-group certificate "${tls_user_fingerprint}" can_view # Valid
+  lxc auth group permission remove test-group certificate "${tls_user_fingerprint}" can_view
+  ! lxc auth group permission remove test-group certificate "${tls_user_fingerprint}" can_view || false # Already removed
+  ! lxc auth group permission add test-group identity "tls/${tls_user_fingerprint}" can_view || false # The certificate is not an identity, it is a certificate.
 
   # Project permissions.
-  ! lxc auth group permission add test-group project not-found operator # Not found
+  ! lxc auth group permission add test-group project not-found operator || false # Not found
   lxc auth group permission add test-group project default operator # Valid
   lxc auth group permission remove test-group project default operator # Valid
   ! lxc auth group permission remove test-group project default operator || false # Already removed
@@ -95,6 +96,12 @@ effective_permissions: []
 EOF
 )
   lxc auth identity info oidc: | grep -Fz "${expected}"
+
+  # Identity permissions.
+  ! lxc auth group permission add test-group identity test-user@example.com can_view || false # Missing authentication method
+  lxc auth group permission add test-group identity oidc/test-user@example.com can_view # Valid
+  lxc auth group permission remove test-group identity oidc/test-user@example.com can_view
+  ! lxc auth group permission remove test-group identity oidc/test-user@example.com can_view || false # Already removed
 
   ### IDENTITY PROVIDER GROUP MANAGEMENT ###
   lxc auth identity-provider-group create test-idp-group
