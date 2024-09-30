@@ -855,7 +855,6 @@ func upsertPermissions(ctx context.Context, tx *sql.Tx, groupID int, permissions
 		}
 
 		authGroupPermissions = append(authGroupPermissions, dbCluster.Permission{
-			GroupID:     groupID,
 			Entitlement: entitlement,
 			EntityType:  entityType,
 			EntityID:    entityRef.EntityID,
