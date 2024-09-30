@@ -10,8 +10,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
-	"github.com/canonical/lxd/lxd/db/cluster"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
@@ -131,10 +132,15 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	var do func(*operations.Operation) error
 	var opType operationtype.Type
 	if configRaw.Restore == "" {
+		sysinfo, err := cluster.LocalSysInfo()
+		if err != nil {
+			return response.InternalError(err)
+		}
+
 		// Check project limits.
 		apiProfiles := make([]api.Profile, 0, len(configRaw.Profiles))
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			profiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, configRaw.Profiles)
+			profiles, err := dbCluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, configRaw.Profiles)
 			if err != nil {
 				return err
 			}
@@ -148,7 +154,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 				apiProfiles = append(apiProfiles, *apiProfile)
 			}
 
-			return limits.AllowInstanceUpdate(s.GlobalConfig, tx, projectName, name, configRaw, inst.LocalConfig())
+			return limits.AllowInstanceUpdate(s.GlobalConfig, tx, projectName, name, d.serverName, sysinfo, configRaw, inst.LocalConfig())
 		})
 		if err != nil {
 			return response.SmartError(err)
