@@ -8,10 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	liblxc "github.com/lxc/go-lxc"
 
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/certificate"
@@ -94,6 +96,7 @@ var patches = []patch{
 	{name: "config_remove_core_trust_password", stage: patchPreLoadClusterConfig, run: patchRemoveCoreTrustPassword},
 	{name: "entity_type_instance_snapshot_on_delete_trigger_typo_fix", stage: patchPreLoadClusterConfig, run: patchEntityTypeInstanceSnapshotOnDeleteTriggerTypoFix},
 	{name: "instance_remove_volatile_last_state_ip_addresses", stage: patchPostDaemonStorage, run: patchInstanceRemoveVolatileLastStateIPAddresses},
+	{name: "container_update_stop_hook", stage: patchPostDaemonStorage, run: patchContainerUpdateStopHook},
 }
 
 type patch struct {
@@ -1431,6 +1434,79 @@ func patchInstanceRemoveVolatileLastStateIPAddresses(_ string, d *Daemon) error 
 	})
 	if err != nil {
 		return fmt.Errorf("Failed removing volatile.*.last_state.ip_addresses config keys: %w", err)
+	}
+
+	return nil
+}
+
+// patchContainerUpdateStopHook updates running container stop hooks.
+func patchContainerUpdateStopHook(_ string, d *Daemon) error {
+	// Only relevant when running in the LXD snap package.
+	if !shared.InSnap() {
+		return nil
+	}
+
+	s := d.State()
+
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get containers on this member.
+		return tx.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
+			l := logger.AddContext(logger.Ctx{"project": dbInst.Project, "inst": dbInst.Name})
+
+			l.Warn("Updating container stop hooks")
+
+			cname := project.Instance(dbInst.Project, dbInst.Name)
+
+			cc, err := liblxc.NewContainer(cname, s.OS.LxcPath)
+			if err != nil {
+				return fmt.Errorf("Failed loading container %q (project %q): %w", dbInst.Name, dbInst.Project, err)
+			}
+
+			configPath := filepath.Join(shared.LogPath(cname), "lxc.conf")
+
+			err = cc.LoadConfigFile(configPath)
+			if err != nil {
+				return fmt.Errorf("Failed to load container %q (project %q) config %q: %w", dbInst.Name, dbInst.Project, configPath, err)
+			}
+
+			l.Warn("tomp lxc.hook.stop")
+			err = cc.ClearConfigItem("lxc.hook.stop")
+			if err != nil {
+				return err
+			}
+
+			l.Warn("tomp lxc.hook.post-stop")
+			err = cc.ClearConfigItem("lxc.hook.post-stop")
+			if err != nil {
+				return err
+			}
+
+			err = cc.SetConfigItem("lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", "/snap/lxd/current/bin/lxd-lxc-stop", shared.VarPath(""), strconv.Quote(dbInst.Project), strconv.Quote(dbInst.Name)))
+			if err != nil {
+				return fmt.Errorf("Failed setting container %q (project %q) lxc.hook.stop: %w", dbInst.Name, dbInst.Project, err)
+
+			}
+
+			err = cc.SetConfigItem("lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", "/snap/lxd/current/bin/lxd-lxc-stop", shared.VarPath(""), strconv.Quote(dbInst.Project), strconv.Quote(dbInst.Name)))
+			if err != nil {
+				return fmt.Errorf("Failed setting container %q (project %q) lxc.hook.post-stop: %w", dbInst.Name, dbInst.Project, err)
+			}
+
+			l.Warn(fmt.Sprintf("tomp %+v", cc.ConfigItem("lxc.hook.stop")))
+			l.Warn(fmt.Sprintf("tomp %+v", cc.ConfigItem("lxc.hook.post-stop")))
+
+			err = cc.SaveConfigFile(configPath)
+			if err != nil {
+				return fmt.Errorf("Failed saving container %q (project %q) config %q: %w", dbInst.Name, dbInst.Project, configPath, err)
+			}
+
+			_ = cc.Release()
+
+			return nil
+		}, dbCluster.InstanceFilter{Node: &s.ServerName, Type: instancetype.Container.Filter()})
+	})
+	if err != nil {
+		return fmt.Errorf("Failed updating container stop hooks: %w", err)
 	}
 
 	return nil
