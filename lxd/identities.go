@@ -99,9 +99,16 @@ func identityAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http
 			return response.SmartError(err)
 		}
 
-		err = s.Authorizer.CheckPermission(r.Context(), entity.IdentityURL(authenticationMethod, id.Identifier), entitlement)
-		if err != nil {
-			return response.SmartError(err)
+		if identity.IsFineGrainedIdentityType(string(id.Type)) {
+			err = s.Authorizer.CheckPermission(r.Context(), entity.IdentityURL(authenticationMethod, id.Identifier), entitlement)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		} else {
+			err = s.Authorizer.CheckPermission(r.Context(), entity.CertificateURL(id.Identifier), entitlement)
+			if err != nil {
+				return response.SmartError(err)
+			}
 		}
 
 		request.SetCtxValue(r, ctxClusterDBIdentity, id)
@@ -292,6 +299,19 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	canViewCertificate, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeCertificate)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	canView := func(id dbCluster.Identity) bool {
+		if identity.IsFineGrainedIdentityType(string(id.Type)) {
+			return canViewIdentity(entity.IdentityURL(string(id.AuthMethod), id.Identifier))
+		}
+
+		return canViewCertificate(entity.CertificateURL(id.Identifier))
+	}
+
 	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
@@ -315,7 +335,7 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 
 		// Filter results by what the user is allowed to view.
 		for _, id := range allIdentities {
-			if canViewIdentity(entity.IdentityURL(string(id.AuthMethod), id.Identifier)) {
+			if canView(id) {
 				identities = append(identities, id)
 			}
 		}
@@ -599,8 +619,8 @@ func updateIdentity(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
 	}
 
-	if id.AuthMethod == api.AuthenticationMethodTLS && len(identityPut.Groups) > 0 {
-		return response.NotImplemented(fmt.Errorf("Adding TLS identities to groups is currently not supported"))
+	if !identity.IsFineGrainedIdentityType(string(id.Type)) {
+		return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
 	}
 
 	s := d.State()
@@ -692,9 +712,8 @@ func patchIdentity(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
 	}
 
-	authenticationMethod := mux.Vars(r)["authenticationMethod"]
-	if authenticationMethod == api.AuthenticationMethodTLS && len(identityPut.Groups) > 0 {
-		return response.NotImplemented(fmt.Errorf("Adding TLS identities to groups is currently not supported"))
+	if !identity.IsFineGrainedIdentityType(string(id.Type)) {
+		return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
 	}
 
 	s := d.State()
