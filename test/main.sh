@@ -262,6 +262,7 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_handover "clustering handover"
     run_test test_clustering_rebalance "clustering rebalance"
     run_test test_clustering_remove_raft_node "clustering remove raft node"
+    run_test test_clustering_resource_reservations "clustering resource reservations"
     run_test test_clustering_failure_domains "clustering failure domains"
     run_test test_clustering_image_refresh "clustering image refresh"
     run_test test_clustering_evacuation "clustering evacuation"
