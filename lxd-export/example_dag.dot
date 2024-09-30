@@ -1,0 +1,298 @@
+digraph G {
+    # Storage pools cluster
+    subgraph cluster_0 {
+        node [style=filled];
+        pool_0;
+        pool_1;
+        pool_N;
+        
+        label = "Storage pools";
+        color=red
+    }
+
+    # "Default" project cluster
+    subgraph cluster_1 {
+        style=filled;
+        color=lightgrey;
+        node [style=filled,color=white];
+        default;
+        
+        # Networking
+        subgraph cluster_4 {
+            node [style=filled];
+            nz_1;
+            nz_2;
+        
+            net_1;
+            net_2;
+            net_N;
+            net_1_1;
+            net_1_2;
+            net_1_2_1;
+            
+            net_peer_1;
+            net_peer_2;
+            
+            net_lb_1;
+            net_lb_2;
+            net_fw_1;
+            net_fw_2;
+            
+            
+            nz_1 -> net_1;
+            nz_1 -> net_2;
+            
+            net_1 -> net_1_1;
+            net_1 -> net_1_2;
+            net_1_2 -> net_1_2_1;
+            
+            net_N -> net_peer_1;
+            net_1_1 -> net_peer_1;
+            
+            net_1_1 -> net_lb_1;
+            net_1_1 -> net_lb_2;
+            
+            net_1_2 -> net_fw_1;
+            net_1_2 -> net_fw_2;
+            
+            net_acl_1;
+            net_acl_2;
+            
+            net_peer_1 -> net_acl_1;
+            net_peer_2 -> net_acl_1;
+            net_acl_2 -> net_1_2_1;
+                
+            net_1_2_1 -> net_peer_2;
+        
+            label = "networking";
+            fontcolor = "white";
+            color=blue
+        }
+        
+        # Storage
+        subgraph cluster_5 {
+            node [style=filled];
+            vol_1;
+            vol_2;
+            vol_N;
+            
+            snap_1_1;
+            snap_1_2;
+            snap_N_1;
+            
+            pool_0 -> vol_1;
+            pool_0 -> vol_2;
+            pool_1 -> vol_N;
+            
+            vol_1 -> snap_1_1;
+            vol_1 -> snap_1_2;
+            vol_N -> snap_N_1;
+        
+            buck_1;
+            buck_2;
+            buck_N;
+            
+            buck_key_1_1;
+            buck_key_1_2;
+            
+            buck_1 -> buck_key_1_1;
+            buck_1 -> buck_key_1_2;
+            
+            pool_N -> buck_1;
+            pool_N -> buck_2;
+            pool_N -> buck_N;
+            
+            label = "storage";
+            fontcolor = "white";
+            color=red
+        }
+        
+        # Instances
+        subgraph cluster_6 {
+            node [style=filled];
+            
+            dev_nic_1;
+            dev_nic_2;
+            dev_nic_N;
+            
+            dev_disk_1;
+            dev_disk_2;
+            dev_disk_N;
+            
+            misc_dev_1; # 'misc' devices that are not disk or nic
+            misc_dev_2;
+            
+            prof_1;
+            prof_2;
+            
+            dev_nic_1 -> prof_1;
+            dev_disk_1 -> prof_1;
+            dev_nic_2 -> prof_2;
+            dev_disk_2 -> prof_2;
+            
+            prof_1 -> c1;
+            prof_1 -> c2;
+            prof_1 -> v1;
+            prof_2 -> c2;
+            prof_2 -> v2;
+            prof_1 -> c_N;
+            prof_1 -> v_N;
+            dev_nic_N -> c_N;
+            dev_disk_N -> c_N;
+            dev_nic_N -> v_N;
+            dev_disk_N -> v_N;
+            misc_dev_1 -> v2;
+            misc_dev_2 -> v_N;
+            
+            c1;
+            c2;
+            c_N;
+            
+            v1;
+            v2;
+            v_N;
+            
+            label = "instances";
+            fontcolor = "white";
+            color=sienna
+        }
+        
+        # project to storage
+        default -> vol_1;
+        default -> vol_2;
+        default -> vol_N;
+        default -> buck_1;
+        default -> buck_2;
+        default -> buck_N;
+        default -> dev_disk_2;
+        default -> misc_dev_1;
+        default -> misc_dev_2;
+        
+        # project to networking
+        default -> nz_1;
+        default -> nz_2;
+        default -> net_N;
+        default -> net_acl_2;
+        
+        # volumes to disk devices
+        vol_1 -> dev_disk_1;
+        vol_N -> dev_disk_N;
+        
+        # networks to nic devices
+        net_1_1 -> dev_nic_N;
+        net_1_2_1 -> dev_nic_1;
+        net_N -> dev_nic_2;
+    
+        label = "'default' project";
+    }
+
+    # Custom project 1
+    subgraph cluster_2 {
+        node [style=filled];
+        p_1;
+        label = "custom project 1";
+        color=blue
+        
+        # Networking
+        subgraph cluster_7 {
+            style=filled;
+            node [style=filled];
+            
+            net_3;
+            net_4;
+            
+            nz_2 -> net_3 [label="'features.networks.zones' == false"];
+            
+            net_2 -> net_3 [label="'features.networks' == false"];
+            net_4 -> net_peer_2;
+            
+            
+            label = "networking";
+            fontcolor = "white";
+            color=blue
+        }
+        
+        # Storage
+        subgraph cluster_8 {
+            style=filled;
+            node [style=filled];
+            
+            vol_4
+            
+            label = "storage";
+            fontcolor = "white";
+            color=red
+        }
+        
+        # Instances
+        subgraph cluster_9 {
+            style=filled;
+            node [style=filled];
+            
+            dev_nic_4;
+            dev_nic_5;
+            dev_nic_6;
+            
+            dev_disk_4;
+            dev_disk_5;
+            dev_disk_6;
+            
+            misc_dev_3; # 'misc' devices that are not disk or nic
+            misc_dev_4;
+            
+            prof_3;
+            prof_4;
+            
+            net_1_2 -> dev_nic_4 [label="'features.networks' == false"];
+            net_3 -> dev_nic_5;
+            net_4 -> dev_nic_6;
+            
+            vol_4 -> dev_disk_4;
+            vol_1 -> dev_disk_5 [label="'features.storage.volumes' == false"];
+            vol_2 -> dev_disk_6 [label="'features.storage.volumes' == false"];
+            
+            dev_nic_4 -> prof_3;
+            dev_disk_4 -> prof_3;
+            dev_disk_5 -> prof_3;
+            dev_nic_5 -> prof_3;
+            dev_nic_6 -> prof_4;
+            
+            c3;
+            c4;
+            
+            prof_3 -> c3;
+            prof_4 -> c3;
+            prof_4 -> c4;
+            prof_1 -> c4 [label="'features.profiles' == false"];
+            
+            dev_disk_6 -> c3;
+            misc_dev_3 -> c4;
+            misc_dev_4 -> c4;
+            
+            label = "instances";
+            fontcolor = "white";
+            color=sienna
+        }
+        
+        pool_N -> vol_4;
+        
+        p_1 -> net_4;
+        p_1 -> net_3;
+        p_1 -> vol_4;
+        p_1 -> misc_dev_3;
+        p_1 -> misc_dev_4;
+    }
+    
+    
+  
+    # Storage pools
+    root -> pool_0;
+    root -> pool_1;
+    root -> pool_N;
+    
+    # Projects
+    root -> default;
+    root -> p_1;
+
+    root [shape=Mdiamond];
+}
