@@ -934,13 +934,13 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	}
 
 	// Call the onstopns hook on stop but before namespaces are unmounted.
-	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", "/snap/lxd/current/bin/lxd-lxc-stop", shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
 	if err != nil {
 		return nil, err
 	}
 
 	// Call the onstop hook on stop.
-	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", "/snap/lxd/current/bin/lxd-lxc-stop", shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
 	if err != nil {
 		return nil, err
 	}
