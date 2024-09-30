@@ -4,6 +4,7 @@ import (
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 // pureLoaded indicates whether load() function was already called for the PureStorage driver.
@@ -71,6 +72,41 @@ func (d *pure) FillConfig() error {
 
 // Validate checks that all provided keys are supported and there is no conflicting or missing configuration.
 func (d *pure) Validate(config map[string]string) error {
+	rules := map[string]func(value string) error{
+		"size": validate.Optional(validate.IsSize),
+		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.api.token)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: API token for PureStorage gateway authentication
+		"pure.api.token": validate.Optional(),
+		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.gateway)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Address of the PureStorage Gateway
+		"pure.gateway": validate.Optional(validate.IsRequestURL),
+		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.gateway.verify)
+		//
+		// ---
+		//  type: bool
+		//  defaultdesc: `true`
+		//  shortdesc: Whether to verify the PureStorage gateway's certificate
+		"pure.gateway.verify": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=volume.size)
+		// Default PureStorage volume size rounded to 512B. The minimum size is 1MiB.
+		// ---
+		//  type: string
+		//  defaultdesc: `10GiB`
+		//  shortdesc: Size/quota of the storage volume
+		"volume.size": validate.Optional(validate.IsMultipleOfUnit("512B")),
+	}
+
+	err := d.validatePool(config, rules, d.commonVolumeRules())
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
