@@ -916,13 +916,28 @@ func isVMLowLevelOptionForbidden(key string) bool {
 
 // AllowInstanceUpdate returns an error if any project-specific limit or
 // restriction is violated when updating an existing instance.
-func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut, currentConfig map[string]string) error {
-	var updatedInstance *api.Instance
-
+func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, instanceName string, clusterMemberName string, sysinfo *api.ClusterMemberSysInfo, req api.InstancePut, currentConfig map[string]string) error {
 	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
 	}
+
+	inst := api.Instance{
+		Name:   instanceName,
+		Config: req.Config,
+	}
+
+	errors, err := CheckReservationsWithInstance(context.TODO(), tx, globalConfigDump, &inst, map[string]api.ClusterMemberSysInfo{clusterMemberName: *sysinfo})
+	if err != nil {
+		return err
+	}
+
+	err = errors[clusterMemberName]
+	if err != nil {
+		return fmt.Errorf("Reservation exceeded on cluster member %q: %w", clusterMemberName, err)
+	}
+
+	var updatedInstance *api.Instance
 
 	info, err := fetchProject(globalConfigDump, tx, projectName, true)
 	if err != nil {
