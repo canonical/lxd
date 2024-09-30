@@ -3979,3 +3979,63 @@ test_clustering_trust_add() {
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
 }
+
+test_clustering_resource_reservations() {
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  # create two cluster nodes
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  # Setting limits.reserve.{cpu,memory} is not allowed when instances without limits
+  # exist on that cluster member
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 --target node1
+
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config set limits.reserve.cpu 2 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config set limits.reserve.memory 2GiB || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster set node1 limits.reserve.cpu 2 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster set node1 limits.reserve.memory 2GiB || false
+
+  # Allow setting the value when no instances are missing limits
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster set node2 limits.reserve.cpu 2
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster set node2 limits.reserve.memory 2GiB
+
+  # Creating instances without limits is not allowed when reservations are set
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 --target node2 || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 --target node2 -c limits.cpu=2 -c limits.memory=1GiB
+
+  # Allow setting a global reservation when instances have the corresponding limit set
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c1 limits.cpu=2
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set limits.reserve.cpu=2
+
+  # Global reservations are overridden by member-specific reservations
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set limits.reserve.memory 1PiB # Allowed because node2 has only 2GiB reserved
+
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
