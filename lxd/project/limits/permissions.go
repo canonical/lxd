@@ -56,10 +56,27 @@ func HiddenStoragePools(ctx context.Context, tx *db.ClusterTx, projectName strin
 
 // AllowInstanceCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new instance.
-func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
+func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, clusterMemberName string, sysinfo *api.ClusterMemberSysInfo, req api.InstancesPost) error {
 	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
+	}
+
+	instance := api.Instance{
+		Name:    req.Name,
+		Project: projectName,
+	}
+
+	instance.SetWritable(req.InstancePut)
+
+	errors, err := CheckReservationsWithInstance(context.TODO(), tx, globalConfigDump, &instance, map[string]api.ClusterMemberSysInfo{clusterMemberName: *sysinfo})
+	if err != nil {
+		return fmt.Errorf("Failed validating resource reservations: %w", err)
+	}
+
+	err = errors[clusterMemberName]
+	if err != nil {
+		return fmt.Errorf("Reservation exceeded on cluster member %q: %w", clusterMemberName, err)
 	}
 
 	info, err := fetchProject(globalConfigDump, tx, projectName, true)
@@ -96,12 +113,6 @@ func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx,
 	}
 
 	// Add the instance being created.
-	instance := api.Instance{
-		Name:    req.Name,
-		Project: projectName,
-	}
-
-	instance.SetWritable(req.InstancePut)
 	info.Instances = append(info.Instances, instance)
 
 	// Special case restriction checks on volatile.* keys.
