@@ -720,6 +720,11 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		return response.BadRequest(err)
 	}
 
+	sysinfo, err := cluster.LocalSysInfo()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
 	// Check project permissions.
 	var req api.InstancesPost
 	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -730,7 +735,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			Type:        api.InstanceType(bInfo.Config.Container.Type),
 		}
 
-		return limits.AllowInstanceCreation(s.GlobalConfig, tx, projectName, req)
+		return limits.AllowInstanceCreation(s.GlobalConfig, tx, projectName, s.ServerName, sysinfo, req)
 	})
 	if err != nil {
 		return response.SmartError(err)
