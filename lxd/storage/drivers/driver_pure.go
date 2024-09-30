@@ -19,6 +19,9 @@ type pure struct {
 	// Holds the low level HTTP client for the Pure Storage API.
 	// Use pure.client() to retrieve the client struct.
 	httpClient *pureClient
+
+	// apiVersion indicates the Pure Storage API version.
+	apiVersion string
 }
 
 // load is used initialize the driver. It should be used only once.
