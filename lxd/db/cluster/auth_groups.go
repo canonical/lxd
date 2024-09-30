@@ -287,7 +287,7 @@ func SetAuthGroupPermissions(ctx context.Context, tx *sql.Tx, groupID int, authG
 	}
 
 	for _, permission := range authGroupPermissions {
-		_, err := tx.ExecContext(ctx, `INSERT INTO auth_groups_permissions (auth_group_id, entity_type, entity_id, entitlement) VALUES (?, ?, ?, ?);`, permission.GroupID, permission.EntityType, permission.EntityID, permission.Entitlement)
+		_, err := tx.ExecContext(ctx, `INSERT INTO auth_groups_permissions (auth_group_id, entity_type, entity_id, entitlement) VALUES (?, ?, ?, ?);`, groupID, permission.EntityType, permission.EntityID, permission.Entitlement)
 		if err != nil {
 			return fmt.Errorf("Failed to write group permissions: %w", err)
 		}
