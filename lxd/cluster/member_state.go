@@ -82,7 +82,7 @@ func LocalSysInfo() (*api.ClusterMemberSysInfo, error) {
 }
 
 // MemberState retrieves state information about the cluster member.
-func MemberState(ctx context.Context, s *state.State, memberName string) (*api.ClusterMemberState, error) {
+func MemberState(ctx context.Context, s *state.State) (*api.ClusterMemberState, error) {
 	var memberState api.ClusterMemberState
 
 	sysInfo, err := LocalSysInfo()
