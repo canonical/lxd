@@ -11,7 +11,7 @@ GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
-GOMIN=1.22.6
+GOMIN=1.22.7
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
 
 ifneq "$(wildcard vendor)" ""
