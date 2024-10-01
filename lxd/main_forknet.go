@@ -47,8 +47,24 @@ static int dosetns_file(char *file, char *nstype)
 }
 
 static void forkdonetdetach(char *file) {
+	// Attach to the network namespace.
 	if (dosetns_file(file, "net") < 0) {
 		fprintf(stderr, "Failed setns to container network namespace: %s\n", strerror(errno));
+		_exit(1);
+	}
+
+	if (unshare(CLONE_NEWNS) < 0) {
+		fprintf(stderr, "Failed to create new mount namespace: %s\n", strerror(errno));
+		_exit(1);
+	}
+
+	if (mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL) < 0) {
+		fprintf(stderr, "Failed to mark / private: %s\n", strerror(errno));
+		_exit(1);
+	}
+
+	if (mount("sysfs", "/sys", "sysfs", 0, NULL) < 0) {
+		fprintf(stderr, "Failed mounting new sysfs: %s\n", strerror(errno));
 		_exit(1);
 	}
 
@@ -106,6 +122,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -119,6 +137,7 @@ type cmdForknet struct {
 	global *cmdGlobal
 }
 
+// Command performs container network operations.
 func (c *cmdForknet) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -152,6 +171,7 @@ func (c *cmdForknet) Command() *cobra.Command {
 	return cmd
 }
 
+// RunInfo prints the information about a NIC.
 func (c *cmdForknet) RunInfo(cmd *cobra.Command, args []string) error {
 	hostInterfaces, _ := net.Interfaces()
 	networks, err := netutils.NetnsGetifaddrs(-1, hostInterfaces)
@@ -169,6 +189,7 @@ func (c *cmdForknet) RunInfo(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// RunDetach detaches a NIC from the host.
 func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 	lxdPID := args[1]
 	ifName := args[2]
@@ -186,6 +207,11 @@ func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("hostname argument is required")
 	}
 
+	// Check if the interface exists.
+	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", ifName)) {
+		return fmt.Errorf("Couldn't restore host interface %q as container interface %q couldn't be found", hostName, ifName)
+	}
+
 	// Remove all IP addresses from interface before moving to parent netns.
 	// This is to avoid any container address config leaking into host.
 	addr := &ip.Addr{
@@ -197,13 +223,14 @@ func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Set interface down, rename it, and move into parent netns.
+	// Set interface down.
 	link := &ip.Link{Name: ifName}
 	err = link.SetDown()
 	if err != nil {
 		return err
 	}
 
+	// Rename it back to the host name.
 	err = link.SetName(hostName)
 	if err != nil {
 		// If the interface has an altname that matches the target name, this can prevent rename of the
@@ -216,10 +243,27 @@ func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	link = &ip.Link{Name: hostName}
-	err = link.SetNetns(lxdPID)
-	if err != nil {
-		return err
+	// Move it back to the host.
+	phyPath := fmt.Sprintf("/sys/class/net/%s/phy80211/name", hostName)
+	if shared.PathExists(phyPath) {
+		// Get the phy name.
+		phyName, err := os.ReadFile(phyPath)
+		if err != nil {
+			return err
+		}
+
+		// Wifi cards (move the phy instead).
+		_, err = shared.RunCommand("iw", "phy", strings.TrimSpace(string(phyName)), "set", "netns", lxdPID)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Regular NICs.
+		link = &ip.Link{Name: hostName}
+		err = link.SetNetns(lxdPID)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

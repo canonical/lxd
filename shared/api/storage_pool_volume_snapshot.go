@@ -14,6 +14,10 @@ type StorageVolumeSnapshotsPost struct {
 	// Example: snap0
 	Name string `json:"name" yaml:"name"`
 
+	// Description of the storage volume snapshot
+	// Example: My custom snapshot
+	Description string `json:"description" yaml:"description"`
+
 	// When the snapshot expires (gets auto-deleted)
 	// Example: 2021-03-23T17:38:37.753398689-04:00
 	//

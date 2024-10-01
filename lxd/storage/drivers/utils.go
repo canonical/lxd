@@ -22,6 +22,9 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// defaultVMBlockFilesystemSize is the size of a VM root device block volume's associated filesystem volume.
+const defaultVMBlockFilesystemSize = "100MiB"
+
 // MinBlockBoundary minimum block boundary size to use.
 const MinBlockBoundary = 8192
 
@@ -534,21 +537,20 @@ func growFileSystem(fsType string, devPath string, vol Volume) error {
 	}
 
 	return vol.MountTask(func(mountPath string, op *operations.Operation) error {
-		var msg string
 		var err error
 		switch fsType {
 		case "ext4":
-			msg, err = shared.TryRunCommand("resize2fs", devPath)
+			_, err = shared.TryRunCommand("resize2fs", devPath)
 		case "xfs":
-			msg, err = shared.TryRunCommand("xfs_growfs", mountPath)
+			_, err = shared.TryRunCommand("xfs_growfs", mountPath)
 		case "btrfs":
-			msg, err = shared.TryRunCommand("btrfs", "filesystem", "resize", "max", mountPath)
+			_, err = shared.TryRunCommand("btrfs", "filesystem", "resize", "max", mountPath)
 		default:
 			return fmt.Errorf("Unrecognised filesystem type %q", fsType)
 		}
 
 		if err != nil {
-			return fmt.Errorf("Could not grow underlying %q filesystem for %q: %s", fsType, devPath, msg)
+			return fmt.Errorf("Could not grow underlying %q filesystem for %q: %w", fsType, devPath, err)
 		}
 
 		return nil
@@ -639,7 +641,7 @@ func copyDevice(inputPath string, outputPath string) error {
 		_ = from.Close()
 	}
 
-	to, err := os.OpenFile(outputPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+	to, err := os.OpenFile(outputPath, unix.O_DIRECT|unix.O_WRONLY, 0)
 	if err == nil {
 		cmd = append(cmd, "oflag=direct")
 		_ = to.Close()

@@ -8,6 +8,11 @@ export LC_ALL="C"
 # Force UTC for consistency
 export TZ="UTC"
 
+if [ -z "${NO_PROXY:-}" ]; then
+  # Prevent proxy usage for some host names/IPs (comma-separated list)
+  export NO_PROXY="127.0.0.1"
+fi
+
 export DEBUG=""
 if [ -n "${LXD_VERBOSE:-}" ]; then
   DEBUG="--verbose"
@@ -89,9 +94,22 @@ cleanup() {
 
   if [ "${TEST_RESULT}" != "success" ]; then
     # dmesg may contain oops, IO errors, crashes, etc
-    echo "::group::dmesg logs"
+    # If there's a kernel stack trace, don't generate a collapsible group
+
+    expandDmesg=no
+    if journalctl --quiet --no-hostname --no-pager --boot=0 --lines=100 --dmesg --grep="Call Trace:" > /dev/null; then
+      expandDmesg=yes
+    fi
+
+    if [ "${expandDmesg}" = "no" ]; then
+      echo "::group::dmesg logs"
+    else
+      echo "dmesg logs"
+    fi
     journalctl --quiet --no-hostname --no-pager --boot=0 --lines=100 --dmesg
-    echo "::endgroup::"
+    if [ "${expandDmesg}" = "no" ]; then
+      echo "::endgroup::"
+    fi
   fi
 
   if [ -n "${GITHUB_ACTIONS:-}" ]; then
@@ -211,6 +229,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_database_no_disk_space "database out of disk space"
     run_test test_sql "lxd sql"
     run_test test_tls_restrictions "TLS restrictions"
+    run_test test_tls_version "TLS version"
     run_test test_oidc "OpenID Connect"
     run_test test_authorization "Authorization"
     run_test test_certificate_edit "Certificate edit"
@@ -274,6 +293,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_projects_network "projects and networks"
     run_test test_projects_limits "projects limits"
     run_test test_projects_usage "projects usage"
+    run_test test_projects_yaml "projects with yaml initialization"
     run_test test_projects_restrictions "projects restrictions"
     run_test test_container_devices_disk "container devices - disk"
     run_test test_container_devices_disk_restricted "container devices - disk - restricted"
@@ -292,8 +312,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_container_devices_infiniband_sriov "container devices - infiniband - sriov"
     run_test test_container_devices_proxy "container devices - proxy"
     run_test test_container_devices_gpu "container devices - gpu"
-    run_test test_container_devices_unix_char "container devices - unix-char"
-    run_test test_container_devices_unix_block "container devices - unix-block"
+    run_test test_container_devices_unix "container devices - unix"
     run_test test_container_devices_tpm "container devices - tpm"
     run_test test_container_move "container server-side move"
     run_test test_container_syscall_interception "container syscall interception"

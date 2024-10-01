@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/operations"
 	projecthelpers "github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -685,7 +686,7 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 
 	// Update the database entry.
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		err := projecthelpers.AllowProjectUpdate(s.GlobalConfig, tx, project.Name, req.Config, configChanged)
+		err := limits.AllowProjectUpdate(s.GlobalConfig, tx, project.Name, req.Config, configChanged)
 		if err != nil {
 			return err
 		}
@@ -932,7 +933,7 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get current limits and usage.
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		result, err := projecthelpers.GetCurrentAllocations(s.GlobalConfig.Dump(), ctx, tx, name)
+		result, err := limits.GetCurrentAllocations(s.GlobalConfig.Dump(), ctx, tx, name)
 		if err != nil {
 			return err
 		}
@@ -1354,7 +1355,7 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		//  shortdesc: Which network names can be used as uplink in this project
 		"restricted.networks.uplinks": validate.Optional(validate.IsListOf(validate.IsAny)),
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.networks.subnets)
-		// Specify a comma-delimited list of network subnets from the uplink networks that are allocated for use in this project.
+		// Specify a comma-delimited list of CIDR network routes from the uplink network's {config:option}`network-physical-network-conf:ipv4.routes` {config:option}`network-physical-network-conf:ipv6.routes` that are allowed for use in this project.
 		// Use the form `<uplink>:<subnet>`.
 		// ---
 		//  type: string

@@ -23,6 +23,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/lxd/apparmor"
@@ -39,6 +40,7 @@ import (
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/state"
@@ -723,19 +725,19 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	defer l.Debug("CreateInstanceFromBackup finished")
 
 	// Validate the names in the backup.yaml file as these could be malicious.
-	err := instance.ValidName(srcBackup.Name, false)
+	err := instancetype.ValidName(srcBackup.Name, false)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	err = instance.ValidName(srcBackup.Config.Container.Name, false)
+	err = instancetype.ValidName(srcBackup.Config.Container.Name, false)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	for _, snapName := range srcBackup.Snapshots {
 		snapInstName := fmt.Sprintf("%s%s%s", srcBackup.Name, shared.SnapshotDelimiter, snapName)
-		err = instance.ValidName(snapInstName, true)
+		err = instancetype.ValidName(snapInstName, true)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -743,7 +745,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 
 	for _, snap := range srcBackup.Config.Snapshots {
 		snapInstName := fmt.Sprintf("%s%s%s", srcBackup.Name, shared.SnapshotDelimiter, snap.Name)
-		err = instance.ValidName(snapInstName, true)
+		err = instancetype.ValidName(snapInstName, true)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1847,6 +1849,19 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string, op 
 			// Run with low priority to reduce CPU impact on other processes.
 			"nice", "-n19",
 			"qemu-img", "convert", "-p", "-f", imgFormat, "-O", "raw", imgPath, diskPath, "-t", "writeback",
+		}
+
+		// Check for Direct I/O support.
+		from, err := os.OpenFile(imgPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+		if err == nil {
+			cmd = append(cmd, "-T", "none")
+			_ = from.Close()
+		}
+
+		to, err := os.OpenFile(diskPath, unix.O_DIRECT|unix.O_WRONLY, 0)
+		if err == nil {
+			cmd = append(cmd, "-t", "none")
+			_ = to.Close()
 		}
 
 		b.logger.Debug("Image conversion started", logger.Ctx{"from": imgFormat, "to": "raw"})
@@ -6355,8 +6370,8 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 }
 
 // CreateCustomVolumeSnapshot creates a snapshot of a custom volume.
-func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, newSnapshotName string, newExpiryDate time.Time, op *operations.Operation) error {
-	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volName": volName, "newSnapshotName": newSnapshotName, "newExpiryDate": newExpiryDate})
+func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, newSnapshotName string, newDescription string, newExpiryDate time.Time, op *operations.Operation) error {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volName": volName, "newSnapshotName": newSnapshotName, "newDescription": newDescription, "newExpiryDate": newExpiryDate})
 	l.Debug("CreateCustomVolumeSnapshot started")
 	defer l.Debug("CreateCustomVolumeSnapshot finished")
 
@@ -6417,9 +6432,15 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Set the description if it's not empty.
+	description := parentVol.Description
+	if newDescription != "" {
+		description = newDescription
+	}
+
 	// Validate config and create database entry for new storage volume.
 	// Copy volume config from parent.
-	err = VolumeDBCreate(b, projectName, fullSnapshotName, parentVol.Description, drivers.VolumeTypeCustom, true, vol.Config(), time.Now().UTC(), newExpiryDate, drivers.ContentType(parentVol.ContentType), false, true)
+	err = VolumeDBCreate(b, projectName, fullSnapshotName, description, drivers.VolumeTypeCustom, true, vol.Config(), time.Now().UTC(), newExpiryDate, drivers.ContentType(parentVol.ContentType), false, true)
 	if err != nil {
 		return err
 	}
@@ -7528,7 +7549,7 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 	}
 
 	err := b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		return project.AllowVolumeCreation(b.state.GlobalConfig, tx, projectName, req)
+		return limits.AllowVolumeCreation(b.state.GlobalConfig, tx, projectName, req)
 	})
 	if err != nil {
 		return fmt.Errorf("Failed checking volume creation allowed: %w", err)
@@ -7633,7 +7654,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	}
 
 	err = b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		return project.AllowVolumeCreation(b.state.GlobalConfig, tx, srcBackup.Project, req)
+		return limits.AllowVolumeCreation(b.state.GlobalConfig, tx, srcBackup.Project, req)
 	})
 	if err != nil {
 		return fmt.Errorf("Failed checking volume creation allowed: %w", err)

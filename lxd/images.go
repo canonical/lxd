@@ -39,6 +39,7 @@ import (
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
 	projectutils "github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -688,6 +689,8 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 
 	sha256 := sha256.New()
 	var size int64
+	var imageTmpFilename string
+	var rootfsTmpFilename string
 
 	if ctype == "multipart/form-data" {
 		// Create a temporary file for the image tarball
@@ -697,6 +700,8 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		}
 
 		defer func() { _ = os.Remove(imageTarf.Name()) }()
+
+		imageTmpFilename = imageTarf.Name()
 
 		// Parse the POST data
 		_, err = post.Seek(0, io.SeekStart)
@@ -749,6 +754,8 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 
 		defer func() { _ = os.Remove(rootfsTarf.Name()) }()
 
+		rootfsTmpFilename = rootfsTarf.Name()
+
 		size, err = io.Copy(io.MultiWriter(rootfsTarf, sha256), part)
 		info.Size += size
 
@@ -759,39 +766,6 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		}
 
 		info.Filename = part.FileName()
-		info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
-
-		expectedFingerprint := r.Header.Get("X-LXD-fingerprint")
-		if expectedFingerprint != "" && info.Fingerprint != expectedFingerprint {
-			err = fmt.Errorf("fingerprints don't match, got %s expected %s", info.Fingerprint, expectedFingerprint)
-			return nil, err
-		}
-
-		imageMeta, _, err = getImageMetadata(imageTarf.Name())
-		if err != nil {
-			l.Error("Failed to get image metadata", logger.Ctx{"err": err})
-			return nil, err
-		}
-
-		imgfname := shared.VarPath("images", info.Fingerprint)
-		err = shared.FileMove(imageTarf.Name(), imgfname)
-		if err != nil {
-			l.Error("Failed to move the image tarfile", logger.Ctx{
-				"err":    err,
-				"source": imageTarf.Name(),
-				"dest":   imgfname})
-			return nil, err
-		}
-
-		rootfsfname := shared.VarPath("images", info.Fingerprint+".rootfs")
-		err = shared.FileMove(rootfsTarf.Name(), rootfsfname)
-		if err != nil {
-			l.Error("Failed to move the rootfs tarfile", logger.Ctx{
-				"err":    err,
-				"source": rootfsTarf.Name(),
-				"dest":   imgfname})
-			return nil, err
-		}
 	} else {
 		_, err = post.Seek(0, io.SeekStart)
 		if err != nil {
@@ -807,32 +781,55 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		info.Size = size
 
 		info.Filename = r.Header.Get("X-LXD-filename")
-		info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
 
-		expectedFingerprint := r.Header.Get("X-LXD-fingerprint")
-		if expectedFingerprint != "" && info.Fingerprint != expectedFingerprint {
-			l.Error("Fingerprints don't match", logger.Ctx{
-				"got":      info.Fingerprint,
-				"expected": expectedFingerprint})
-			err = fmt.Errorf("fingerprints don't match, got %s expected %s", info.Fingerprint, expectedFingerprint)
-			return nil, err
-		}
+		imageTmpFilename = post.Name()
+	}
 
-		var imageType string
-		imageMeta, imageType, err = getImageMetadata(post.Name())
-		if err != nil {
-			l.Error("Failed to get image metadata", logger.Ctx{"err": err})
-			return nil, err
-		}
+	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
 
+	expectedFingerprint := r.Header.Get("X-LXD-fingerprint")
+	if expectedFingerprint != "" && info.Fingerprint != expectedFingerprint {
+		l.Error("Fingerprints don't match", logger.Ctx{
+			"got":      info.Fingerprint,
+			"expected": expectedFingerprint})
+		err = fmt.Errorf("Fingerprints don't match, got %s expected %s", info.Fingerprint, expectedFingerprint)
+		return nil, err
+	}
+
+	unlock, err := imageOperationLock(info.Fingerprint)
+	if err != nil {
+		return nil, err
+	}
+
+	defer unlock()
+
+	imageMeta, imageType, err := getImageMetadata(imageTmpFilename)
+	if err != nil {
+		l.Error("Failed to get image metadata", logger.Ctx{"err": err})
+		return nil, err
+	}
+
+	if info.Type == "" {
 		info.Type = imageType
+	}
 
-		imgfname := shared.VarPath("images", info.Fingerprint)
-		err = shared.FileMove(post.Name(), imgfname)
+	imgfname := shared.VarPath("images", info.Fingerprint)
+	err = shared.FileMove(imageTmpFilename, imgfname)
+	if err != nil {
+		l.Error("Failed to move the image tarfile", logger.Ctx{
+			"err":    err,
+			"source": imageTmpFilename,
+			"dest":   imgfname})
+		return nil, err
+	}
+
+	if rootfsTmpFilename != "" {
+		rootfsfname := shared.VarPath("images", info.Fingerprint+".rootfs")
+		err = shared.FileMove(rootfsTmpFilename, rootfsfname)
 		if err != nil {
-			l.Error("Failed to move the tarfile", logger.Ctx{
+			l.Error("Failed to move the rootfs tarfile", logger.Ctx{
 				"err":    err,
-				"source": post.Name(),
+				"source": rootfsTmpFilename,
 				"dest":   imgfname})
 			return nil, err
 		}
@@ -1138,7 +1135,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	// allowed to use.
 	var budget int64
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		budget, err = projectutils.GetImageSpaceBudget(s.GlobalConfig, tx, projectName)
+		budget, err = limits.GetImageSpaceBudget(s.GlobalConfig, tx, projectName)
 		return err
 	})
 	if err != nil {
@@ -4106,7 +4103,10 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	isDevLXDQuery := r.RemoteAddr == devlxdRemoteAddress
+	// Verify the auth method in the request context to determine if the request comes from the /dev/lxd socket.
+	authMethod, _ := auth.GetAuthenticationMethodFromCtx(r.Context())
+	isDevLXDQuery := authMethod == auth.AuthenticationMethodDevLXD
+
 	secret := r.FormValue("secret")
 	trusted := auth.IsTrusted(r.Context())
 

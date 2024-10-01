@@ -1,4 +1,4 @@
-package project_test
+package limits_test
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
-	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -32,7 +32,7 @@ func TestAllowInstanceCreation_NotConfigured(t *testing.T) {
 		Type: api.InstanceTypeContainer,
 	}
 
-	err := project.AllowInstanceCreation(nil, tx, "default", req)
+	err := limits.AllowInstanceCreation(nil, tx, "default", req)
 	assert.NoError(t, err)
 }
 
@@ -62,7 +62,7 @@ func TestAllowInstanceCreation_Below(t *testing.T) {
 		Type: api.InstanceTypeContainer,
 	}
 
-	err = project.AllowInstanceCreation(nil, tx, "p1", req)
+	err = limits.AllowInstanceCreation(nil, tx, "p1", req)
 	assert.NoError(t, err)
 }
 
@@ -93,7 +93,7 @@ func TestAllowInstanceCreation_Above(t *testing.T) {
 		Type: api.InstanceTypeContainer,
 	}
 
-	err = project.AllowInstanceCreation(nil, tx, "p1", req)
+	err = limits.AllowInstanceCreation(nil, tx, "p1", req)
 	assert.EqualError(t, err, `Reached maximum number of instances of type "container" in project "p1"`)
 }
 
@@ -124,7 +124,7 @@ func TestAllowInstanceCreation_DifferentType(t *testing.T) {
 		Type: api.InstanceTypeContainer,
 	}
 
-	err = project.AllowInstanceCreation(nil, tx, "p1", req)
+	err = limits.AllowInstanceCreation(nil, tx, "p1", req)
 	assert.NoError(t, err)
 }
 
@@ -155,7 +155,7 @@ func TestAllowInstanceCreation_AboveInstances(t *testing.T) {
 		Type: api.InstanceTypeContainer,
 	}
 
-	err = project.AllowInstanceCreation(nil, tx, "p1", req)
+	err = limits.AllowInstanceCreation(nil, tx, "p1", req)
 	assert.EqualError(t, err, `Reached maximum number of instances in project "p1"`)
 }
 
@@ -203,7 +203,7 @@ func TestCheckClusterTargetRestriction_RestrictedTrue(t *testing.T) {
 	authorizer, err := drivers.LoadAuthorizer(context.Background(), drivers.DriverTLS, logger.Log, identityCache)
 	require.NoError(t, err)
 
-	err = project.CheckClusterTargetRestriction(authorizer, req, p, "n1")
+	err = limits.CheckClusterTargetRestriction(authorizer, req, p, "n1")
 	assert.EqualError(t, err, "This project doesn't allow cluster member targeting")
 }
 
@@ -249,7 +249,7 @@ func TestCheckClusterTargetRestriction_RestrictedTrueWithOverride(t *testing.T) 
 	authorizer, err := drivers.LoadAuthorizer(context.Background(), drivers.DriverTLS, logger.Log, identityCache)
 	require.NoError(t, err)
 
-	err = project.CheckClusterTargetRestriction(authorizer, req, p, "n1")
+	err = limits.CheckClusterTargetRestriction(authorizer, req, p, "n1")
 	assert.Nil(t, err)
 }
 
@@ -275,6 +275,6 @@ func TestCheckClusterTargetRestriction_RestrictedFalse(t *testing.T) {
 	authorizer, err := drivers.LoadAuthorizer(context.Background(), drivers.DriverTLS, logger.Log, &identity.Cache{})
 	require.NoError(t, err)
 
-	err = project.CheckClusterTargetRestriction(authorizer, req, p, "n1")
+	err = limits.CheckClusterTargetRestriction(authorizer, req, p, "n1")
 	assert.NoError(t, err)
 }

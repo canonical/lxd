@@ -11,7 +11,8 @@ GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
-GOMIN=1.22.5
+GOMIN=1.22.7
+GOCOVERDIR ?= $(shell go env GOCOVERDIR)
 
 ifneq "$(wildcard vendor)" ""
 	DQLITE_PATH=$(CURDIR)/vendor/dqlite
@@ -23,7 +24,7 @@ endif
 default: all
 
 .PHONY: all
-all: client lxd lxd-agent lxd-benchmark lxd-migrate
+all: client lxd lxd-agent lxd-migrate
 
 .PHONY: build
 build: lxd
@@ -33,32 +34,53 @@ ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing dqlite, run \"make deps\" to setup."
 	exit 1
 endif
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+
+ifeq "$(GOCOVERDIR)" ""
+	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath $(DEBUG) ./lxd ./lxc-to-lxd ./lxd-user ./lxd-benchmark
+else
+	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath -cover $(DEBUG) ./lxd ./lxc-to-lxd ./lxd-user ./lxd-benchmark
+endif
+
 	@echo "LXD built successfully"
 
 .PHONY: client
 client:
-	go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./lxc
+ifeq "$(GOCOVERDIR)" ""
+	go install -v -trimpath $(DEBUG) ./lxc
+else
+	go install -v -trimpath -cover $(DEBUG) ./lxc
+endif
+
 	@echo "LXD client built successfully"
 
 .PHONY: lxd-agent
 lxd-agent:
-	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
-	@echo "LXD agent built successfully"
+ifeq "$(GOCOVERDIR)" ""
+	CGO_ENABLED=0 go install -v -trimpath -tags agent,netgo ./lxd-agent
+else
+	CGO_ENABLED=0 go install -v -trimpath -cover -tags agent,netgo ./lxd-agent
+endif
 
-.PHONY: lxd-benchmark
-lxd-benchmark:
-	CGO_ENABLED=0 go install -v ./lxd-benchmark
-	@echo "LXD benchmark built successfully"
+	@echo "LXD agent built successfully"
 
 .PHONY: lxd-metadata
 lxd-metadata:
-	CGO_ENABLED=0 go install -v -tags lxd-metadata ./lxd/lxd-metadata
+ifeq "$(GOCOVERDIR)" ""
+	CGO_ENABLED=0 go install -v -trimpath -tags lxd-metadata ./lxd/lxd-metadata
+else
+	CGO_ENABLED=0 go install -v -trimpath -cover -tags lxd-metadata ./lxd/lxd-metadata
+endif
+
 	@echo "LXD metadata built successfully"
 
 .PHONY: lxd-migrate
 lxd-migrate:
-	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
+ifeq "$(GOCOVERDIR)" ""
+	CGO_ENABLED=0 go install -v -trimpath -tags netgo ./lxd-migrate
+else
+	CGO_ENABLED=0 go install -v -trimpath -cover -tags netgo ./lxd-migrate
+endif
+
 	@echo "LXD-MIGRATE built successfully"
 
 .PHONY: deps
@@ -89,9 +111,15 @@ ifneq "$(LXD_OFFLINE)" ""
 	@echo "The update-gomod target cannot be run in offline mode."
 	exit 1
 endif
-	go get -t -v -d -u ./...
+	# Update gomod dependencies
+	go get -t -v -u ./...
+
+	# Static pins
 	go get github.com/dell/goscaleio@v1.15.0 # Due to pending testing of newer version
 	go get github.com/gorilla/websocket@v1.5.1 # Due to riscv64 crashes in LP
+
+	# Enforce minimum go version
+	go get toolchain@none # Use the bundled toolchain that meets the minimum go version
 	go mod tidy -go=$(GOMIN)
 
 	@echo "Dependencies updated"
@@ -102,7 +130,7 @@ update-protobuf:
 
 .PHONY: update-schema
 update-schema:
-	cd lxd/db/generate && go build -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG) && cd -
+	cd lxd/db/generate && go build -v -trimpath -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG) && cd -
 	go generate ./...
 	gofmt -s -w ./lxd/db/
 	goimports -w ./lxd/db/
@@ -139,8 +167,8 @@ ifeq "$(TAG_SQLITE3)" ""
 endif
 
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3) logdebug" $(DEBUG) ./...
-	CGO_ENABLED=0 go install -v -tags "netgo,logdebug" ./lxd-migrate
-	CGO_ENABLED=0 go install -v -tags "agent,netgo,logdebug" ./lxd-agent
+	CGO_ENABLED=0 go install -v -trimpath -tags "netgo,logdebug" ./lxd-migrate
+	CGO_ENABLED=0 go install -v -trimpath -tags "agent,netgo,logdebug" ./lxd-agent
 	@echo "LXD built successfully"
 
 .PHONY: nocache
@@ -151,8 +179,8 @@ ifeq "$(TAG_SQLITE3)" ""
 endif
 
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -a -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
-	CGO_ENABLED=0 go install -a -v -tags netgo ./lxd-migrate
-	CGO_ENABLED=0 go install -a -v -tags agent,netgo ./lxd-agent
+	CGO_ENABLED=0 go install -a -v -trimpath -tags netgo ./lxd-migrate
+	CGO_ENABLED=0 go install -a -v -trimpath -tags agent,netgo ./lxd-agent
 	@echo "LXD built successfully"
 
 race:
@@ -162,19 +190,21 @@ ifeq "$(TAG_SQLITE3)" ""
 endif
 
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -race -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
-	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
-	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
+	CGO_ENABLED=0 go install -v -trimpath -tags netgo ./lxd-migrate
+	CGO_ENABLED=0 go install -v -trimpath -tags agent,netgo ./lxd-agent
 	@echo "LXD built successfully"
 
 .PHONY: check
-check: default
-ifeq "$(LXD_OFFLINE)" ""
-	(cd / ; go install github.com/rogpeppe/godeps@latest)
-	(cd / ; go install github.com/tsenart/deadcode@latest)
-	(cd / ; go install golang.org/x/lint/golint@latest)
-endif
-	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+check: default check-unit
 	cd test && ./main.sh
+
+.PHONY: unit
+check-unit:
+ifeq "$(GOCOVERDIR)" ""
+	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+else
+	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... -cover -test.gocoverdir="${GOCOVERDIR}"
+endif
 
 .PHONY: dist
 dist: doc

@@ -127,7 +127,7 @@ To create a container with an Ubuntu 24.04 LTS image from the `ubuntu` server us
       "source": {
         "alias": "24.04",
         "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases",
+        "server": "https://cloud-images.ubuntu.com/releases/",
         "type": "image"
       }
     }'
@@ -154,7 +154,7 @@ To create a virtual machine with an Ubuntu 24.04 LTS image from the `ubuntu` ser
       "source": {
         "alias": "24.04",
         "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases",
+        "server": "https://cloud-images.ubuntu.com/releases/",
         "type": "image"
       },
       "type": "virtual-machine"
@@ -188,7 +188,7 @@ Or with a bigger disk:
       "source": {
         "alias": "24.04",
         "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases",
+        "server": "https://cloud-images.ubuntu.com/releases/",
         "type": "image"
       },
       "type": "virtual-machine"
@@ -220,7 +220,7 @@ To create a container and limit its resources to one vCPU and 8 GiB of RAM:
       "source": {
         "alias": "24.04",
         "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases",
+        "server": "https://cloud-images.ubuntu.com/releases/",
         "type": "image"
       }
     }'
@@ -247,7 +247,7 @@ To create a virtual machine on the cluster member `micro2`, enter the following 
       "source": {
         "alias": "24.04",
         "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases",
+        "server": "https://cloud-images.ubuntu.com/releases/",
         "type": "image"
       },
       "type": "virtual-machine"
@@ -293,7 +293,7 @@ To create a container with this instance type:
       "source": {
         "alias": "24.04",
         "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases",
+        "server": "https://cloud-images.ubuntu.com/releases/",
         "type": "image"
       }
     }'
@@ -356,17 +356,9 @@ You should now see the installer. After the installation is done, detach the cus
 Now the VM can be rebooted, and it will boot from disk.
 <!-- iso_vm_step7 end -->
 
-<!-- iso_vm_step8 start -->
-If the VM installed from an ISO is a Linux distribution using `systemd`, it is possible to install the LXD agent inside of it. This can be done manually as the root user inside the VM:
-<!-- iso_vm_step8 end -->
-
-    mount -t 9p config /mnt
-    cd /mnt
-    ./install.sh
-    cd /
-    umount /mnt
-    systemctl start lxd-agent
-
+```{note}
+On Linux virtual machines, the {ref}`LXD agent can be manually installed <lxd-agent-manual-install>`.
+```
 
 ````
 ````{group-tab} API
@@ -479,6 +471,33 @@ In the {guilabel}`Create instance` dialog, click {guilabel}`Use custom ISO` inst
 You can then upload your ISO file and install a VM from it.
 ````
 `````
+
+(lxd-agent-manual-install)=
+### Install the LXD agent into virtual machine instances
+
+In order for features like direct command execution (`lxc exec` & `lxc shell`), file transfers (`lxc file`) and detailed usage metrics (`lxc info`)
+to work properly with virtual machines, an agent software is provided by LXD.
+
+The virtual machine images from the official {ref}`remote image servers <remote-image-servers>` are pre-configured to load that agent on startup.
+
+For other virtual machines, you may want to manually install the agent.
+
+```{note}
+The LXD agent is currently available only on Linux virtual machines using `systemd`.
+```
+
+LXD provides the agent through a remote `9p` file system and a `virtiofs` one that are both available under the mount name `config`.
+To install the agent, you'll need to get access to the virtual machine and run the following commands as root:
+
+    modprobe 9pnet_virtio
+    mount -t 9p config /mnt -o access=0,transport=virtio || mount -t virtiofs config /mnt
+    cd /mnt
+    ./install.sh
+    cd /
+    umount /mnt
+    reboot
+
+You need to perform this task once.
 
 ### Create a Windows VM
 

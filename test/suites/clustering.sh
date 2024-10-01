@@ -3540,6 +3540,15 @@ test_clustering_groups() {
   # delete cluster group "newgroup"
   lxc cluster group delete cluster:newgroup
 
+  # Try to create a cluster group using yaml
+  lxc cluster group create cluster:yamlgroup <<EOF
+description: foo
+EOF
+
+  [ "$(lxc query cluster:/1.0/cluster/groups/yamlgroup | jq -r '.description')" = "foo" ]
+  # Delete the cluster group "yamlgroup"
+  lxc cluster group delete cluster:yamlgroup
+
   # With these settings:
   # - node1 will receive instances unless a different node is directly targeted (not via group)
   # - node2 will receive instances if either targeted by group or directly

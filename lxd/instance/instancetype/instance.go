@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -26,6 +27,38 @@ const (
 
 // ConfigVolatilePrefix indicates the prefix used for volatile config keys.
 const ConfigVolatilePrefix = "volatile."
+
+// ValidName validates an instance name. There are different validation rules for instance snapshot names
+// so it takes an argument indicating whether the name is to be used for a snapshot or not.
+func ValidName(instanceName string, isSnapshot bool) error {
+	if isSnapshot {
+		parentName, snapshotName, _ := api.GetParentAndSnapshotName(instanceName)
+		err := validate.IsHostname(parentName)
+		if err != nil {
+			return fmt.Errorf("Invalid instance name %q: %w", parentName, err)
+		}
+
+		// Snapshot part is more flexible, but doesn't allow "..", space or / characters.
+		if snapshotName == ".." {
+			return fmt.Errorf("Invalid instance snapshot name %q", snapshotName)
+		}
+
+		if strings.ContainsAny(snapshotName, " /") {
+			return fmt.Errorf("Invalid instance snapshot name %q: Cannot contain spaces or slashes", snapshotName)
+		}
+	} else {
+		if strings.Contains(instanceName, shared.SnapshotDelimiter) {
+			return fmt.Errorf("Invalid instance name %q: Cannot contain slashes", instanceName)
+		}
+
+		err := validate.IsHostname(instanceName)
+		if err != nil {
+			return fmt.Errorf("Invalid instance name %q: %w", instanceName, err)
+		}
+	}
+
+	return nil
+}
 
 // IsRootDiskDevice returns true if the given device representation is configured as root disk for
 // an instance. It typically get passed a specific entry of api.Instance.Devices.
@@ -372,6 +405,20 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 		return err
 	},
 
+	// lxdmeta:generate(entities=instance; group=miscellaneous; key=ubuntu_pro.guest_attach)
+	// Indicate whether the guest should auto-attach Ubuntu Pro at start up.
+	// The allowed values are `off`, `on`, and `available`.
+	// If set to `off`, it will not be possible for the Ubuntu Pro client in the guest to obtain guest token via `devlxd`.
+	// If set to `available`, attachment via guest token is possible but will not be performed automatically by the Ubuntu Pro client in the guest at startup.
+	// If set to `on`, attachment will be performed automatically by the Ubuntu Pro client in the guest at startup.
+	// To allow guest attachment, the host must be an Ubuntu machine that is Pro attached, and guest attachment must be enabled via the Pro client.
+	// To do this, run `pro config set lxd_guest_attach=on`.
+	// ---
+	// type: string
+	// liveupdate: no
+	// shortdesc: Whether to auto-attach Ubuntu Pro.
+	"ubuntu_pro.guest_attach": validate.Optional(validate.IsOneOf("off", "on", "available")),
+
 	// Volatile keys.
 
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.apply_template)
@@ -388,7 +435,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	//  shortdesc: Hash of the base image
 	"volatile.base_image": validate.IsAny,
 
-	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.cloud_init.instance-id)
+	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.cloud-init.instance-id)
 	//
 	// ---
 	//  type: string

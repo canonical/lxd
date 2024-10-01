@@ -4,7 +4,6 @@ import (
 	"io"
 
 	"github.com/canonical/lxd/lxd/backup"
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
@@ -26,7 +25,7 @@ func (d *mock) Info() Info {
 	return Info{
 		Name:                         "mock",
 		Version:                      "1",
-		DefaultVMBlockFilesystemSize: deviceConfig.DefaultVMBlockFilesystemSize,
+		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              false,
 		PreservesInodes:              false,
 		Remote:                       d.isRemote(),
@@ -38,14 +37,17 @@ func (d *mock) Info() Info {
 	}
 }
 
+// FillConfig populates the driver's config with default values.
 func (d *mock) FillConfig() error {
 	return nil
 }
 
+// Create is called during pool creation.
 func (d *mock) Create() error {
 	return nil
 }
 
+// Delete removes a storage pool.
 func (d *mock) Delete(op *operations.Operation) error {
 	return nil
 }

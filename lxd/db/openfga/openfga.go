@@ -13,7 +13,6 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/openfga/openfga/pkg/storage"
 
-	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
@@ -209,11 +208,6 @@ func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, tk *open
 //   - One exception to the above is the "type bound public access" (https://openfga.dev/docs/modeling/public-access)
 //     that is defined for `server` `can_view`, which allows all identities access to `GET /1.0` and `GET /1.0/storage`.
 //     We check for this case before making any DB queries.
-//
-// Notes:
-//   - The exception for the type-bound public access may be better placed as a contextual tuple. However, adding it here
-//     means we can avoid an unnecessary transaction that will happen a lot.
-//   - We will need to modify this exception when we implement service accounts.
 func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filter storage.ReadUsersetTuplesFilter, options storage.ReadUsersetTuplesOptions) (storage.TupleIterator, error) {
 	// Expect both an object and a relation.
 	if filter.Object == "" || filter.Relation == "" {
@@ -231,21 +225,6 @@ func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filt
 	err := entityType.Validate()
 	if err != nil {
 		return nil, fmt.Errorf("ReadUsersetTuples: Invalid object filter %q: %w", filter.Object, err)
-	}
-
-	// Check for type-bound public access exception.
-	if entityType == entity.TypeServer && filter.Relation == "can_view" {
-		return storage.NewStaticTupleIterator([]*openfgav1.Tuple{
-			// Only returning one tuple here for the identity. When adding service accounts, we'll need
-			// to add another tuple to account for them.
-			{
-				Key: &openfgav1.TupleKey{
-					Object:   fmt.Sprintf("%s:%s", entity.TypeServer, entity.ServerURL().String()),
-					Relation: string(auth.EntitlementCanView),
-					User:     fmt.Sprintf("%s:*", entity.TypeIdentity),
-				},
-			},
-		}), nil
 	}
 
 	u, err := url.Parse(entityURL)
@@ -314,10 +293,6 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 //
 //  4. Listing objects that an identity is related to via an entitlement.
 //
-//     - The UserFilter field of storage.ReadStartingWithUserFilter usually has length 1. Sometimes there is another user
-//     when a type-bound public access is used (e.g. `identity:*`). We return early if this is the case, as we don't need
-//     to call the database.
-//
 // Implementation:
 //   - For the first two cases we can perform a simple lookup for entities of the requested type (with project name if project relation).
 //   - In the third case, we need to get all permissions with the given entity type and entitlement that are associated with the given group.
@@ -368,22 +343,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 		return nil, fmt.Errorf("ReadUsersetTuples: Invalid object filter %q: %w", entityType, err)
 	}
 
-	// Check for type-bound public access exception.
-	if entityType == entity.TypeServer && filter.Relation == string(auth.EntitlementCanView) {
-		return storage.NewStaticTupleIterator([]*openfgav1.Tuple{
-			// Only returning one tuple here for the identity. When adding service accounts, we'll need
-			// to add another tuple to account for them.
-			{
-				Key: &openfgav1.TupleKey{
-					Object:   fmt.Sprintf("%s:%s", entity.TypeServer, entity.ServerURL().String()),
-					Relation: string(auth.EntitlementCanView),
-					User:     fmt.Sprintf("%s:*", entity.TypeIdentity),
-				},
-			},
-		}), nil
-	}
-
-	// Expect that there will be exactly one user filter when not dealing with a type-bound public access.
+	// Expect that there will be exactly one user filter.
 	if len(filter.UserFilter) != 1 {
 		return nil, fmt.Errorf("ReadStartingWithUser: Unexpected user filter list length")
 	}

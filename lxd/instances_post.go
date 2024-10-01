@@ -28,6 +28,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/scriptlet"
@@ -53,7 +54,7 @@ func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *o
 
 	var budget int64
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		budget, err = project.GetImageSpaceBudget(s.GlobalConfig, tx, p.Name)
+		budget, err = limits.GetImageSpaceBudget(s.GlobalConfig, tx, p.Name)
 		return err
 	})
 	if err != nil {
@@ -630,7 +631,14 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 	}
 
 	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name), *api.NewURL().Path(version.APIVersion, "instances", req.Source.Source)}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
+
+	if shared.IsSnapshot(req.Source.Source) {
+		cName, sName, _ := api.GetParentAndSnapshotName(req.Source.Source)
+		resources["instances_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", cName, "snapshots", sName)}
+	} else {
+		resources["instances"] = append(resources["instances"], *api.NewURL().Path(version.APIVersion, "instances", req.Source.Source))
+	}
 
 	if dbType == instancetype.Container {
 		resources["containers"] = resources["instances"]
@@ -722,7 +730,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			Type:        api.InstanceType(bInfo.Config.Container.Type),
 		}
 
-		return project.AllowInstanceCreation(s.GlobalConfig, tx, projectName, req)
+		return limits.AllowInstanceCreation(s.GlobalConfig, tx, projectName, req)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -1084,7 +1092,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Check if the given target is allowed and try to resolve the right member or group
-			targetMemberInfo, targetGroupName, err = project.CheckTarget(ctx, s.Authorizer, r, tx, targetProject, target, allMembers)
+			targetMemberInfo, targetGroupName, err = limits.CheckTarget(ctx, s.Authorizer, r, tx, targetProject, target, allMembers)
 			if err != nil {
 				return err
 			}
@@ -1232,20 +1240,18 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-			clusterGroupsAllowed := project.GetRestrictedClusterGroups(targetProject)
+			clusterGroupsAllowed := limits.GetRestrictedClusterGroups(targetProject)
 
 			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, architectures, targetGroupName, clusterGroupsAllowed, s.GlobalConfig.OfflineThreshold())
 			if err != nil {
 				return err
 			}
-
-			return nil
 		}
 
 		if !clusterNotification {
 			// Check that the project's limits are not violated. Note this check is performed after
 			// automatically generated config values (such as ones from an InstanceType) have been set.
-			err = project.AllowInstanceCreation(s.GlobalConfig, tx, targetProjectName, req)
+			err = limits.AllowInstanceCreation(s.GlobalConfig, tx, targetProjectName, req)
 			if err != nil {
 				return err
 			}
@@ -1257,7 +1263,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = instance.ValidName(req.Name, false)
+	err = instancetype.ValidName(req.Name, false)
 	if err != nil {
 		return response.BadRequest(err)
 	}

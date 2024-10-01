@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -9,7 +10,7 @@ import (
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
-	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
 )
@@ -17,7 +18,7 @@ import (
 func doProfileUpdate(s *state.State, p api.Project, profileName string, id int64, profile *api.Profile, req api.ProfilePut) error {
 	// Check project limits.
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return project.AllowProfileUpdate(s.GlobalConfig, tx, p.Name, profileName, req)
+		return limits.AllowProfileUpdate(s.GlobalConfig, tx, p.Name, profileName, req)
 	})
 	if err != nil {
 		return err
@@ -151,7 +152,7 @@ func doProfileUpdate(s *state.State, p api.Project, profileName string, id int64
 			msg += fmt.Sprintf(" - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err)
 		}
 
-		return fmt.Errorf("%s", msg)
+		return errors.New(msg)
 	}
 
 	return nil
@@ -196,7 +197,7 @@ func doProfileUpdateCluster(s *state.State, projectName string, profileName stri
 			msg += fmt.Sprintf(" - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err)
 		}
 
-		return fmt.Errorf("%s", msg)
+		return errors.New(msg)
 	}
 
 	return nil

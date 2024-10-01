@@ -2050,7 +2050,7 @@ func (d *qemu) qemuArchConfig(arch int) (path string, bus string, err error) {
 		}
 
 		return path, "pcie", nil
-	} else if arch == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN {
+	} else if arch == osarch.ARCH_32BIT_ARMV7_LITTLE_ENDIAN || arch == osarch.ARCH_32BIT_ARMV8_LITTLE_ENDIAN || arch == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN {
 		path, err := exec.LookPath(basePath + "qemu-system-aarch64")
 		if err != nil {
 			return "", "", err
@@ -2860,27 +2860,55 @@ if [ ! -e "systemd" ] || [ ! -e "lxd-agent" ]; then
     exit 1
 fi
 
-if [ ! -e "/lib/systemd/system" ]; then
+# systemd systems always have /run/systemd/system/ created on boot.
+if [ ! -d "/run/systemd/system/" ]; then
     echo "This script only works on systemd systems"
     exit 1
 fi
 
+for path in "/lib/systemd" "/usr/lib/systemd"; do
+    [ -d "${path}/system" ] || continue
+    LIB_SYSTEMD="${path}"
+    break
+done
+
+if [ ! -d "${LIB_SYSTEMD:-}" ]; then
+    echo "Could not find path to systemd"
+    exit 1
+fi
+
+for path in "/lib/udev" "/usr/lib/udev"; do
+    [ -d "${path}/rules.d/" ] || continue
+    LIB_UDEV="${path}"
+    break
+done
+
+if [ ! -d "${LIB_UDEV:-}" ]; then
+    echo "Could not find path to udev"
+    exit 1
+fi
+
 # Cleanup former units.
-rm -f /lib/systemd/system/lxd-agent-9p.service \
-    /lib/systemd/system/lxd-agent-virtiofs.service \
+rm -f "${LIB_SYSTEMD}/system/lxd-agent-9p.service" \
+    "${LIB_SYSTEMD}/system/lxd-agent-virtiofs.service" \
     /etc/systemd/system/multi-user.target.wants/lxd-agent-9p.service \
     /etc/systemd/system/multi-user.target.wants/lxd-agent-virtiofs.service \
     /etc/systemd/system/multi-user.target.wants/lxd-agent.service
 
 # Install the units.
-cp udev/99-lxd-agent.rules /lib/udev/rules.d/
-cp systemd/lxd-agent.service /lib/systemd/system/
-cp systemd/lxd-agent-setup /lib/systemd/
+cp udev/99-lxd-agent.rules "${LIB_UDEV}/rules.d/"
+cp systemd/lxd-agent-setup "${LIB_SYSTEMD}/"
+if [ "/lib/systemd" = "${LIB_SYSTEMD}" ]; then
+  cp systemd/lxd-agent.service "${LIB_SYSTEMD}/system/"
+else
+  # Adapt paths for systemd's lib location
+  sed "/=\/lib\/systemd/ s|=/lib/systemd|=${LIB_SYSTEMD}|" systemd/lxd-agent.service > "${LIB_SYSTEMD}/system/lxd-agent.service"
+fi
 systemctl daemon-reload
 
 # SELinux handling.
 if getenforce >/dev/null 2>&1; then
-    semanage fcontext -a -t bin_t /run/lxd_agent/lxd-agent
+    semanage fcontext -a -t bin_t /var/run/lxd_agent/lxd-agent
 fi
 
 echo ""
@@ -5183,7 +5211,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	d.logger.Info("Renaming instance", ctxMap)
 
 	// Quick checks.
-	err = instance.ValidName(newName, d.IsSnapshot())
+	err = instancetype.ValidName(newName, d.IsSnapshot())
 	if err != nil {
 		return err
 	}
@@ -5938,38 +5966,6 @@ func (d *qemu) updateMemoryLimit(newLimit string) error {
 	}
 
 	return fmt.Errorf("Failed setting memory to %dMiB (currently %dMiB) as it was taking too long", newSizeMB, curSizeMB)
-}
-
-func (d *qemu) removeDiskDevices() error {
-	// Check that we indeed have devices to remove.
-	if !shared.PathExists(d.DevicesPath()) {
-		return nil
-	}
-
-	// Load the directory listing.
-	dents, err := os.ReadDir(d.DevicesPath())
-	if err != nil {
-		return err
-	}
-
-	for _, f := range dents {
-		// Skip non-disk devices
-		if !strings.HasPrefix(f.Name(), "disk.") {
-			continue
-		}
-
-		// Always try to unmount the host side.
-		_ = unix.Unmount(filepath.Join(d.DevicesPath(), f.Name()), unix.MNT_DETACH)
-
-		// Remove the entry.
-		diskPath := filepath.Join(d.DevicesPath(), f.Name())
-		err := os.Remove(diskPath)
-		if err != nil {
-			d.logger.Error("Failed to remove disk device path", logger.Ctx{"err": err, "path": diskPath})
-		}
-	}
-
-	return nil
 }
 
 func (d *qemu) cleanup() {
@@ -7770,6 +7766,9 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 	// Always needed for VM exec, as even for non-websocket requests from the client we need to connect the
 	// websockets for control and for capturing output to a file on the LXD server.
 	req.WaitForWS = true
+
+	// Similarly, output recording is performed on the host rather than in the guest, so clear that bit from the request.
+	req.RecordOutput = false
 
 	op, err := agent.ExecInstance("", req, &args)
 	if err != nil {

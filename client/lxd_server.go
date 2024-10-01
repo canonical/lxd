@@ -186,3 +186,21 @@ func (r *ProtocolLXD) GetMetrics() (string, error) {
 
 	return string(content), nil
 }
+
+// GetMetadataConfiguration returns metadata configuration for a server.
+func (r *ProtocolLXD) GetMetadataConfiguration() (*api.MetadataConfiguration, error) {
+	// Check that the server supports it.
+	err := r.CheckExtension("metadata_configuration")
+	if err != nil {
+		return nil, err
+	}
+
+	metadataConfiguration := api.MetadataConfiguration{}
+
+	_, err = r.queryStruct(http.MethodGet, api.NewURL().Path("metadata", "configuration").String(), nil, "", &metadataConfiguration)
+	if err != nil {
+		return nil, err
+	}
+
+	return &metadataConfiguration, err
+}

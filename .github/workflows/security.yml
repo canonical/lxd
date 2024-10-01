@@ -1,0 +1,106 @@
+name: Vulnerability Scanning with Trivy
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'  # Test Trivy daily at midnight
+
+permissions:
+  contents: read
+  security-events: write # for uploading SARIF results to the security tab
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  trivy-repo:
+    name: Trivy vulnerability scanner - Repository
+    runs-on: ubuntu-22.04
+    if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Create Trivy cache directory
+        run: mkdir -p /home/runner/vuln-cache
+
+      - name: Run Trivy vulnerability scanner in repo mode
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          format: "sarif"
+          output: "trivy-lxd-repo-scan-results.sarif"
+          cache-dir: "/home/runner/vuln-cache"
+          severity: "LOW,MEDIUM,HIGH,CRITICAL"
+
+      - name: Cache trivy and vulnerability database
+        uses: actions/cache/save@v4
+        with:
+          path: /home/runner/vuln-cache
+          key: trivy-cache
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "trivy-lxd-repo-scan-results.sarif"
+          sha: ${{ github.sha }}
+          ref: refs/heads/main
+
+  trivy-snap:
+    name: Trivy vulnerability scanner - Snap
+    runs-on: ubuntu-22.04
+    needs: trivy-repo
+    if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
+    strategy:
+      matrix:
+        version:
+          - "latest"
+          - "5.21"
+          - "5.0"
+          - "4.0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Snap scanner results are placed on the the branch related to the scanned channel.
+          ref: ${{ (matrix.version == 'latest' && 'main') || format('stable-{0}', matrix.version) }}
+
+      - name: Restore cached Trivy and vulnerability database
+        uses: actions/cache/restore@v4
+        with:
+          path: /home/runner/vuln-cache
+          key: trivy-cache
+
+      - name: Download snap for scan
+        run: |
+          ls /home/runner/vuln-cache
+          snap download lxd --channel=${{ matrix.version }}/stable
+          unsquashfs ./lxd*.snap
+
+      - name: Run Trivy vulnerability scanner on the snap
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "rootfs"
+          format: "sarif"
+          scan-ref: squashfs-root
+          output: "${{ matrix.version }}-stable.sarif"
+          cache-dir: "/home/runner/vuln-cache"
+          severity: "LOW,MEDIUM,HIGH,CRITICAL"
+
+      - name: Prepend channel to alert name
+        run: |
+          jq '.runs[].tool.driver.rules[] |= (.shortDescription.text |= "Snap scan - " + .)' ${{ matrix.version }}-stable.sarif > tmp.json
+          mv tmp.json ${{ matrix.version }}-stable.sarif
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "${{ matrix.version }}-stable.sarif"
+          sha: ${{ github.sha }}
+          ref: refs/heads/${{ (matrix.version == 'latest' && 'main') || format('stable-{0}', matrix.version) }}

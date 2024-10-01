@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -30,8 +31,6 @@ import (
 	"github.com/canonical/lxd/shared/version"
 	"github.com/canonical/lxd/shared/ws"
 )
-
-const devlxdRemoteAddress = "@devlxd"
 
 type hoistFunc func(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request)
 
@@ -119,9 +118,6 @@ func devlxdImageExportHandler(d *Daemon, c instance.Instance, w http.ResponseWri
 	if shared.IsFalseOrEmpty(c.ExpandedConfig()["security.devlxd.images"]) {
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
-
-	// Use by security checks to distinguish devlxd vs lxd APIs
-	r.RemoteAddr = devlxdRemoteAddress
 
 	resp := imageExport(d, r)
 
@@ -297,6 +293,50 @@ func devlxdDevicesGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrit
 	return response.DevLxdResponse(http.StatusOK, c.ExpandedDevices(), "json", c.Type() == instancetype.VM)
 }
 
+var devlxdUbuntuProGet = devLxdHandler{
+	path:        "/1.0/ubuntu-pro",
+	handlerFunc: devlxdUbuntuProGetHandler,
+}
+
+func devlxdUbuntuProGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.NewGenericStatusError(http.StatusForbidden), c.Type() == instancetype.VM)
+	}
+
+	if r.Method != http.MethodGet {
+		return response.DevLxdErrorResponse(api.NewGenericStatusError(http.StatusMethodNotAllowed), c.Type() == instancetype.VM)
+	}
+
+	settings := d.State().UbuntuPro.GuestAttachSettings(c.ExpandedConfig()["ubuntu_pro.guest_attach"])
+
+	// Otherwise, return the value from the instance configuration.
+	return response.DevLxdResponse(http.StatusOK, settings, "json", c.Type() == instancetype.VM)
+}
+
+var devlxdUbuntuProTokenPost = devLxdHandler{
+	path:        "/1.0/ubuntu-pro/token",
+	handlerFunc: devlxdUbuntuProTokenPostHandler,
+}
+
+func devlxdUbuntuProTokenPostHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.NewGenericStatusError(http.StatusForbidden), c.Type() == instancetype.VM)
+	}
+
+	if r.Method != http.MethodPost {
+		return response.DevLxdErrorResponse(api.NewGenericStatusError(http.StatusMethodNotAllowed), c.Type() == instancetype.VM)
+	}
+
+	// Return http.StatusForbidden if the host does not have guest attachment enabled.
+	tokenJSON, err := d.State().UbuntuPro.GetGuestToken(r.Context(), c.ExpandedConfig()["ubuntu_pro.guest_attach"])
+	if err != nil {
+		return response.DevLxdErrorResponse(fmt.Errorf("Failed to get an Ubuntu Pro guest token: %w", err), c.Type() == instancetype.VM)
+	}
+
+	// Pass it back to the guest.
+	return response.DevLxdResponse(http.StatusOK, tokenJSON, "json", c.Type() == instancetype.VM)
+}
+
 var handlers = []devLxdHandler{
 	{
 		path: "/",
@@ -311,10 +351,15 @@ var handlers = []devLxdHandler{
 	devlxdEventsGet,
 	devlxdImageExport,
 	devlxdDevicesGet,
+	devlxdUbuntuProGet,
+	devlxdUbuntuProTokenPost,
 }
 
 func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Set devlxd auth method to identify this request as coming from the /dev/lxd socket.
+		request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
+
 		conn := ucred.GetConnFromContext(r.Context())
 		cred, ok := pidMapper.m[conn.(*net.UnixConn)]
 		if !ok {

@@ -121,7 +121,7 @@ func TestURL(t *testing.T) {
 			name:                  "cluster members",
 			rawURL:                "/1.0/cluster/members/node01",
 			expectedNormalisedURL: "/1.0/cluster/members/node01",
-			expectedEntityType:    TypeNode,
+			expectedEntityType:    TypeClusterMember,
 			expectedProject:       "",
 			expectedPathArgs:      []string{"node01"},
 			expectedErr:           nil,

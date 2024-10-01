@@ -47,8 +47,8 @@ The tool can also inject the required VIRTIO drivers into the image:
    * Download [`rhsrvany.exe` and `pnp_wait.exe`](https://github.com/rwmjones/rhsrvany?tab=readme-ov-file#binary-releases), and place them in the `/usr/share/virt-tools/` directory.
 
    ````{tip}
-   If you want to convert a Windows VM from a foreign hypervisor manually,
-   you must install both the required Windows drivers (as described above) and `virt-v2v` (>= 2.3.4).
+   The `lxd-migrate` command with the `--conversion=format,virtio` option automatically converts the image and injects the VIRTIO drivers during the conversion.
+   However, if you want to manually convert a Windows VM from a foreign hypervisor, you must install both the required Windows drivers (as described above) and `virt-v2v` (>= 2.3.4).
 
    <details>
    <summary>Expand to see how to convert your Windows VM using <code>virt-v2v</code></summary>
@@ -66,6 +66,8 @@ The tool can also inject the required VIRTIO drivers into the image:
    In addition, when migrating already converted images, `lxd-migrate` conversion options are not necessary.
    </details>
    ````
+
+## Interactive instance import
 
 Complete the following steps to migrate an existing machine to a LXD instance:
 
@@ -320,3 +322,77 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    </details>
 1. When the migration is complete, check the new instance and update its configuration to the new environment.
    Typically, you must update at least the storage configuration (`/etc/fstab`) and the network configuration.
+
+## Non-interactive instance import
+
+Alternatively, the entire instance import configuration can be provided using `lxd-migrate` flags.
+If any required flag is missing, `lxd-migrate` will interactively prompt for the missing value.
+However, when the `--non-interactive` flag is used, an error is returned instead.
+
+Note that if any flag contains an invalid value, an error is returned regardless of the mode (interactive or non-interactive).
+
+The `lxd-migrate` command supports the following flags that can be used in non-interactive migration:
+
+```
+Instance configuration:
+  -c, --config               Config key/value to apply to the new instance
+      --mount-path           Additional container mount paths
+      --name                 Name of the new instance
+      --network              Network name
+      --no-profiles          Create the instance with no profiles applied
+      --profiles             Profiles to apply on the new instance (default [default])
+      --project              Project name
+      --source               Path to the root filesystem for containers, or to the block device or disk image file for virtual machines
+      --storage              Storage pool name
+      --storage-size         Size of the instance's storage volume
+      --type                 Type of the instance to create (container or vm)
+
+Target server:
+      --server               Unix or HTTPS URL of the target server
+      --token                Authentication token for HTTPS remote
+      --cert-path            Trusted certificate path
+      --key-path             Trusted certificate path
+
+Other:
+      --conversion strings   Comma-separated list of conversion options to apply. Allowed values are: [format, virtio] (default [format])
+      --non-interactive      Prevent further interaction if migration questions are incomplete
+      --rsync-args           Extra arguments to pass to rsync
+```
+
+Example VM import to local LXD server:
+
+```sh
+lxd-migrate \
+  --name v1 \
+  --type vm \
+  --source "${sourcePath}" \
+  --non-interactive
+```
+
+Example VM import to remote HTTPS server:
+
+```sh
+# Token from remote server.
+token=$(lxc config trust add --name lxd-migrate --quiet)
+
+lxd-migrate \
+  --server https://example.com:8443 \
+  --token "$token" \
+  --name v1 \
+  --type vm \
+  --source "${sourcePath}" \
+  --non-interactive
+```
+
+Example VM import with secure boot disabled and custom resource limits:
+
+```sh
+lxd-migrate \
+  --name v1 \
+  --type vm \
+  --source "${sourcePath}" \
+  --config security.secureboot=false \
+  --config limits.cpu=4 \
+  --config limits.memory=4GiB \
+  --non-interactive
+```

@@ -73,6 +73,7 @@ type InstanceServer interface {
 	ImageServer
 
 	// Server functions
+	GetMetadataConfiguration() (metadataConfiguration *api.MetadataConfiguration, err error)
 	GetMetrics() (metrics string, err error)
 	GetServer() (server *api.Server, ETag string, err error)
 	GetServerResources() (resources *api.Resources, err error)

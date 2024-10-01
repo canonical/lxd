@@ -1,11 +1,13 @@
-package project
+package limits
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/canonical/lxd/lxd/idmap"
+	"github.com/canonical/lxd/shared/api"
 )
 
 func TestParseHostIDMapRange(t *testing.T) {
@@ -74,4 +76,47 @@ func TestParseHostIDMapRange(t *testing.T) {
 		assert.ErrorIs(t, err, nil)
 		assert.Equal(t, idmaps, expected)
 	}
+}
+
+func checkProfileRestrictions(projectConfig map[string]string, profileConfig map[string]string) error {
+	proj := api.Project{
+		Name:   "proj1",
+		Config: projectConfig,
+	}
+
+	prof := api.Profile{
+		Name:   "prof1",
+		Config: profileConfig,
+	}
+
+	return checkRestrictions(proj, []api.Instance{}, []api.Profile{prof})
+}
+
+func TestProjectLowLevelRestrictions(t *testing.T) {
+	err := checkProfileRestrictions(
+		map[string]string{},
+		map[string]string{
+			"boot.host_shutdown_timeout": "15",
+		})
+	require.ErrorContains(t, err, "forbidden")
+
+	err = checkProfileRestrictions(
+		map[string]string{
+			"restricted":                     "true",
+			"restricted.containers.lowlevel": "allow",
+		},
+		map[string]string{
+			"security.devlxd.images": "true",
+		})
+	require.NoError(t, err)
+
+	err = checkProfileRestrictions(
+		map[string]string{
+			"restricted":                           "true",
+			"restricted.virtual-machines.lowlevel": "allow",
+		},
+		map[string]string{
+			"limits.memory.hugepages": "true",
+		})
+	require.NoError(t, err)
 }

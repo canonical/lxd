@@ -24,18 +24,18 @@ test_exec() {
   # Check non-websocket based exec works.
   opID=$(lxc query -X POST -d '{\"command\":[\"touch\",\"/root/foo1\"],\"record-output\":false}' /1.0/instances/x1/exec | jq -r .id)
   sleep 1
-  lxc query  /1.0/operations/"${opID}" | jq .metadata.return | grep -F "0"
+  [ "$(lxc query  /1.0/operations/"${opID}" | jq .metadata.return)" = "0" ]
   lxc exec x1 -- stat /root/foo1
 
   opID=$(lxc query -X POST -d '{\"command\":[\"missingcmd\"],\"record-output\":false}' /1.0/instances/x1/exec | jq -r .id)
   sleep 1
-  lxc query  /1.0/operations/"${opID}" | jq .metadata.return | grep -F "127"
+  [ "$(lxc query  /1.0/operations/"${opID}" | jq .metadata.return)" = "127" ]
 
   echo "hello" | lxc exec x1 -- tee /root/foo1
   opID=$(lxc query -X POST -d '{\"command\":[\"cat\",\"/root/foo1\"],\"record-output\":true}' /1.0/instances/x1/exec | jq -r .id)
   sleep 1
-  stdOutURL=$(lxc query  /1.0/operations/"${opID}" | jq '.metadata.output["1"]')
-  lxc query "${stdOutURL}" | grep -F "hello"
+  stdOutURL="$(lxc query /1.0/operations/"${opID}" | jq '.metadata.output["1"]')"
+  [ "$(lxc query "${stdOutURL}")" = "hello" ]
 
   lxc stop "${name}" --force
   lxc delete "${name}"
@@ -93,5 +93,19 @@ test_exec_exit_code() {
   lxc exec x1 -- invalid-command || exitCode=$?
   [ "${exitCode:-0}" -eq 127 ]
 
+  # Try disconnecting a container stopping forcefully and gracefully to make sure they differ appropriately.
+  (sleep 1 && lxc stop -f x1) &
+  lxc exec x1 -- sleep 10 || exitCode=$?
+  [ "${exitCode:-0}" -eq 137 ]
+
+  wait $!
+  lxc start x1
+  sleep 2
+  (sleep 1 && lxc stop x1) &
+  lxc exec x1 -- sleep 10 || exitCode=$?
+  # Both 129 and 143 have been seen and both make sense here.
+  [ "${exitCode:-0}" -eq 129 ] || [ "${exitCode:-0}" -eq 143 ]
+
+  wait $!
   lxc delete --force x1
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// RunDump dumps the server configuration.
 func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 	currentServer, _, err := d.GetServer()
 	if err != nil {

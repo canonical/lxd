@@ -12,10 +12,10 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/lxd/fsmonitor"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared/logger"
 )
-
-var fanotifyLoaded bool
 
 type fanotify struct {
 	common
@@ -34,13 +34,54 @@ type fanotifyEventInfoFid struct {
 	FSID uint64
 }
 
-func (d *fanotify) Name() string {
-	return "fanotify"
+var fanotifyEventToFSMonitorEvent = map[uint64]fsmonitor.Event{
+	unix.FAN_CREATE:      fsmonitor.EventAdd,
+	unix.FAN_DELETE:      fsmonitor.EventRemove,
+	unix.FAN_DELETE_SELF: fsmonitor.EventRemove,
+	unix.FAN_CLOSE_WRITE: fsmonitor.EventWrite,
+	unix.FAN_MOVED_TO:    fsmonitor.EventRename,
+}
+
+var fsMonitorEventToFANotifyEvent = map[fsmonitor.Event]uint64{
+	fsmonitor.EventAdd:    unix.FAN_CREATE,
+	fsmonitor.EventRemove: unix.FAN_DELETE | unix.FAN_DELETE_SELF,
+	fsmonitor.EventWrite:  unix.FAN_CLOSE_WRITE,
+	fsmonitor.EventRename: unix.FAN_MOVED_TO,
+}
+
+func (d *fanotify) toFSMonitorEvent(mask uint64) (fsmonitor.Event, error) {
+	for knownFANotifyEvent, event := range fanotifyEventToFSMonitorEvent {
+		if mask&knownFANotifyEvent != 0 {
+			return event, nil
+		}
+	}
+
+	return -1, fmt.Errorf(`Unknown fanotify event "%d"`, mask)
+}
+
+func (d *fanotify) eventMask() (uint64, error) {
+	// ON_DIR is required so that we can determine if the event occurred on a file or a directory.
+	var mask uint64 = unix.FAN_ONDIR
+	for _, e := range d.events {
+		fanotifyEvent, ok := fsMonitorEventToFANotifyEvent[e]
+		if !ok {
+			return 0, fmt.Errorf(`Unknown fsmonitor event "%d"`, e)
+		}
+
+		mask = mask | fanotifyEvent
+	}
+
+	return mask, nil
+}
+
+// DriverName returns the name of the driver.
+func (d *fanotify) DriverName() string {
+	return fsmonitor.DriverNameFANotify
 }
 
 func (d *fanotify) load(ctx context.Context) error {
-	if fanotifyLoaded {
-		return nil
+	if !filesystem.IsMountPoint(d.prefixPath) {
+		return errors.New("Path needs to be a mountpoint")
 	}
 
 	var err error
@@ -50,7 +91,12 @@ func (d *fanotify) load(ctx context.Context) error {
 		return fmt.Errorf("Failed to initialize fanotify: %w", err)
 	}
 
-	err = unix.FanotifyMark(d.fd, unix.FAN_MARK_ADD|unix.FAN_MARK_FILESYSTEM, unix.FAN_CREATE|unix.FAN_DELETE|unix.FAN_ONDIR, unix.AT_FDCWD, d.prefixPath)
+	mask, err := d.eventMask()
+	if err != nil {
+		return fmt.Errorf("Failed to get a fanotify event mask: %w", err)
+	}
+
+	err = unix.FanotifyMark(d.fd, unix.FAN_MARK_ADD|unix.FAN_MARK_FILESYSTEM, mask, unix.AT_FDCWD, d.prefixPath)
 	if err != nil {
 		_ = unix.Close(d.fd)
 		return fmt.Errorf("Failed to watch directory %q: %w", d.prefixPath, err)
@@ -65,12 +111,9 @@ func (d *fanotify) load(ctx context.Context) error {
 	go func() {
 		<-ctx.Done()
 		_ = unix.Close(d.fd)
-		fanotifyLoaded = false
 	}()
 
 	go d.getEvents(ctx, fd)
-
-	fanotifyLoaded = true
 
 	return nil
 }
@@ -143,8 +186,8 @@ func (d *fanotify) getEvents(ctx context.Context, mountFd int) {
 
 		fd, err := unix.OpenByHandleAt(mountFd, fh, 0)
 		if err != nil {
-			errno := err.(unix.Errno)
-			if ctx.Err() == nil && errno != unix.ESTALE {
+			errno, ok := err.(unix.Errno)
+			if ctx.Err() == nil && ok && errno != unix.ESTALE {
 				d.logger.Error("Failed to open file", logger.Ctx{"err": err})
 			}
 
@@ -192,16 +235,14 @@ func (d *fanotify) getEvents(ctx context.Context, mountFd int) {
 				continue
 			}
 
-			var action Event
-
-			if event.Mask&unix.FAN_CREATE != 0 {
-				action = Add
-			} else if event.Mask&unix.FAN_DELETE != 0 || event.Mask&unix.FAN_DELETE_SELF != 0 {
-				action = Remove
+			action, err := d.toFSMonitorEvent(event.Mask)
+			if err != nil {
+				logger.Warn("Failed to match fanotify event, skipping", logger.Ctx{"err": err})
+				continue
 			}
 
 			for identifier, f := range d.watches[path] {
-				ret := f(path, action.String())
+				ret := f(path, action)
 				if !ret {
 					delete(d.watches[path], identifier)
 

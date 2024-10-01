@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -70,7 +71,7 @@ func (c *cmdClusterRoleAdd) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing cluster member name"))
+		return errors.New(i18n.G("Missing cluster member name"))
 	}
 
 	// Extract the current value
@@ -126,7 +127,7 @@ func (c *cmdClusterRoleRemove) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing cluster member name"))
+		return errors.New(i18n.G("Missing cluster member name"))
 	}
 
 	// Extract the current value

@@ -789,7 +789,6 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	bindMounts := []string{
 		"/dev/fuse",
 		"/dev/net/tun",
-		"/proc/sys/fs/binfmt_misc",
 		"/sys/firmware/efi/efivars",
 		"/sys/fs/fuse/connections",
 		"/sys/fs/pstore",
@@ -797,6 +796,11 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		"/sys/kernel/debug",
 		"/sys/kernel/security",
 		"/sys/kernel/tracing",
+	}
+
+	// Handle unprivileged binfmt_misc.
+	if d.IsPrivileged() || !d.state.OS.UnprivBinfmt {
+		bindMounts = append(bindMounts, "/proc/sys/fs/binfmt_misc")
 	}
 
 	// Pass in /dev/zfs to the container if delegation is supported on the system.
@@ -3856,7 +3860,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	d.logger.Info("Renaming instance", ctxMap)
 
 	// Quick checks.
-	err = instance.ValidName(newName, d.IsSnapshot())
+	err = instancetype.ValidName(newName, d.IsSnapshot())
 	if err != nil {
 		return err
 	}
@@ -7994,39 +7998,6 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 	}
 
 	return newDevice, nil
-}
-
-func (d *lxc) removeDiskDevices() error {
-	// Check that we indeed have devices to remove
-	if !shared.PathExists(d.DevicesPath()) {
-		return nil
-	}
-
-	// Load the directory listing
-	dents, err := os.ReadDir(d.DevicesPath())
-	if err != nil {
-		return err
-	}
-
-	// Go through all the unix devices
-	for _, f := range dents {
-		// Skip non-disk devices
-		if !strings.HasPrefix(f.Name(), "disk.") {
-			continue
-		}
-
-		// Always try to unmount the host side
-		_ = unix.Unmount(filepath.Join(d.DevicesPath(), f.Name()), unix.MNT_DETACH)
-
-		// Remove the entry
-		diskPath := filepath.Join(d.DevicesPath(), f.Name())
-		err := os.Remove(diskPath)
-		if err != nil {
-			d.logger.Error("Failed to remove disk device path", logger.Ctx{"err": err, "path": diskPath})
-		}
-	}
-
-	return nil
 }
 
 // IsFrozen returns if instance is frozen.

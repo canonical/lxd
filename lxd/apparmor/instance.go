@@ -171,6 +171,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			"feature_cgroup2":           sysOS.CGInfo.Layout == cgroup.CgroupsUnified || sysOS.CGInfo.Layout == cgroup.CgroupsHybrid,
 			"feature_stacking":          sysOS.AppArmorStacking && !sysOS.AppArmorStacked,
 			"feature_unix":              unixSupported,
+			"kernel_binfmt":             shared.IsFalseOrEmpty(inst.ExpandedConfig()["security.privileged"]) && sysOS.UnprivBinfmt,
 			"feature_mount_nosymfollow": mountNosymfollowSupported,
 			"feature_userns_rule":       usernsRuleSupported,
 			"name":                      InstanceProfileName(inst),

@@ -84,14 +84,25 @@ test_storage_buckets() {
   roAccessKey=$(echo "${creds}" | awk '{ if ($1 == "Access" && $2 == "key:") {print $3}}')
   roSecretKey=$(echo "${creds}" | awk '{ if ($1 == "Secret" && $2 == "key:") {print $3}}')
 
+  # Test creating a bucket key with YAML bucket key config.
+  creds=$(lxc storage bucket key create "${poolName}" "${bucketPrefix}.foo" yaml-key << EOF
+description: yaml-key-desc
+role: read-only
+EOF
+)
+  roYamlAccessKey=$(echo "${creds}" | awk '{ if ($1 == "Access" && $2 == "key:") {print $3}}')
+  roYamlSecretKey=$(echo "${creds}" | awk '{ if ($1 == "Secret" && $2 == "key:") {print $3}}')
+
   lxc storage bucket key list "${poolName}" "${bucketPrefix}.foo" | grep -F "admin-key"
   lxc storage bucket key list "${poolName}" "${bucketPrefix}.foo" | grep -F "ro-key"
   lxc storage bucket key show "${poolName}" "${bucketPrefix}.foo" admin-key
   lxc storage bucket key show "${poolName}" "${bucketPrefix}.foo" ro-key
+  lxc storage bucket key show "${poolName}" "${bucketPrefix}.foo" yaml-key | grep "description: yaml-key-desc"
 
   # Test listing buckets via S3.
   s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" ls | grep -F "${bucketPrefix}.foo"
   s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" ls | grep -F "${bucketPrefix}.foo"
+  s3cmdrun "${lxd_backend}" "${roYamlAccessKey}" "${roYamlSecretKey}" ls | grep -F "${bucketPrefix}.foo"
 
   # Test making buckets via S3 is blocked.
   ! s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" mb "s3://${bucketPrefix}.foo2" || false
@@ -100,6 +111,7 @@ test_storage_buckets() {
   # Test putting a file into a bucket.
   lxdTestFile="bucketfile_${bucketPrefix}.txt"
   head -c 5M /dev/urandom > "${lxdTestFile}"
+  ORIG_MD5SUM="$(md5sum < "${lxdTestFile}")"
   s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo"
   ! s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo" || false
 
@@ -108,9 +120,15 @@ test_storage_buckets() {
   s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" ls "s3://${bucketPrefix}.foo" | grep -F "${lxdTestFile}"
 
   # Test getting a file from a bucket.
+  INFO_MD5SUM="$(s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" info "s3://${bucketPrefix}.foo/${lxdTestFile}" | awk '{ if ($1 == "MD5") {print $3}}')  -"
   s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" get "s3://${bucketPrefix}.foo/${lxdTestFile}" "${lxdTestFile}.get"
+  [ "${ORIG_MD5SUM}" = "${INFO_MD5SUM}" ]
+  [ "${ORIG_MD5SUM}" = "$(md5sum < "${lxdTestFile}.get")" ]
   rm "${lxdTestFile}.get"
+  INFO_MD5SUM="$(s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" info "s3://${bucketPrefix}.foo/${lxdTestFile}" | awk '{ if ($1 == "MD5") {print $3}}')  -"
   s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" get "s3://${bucketPrefix}.foo/${lxdTestFile}" "${lxdTestFile}.get"
+  [ "${ORIG_MD5SUM}" = "${INFO_MD5SUM}" ]
+  [ "${ORIG_MD5SUM}" = "$(md5sum < "${lxdTestFile}.get")" ]
   rm "${lxdTestFile}.get"
 
   # Test setting bucket policy to allow anonymous access (also tests bucket URL generation).

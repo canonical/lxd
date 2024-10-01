@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -68,7 +69,7 @@ func fileGetWrapper(server lxd.InstanceServer, inst string, path string) (io.Rea
 			count++
 
 			if count == 3 {
-				return nil, nil, fmt.Errorf(i18n.G("User signaled us three times, exiting. The remote operation will keep running"))
+				return nil, nil, errors.New(i18n.G("User signaled us three times, exiting. The remote operation will keep running"))
 			}
 
 			fmt.Println(i18n.G("Early server side processing of file transfer requests cannot be canceled (interrupt two more times to force)"))
@@ -282,7 +283,7 @@ func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 	if err == nil {
 		targetIsDir = sb.IsDir()
 		if !targetIsDir && len(args)-1 > 1 {
-			return fmt.Errorf(i18n.G("More than one file to download, but target is not a directory"))
+			return errors.New(i18n.G("More than one file to download, but target is not a directory"))
 		}
 	} else if strings.HasSuffix(args[len(args)-1], string(os.PathSeparator)) || len(args)-1 > 1 {
 		err := os.MkdirAll(target, DirMode)
@@ -337,7 +338,7 @@ func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 
 				continue
 			} else {
-				return fmt.Errorf(i18n.G("Can't pull a directory without --recursive"))
+				return errors.New(i18n.G("Can't pull a directory without --recursive"))
 			}
 		}
 
@@ -543,7 +544,7 @@ func (c *cmdFilePush) run(cmd *cobra.Command, args []string) error {
 	if c.file.flagRecursive {
 		// Quick checks.
 		if c.file.flagUID != -1 || c.file.flagGID != -1 || c.file.flagMode != "" {
-			return fmt.Errorf(i18n.G("Can't supply uid/gid/mode in recursive mode"))
+			return errors.New(i18n.G("Can't supply uid/gid/mode in recursive mode"))
 		}
 
 		// Create needed paths if requested
@@ -595,7 +596,7 @@ func (c *cmdFilePush) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if (len(sourcefilenames) > 1) && !targetIsDir {
-		return fmt.Errorf(i18n.G("Missing target directory"))
+		return errors.New(i18n.G("Missing target directory"))
 	}
 
 	reverter := revert.New()
@@ -1023,13 +1024,13 @@ func (c *cmdFileMount) run(cmd *cobra.Command, args []string) error {
 		}
 
 		if !sb.IsDir() {
-			return fmt.Errorf(i18n.G("Target path must be a directory"))
+			return errors.New(i18n.G("Target path must be a directory"))
 		}
 	}
 
 	// Check which mode we should operate in. If target path is provided we use sshfs mode.
 	if targetPath != "" && c.flagListen != "" {
-		return fmt.Errorf(i18n.G("Target path and --listen flag cannot be used together"))
+		return errors.New(i18n.G("Target path and --listen flag cannot be used together"))
 	}
 
 	instSpec := strings.SplitN(resource.name, "/", 2)
@@ -1041,7 +1042,7 @@ func (c *cmdFileMount) run(cmd *cobra.Command, args []string) error {
 
 	// Check instance path isn't provided in listener mode.
 	if len(instSpec) > 1 && targetPath == "" {
-		return fmt.Errorf(i18n.G("Instance path cannot be used in SSH SFTP listener mode"))
+		return errors.New(i18n.G("Instance path cannot be used in SSH SFTP listener mode"))
 	}
 
 	instName := instSpec[0]
@@ -1051,7 +1052,7 @@ func (c *cmdFileMount) run(cmd *cobra.Command, args []string) error {
 		sshfsPath, err := exec.LookPath("sshfs")
 		if err != nil {
 			// If sshfs command not found, then advise user of the --listen flag.
-			return fmt.Errorf(i18n.G("sshfs not found. Try SSH SFTP mode using the --listen flag"))
+			return errors.New(i18n.G("sshfs not found. Try SSH SFTP mode using the --listen flag"))
 		}
 
 		// Setup sourcePath with leading / to ensure we reference the instance path from / location.

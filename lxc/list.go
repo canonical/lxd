@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"regexp"
@@ -455,7 +456,7 @@ func (c *cmdList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.global.flagProject != "" && c.flagAllProjects {
-		return fmt.Errorf(i18n.G("Can't specify --project with --all-projects"))
+		return errors.New(i18n.G("Can't specify --project with --all-projects"))
 	}
 
 	// Parse the remote
@@ -582,7 +583,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 	if c.flagFast {
 		if c.flagColumns != defaultColumns && c.flagColumns != defaultColumnsAllProjects {
 			// --columns was specified too
-			return nil, false, fmt.Errorf(i18n.G("Can't specify --fast with --columns"))
+			return nil, false, errors.New(i18n.G("Can't specify --fast with --columns"))
 		}
 
 		if c.flagColumns == defaultColumnsAllProjects {
@@ -598,7 +599,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 	} else {
 		if c.flagColumns != defaultColumns && c.flagColumns != defaultColumnsAllProjects {
 			if strings.ContainsAny(c.flagColumns, "L") {
-				return nil, false, fmt.Errorf(i18n.G("Can't specify column L when not clustered"))
+				return nil, false, errors.New(i18n.G("Can't specify column L when not clustered"))
 			}
 		}
 		c.flagColumns = strings.Replace(c.flagColumns, "L", "", -1)

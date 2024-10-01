@@ -14,13 +14,52 @@ test_storage() {
   storage_volume="${storage_pool}-vol"
   lxc storage create "$storage_pool" "$lxd_backend"
   lxc storage show "$storage_pool" | sed 's/^description:.*/description: foo/' | lxc storage edit "$storage_pool"
-  lxc storage show "$storage_pool" | grep -q 'description: foo'
+  [ "$(lxc storage get "$storage_pool" -p description)" = "foo" ]
+  lxc storage set "$storage_pool" -p description="baz"
+  [ "$(lxc storage get "$storage_pool" -p description)" = "baz" ]
 
   lxc storage volume create "$storage_pool" "$storage_volume"
 
   # Test setting description on a storage volume
   lxc storage volume show "$storage_pool" "$storage_volume" | sed 's/^description:.*/description: bar/' | lxc storage volume edit "$storage_pool" "$storage_volume"
-  lxc storage volume show "$storage_pool" "$storage_volume" | grep -q 'description: bar'
+  [ "$(lxc storage volume get "$storage_pool" "$storage_volume" -p description)" = "bar" ]
+  lxc storage volume set "$storage_pool" "$storage_volume" -p description="baz"
+  [ "$(lxc storage volume get "$storage_pool" "$storage_volume" -p description)" = "baz" ]
+
+  # Test creating a storage pool from yaml
+  storage_pool_yaml="lxdtest-$(basename "${LXD_DIR}")-pool-yaml"
+  if [ "${lxd_backend}" = "btrfs" ] || [ "${lxd_backend}" = "zfs" ] || [ "${lxd_backend}" = "lvm" ]; then
+    lxc storage create "$storage_pool_yaml" "$lxd_backend" <<EOF
+description: foo
+config:
+  size: 2GiB
+EOF
+
+    [ "$(lxc storage get "$storage_pool_yaml" size)" = "2GiB" ]
+    [ "$(lxc storage get "$storage_pool_yaml" -p description)" = "foo" ]
+  elif [ "${lxd_backend}" = "dir" ]; then
+    tempdir=$(mktemp -d)
+    lxc storage create "$storage_pool_yaml" "$lxd_backend" <<EOF
+description: foo
+config:
+  source: ${tempdir}
+EOF
+
+    [ "$(lxc storage get "$storage_pool_yaml" source)" = "${tempdir}" ]
+    [ "$(lxc storage get "$storage_pool_yaml" -p description)" = "foo" ]
+  elif [ "${lxd_backend}" = "ceph" ]; then
+    lxc storage create "$storage_pool_yaml" "$lxd_backend" <<EOF
+description: foo
+config:
+  ceph.cluster_name: ceph
+EOF
+
+    [ "$(lxc storage get "$storage_pool_yaml" ceph.cluster_name)" = "ceph" ]
+    [ "$(lxc storage get "$storage_pool_yaml" -p description)" = "foo" ]
+  fi
+
+  # Delete storage pool
+  lxc storage delete "$storage_pool_yaml"
 
   # Validate get/set
   lxc storage set "$storage_pool" user.abc def

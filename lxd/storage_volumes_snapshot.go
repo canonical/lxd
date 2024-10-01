@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -117,7 +118,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 			return err
 		}
 
-		err = project.AllowSnapshotCreation(p)
+		err = limits.AllowSnapshotCreation(p)
 		if err != nil {
 			return err
 		}
@@ -222,7 +223,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 
 	// Create the snapshot.
 	snapshot := func(op *operations.Operation) error {
-		return details.pool.CreateCustomVolumeSnapshot(effectiveProjectName, details.volumeName, req.Name, expiry, op)
+		return details.pool.CreateCustomVolumeSnapshot(effectiveProjectName, details.volumeName, req.Name, req.Description, expiry, op)
 	}
 
 	resources := map[string][]api.URL{}
@@ -1030,7 +1031,7 @@ func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, t
 			}
 
 			for _, v := range allVolumes {
-				err = project.AllowSnapshotCreation(projects[v.ProjectName])
+				err = limits.AllowSnapshotCreation(projects[v.ProjectName])
 				if err != nil {
 					continue
 				}
@@ -1266,7 +1267,7 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, s *state.State, volume
 			return fmt.Errorf("Error loading pool for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
 
-		err = pool.CreateCustomVolumeSnapshot(v.ProjectName, v.Name, snapshotName, expiry, nil)
+		err = pool.CreateCustomVolumeSnapshot(v.ProjectName, v.Name, snapshotName, v.Description, expiry, nil)
 		if err != nil {
 			return fmt.Errorf("Error creating snapshot for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}

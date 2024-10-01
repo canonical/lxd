@@ -41,6 +41,16 @@ test_storage_volume_attach() {
   # create storage volume
   lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")" testvolume
 
+  # create a storage colume using a YAML configuration
+  lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")" testvolume-yaml <<EOF
+description: foo
+config:
+  size: 3GiB
+EOF
+  # Check that the size and description are set correctly
+  [ "$(lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")" testvolume-yaml size)" = "3GiB" ]
+  [ "$(lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")" testvolume-yaml -p description)" = "foo" ]
+
   # create containers
   lxc launch testimage c1 -c security.privileged=true
   lxc launch testimage c2

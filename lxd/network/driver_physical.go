@@ -96,7 +96,7 @@ func (n *physical) Validate(config map[string]string) error {
 		//  shortdesc: IPv6 ranges to use for child OVN network routers
 		"ipv6.ovn.ranges": validate.Optional(validate.IsListOf(validate.IsNetworkRangeV6)),
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv4.routes)
-		// Specify a comma-separated list of IPv4 CIDR subnets that can be used with the child OVN network's {config:option}`device-nic-ovn-device-conf:ipv4.routes.external` setting.
+		// Specify a comma-separated list of IPv4 CIDR subnets that can be used with child OVN network forwarders, load-balancers and {config:option}`device-nic-ovn-device-conf:ipv4.routes.external` setting.
 		// ---
 		//  type: string
 		//  condition: IPv4 address
@@ -111,7 +111,7 @@ func (n *physical) Validate(config map[string]string) error {
 		//  shortdesc: Whether to allow IPv4 routes on multiple networks/NICs
 		"ipv4.routes.anycast": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv6.routes)
-		// Specify a comma-separated list of IPv6 CIDR subnets that can be used with the child OVN network's {config:option}`device-nic-ovn-device-conf:ipv6.routes.external` setting.
+		// Specify a comma-separated list of IPv6 CIDR subnets that can be used with child OVN network forwarders, load-balancers and {config:option}`device-nic-ovn-device-conf:ipv6.routes.external` setting.
 		// ---
 		//  type: string
 		//  condition: IPv6 address

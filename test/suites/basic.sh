@@ -13,6 +13,10 @@ test_basic_usage() {
   # Test an alias with slashes
   lxc image show "${sum}"
   lxc image alias create a/b/ "${sum}"
+
+  # Ensure aliased image won't launch with vm flag set
+  ! lxc launch a/b/ --vm || false
+
   lxc image alias delete a/b/
 
   # Test alias list filtering
@@ -62,7 +66,6 @@ test_basic_usage() {
   lxc image export testimage "${LXD_DIR}/foo"
   [ "${sum}" = "$(sha256sum "${LXD_DIR}/foo.tar.xz" | cut -d' ' -f1)" ]
   rm "${LXD_DIR}/foo.tar.xz"
-
 
   # Test image export with a split image.
   deps/import-busybox --split --alias splitimage
@@ -373,6 +376,12 @@ test_basic_usage() {
   lxc launch testimage foo
   lxc list | grep foo | grep RUNNING
   lxc stop foo --force
+
+  # Test binfmt_misc support
+  lxc start foo
+  lxc exec foo -- mount -t binfmt_misc none /proc/sys/fs/binfmt_misc
+  [ "$(lxc exec foo -- cat /proc/sys/fs/binfmt_misc/status)" = "enabled" ]
+  lxc stop -f foo
 
   # cycle it a few times
   lxc start foo

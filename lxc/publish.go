@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -34,7 +35,7 @@ func (c *cmdPublish) command() *cobra.Command {
 		`Publish instances as images`))
 
 	cmd.RunE = c.run
-	cmd.Flags().BoolVar(&c.flagMakePublic, "public", false, i18n.G("Make the image public"))
+	cmd.Flags().BoolVar(&c.flagMakePublic, "public", false, i18n.G("Make the image public (accessible to unauthenticated clients as well)"))
 	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, i18n.G("New alias to define at target")+"``")
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Stop the instance if currently running"))
 	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Compression algorithm to use (`none` for uncompressed)"))
@@ -77,11 +78,11 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if cName == "" {
-		return fmt.Errorf(i18n.G("Instance name is mandatory"))
+		return errors.New(i18n.G("Instance name is mandatory"))
 	}
 
 	if iName != "" {
-		return fmt.Errorf(i18n.G("There is no \"image name\".  Did you want an alias?"))
+		return errors.New(i18n.G("There is no \"image name\".  Did you want an alias?"))
 	}
 
 	d, err := conf.GetInstanceServer(iRemote)
@@ -108,7 +109,7 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 
 		if wasRunning {
 			if !c.flagForce {
-				return fmt.Errorf(i18n.G("The instance is currently running. Use --force to have it stopped and restarted"))
+				return errors.New(i18n.G("The instance is currently running. Use --force to have it stopped and restarted"))
 			}
 
 			if ct.Ephemeral {
@@ -139,7 +140,7 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 
 			err = op.Wait()
 			if err != nil {
-				return fmt.Errorf(i18n.G("Stopping instance failed!"))
+				return errors.New(i18n.G("Stopping instance failed!"))
 			}
 
 			// Start the instance back up on exit.

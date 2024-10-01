@@ -45,6 +45,7 @@ import (
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/firewall"
 	"github.com/canonical/lxd/lxd/fsmonitor"
+	fsmonitorDrivers "github.com/canonical/lxd/lxd/fsmonitor/drivers"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance"
@@ -67,6 +68,7 @@ import (
 	"github.com/canonical/lxd/lxd/storage/s3/miniod"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/lxd/task"
+	"github.com/canonical/lxd/lxd/ubuntupro"
 	"github.com/canonical/lxd/lxd/ucred"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/lxd/warnings"
@@ -162,6 +164,9 @@ type Daemon struct {
 
 	// Syslog listener cancel function.
 	syslogSocketCancel context.CancelFunc
+
+	// Ubuntu Pro settings
+	ubuntuPro *ubuntupro.Client
 }
 
 // DaemonConfig holds configuration values for Daemon.
@@ -387,11 +392,6 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 		return true, "", auth.AuthenticationMethodUnix, nil, nil
 	}
 
-	// Devlxd unix socket credentials on main API.
-	if r.RemoteAddr == devlxdRemoteAddress {
-		return false, "", "", nil, fmt.Errorf("Main API query can't come from /dev/lxd socket")
-	}
-
 	// Cluster notification with wrong certificate.
 	if isClusterNotification(r) {
 		return false, "", "", nil, fmt.Errorf("Cluster notification isn't using trusted server certificate")
@@ -602,6 +602,7 @@ func (d *Daemon) State() *state.State {
 		ServerUUID:          d.serverUUID,
 		StartTime:           d.startTime,
 		Authorizer:          d.authorizer,
+		UbuntuPro:           d.ubuntuPro,
 	}
 }
 
@@ -817,7 +818,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		if err != nil {
 			writeErr := response.SmartError(err).Render(w)
 			if writeErr != nil {
-				logger.Error("Failed writing error for HTTP response", logger.Ctx{"url": uri, "err": err, "writeErr": writeErr})
+				logger.Warn("Failed writing error for HTTP response", logger.Ctx{"url": uri, "err": err, "writeErr": writeErr})
 			}
 		}
 	})
@@ -1092,9 +1093,16 @@ func (d *Daemon) init() error {
 
 	if d.os.LXCFeatures["devpts_fd"] && canUseNativeTerminals() {
 		d.os.NativeTerminals = true
-		logger.Info(" - safe native terminal allocation : yes")
+		logger.Info(" - safe native terminal allocation: yes")
 	} else {
-		logger.Info(" - safe native terminal allocation : no")
+		logger.Info(" - safe native terminal allocation: no")
+	}
+
+	d.os.UnprivBinfmt = canUseBinfmt()
+	if d.os.UnprivBinfmt {
+		logger.Info(" - unprivileged binfmt_misc: yes")
+	} else {
+		logger.Info(" - unprivileged binfmt_misc: no")
 	}
 
 	/*
@@ -1666,7 +1674,7 @@ func (d *Daemon) init() error {
 
 		logger.Info("Starting device monitor")
 
-		d.devmonitor, err = fsmonitor.New(d.State().ShutdownCtx, prefixPath)
+		d.devmonitor, err = fsmonitorDrivers.Load(d.State().ShutdownCtx, prefixPath, fsmonitor.EventAdd, fsmonitor.EventRemove)
 		if err != nil {
 			return err
 		}
@@ -1810,6 +1818,9 @@ func (d *Daemon) init() error {
 
 	// Start all background tasks
 	d.tasks.Start(d.shutdownCtx)
+
+	// Load Ubuntu Pro configuration before starting any instances.
+	d.ubuntuPro = ubuntupro.New(d.os.ReleaseInfo["NAME"], d.shutdownCtx)
 
 	// Restore instances
 	instancesStart(d.State(), instances)
