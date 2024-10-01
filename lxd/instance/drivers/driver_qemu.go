@@ -1039,7 +1039,7 @@ func (d *qemu) validateRootDiskStatefulStop() error {
 		memoryLimitStr = d.expandedConfig["limits.memory"]
 	}
 
-	memoryLimit, err := units.ParseByteSizeString(memoryLimitStr)
+	memoryLimit, err := parseMemoryStr(memoryLimitStr)
 	if err != nil {
 		return fmt.Errorf("Failed parsing limits.memory: %w", err)
 	}
@@ -3682,7 +3682,7 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error
 		memSize = QEMUDefaultMemSize // Default if no memory limit specified.
 	}
 
-	memSizeBytes, err := units.ParseByteSizeString(memSize)
+	memSizeBytes, err := parseMemoryStr(memSize)
 	if err != nil {
 		return fmt.Errorf("limits.memory invalid: %w", err)
 	}
