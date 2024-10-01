@@ -1628,7 +1628,7 @@ func AllowClusterMemberUpdate(ctx context.Context, tx *db.ClusterTx, clusterMemb
 			continue
 		}
 
-		overridable, _ := memberConfig[reservationKey]
+		overridable := memberConfig[reservationKey]
 		if newValue != "" {
 			overridable.MemberValue.String = newValue
 			overridable.MemberValue.Valid = true
