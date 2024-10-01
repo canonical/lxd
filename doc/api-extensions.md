@@ -2507,3 +2507,7 @@ Expands APIs under `/1.0/auth` to include:
 Includes OVN virtual routers external IPs to `/1.0/network-allocations` responses with the type `uplink`.
 Introduces the `network` field on each allocation, indicating to which network each allocated address belongs.
 And lastly, adds a `project` field on leases, leases can be retrieved via `/1.0/networks/<network>/leases`.
+
+## `vm_limits_cpu_pin_strategy`
+
+Adds a new {config:option}`instance-resource-limits:limits.cpu.pin_strategy` configuration option for virtual machines. This option controls the CPU pinning strategy. When set to `none`, CPU auto pinning is disabled. When set to `auto`, CPU auto pinning is enabled.
