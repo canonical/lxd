@@ -117,8 +117,6 @@ endif
 	# Static pins
 	go get github.com/dell/goscaleio@v1.15.0 # Due to pending testing of newer version
 	go get github.com/gorilla/websocket@v1.5.1 # Due to riscv64 crashes in LP
-	go get github.com/openfga/api/proto@v0.0.0-20240807201305-c96ec773cae9 # Due to build errors (API breakages)
-	go get github.com/openfga/openfga@v1.5.9 # Due to build errors (API breakages)
 
 	# Enforce minimum go version
 	go get toolchain@none # Use the bundled toolchain that meets the minimum go version
