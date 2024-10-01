@@ -1608,6 +1608,80 @@ func CheckClusterTargetRestriction(authorizer auth.Authorizer, r *http.Request, 
 	return nil
 }
 
+func coalesceOverrides(config map[string]db.OverridableConfig) map[string]string {
+	overridden := make(map[string]string)
+	for key, cfg := range config {
+		if cfg.ClusterValue.Valid {
+			overridden[key] = cfg.ClusterValue.String
+		}
+
+		if cfg.MemberValue.Valid {
+			overridden[key] = cfg.MemberValue.String
+		}
+	}
+
+	return overridden
+}
+
+// AllowClusterMemberUpdate returns err if replacing the cluster member's
+// configuration with newConfig would violate any limits.reserve.* configuration.
+func AllowClusterMemberUpdate(ctx context.Context, tx *db.ClusterTx, globalConfig map[string]any, clusterMemberName string, sysinfo *api.ClusterMemberSysInfo, newConfig map[string]string) error {
+	membersConfig, err := tx.GetMemberConfigWithGlobalDefault(ctx, []string{clusterMemberName}, allReservations)
+	if err != nil {
+		return err
+	}
+
+	memberConfig := membersConfig[clusterMemberName]
+	if memberConfig == nil {
+		memberConfig = make(map[string]db.OverridableConfig)
+	}
+
+	// update the existing config
+	for reservationKey, newValue := range newConfig {
+		if !slices.Contains(allReservations, reservationKey) {
+			continue
+		}
+
+		overridable := memberConfig[reservationKey]
+		if newValue != "" {
+			overridable.MemberValue.String = newValue
+			overridable.MemberValue.Valid = true
+		}
+
+		if !overridable.MemberValue.Valid && !overridable.ClusterValue.Valid {
+			delete(memberConfig, reservationKey)
+		} else {
+			memberConfig[reservationKey] = overridable
+		}
+	}
+
+	reservations := coalesceOverrides(memberConfig)
+
+	// No reservations are set for this cluster member so skip checking them
+	if len(reservations) == 0 {
+		return nil
+	}
+
+	membersConfig[clusterMemberName] = memberConfig
+	requiredLimits, err := getLimits(membersConfig)
+	if err != nil {
+		return err
+	}
+
+	clusterAggregateLimits, err := getClusterMemberAggregateLimits(ctx, tx, globalConfig, requiredLimits)
+	if err != nil {
+		return err
+	}
+
+	aggregateLimits, hasClusterMember := clusterAggregateLimits[clusterMemberName]
+	if !hasClusterMember {
+		// No instances on this cluster member
+		return nil
+	}
+
+	return checkClusterMemberReservations(reservations, aggregateLimits, sysinfo)
+}
+
 // AllowBackupCreation returns an error if any project-specific restriction is violated
 // when creating a new backup in a project.
 func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
