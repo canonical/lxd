@@ -2511,3 +2511,7 @@ And lastly, adds a `project` field on leases, leases can be retrieved via `/1.0/
 ## `network_ovn_uplink_vlan`
 
 Adds support for using a bridge network with a specified VLAN ID as an OVN uplink.
+
+## `vm_limits_cpu_pin_strategy`
+
+Adds a new {config:option}`instance-resource-limits:limits.cpu.pin_strategy` configuration option for virtual machines. This option controls the CPU pinning strategy. When set to `none`, CPU auto pinning is disabled. When set to `auto`, CPU auto pinning is enabled.

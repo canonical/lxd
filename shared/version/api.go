@@ -421,6 +421,7 @@ var APIExtensions = []string{
 	"access_management_tls",
 	"network_allocations_ovn_uplink",
 	"network_ovn_uplink_vlan",
+	"vm_limits_cpu_pin_strategy",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
