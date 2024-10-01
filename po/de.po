@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-07-11 09:44+0100\n"
+"POT-Creation-Date: 2024-10-01 10:44+0100\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -905,7 +905,7 @@ msgstr "Fehlerhafte Profil URL %s"
 msgid "BASE IMAGE"
 msgstr ""
 
-#: lxc/export.go:86
+#: lxc/export.go:106
 #, fuzzy, c-format
 msgid "Backing up instance: %s"
 msgstr "Herunterfahren des Containers erzwingen."
