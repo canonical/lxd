@@ -171,10 +171,10 @@ func restServer(d *Daemon) *http.Server {
 		if strings.Contains(ua, "Gecko") {
 			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
 			return
-		} else {
-			// Normal client handling.
-			_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)
 		}
+
+		// Normal client handling.
+		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)
 	})
 
 	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.identityCache) {
