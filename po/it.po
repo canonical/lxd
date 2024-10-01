@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-09-26 11:55-0600\n"
+"POT-Creation-Date: 2024-09-30 22:10-0700\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -19,7 +19,7 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 "X-Generator: Weblate 4.12-dev\n"
 
-#: lxc/storage_bucket.go:261 lxc/storage_bucket.go:1034
+#: lxc/storage_bucket.go:275 lxc/storage_bucket.go:1048
 #, fuzzy
 msgid ""
 "### This is a YAML representation of a storage bucket.\n"
@@ -108,7 +108,7 @@ msgstr ""
 "###   source: /home/chb/mnt/lxd_test/default.img\n"
 "###   zfs.pool_name: default"
 
-#: lxc/config.go:1227
+#: lxc/config.go:1239
 msgid ""
 "### This is a YAML representation of the UEFI variables configuration.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -721,7 +721,7 @@ msgstr "non tutti i profili dell'origine esistono nella destinazione"
 msgid "--empty cannot be combined with an image name"
 msgstr ""
 
-#: lxc/config.go:493 lxc/config.go:809
+#: lxc/config.go:497 lxc/config.go:817
 msgid "--expanded cannot be used with a server"
 msgstr ""
 
@@ -741,7 +741,7 @@ msgstr ""
 msgid "--refresh can only be used with instances"
 msgstr ""
 
-#: lxc/config.go:170 lxc/config.go:443 lxc/config.go:628 lxc/config.go:835
+#: lxc/config.go:170 lxc/config.go:447 lxc/config.go:636 lxc/config.go:843
 #: lxc/info.go:461
 msgid "--target cannot be used with instances"
 msgstr ""
@@ -813,11 +813,11 @@ msgstr ""
 msgid "Accept certificate"
 msgstr "Accetta certificato"
 
-#: lxc/storage_bucket.go:864
+#: lxc/storage_bucket.go:878
 msgid "Access key (auto-generated if empty)"
 msgstr ""
 
-#: lxc/storage_bucket.go:942
+#: lxc/storage_bucket.go:956
 #, c-format
 msgid "Access key: %s"
 msgstr ""
@@ -949,7 +949,7 @@ msgstr ""
 msgid "Address: %s"
 msgstr ""
 
-#: lxc/storage_bucket.go:170
+#: lxc/storage_bucket.go:184
 #, fuzzy, c-format
 msgid "Admin access key: %s"
 msgstr "Password amministratore per %s: "
@@ -959,7 +959,7 @@ msgstr "Password amministratore per %s: "
 msgid "Admin password (or token) for %s:"
 msgstr "Password amministratore per %s: "
 
-#: lxc/storage_bucket.go:171
+#: lxc/storage_bucket.go:185
 #, fuzzy, c-format
 msgid "Admin secret key: %s"
 msgstr "Aggiornamento automatico: %s"
@@ -1015,7 +1015,7 @@ msgstr "Architettura: %s"
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
 
-#: lxc/console.go:388
+#: lxc/console.go:392
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -1100,12 +1100,17 @@ msgstr ""
 msgid "Backing up instance: %s"
 msgstr "Creazione del container in corso"
 
+#: lxc/storage_bucket.go:1302
+#, fuzzy, c-format
+msgid "Backing up storage bucket %s"
+msgstr "Creazione del container in corso"
+
 #: lxc/storage_volume.go:2696
 #, fuzzy, c-format
 msgid "Backing up storage volume: %s"
 msgstr "Creazione del container in corso"
 
-#: lxc/export.go:192 lxc/storage_volume.go:2773
+#: lxc/export.go:192 lxc/storage_bucket.go:1379 lxc/storage_volume.go:2773
 msgid "Backup exported successfully!"
 msgstr ""
 
@@ -1120,7 +1125,7 @@ msgstr ""
 
 #: lxc/network.go:366 lxc/network_acl.go:431 lxc/network_forward.go:318
 #: lxc/network_load_balancer.go:321 lxc/network_peer.go:309
-#: lxc/network_zone.go:366 lxc/network_zone.go:1053 lxc/storage_bucket.go:142
+#: lxc/network_zone.go:366 lxc/network_zone.go:1053 lxc/storage_bucket.go:156
 #, c-format
 msgid "Bad key/value pair: %s"
 msgstr ""
@@ -1267,7 +1272,7 @@ msgstr ""
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
-#: lxc/config.go:694 lxc/config.go:1084
+#: lxc/config.go:702 lxc/config.go:1096
 #, c-format
 msgid "Can't unset key '%s', it's not currently set"
 msgstr ""
@@ -1384,8 +1389,8 @@ msgstr ""
 msgid "Cluster member %s removed from group %s"
 msgstr ""
 
-#: lxc/config.go:106 lxc/config.go:398 lxc/config.go:550 lxc/config.go:768
-#: lxc/config.go:899 lxc/copy.go:62 lxc/info.go:45 lxc/init.go:65
+#: lxc/config.go:106 lxc/config.go:398 lxc/config.go:554 lxc/config.go:776
+#: lxc/config.go:907 lxc/copy.go:62 lxc/info.go:45 lxc/init.go:65
 #: lxc/move.go:67 lxc/network.go:325 lxc/network.go:796 lxc/network.go:877
 #: lxc/network.go:1251 lxc/network.go:1344 lxc/network.go:1416
 #: lxc/network_forward.go:182 lxc/network_forward.go:264
@@ -1397,13 +1402,14 @@ msgstr ""
 #: lxc/network_load_balancer.go:862 lxc/network_load_balancer.go:938
 #: lxc/network_load_balancer.go:1051 lxc/network_load_balancer.go:1125
 #: lxc/storage.go:105 lxc/storage.go:396 lxc/storage.go:479 lxc/storage.go:748
-#: lxc/storage.go:850 lxc/storage.go:943 lxc/storage_bucket.go:91
-#: lxc/storage_bucket.go:191 lxc/storage_bucket.go:254
-#: lxc/storage_bucket.go:385 lxc/storage_bucket.go:542
-#: lxc/storage_bucket.go:635 lxc/storage_bucket.go:701
-#: lxc/storage_bucket.go:776 lxc/storage_bucket.go:862
-#: lxc/storage_bucket.go:962 lxc/storage_bucket.go:1027
-#: lxc/storage_bucket.go:1163 lxc/storage_volume.go:394
+#: lxc/storage.go:850 lxc/storage.go:943 lxc/storage_bucket.go:105
+#: lxc/storage_bucket.go:205 lxc/storage_bucket.go:268
+#: lxc/storage_bucket.go:399 lxc/storage_bucket.go:556
+#: lxc/storage_bucket.go:649 lxc/storage_bucket.go:715
+#: lxc/storage_bucket.go:790 lxc/storage_bucket.go:876
+#: lxc/storage_bucket.go:976 lxc/storage_bucket.go:1041
+#: lxc/storage_bucket.go:1177 lxc/storage_bucket.go:1251
+#: lxc/storage_bucket.go:1400 lxc/storage_volume.go:394
 #: lxc/storage_volume.go:612 lxc/storage_volume.go:717
 #: lxc/storage_volume.go:1005 lxc/storage_volume.go:1231
 #: lxc/storage_volume.go:1360 lxc/storage_volume.go:1848
@@ -1464,13 +1470,13 @@ msgid "Config key/value to apply to the target instance"
 msgstr ""
 
 #: lxc/cluster.go:859 lxc/cluster_group.go:397 lxc/config.go:281
-#: lxc/config.go:356 lxc/config.go:1327 lxc/config_metadata.go:156
+#: lxc/config.go:356 lxc/config.go:1339 lxc/config_metadata.go:156
 #: lxc/config_trust.go:314 lxc/image.go:491 lxc/network.go:759
 #: lxc/network_acl.go:698 lxc/network_forward.go:767
 #: lxc/network_load_balancer.go:738 lxc/network_peer.go:698
 #: lxc/network_zone.go:621 lxc/network_zone.go:1316 lxc/profile.go:595
-#: lxc/project.go:364 lxc/storage.go:359 lxc/storage_bucket.go:349
-#: lxc/storage_bucket.go:1126 lxc/storage_volume.go:1150
+#: lxc/project.go:364 lxc/storage.go:359 lxc/storage_bucket.go:363
+#: lxc/storage_bucket.go:1140 lxc/storage_volume.go:1150
 #: lxc/storage_volume.go:1182
 #, c-format
 msgid "Config parsing error: %s"
@@ -1684,11 +1690,11 @@ msgstr ""
 msgid "Create instances from images"
 msgstr "Creazione del container in corso"
 
-#: lxc/storage_bucket.go:852 lxc/storage_bucket.go:853
+#: lxc/storage_bucket.go:866 lxc/storage_bucket.go:867
 msgid "Create key for a storage bucket"
 msgstr ""
 
-#: lxc/storage_bucket.go:83 lxc/storage_bucket.go:84
+#: lxc/storage_bucket.go:97 lxc/storage_bucket.go:98
 #, fuzzy
 msgid "Create new custom storage buckets"
 msgstr "Creazione del container in corso"
@@ -1778,7 +1784,7 @@ msgstr ""
 #: lxc/network_load_balancer.go:160 lxc/network_peer.go:149
 #: lxc/network_zone.go:148 lxc/network_zone.go:828 lxc/operation.go:173
 #: lxc/profile.go:756 lxc/project.go:574 lxc/storage.go:723
-#: lxc/storage_bucket.go:513 lxc/storage_bucket.go:833
+#: lxc/storage_bucket.go:527 lxc/storage_bucket.go:847
 #: lxc/storage_volume.go:1732
 msgid "DESCRIPTION"
 msgstr "DESCRIZIONE"
@@ -1799,7 +1805,7 @@ msgstr ""
 msgid "Default VLAN ID"
 msgstr ""
 
-#: lxc/storage_volume.go:2630
+#: lxc/storage_bucket.go:1250 lxc/storage_volume.go:2630
 msgid "Define a compression algorithm: for backup or none"
 msgstr ""
 
@@ -1845,7 +1851,7 @@ msgstr ""
 msgid "Delete instances and snapshots"
 msgstr "Creazione del container in corso"
 
-#: lxc/storage_bucket.go:958 lxc/storage_bucket.go:959
+#: lxc/storage_bucket.go:972 lxc/storage_bucket.go:973
 msgid "Delete key from a storage bucket"
 msgstr ""
 
@@ -1887,7 +1893,7 @@ msgstr ""
 msgid "Delete projects"
 msgstr ""
 
-#: lxc/storage_bucket.go:188 lxc/storage_bucket.go:189
+#: lxc/storage_bucket.go:202 lxc/storage_bucket.go:203
 #, fuzzy
 msgid "Delete storage buckets"
 msgstr "Il nome del container è: %s"
@@ -1923,9 +1929,9 @@ msgstr ""
 #: lxc/cluster_group.go:316 lxc/cluster_group.go:440 lxc/cluster_group.go:522
 #: lxc/cluster_group.go:607 lxc/cluster_group.go:663 lxc/cluster_group.go:725
 #: lxc/cluster_role.go:24 lxc/cluster_role.go:51 lxc/cluster_role.go:115
-#: lxc/config.go:33 lxc/config.go:100 lxc/config.go:393 lxc/config.go:538
-#: lxc/config.go:764 lxc/config.go:896 lxc/config.go:943 lxc/config.go:983
-#: lxc/config.go:1038 lxc/config.go:1129 lxc/config.go:1160 lxc/config.go:1214
+#: lxc/config.go:33 lxc/config.go:100 lxc/config.go:393 lxc/config.go:542
+#: lxc/config.go:772 lxc/config.go:904 lxc/config.go:955 lxc/config.go:995
+#: lxc/config.go:1050 lxc/config.go:1141 lxc/config.go:1172 lxc/config.go:1226
 #: lxc/config_device.go:25 lxc/config_device.go:79 lxc/config_device.go:221
 #: lxc/config_device.go:318 lxc/config_device.go:401 lxc/config_device.go:503
 #: lxc/config_device.go:619 lxc/config_device.go:626 lxc/config_device.go:759
@@ -1993,13 +1999,14 @@ msgstr ""
 #: lxc/snapshot.go:32 lxc/storage.go:34 lxc/storage.go:97 lxc/storage.go:203
 #: lxc/storage.go:261 lxc/storage.go:393 lxc/storage.go:475 lxc/storage.go:655
 #: lxc/storage.go:742 lxc/storage.go:846 lxc/storage.go:940
-#: lxc/storage_bucket.go:30 lxc/storage_bucket.go:84 lxc/storage_bucket.go:189
-#: lxc/storage_bucket.go:250 lxc/storage_bucket.go:383
-#: lxc/storage_bucket.go:459 lxc/storage_bucket.go:536
-#: lxc/storage_bucket.go:630 lxc/storage_bucket.go:699
-#: lxc/storage_bucket.go:733 lxc/storage_bucket.go:774
-#: lxc/storage_bucket.go:853 lxc/storage_bucket.go:959
-#: lxc/storage_bucket.go:1023 lxc/storage_bucket.go:1158
+#: lxc/storage_bucket.go:36 lxc/storage_bucket.go:98 lxc/storage_bucket.go:203
+#: lxc/storage_bucket.go:264 lxc/storage_bucket.go:397
+#: lxc/storage_bucket.go:473 lxc/storage_bucket.go:550
+#: lxc/storage_bucket.go:644 lxc/storage_bucket.go:713
+#: lxc/storage_bucket.go:747 lxc/storage_bucket.go:788
+#: lxc/storage_bucket.go:867 lxc/storage_bucket.go:973
+#: lxc/storage_bucket.go:1037 lxc/storage_bucket.go:1172
+#: lxc/storage_bucket.go:1244 lxc/storage_bucket.go:1395
 #: lxc/storage_volume.go:58 lxc/storage_volume.go:169 lxc/storage_volume.go:283
 #: lxc/storage_volume.go:390 lxc/storage_volume.go:605
 #: lxc/storage_volume.go:714 lxc/storage_volume.go:801
@@ -2205,7 +2212,7 @@ msgstr ""
 msgid "Edit image properties"
 msgstr ""
 
-#: lxc/config.go:1213 lxc/config.go:1214
+#: lxc/config.go:1225 lxc/config.go:1226
 #, fuzzy
 msgid "Edit instance UEFI variables"
 msgstr "Creazione del container in corso"
@@ -2261,12 +2268,12 @@ msgstr ""
 msgid "Edit project configurations as YAML"
 msgstr ""
 
-#: lxc/storage_bucket.go:249 lxc/storage_bucket.go:250
+#: lxc/storage_bucket.go:263 lxc/storage_bucket.go:264
 #, fuzzy
 msgid "Edit storage bucket configurations as YAML"
 msgstr "Il nome del container è: %s"
 
-#: lxc/storage_bucket.go:1022 lxc/storage_bucket.go:1023
+#: lxc/storage_bucket.go:1036 lxc/storage_bucket.go:1037
 msgid "Edit storage bucket key as YAML"
 msgstr ""
 
@@ -2334,17 +2341,17 @@ msgstr ""
 msgid "Error retrieving aliases: %w"
 msgstr ""
 
-#: lxc/cluster.go:459 lxc/config.go:654 lxc/config.go:686 lxc/network.go:1319
+#: lxc/cluster.go:459 lxc/config.go:662 lxc/config.go:694 lxc/network.go:1319
 #: lxc/network_acl.go:524 lxc/network_forward.go:572
 #: lxc/network_load_balancer.go:559 lxc/network_peer.go:522
 #: lxc/network_zone.go:459 lxc/network_zone.go:1147 lxc/profile.go:987
-#: lxc/project.go:720 lxc/storage.go:812 lxc/storage_bucket.go:603
+#: lxc/project.go:720 lxc/storage.go:812 lxc/storage_bucket.go:617
 #: lxc/storage_volume.go:2155 lxc/storage_volume.go:2193
 #, c-format
 msgid "Error setting properties: %v"
 msgstr ""
 
-#: lxc/config.go:648 lxc/config.go:680
+#: lxc/config.go:656 lxc/config.go:688
 #, c-format
 msgid "Error unsetting properties: %v"
 msgstr ""
@@ -2353,7 +2360,7 @@ msgstr ""
 #: lxc/network_forward.go:566 lxc/network_load_balancer.go:553
 #: lxc/network_peer.go:516 lxc/network_zone.go:453 lxc/network_zone.go:1141
 #: lxc/profile.go:981 lxc/project.go:714 lxc/storage.go:806
-#: lxc/storage_bucket.go:597 lxc/storage_volume.go:2149
+#: lxc/storage_bucket.go:611 lxc/storage_volume.go:2149
 #: lxc/storage_volume.go:2187
 #, c-format
 msgid "Error unsetting property: %v"
@@ -2436,9 +2443,24 @@ msgstr "Creazione del container in corso"
 msgid "Export instances as backup tarballs."
 msgstr "Creazione del container in corso"
 
+#: lxc/storage_bucket.go:1243
+#, fuzzy
+msgid "Export storage bucket"
+msgstr "Creazione del container in corso"
+
+#: lxc/storage_bucket.go:1244
+#, fuzzy
+msgid "Export storage buckets as tarball."
+msgstr "Creazione del container in corso"
+
 #: lxc/storage_volume.go:2627
 msgid "Export the volume without its snapshots"
 msgstr ""
+
+#: lxc/storage_bucket.go:1362
+#, fuzzy, c-format
+msgid "Exporting backup of storage bucket %s"
+msgstr "Creazione del container in corso"
 
 #: lxc/export.go:152 lxc/storage_volume.go:2756
 #, fuzzy, c-format
@@ -2542,7 +2564,7 @@ msgstr "Il nome del container è: %s"
 msgid "Failed parsing SSH host key: %w"
 msgstr "Accetta certificato"
 
-#: lxc/console.go:366
+#: lxc/console.go:370
 #, fuzzy, c-format
 msgid "Failed starting command: %w"
 msgstr "Accetta certificato"
@@ -2581,9 +2603,19 @@ msgstr ""
 msgid "Failed to create alias %s: %w"
 msgstr "Accetta certificato"
 
+#: lxc/storage_bucket.go:1297
+#, fuzzy, c-format
+msgid "Failed to create backup: %v"
+msgstr "Accetta certificato"
+
 #: lxc/remote.go:260
 #, fuzzy, c-format
 msgid "Failed to create certificate: %w"
+msgstr "Accetta certificato"
+
+#: lxc/storage_bucket.go:1376
+#, fuzzy, c-format
+msgid "Failed to fetch storage bucket backup: %w"
 msgstr "Accetta certificato"
 
 #: lxc/remote.go:267
@@ -2697,7 +2729,7 @@ msgstr ""
 #: lxc/network_peer.go:85 lxc/network_zone.go:89 lxc/network_zone.go:770
 #: lxc/operation.go:109 lxc/profile.go:707 lxc/project.go:474
 #: lxc/project.go:919 lxc/remote.go:690 lxc/storage.go:657
-#: lxc/storage_bucket.go:460 lxc/storage_bucket.go:775
+#: lxc/storage_bucket.go:474 lxc/storage_bucket.go:789
 #: lxc/storage_volume.go:1608 lxc/warning.go:94
 msgid "Format (csv|json|table|yaml|compact)"
 msgstr ""
@@ -2758,7 +2790,7 @@ msgstr ""
 msgid "Generating a client certificate. This may take a minute..."
 msgstr ""
 
-#: lxc/config.go:982 lxc/config.go:983
+#: lxc/config.go:994 lxc/config.go:995
 #, fuzzy
 msgid "Get UEFI variables for instance"
 msgstr "Creazione del container in corso"
@@ -2818,7 +2850,7 @@ msgstr ""
 msgid "Get the key as a project property"
 msgstr ""
 
-#: lxc/storage_bucket.go:386
+#: lxc/storage_bucket.go:400
 #, fuzzy
 msgid "Get the key as a storage bucket property"
 msgstr "Il nome del container è: %s"
@@ -2888,7 +2920,7 @@ msgstr ""
 msgid "Get values for project configuration keys"
 msgstr ""
 
-#: lxc/storage_bucket.go:382 lxc/storage_bucket.go:383
+#: lxc/storage_bucket.go:396 lxc/storage_bucket.go:397
 #, fuzzy
 msgid "Get values for storage bucket configuration keys"
 msgstr "Il nome del container è: %s"
@@ -3099,6 +3131,11 @@ msgstr ""
 msgid "Import backups of instances including their snapshots."
 msgstr ""
 
+#: lxc/storage_bucket.go:1395
+#, fuzzy
+msgid "Import backups of storage buckets."
+msgstr "Creazione del container in corso"
+
 #: lxc/storage_volume.go:2789
 msgid "Import custom storage volumes"
 msgstr ""
@@ -3122,9 +3159,19 @@ msgstr ""
 msgid "Import instance backups"
 msgstr "Creazione del container in corso"
 
+#: lxc/storage_bucket.go:1394
+#, fuzzy
+msgid "Import storage bucket"
+msgstr "Creazione del container in corso"
+
 #: lxc/storage_volume.go:2797
 msgid "Import type, backup or iso (default \"backup\")"
 msgstr ""
+
+#: lxc/storage_bucket.go:1450
+#, fuzzy, c-format
+msgid "Importing bucket: %s"
+msgstr "Creazione del container in corso"
 
 #: lxc/storage_volume.go:2871
 #, fuzzy, c-format
@@ -3171,7 +3218,7 @@ msgstr ""
 msgid "Instance name is: %s"
 msgstr "Il nome del container è: %s"
 
-#: lxc/config.go:1008 lxc/config.go:1066 lxc/config.go:1185 lxc/config.go:1277
+#: lxc/config.go:1020 lxc/config.go:1078 lxc/config.go:1197 lxc/config.go:1289
 #, fuzzy
 msgid "Instance name must be specified"
 msgstr "Il nome del container è: %s"
@@ -3194,6 +3241,11 @@ msgstr "Il nome del container è: %s"
 msgid "Instance type"
 msgstr ""
 
+#: lxc/storage_bucket.go:1330
+#, fuzzy, c-format
+msgid "Invalid URL %q: %w"
+msgstr "Proprietà errata: %s"
+
 #: lxc/remote.go:353
 #, c-format
 msgid "Invalid URL scheme \"%s\" in \"%s\""
@@ -3203,6 +3255,11 @@ msgstr ""
 #, fuzzy, c-format
 msgid "Invalid argument %q"
 msgstr "Proprietà errata: %s"
+
+#: lxc/storage_bucket.go:1335
+#, c-format
+msgid "Invalid backup name segment in path %q: %w"
+msgstr ""
 
 #: lxc/config_trust.go:391
 msgid "Invalid certificate"
@@ -3326,7 +3383,7 @@ msgstr ""
 
 #: lxc/list.go:606 lxc/network.go:1168 lxc/network_forward.go:163
 #: lxc/network_load_balancer.go:165 lxc/operation.go:178
-#: lxc/storage_bucket.go:517 lxc/storage_volume.go:1739 lxc/warning.go:221
+#: lxc/storage_bucket.go:531 lxc/storage_volume.go:1739 lxc/warning.go:221
 msgid "LOCATION"
 msgstr ""
 
@@ -3334,7 +3391,7 @@ msgstr ""
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/console.go:387
+#: lxc/console.go:391
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
@@ -3634,11 +3691,11 @@ msgstr ""
 msgid "List projects"
 msgstr ""
 
-#: lxc/storage_bucket.go:772 lxc/storage_bucket.go:774
+#: lxc/storage_bucket.go:786 lxc/storage_bucket.go:788
 msgid "List storage bucket keys"
 msgstr ""
 
-#: lxc/storage_bucket.go:457 lxc/storage_bucket.go:459
+#: lxc/storage_bucket.go:471 lxc/storage_bucket.go:473
 #, fuzzy
 msgid "List storage buckets"
 msgstr "Creazione del container in corso"
@@ -3870,7 +3927,7 @@ msgid ""
 "hash or alias name (if one is set)."
 msgstr ""
 
-#: lxc/config.go:942 lxc/config.go:943
+#: lxc/config.go:954 lxc/config.go:955
 #, fuzzy
 msgid "Manage instance UEFI variables"
 msgstr "Creazione del container in corso"
@@ -3952,21 +4009,21 @@ msgstr ""
 msgid "Manage projects"
 msgstr ""
 
-#: lxc/storage_bucket.go:732
+#: lxc/storage_bucket.go:746
 #, fuzzy
 msgid "Manage storage bucket keys"
 msgstr "Creazione del container in corso"
 
-#: lxc/storage_bucket.go:733
+#: lxc/storage_bucket.go:747
 msgid "Manage storage bucket keys."
 msgstr ""
 
-#: lxc/storage_bucket.go:29
+#: lxc/storage_bucket.go:35
 #, fuzzy
 msgid "Manage storage buckets"
 msgstr "Creazione del container in corso"
 
-#: lxc/storage_bucket.go:30
+#: lxc/storage_bucket.go:36
 #, fuzzy
 msgid "Manage storage buckets."
 msgstr "Creazione del container in corso"
@@ -4070,12 +4127,12 @@ msgid ""
 "Minimum level for log messages (only available when using pretty format)"
 msgstr ""
 
-#: lxc/storage_bucket.go:117 lxc/storage_bucket.go:217
-#: lxc/storage_bucket.go:293 lxc/storage_bucket.go:412
-#: lxc/storage_bucket.go:569 lxc/storage_bucket.go:661
-#: lxc/storage_bucket.go:803 lxc/storage_bucket.go:890
-#: lxc/storage_bucket.go:987 lxc/storage_bucket.go:1066
-#: lxc/storage_bucket.go:1189
+#: lxc/storage_bucket.go:131 lxc/storage_bucket.go:231
+#: lxc/storage_bucket.go:307 lxc/storage_bucket.go:426
+#: lxc/storage_bucket.go:583 lxc/storage_bucket.go:675
+#: lxc/storage_bucket.go:817 lxc/storage_bucket.go:904
+#: lxc/storage_bucket.go:1001 lxc/storage_bucket.go:1080
+#: lxc/storage_bucket.go:1203 lxc/storage_bucket.go:1279
 #, fuzzy
 msgid "Missing bucket name"
 msgstr "Il nome del container è: %s"
@@ -4127,8 +4184,8 @@ msgstr "Il nome del container è: %s"
 msgid "Missing instance name"
 msgstr "Il nome del container è: %s"
 
-#: lxc/storage_bucket.go:894 lxc/storage_bucket.go:991
-#: lxc/storage_bucket.go:1070 lxc/storage_bucket.go:1193
+#: lxc/storage_bucket.go:908 lxc/storage_bucket.go:1005
+#: lxc/storage_bucket.go:1084 lxc/storage_bucket.go:1207
 #, fuzzy
 msgid "Missing key name"
 msgstr "Il nome del container è: %s"
@@ -4199,19 +4256,20 @@ msgid "Missing peer name"
 msgstr "Il nome del container è: %s"
 
 #: lxc/storage.go:235 lxc/storage.go:313 lxc/storage.go:431 lxc/storage.go:509
-#: lxc/storage.go:780 lxc/storage.go:886 lxc/storage_bucket.go:113
-#: lxc/storage_bucket.go:213 lxc/storage_bucket.go:289
-#: lxc/storage_bucket.go:408 lxc/storage_bucket.go:483
-#: lxc/storage_bucket.go:565 lxc/storage_bucket.go:657
-#: lxc/storage_bucket.go:799 lxc/storage_bucket.go:886
-#: lxc/storage_bucket.go:983 lxc/storage_bucket.go:1062
-#: lxc/storage_bucket.go:1185 lxc/storage_volume.go:209
-#: lxc/storage_volume.go:323 lxc/storage_volume.go:643
-#: lxc/storage_volume.go:750 lxc/storage_volume.go:841
-#: lxc/storage_volume.go:939 lxc/storage_volume.go:1053
-#: lxc/storage_volume.go:1270 lxc/storage_volume.go:1974
-#: lxc/storage_volume.go:2115 lxc/storage_volume.go:2273
-#: lxc/storage_volume.go:2464 lxc/storage_volume.go:2581
+#: lxc/storage.go:780 lxc/storage.go:886 lxc/storage_bucket.go:127
+#: lxc/storage_bucket.go:227 lxc/storage_bucket.go:303
+#: lxc/storage_bucket.go:422 lxc/storage_bucket.go:497
+#: lxc/storage_bucket.go:579 lxc/storage_bucket.go:671
+#: lxc/storage_bucket.go:813 lxc/storage_bucket.go:900
+#: lxc/storage_bucket.go:997 lxc/storage_bucket.go:1076
+#: lxc/storage_bucket.go:1199 lxc/storage_bucket.go:1274
+#: lxc/storage_volume.go:209 lxc/storage_volume.go:323
+#: lxc/storage_volume.go:643 lxc/storage_volume.go:750
+#: lxc/storage_volume.go:841 lxc/storage_volume.go:939
+#: lxc/storage_volume.go:1053 lxc/storage_volume.go:1270
+#: lxc/storage_volume.go:1974 lxc/storage_volume.go:2115
+#: lxc/storage_volume.go:2273 lxc/storage_volume.go:2464
+#: lxc/storage_volume.go:2581
 msgid "Missing pool name"
 msgstr ""
 
@@ -4351,8 +4409,8 @@ msgstr ""
 #: lxc/config_trust.go:514 lxc/list.go:573 lxc/network.go:1081
 #: lxc/network_acl.go:156 lxc/network_peer.go:148 lxc/network_zone.go:147
 #: lxc/network_zone.go:827 lxc/profile.go:755 lxc/project.go:567
-#: lxc/remote.go:748 lxc/storage.go:715 lxc/storage_bucket.go:512
-#: lxc/storage_bucket.go:832 lxc/storage_volume.go:1731
+#: lxc/remote.go:748 lxc/storage.go:715 lxc/storage_bucket.go:526
+#: lxc/storage_bucket.go:846 lxc/storage_volume.go:1731
 msgid "NAME"
 msgstr ""
 
@@ -4745,13 +4803,13 @@ msgstr ""
 
 #: lxc/auth.go:302 lxc/auth.go:1056 lxc/auth.go:1662 lxc/cluster.go:860
 #: lxc/cluster_group.go:398 lxc/config.go:282 lxc/config.go:357
-#: lxc/config.go:1328 lxc/config_metadata.go:157 lxc/config_template.go:239
+#: lxc/config.go:1340 lxc/config_metadata.go:157 lxc/config_template.go:239
 #: lxc/config_trust.go:315 lxc/image.go:492 lxc/network.go:760
 #: lxc/network_acl.go:699 lxc/network_forward.go:768
 #: lxc/network_load_balancer.go:739 lxc/network_peer.go:699
 #: lxc/network_zone.go:622 lxc/network_zone.go:1317 lxc/profile.go:596
-#: lxc/project.go:365 lxc/storage.go:360 lxc/storage_bucket.go:350
-#: lxc/storage_bucket.go:1127 lxc/storage_volume.go:1151
+#: lxc/project.go:365 lxc/storage.go:360 lxc/storage_bucket.go:364
+#: lxc/storage_bucket.go:1141 lxc/storage_volume.go:1151
 #: lxc/storage_volume.go:1183
 msgid "Press enter to open the editor again or ctrl+c to abort change"
 msgstr ""
@@ -5006,7 +5064,7 @@ msgstr ""
 msgid "RESOURCE"
 msgstr ""
 
-#: lxc/storage_bucket.go:834
+#: lxc/storage_bucket.go:848
 msgid "ROLE"
 msgstr ""
 
@@ -5263,7 +5321,7 @@ msgstr ""
 msgid "Request a join token for adding a cluster member"
 msgstr ""
 
-#: lxc/config.go:1019
+#: lxc/config.go:1031
 msgid "Requested UEFI variable does not exist"
 msgstr ""
 
@@ -5336,7 +5394,7 @@ msgstr "Il nome del container è: %s"
 msgid "Revoke cluster member join token"
 msgstr "Il nome del container è: %s"
 
-#: lxc/storage_bucket.go:863
+#: lxc/storage_bucket.go:877
 msgid "Role (admin or read-only)"
 msgstr ""
 
@@ -5412,11 +5470,11 @@ msgstr ""
 msgid "STP"
 msgstr ""
 
-#: lxc/storage_bucket.go:865
+#: lxc/storage_bucket.go:879
 msgid "Secret key (auto-generated if empty)"
 msgstr ""
 
-#: lxc/storage_bucket.go:943
+#: lxc/storage_bucket.go:957
 #, fuzzy, c-format
 msgid "Secret key: %s"
 msgstr "Aggiornamento automatico: %s"
@@ -5446,7 +5504,7 @@ msgstr ""
 msgid "Server version: %s\n"
 msgstr ""
 
-#: lxc/config.go:1037 lxc/config.go:1038
+#: lxc/config.go:1049 lxc/config.go:1050
 #, fuzzy
 msgid "Set UEFI variables for instance"
 msgstr "Creazione del container in corso"
@@ -5486,11 +5544,11 @@ msgstr ""
 msgid "Set image properties"
 msgstr ""
 
-#: lxc/config.go:537
+#: lxc/config.go:541
 msgid "Set instance or server configuration keys"
 msgstr ""
 
-#: lxc/config.go:538
+#: lxc/config.go:542
 msgid ""
 "Set instance or server configuration keys\n"
 "\n"
@@ -5610,12 +5668,12 @@ msgid ""
 "    lxc project set [<remote>:]<project> <key> <value>"
 msgstr ""
 
-#: lxc/storage_bucket.go:535
+#: lxc/storage_bucket.go:549
 #, fuzzy
 msgid "Set storage bucket configuration keys"
 msgstr "Il nome del container è: %s"
 
-#: lxc/storage_bucket.go:536
+#: lxc/storage_bucket.go:550
 msgid ""
 "Set storage bucket configuration keys\n"
 "\n"
@@ -5709,7 +5767,7 @@ msgstr ""
 msgid "Set the key as a project property"
 msgstr ""
 
-#: lxc/storage_bucket.go:543
+#: lxc/storage_bucket.go:557
 #, fuzzy
 msgid "Set the key as a storage bucket property"
 msgstr "Creazione del container in corso"
@@ -5722,7 +5780,7 @@ msgstr ""
 msgid "Set the key as a storage volume property"
 msgstr ""
 
-#: lxc/config.go:551
+#: lxc/config.go:555
 msgid "Set the key as an instance property"
 msgstr ""
 
@@ -5789,7 +5847,7 @@ msgstr ""
 msgid "Show image properties"
 msgstr ""
 
-#: lxc/config.go:1159 lxc/config.go:1160
+#: lxc/config.go:1171 lxc/config.go:1172
 #, fuzzy
 msgid "Show instance UEFI variables"
 msgstr "errore di processamento degli alias %s\n"
@@ -5798,7 +5856,7 @@ msgstr "errore di processamento degli alias %s\n"
 msgid "Show instance metadata files"
 msgstr ""
 
-#: lxc/config.go:763 lxc/config.go:764
+#: lxc/config.go:771 lxc/config.go:772
 msgid "Show instance or server configurations"
 msgstr ""
 
@@ -5864,12 +5922,12 @@ msgstr ""
 msgid "Show project options"
 msgstr ""
 
-#: lxc/storage_bucket.go:629 lxc/storage_bucket.go:630
+#: lxc/storage_bucket.go:643 lxc/storage_bucket.go:644
 #, fuzzy
 msgid "Show storage bucket configurations"
 msgstr "Il nome del container è: %s"
 
-#: lxc/storage_bucket.go:1157 lxc/storage_bucket.go:1158
+#: lxc/storage_bucket.go:1171 lxc/storage_bucket.go:1172
 #, fuzzy
 msgid "Show storage bucket key configurations"
 msgstr "Il nome del container è: %s"
@@ -5900,7 +5958,7 @@ msgstr ""
 msgid "Show the default remote"
 msgstr ""
 
-#: lxc/config.go:767
+#: lxc/config.go:775
 msgid "Show the expanded configuration"
 msgstr ""
 
@@ -6023,22 +6081,22 @@ msgstr ""
 msgid "Stopping the instance failed: %s"
 msgstr "errore di processamento degli alias %s\n"
 
-#: lxc/storage_bucket.go:167
+#: lxc/storage_bucket.go:181
 #, c-format
 msgid "Storage bucket %s created"
 msgstr ""
 
-#: lxc/storage_bucket.go:234
+#: lxc/storage_bucket.go:248
 #, c-format
 msgid "Storage bucket %s deleted"
 msgstr ""
 
-#: lxc/storage_bucket.go:941
+#: lxc/storage_bucket.go:955
 #, c-format
 msgid "Storage bucket key %s added"
 msgstr ""
 
-#: lxc/storage_bucket.go:1007
+#: lxc/storage_bucket.go:1021
 #, c-format
 msgid "Storage bucket key %s removed"
 msgstr ""
@@ -6156,7 +6214,7 @@ msgstr ""
 msgid "The --mode flag can't be used with --target"
 msgstr ""
 
-#: lxc/console.go:126
+#: lxc/console.go:130
 msgid "The --show-log flag is only supported for by 'console' output type"
 msgstr ""
 
@@ -6219,12 +6277,12 @@ msgstr "il remote %s non esiste"
 msgid "The property %q does not exist on the cluster member %q: %v"
 msgstr "Il nome del container è: %s"
 
-#: lxc/config.go:479
+#: lxc/config.go:483
 #, fuzzy, c-format
 msgid "The property %q does not exist on the instance %q: %v"
 msgstr "Il nome del container è: %s"
 
-#: lxc/config.go:455
+#: lxc/config.go:459
 #, fuzzy, c-format
 msgid "The property %q does not exist on the instance snapshot %s/%s: %v"
 msgstr "Il nome del container è: %s"
@@ -6274,7 +6332,7 @@ msgstr "Il nome del container è: %s"
 msgid "The property %q does not exist on the project %q: %v"
 msgstr "Il nome del container è: %s"
 
-#: lxc/storage_bucket.go:432
+#: lxc/storage_bucket.go:446
 #, fuzzy, c-format
 msgid "The property %q does not exist on the storage bucket %q: %v"
 msgstr "Il nome del container è: %s"
@@ -6316,7 +6374,7 @@ msgstr ""
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 
-#: lxc/config.go:666
+#: lxc/config.go:674
 #, fuzzy
 msgid "There is no config key to set on an instance snapshot."
 msgstr "Il nome del container è: %s"
@@ -6362,7 +6420,7 @@ msgstr ""
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
-#: lxc/console.go:215
+#: lxc/console.go:219
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
@@ -6372,7 +6430,7 @@ msgid ""
 "Or for a virtual machine: lxc launch ubuntu:24.04 --vm"
 msgstr ""
 
-#: lxc/config.go:306 lxc/config.go:499 lxc/config.go:715 lxc/config.go:815
+#: lxc/config.go:306 lxc/config.go:503 lxc/config.go:723 lxc/config.go:823
 #: lxc/copy.go:144 lxc/info.go:346 lxc/network.go:914 lxc/storage.go:515
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
@@ -6519,7 +6577,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/console.go:164
+#: lxc/console.go:168
 #, c-format
 msgid "Unknown console type %q"
 msgstr ""
@@ -6534,12 +6592,12 @@ msgstr ""
 msgid "Unknown key: %s"
 msgstr ""
 
-#: lxc/console.go:109
+#: lxc/console.go:113
 #, c-format
 msgid "Unknown output type %q"
 msgstr ""
 
-#: lxc/config.go:1128 lxc/config.go:1129
+#: lxc/config.go:1140 lxc/config.go:1141
 #, fuzzy
 msgid "Unset UEFI variables for instance"
 msgstr "non tutti i profili dell'origine esistono nella destinazione"
@@ -6562,7 +6620,7 @@ msgstr ""
 msgid "Unset image properties"
 msgstr ""
 
-#: lxc/config.go:895 lxc/config.go:896
+#: lxc/config.go:903 lxc/config.go:904
 msgid "Unset instance or server configuration keys"
 msgstr ""
 
@@ -6619,7 +6677,7 @@ msgstr ""
 msgid "Unset project configuration keys"
 msgstr ""
 
-#: lxc/storage_bucket.go:698 lxc/storage_bucket.go:699
+#: lxc/storage_bucket.go:712 lxc/storage_bucket.go:713
 #, fuzzy
 msgid "Unset storage bucket configuration keys"
 msgstr "Il nome del container è: %s"
@@ -6675,7 +6733,7 @@ msgstr ""
 msgid "Unset the key as a project property"
 msgstr ""
 
-#: lxc/storage_bucket.go:702
+#: lxc/storage_bucket.go:716
 #, fuzzy
 msgid "Unset the key as a storage bucket property"
 msgstr "Il nome del container è: %s"
@@ -6688,7 +6746,7 @@ msgstr ""
 msgid "Unset the key as a storage volume property"
 msgstr ""
 
-#: lxc/config.go:900
+#: lxc/config.go:908
 msgid "Unset the key as an instance property"
 msgstr ""
 
@@ -7081,7 +7139,7 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr "Creazione del container in corso"
 
-#: lxc/config.go:1158 lxc/config.go:1212 lxc/config_device.go:321
+#: lxc/config.go:1170 lxc/config.go:1224 lxc/config_device.go:321
 #: lxc/config_device.go:753 lxc/config_metadata.go:54
 #: lxc/config_metadata.go:187 lxc/config_template.go:271 lxc/console.go:35
 #, fuzzy
@@ -7108,12 +7166,12 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:]<instance> <device> [key=value...]"
 msgstr "Creazione del container in corso"
 
-#: lxc/config.go:981 lxc/config.go:1127
+#: lxc/config.go:993 lxc/config.go:1139
 #, fuzzy
 msgid "[<remote>:]<instance> <key>"
 msgstr "Creazione del container in corso"
 
-#: lxc/config.go:1036
+#: lxc/config.go:1048
 #, fuzzy
 msgid "[<remote>:]<instance> <key>=<value>..."
 msgstr "Creazione del container in corso"
@@ -7369,9 +7427,14 @@ msgid "[<remote>:]<operation>"
 msgstr "Creazione del container in corso"
 
 #: lxc/storage.go:200 lxc/storage.go:259 lxc/storage.go:473 lxc/storage.go:844
-#: lxc/storage_bucket.go:455
+#: lxc/storage_bucket.go:469
 #, fuzzy
 msgid "[<remote>:]<pool>"
+msgstr "Creazione del container in corso"
+
+#: lxc/storage_bucket.go:1393
+#, fuzzy
+msgid "[<remote>:]<pool> <backup file> [<bucket>]"
 msgstr "Creazione del container in corso"
 
 #: lxc/storage_volume.go:2788
@@ -7379,25 +7442,30 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:]<pool> <backup file> [<volume name>]"
 msgstr "Creazione del container in corso"
 
-#: lxc/storage_bucket.go:186 lxc/storage_bucket.go:248
-#: lxc/storage_bucket.go:628 lxc/storage_bucket.go:770
+#: lxc/storage_bucket.go:200 lxc/storage_bucket.go:262
+#: lxc/storage_bucket.go:642 lxc/storage_bucket.go:784
 #, fuzzy
 msgid "[<remote>:]<pool> <bucket>"
 msgstr "Creazione del container in corso"
 
-#: lxc/storage_bucket.go:381 lxc/storage_bucket.go:697
-#: lxc/storage_bucket.go:851 lxc/storage_bucket.go:957
-#: lxc/storage_bucket.go:1021 lxc/storage_bucket.go:1156
+#: lxc/storage_bucket.go:395 lxc/storage_bucket.go:711
+#: lxc/storage_bucket.go:865 lxc/storage_bucket.go:971
+#: lxc/storage_bucket.go:1035 lxc/storage_bucket.go:1170
 #, fuzzy
 msgid "[<remote>:]<pool> <bucket> <key>"
 msgstr "Creazione del container in corso"
 
-#: lxc/storage_bucket.go:534
+#: lxc/storage_bucket.go:548
 #, fuzzy
 msgid "[<remote>:]<pool> <bucket> <key>=<value>..."
 msgstr "Creazione del container in corso"
 
-#: lxc/storage_bucket.go:82
+#: lxc/storage_bucket.go:1242
+#, fuzzy
+msgid "[<remote>:]<pool> <bucket> [<path>]"
+msgstr "Creazione del container in corso"
+
+#: lxc/storage_bucket.go:96
 #, fuzzy
 msgid "[<remote>:]<pool> <bucket> [key=value...]"
 msgstr "Creazione del container in corso"
@@ -7601,7 +7669,7 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:]<zone> <record> [key=value...]"
 msgstr "Creazione del container in corso"
 
-#: lxc/config.go:98 lxc/config.go:762
+#: lxc/config.go:98 lxc/config.go:770
 #, fuzzy
 msgid "[<remote>:][<instance>[/<snapshot>]]"
 msgstr "Creazione del container in corso"
@@ -7611,12 +7679,12 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:][<instance>]"
 msgstr "Creazione del container in corso"
 
-#: lxc/config.go:391 lxc/config.go:894
+#: lxc/config.go:391 lxc/config.go:902
 #, fuzzy
 msgid "[<remote>:][<instance>] <key>"
 msgstr "Creazione del container in corso"
 
-#: lxc/config.go:536
+#: lxc/config.go:540
 #, fuzzy
 msgid "[<remote>:][<instance>] <key>=<value>..."
 msgstr "Creazione del container in corso"
@@ -7744,7 +7812,7 @@ msgid ""
 "    Update the instance configuration from config.yaml."
 msgstr ""
 
-#: lxc/config.go:543
+#: lxc/config.go:547
 msgid ""
 "lxc config set [<remote>:]<instance> limits.cpu=2\n"
 "    Will set a CPU limit of \"2\" for the instance.\n"
@@ -7753,13 +7821,13 @@ msgid ""
 "    Will have LXD listen on IPv4 and IPv6 port 8443."
 msgstr ""
 
-#: lxc/config.go:1216
+#: lxc/config.go:1228
 msgid ""
 "lxc config uefi edit <instance> < instance_uefi_vars.yaml\n"
 "    Set the instance UEFI variables from instance_uefi_vars.yaml."
 msgstr ""
 
-#: lxc/config.go:1040
+#: lxc/config.go:1052
 msgid ""
 "lxc config uefi set [<remote>:]<instance> "
 "testvar-9073e4e0-60ec-4b6e-9903-4c223c260f3c=aabb\n"
@@ -8027,7 +8095,7 @@ msgid ""
 "    Restore the snapshot."
 msgstr ""
 
-#: lxc/storage_bucket.go:85
+#: lxc/storage_bucket.go:99
 msgid ""
 "lxc storage bucket create p1 b01\n"
 "\tCreate a new storage bucket name b01 in storage pool p1\n"
@@ -8037,19 +8105,19 @@ msgid ""
 "of config.yaml"
 msgstr ""
 
-#: lxc/storage_bucket.go:251
+#: lxc/storage_bucket.go:265
 msgid ""
 "lxc storage bucket edit [<remote>:]<pool> <bucket> < bucket.yaml\n"
 "    Update a storage bucket using the content of bucket.yaml."
 msgstr ""
 
-#: lxc/storage_bucket.go:1024
+#: lxc/storage_bucket.go:1038
 msgid ""
 "lxc storage bucket edit [<remote>:]<pool> <bucket> <key> < key.yaml\n"
 "    Update a storage bucket key using the content of key.yaml."
 msgstr ""
 
-#: lxc/storage_bucket.go:854
+#: lxc/storage_bucket.go:868
 msgid ""
 "lxc storage bucket key create p1 b01 k1\n"
 "\tCreate a key called k1 for the bucket b01 in the pool p1.\n"
@@ -8059,14 +8127,14 @@ msgid ""
 "of config.yaml."
 msgstr ""
 
-#: lxc/storage_bucket.go:1159
+#: lxc/storage_bucket.go:1173
 msgid ""
 "lxc storage bucket key show default data foo\n"
 "    Will show the properties of a bucket key called \"foo\" for a bucket "
 "called \"data\" in the \"default\" pool."
 msgstr ""
 
-#: lxc/storage_bucket.go:631
+#: lxc/storage_bucket.go:645
 msgid ""
 "lxc storage bucket show default data\n"
 "    Will show the properties of a bucket called \"data\" in the \"default\" "
@@ -8110,6 +8178,18 @@ msgid ""
 "lxc storage volume snapshot create default v1 snap0 < config.yaml\n"
 "       Create a snapshot of \"v1\" in pool \"default\" called \"snap0\" with "
 "the configuration from \"config.yaml\"."
+msgstr ""
+
+#: lxc/storage_bucket.go:1246
+msgid ""
+"lxd storage bucket default b1\n"
+"    Download a backup tarball of the b1 storage bucket."
+msgstr ""
+
+#: lxc/storage_bucket.go:1397
+msgid ""
+"lxd storage bucket import default backup0.tar.gz\n"
+"\t\tCreate a new storage bucket using backup0.tar.gz as the source."
 msgstr ""
 
 #: lxc/remote.go:463
@@ -8193,10 +8273,6 @@ msgstr "si"
 
 #~ msgid "%v (interrupt two more times to force)"
 #~ msgstr "%v (interrompi altre due volte per forzare)"
-
-#, fuzzy
-#~ msgid "Invalid format %q"
-#~ msgstr "Proprietà errata: %s"
 
 #, fuzzy
 #~ msgid "[[<remote>:]<image>] [<remote>:][<name>] [< config"
