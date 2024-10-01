@@ -76,7 +76,7 @@ ifneq "$(LXD_OFFLINE)" ""
 	@echo "The update-gomod target cannot be run in offline mode."
 	exit 1
 endif
-	go get -t -v -d -u ./...
+	go get -t -v -u ./...
 	go get github.com/mdlayher/socket@v0.4.1
 	go get github.com/digitalocean/go-libvirt@v0.0.0-20221205150000-2939327a8519
 	go get github.com/jaypipes/pcidb@v1.0.0
