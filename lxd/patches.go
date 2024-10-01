@@ -493,10 +493,10 @@ func patchVMRenameUUIDKey(name string, d *Daemon) error {
 					newUUIDKey: uuid,
 				}
 
-				logger.Debugf("Renaming config key %q to %q for VM %q (Project %q)", oldUUIDKey, newUUIDKey, inst.Name, inst.Project)
+				logger.Debugf("Renaming config key %q to %q for VM %q (project %q)", oldUUIDKey, newUUIDKey, inst.Name, inst.Project)
 				err := tx.UpdateInstanceConfig(inst.ID, changes)
 				if err != nil {
-					return fmt.Errorf("Failed renaming config key %q to %q for VM %q (Project %q): %w", oldUUIDKey, newUUIDKey, inst.Name, inst.Project, err)
+					return fmt.Errorf("Failed renaming config key %q to %q for VM %q (project %q): %w", oldUUIDKey, newUUIDKey, inst.Name, inst.Project, err)
 				}
 			}
 
@@ -518,10 +518,10 @@ func patchVMRenameUUIDKey(name string, d *Daemon) error {
 						newUUIDKey: uuid,
 					}
 
-					logger.Debugf("Renaming config key %q to %q for VM %q (Project %q)", oldUUIDKey, newUUIDKey, snap.Name, snap.Project)
+					logger.Debugf("Renaming config key %q to %q for VM %q (project %q)", oldUUIDKey, newUUIDKey, snap.Name, snap.Project)
 					err = tx.UpdateInstanceSnapshotConfig(snap.ID, changes)
 					if err != nil {
-						return fmt.Errorf("Failed renaming config key %q to %q for VM %q (Project %q): %w", oldUUIDKey, newUUIDKey, snap.Name, snap.Project, err)
+						return fmt.Errorf("Failed renaming config key %q to %q for VM %q (project %q): %w", oldUUIDKey, newUUIDKey, snap.Name, snap.Project, err)
 					}
 				}
 			}
@@ -1394,14 +1394,14 @@ func patchInstanceRemoveVolatileLastStateIPAddresses(_ string, d *Daemon) error 
 				l.Debug("Removing config key from instance", logger.Ctx{"key": k})
 				err := tx.UpdateInstanceConfig(dbInst.ID, changes)
 				if err != nil {
-					return fmt.Errorf("Failed removing config key %q for instance %q (Project %q): %w", k, dbInst.Name, dbInst.Project, err)
+					return fmt.Errorf("Failed removing config key %q for instance %q (project %q): %w", k, dbInst.Name, dbInst.Project, err)
 				}
 			}
 
 			// Get snapshots for instance so we can check those too.
 			dbSnaps, err := tx.GetInstanceSnapshotsWithName(ctx, dbInst.Project, dbInst.Name)
 			if err != nil {
-				return fmt.Errorf("Failed getting snapshots for %q (Project %q): %w", dbInst.Name, dbInst.Project, err)
+				return fmt.Errorf("Failed getting snapshots for %q (project %q): %w", dbInst.Name, dbInst.Project, err)
 			}
 
 			for _, dbSnap := range dbSnaps {
@@ -1423,7 +1423,7 @@ func patchInstanceRemoveVolatileLastStateIPAddresses(_ string, d *Daemon) error 
 					l.Debug("Removing config key from instance snapshot", logger.Ctx{"snapshot": dbSnap.Name, "key": k})
 					err := tx.UpdateInstanceSnapshotConfig(dbSnap.ID, changes)
 					if err != nil {
-						return fmt.Errorf("Failed removing config key %q for instance %q (Project %q): %w", k, dbSnap.Name, dbSnap.Project, err)
+						return fmt.Errorf("Failed removing config key %q for instance %q (project %q): %w", k, dbSnap.Name, dbSnap.Project, err)
 					}
 				}
 			}
