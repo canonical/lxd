@@ -2516,3 +2516,7 @@ Expands APIs under `/1.0/auth` to include:
 
 Adds `logical_cpus` field to `GET /1.0/cluster/members/{name}/state` which
 contains the total available logical CPUs available when LXD started.
+
+## `vm_limits_cpu_pin_strategy`
+
+Adds a new {config:option}`instance-resource-limits:limits.cpu.pin_strategy` configuration option for virtual machines. This option controls the CPU pinning strategy. When set to `none`, CPU auto pinning is disabled. When set to `auto`, CPU auto pinning is enabled.

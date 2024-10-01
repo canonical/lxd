@@ -422,6 +422,7 @@ var APIExtensions = []string{
 	"projects_limits_disk_pool",
 	"access_management_tls",
 	"state_logical_cpus",
+	"vm_limits_cpu_pin_strategy",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
