@@ -248,7 +248,12 @@ update-po:
 	set -eu; \
 	for lang in $(LINGUAS); do\
 	    msgmerge --backup=none -U $$lang.po po/$(DOMAIN).pot; \
-	done
+	done; \
+	if [ -t 0 ] && ! git diff --quiet -- po/*.po; then \
+		read -rp "Would you like to commit i18n changes (Y/n)? " answer; \
+			if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
+				git commit -sm "i18n: Update translations." -- po/*.po; fi; \
+	fi
 
 .PHONY: update-pot
 update-pot:
@@ -256,6 +261,12 @@ ifeq "$(LXD_OFFLINE)" ""
 	(cd / ; go install github.com/snapcore/snapd/i18n/xgettext-go@2.57.1)
 endif
 	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxd@lists.canonical.com --keyword=i18n.G --keyword-plural=i18n.NG lxc/*.go lxc/*/*.go
+	if git diff --quiet --ignore-matching-lines='^\s*"POT-Creation-Date: .*\n"' -- po/*.pot; then git checkout -- po/*.pot; fi
+	if [ -t 0 ] && ! git diff --quiet --ignore-matching-lines='^\s*"POT-Creation-Date: .*\n"' -- po/*.pot; then \
+		read -rp "Would you like to commit i18n template changes (Y/n)? " answer; \
+			if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
+				git commit -sm "i18n: Update translation templates." -- po/*.pot; fi; \
+	fi
 
 .PHONY: build-mo
 build-mo: $(MOFILES)
