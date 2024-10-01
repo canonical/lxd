@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-07-11 09:44+0100\n"
+"POT-Creation-Date: 2024-10-01 10:44+0100\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -910,7 +910,7 @@ msgstr "Rendre l'image publique"
 msgid "BASE IMAGE"
 msgstr ""
 
-#: lxc/export.go:86
+#: lxc/export.go:106
 #, fuzzy, c-format
 msgid "Backing up instance: %s"
 msgstr "Ignorer l'état du conteneur (seulement pour start)"

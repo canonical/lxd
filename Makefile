@@ -10,7 +10,7 @@ TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_i
 GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
-GOMIN=1.22.0
+GOMIN=1.22.7
 
 ifneq "$(wildcard vendor)" ""
 	DQLITE_PATH=$(CURDIR)/vendor/dqlite
@@ -76,7 +76,7 @@ ifneq "$(LXD_OFFLINE)" ""
 	@echo "The update-gomod target cannot be run in offline mode."
 	exit 1
 endif
-	go get -t -v -d -u ./...
+	go get -t -v -u ./...
 	go get github.com/mdlayher/socket@v0.4.1
 	go get github.com/digitalocean/go-libvirt@v0.0.0-20221205150000-2939327a8519
 	go get github.com/jaypipes/pcidb@v1.0.0
@@ -235,7 +235,12 @@ update-po:
 	set -eu; \
 	for lang in $(LINGUAS); do\
 	    msgmerge --backup=none -U $$lang.po po/$(DOMAIN).pot; \
-	done
+	done; \
+	if [ -t 0 ] && ! git diff --quiet -- po/*.po; then \
+		read -rp "Would you like to commit i18n changes (Y/n)? " answer; \
+			if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
+				git commit -sm "i18n: Update translations." -- po/*.po; fi; \
+	fi
 
 .PHONY: update-pot
 update-pot:
@@ -243,6 +248,12 @@ ifeq "$(LXD_OFFLINE)" ""
 	(cd / ; go install github.com/snapcore/snapd/i18n/xgettext-go@2.57.1)
 endif
 	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxd@lists.canonical.com --keyword=i18n.G --keyword-plural=i18n.NG lxc/*.go lxc/*/*.go
+	if git diff --quiet --ignore-matching-lines='^\s*"POT-Creation-Date: .*\n"' -- po/*.pot; then git checkout -- po/*.pot; fi
+	if [ -t 0 ] && ! git diff --quiet --ignore-matching-lines='^\s*"POT-Creation-Date: .*\n"' -- po/*.pot; then \
+		read -rp "Would you like to commit i18n template changes (Y/n)? " answer; \
+			if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
+				git commit -sm "i18n: Update translation templates." -- po/*.pot; fi; \
+	fi
 
 .PHONY: build-mo
 build-mo: $(MOFILES)

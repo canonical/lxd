@@ -1040,7 +1040,7 @@ test_projects_usage() {
     limits.cpu=1 \
     limits.memory=512MiB \
     limits.processes=20
-  lxc profile device set default root size=3GiB --project test-usage
+  lxc profile device set default root size=300MiB --project test-usage
 
   # Spin up a container
   deps/import-busybox --project test-usage --alias testimage
@@ -1049,7 +1049,7 @@ test_projects_usage() {
 
   lxc project info test-usage --format csv | grep -q "CONTAINERS,UNLIMITED,1"
   lxc project info test-usage --format csv | grep -q "CPU,5,1"
-  lxc project info test-usage --format csv | grep -q "DISK,10.00GiB,3.00GiB"
+  lxc project info test-usage --format csv | grep -q "DISK,10.00GiB,300.00MiB"
   lxc project info test-usage --format csv | grep -q "INSTANCES,UNLIMITED,1"
   lxc project info test-usage --format csv | grep -q "MEMORY,1.00GiB,512.00MiB"
   lxc project info test-usage --format csv | grep -q "NETWORKS,3,0"

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-07-11 09:44+0100\n"
+"POT-Creation-Date: 2024-10-01 10:44+0100\n"
 "PO-Revision-Date: 2022-03-10 15:11+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Sinhala <https://hosted.weblate.org/projects/linux-containers/"
@@ -658,7 +658,7 @@ msgstr ""
 msgid "BASE IMAGE"
 msgstr ""
 
-#: lxc/export.go:86
+#: lxc/export.go:106
 #, c-format
 msgid "Backing up instance: %s"
 msgstr ""

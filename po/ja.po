@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-07-11 09:44+0100\n"
+"POT-Creation-Date: 2024-10-01 10:44+0100\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -876,7 +876,7 @@ msgstr "利用可能なプロジェクト:"
 msgid "BASE IMAGE"
 msgstr "BASE IMAGE"
 
-#: lxc/export.go:86
+#: lxc/export.go:106
 #, c-format
 msgid "Backing up instance: %s"
 msgstr "インスタンスのバックアップ中: %s"
