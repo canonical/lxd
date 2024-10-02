@@ -420,6 +420,7 @@ var APIExtensions = []string{
 	"shared_custom_block_volumes",
 	"metrics_api_requests",
 	"projects_limits_disk_pool",
+	"access_management_tls",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
