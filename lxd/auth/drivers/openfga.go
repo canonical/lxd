@@ -220,11 +220,17 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 			Object:   entityObject,
 		},
 		ContextualTuples: &openfgav1.ContextualTupleKeys{
-			// Users can always view (but not edit) themselves.
 			TupleKeys: []*openfgav1.TupleKey{
 				{
+					// Users can always view (but not edit) themselves.
 					User:     userObject,
 					Relation: string(auth.EntitlementCanView),
+					Object:   userObject,
+				},
+				{
+					// Users can always delete (but not edit) themselves.
+					User:     userObject,
+					Relation: string(auth.EntitlementCanDelete),
 					Object:   userObject,
 				},
 			},
@@ -394,11 +400,17 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 		Relation: string(entitlement),
 		User:     userObject,
 		ContextualTuples: &openfgav1.ContextualTupleKeys{
-			// Users can always view (but not edit) themselves.
 			TupleKeys: []*openfgav1.TupleKey{
 				{
+					// Users can always view (but not edit) themselves.
 					User:     userObject,
 					Relation: string(auth.EntitlementCanView),
+					Object:   userObject,
+				},
+				{
+					// Users can always delete (but not edit) themselves.
+					User:     userObject,
+					Relation: string(auth.EntitlementCanDelete),
 					Object:   userObject,
 				},
 			},
