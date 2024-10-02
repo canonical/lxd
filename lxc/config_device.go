@@ -111,6 +111,10 @@ lxc profile device add [<remote>:]profile1 <device-name> disk pool=some-pool sou
 			return c.global.cmpInstanceAllDevices(toComplete)
 		}
 
+		if len(args) == 2 {
+			return c.global.cmpInstanceAllDeviceOptions(args[0], args[1])
+		}
+
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
