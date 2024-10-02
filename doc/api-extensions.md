@@ -2490,3 +2490,24 @@ Adds the following internal metrics:
 This introduces per-pool project disk limits, introducing a `limits.disk.pool.NAME`
 configuration option to the project limits. When `limits.disk.pool.POOLNAME: 0`
 for a project, the pool is excluded from `lxc storage list` in that project.
+
+## `access_management_tls`
+
+Expands APIs under `/1.0/auth` to include:
+
+1. Creation of fine-grained TLS identities, whose permissions are managed via group membership.
+  This is performed via `POST /1.0/auth/identities/tls`.
+  If the request body contains `{"token": true}`, a token will be returned that may be used by a non-authenticated caller to gain trust with the LXD server (the caller must send their certificate during the TLS handshake).
+  If the request body contains `{"certificate": "<base64 encoded x509 certificate>"}"`, the identity will be created directly.
+  The request body may also specify an array of group names.
+  The caller must have `can_create_identities` on `server`.
+1. Deletion of OIDC and fine-grained TLS identities.
+  This is performed via `DELETE /1.0/auth/identities/tls/{nameOrFingerprint}` or `DELETE /1.0/auth/identities/oidc/{nameOrEmailAddress}`.
+  The caller must have `can_delete` on the identity. All identities may delete their own identity.
+  For OIDC identities this revokes all access but does not revoke trust (authentication is performed by the identity provider).
+  For fine-grained TLS identities, this revokes all access and revokes trust.
+1. Functionality to update the certificate of a fine-grained TLS identity.
+  This is performed via `PUT /1.0/auth/identities/tls/{nameOrFingerprint}` or `PATCH /1.0/auth/identities/tls/{nameOrFingerprint}`.
+  The caller must provide a base64 encoded x509 certificate in the `certificate` field of the request body.
+  Fine-grained TLS identities may update their own certificate.
+  To update the certificate of another identity, the caller must have `can_edit` on the identity.
