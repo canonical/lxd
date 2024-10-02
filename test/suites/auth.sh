@@ -143,6 +143,12 @@ EOF
   # Perform access check compatibility with project feature flags
   auth_project_features
 
+  # The OIDC identity should be able to delete themselves without any permissions.
+  lxc auth identity group remove oidc/test-user@example.com test-group
+  lxc_remote auth identity info oidc: | grep -Fq 'effective_permissions: []'
+  lxc_remote auth identity delete oidc:oidc/test-user@example.com
+  ! lxc auth identity list --format csv | grep -Fq 'test-user@example.com' || false
+
   # Cleanup
   lxc auth group delete test-group
   lxc auth identity-provider-group delete test-idp-group
