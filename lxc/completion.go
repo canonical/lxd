@@ -214,8 +214,8 @@ func (g *cmdGlobal) cmpInstanceAllKeys(instanceName string) ([]string, cobra.She
 	var keys []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
-	_, instanceNameOnly, _ := strings.Cut(instanceName, ":")
-	if instanceNameOnly == "" {
+	_, instanceNameOnly, found := strings.Cut(instanceName, ":")
+	if instanceNameOnly == "" && found {
 		serverKeys, directives := g.cmpServerAllKeys(instanceName)
 		keys = append(keys, serverKeys...)
 		cmpDirectives = directives
@@ -231,7 +231,7 @@ func (g *cmdGlobal) cmpInstanceAllKeys(instanceName string) ([]string, cobra.She
 	resource := resources[0]
 	client := resource.server
 
-	instance, _, err := client.GetInstance(instanceNameOnly)
+	instance, _, err := client.GetInstance(instanceName)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError
 	}
