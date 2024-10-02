@@ -121,6 +121,7 @@ const (
 	EventLifecycleWarningReset                      = "warning-reset"
 	EventLifecycleIdentityCreated                   = "identity-created"
 	EventLifecycleIdentityUpdated                   = "identity-updated"
+	EventLifecycleIdentityDeleted                   = "identity-deleted"
 	EventLifecycleAuthGroupCreated                  = "auth-group-created"
 	EventLifecycleAuthGroupUpdated                  = "auth-group-updated"
 	EventLifecycleAuthGroupRenamed                  = "auth-group-renamed"
