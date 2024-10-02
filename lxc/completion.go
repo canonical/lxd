@@ -366,6 +366,37 @@ func (g *cmdGlobal) cmpInstanceAllDevices(instanceName string) ([]string, cobra.
 	return devices, cobra.ShellCompDirectiveNoFileComp
 }
 
+func (g *cmdGlobal) cmpInstanceAllDeviceOptions(instanceName string, deviceName string) ([]string, cobra.ShellCompDirective) {
+	resources, err := g.ParseServers(instanceName)
+	if err != nil || len(resources) == 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	metadataConfiguration, err := client.GetMetadataConfiguration()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	deviceOptions := make([]string, 0, len(metadataConfiguration.Configs))
+
+	for key, device := range metadataConfiguration.Configs {
+		parts := strings.Split(key, "-")
+		if strings.HasPrefix(key, "device-") && parts[1] == deviceName {
+			conf := device["device-conf"]
+			for _, keyMap := range conf.Keys {
+				for option := range keyMap {
+					deviceOptions = append(deviceOptions, option)
+				}
+			}
+		}
+	}
+
+	return deviceOptions, cobra.ShellCompDirectiveNoFileComp
+}
+
 func (g *cmdGlobal) cmpInstances(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
