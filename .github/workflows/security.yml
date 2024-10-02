@@ -27,23 +27,30 @@ jobs:
         with:
           ref: main
 
-      - name: Create Trivy cache directory
-        run: mkdir -p /home/runner/vuln-cache
+      # We are using the deb package instead of the trivy action because we need to point to the cache directory
+      # with cache-dir, and there is currently a bug in that functionality on the Trivy GitHub action.
+      # See https://github.com/aquasecurity/trivy-action/issues/12.
+      - name: Install Trivy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /home/runner/vuln-cache
+          sudo apt-get install wget apt-transport-https gnupg
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy
 
-      - name: Run Trivy vulnerability scanner in repo mode
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: "fs"
-          format: "sarif"
-          output: "trivy-lxd-repo-scan-results.sarif"
-          cache-dir: "/home/runner/vuln-cache"
-          severity: "LOW,MEDIUM,HIGH,CRITICAL"
+      - name: Run Trivy vulnerability scanner
+        run: |
+          trivy fs --quiet --scanners vuln,secret,misconfig --format sarif --cache-dir /home/runner/vuln-cache \
+          --severity LOW,MEDIUM,HIGH,CRITICAL --output trivy-lxd-repo-scan-results.sarif .
 
       - name: Cache Trivy vulnerability database
         uses: actions/cache/save@v4
         with:
           path: /home/runner/vuln-cache
-          key: trivy-cache
+          key: trivy-cache-${{ github.run_id }}
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
@@ -68,30 +75,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # Snap scanner results are placed on the the branch related to the scanned channel.
           ref: ${{ (matrix.version == 'latest' && 'main') || format('stable-{0}', matrix.version) }}
+
+      - name: Install Trivy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sudo apt-get install wget apt-transport-https gnupg
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy
 
       - name: Restore cached Trivy vulnerability database
         uses: actions/cache/restore@v4
         with:
           path: /home/runner/vuln-cache
-          key: trivy-cache
+          key: trivy-cache-${{ github.run_id }}
 
       - name: Download snap for scan
         run: |
-          ls /home/runner/vuln-cache
           snap download lxd --channel=${{ matrix.version }}/stable
           unsquashfs ./lxd*.snap
 
-      - name: Run Trivy vulnerability scanner on the snap
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: "rootfs"
-          format: "sarif"
-          scan-ref: squashfs-root
-          output: "${{ matrix.version }}-stable.sarif"
-          cache-dir: "/home/runner/vuln-cache"
-          severity: "LOW,MEDIUM,HIGH,CRITICAL"
+      - name: Run Trivy vulnerability scanner
+        run: |
+          trivy rootfs --quiet --scanners vuln,secret,misconfig --format sarif --cache-dir /home/runner/vuln-cache \
+          --severity LOW,MEDIUM,HIGH,CRITICAL --output ${{ matrix.version }}-stable.sarif squashfs-root
 
       - name: Flag snap scanning alerts
         run: |
