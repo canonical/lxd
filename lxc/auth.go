@@ -744,6 +744,9 @@ func (c *cmdIdentity) command() *cobra.Command {
 	identityEditCmd := cmdIdentityEdit{global: c.global}
 	cmd.AddCommand(identityEditCmd.command())
 
+	identityDeleteCmd := cmdIdentityDelete{global: c.global}
+	cmd.AddCommand(identityDeleteCmd.command())
+
 	identityGroupCmd := cmdIdentityGroup{global: c.global}
 	cmd.AddCommand(identityGroupCmd.command())
 
@@ -1072,6 +1075,61 @@ func (c *cmdIdentityEdit) run(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+type cmdIdentityDelete struct {
+	global *cmdGlobal
+}
+
+func (c *cmdIdentityDelete) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier>"))
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = i18n.G("Delete an identity")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Delete an identity`))
+	cmd.Example = cli.FormatSection("", `lxc auth identity delete oidc/jane.doe@example.com
+	Delete the OIDC identity with email address "jane.doe@example.com" in the default remote.
+
+lxc auth identity delete oidc/'Jane Doe'
+	Delete the OIDC identity with name "Jane Doe" in the default remote (there must be only one OIDC identity on the server with this name).
+
+lxc auth identity delete my-remote:tls/12beaccbf9e7b7445185581b70099a5962c927e85006d5883856d909fe79f976
+	Delete the TLS identity with certificate fingerprint "12beaccbf9e7b7445185581b70099a5962c927e85006d5883856d909fe79f976" in remote "my-remote".
+
+lxc auth identity delete my-remote:tls/jane-doe
+	Delete the TLS identity with name "jane-doe" in remote "my-remote" (there must be only one TLS identity on "my-remote" with this name).
+`)
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+func (c *cmdIdentityDelete) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New(i18n.G("Missing identity argument"))
+	}
+
+	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
+	if !ok {
+		return fmt.Errorf("Malformed argument, expected `[<remote>:]<authentication_method>/<name_or_identifier>`, got %q", args[0])
+	}
+
+	return resource.server.DeleteIdentity(authenticationMethod, nameOrID)
 }
 
 type cmdIdentityGroup struct {
