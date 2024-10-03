@@ -10,25 +10,6 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 )
 
-// UpdateCertificate updates a certificate in the db.
-func (db *DB) UpdateCertificate(ctx context.Context, fingerprint string, cert cluster.Certificate, projectNames []string) error {
-	err := db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		id, err := cluster.GetCertificateID(ctx, tx.Tx(), fingerprint)
-		if err != nil {
-			return err
-		}
-
-		err = cluster.UpdateCertificate(ctx, tx.Tx(), fingerprint, cert)
-		if err != nil {
-			return err
-		}
-
-		return cluster.UpdateCertificateProjects(ctx, tx.Tx(), int(id), projectNames)
-	})
-
-	return err
-}
-
 // GetCertificates returns all available local certificates.
 func (n *NodeTx) GetCertificates(ctx context.Context) ([]cluster.Certificate, error) {
 	type cert struct {
