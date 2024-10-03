@@ -742,8 +742,12 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+//	  "501":
+//	    $ref: "#/responses/NotImplemented"
 
 // swagger:operation PUT /1.0/auth/identities/oidc/{nameOrIdentifier} identities identity_put_oidc
 //
@@ -769,8 +773,12 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+//	  "501":
+//	    $ref: "#/responses/NotImplemented"
 func updateIdentity(d *Daemon, r *http.Request) response.Response {
 	id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
 	if err != nil {
@@ -862,8 +870,12 @@ func updateIdentity(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+//	  "501":
+//	    $ref: "#/responses/NotImplemented"
 
 // swagger:operation PATCH /1.0/auth/identities/oidc/{nameOrIdentifier} identities identity_patch_oidc
 //
@@ -889,8 +901,12 @@ func updateIdentity(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+//	  "501":
+//	    $ref: "#/responses/NotImplemented"
 func patchIdentity(d *Daemon, r *http.Request) response.Response {
 	id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
 	if err != nil {
