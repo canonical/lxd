@@ -1001,7 +1001,19 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 	}
 
 	// Update the database record.
-	err = s.DB.UpdateCertificate(context.Background(), dbInfo.Fingerprint, dbCert, certProjects)
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		id, err := dbCluster.GetCertificateID(ctx, tx.Tx(), dbInfo.Fingerprint)
+		if err != nil {
+			return err
+		}
+
+		err = dbCluster.UpdateCertificate(ctx, tx.Tx(), dbInfo.Fingerprint, dbCert)
+		if err != nil {
+			return err
+		}
+
+		return dbCluster.UpdateCertificateProjects(ctx, tx.Tx(), int(id), certProjects)
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
