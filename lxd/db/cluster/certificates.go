@@ -220,29 +220,6 @@ func DeleteCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) erro
 	return DeleteIdentity(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
 }
 
-// DeleteCertificates deletes the certificate matching the given key parameters.
-func DeleteCertificates(ctx context.Context, tx *sql.Tx, name string, certificateType certificate.Type) error {
-	if certificateType == certificate.TypeClient {
-		err := DeleteIdentitys(ctx, tx, name, api.IdentityTypeCertificateClientRestricted)
-		if err != nil {
-			return err
-		}
-
-		return DeleteIdentitys(ctx, tx, name, api.IdentityTypeCertificateClientUnrestricted)
-	} else if certificateType == certificate.TypeServer {
-		return DeleteIdentitys(ctx, tx, name, api.IdentityTypeCertificateServer)
-	} else if certificateType == certificate.TypeMetrics {
-		err := DeleteIdentitys(ctx, tx, name, api.IdentityTypeCertificateMetricsRestricted)
-		if err != nil {
-			return err
-		}
-
-		return DeleteIdentitys(ctx, tx, name, api.IdentityTypeCertificateMetricsUnrestricted)
-	}
-
-	return nil
-}
-
 // UpdateCertificate updates the certificate matching the given key parameters.
 func UpdateCertificate(ctx context.Context, tx *sql.Tx, fingerprint string, object Certificate) error {
 	identity, err := object.ToIdentity()
