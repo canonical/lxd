@@ -3,11 +3,17 @@ package drivers
 import (
 	"fmt"
 	"io"
+	"strings"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
@@ -45,6 +51,116 @@ func (d *pure) commonVolumeRules() map[string]func(value string) error {
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied filler function.
 func (d *pure) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
+	client := d.client()
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return err
+	}
+
+	sizeBytes, err := units.ParseByteSizeString(vol.ConfigSize())
+	if err != nil {
+		return err
+	}
+
+	// Create the volume.
+	err = client.createVolume(vol.pool, volName, sizeBytes)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() { _ = client.deleteVolume(vol.pool, volName) })
+
+	volumeFilesystem := vol.ConfigBlockFilesystem()
+	if vol.contentType == ContentTypeFS {
+		devPath, cleanup, err := d.getMappedDevPath(vol, true)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(cleanup)
+
+		_, err = makeFSType(devPath, volumeFilesystem, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	// For VMs, also create the filesystem volume.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+
+		err := d.CreateVolume(fsVol, nil, op)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { _ = d.DeleteVolume(fsVol, op) })
+	}
+
+	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		// Run the volume filler function if supplied.
+		if filler != nil && filler.Fill != nil {
+			var err error
+			var devPath string
+
+			if IsContentBlock(vol.contentType) {
+				// Get the device path.
+				devPath, err = d.GetVolumeDiskPath(vol)
+				if err != nil {
+					return err
+				}
+			}
+
+			allowUnsafeResize := false
+			if vol.volType == VolumeTypeImage {
+				// Allow filler to resize initial image volume as needed.
+				// Some storage drivers don't normally allow image volumes to be resized due to
+				// them having read-only snapshots that cannot be resized. However when creating
+				// the initial image volume and filling it before the snapshot is taken resizing
+				// can be allowed and is required in order to support unpacking images larger than
+				// the default volume size. The filler function is still expected to obey any
+				// volume size restrictions configured on the pool.
+				// Unsafe resize is also needed to disable filesystem resize safety checks.
+				// This is safe because if for some reason an error occurs the volume will be
+				// discarded rather than leaving a corrupt filesystem.
+				allowUnsafeResize = true
+			}
+
+			// Run the filler.
+			err = d.runFiller(vol, devPath, filler, allowUnsafeResize)
+			if err != nil {
+				return err
+			}
+
+			// Move the GPT alt header to end of disk if needed.
+			if vol.IsVMBlock() {
+				err = d.moveGPTAltHeader(devPath)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		if vol.contentType == ContentTypeFS {
+			// Run EnsureMountPath again after mounting and filling to ensure the mount directory has
+			// the correct permissions set.
+			err = vol.EnsureMountPath()
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}, op)
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
 	return nil
 }
 
@@ -175,6 +291,11 @@ func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 
 // GetVolumeDiskPath returns the location of a root disk block device.
 func (d *pure) GetVolumeDiskPath(vol Volume) (string, error) {
+	if vol.IsVMBlock() || (vol.volType == VolumeTypeCustom && IsContentBlock(vol.contentType)) {
+		devPath, _, err := d.getMappedDevPath(vol, false)
+		return devPath, err
+	}
+
 	return "", ErrNotSupported
 }
 
@@ -185,13 +306,131 @@ func (d *pure) ListVolumes() ([]Volume, error) {
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.
 func (d *pure) MountVolume(vol Volume, op *operations.Operation) error {
+	unlock, err := vol.MountLock()
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Activate Pure Storage volume if needed.
+	volDevPath, cleanup, err := d.getMappedDevPath(vol, true)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(cleanup)
+
+	if vol.contentType == ContentTypeFS {
+		mountPath := vol.MountPath()
+		if !filesystem.IsMountPoint(mountPath) {
+			err = vol.EnsureMountPath()
+			if err != nil {
+				return err
+			}
+
+			fsType := vol.ConfigBlockFilesystem()
+
+			if vol.mountFilesystemProbe {
+				fsType, err = fsProbe(volDevPath)
+				if err != nil {
+					return fmt.Errorf("Failed probing filesystem: %w", err)
+				}
+			}
+
+			mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(vol.ConfigBlockMountOptions(), ","))
+			err = TryMount(volDevPath, mountPath, fsType, mountFlags, mountOptions)
+			if err != nil {
+				return err
+			}
+
+			d.logger.Debug("Mounted Pure Storage volume", logger.Ctx{"volName": vol.name, "dev": volDevPath, "path": mountPath, "options": mountOptions})
+		}
+	} else if vol.contentType == ContentTypeBlock {
+		// For VMs, mount the filesystem volume.
+		if vol.IsVMBlock() {
+			fsVol := vol.NewVMBlockFilesystemVolume()
+			err := d.MountVolume(fsVol, op)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	vol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolume() when done.
+	revert.Success()
 	return nil
 }
 
 // UnmountVolume simulates unmounting a volume.
 // keepBlockDev indicates if backing block device should not be unmapped if volume is unmounted.
 func (d *pure) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
-	return false, nil
+	unlock, err := vol.MountLock()
+	if err != nil {
+		return false, err
+	}
+
+	defer unlock()
+
+	ourUnmount := false
+	mountPath := vol.MountPath()
+	refCount := vol.MountRefCountDecrement()
+
+	// Attempt to unmount the volume.
+	if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(mountPath) {
+		if refCount > 0 {
+			d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
+			return false, ErrInUse
+		}
+
+		err := TryUnmount(mountPath, unix.MNT_DETACH)
+		if err != nil {
+			return false, err
+		}
+
+		// Attempt to unmap.
+		if !keepBlockDev {
+			err = d.unmapVolume(vol)
+			if err != nil {
+				return false, err
+			}
+		}
+
+		ourUnmount = true
+	} else if vol.contentType == ContentTypeBlock {
+		// For VMs, unmount the filesystem volume.
+		if vol.IsVMBlock() {
+			fsVol := vol.NewVMBlockFilesystemVolume()
+			ourUnmount, err = d.UnmountVolume(fsVol, false, op)
+			if err != nil {
+				return false, err
+			}
+		}
+
+		if !keepBlockDev {
+			// Check if device is currently mapped (but don't map if not).
+			devPath, _, _ := d.getMappedDevPath(vol, false)
+			if devPath != "" && shared.PathExists(devPath) {
+				if refCount > 0 {
+					d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
+					return false, ErrInUse
+				}
+
+				// Attempt to unmap.
+				err := d.unmapVolume(vol)
+				if err != nil {
+					return false, err
+				}
+
+				ourUnmount = true
+			}
+		}
+	}
+
+	return ourUnmount, nil
 }
 
 // RenameVolume renames a volume and its snapshots.
