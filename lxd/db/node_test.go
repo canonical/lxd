@@ -4,6 +4,7 @@ package db_test
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"testing"
 	"time"
@@ -485,4 +486,74 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 	member, err := tx.GetNodeWithLeastInstances(context.Background(), members)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", member.Name)
+}
+
+var allReservations = []string{
+	"limits.reserve.cpu",
+	"limits.reserve.memory",
+}
+
+func TestGetMemberConfigWithGlobalDefault(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	buzz, err := tx.CreateNode("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	// No reservations
+	reservations, err := tx.GetMemberConfigWithGlobalDefault(context.Background(), []string{"buzz"}, allReservations)
+	require.NoError(t, err)
+	require.Exactly(t, map[string]map[string]db.OverridableConfig{}, reservations)
+
+	// Cluster-wide reservation
+	err = tx.UpdateClusterConfig(map[string]string{
+		"limits.reserve.memory": "4GiB",
+	})
+	require.NoError(t, err)
+
+	reservations, err = tx.GetMemberConfigWithGlobalDefault(context.Background(), []string{"buzz"}, allReservations)
+	require.NoError(t, err)
+	require.Exactly(t, map[string]map[string]db.OverridableConfig{
+		"buzz": {
+			"limits.reserve.memory": {
+				ClusterValue: sql.NullString{String: "4GiB", Valid: true},
+			},
+		},
+	}, reservations)
+
+	// Both cluster-wide and node-specific reservation
+	err = tx.UpdateNodeConfig(context.Background(), buzz, map[string]string{
+		"limits.reserve.memory": "6GiB",
+	})
+	require.NoError(t, err)
+
+	reservations, err = tx.GetMemberConfigWithGlobalDefault(context.Background(), []string{"buzz"}, allReservations)
+	require.NoError(t, err)
+	require.Exactly(t, map[string]map[string]db.OverridableConfig{
+		"buzz": {
+			"limits.reserve.memory": {
+				ClusterValue: sql.NullString{String: "4GiB", Valid: true},
+				MemberValue:  sql.NullString{String: "6GiB", Valid: true},
+			},
+		},
+	}, reservations)
+
+	// Node-specific reservation
+	err = tx.UpdateNodeConfig(context.Background(), buzz, map[string]string{
+		"limits.reserve.cpu": "2",
+	})
+	require.NoError(t, err)
+
+	reservations, err = tx.GetMemberConfigWithGlobalDefault(context.Background(), []string{"buzz"}, allReservations)
+	require.NoError(t, err)
+	require.Exactly(t, map[string]map[string]db.OverridableConfig{
+		"buzz": {
+			"limits.reserve.memory": {
+				ClusterValue: sql.NullString{String: "4GiB", Valid: true},
+			},
+			"limits.reserve.cpu": {
+				MemberValue: sql.NullString{String: "2", Valid: true},
+			},
+		},
+	}, reservations)
 }
