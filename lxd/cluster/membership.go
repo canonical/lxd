@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
@@ -1153,7 +1154,7 @@ func Purge(c *db.Cluster, name string) error {
 			return fmt.Errorf("Failed to remove member %q: %w", name, err)
 		}
 
-		err = cluster.DeleteCertificates(context.Background(), tx.Tx(), name, certificate.TypeServer)
+		err = cluster.DeleteIdentitys(ctx, tx.Tx(), name, api.IdentityTypeCertificateServer)
 		if err != nil {
 			return fmt.Errorf("Failed to remove member %q certificate from trust store: %w", name, err)
 		}
