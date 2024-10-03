@@ -9,6 +9,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 )
 
 func (g *cmdGlobal) cmpClusterGroupNames(toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -425,6 +426,66 @@ func (g *cmdGlobal) cmpInstances(toComplete string) ([]string, cobra.ShellCompDi
 		remotes, directives := g.cmpRemotes(false)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
+	}
+
+	return results, cmpDirectives
+}
+
+func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagForce bool) ([]string, cobra.ShellCompDirective) {
+	var results []string
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
+
+	resources, _ := g.ParseServers(toComplete)
+
+	var filteredInstanceStatuses []string
+
+	switch action {
+	case "start":
+		filteredInstanceStatuses = append(filteredInstanceStatuses, "Stopped", "Frozen")
+	case "pause", "exec":
+		filteredInstanceStatuses = append(filteredInstanceStatuses, "Running")
+	case "stop":
+		if flagForce {
+			filteredInstanceStatuses = append(filteredInstanceStatuses, "Running", "Frozen")
+		} else {
+			filteredInstanceStatuses = append(filteredInstanceStatuses, "Running")
+		}
+
+	case "delete":
+		if flagForce {
+			filteredInstanceStatuses = append(filteredInstanceStatuses, api.GetAllStatusCodeStrings()...)
+		} else {
+			filteredInstanceStatuses = append(filteredInstanceStatuses, "Stopped")
+		}
+
+	default:
+		filteredInstanceStatuses = append(filteredInstanceStatuses, api.GetAllStatusCodeStrings()...)
+	}
+
+	if len(resources) > 0 {
+		resource := resources[0]
+
+		instances, _ := resource.server.GetInstances("")
+
+		for _, instance := range instances {
+			var name string
+
+			if shared.ValueInSlice(instance.Status, filteredInstanceStatuses) {
+				if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
+					name = instance.Name
+				} else {
+					name = fmt.Sprintf("%s:%s", resource.remote, instance.Name)
+				}
+
+				results = append(results, name)
+			}
+		}
+
+		if !strings.Contains(toComplete, ":") {
+			remotes, directives := g.cmpRemotes(false)
+			results = append(results, remotes...)
+			cmpDirectives |= directives
+		}
 	}
 
 	return results, cmpDirectives
