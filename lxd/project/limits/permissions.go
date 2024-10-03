@@ -1609,6 +1609,102 @@ func coalesceOverrides(config map[string]db.OverridableConfig) map[string]string
 	return overridden
 }
 
+// AllowClusterUpdate returns err if replacing the cluster configuration with
+// newConfig would violate any limits.reserve.* configuration.
+func AllowClusterUpdate(ctx context.Context, tx *db.ClusterTx, sysinfo map[string]api.ClusterMemberSysInfo, newConfig map[string]any) error {
+	membersConfig, err := tx.GetMemberConfigWithGlobalDefault(ctx, []string{}, allReservations)
+	if err != nil {
+		return err
+	}
+
+	// Modify membersConfig with any new global config options
+	for reservationKey, newValue := range newConfig {
+		if !slices.Contains(allReservations, reservationKey) {
+			continue
+		}
+
+		newValue, ok := newValue.(string)
+		if !ok {
+			return fmt.Errorf("Invalid type for %q", reservationKey)
+		}
+
+		for memberName := range sysinfo {
+			// Ensure that every member has an entry in membersConfig
+			memberConfig, hasMember := membersConfig[memberName]
+			if !hasMember {
+				memberConfig = make(map[string]db.OverridableConfig)
+			}
+
+			overridable, _ := memberConfig[reservationKey]
+
+			if newValue != "" {
+				overridable.ClusterValue.String = newValue
+				overridable.ClusterValue.Valid = true
+			}
+
+			if !overridable.ClusterValue.Valid && !overridable.MemberValue.Valid {
+				delete(memberConfig, reservationKey)
+			} else {
+				memberConfig[reservationKey] = overridable
+			}
+
+			membersConfig[memberName] = memberConfig
+		}
+	}
+
+	// Find the limits that will be enforced using the updated membersConfig
+	limits := []string{}
+	for _, config := range membersConfig {
+		memberLimits, err := getLimits(config)
+		if err != nil {
+			return err
+		}
+
+		for _, limit := range memberLimits {
+			if !slices.Contains(limits, limit) {
+				limits = append(limits, limit)
+			}
+		}
+	}
+
+	if len(limits) == 0 {
+		return nil
+	}
+
+	instanceLimits, err := tx.GetClusterMemberInstanceConfig(ctx, []string{}, limits)
+	if err != nil {
+		return err
+	}
+
+	// Validate each cluster member's new config
+	for clusterMemberName, config := range membersConfig {
+		memberInstanceLimits, hasClusterMember := instanceLimits[clusterMemberName]
+		if !hasClusterMember {
+			// No instances on this cluster member
+			return nil
+		}
+
+		aggregateLimits, err := getClusterMemberAggregateLimits(memberInstanceLimits, clusterMemberName, config)
+		if err != nil {
+			return err
+		}
+
+		reservations := coalesceOverrides(config)
+
+		memberSysInfo, hasSysInfo := sysinfo[clusterMemberName]
+		if !hasSysInfo {
+			return fmt.Errorf("Missing sysinfo for cluster member %q", clusterMemberName)
+		}
+
+		err = checkClusterMemberReservations(reservations, aggregateLimits, &memberSysInfo)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // AllowClusterMemberUpdate returns err if replacing the cluster member's
 // configuration with newConfig would violate any limits.reserve.* configuration.
 func AllowClusterMemberUpdate(ctx context.Context, tx *db.ClusterTx, clusterMemberName string, sysinfo *api.ClusterMemberSysInfo, newConfig map[string]string) error {
