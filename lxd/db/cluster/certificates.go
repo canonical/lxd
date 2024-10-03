@@ -127,7 +127,7 @@ SELECT identities.id, identities.auth_method, identities.type, identities.identi
 	strconv.Itoa(int(identityTypeCertificateMetricsRestricted)) + `)
 `
 
-// GetCertificateByFingerprintPrefix gets an CertBaseInfo object from the database.
+// GetCertificateByFingerprintPrefix gets a Certificate from the database.
 // The argument fingerprint will be queried with a LIKE query, means you can
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one certificate with a given fingerprint, as it is
@@ -149,8 +149,8 @@ func GetCertificateByFingerprintPrefix(ctx context.Context, tx *sql.Tx, fingerpr
 	return dbCertificateIdentities[0].ToCertificate()
 }
 
-// CreateCertificateWithProjects stores a CertInfo object in the db, and associates it to a list of project names.
-// It will ignore the ID field from the CertInfo.
+// CreateCertificateWithProjects stores a Certificate object in the db, and associates it to a list of project names.
+// It will ignore the ID field from the Certificate.
 func CreateCertificateWithProjects(ctx context.Context, tx *sql.Tx, cert Certificate, projectNames []string) (int64, error) {
 	var id int64
 	var err error
@@ -187,7 +187,7 @@ func GetCertificates(ctx context.Context, tx *sql.Tx) ([]Certificate, error) {
 	return certificates, nil
 }
 
-// GetCertificate returns the certificate with the given key.
+// GetCertificate returns the certificate with the given fingerprint.
 func GetCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) (*Certificate, error) {
 	dbCertificateIdentities, err := getIdentitysRaw(ctx, tx, getCertificateIdentitiesStmt+" AND identities.identifier = ?", fingerprint)
 	if err != nil {
@@ -203,7 +203,7 @@ func GetCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) (*Certi
 	return dbCertificateIdentities[0].ToCertificate()
 }
 
-// GetCertificateID return the ID of the certificate with the given key.
+// GetCertificateID returns the ID of the certificate with the given fingerprint.
 func GetCertificateID(ctx context.Context, tx *sql.Tx, fingerprint string) (int64, error) {
 	cert, err := GetCertificate(ctx, tx, fingerprint)
 	if err != nil {
