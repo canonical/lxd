@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -1277,7 +1278,7 @@ func membershipCheckClusterStateForLeave(ctx context.Context, tx *db.ClusterTx, 
 	}
 
 	if message != "" {
-		return fmt.Errorf(message)
+		return errors.New(message)
 	}
 
 	// Check that it's not the last member.
