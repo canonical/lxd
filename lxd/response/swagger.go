@@ -137,3 +137,21 @@ type swaggerNotFound struct {
 		ErrorCode int `json:"error_code"`
 	}
 }
+
+// Not implemented
+//
+// swagger:response NotImplemented
+type swaggerNotImplemented struct {
+	// Not implemented
+	// in: body
+	Body struct {
+		// Example: error
+		Type string `json:"type"`
+
+		// Example: not implemented
+		Error string `json:"error"`
+
+		// Example: 501
+		ErrorCode int `json:"error_code"`
+	}
+}
