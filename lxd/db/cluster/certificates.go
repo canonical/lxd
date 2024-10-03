@@ -11,7 +11,6 @@ import (
 	"strconv"
 
 	"github.com/canonical/lxd/lxd/certificate"
-	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -134,34 +133,20 @@ SELECT identities.id, identities.auth_method, identities.type, identities.identi
 // There can never be more than one certificate with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
 func GetCertificateByFingerprintPrefix(ctx context.Context, tx *sql.Tx, fingerprintPrefix string) (*Certificate, error) {
-	var err error
-	var cert *Certificate
-	sql := `
-SELECT identities.identifier
-	FROM identities
-	WHERE identities.identifier LIKE ? AND auth_method = ?
-	ORDER BY identities.identifier
-		`
-
-	fingerprints, err := query.SelectStrings(ctx, tx, sql, fingerprintPrefix+"%", AuthMethod(api.AuthenticationMethodTLS))
-	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch certificates fingerprints matching prefix %q: %w", fingerprintPrefix, err)
-	}
-
-	if len(fingerprints) > 1 {
-		return nil, fmt.Errorf("More than one certificate matches")
-	}
-
-	if len(fingerprints) == 0 {
-		return nil, api.StatusErrorf(http.StatusNotFound, "Certificate not found")
-	}
-
-	cert, err = GetCertificate(ctx, tx, fingerprints[0])
+	dbCertificateIdentities, err := getIdentitysRaw(ctx, tx, getCertificateIdentitiesStmt+" AND identities.identifier LIKE ?", fingerprintPrefix+"%")
 	if err != nil {
 		return nil, err
 	}
 
-	return cert, nil
+	if len(dbCertificateIdentities) > 1 {
+		return nil, fmt.Errorf("More than one certificate matches")
+	}
+
+	if len(dbCertificateIdentities) == 0 {
+		return nil, api.StatusErrorf(http.StatusNotFound, "Certificate not found")
+	}
+
+	return dbCertificateIdentities[0].ToCertificate()
 }
 
 // CreateCertificateWithProjects stores a CertInfo object in the db, and associates it to a list of project names.
@@ -183,43 +168,8 @@ func CreateCertificateWithProjects(ctx context.Context, tx *sql.Tx, cert Certifi
 }
 
 // GetCertificates returns all available certificates.
-func GetCertificates(ctx context.Context, tx *sql.Tx, filters ...CertificateFilter) ([]Certificate, error) {
-	authMethod := AuthMethod(api.AuthenticationMethodTLS)
-	identityFilters := make([]IdentityFilter, 0, len(filters))
-	for _, filter := range filters {
-		var identityTypes []IdentityType
-		if filter.Type != nil {
-			switch *filter.Type {
-			case certificate.TypeClient:
-				identityTypes = append(identityTypes, api.IdentityTypeCertificateClientRestricted, api.IdentityTypeCertificateClientUnrestricted)
-			case certificate.TypeServer:
-				identityTypes = append(identityTypes, api.IdentityTypeCertificateServer)
-			case certificate.TypeMetrics:
-				identityTypes = append(identityTypes, api.IdentityTypeCertificateMetricsRestricted, api.IdentityTypeCertificateMetricsUnrestricted)
-			}
-		}
-
-		for _, identityType := range identityTypes {
-			idType := identityType
-			identityFilters = append(identityFilters, IdentityFilter{
-				ID:         filter.ID,
-				AuthMethod: &authMethod,
-				Type:       &idType,
-				Identifier: filter.Fingerprint,
-				Name:       filter.Name,
-			})
-		}
-	}
-
-	if len(identityFilters) == 0 {
-		identityFilters = []IdentityFilter{
-			{
-				AuthMethod: &authMethod,
-			},
-		}
-	}
-
-	certificateIdentities, err := GetIdentitys(ctx, tx, identityFilters...)
+func GetCertificates(ctx context.Context, tx *sql.Tx) ([]Certificate, error) {
+	certificateIdentities, err := getIdentitysRaw(ctx, tx, getCertificateIdentitiesStmt)
 	if err != nil {
 		return nil, err
 	}
@@ -239,22 +189,28 @@ func GetCertificates(ctx context.Context, tx *sql.Tx, filters ...CertificateFilt
 
 // GetCertificate returns the certificate with the given key.
 func GetCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) (*Certificate, error) {
-	identity, err := GetIdentity(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
+	dbCertificateIdentities, err := getIdentitysRaw(ctx, tx, getCertificateIdentitiesStmt+" AND identities.identifier = ?", fingerprint)
 	if err != nil {
 		return nil, err
 	}
 
-	return identity.ToCertificate()
+	if len(dbCertificateIdentities) == 0 {
+		return nil, api.NewStatusError(http.StatusNotFound, "Certificate not found")
+	} else if len(dbCertificateIdentities) > 1 {
+		return nil, fmt.Errorf("More than one certificate with fingerprint %q", fingerprint)
+	}
+
+	return dbCertificateIdentities[0].ToCertificate()
 }
 
 // GetCertificateID return the ID of the certificate with the given key.
 func GetCertificateID(ctx context.Context, tx *sql.Tx, fingerprint string) (int64, error) {
-	identity, err := GetIdentity(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
+	cert, err := GetCertificate(ctx, tx, fingerprint)
 	if err != nil {
 		return 0, err
 	}
 
-	return int64(identity.ID), nil
+	return int64(cert.ID), nil
 }
 
 // CertificateExists checks if a certificate with the given key exists.
