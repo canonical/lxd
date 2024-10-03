@@ -270,5 +270,5 @@ func UpdateCertificate(ctx context.Context, tx *sql.Tx, fingerprint string, obje
 		return err
 	}
 
-	return UpdateIdentity(ctx, tx, AuthMethod(api.AuthenticationMethodTLS), fingerprint, *identity)
+	return UpdateIdentity(ctx, tx, api.AuthenticationMethodTLS, fingerprint, *identity)
 }
