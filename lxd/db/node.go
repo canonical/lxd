@@ -1111,6 +1111,85 @@ func whereClause(conditions []inCondition, args *[]any) string {
 	return b.String()
 }
 
+// OverridableConfig is a config key that could be set on either a specific
+// cluster member or for the whole cluster.
+type OverridableConfig struct {
+	ClusterValue sql.NullString
+	MemberValue  sql.NullString
+}
+
+// GetMemberConfigWithGlobalDefault returns a mapping of
+// [clusterMemberName][key]cfg, with filters clusterMemberNames and keys. If
+// either slice is nil/empty, all clusterMembers/keys are returned.
+func (c *ClusterTx) GetMemberConfigWithGlobalDefault(ctx context.Context, clusterMemberNames []string, keys []string) (map[string]map[string]OverridableConfig, error) {
+	sql := `
+	WITH config_values AS (
+		SELECT
+			nodes.name AS node_name,
+			config.key AS key,
+			config.value AS cluster_value,
+			nodes_config.value AS node_value
+		FROM nodes
+		JOIN config
+		LEFT JOIN nodes_config
+			ON nodes_config.node_id = nodes.id AND nodes_config.key = config.KEY
+
+		UNION
+
+		SELECT
+			nodes.name,
+			nodes_config.key,
+			config.value,
+			nodes_config.value
+		FROM nodes
+		JOIN nodes_config
+			ON nodes_config.node_id = nodes.id
+		LEFT JOIN config
+			ON nodes_config.key = config.key
+		WHERE config.key IS NULL
+	)
+
+	SELECT *
+	FROM config_values
+	`
+
+	conditions := []inCondition{
+		{
+			key: "config_values.node_name",
+			in:  clusterMemberNames,
+		},
+		{
+			key: "config_values.key",
+			in:  keys,
+		},
+	}
+
+	args := make([]any, 0, len(clusterMemberNames)+len(keys))
+	sql += whereClause(conditions, &args)
+
+	rows := make(map[string]map[string]OverridableConfig)
+	err := query.Scan(ctx, c.tx, sql, func(scan func(dest ...any) error) error {
+		var nodeName string
+		var key string
+		var cfg OverridableConfig
+		err := scan(&nodeName, &key, &cfg.ClusterValue, &cfg.MemberValue)
+		if err != nil {
+			return err
+		}
+
+		_, hasNode := rows[nodeName]
+		if !hasNode {
+			rows[nodeName] = make(map[string]OverridableConfig)
+		}
+
+		rows[nodeName][key] = cfg
+
+		return nil
+	}, args...)
+
+	return rows, err
+}
+
 // GetCandidateMembers returns cluster members that are online, in created state and don't need manual targeting.
 // It excludes members that do not support any of the targetArchitectures (if non-nil) or not in targetClusterGroup
 // (if non-empty). It also takes into account any restrictions on allowedClusterGroups (if non-nil).
