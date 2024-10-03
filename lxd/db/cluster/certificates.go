@@ -205,18 +205,6 @@ func GetCertificateID(ctx context.Context, tx *sql.Tx, fingerprint string) (int6
 	return int64(cert.ID), nil
 }
 
-// CertificateExists checks if a certificate with the given key exists.
-func CertificateExists(ctx context.Context, tx *sql.Tx, fingerprint string) (bool, error) {
-	_, err := GetIdentity(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
-	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-		return false, err
-	} else if err != nil {
-		return false, nil
-	}
-
-	return true, nil
-}
-
 // CreateCertificate adds a new certificate to the database.
 func CreateCertificate(ctx context.Context, tx *sql.Tx, object Certificate) (int64, error) {
 	identity, err := object.ToIdentity()
