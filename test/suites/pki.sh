@@ -27,6 +27,7 @@ test_pki() {
         ./easyrsa gen-crl
         ./easyrsa build-client-full restricted nopass
         ./easyrsa build-client-full unrestricted nopass
+        ./easyrsa build-client-full fine-grained nopass
         ./easyrsa build-client-full ca-trusted nopass
         ./easyrsa build-client-full prior-revoked nopass
         mkdir keys
@@ -197,6 +198,71 @@ test_pki() {
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --token "${token}" || false
     [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
 
+    ### Fine-grained TLS identity with `core.trust_ca_certificates` disabled.
+
+    # Set up the client config
+    cp "${TEST_DIR}/pki/keys/fine-grained.crt" "${LXD_CONF}/client.crt"
+    cp "${TEST_DIR}/pki/keys/fine-grained.key" "${LXD_CONF}/client.key"
+    cat "${LXD_CONF}/client.crt" "${LXD_CONF}/client.key" > "${LXD_CONF}/client.pem"
+    fingerprint="$(cert_fingerprint "${LXD_CONF}/client.crt")"
+
+    # Try adding remote using an incorrect token. This should fail even though the client certificate
+    # has been signed by the CA because `core.trust_ca_certificates` is not enabled.
+    ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --token=bar || false
+
+    # Add remote using the correct token.
+    # This should work because the client certificate is signed by the CA.
+    token="$(lxc auth identity create tls/foo --quiet)"
+    lxc_remote remote add pki-lxd "${LXD5_ADDR}" --token "${token}"
+
+    # Should be shown in `identity list` because `core.trust_ca_certificates` is disabled.
+    lxc_remote auth identity list pki-lxd: --format csv | grep -F "tls,Client certificate,foo,${fingerprint}"
+
+    # Should not be shown `lxc config trust list` because it is a fine-grained identity that can't be managed via this subcommand.
+    [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
+
+    # The identity is not a member of any groups, so should not be able to view server config
+    ! lxc_remote info pki-lxd: | grep -F 'core.https_address' || false
+    ! curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"' || false
+
+    # Enable `core.trust_ca_certificates`.
+    lxc config set core.trust_ca_certificates true
+
+    # The identity is not a member of any groups, so should not be able to view server config even though `core.trust_ca_certificates` is now enabled.
+    ! lxc_remote info pki-lxd: | grep -F 'core.https_address' || false
+    ! curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"' || false
+
+    # Revoke the client certificate
+    cd "${TEST_DIR}/pki" && "${TEST_DIR}/pki/easyrsa" --batch revoke fine-grained keyCompromise && "${TEST_DIR}/pki/easyrsa" gen-crl && cd -
+
+    # Restart LXD with the revoked certificate in the CRL.
+    shutdown_lxd "${LXD5_DIR}"
+    cp "${TEST_DIR}/pki/pki/crl.pem" "${LXD5_DIR}/ca.crl"
+    respawn_lxd "${LXD5_DIR}" true
+
+    # Revoked certificate no longer has access even though it is in the trust store.
+    lxc_remote info pki-lxd: | grep -F 'auth: untrusted'
+    ! lxc_remote ls pki-lxd: || false
+    [ "$(curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0/instances" | jq -e -r '.error')" = "not authorized" ]
+
+    # Remove cert from truststore.
+    lxc auth identity delete "tls/${fingerprint}"
+    lxc_remote remote remove pki-lxd
+
+    # Unset `core.trust_ca_certificates`.
+    lxc config unset core.trust_ca_certificates
+
+    # The certificate is now revoked, we can create a pending identity.
+    token="$(lxc auth identity create tls/bar --quiet)"
+    lxc auth identity list --format csv | grep -F 'tls,Client certificate (pending),bar'
+    # But adding the remote will not work
+    ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --token "${token}" || false
+    # And the identity should still be pending.
+    lxc auth identity list --format csv | grep -F 'tls,Client certificate (pending),bar'
+
+    # The pending TLS identity can be deleted
+    lxc auth identity delete tls/bar
+
     ### CA signed certificate with `core.trust_ca_certificates` enabled.
 
     # NOTE: These certificates cannot be restricted/unrestricted because no trust store entries are created for them.
@@ -306,6 +372,13 @@ test_pki() {
     # This should fail, as if the certificate is revoked and token is wrong then no access should be allowed.
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=bar || false
     [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
+
+    # The revoked certificate is not valid when an identity token is used either.
+    token="$(lxc auth identity create tls/bar --quiet)"
+    lxc auth identity list --format csv | grep -F 'tls,Client certificate (pending),bar'
+    ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --token "${token}" || false
+    lxc auth identity list --format csv | grep -F 'tls,Client certificate (pending),bar'
+    lxc auth identity delete tls/bar
 
     # Try adding a remote using a revoked client certificate, and an incorrect token.
     # This should fail, as if the certificate is revoked and token is wrong then no access should be allowed.
