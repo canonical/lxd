@@ -173,6 +173,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 					UsedBy:  api.NewURL().Path(version.APIVersion, "networks", networkName).Project(projectName).String(),
 					Type:    "network",
 					NAT:     shared.IsTrue(netConf[fmt.Sprintf("%s.nat", keyPrefix)]),
+					Network: networkName,
 				})
 			}
 
@@ -204,6 +205,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 						Type:    allocationType,
 						Hwaddr:  lease.Hwaddr,
 						NAT:     nat,
+						Network: networkName,
 					})
 				}
 			}
@@ -232,6 +234,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 						UsedBy:  api.NewURL().Path(version.APIVersion, "networks", networkName, "forwards", forward.ListenAddress).Project(projectName).String(),
 						Type:    "network-forward",
 						NAT:     false, // Network forwards are ingress and so aren't affected by SNAT.
+						Network: networkName,
 					},
 				)
 			}
@@ -260,6 +263,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 						UsedBy:  api.NewURL().Path(version.APIVersion, "networks", networkName, "load-balancers", loadBalancer.ListenAddress).Project(projectName).String(),
 						Type:    "network-load-balancer",
 						NAT:     false, // Network load-balancers are ingress and so aren't affected by SNAT.
+						Network: networkName,
 					},
 				)
 			}
