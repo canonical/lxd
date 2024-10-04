@@ -39,6 +39,6 @@ Usually, this includes the following data:
 (images-create-build)=
 ## Build an image
 
-For building your own images, you can use [`distrobuilder`](https://github.com/lxc/distrobuilder).
+For building your own images, you can use [LXD image builder](https://github.com/canonical/lxd-imagebuilder).
 
-See the [`distrobuilder` documentation](https://linuxcontainers.org/distrobuilder/docs/latest/) for instructions for installing and using the tool.
+See the [LXD image builder documentation](https://canonical-lxd-imagebuilder.readthedocs-hosted.com/en/latest/) for instructions for installing and using the tool.
