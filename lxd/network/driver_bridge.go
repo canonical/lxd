@@ -3483,7 +3483,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 						v := network.Config[k]
 						if v != "" {
 							leases = append(leases, api.NetworkLease{
-								Hostname: fmt.Sprintf("%s-%s.uplink", projectName, network.Name),
+								Hostname: fmt.Sprintf("%s/%s.uplink", projectName, network.Name),
 								Address:  v,
 								Type:     "uplink",
 							})
