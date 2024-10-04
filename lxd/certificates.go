@@ -828,7 +828,7 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Apply the update.
-	return doCertificateUpdate(d, *apiEntry, req, r)
+	return doCertificateUpdate(r.Context(), d, *apiEntry, req, r)
 }
 
 // swagger:operation PATCH /1.0/certificates/{fingerprint} certificates certificate_patch
@@ -894,10 +894,10 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	return doCertificateUpdate(d, *apiEntry, req.Writable(), r)
+	return doCertificateUpdate(r.Context(), d, *apiEntry, req.Writable(), r)
 }
 
-func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificatePut, r *http.Request) response.Response {
+func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate, req api.CertificatePut, r *http.Request) response.Response {
 	s := d.State()
 
 	reqDBType, err := certificate.FromAPIType(req.Type)
@@ -1001,7 +1001,19 @@ func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificateP
 	}
 
 	// Update the database record.
-	err = s.DB.UpdateCertificate(context.Background(), dbInfo.Fingerprint, dbCert, certProjects)
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		id, err := dbCluster.GetCertificateID(ctx, tx.Tx(), dbInfo.Fingerprint)
+		if err != nil {
+			return err
+		}
+
+		err = dbCluster.UpdateCertificate(ctx, tx.Tx(), dbInfo.Fingerprint, dbCert)
+		if err != nil {
+			return err
+		}
+
+		return dbCluster.UpdateCertificateProjects(ctx, tx.Tx(), int(id), certProjects)
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
