@@ -5943,7 +5943,7 @@ func (d *qemu) updateMemoryLimit(newLimit string) error {
 	}
 
 	// Check new size string is valid and convert to bytes.
-	newSizeBytes, err := units.ParseByteSizeString(newLimit)
+	newSizeBytes, err := parseMemoryStr(newLimit)
 	if err != nil {
 		return fmt.Errorf("Invalid memory size: %w", err)
 	}
