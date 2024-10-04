@@ -1,13 +1,16 @@
 package main
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
@@ -18,6 +21,7 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/termios"
+	"github.com/canonical/lxd/shared/version"
 )
 
 type cmdAuth struct {
@@ -732,6 +736,9 @@ func (c *cmdIdentity) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage identities`))
 
+	identityCreateCmd := cmdIdentityCreate{global: c.global}
+	cmd.AddCommand(identityCreateCmd.command())
+
 	identityListCmd := cmdIdentityList{global: c.global}
 	cmd.AddCommand(identityListCmd.command())
 
@@ -754,6 +761,113 @@ func (c *cmdIdentity) command() *cobra.Command {
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
 	return cmd
+}
+
+type cmdIdentityCreate struct {
+	global     *cmdGlobal
+	flagGroups []string
+}
+
+func (c *cmdIdentityCreate) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("create", i18n.G("[<remote>:]<authentication_method>/<name> [<path to PEM encoded certificate>] [[--group <group_name>]]"))
+	cmd.Short = i18n.G("Create a TLS identity")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Create a TLS identity`))
+
+	cmd.RunE = c.run
+	cmd.Flags().StringSliceVarP(&c.flagGroups, "group", "g", []string{}, "Groups to add to the identity")
+
+	return cmd
+}
+
+func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	remoteName, resourceName, err := c.global.conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
+	transporter, wrapper := newLocationHeaderTransportWrapper()
+	client, err := c.global.conf.GetInstanceServerWithTransportWrapper(remoteName, wrapper)
+	if err != nil {
+		return err
+	}
+
+	if resourceName == "" {
+		return errors.New(i18n.G("Missing identity argument"))
+	}
+
+	authMethod, name, ok := strings.Cut(resourceName, "/")
+	if !ok {
+		return fmt.Errorf("Invalid identity string %q (must be <authentication_method>/<name>", resourceName)
+	}
+
+	if authMethod != api.AuthenticationMethodTLS {
+		return fmt.Errorf("Identity creation only supported for TLS identities")
+	}
+
+	if len(args) == 1 {
+		token, err := client.CreateIdentityTLSPending(api.IdentitiesPostTLS{
+			Name:   name,
+			Token:  true,
+			Groups: c.flagGroups,
+		})
+		if err != nil {
+			return err
+		}
+
+		if !c.global.flagQuiet {
+			pendingIdentityURL, err := url.Parse(transporter.location)
+			if err != nil {
+				return fmt.Errorf("Received invalid location header %q: %w", transporter.location, err)
+			}
+
+			var pendingIdentityUUIDStr string
+			identityURLPrefix := api.NewURL().Path(version.APIVersion, "auth", "identities", authMethod).String()
+			_, err = fmt.Sscanf(pendingIdentityURL.Path, identityURLPrefix+"/%s", &pendingIdentityUUIDStr)
+			if err != nil {
+				return fmt.Errorf("Received unexpected location header %q: %w", transporter.location, err)
+			}
+
+			pendingIdentityUUID, err := uuid.Parse(pendingIdentityUUIDStr)
+			if err != nil {
+				return fmt.Errorf("Received invalid pending identity UUID %q: %w", pendingIdentityUUIDStr, err)
+			}
+
+			fmt.Printf(i18n.G("TLS identity %q (%s) pending identity token:")+"\n", resourceName, pendingIdentityUUID.String())
+		}
+
+		fmt.Println(token.TrustToken)
+		return nil
+	}
+
+	cert, err := shared.ReadCert(args[1])
+	if err != nil {
+		return err
+	}
+
+	base64Cert := base64.StdEncoding.EncodeToString(cert.Raw)
+	err = client.CreateIdentityTLS(api.IdentitiesPostTLS{
+		Name:        name,
+		Certificate: base64Cert,
+		Groups:      c.flagGroups,
+	})
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("TLS identity %q created with fingerprint %q")+"\n", resourceName, shared.CertFingerprint(cert))
+	}
+
+	return nil
 }
 
 type cmdIdentityList struct {
