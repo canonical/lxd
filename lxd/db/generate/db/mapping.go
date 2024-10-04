@@ -5,9 +5,10 @@ import (
 	"net/url"
 	"strings"
 
+	"golang.org/x/tools/go/packages"
+
 	"github.com/canonical/lxd/lxd/db/generate/lex"
 	"github.com/canonical/lxd/shared"
-	"golang.org/x/tools/go/packages"
 )
 
 // Mapping holds information for mapping database tables to a Go structure.
