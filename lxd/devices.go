@@ -386,14 +386,6 @@ func fillFixedInstances(fixedInstances map[int64][]instance.Instance, inst insta
 //
 // Overall, this function ensures that the CPU resources of the host are utilized effectively amongst all the instances running on it.
 func deviceTaskBalance(s *state.State) {
-	min := func(x, y int) int {
-		if x < y {
-			return x
-		}
-
-		return y
-	}
-
 	// Don't bother running when CGroup support isn't there
 	if !s.OS.CGInfo.Supports(cgroup.CPUSet, nil) {
 		return
