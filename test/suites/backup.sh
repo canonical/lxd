@@ -575,7 +575,7 @@ _backup_export_with_project() {
 
   if storage_backend_optimized_backup "$lxd_backend"; then
     lxc export c1 "${LXD_DIR}/c1-optimized.tar.gz" --optimized-storage --instance-only
-    tar -xzf "${LXD_DIR}/c1-optimized.tar.gz" -C "${LXD_DIR}/optimized"
+    tar --warning=no-timestamp -xzf "${LXD_DIR}/c1-optimized.tar.gz" -C "${LXD_DIR}/optimized"
 
     ls -l "${LXD_DIR}/optimized/backup/"
     [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
@@ -584,7 +584,7 @@ _backup_export_with_project() {
   fi
 
   lxc export c1 "${LXD_DIR}/c1.tar.gz" --instance-only
-  tar -xzf "${LXD_DIR}/c1.tar.gz" -C "${LXD_DIR}/non-optimized"
+  tar --warning=no-timestamp -xzf "${LXD_DIR}/c1.tar.gz" -C "${LXD_DIR}/non-optimized"
 
   # check tarball content
   ls -l "${LXD_DIR}/non-optimized/backup/"
@@ -597,7 +597,7 @@ _backup_export_with_project() {
   # with snapshots
   if storage_backend_optimized_backup "$lxd_backend"; then
     lxc export c1 "${LXD_DIR}/c1-optimized.tar.gz" --optimized-storage
-    tar -xzf "${LXD_DIR}/c1-optimized.tar.gz" -C "${LXD_DIR}/optimized"
+    tar --warning=no-timestamp -xzf "${LXD_DIR}/c1-optimized.tar.gz" -C "${LXD_DIR}/optimized"
 
     ls -l "${LXD_DIR}/optimized/backup/"
     [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
@@ -606,7 +606,7 @@ _backup_export_with_project() {
   fi
 
   lxc export c1 "${LXD_DIR}/c1.tar.gz"
-  tar -xzf "${LXD_DIR}/c1.tar.gz" -C "${LXD_DIR}/non-optimized"
+  tar --warning=no-timestamp -xzf "${LXD_DIR}/c1.tar.gz" -C "${LXD_DIR}/non-optimized"
 
   # check tarball content
   ls -l "${LXD_DIR}/non-optimized/backup/"
@@ -745,7 +745,7 @@ _backup_volume_export_with_project() {
     [ -f "${LXD_DIR}/testvol-optimized.tar.gz" ]
 
     # Extract backup tarball.
-    tar -xzf "${LXD_DIR}/testvol-optimized.tar.gz" -C "${LXD_DIR}/optimized"
+    tar --warning=no-timestamp -xzf "${LXD_DIR}/testvol-optimized.tar.gz" -C "${LXD_DIR}/optimized"
 
     ls -l "${LXD_DIR}/optimized/backup/"
     [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
@@ -759,7 +759,7 @@ _backup_volume_export_with_project() {
   [ -f "${LXD_DIR}/testvol.tar.gz" ]
 
   # Extract non-optimized backup tarball.
-  tar -xzf "${LXD_DIR}/testvol.tar.gz" -C "${LXD_DIR}/non-optimized"
+  tar --warning=no-timestamp -xzf "${LXD_DIR}/testvol.tar.gz" -C "${LXD_DIR}/non-optimized"
 
   # Check tarball content.
   ls -l "${LXD_DIR}/non-optimized/backup/"
@@ -780,7 +780,7 @@ _backup_volume_export_with_project() {
     [ -f "${LXD_DIR}/testvol-optimized.tar.gz" ]
 
     # Extract backup tarball.
-    tar -xzf "${LXD_DIR}/testvol-optimized.tar.gz" -C "${LXD_DIR}/optimized"
+    tar --warning=no-timestamp -xzf "${LXD_DIR}/testvol-optimized.tar.gz" -C "${LXD_DIR}/optimized"
 
     ls -l "${LXD_DIR}/optimized/backup/"
     [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
@@ -794,7 +794,7 @@ _backup_volume_export_with_project() {
   [ -f "${LXD_DIR}/testvol.tar.gz" ]
 
   # Extract backup tarball.
-  tar -xzf "${LXD_DIR}/testvol.tar.gz" -C "${LXD_DIR}/non-optimized"
+  tar --warning=no-timestamp -xzf "${LXD_DIR}/testvol.tar.gz" -C "${LXD_DIR}/non-optimized"
 
   # Check tarball content.
   ls -l "${LXD_DIR}/non-optimized/backup/"
