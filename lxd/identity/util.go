@@ -10,7 +10,7 @@ import (
 
 // IsFineGrainedIdentityType returns true if permissions of the identity type are managed via group membership.
 func IsFineGrainedIdentityType(identityType string) bool {
-	return shared.ValueInSlice(identityType, []string{api.IdentityTypeOIDCClient})
+	return shared.ValueInSlice(identityType, []string{api.IdentityTypeOIDCClient, api.IdentityTypeCertificateClient, api.IdentityTypeCertificateClientPending})
 }
 
 // IsRestrictedIdentityType returns whether the given identity is restricted or not. Identity types that are not
