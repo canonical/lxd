@@ -167,8 +167,8 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 	logCtx["protocol"] = id.AuthenticationMethod
 	l := e.logger.AddContext(logCtx)
 
-	// If the authentication method was TLS, use the TLS driver instead.
-	if id.AuthenticationMethod == api.AuthenticationMethodTLS {
+	// If the identity type does not use fine-grained auth use the TLS driver instead.
+	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
 		return e.tlsAuthorizer.CheckPermission(ctx, entityURL, entitlement)
 	}
 
@@ -365,8 +365,8 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 	logCtx["protocol"] = id.AuthenticationMethod
 	l := e.logger.AddContext(logCtx)
 
-	// If the authentication method was TLS, use the TLS driver instead.
-	if id.AuthenticationMethod == api.AuthenticationMethodTLS {
+	// If the identity type does not use fine-grained auth, use the TLS driver instead.
+	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
 		return e.tlsAuthorizer.GetPermissionChecker(ctx, entitlement, entityType)
 	}
 
