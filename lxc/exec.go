@@ -62,7 +62,7 @@ Mode defaults to non-interactive, interactive mode is selected if both stdin AND
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpInstancesAction(toComplete, "exec", false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
