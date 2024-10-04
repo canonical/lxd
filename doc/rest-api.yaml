@@ -158,6 +158,11 @@ definitions:
                 example: 2b2284d44db32675923fe0d2020477e0e9be11801ff70c435e032b97028c35cd
                 type: string
                 x-go-name: Secret
+            type:
+                description: Type is an indicator for which API (certificates or identities) to send the token.
+                example: Client certificate
+                type: string
+                x-go-name: Type
         title: CertificateAddToken represents the fields contained within an encoded certificate add token.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
@@ -711,6 +716,39 @@ definitions:
                 example: lifecycle
                 type: string
                 x-go-name: Type
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    IdentitiesTLSPost:
+        properties:
+            certificate:
+                description: The PEM encoded x509 certificate of the identity
+                type: string
+                x-go-name: Certificate
+            groups:
+                description: Groups is the list of groups for which the identity is a member.
+                example:
+                    - foo
+                    - bar
+                items:
+                    type: string
+                type: array
+                x-go-name: Groups
+            name:
+                description: Name associated with the identity
+                example: foo
+                type: string
+                x-go-name: Name
+            token:
+                description: Whether to create a certificate add token
+                example: true
+                type: boolean
+                x-go-name: Token
+            trust_token:
+                description: Trust token (used to add an untrusted client)
+                example: blah
+                type: string
+                x-go-name: TrustToken
+        title: IdentitiesTLSPost contains required information for the creation of a TLS identity.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     Identity:
@@ -7457,6 +7495,34 @@ paths:
             summary: Get the TLS identities
             tags:
                 - identities
+        post:
+            consumes:
+                - application/json
+            description: |-
+                Adds a TLS identity as a trusted client, or creates a pending TLS identity and returns a token
+                for use by an untrusted client. One of `token` or `certificate` must be set.
+            operationId: identities_post_tls
+            parameters:
+                - description: TLS Identity
+                  in: body
+                  name: TLS identity
+                  required: true
+                  schema:
+                    $ref: '#/definitions/IdentitiesPostTLS'
+            produces:
+                - application/json
+            responses:
+                "201":
+                    description: ""
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Add a TLS identity.
+            tags:
+                - identities
     /1.0/auth/identities/tls/{nameOrIdentifier}:
         delete:
             description: Removes the TLS identity and revokes trust.
@@ -7566,6 +7632,40 @@ paths:
                 "501":
                     $ref: '#/responses/NotImplemented'
             summary: Update the TLS identity
+            tags:
+                - identities
+    /1.0/auth/identities/tls?public:
+        post:
+            consumes:
+                - application/json
+            description: |-
+                Adds a TLS identity as a trusted client.
+                In this mode, the `token` property must be set to the correct value.
+                The certificate that the client sent during the TLS handshake will be added.
+                The `certificate` field must be omitted.
+
+                The `?public` part of the URL isn't required, it's simply used to
+                separate the two behaviors of this endpoint.
+            operationId: identities_post_tls_untrusted
+            parameters:
+                - description: TLS Identity
+                  in: body
+                  name: TLS identity
+                  required: true
+                  schema:
+                    $ref: '#/definitions/IdentitiesPostTLS'
+            produces:
+                - application/json
+            responses:
+                "201":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Add a TLS identity
             tags:
                 - identities
     /1.0/auth/identities/tls?recursion=1:
