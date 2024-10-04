@@ -311,9 +311,11 @@ func (d *powerflex) GetResources() (*api.ResourcesStoragePool, error) {
 		return nil, err
 	}
 
+	used := stats.NetCapacityInUseInKb * 1024
+
 	res := &api.ResourcesStoragePool{}
-	res.Space.Total = stats.MaxCapacityInKb * 1000
-	res.Space.Used = stats.CapacityInUseInKb * 1000
+	res.Space.Total = stats.NetUnusedCapacityInKb*1024 + used
+	res.Space.Used = used
 
 	return res, nil
 }
