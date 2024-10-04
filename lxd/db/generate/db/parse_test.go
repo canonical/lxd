@@ -1,14 +1,13 @@
 package db_test
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/tools/go/packages"
 
 	"github.com/canonical/lxd/lxd/db/generate/db"
 )

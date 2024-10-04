@@ -2,12 +2,12 @@ package db
 
 import (
 	"fmt"
-	"go/ast"
 	"net/url"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/db/generate/lex"
 	"github.com/canonical/lxd/shared"
+	"golang.org/x/tools/go/packages"
 )
 
 // Mapping holds information for mapping database tables to a Go structure.
@@ -433,7 +433,7 @@ func (f *Field) JoinClause(mapping *Mapping, table string) (string, error) {
 // to select the ID to insert into this table.
 // - If a 'joinon' tag is present, but this table is not among the conditions, then the join will be considered indirect,
 // and an empty string will be returned.
-func (f *Field) InsertColumn(pkg *ast.Package, dbPkg *ast.Package, mapping *Mapping, primaryTable string) (string, string, error) {
+func (f *Field) InsertColumn(pkg *packages.Package, dbPkg *packages.Package, mapping *Mapping, primaryTable string) (string, string, error) {
 	var column string
 	var value string
 	var err error

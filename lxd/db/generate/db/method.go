@@ -4,7 +4,6 @@ package db
 
 import (
 	"fmt"
-	"go/ast"
 	"go/build"
 	"os"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/generate/file"
 	"github.com/canonical/lxd/lxd/db/generate/lex"
 	"github.com/canonical/lxd/shared"
+	"golang.org/x/tools/go/packages"
 )
 
 // Method generates a code snippet for a particular database query method.
@@ -22,7 +22,7 @@ type Method struct {
 	kind   string            // Kind of statement to generate
 	ref    string            // ref is the current reference method for the method kind
 	config map[string]string // Configuration parameters
-	pkg    *ast.Package      // Package to perform for struct declaration lookup
+	pkg    *packages.Package // Package to perform for struct declaration lookup
 }
 
 // NewMethod return a new method code snippet for executing a certain mapping.

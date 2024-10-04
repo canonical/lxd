@@ -14,13 +14,14 @@ import (
 
 	"github.com/canonical/lxd/lxd/db/generate/lex"
 	"github.com/canonical/lxd/shared"
+	"golang.org/x/tools/go/packages"
 )
 
 // Packages returns the AST packages in which to search for structs.
 //
 // By default it includes the lxd/db and shared/api packages.
-func Packages() (map[string]*ast.Package, error) {
-	packages := map[string]*ast.Package{}
+func Packages() (map[string]*packages.Package, error) {
+	packages := map[string]*packages.Package{}
 
 	_, filename, _, _ := runtime.Caller(0)
 
@@ -38,7 +39,7 @@ func Packages() (map[string]*ast.Package, error) {
 }
 
 // ParsePackage returns the AST package in which to search for structs.
-func ParsePackage(pkgPath string) (*ast.Package, error) {
+func ParsePackage(pkgPath string) (*packages.Package, error) {
 	pkg, err := lex.Parse(pkgPath)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse package path %q: %w", pkgPath, err)
@@ -150,7 +151,7 @@ func sortFilter(filter []string) []string {
 
 // Parse the structure declaration with the given name found in the given Go package.
 // Any 'Entity' struct should also have an 'EntityFilter' struct defined in the same file.
-func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
+func Parse(pkg *packages.Package, name string, kind string) (*Mapping, error) {
 	// The main entity struct.
 	str := findStruct(pkg.Scope, name)
 	if str == nil {
