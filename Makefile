@@ -36,9 +36,11 @@ ifeq "$(TAG_SQLITE3)" ""
 endif
 
 ifeq "$(GOCOVERDIR)" ""
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath $(DEBUG) ./lxd ./lxc-to-lxd ./lxd-user ./lxd-benchmark
+	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath $(DEBUG) ./lxd ./lxc-to-lxd ./lxd-benchmark
+	CGO_ENABLED=0 go install -v -tags netgo -trimpath $(DEBUG) ./lxd-user
 else
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath -cover $(DEBUG) ./lxd ./lxc-to-lxd ./lxd-user ./lxd-benchmark
+	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath -cover $(DEBUG) ./lxd ./lxc-to-lxd ./lxd-benchmark
+	CGO_ENABLED=0 go install -v -tags netgo -trimpath -cover $(DEBUG) ./lxd-user
 endif
 
 	@echo "LXD built successfully"
