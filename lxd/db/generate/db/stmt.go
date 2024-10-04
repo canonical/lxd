@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/tools/go/packages"
+
 	"github.com/canonical/lxd/lxd/db/generate/file"
 	"github.com/canonical/lxd/lxd/db/generate/lex"
-	"golang.org/x/tools/go/packages"
 )
 
 // Stmt generates a particular database query statement.
