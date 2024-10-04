@@ -173,29 +173,6 @@ endif
 	CGO_ENABLED=0 go install -v -trimpath -tags "agent,netgo,logdebug" ./lxd-agent
 	@echo "LXD built successfully"
 
-.PHONY: nocache
-nocache:
-ifeq "$(TAG_SQLITE3)" ""
-	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
-	exit 1
-endif
-
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -a -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
-	CGO_ENABLED=0 go install -a -v -trimpath -tags netgo ./lxd-migrate
-	CGO_ENABLED=0 go install -a -v -trimpath -tags agent,netgo ./lxd-agent
-	@echo "LXD built successfully"
-
-race:
-ifeq "$(TAG_SQLITE3)" ""
-	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
-	exit 1
-endif
-
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -race -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
-	CGO_ENABLED=0 go install -v -trimpath -tags netgo ./lxd-migrate
-	CGO_ENABLED=0 go install -v -trimpath -tags agent,netgo ./lxd-agent
-	@echo "LXD built successfully"
-
 .PHONY: check
 check: default check-unit
 	cd test && ./main.sh
