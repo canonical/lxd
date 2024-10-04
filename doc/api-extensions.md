@@ -2461,3 +2461,9 @@ When set to `on`, if the host has guest attachment enabled, the guest can reques
 
 This adds entity type metadata to `GET /1.0/metadata/configuration`.
 The entity type metadata is a JSON object under the `entities` key.
+
+## `network_allocations_ovn_uplink`
+
+Includes OVN virtual routers external IPs to `/1.0/network-allocations` responses with the type `uplink`.
+Introduces the `network` field on each allocation, indicating to which network each allocated address belongs.
+And lastly, adds a `project` field on leases, leases can be retrieved via `/1.0/networks/<network>/leases`.
