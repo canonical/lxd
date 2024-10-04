@@ -36,9 +36,11 @@ ifeq "$(TAG_SQLITE3)" ""
 endif
 
 ifeq "$(GOCOVERDIR)" ""
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath $(DEBUG) ./lxd ./lxc-to-lxd ./lxd-user ./lxd-benchmark
+	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath $(DEBUG) ./lxd ./lxc-to-lxd
+	CGO_ENABLED=0 go install -v -tags netgo -trimpath $(DEBUG) ./lxd-user ./lxd-benchmark
 else
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath -cover $(DEBUG) ./lxd ./lxc-to-lxd ./lxd-user ./lxd-benchmark
+	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath -cover $(DEBUG) ./lxd ./lxc-to-lxd
+	CGO_ENABLED=0 go install -v -tags netgo -trimpath -cover $(DEBUG) ./lxd-user ./lxd-benchmark
 endif
 
 	@echo "LXD built successfully"
@@ -171,29 +173,6 @@ endif
 	CGO_ENABLED=0 go install -v -trimpath -tags "agent,netgo,logdebug" ./lxd-agent
 	@echo "LXD built successfully"
 
-.PHONY: nocache
-nocache:
-ifeq "$(TAG_SQLITE3)" ""
-	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
-	exit 1
-endif
-
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -a -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
-	CGO_ENABLED=0 go install -a -v -trimpath -tags netgo ./lxd-migrate
-	CGO_ENABLED=0 go install -a -v -trimpath -tags agent,netgo ./lxd-agent
-	@echo "LXD built successfully"
-
-race:
-ifeq "$(TAG_SQLITE3)" ""
-	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
-	exit 1
-endif
-
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -race -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
-	CGO_ENABLED=0 go install -v -trimpath -tags netgo ./lxd-migrate
-	CGO_ENABLED=0 go install -v -trimpath -tags agent,netgo ./lxd-agent
-	@echo "LXD built successfully"
-
 .PHONY: check
 check: default check-unit
 	cd test && ./main.sh
@@ -302,21 +281,6 @@ endif
         exit 1; \
 	fi
 	run-parts --verbose --exit-on-error --regex '.sh' test/lint
-
-.PHONY: staticcheck
-staticcheck:
-ifeq ($(shell command -v staticcheck),)
-	(cd / ; go install honnef.co/go/tools/cmd/staticcheck@latest)
-endif
-	# To get advance notice of deprecated function usage, consider running:
-	#   sed -i 's/^go 1\.[0-9]\+$/go 1.18/' go.mod
-	# before 'make staticcheck'.
-
-	# Run staticcheck against all the dirs containing Go files.
-	staticcheck $$(git ls-files *.go | sed 's|^|./|; s|/[^/]\+\.go$$||' | sort -u)
-
-tags: */*.go
-	find . -type f -name '*.go' | gotags -L - -f tags
 
 .PHONY: update-auth
 update-auth:
