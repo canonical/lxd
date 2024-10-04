@@ -24,14 +24,6 @@ type Certificate struct {
 	Restricted  bool
 }
 
-// CertificateFilter specifies potential query parameter fields.
-type CertificateFilter struct {
-	ID          *int
-	Fingerprint *string
-	Name        *string
-	Type        *certificate.Type
-}
-
 // ToAPIType returns the API equivalent type.
 func (cert *Certificate) ToAPIType() string {
 	switch cert.Type {
