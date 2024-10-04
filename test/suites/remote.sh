@@ -3,7 +3,7 @@ test_remote_url() {
   # shellcheck disable=2153
   for url in "${LXD_ADDR}" "https://${LXD_ADDR}"; do
     token="$(lxc config trust add --name foo -q)"
-    lxc_remote remote add test "${url}" --accept-certificate --token "${token}"
+    lxc_remote remote add test "${url}" --token "${token}"
     lxc_remote info test:
     lxc_remote config trust list | awk '/@/ {print $8}' | while read -r line ; do
       lxc_remote config trust remove "\"${line}\""
@@ -19,7 +19,8 @@ test_remote_url() {
   urls="${LXD_DIR}/unix.socket unix:${LXD_DIR}/unix.socket unix://${LXD_DIR}/unix.socket"
 
   # an invalid protocol returns an error
-  ! lxc_remote remote add test "${url}" --accept-certificate --token foo --protocol foo || false
+  ! lxc_remote remote add test "${url}" --protocol foo || false
+  [ "$(lxc_remote remote add test "${url}" --protocol foo 2>&1)" = "Error: Invalid protocol: foo" ]
 
   for url in ${urls}; do
     lxc_remote remote add test "${url}"
@@ -147,11 +148,12 @@ test_remote_url_with_token() {
 }
 
 test_remote_admin() {
-  ! lxc_remote remote add badpass "${LXD_ADDR}" --accept-certificate --token badtoken || false
-  ! lxc_remote list badpass: || false
+  [ "$(lxc_remote remote add badtoken "${LXD_ADDR}" --accept-certificate --token badtoken 2>&1)" = "Error: not authorized" ]
+  ! lxc_remote remote add badtoken "${LXD_ADDR}" --accept-certificate --token badtoken || false
+  ! lxc_remote list badtoken: || false
 
   token="$(lxc config trust add --name foo -q)"
-  lxc_remote remote add foo "${LXD_ADDR}" --accept-certificate --token "${token}"
+  lxc_remote remote add foo "${LXD_ADDR}" --token "${token}"
   lxc_remote remote list | grep 'foo'
 
   lxc_remote remote set-default foo
@@ -177,7 +179,7 @@ test_remote_admin() {
 
   # Test for #623
   token="$(lxc config trust add --name foo -q)"
-  lxc_remote remote add test-623 "${LXD_ADDR}" --accept-certificate --token "${token}"
+  lxc_remote remote add test-623 "${LXD_ADDR}" --token "${token}"
   lxc_remote remote remove test-623
 
   # now re-add under a different alias
@@ -199,7 +201,7 @@ test_remote_usage() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
-  lxc_remote remote add lxd2 "${LXD2_ADDR}" --accept-certificate --token "${token}"
+  lxc_remote remote add lxd2 "${LXD2_ADDR}" --token "${token}"
 
   # we need a public image on localhost
 
