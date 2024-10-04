@@ -79,8 +79,30 @@ test_authorization() {
   ! lxc auth identity group add oidc/test-user@example.com not-found || false # Group not found
   lxc auth identity group add oidc/test-user@example.com test-group # Valid
 
-  # Check user has been added to the group.
+  # Test fine-grained TLS identity creation
+  tls_identity_token="$(lxc auth identity create tls/test-user --quiet --group test-group)"
+  LXD_CONF2=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF2}" gen_cert_and_key "client"
+
+  # Cannot use the token with the certificates API and the correct error is returned.
+  [ "$(LXD_CONF="${LXD_CONF2}" my_curl -X POST "https://${LXD_ADDR}/1.0/certificates" --data "{\"trust_token\": \"${tls_identity_token}\"}" | jq -er '.error')" = "Failed during search for certificate add token operation: TLS Identity token detected (you must update your client)" ]
+
+  # Can use the token with remote add command.
+  LXD_CONF="${LXD_CONF2}" lxc remote add tls "${tls_identity_token}"
+  [ "$(LXD_CONF="${LXD_CONF2}" lxc_remote query tls:/1.0 | jq -r '.auth')" = 'trusted' ]
+
+  # Check a token cannot be used when expired
+  lxc config set core.remote_token_expiry=1S
+  tls_identity_token2="$(lxc auth identity create tls/test-user2 --quiet)"
+  sleep 2
+  LXD_CONF3=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF3}" gen_cert_and_key "client"
+  ! LXD_CONF="${LXD_CONF3}" lxc remote add tls "${tls_identity_token2}" || false
+
+  # Check users have been added to the group.
+  tls_identity_fingerprint="$(cert_fingerprint "${LXD_CONF2}/client.crt")"
   lxc auth identity list --format csv | grep -Fq 'oidc,OIDC client," ",test-user@example.com,test-group'
+  lxc auth identity list --format csv | grep -Fq "tls,Client certificate,test-user,${tls_identity_fingerprint},test-group"
 
   # Test `lxc auth identity info`
   expected=$(cat << EOF
@@ -155,6 +177,9 @@ EOF
   lxc remote remove oidc
   kill_oidc
   rm "${TEST_DIR}/oidc.user"
+  rm -r "${LXD_CONF2}"
+  rm -r "${LXD_CONF3}"
+  lxc config unset core.remote_token_expiry
   lxc config unset oidc.issuer
   lxc config unset oidc.client.id
 }
