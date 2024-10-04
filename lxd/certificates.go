@@ -294,6 +294,15 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 	}
 
 	if foundOp == nil {
+		err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			var err error
+			_, err = dbCluster.GetPendingTLSIdentityByTokenSecret(ctx, tx.Tx(), addToken.Secret)
+			return err
+		})
+		if err == nil {
+			return nil, api.NewStatusError(http.StatusBadRequest, "TLS Identity token detected (you must update your client)")
+		}
+
 		// No operation found.
 		return nil, nil
 	}
@@ -557,7 +566,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 				// If so then check there is a matching join operation.
 				tokenReq, err := certificateTokenValid(s, r, joinToken)
 				if err != nil {
-					return response.InternalError(fmt.Errorf("Failed during search for certificate add token operation: %w", err))
+					return response.SmartError(fmt.Errorf("Failed during search for certificate add token operation: %w", err))
 				}
 
 				if tokenReq == nil {
