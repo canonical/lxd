@@ -105,19 +105,28 @@ test_authorization() {
   lxc auth identity list --format csv | grep -Fq "tls,Client certificate,test-user,${tls_identity_fingerprint},test-group"
 
   # Test `lxc auth identity info`
-  expected=$(cat << EOF
-groups:
-- test-group
-authentication_method: oidc
+  expectedOIDCInfo="authentication_method: oidc
 type: OIDC client
 id: test-user@example.com
 name: ' '
+groups:
+- test-group
 effective_groups:
 - test-group
-effective_permissions: []
-EOF
-)
-  lxc auth identity info oidc: | grep -Fz "${expected}"
+effective_permissions: []"
+  [ "$(lxc auth identity info oidc:)" = "${expectedOIDCInfo}" ]
+
+  expectedTLSInfo="authentication_method: tls
+type: Client certificate
+id: ${tls_identity_fingerprint}
+name: test-user
+groups:
+- test-group
+effective_groups:
+- test-group
+effective_permissions: []"
+  [ "$(LXD_CONF="${LXD_CONF2}" lxc auth identity info tls:)" = "${expectedTLSInfo}" ]
+
 
   # Identity permissions.
   ! lxc auth group permission add test-group identity test-user@example.com can_view || false # Missing authentication method
