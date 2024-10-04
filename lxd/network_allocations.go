@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/canonical/lxd/lxd/auth"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
@@ -30,7 +31,7 @@ var networkAllocationsCmd = APIEndpoint{
 
 // swagger:operation GET /1.0/network-allocations network-allocations network_allocations_get
 //
-//	Get the network allocations in use (`network`, `network-forward` and `load-balancer` and `instance`)
+//	Get the network allocations in use (`network`, `network-forward`, `load-balancer`, `uplink` and `instance`)
 //
 //	Returns a list of network allocations in use by a LXD deployment.
 //
@@ -182,16 +183,26 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			for _, lease := range leases {
-				if shared.ValueInSlice(lease.Type, []string{"static", "dynamic"}) {
+				if shared.ValueInSlice(lease.Type, []string{"static", "dynamic", "uplink"}) {
 					cidrAddr, nat, err := ipToCIDR(lease.Address, netConf)
 					if err != nil {
 						return response.SmartError(err)
 					}
 
+					var allocationType, usedBy string
+					if lease.Type == "uplink" {
+						allocationType = "uplink"
+						networkName := strings.TrimSuffix(strings.TrimPrefix(lease.Hostname, lease.Project+"-"), ".uplink")
+						usedBy = api.NewURL().Path(version.APIVersion, "networks", networkName).Project(lease.Project).String()
+					} else {
+						allocationType = "instance"
+						usedBy = api.NewURL().Path(version.APIVersion, "instances", lease.Hostname).Project(lease.Project).String()
+					}
+
 					result = append(result, api.NetworkAllocations{
 						Address: cidrAddr,
-						UsedBy:  api.NewURL().Path(version.APIVersion, "instances", lease.Hostname).Project(lease.Project).String(),
-						Type:    "instance",
+						UsedBy:  usedBy,
+						Type:    allocationType,
 						Hwaddr:  lease.Hwaddr,
 						NAT:     nat,
 					})
