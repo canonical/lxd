@@ -18,4 +18,6 @@ type NetworkAllocations struct {
 	NAT bool `json:"nat" yaml:"nat"`
 	// Hwaddr is the MAC address of the entity consuming the network address
 	Hwaddr string `json:"hwaddr" yaml:"hwaddr"`
+	// Network is the name of the network the allocated address belongs to
+	Network string `json:"network" yaml:"network"`
 }
