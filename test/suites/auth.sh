@@ -182,6 +182,23 @@ effective_permissions: []"
   lxc_remote auth identity delete oidc:oidc/test-user@example.com
   ! lxc auth identity list --format csv | grep -Fq 'test-user@example.com' || false
 
+  # When the OIDC identity re-authenticates they should reappear in the database
+  [ "$(lxc_remote query oidc:/1.0 | jq -r '.auth')" = "trusted" ]
+  lxc auth identity list --format csv | grep -Fq 'test-user@example.com'
+  lxc_remote auth identity info oidc: | grep -Fq 'effective_permissions: []'
+
+  # The OIDC identity cannot see or delete the TLS identity.
+  ! lxc_remote auth identity show "oidc:tls/${tls_identity_fingerprint}" || false
+  ! lxc_remote auth identity delete "oidc:tls/${tls_identity_fingerprint}" || false
+
+  # But the TLS identity can see and delete itself
+  LXD_CONF="${LXD_CONF2}" lxc_remote auth identity list tls: --format csv | grep -Fq "${tls_identity_fingerprint}"
+  LXD_CONF="${LXD_CONF2}" lxc_remote auth identity delete "tls:tls/${tls_identity_fingerprint}"
+  ! lxc auth identity list --format csv | grep -Fq "${tls_identity_fingerprint}" || false
+
+  # The TLS identity is not trusted after deletion.
+  [ "$(LXD_CONF="${LXD_CONF2}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "untrusted" ]
+
   # Cleanup
   lxc auth group delete test-group
   lxc auth identity-provider-group delete test-idp-group
