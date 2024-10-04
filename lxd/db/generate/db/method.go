@@ -9,10 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/tools/go/packages"
+
 	"github.com/canonical/lxd/lxd/db/generate/file"
 	"github.com/canonical/lxd/lxd/db/generate/lex"
 	"github.com/canonical/lxd/shared"
-	"golang.org/x/tools/go/packages"
 )
 
 // Method generates a code snippet for a particular database query method.
