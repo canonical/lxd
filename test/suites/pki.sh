@@ -63,6 +63,7 @@ test_pki() {
     set -e
     # shellcheck disable=2030
     export LXD_CONF="${LXC5_DIR}"
+    export LXD_DIR="${LXD5_DIR}"
 
     ### Unrestricted CA signed client certificate with `core.trust_ca_certificates` disabled.
 
@@ -78,7 +79,7 @@ test_pki() {
 
     # Add remote using the correct token.
     # This should work because the client certificate is signed by the CA.
-    token="$(LXD_DIR=${LXD5_DIR} lxc config trust add --name foo -q)"
+    token="$(lxc config trust add --name foo -q)"
     lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --token "${token}"
 
     # Should have trust store entry because `core.trust_ca_certificates` is disabled.
@@ -103,11 +104,11 @@ test_pki() {
 
     # Remove cert from truststore.
     fingerprint="$(cert_fingerprint "${LXD_CONF}/client.crt")"
-    LXD_DIR="${LXD5_DIR}" lxc config trust remove "${fingerprint}"
+    lxc config trust remove "${fingerprint}"
     lxc_remote remote remove pki-lxd
 
     # The certificate is now revoked, we shouldn't be able to re-add it.
-    token="$(LXD_DIR=${LXD5_DIR} lxc config trust add --name foo -q)"
+    token="$(lxc config trust add --name foo -q)"
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --token "${token}" || false
     ! lxc config trust ls | grep -wF unrestricted || false
 
@@ -124,7 +125,7 @@ test_pki() {
 
     # Add remote using the correct token (restricted).
     # This should work because the client certificate is signed by the CA.
-    token="$(LXD_DIR=${LXD5_DIR} lxc config trust add --name foo --quiet --restricted)"
+    token="$(lxc config trust add --name foo --quiet --restricted)"
     lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --token "${token}"
 
     # Should have a trust store entry because `core.trust_ca_certificates` is disabled.
@@ -135,7 +136,7 @@ test_pki() {
     ! curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"' || false
 
     # Enable `core.trust_ca_certificates`.
-    LXD_DIR=${LXD5_DIR} lxc config set core.trust_ca_certificates true
+    lxc config set core.trust_ca_certificates true
 
     # The certificate was restricted, so should not be able to view server config even though `core.trust_ca_certificates` is now enabled.
     ! lxc_remote info pki-lxd: | grep -F 'core.https_address' || false
@@ -156,14 +157,14 @@ test_pki() {
 
     # Remove cert from truststore.
     fingerprint="$(cert_fingerprint "${LXD_CONF}/client.crt")"
-    LXD_DIR="${LXD5_DIR}" lxc config trust remove "${fingerprint}"
+    lxc config trust remove "${fingerprint}"
     lxc_remote remote remove pki-lxd
 
     # Unset `core.trust_ca_certificates`.
-    LXD_DIR=${LXD5_DIR} lxc config unset core.trust_ca_certificates
+    lxc config unset core.trust_ca_certificates
 
     # The certificate is now revoked, we shouldn't be able to re-add it.
-    token="$(LXD_DIR=${LXD5_DIR} lxc config trust add --name foo -q)"
+    token="$(lxc config trust add --name foo -q)"
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --token "${token}" || false
     ! lxc config trust ls | grep -wF restricted || false
 
@@ -177,7 +178,7 @@ test_pki() {
     cat "${LXD_CONF}/client.crt" "${LXD_CONF}/client.key" > "${LXD_CONF}/client.pem"
 
     # Enable `core.trust_ca_certificates`.
-    LXD_DIR=${LXD5_DIR} lxc config set core.trust_ca_certificates true
+    lxc config set core.trust_ca_certificates true
 
     # Add remote using a CA-signed client certificate, and not providing a token.
     # This should succeed because `core.trust_ca_certificates` is enabled.
@@ -209,7 +210,7 @@ test_pki() {
     [ "$(curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0/instances" | jq -e -r '.error')" = "not authorized" ]
 
     # Re-enable `core.trust_ca_certificates`.
-    LXD_DIR=${LXD5_DIR} lxc config set core.trust_ca_certificates true
+    lxc config set core.trust_ca_certificates true
 
     # Revoke the client certificate
     cd "${TEST_DIR}/pki" && "${TEST_DIR}/pki/easyrsa" --batch revoke ca-trusted keyCompromise && "${TEST_DIR}/pki/easyrsa" gen-crl && cd -
@@ -236,7 +237,7 @@ test_pki() {
 
     # Try adding a remote using a revoked client certificate, and the correct token.
     # This should fail, and the revoked certificate should not be added to the trust store.
-    token="$(LXD_DIR=${LXD5_DIR} lxc config trust add --name foo -q)"
+    token="$(lxc config trust add --name foo -q)"
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --token "${token}" || false
     ! lxc config trust ls | grep -wF prior-revoked || false
 
@@ -245,11 +246,11 @@ test_pki() {
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --token=incorrect || false
 
     # Unset `core.trust_ca_certificates` and re-test, there should be no change in behaviour as the certificate is revoked.
-    LXD_DIR=${LXD5_DIR} lxc config unset core.trust_ca_certificates
+    lxc config unset core.trust_ca_certificates
 
     # Try adding a remote using a revoked client certificate, and the correct token.
     # This should fail, and the revoked certificate should not be added to the trust store.
-    token="$(LXD_DIR=${LXD5_DIR} lxc config trust add --name foo -q)"
+    token="$(lxc config trust add --name foo -q)"
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --token "${token}" || false
     ! lxc config trust ls | grep -wF prior-revoked || false
 
