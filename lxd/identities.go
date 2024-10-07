@@ -443,14 +443,17 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 			}
 
 			if recursion == "1" && len(identities) == 1 {
-				// It's likely that the user can only view themselves. If so we can optimise here by only getting the
-				// groups for that user.
+				// If there is only one identity to return (either the caller can only view themselves, or there is only one identity in database)
+				// we can optimise here by only getting the groups for that user. This sets the value of `apiIdentity`
+				// which is to be returned if non-nil.
 				apiIdentity, err = identities[0].ToAPI(ctx, tx.Tx(), canViewGroup)
 				if err != nil {
 					return err
 				}
 			} else if recursion == "1" {
 				// Otherwise, get all groups and populate the identities outside of the transaction.
+				// This optimisation prevents us from iterating through each identity and querying the database for the
+				// groups of each identity in turn.
 				groupsByIdentityID, err = dbCluster.GetAllAuthGroupsByIdentityIDs(ctx, tx.Tx())
 				if err != nil {
 					return err
@@ -463,7 +466,7 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 			return response.SmartError(err)
 		}
 
-		// Optimisation for user that can only view themselves.
+		// Optimisation for when only one identity is present on the system.
 		if apiIdentity != nil {
 			return response.SyncResponse(true, []api.Identity{*apiIdentity})
 		}
