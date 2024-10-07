@@ -351,7 +351,7 @@ jobs:
           ephemeral_disk="$(findmnt --noheadings --output SOURCE --target /mnt | sed 's/[0-9]\+$//')"
           sudo umount /mnt
 
-          sudo snap install microceph --edge
+          sudo snap install microceph --channel=latest/edge
           sudo snap connect microceph:mount-observe
           sudo apt-get install --no-install-recommends -y ceph-common
           sudo microceph cluster bootstrap
