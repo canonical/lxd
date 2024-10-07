@@ -47,11 +47,11 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	github.com/zitadel/oidc/v2 v2.12.2
-	golang.org/x/crypto v0.27.0
+	golang.org/x/crypto v0.28.0
 	golang.org/x/oauth2 v0.23.0
 	golang.org/x/sync v0.8.0
 	golang.org/x/sys v0.26.0
-	golang.org/x/term v0.24.0
+	golang.org/x/term v0.25.0
 	golang.org/x/text v0.19.0
 	google.golang.org/protobuf v1.34.2
 	gopkg.in/juju/environschema.v1 v1.0.1
