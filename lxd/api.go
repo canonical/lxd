@@ -23,6 +23,7 @@ import (
 	"github.com/canonical/lxd/lxd/storage/s3"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -205,7 +206,7 @@ func restServer(d *Daemon) *http.Server {
 	}
 
 	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		metrics.TrackStartedRequest(r)
+		metrics.TrackStartedRequest(r, entity.TypeServer) // Use TypeServer for not found handler
 		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
 		w.Header().Set("Content-Type", "application/json")
 		_ = response.NotFound(nil).Render(w, r)
@@ -264,7 +265,7 @@ func metricsServer(d *Daemon) *http.Server {
 	d.createCmd(mux, "1.0", metricsCmd)
 
 	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		metrics.TrackStartedRequest(r)
+		metrics.TrackStartedRequest(r, entity.TypeServer) // Use TypeServer for not found handler
 		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
 		w.Header().Set("Content-Type", "application/json")
 		_ = response.NotFound(nil).Render(w, r)

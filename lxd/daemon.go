@@ -638,7 +638,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		// Only endpoints from the main API (version 1.0) should be counted for the metrics.
 		// This prevents internal endpoints from being included as well.
 		if version == "1.0" {
-			metrics.TrackStartedRequest(r)
+			metrics.TrackStartedRequest(r, c.MetricsType)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
