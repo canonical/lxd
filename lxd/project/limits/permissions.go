@@ -1635,7 +1635,7 @@ func AllowClusterUpdate(ctx context.Context, tx *db.ClusterTx, sysinfo map[strin
 				memberConfig = make(map[string]db.OverridableConfig)
 			}
 
-			overridable, _ := memberConfig[reservationKey]
+			overridable := memberConfig[reservationKey]
 
 			if newValue != "" {
 				overridable.ClusterValue.String = newValue
