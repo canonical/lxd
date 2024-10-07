@@ -27,19 +27,8 @@ jobs:
         with:
           ref: main
 
-      # We are using the deb package instead of the trivy action because we need to point to the cache directory
-      # with cache-dir, and there is currently a bug in that functionality on the Trivy GitHub action.
-      # See https://github.com/aquasecurity/trivy-action/issues/12.
       - name: Install Trivy
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mkdir -p /home/runner/vuln-cache
-          sudo apt-get install wget apt-transport-https gnupg
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
-          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update
-          sudo apt-get install trivy
+        uses: ./.github/actions/install-trivy
 
       - name: Run Trivy vulnerability scanner
         run: |
@@ -74,18 +63,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871  # v4.2.1
-        with:
-          ref: ${{ (matrix.version == 'latest' && 'main') || format('stable-{0}', matrix.version) }}
 
       - name: Install Trivy
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          sudo apt-get install wget apt-transport-https gnupg
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
-          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update
-          sudo apt-get install trivy
+        uses: ./.github/actions/install-trivy
 
       - name: Restore cached Trivy vulnerability database
         uses: actions/cache/restore@3624ceb22c1c5a301c8db4169662070a689d9ea8  # v4.1.1
@@ -101,16 +81,23 @@ jobs:
       - name: Run Trivy vulnerability scanner
         run: |
           trivy rootfs --quiet --scanners vuln,secret,misconfig --format sarif --cache-dir /home/runner/vuln-cache \
-          --severity LOW,MEDIUM,HIGH,CRITICAL --output ${{ matrix.version }}-stable.sarif squashfs-root
+          --severity LOW,MEDIUM,HIGH,CRITICAL --output /home/runner/${{ matrix.version }}-stable.sarif squashfs-root
 
       - name: Flag snap scanning alerts
         run: |
+          cd /home/runner
           jq '.runs[].tool.driver.rules[] |= (.shortDescription.text |= "Snap scan - " + .)' ${{ matrix.version }}-stable.sarif > tmp.json
           mv tmp.json ${{ matrix.version }}-stable.sarif
+
+      # Now we checkout to the branch related to the scanned snap to populate github.sha appropriately.
+      - name: Checkout
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871  # v4.2.1
+        with:
+          ref: ${{ (matrix.version == 'latest' && 'main') || format('stable-{0}', matrix.version) }}
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: "${{ matrix.version }}-stable.sarif"
+          sarif_file: /home/runner/${{ matrix.version }}-stable.sarif
           sha: ${{ github.sha }}
           ref: refs/heads/${{ (matrix.version == 'latest' && 'main') || format('stable-{0}', matrix.version) }}
