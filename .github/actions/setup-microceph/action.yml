@@ -1,0 +1,93 @@
+name: Setup MicroCeph
+description: Setup MicroCeph to use the ephemeral disk of GHA runners
+
+inputs:
+  microceph-channel:
+    description: MicroCeph snap channel to install
+    default: "latest/edge"
+    type: string
+
+runs:
+  using: composite
+  steps:
+    - name: Ephemeral disk checks
+      shell: bash
+      run: |
+          set -eux
+
+          # If the rootfs and the ephemeral part are on the same physical disk, giving the whole
+          # disk to microceph would wipe our rootfs. Since it is pretty rare for GitHub Action
+          # runners to have a single disk, we immediately bail rather than trying to gracefully
+          # handle it. Once snapd releases with https://github.com/snapcore/snapd/pull/13150,
+          # we will be able to stop worrying about that special case.
+          if [ "$(stat -c '%d' /)" = "$(stat -c '%d' /mnt)" ]; then
+            echo "FAIL: rootfs and ephemeral part on the same disk, aborting"
+            exit 1
+          fi
+
+    - name: Free-up ephemeral disk
+      shell: bash
+      id: free_ephemeral_disk
+      run: |
+          set -eux
+
+          sudo swapoff /mnt/swapfile
+          ephemeral_disk="$(findmnt --noheadings --output SOURCE --target /mnt | sed 's/[0-9]\+$//')"
+          sudo umount /mnt
+          echo "ephemeral_disk=${ephemeral_disk}" >> "${GITHUB_OUTPUT}"
+
+    - name: Install MicroCeph snap
+      shell: bash
+      run: |
+          set -eux
+
+          cleanup() {
+            set +e
+            # dmesg may contain oops, IO errors, crashes, etc
+            echo "::group::dmesg logs"
+            journalctl --quiet --no-hostname --no-pager --boot=0 --lines=100 --dmesg
+            echo "::endgroup::"
+            exit 1
+          }
+          trap cleanup ERR HUP INT TERM
+
+          sudo snap install microceph --channel "${{ inputs.microceph-channel }}"
+          sudo snap connect microceph:mount-observe
+          sudo microceph cluster bootstrap
+          sudo microceph.ceph config set global osd_pool_default_size 1
+          sudo microceph.ceph config set global mon_allow_pool_delete true
+          sudo microceph.ceph config set global osd_memory_target 939524096
+          sudo microceph.ceph osd crush rule rm replicated_rule
+          sudo microceph.ceph osd crush rule create-replicated replicated default osd
+          for flag in nosnaptrim noscrub nobackfill norebalance norecover noscrub nodeep-scrub; do
+              sudo microceph.ceph osd set $flag
+          done
+          sudo microceph disk add --wipe "${{ steps.free_ephemeral_disk.outputs.ephemeral_disk }}"
+          sudo rm -rf /etc/ceph
+          sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
+          sudo microceph enable rgw || true # workaround to ignore already enabled rgw
+          sudo microceph.ceph osd pool create cephfs_meta 32
+          sudo microceph.ceph osd pool create cephfs_data 32
+          sudo microceph.ceph fs new cephfs cephfs_meta cephfs_data
+          sudo microceph.ceph fs ls
+          sleep 30
+          sudo microceph.ceph status
+          # Wait until there are no more "unknowns" pgs
+          for _ in $(seq 60); do
+            if sudo microceph.ceph pg stat | grep -wF unknown; then
+              sleep 1
+            else
+              break
+            fi
+          done
+          sudo microceph.ceph status
+          sudo rm -f /snap/bin/rbd
+
+    - name: Install ceph-common package
+      shell: bash
+      run: |
+          set -eux
+
+          sudo apt-get install --no-install-recommends -y ceph-common
+          # reclaim some space
+          sudo apt-get clean
