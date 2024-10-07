@@ -753,7 +753,7 @@ func (c *cmdFilePush) run(cmd *cobra.Command, args []string) error {
 			c.file.flagMode = "0" + c.file.flagMode
 		}
 
-		m, err := strconv.ParseInt(c.file.flagMode, 0, 0)
+		m, err := strconv.ParseUint(c.file.flagMode, 8, 32)
 		if err != nil {
 			return err
 		}
