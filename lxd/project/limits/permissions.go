@@ -1625,7 +1625,7 @@ func coalesceOverrides(config map[string]db.OverridableConfig) map[string]string
 
 // AllowClusterUpdate returns err if replacing the cluster configuration with
 // newConfig would violate any limits.reserve.* configuration.
-func AllowClusterUpdate(ctx context.Context, tx *db.ClusterTx, sysinfo map[string]api.ClusterMemberSysInfo, newConfig map[string]any) error {
+func AllowClusterUpdate(ctx context.Context, tx *db.ClusterTx, globalConfig map[string]any, sysinfo map[string]api.ClusterMemberSysInfo, newConfig map[string]any) error {
 	membersConfig, err := tx.GetMemberConfigWithGlobalDefault(ctx, []string{}, allReservations)
 	if err != nil {
 		return err
@@ -1677,22 +1677,22 @@ func AllowClusterUpdate(ctx context.Context, tx *db.ClusterTx, sysinfo map[strin
 		return nil
 	}
 
-	aggregates, err := getClusterMemberAggregateLimits(ctx, tx, newConfig, requiredLimits)
+	clusterMemberNames := []string{}
+	for clusterMemberName := range membersConfig {
+		clusterMemberNames = append(clusterMemberNames, clusterMemberName)
+	}
+
+	aggregates, err := getClusterMemberAggregateLimits(ctx, tx, globalConfig, clusterMemberNames, limits)
 	if err != nil {
 		return err
 	}
 
 	// Validate each cluster member's new config
 	for clusterMemberName, config := range membersConfig {
-		memberInstanceLimits, hasClusterMember := instanceLimits[clusterMemberName]
-		if !hasClusterMember {
+		aggregateLimits, hasAggregates := aggregates[clusterMemberName]
+		if !hasAggregates {
 			// No instances on this cluster member
 			continue
-		}
-
-		aggregateLimits, err := getClusterMemberAggregateLimits(memberInstanceLimits, clusterMemberName, config)
-		if err != nil {
-			return err
 		}
 
 		reservations := coalesceOverrides(config)

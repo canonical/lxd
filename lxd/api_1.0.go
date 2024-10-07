@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -21,6 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
@@ -701,6 +703,37 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	var newClusterConfig *clusterConfig.Config
 	var oldClusterConfig map[string]any
 
+	// If req.Config doesn't contain a limits.reserve.* then we don't need to
+	// call AllowClusterUpdate at all; Removing a global limits.reserve.*
+	// doesn't change the effective limit on any cluster member.
+	changesReservation := false
+	for key := range req.Config {
+		if strings.Contains(key, "limits.reserve") {
+			changesReservation = true
+			break
+		}
+	}
+
+	var sysinfo map[string]api.ClusterMemberSysInfo
+	if changesReservation {
+		var members []db.NodeInfo
+
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			members, err = tx.GetNodes(ctx)
+			return err
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		sysinfo, err = cluster.ClusterSysInfo(s, members)
+		if err == cluster.ErrorClusterUnavailable {
+			return response.Unavailable(fmt.Errorf("Cannot set limits.reserve.{cpu,memory} when cluster members are unreachble"))
+		} else if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
 	err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		newClusterConfig, err = clusterConfig.Load(ctx, tx)
@@ -710,6 +743,23 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 		// Keep old config around in case something goes wrong. In that case the config will be reverted.
 		oldClusterConfig = newClusterConfig.Dump()
+
+		if changesReservation {
+			// TODO Don't do the patch logic twice :facepalm:
+			validationConfig := newClusterConfig.Dump()
+			if patch {
+				for key, val := range req.Config {
+					validationConfig[key] = val
+				}
+			} else {
+				validationConfig = req.Config
+			}
+
+			err = limits.AllowClusterUpdate(ctx, tx, sysinfo, validationConfig)
+			if err != nil {
+				return err
+			}
+		}
 
 		if patch {
 			clusterChanged, err = newClusterConfig.Patch(req.Config)
