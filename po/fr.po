@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-09-30 13:36-0400\n"
+"POT-Creation-Date: 2024-10-01 10:45-0600\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -679,12 +679,12 @@ msgstr "%s (%d de plus)"
 msgid "%s (%s) (%d available)"
 msgstr "%s (%d de plus)"
 
-#: lxc/file.go:936
+#: lxc/file.go:1125
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s n'est pas un répertoire"
 
-#: lxc/file.go:826
+#: lxc/file.go:1015
 #, fuzzy, c-format
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' n'est pas un format de fichier pris en charge."
@@ -778,7 +778,7 @@ msgstr "Serveur distant : %s"
 msgid "<remote> <new-name>"
 msgstr ""
 
-#: lxc/file.go:466
+#: lxc/file.go:655
 #, fuzzy
 msgid "<source path>... [<remote>:]<instance>/<path>"
 msgstr ""
@@ -1272,7 +1272,7 @@ msgstr ""
 msgid "Can't provide a name for the target image"
 msgstr ""
 
-#: lxc/file.go:341
+#: lxc/file.go:530
 #, fuzzy
 msgid "Can't pull a directory without --recursive"
 msgstr "impossible de récupérer un répertoire sans --recursive"
@@ -1303,7 +1303,7 @@ msgstr ""
 msgid "Can't specify column L when not clustered"
 msgstr ""
 
-#: lxc/file.go:547
+#: lxc/file.go:736
 #, fuzzy
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr "impossible de spécifier uid/gid/mode en mode récursif"
@@ -1713,8 +1713,13 @@ msgstr "Création du conteneur"
 msgid "Create and start instances from images"
 msgstr "Création du conteneur"
 
-#: lxc/file.go:249 lxc/file.go:475
+#: lxc/file.go:143 lxc/file.go:438 lxc/file.go:664
 msgid "Create any directories necessary"
+msgstr "Créer tous répertoires nécessaires"
+
+#: lxc/file.go:134 lxc/file.go:135
+#, fuzzy
+msgid "Create files and directories in instances"
 msgstr "Créer tous répertoires nécessaires"
 
 #: lxc/auth.go:98 lxc/auth.go:99
@@ -1844,6 +1849,11 @@ msgstr "Créé : %s"
 msgid "Creating %s"
 msgstr "Création de %s"
 
+#: lxc/file.go:273
+#, fuzzy, c-format
+msgid "Creating %s: %%s"
+msgstr "Création de %s"
+
 #: lxc/init.go:184
 #, fuzzy
 msgid "Creating the instance"
@@ -1903,7 +1913,7 @@ msgstr ""
 msgid "Delete all warnings"
 msgstr "Récupération de l'image : %s"
 
-#: lxc/file.go:123 lxc/file.go:124
+#: lxc/file.go:312 lxc/file.go:313
 #, fuzzy
 msgid "Delete files in instances"
 msgstr "Création du conteneur"
@@ -2034,70 +2044,71 @@ msgstr "Récupération de l'image : %s"
 #: lxc/config_trust.go:236 lxc/config_trust.go:350 lxc/config_trust.go:432
 #: lxc/config_trust.go:534 lxc/config_trust.go:580 lxc/config_trust.go:651
 #: lxc/console.go:37 lxc/copy.go:42 lxc/delete.go:32 lxc/exec.go:41
-#: lxc/export.go:32 lxc/file.go:84 lxc/file.go:124 lxc/file.go:173
-#: lxc/file.go:243 lxc/file.go:468 lxc/file.go:987 lxc/image.go:38
-#: lxc/image.go:159 lxc/image.go:337 lxc/image.go:396 lxc/image.go:525
-#: lxc/image.go:697 lxc/image.go:948 lxc/image.go:1090 lxc/image.go:1417
-#: lxc/image.go:1508 lxc/image.go:1574 lxc/image.go:1638 lxc/image.go:1701
-#: lxc/image_alias.go:24 lxc/image_alias.go:60 lxc/image_alias.go:107
-#: lxc/image_alias.go:152 lxc/image_alias.go:255 lxc/import.go:29
-#: lxc/info.go:33 lxc/init.go:44 lxc/launch.go:24 lxc/list.go:49 lxc/main.go:83
-#: lxc/manpage.go:22 lxc/monitor.go:34 lxc/move.go:38 lxc/network.go:33
-#: lxc/network.go:136 lxc/network.go:233 lxc/network.go:318 lxc/network.go:405
-#: lxc/network.go:463 lxc/network.go:560 lxc/network.go:657 lxc/network.go:793
-#: lxc/network.go:874 lxc/network.go:1005 lxc/network.go:1106
-#: lxc/network.go:1185 lxc/network.go:1245 lxc/network.go:1341
-#: lxc/network.go:1413 lxc/network_acl.go:30 lxc/network_acl.go:95
-#: lxc/network_acl.go:174 lxc/network_acl.go:235 lxc/network_acl.go:291
-#: lxc/network_acl.go:364 lxc/network_acl.go:461 lxc/network_acl.go:549
-#: lxc/network_acl.go:592 lxc/network_acl.go:731 lxc/network_acl.go:788
-#: lxc/network_acl.go:845 lxc/network_acl.go:860 lxc/network_acl.go:997
-#: lxc/network_allocations.go:51 lxc/network_forward.go:33
-#: lxc/network_forward.go:90 lxc/network_forward.go:179
-#: lxc/network_forward.go:256 lxc/network_forward.go:404
-#: lxc/network_forward.go:489 lxc/network_forward.go:599
-#: lxc/network_forward.go:646 lxc/network_forward.go:800
-#: lxc/network_forward.go:874 lxc/network_forward.go:889
-#: lxc/network_forward.go:970 lxc/network_load_balancer.go:33
-#: lxc/network_load_balancer.go:94 lxc/network_load_balancer.go:181
-#: lxc/network_load_balancer.go:258 lxc/network_load_balancer.go:408
-#: lxc/network_load_balancer.go:476 lxc/network_load_balancer.go:586
-#: lxc/network_load_balancer.go:616 lxc/network_load_balancer.go:771
-#: lxc/network_load_balancer.go:844 lxc/network_load_balancer.go:859
-#: lxc/network_load_balancer.go:935 lxc/network_load_balancer.go:1033
-#: lxc/network_load_balancer.go:1048 lxc/network_load_balancer.go:1121
-#: lxc/network_peer.go:29 lxc/network_peer.go:82 lxc/network_peer.go:167
-#: lxc/network_peer.go:236 lxc/network_peer.go:360 lxc/network_peer.go:445
-#: lxc/network_peer.go:547 lxc/network_peer.go:594 lxc/network_peer.go:731
-#: lxc/network_zone.go:29 lxc/network_zone.go:86 lxc/network_zone.go:165
-#: lxc/network_zone.go:228 lxc/network_zone.go:301 lxc/network_zone.go:396
-#: lxc/network_zone.go:484 lxc/network_zone.go:527 lxc/network_zone.go:654
-#: lxc/network_zone.go:710 lxc/network_zone.go:767 lxc/network_zone.go:845
-#: lxc/network_zone.go:909 lxc/network_zone.go:985 lxc/network_zone.go:1083
-#: lxc/network_zone.go:1172 lxc/network_zone.go:1219 lxc/network_zone.go:1349
-#: lxc/network_zone.go:1410 lxc/network_zone.go:1425 lxc/network_zone.go:1483
-#: lxc/operation.go:25 lxc/operation.go:57 lxc/operation.go:107
-#: lxc/operation.go:194 lxc/profile.go:30 lxc/profile.go:105 lxc/profile.go:180
-#: lxc/profile.go:271 lxc/profile.go:353 lxc/profile.go:435 lxc/profile.go:493
-#: lxc/profile.go:629 lxc/profile.go:703 lxc/profile.go:772 lxc/profile.go:860
-#: lxc/profile.go:920 lxc/profile.go:1009 lxc/profile.go:1073 lxc/project.go:31
-#: lxc/project.go:95 lxc/project.go:191 lxc/project.go:262 lxc/project.go:398
-#: lxc/project.go:472 lxc/project.go:592 lxc/project.go:657 lxc/project.go:745
-#: lxc/project.go:789 lxc/project.go:850 lxc/project.go:917 lxc/publish.go:34
-#: lxc/query.go:34 lxc/rebuild.go:28 lxc/remote.go:35 lxc/remote.go:91
-#: lxc/remote.go:648 lxc/remote.go:686 lxc/remote.go:772 lxc/remote.go:853
-#: lxc/remote.go:917 lxc/remote.go:965 lxc/rename.go:22 lxc/restore.go:24
-#: lxc/snapshot.go:32 lxc/storage.go:34 lxc/storage.go:97 lxc/storage.go:203
-#: lxc/storage.go:261 lxc/storage.go:393 lxc/storage.go:475 lxc/storage.go:655
-#: lxc/storage.go:742 lxc/storage.go:846 lxc/storage.go:940
-#: lxc/storage_bucket.go:30 lxc/storage_bucket.go:84 lxc/storage_bucket.go:189
-#: lxc/storage_bucket.go:250 lxc/storage_bucket.go:383
-#: lxc/storage_bucket.go:459 lxc/storage_bucket.go:536
-#: lxc/storage_bucket.go:630 lxc/storage_bucket.go:699
-#: lxc/storage_bucket.go:733 lxc/storage_bucket.go:774
-#: lxc/storage_bucket.go:853 lxc/storage_bucket.go:959
-#: lxc/storage_bucket.go:1023 lxc/storage_bucket.go:1158
-#: lxc/storage_volume.go:58 lxc/storage_volume.go:169 lxc/storage_volume.go:283
+#: lxc/export.go:32 lxc/file.go:88 lxc/file.go:135 lxc/file.go:313
+#: lxc/file.go:362 lxc/file.go:432 lxc/file.go:657 lxc/file.go:1176
+#: lxc/image.go:38 lxc/image.go:159 lxc/image.go:337 lxc/image.go:396
+#: lxc/image.go:525 lxc/image.go:697 lxc/image.go:948 lxc/image.go:1090
+#: lxc/image.go:1417 lxc/image.go:1508 lxc/image.go:1574 lxc/image.go:1638
+#: lxc/image.go:1701 lxc/image_alias.go:24 lxc/image_alias.go:60
+#: lxc/image_alias.go:107 lxc/image_alias.go:152 lxc/image_alias.go:255
+#: lxc/import.go:29 lxc/info.go:33 lxc/init.go:44 lxc/launch.go:24
+#: lxc/list.go:49 lxc/main.go:83 lxc/manpage.go:22 lxc/monitor.go:34
+#: lxc/move.go:38 lxc/network.go:33 lxc/network.go:136 lxc/network.go:233
+#: lxc/network.go:318 lxc/network.go:405 lxc/network.go:463 lxc/network.go:560
+#: lxc/network.go:657 lxc/network.go:793 lxc/network.go:874 lxc/network.go:1005
+#: lxc/network.go:1106 lxc/network.go:1185 lxc/network.go:1245
+#: lxc/network.go:1341 lxc/network.go:1413 lxc/network_acl.go:30
+#: lxc/network_acl.go:95 lxc/network_acl.go:174 lxc/network_acl.go:235
+#: lxc/network_acl.go:291 lxc/network_acl.go:364 lxc/network_acl.go:461
+#: lxc/network_acl.go:549 lxc/network_acl.go:592 lxc/network_acl.go:731
+#: lxc/network_acl.go:788 lxc/network_acl.go:845 lxc/network_acl.go:860
+#: lxc/network_acl.go:997 lxc/network_allocations.go:51
+#: lxc/network_forward.go:33 lxc/network_forward.go:90
+#: lxc/network_forward.go:179 lxc/network_forward.go:256
+#: lxc/network_forward.go:404 lxc/network_forward.go:489
+#: lxc/network_forward.go:599 lxc/network_forward.go:646
+#: lxc/network_forward.go:800 lxc/network_forward.go:874
+#: lxc/network_forward.go:889 lxc/network_forward.go:970
+#: lxc/network_load_balancer.go:33 lxc/network_load_balancer.go:94
+#: lxc/network_load_balancer.go:181 lxc/network_load_balancer.go:258
+#: lxc/network_load_balancer.go:408 lxc/network_load_balancer.go:476
+#: lxc/network_load_balancer.go:586 lxc/network_load_balancer.go:616
+#: lxc/network_load_balancer.go:771 lxc/network_load_balancer.go:844
+#: lxc/network_load_balancer.go:859 lxc/network_load_balancer.go:935
+#: lxc/network_load_balancer.go:1033 lxc/network_load_balancer.go:1048
+#: lxc/network_load_balancer.go:1121 lxc/network_peer.go:29
+#: lxc/network_peer.go:82 lxc/network_peer.go:167 lxc/network_peer.go:236
+#: lxc/network_peer.go:360 lxc/network_peer.go:445 lxc/network_peer.go:547
+#: lxc/network_peer.go:594 lxc/network_peer.go:731 lxc/network_zone.go:29
+#: lxc/network_zone.go:86 lxc/network_zone.go:165 lxc/network_zone.go:228
+#: lxc/network_zone.go:301 lxc/network_zone.go:396 lxc/network_zone.go:484
+#: lxc/network_zone.go:527 lxc/network_zone.go:654 lxc/network_zone.go:710
+#: lxc/network_zone.go:767 lxc/network_zone.go:845 lxc/network_zone.go:909
+#: lxc/network_zone.go:985 lxc/network_zone.go:1083 lxc/network_zone.go:1172
+#: lxc/network_zone.go:1219 lxc/network_zone.go:1349 lxc/network_zone.go:1410
+#: lxc/network_zone.go:1425 lxc/network_zone.go:1483 lxc/operation.go:25
+#: lxc/operation.go:57 lxc/operation.go:107 lxc/operation.go:194
+#: lxc/profile.go:30 lxc/profile.go:105 lxc/profile.go:180 lxc/profile.go:271
+#: lxc/profile.go:353 lxc/profile.go:435 lxc/profile.go:493 lxc/profile.go:629
+#: lxc/profile.go:703 lxc/profile.go:772 lxc/profile.go:860 lxc/profile.go:920
+#: lxc/profile.go:1009 lxc/profile.go:1073 lxc/project.go:31 lxc/project.go:95
+#: lxc/project.go:191 lxc/project.go:262 lxc/project.go:398 lxc/project.go:472
+#: lxc/project.go:592 lxc/project.go:657 lxc/project.go:745 lxc/project.go:789
+#: lxc/project.go:850 lxc/project.go:917 lxc/publish.go:34 lxc/query.go:34
+#: lxc/rebuild.go:28 lxc/remote.go:35 lxc/remote.go:91 lxc/remote.go:648
+#: lxc/remote.go:686 lxc/remote.go:772 lxc/remote.go:853 lxc/remote.go:917
+#: lxc/remote.go:965 lxc/rename.go:22 lxc/restore.go:24 lxc/snapshot.go:32
+#: lxc/storage.go:34 lxc/storage.go:97 lxc/storage.go:203 lxc/storage.go:261
+#: lxc/storage.go:393 lxc/storage.go:475 lxc/storage.go:655 lxc/storage.go:742
+#: lxc/storage.go:846 lxc/storage.go:940 lxc/storage_bucket.go:30
+#: lxc/storage_bucket.go:84 lxc/storage_bucket.go:189 lxc/storage_bucket.go:250
+#: lxc/storage_bucket.go:383 lxc/storage_bucket.go:459
+#: lxc/storage_bucket.go:536 lxc/storage_bucket.go:630
+#: lxc/storage_bucket.go:699 lxc/storage_bucket.go:733
+#: lxc/storage_bucket.go:774 lxc/storage_bucket.go:853
+#: lxc/storage_bucket.go:959 lxc/storage_bucket.go:1023
+#: lxc/storage_bucket.go:1158 lxc/storage_volume.go:58
+#: lxc/storage_volume.go:169 lxc/storage_volume.go:283
 #: lxc/storage_volume.go:390 lxc/storage_volume.go:605
 #: lxc/storage_volume.go:714 lxc/storage_volume.go:801
 #: lxc/storage_volume.go:899 lxc/storage_volume.go:996
@@ -2199,7 +2210,7 @@ msgstr "L'importation de répertoire n'est pas disponible sur cette plateforme"
 msgid "Directory to run the command in (default /root)"
 msgstr ""
 
-#: lxc/file.go:995
+#: lxc/file.go:1184
 msgid "Disable authentication when using SSH SFTP listener"
 msgstr ""
 
@@ -2271,7 +2282,7 @@ msgstr "DATE D'EXPIRATION"
 msgid "EXPIRY DATE"
 msgstr "DATE D'EXPIRATION"
 
-#: lxc/file.go:75
+#: lxc/file.go:79
 msgid ""
 "Early server side processing of file transfer requests cannot be canceled "
 "(interrupt two more times to force)"
@@ -2290,7 +2301,7 @@ msgstr ""
 msgid "Edit cluster member configurations as YAML"
 msgstr "Clé de configuration invalide"
 
-#: lxc/file.go:172 lxc/file.go:173
+#: lxc/file.go:361 lxc/file.go:362
 #, fuzzy
 msgid "Edit files in instances"
 msgstr "Création du conteneur"
@@ -2601,12 +2612,12 @@ msgstr "EMPREINTE"
 msgid "FIRST SEEN"
 msgstr ""
 
-#: lxc/file.go:1238
+#: lxc/file.go:1427
 #, c-format
 msgid "Failed SSH handshake with client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1261
+#: lxc/file.go:1450
 #, c-format
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
@@ -2621,12 +2632,12 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr "Profil à appliquer au nouveau conteneur"
 
-#: lxc/file.go:1288
+#: lxc/file.go:1477
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1073
+#: lxc/file.go:1262
 #, fuzzy, c-format
 msgid "Failed connecting to instance SFTP: %w"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -2656,7 +2667,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed fetching fingerprint %q: %w"
 msgstr "Profil à appliquer au nouveau conteneur"
 
-#: lxc/file.go:1194
+#: lxc/file.go:1383
 #, fuzzy, c-format
 msgid "Failed generating SSH host key: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
@@ -2671,7 +2682,7 @@ msgstr ""
 msgid "Failed loading profile %q: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/file.go:1199
+#: lxc/file.go:1388
 #, fuzzy, c-format
 msgid "Failed parsing SSH host key: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
@@ -2681,12 +2692,12 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 msgid "Failed starting command: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/file.go:1099
+#: lxc/file.go:1288
 #, fuzzy, c-format
 msgid "Failed starting sshfs: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/file.go:1226
+#: lxc/file.go:1415
 #, fuzzy, c-format
 msgid "Failed to accept incoming connection: %w"
 msgstr "Échec lors de la génération de 'lxc.1': %v"
@@ -2726,7 +2737,7 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 msgid "Failed to find project: %w"
 msgstr "Échec lors de la génération de 'lxc.1': %v"
 
-#: lxc/file.go:1211
+#: lxc/file.go:1400
 #, fuzzy, c-format
 msgid "Failed to listen for connection: %w"
 msgstr "Échec lors de la génération de 'lxc.1': %v"
@@ -2741,7 +2752,7 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 msgid "Failed to remove alias %s: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/file.go:821
+#: lxc/file.go:1010
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -2768,6 +2779,10 @@ msgstr "Empreinte : %s"
 
 #: lxc/cluster.go:1302
 msgid "Force a particular evacuation action"
+msgstr ""
+
+#: lxc/file.go:144
+msgid "Force creating files or directories"
 msgstr ""
 
 #: lxc/cluster.go:1301
@@ -3092,22 +3107,22 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Hugepages:\n"
 msgstr ""
 
-#: lxc/file.go:1311
+#: lxc/file.go:1500
 #, fuzzy, c-format
 msgid "I/O copy from SSH to instance failed: %v"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/file.go:1300
+#: lxc/file.go:1489
 #, fuzzy, c-format
 msgid "I/O copy from instance to SSH failed: %v"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/file.go:1123
+#: lxc/file.go:1312
 #, fuzzy, c-format
 msgid "I/O copy from instance to sshfs failed: %v"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/file.go:1133
+#: lxc/file.go:1322
 #, fuzzy, c-format
 msgid "I/O copy from sshfs to instance failed: %v"
 msgstr "L'arrêt du conteneur a échoué !"
@@ -3314,12 +3329,12 @@ msgstr ""
 msgid "Instance Only"
 msgstr "Le nom du conteneur est : %s"
 
-#: lxc/file.go:1125
+#: lxc/file.go:1314
 #, fuzzy
 msgid "Instance disconnected"
 msgstr "Mot de passe de l'administrateur distant"
 
-#: lxc/file.go:1302
+#: lxc/file.go:1491
 #, c-format
 msgid "Instance disconnected for client %q"
 msgstr ""
@@ -3339,7 +3354,7 @@ msgstr "Le nom du conteneur est : %s"
 msgid "Instance name must be specified"
 msgstr "Le nom du conteneur est : %s"
 
-#: lxc/file.go:1045
+#: lxc/file.go:1234
 msgid "Instance path cannot be used in SSH SFTP listener mode"
 msgstr ""
 
@@ -3391,7 +3406,7 @@ msgstr "Cible invalide %s"
 msgid "Invalid instance name: %s"
 msgstr "Le nom du conteneur est : %s"
 
-#: lxc/file.go:1040
+#: lxc/file.go:1229
 #, fuzzy, c-format
 msgid "Invalid instance path: %q"
 msgstr "Le nom du conteneur est : %s"
@@ -3435,7 +3450,7 @@ msgstr ""
 msgid "Invalid number of arguments"
 msgstr "nombre d'arguments incorrect pour la sous-comande"
 
-#: lxc/file.go:148
+#: lxc/file.go:337
 #, fuzzy, c-format
 msgid "Invalid path %s"
 msgstr "Cible invalide %s"
@@ -3452,14 +3467,19 @@ msgstr "Cible invalide %s"
 msgid "Invalid snapshot name"
 msgstr "Le nom du conteneur est : %s"
 
-#: lxc/file.go:314
+#: lxc/file.go:503
 #, c-format
 msgid "Invalid source %s"
 msgstr "Source invalide %s"
 
-#: lxc/file.go:496
+#: lxc/file.go:177 lxc/file.go:685
 #, c-format
 msgid "Invalid target %s"
+msgstr "Cible invalide %s"
+
+#: lxc/file.go:163
+#, fuzzy, c-format
+msgid "Invalid type %q"
 msgstr "Cible invalide %s"
 
 #: lxc/info.go:238
@@ -4049,7 +4069,7 @@ msgstr ""
 msgid "Manage devices"
 msgstr "Création du conteneur"
 
-#: lxc/file.go:83 lxc/file.go:84
+#: lxc/file.go:87 lxc/file.go:88
 #, fuzzy
 msgid "Manage files in instances"
 msgstr "Transfert de l'image : %s"
@@ -4489,7 +4509,7 @@ msgstr "Copie de l'image : %s"
 msgid "Missing storage pool name"
 msgstr "Nom de l'ensemble de stockage"
 
-#: lxc/file.go:599
+#: lxc/file.go:788
 #, fuzzy
 msgid "Missing target directory"
 msgstr "%s n'est pas un répertoire"
@@ -4531,12 +4551,12 @@ msgstr ""
 msgid "More than one device matches, specify the device name"
 msgstr "Plus d'un périphérique correspond, spécifier le nom du périphérique."
 
-#: lxc/file.go:286
+#: lxc/file.go:475
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Plusieurs fichiers à télécharger, mais la destination n'est pas un dossier"
 
-#: lxc/file.go:986 lxc/file.go:987
+#: lxc/file.go:1175 lxc/file.go:1176
 #, fuzzy
 msgid "Mount files from instances"
 msgstr "Création du conteneur"
@@ -5015,7 +5035,7 @@ msgstr "État : %s"
 msgid "Ports:"
 msgstr ""
 
-#: lxc/file.go:1103
+#: lxc/file.go:1292
 msgid "Press ctrl+c to finish"
 msgstr ""
 
@@ -5256,22 +5276,22 @@ msgstr "Création du conteneur"
 msgid "Publishing instance: %s"
 msgstr "Ignorer l'état du conteneur (seulement pour start)"
 
-#: lxc/file.go:242 lxc/file.go:243
+#: lxc/file.go:431 lxc/file.go:432
 #, fuzzy
 msgid "Pull files from instances"
 msgstr "Création du conteneur"
 
-#: lxc/file.go:417 lxc/file.go:768
+#: lxc/file.go:606 lxc/file.go:957
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr ""
 
-#: lxc/file.go:467 lxc/file.go:468
+#: lxc/file.go:656 lxc/file.go:657
 #, fuzzy
 msgid "Push files into instances"
 msgstr "Création du conteneur"
 
-#: lxc/file.go:702 lxc/file.go:868
+#: lxc/file.go:891 lxc/file.go:1057
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr ""
@@ -5312,7 +5332,7 @@ msgstr "Création du conteneur"
 msgid "Rebuild instances"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/file.go:250 lxc/file.go:474
+#: lxc/file.go:439 lxc/file.go:663
 #, fuzzy
 msgid "Recursively transfer files"
 msgstr "Pousser ou récupérer des fichiers récursivement"
@@ -5692,12 +5712,12 @@ msgstr "SOURCE"
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/file.go:1231
+#: lxc/file.go:1420
 #, c-format
 msgid "SSH client connected %q"
 msgstr ""
 
-#: lxc/file.go:1232
+#: lxc/file.go:1421
 #, fuzzy, c-format
 msgid "SSH client disconnected %q"
 msgstr "Mot de passe de l'administrateur distant"
@@ -5780,7 +5800,7 @@ msgstr "Création du conteneur"
 msgid "Set a cluster member's configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/file.go:996
+#: lxc/file.go:1185
 msgid "Set authentication user when using SSH SFTP listener"
 msgstr ""
 
@@ -5988,15 +6008,30 @@ msgstr ""
 msgid "Set the URL for the remote"
 msgstr ""
 
-#: lxc/file.go:477
+#: lxc/file.go:145
+#, fuzzy
+msgid "Set the file's gid on create"
+msgstr "Définir le gid du fichier lors de l'envoi"
+
+#: lxc/file.go:666
 msgid "Set the file's gid on push"
 msgstr "Définir le gid du fichier lors de l'envoi"
 
-#: lxc/file.go:478
+#: lxc/file.go:147
+#, fuzzy
+msgid "Set the file's perms on create"
+msgstr "Définir les permissions du fichier lors de l'envoi"
+
+#: lxc/file.go:667
 msgid "Set the file's perms on push"
 msgstr "Définir les permissions du fichier lors de l'envoi"
 
-#: lxc/file.go:476
+#: lxc/file.go:146
+#, fuzzy
+msgid "Set the file's uid on create"
+msgstr "Définir l'uid du fichier lors de l'envoi"
+
+#: lxc/file.go:665
 msgid "Set the file's uid on push"
 msgstr "Définir l'uid du fichier lors de l'envoi"
 
@@ -6064,7 +6099,7 @@ msgstr "Copie de l'image : %s"
 msgid "Set the key as an instance property"
 msgstr ""
 
-#: lxc/file.go:994
+#: lxc/file.go:1183
 msgid "Setup SSH SFTP listener on address:port instead of mounting"
 msgstr ""
 
@@ -6480,6 +6515,10 @@ msgstr "impossible de supprimer le serveur distant par défaut"
 msgid "Switch the default remote"
 msgstr "impossible de supprimer le serveur distant par défaut"
 
+#: lxc/file.go:167
+msgid "Symlink target path can only be used for type \"symlink\""
+msgstr ""
+
 #: lxc/alias.go:140
 msgid "TARGET"
 msgstr ""
@@ -6500,11 +6539,11 @@ msgstr "TYPE"
 msgid "Taken at"
 msgstr "pris à %s"
 
-#: lxc/file.go:1033
+#: lxc/file.go:1222
 msgid "Target path and --listen flag cannot be used together"
 msgstr ""
 
-#: lxc/file.go:1027
+#: lxc/file.go:1216
 msgid "Target path must be a directory"
 msgstr ""
 
@@ -6683,6 +6722,10 @@ msgstr "Le périphérique indiqué n'existe pas"
 #: lxc/network.go:537 lxc/network.go:634
 msgid "The specified device doesn't match the network"
 msgstr "le périphérique indiqué ne correspond pas au réseau"
+
+#: lxc/file.go:148
+msgid "The type to create (file, symlink, or directory)"
+msgstr ""
 
 #: lxc/publish.go:97
 msgid "There is no \"image name\".  Did you want an alias?"
@@ -6870,7 +6913,7 @@ msgstr ""
 msgid "UUID: %v"
 msgstr ""
 
-#: lxc/file.go:198
+#: lxc/file.go:387
 #, c-format
 msgid "Unable to create a temporary file: %v"
 msgstr ""
@@ -6885,7 +6928,7 @@ msgstr "Ajouter de nouveaux serveurs distants"
 msgid "Unknown certificate type %q"
 msgstr ""
 
-#: lxc/file.go:1254
+#: lxc/file.go:1443
 #, c-format
 msgid "Unknown channel type for client %q: %s"
 msgstr ""
@@ -6901,7 +6944,7 @@ msgstr ""
 msgid "Unknown console type %q"
 msgstr ""
 
-#: lxc/file.go:808
+#: lxc/file.go:997
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr ""
@@ -7151,7 +7194,7 @@ msgstr ""
 msgid "User aborted delete operation"
 msgstr "L'utilisateur a annulé l'opération de suppression."
 
-#: lxc/file.go:72
+#: lxc/file.go:76
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep running"
 msgstr ""
@@ -7792,7 +7835,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/file.go:171
+#: lxc/file.go:360
 #, fuzzy
 msgid "[<remote>:]<instance>/<path>"
 msgstr ""
@@ -7804,7 +7847,19 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/file.go:121
+#: lxc/file.go:133
+#, fuzzy
+msgid "[<remote>:]<instance>/<path> [<symlink target path>]"
+msgstr ""
+"Supprimer des conteneurs ou des instantanés.\n"
+"\n"
+"lxc delete [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/"
+"<snapshot>]...]\n"
+"\n"
+"Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
+"(configuration, instantanés, …)."
+
+#: lxc/file.go:310
 #, fuzzy
 msgid "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
 msgstr ""
@@ -7812,7 +7867,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/file.go:241
+#: lxc/file.go:430
 #, fuzzy
 msgid ""
 "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"
@@ -7825,7 +7880,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/file.go:985
+#: lxc/file.go:1174
 #, fuzzy
 msgid "[<remote>:]<instance>[/<path>] [<target path>]"
 msgstr ""
@@ -8760,20 +8815,28 @@ msgid ""
 "    Download a backup tarball of the u1 instance."
 msgstr ""
 
-#: lxc/file.go:989
+#: lxc/file.go:137
+msgid ""
+"lxc file create foo/bar\n"
+"\t   To create a file /bar in the foo instance.\n"
+"lxc file create --type=symlink foo/bar baz\n"
+"\t   To create a symlink /bar in instance foo whose target is baz."
+msgstr ""
+
+#: lxc/file.go:1178
 msgid ""
 "lxc file mount foo/root fooroot\n"
 "   To mount /root from the instance foo onto the local fooroot directory."
 msgstr ""
 
-#: lxc/file.go:245
+#: lxc/file.go:434
 msgid ""
 "lxc file pull foo/etc/hosts .\n"
 "   To pull /etc/hosts from the instance and write it to the current "
 "directory."
 msgstr ""
 
-#: lxc/file.go:470
+#: lxc/file.go:659
 msgid ""
 "lxc file push /etc/hosts foo/etc/hosts\n"
 "   To push /etc/hosts into the instance \"foo\"."
@@ -9145,16 +9208,16 @@ msgstr "s'il vous plaît utilisez  `lxc profile`"
 msgid "space used"
 msgstr "espace utilisé"
 
-#: lxc/file.go:1143
+#: lxc/file.go:1332
 msgid "sshfs has stopped"
 msgstr ""
 
-#: lxc/file.go:1102
+#: lxc/file.go:1291
 #, c-format
 msgid "sshfs mounting %q on %q"
 msgstr ""
 
-#: lxc/file.go:1055
+#: lxc/file.go:1244
 msgid "sshfs not found. Try SSH SFTP mode using the --listen flag"
 msgstr ""
 

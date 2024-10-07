@@ -30,8 +30,12 @@ import (
 	"github.com/canonical/lxd/shared/units"
 )
 
-// DirMode represents the file mode for creating dirs on `lxc file pull/push`.
-const DirMode = 0755
+const (
+	// DirMode represents the file mode for creating dirs on `lxc file pull/push`.
+	DirMode = 0755
+	// FileMode represents the file mode for creating files on `lxc file create`.
+	FileMode = 0644
+)
 
 type cmdFile struct {
 	global *cmdGlobal
@@ -84,6 +88,10 @@ func (c *cmdFile) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage files in instances`))
 
+	// Create
+	fileCreateCmd := cmdFileCreate{global: c.global, file: c}
+	cmd.AddCommand(fileCreateCmd.command())
+
 	// Delete
 	fileDeleteCmd := cmdFileDelete{global: c.global, file: c}
 	cmd.AddCommand(fileDeleteCmd.command())
@@ -110,6 +118,195 @@ func (c *cmdFile) command() *cobra.Command {
 	return cmd
 }
 
+// Create.
+type cmdFileCreate struct {
+	global *cmdGlobal
+	file   *cmdFile
+
+	flagForce bool
+	flagType  string
+}
+
+// Command returns the cobra command for `file create`.
+func (c *cmdFileCreate) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("create", i18n.G("[<remote>:]<instance>/<path> [<symlink target path>]"))
+	cmd.Short = i18n.G("Create files and directories in instances")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Create files and directories in instances`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc file create foo/bar
+	   To create a file /bar in the foo instance.
+lxc file create --type=symlink foo/bar baz
+	   To create a symlink /bar in instance foo whose target is baz.`))
+
+	cmd.Flags().BoolVarP(&c.file.flagMkdir, "create-dirs", "p", false, i18n.G("Create any directories necessary")+"``")
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force creating files or directories")+"``")
+	cmd.Flags().IntVar(&c.file.flagGID, "gid", -1, i18n.G("Set the file's gid on create")+"``")
+	cmd.Flags().IntVar(&c.file.flagUID, "uid", -1, i18n.G("Set the file's uid on create")+"``")
+	cmd.Flags().StringVar(&c.file.flagMode, "mode", "", i18n.G("Set the file's perms on create")+"``")
+	cmd.Flags().StringVar(&c.flagType, "type", "file", i18n.G("The type to create (file, symlink, or directory)")+"``")
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpInstances(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+// Run runs the `file create` command.
+func (c *cmdFileCreate) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	if exit {
+		return err
+	}
+
+	if !shared.ValueInSlice(c.flagType, []string{"file", "symlink", "directory"}) {
+		return fmt.Errorf(i18n.G("Invalid type %q"), c.flagType)
+	}
+
+	if len(args) == 2 && c.flagType != "symlink" {
+		return errors.New(i18n.G(`Symlink target path can only be used for type "symlink"`))
+	}
+
+	if strings.HasSuffix(args[0], "/") {
+		c.flagType = "directory"
+	}
+
+	pathSpec := strings.SplitN(args[0], "/", 2)
+
+	if len(pathSpec) != 2 {
+		return fmt.Errorf(i18n.G("Invalid target %s"), args[0])
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(pathSpec[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// re-add leading / that got stripped by the SplitN
+	targetPath := path.Clean("/" + pathSpec[1])
+
+	// normalization may reveal that path is still a dir, e.g. /.
+	if strings.HasSuffix(targetPath, "/") {
+		c.flagType = "directory"
+	}
+
+	var symlinkTargetPath string
+
+	// Determine the target if specified.
+	if len(args) == 2 {
+		symlinkTargetPath = filepath.Clean(args[1])
+	}
+
+	// Determine the target uid
+	uid := 0
+	if c.file.flagUID > 0 {
+		uid = c.file.flagUID
+	}
+
+	// Determine the target gid
+	gid := 0
+	if c.file.flagGID > 0 {
+		gid = c.file.flagGID
+	}
+
+	var mode os.FileMode
+
+	// Determine the target mode
+	if c.flagType == "directory" {
+		mode = os.FileMode(DirMode)
+	} else if c.flagType == "file" {
+		mode = os.FileMode(FileMode)
+	}
+
+	if c.file.flagMode != "" {
+		if len(c.file.flagMode) == 3 {
+			c.file.flagMode = "0" + c.file.flagMode
+		}
+
+		m, err := strconv.ParseUint(c.file.flagMode, 8, 32)
+		if err != nil {
+			return err
+		}
+
+		mode = os.FileMode(m)
+	}
+
+	// Create needed paths if requested
+	if c.file.flagMkdir {
+		err = c.file.recursiveMkdir(resource.server, resource.name, path.Dir(targetPath), nil, int64(uid), int64(gid))
+		if err != nil {
+			return err
+		}
+	}
+
+	var content io.ReadSeeker
+	var readCloser io.ReadCloser
+	var contentLength int64
+
+	if c.flagType == "symlink" {
+		content = strings.NewReader(symlinkTargetPath)
+		readCloser = io.NopCloser(content)
+		contentLength = int64(len(symlinkTargetPath))
+	} else if c.flagType == "file" {
+		// Just creating an empty file.
+		content = strings.NewReader("")
+		readCloser = io.NopCloser(content)
+		contentLength = 0
+	}
+
+	fileArgs := lxd.InstanceFileArgs{
+		Type:    c.flagType,
+		UID:     int64(uid),
+		GID:     int64(gid),
+		Mode:    int(mode.Perm()),
+		Content: content,
+	}
+
+	if c.flagForce {
+		fileArgs.WriteMode = "overwrite"
+	}
+
+	progress := cli.ProgressRenderer{
+		Format: fmt.Sprintf(i18n.G("Creating %s: %%s"), targetPath),
+		Quiet:  c.global.flagQuiet,
+	}
+
+	if readCloser != nil {
+		fileArgs.Content = shared.NewReadSeeker(&ioprogress.ProgressReader{
+			ReadCloser: readCloser,
+			Tracker: &ioprogress.ProgressTracker{
+				Length: contentLength,
+				Handler: func(percent int64, speed int64) {
+					progress.UpdateProgress(ioprogress.ProgressData{
+						Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2)),
+					})
+				},
+			},
+		}, fileArgs.Content)
+	}
+
+	err = resource.server.CreateInstanceFile(resource.name, targetPath, fileArgs)
+	if err != nil {
+		progress.Done("")
+		return err
+	}
+
+	progress.Done("")
+
+	return nil
+}
+
 // Delete.
 type cmdFileDelete struct {
 	global *cmdGlobal
@@ -125,6 +322,14 @@ func (c *cmdFileDelete) command() *cobra.Command {
 		`Delete files in instances`))
 
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpInstances(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
@@ -174,6 +379,14 @@ func (c *cmdFileEdit) command() *cobra.Command {
 		`Edit files in instances`))
 
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpInstances(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
@@ -249,6 +462,14 @@ func (c *cmdFilePull) command() *cobra.Command {
 	cmd.Flags().BoolVarP(&c.file.flagMkdir, "create-dirs", "p", false, i18n.G("Create any directories necessary"))
 	cmd.Flags().BoolVarP(&c.file.flagRecursive, "recursive", "r", false, i18n.G("Recursively transfer files"))
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpInstances(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
@@ -532,7 +753,7 @@ func (c *cmdFilePush) run(cmd *cobra.Command, args []string) error {
 			c.file.flagMode = "0" + c.file.flagMode
 		}
 
-		m, err := strconv.ParseInt(c.file.flagMode, 0, 0)
+		m, err := strconv.ParseUint(c.file.flagMode, 8, 32)
 		if err != nil {
 			return err
 		}
@@ -994,6 +1215,14 @@ func (c *cmdFileMount) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagListen, "listen", "", i18n.G("Setup SSH SFTP listener on address:port instead of mounting"))
 	cmd.Flags().BoolVar(&c.flagAuthNone, "no-auth", false, i18n.G("Disable authentication when using SSH SFTP listener"))
 	cmd.Flags().StringVar(&c.flagAuthUser, "auth-user", "", i18n.G("Set authentication user when using SSH SFTP listener"))
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpInstances(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
