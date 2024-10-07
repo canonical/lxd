@@ -52,6 +52,9 @@ test_pki() {
   cert_common_name="$(openssl x509 -noout -subject -in "${LXD_CONF}/client.crt" -nameopt multiline | awk -F' = ' '/commonName/ {print $2}')"
   LXD_DIR="${LXD5_DIR}" lxc config trust list --format csv | grep -F "client,foo,${cert_common_name},$(cert_fingerprint "${LXD_CONF}/client.crt" | cut -c1-12)"
 
+  cert_common_name="$(openssl x509 -noout -subject -in "${LXD_CONF}/client.crt" -nameopt multiline | awk -F' = ' '/commonName/ {print $2}')"
+  LXD_DIR="${LXD5_DIR}" lxc config trust list --format csv | grep -F "client,foo,${cert_common_name},$(cert_fingerprint "${LXD_CONF}/client.crt" | cut -c1-12)"
+
   # Shutdown LXD. The CA certificate and revokation list must be present at start up to enable PKI.
   shutdown_lxd "${LXD5_DIR}"
   cp "${TEST_DIR}/pki/keys/ca.crt" "${LXD5_DIR}/server.ca"
@@ -222,7 +225,7 @@ test_pki() {
     lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=bar
 
     # Client cert should not be present in trust store.
-    ! lxc_remote config trust ls pki-lxd: | grep -wF ca-trusted || false
+    [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
 
     # The certificate is trusted as root because `core.trust_ca_certificates` is enabled.
     lxc_remote info pki-lxd: | grep -F 'core.https_address'
@@ -278,6 +281,7 @@ test_pki() {
     # Try adding a remote using a revoked client certificate, and an incorrect password.
     # This should fail, as if the certificate is revoked and token is wrong then no access should be allowed.
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=bar || false
+    [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
 
     # Try adding a remote using a revoked client certificate, and an incorrect token.
     # This should fail, as if the certificate is revoked and token is wrong then no access should be allowed.
@@ -301,6 +305,7 @@ test_pki() {
     # Try adding a remote using a revoked client certificate, and an incorrect password.
     # This should fail, as if the certificate is revoked and token is wrong then no access should be allowed.
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=bar || false
+    [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
 
     # Try adding a remote using a revoked client certificate, and an incorrect token.
     # This should fail, as if the certificate is revoked and token is wrong then no access should be allowed.
