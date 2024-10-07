@@ -477,7 +477,28 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If caller is already trusted and does not have permission to create certificates, they cannot create more certificates.
-	if trusted && !userCanCreateCertificates && req.Certificate == "" && !req.Token {
+	// If trust token is provided, also return an error because trust token can only be used to add a remote.
+	if trusted && (req.Certificate == "" && !req.Token && !userCanCreateCertificates || req.TrustToken != "") {
+		// Even if the user is trusted, validate the trust token if one is provided.
+		// The token is also invalidated during the process (corresponding operation is cancelled).
+		if req.TrustToken != "" {
+			// Decode the trust token.
+			joinToken, err := shared.CertificateTokenDecode(req.TrustToken)
+			if err != nil {
+				return response.Forbidden(nil)
+			}
+
+			// Validate the token and cancel the corresponding operation.
+			tokenReq, err := certificateTokenValid(s, r, joinToken)
+			if err != nil {
+				return response.InternalError(fmt.Errorf("Failed during search for certificate add token operation: %w", err))
+			}
+
+			if tokenReq == nil {
+				return response.Forbidden(fmt.Errorf("No matching certificate add operation found"))
+			}
+		}
+
 		return response.BadRequest(fmt.Errorf("Client is already trusted"))
 	}
 

@@ -267,9 +267,21 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 		req.Password = token
 	}
 
+	// Add client certificate to trust store. Even if we are already trusted (src.Auth == "trusted"),
+	// we want to send the token to invalidate it. Therefore, we can ignore the client already trusted error.
 	err = d.CreateCertificate(req)
+	if err != nil && err.Error() != "Client is already trusted" {
+		return err
+	}
+
+	// And check if trusted now.
+	srv, _, err := d.GetServer()
 	if err != nil {
-		return fmt.Errorf(i18n.G("Failed to create certificate: %w"), err)
+		return err
+	}
+
+	if srv.Auth != "trusted" {
+		return errors.New(i18n.G("Server doesn't trust us after authentication"))
 	}
 
 	// Handle project.
