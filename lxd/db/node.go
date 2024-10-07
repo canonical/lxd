@@ -1047,6 +1047,70 @@ func (c *ClusterTx) GetNodeOfflineThreshold(ctx context.Context) (time.Duration,
 	return threshold, nil
 }
 
+func paramList(count int) string {
+	return strings.Trim(strings.Repeat("?,", count), ",")
+}
+
+// Represents an SQL condition of the form `key IN (?, ...)` where the number
+// of SQL parameters is given by len. Optionally allow the value matched by the
+// condition to be NULL.
+type inCondition struct {
+	key       string
+	in        []string
+	canBeNull bool
+}
+
+func (cond *inCondition) sql(b *strings.Builder) {
+	b.WriteString("(")
+	b.WriteString(cond.key)
+	b.WriteString(" IN (")
+	b.WriteString(paramList(len(cond.in)))
+	b.WriteString(")")
+
+	if cond.canBeNull {
+		b.WriteString(" OR ")
+		b.WriteString(cond.key)
+		b.WriteString(" IS NULL")
+	}
+
+	b.WriteString(")\n")
+}
+
+func (cond *inCondition) params(args *[]any) {
+	for _, elem := range cond.in {
+		*args = append(*args, elem)
+	}
+}
+
+// whereClause returns a string `WHERE first AND and...` and appends cond.in to args.
+func whereClause(conditions []inCondition, args *[]any) string {
+	if len(conditions) == 0 {
+		return ""
+	}
+
+	b := strings.Builder{}
+
+	written := 0
+	for _, cond := range conditions {
+		if len(cond.in) == 0 {
+			continue
+		}
+
+		switch written {
+		case 0:
+			b.WriteString("WHERE ")
+		default:
+			b.WriteString(" AND ")
+		}
+
+		cond.sql(&b)
+		cond.params(args)
+		written += 1
+	}
+
+	return b.String()
+}
+
 // GetCandidateMembers returns cluster members that are online, in created state and don't need manual targeting.
 // It excludes members that do not support any of the targetArchitectures (if non-nil) or not in targetClusterGroup
 // (if non-empty). It also takes into account any restrictions on allowedClusterGroups (if non-nil).
