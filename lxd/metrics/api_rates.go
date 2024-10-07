@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -58,15 +57,14 @@ func InitAPIMetrics() {
 }
 
 // countStartedRequest should be called before each request handler to keep track of ongoing requests.
-func countStartedRequest(url url.URL) {
-	ongoingRequests[entity.EndpointEntityType(url)].Add(1)
+func countStartedRequest(endpointType entity.Type) {
+	ongoingRequests[endpointType].Add(1)
 }
 
 // countCompletedRequest should be called after each request is completed to keep track of completed requests.
-func countCompletedRequest(url url.URL, result RequestResult) {
-	entityType := entity.EndpointEntityType(url)
-	ongoingRequests[entityType].Add(-1)
-	completedRequests[completedMetricsLabeling{entityType: entityType, result: result}].Add(1)
+func countCompletedRequest(endpointType entity.Type, result RequestResult) {
+	ongoingRequests[endpointType].Add(-1)
+	completedRequests[completedMetricsLabeling{entityType: endpointType, result: result}].Add(1)
 }
 
 // GetOngoingRequests gets the value for ongoing metrics filtered by entity type.
@@ -81,21 +79,19 @@ func GetCompletedRequests(entityType entity.Type, result RequestResult) int64 {
 
 // TrackStartedRequest tracks the request as started for the API metrics and
 // injects a callback function to track the request as completed.
-func TrackStartedRequest(r *http.Request) {
-	requestURL := *r.URL
-
+func TrackStartedRequest(r *http.Request, endpointType entity.Type) {
 	// Set the callback function to track the request as completed.
 	// Use sync.Once to ensure it can be called at most once.
 	var once sync.Once
 	callbackFunc := func(result RequestResult) {
 		once.Do(func() {
-			countCompletedRequest(requestURL, result)
+			countCompletedRequest(endpointType, result)
 		})
 	}
 
 	request.SetCtxValue(r, request.MetricsCallbackFunc, callbackFunc)
 
-	countStartedRequest(requestURL)
+	countStartedRequest(endpointType)
 }
 
 // UseMetricsCallback retrieves a callback function from the request context and calls it.
