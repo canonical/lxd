@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3" // For opening the in-memory database
 )
@@ -37,6 +39,11 @@ func DotGo(updates map[int]Update, name string) error {
 
 	// Passing 1 to runtime.Caller identifies our caller.
 	_, filename, _, _ := runtime.Caller(1)
+
+	// runtime.Caller returns the path after "${GOPATH}/src" when used with `go generate`.
+	if strings.HasPrefix(filename, "github.com") {
+		filename = filepath.Join(os.Getenv("GOPATH"), "src", filename)
+	}
 
 	file, err := os.Create(path.Join(path.Dir(filename), name+".go"))
 	if err != nil {
