@@ -1097,14 +1097,10 @@ func (g *cmdGlobal) cmpProjects(toComplete string) ([]string, cobra.ShellCompDir
 }
 
 func (g *cmdGlobal) cmpRemotes(includeAll bool) ([]string, cobra.ShellCompDirective) {
-	var results []string
+	results := make([]string, 0, len(g.conf.Remotes))
 
 	for remoteName, rc := range g.conf.Remotes {
-		if !includeAll && rc.Protocol != "lxd" && rc.Protocol != "" {
-			continue
-		}
-
-		if remoteName == "local" || rc.Protocol == "simplestreams" {
+		if remoteName == "local" || (!includeAll && rc.Protocol != "lxd" && rc.Protocol != "") {
 			continue
 		}
 
