@@ -320,6 +320,12 @@ jobs:
           ls -lR /home/runner/go/bin/
           chmod uog+x /home/runner/go/bin/*
 
+      - name: Symlink dqlite lib
+        run: |
+          # Workaround for GHA upload-artifact bug
+          # https://github.com/actions/upload-artifact/pull/625
+          ln -s /home/runner/go/bin/dqlite/libs/libdqlite.so.0.0.1 /home/runner/go/bin/dqlite/libs/libdqlite.so.0
+
       - name: Setup MicroCeph
         if: ${{ matrix.backend == 'ceph' }}
         run: |
@@ -452,6 +458,12 @@ jobs:
           name: system-test-deps
           merge-multiple: true
           path: /home/runner/go/bin
+
+      - name: Symlink dqlite lib
+        run: |
+            # Workaround for GHA upload-artifact bug
+            # https://github.com/actions/upload-artifact/pull/625
+            ln -s /home/runner/go/bin/dqlite/libs/libdqlite.so.0.0.1 /home/runner/go/bin/dqlite/libs/libdqlite.so.0
 
       - name: Install build dependencies
         uses: ./.github/actions/install-lxd-builddeps
