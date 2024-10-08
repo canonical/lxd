@@ -417,6 +417,13 @@ jobs:
           calc: ALL
           tmpdir: /tmp/tics
 
+      # Verify doc links work
+      - name: Run link checker
+        shell: 'script -q -e -c "export TERM=xterm-256color; bash {0}"'
+        run: |
+          set -eux
+          make doc-linkcheck
+
   client:
     name: Client
     strategy:
@@ -547,13 +554,9 @@ jobs:
           fail-on-error: true
           woke-args: "*.md **/*.md -c https://github.com/canonical/Inclusive-naming/raw/main/config.yml"
 
-      - name: Run link checker
-        # Run link checker on PRs only
-        if: ${{ github.event_name != 'push' }}
-        shell: 'script -q -e -c "export TERM=xterm-256color; bash {0}"'
-        run: |
-          set -eux
-          make doc-linkcheck
+      # XXX: not running `make doc-linkcheck` here as it often fails due to
+      # remote sites applying rate limits. It is instead ran on a schedule
+      # along with Tiobe TICS
 
       - name: Upload documentation artifacts
         if: always()
