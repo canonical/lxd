@@ -123,8 +123,8 @@ type cmdFileCreate struct {
 	global *cmdGlobal
 	file   *cmdFile
 
-	flagForce   bool
-	flagType    string
+	flagForce bool
+	flagType  string
 }
 
 // Command returns the cobra command for `file create`.
