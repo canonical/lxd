@@ -1734,6 +1734,7 @@ parts:
     organize:
       commands/snap-query: bin/
       hooks/: snap/hooks/
+      wrappers/lxd-stophook: bin/lxd
       wrappers/editor: bin/
       wrappers/remote-viewer: bin/
       wrappers/sshfs: bin/
