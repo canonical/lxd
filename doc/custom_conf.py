@@ -6,6 +6,10 @@ import yaml
 from git import Repo
 import filecmp
 
+# XXX: workaround for https://github.com/executablebooks/sphinx-tabs/issues/197
+import warnings
+warnings.filterwarnings("ignore", message='RemovedInSphinx90Warning: ')
+
 # Custom configuration for the Sphinx documentation builder.
 # All configuration specific to your project should be done in this file.
 #
