@@ -377,11 +377,13 @@ test_basic_usage() {
   lxc list | grep foo | grep RUNNING
   lxc stop foo --force
 
-  # Test binfmt_misc support
-  lxc start foo
-  lxc exec foo -- mount -t binfmt_misc none /proc/sys/fs/binfmt_misc
-  [ "$(lxc exec foo -- cat /proc/sys/fs/binfmt_misc/status)" = "enabled" ]
-  lxc stop -f foo
+  if lxc info | grep -q 'unpriv_binfmt: "true"'; then
+    # Test binfmt_misc support
+    lxc start foo
+    lxc exec foo -- mount -t binfmt_misc none /proc/sys/fs/binfmt_misc
+    [ "$(lxc exec foo -- cat /proc/sys/fs/binfmt_misc/status)" = "enabled" ]
+    lxc stop -f foo
+  fi
 
   # cycle it a few times
   lxc start foo
