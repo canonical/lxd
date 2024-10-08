@@ -13,6 +13,12 @@ name: "CodeQL"
 
 on:
   pull_request:
+    paths-ignore:
+      - '.github/**'
+      - 'doc/**'
+      - 'po/**'
+      - 'tests/**'
+      - '**.md'
   schedule:
     - cron: '19 20 * * 5'
 
