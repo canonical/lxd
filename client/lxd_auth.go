@@ -261,6 +261,21 @@ func (r *ProtocolLXD) UpdateIdentity(authenticationMethod string, nameOrIdentife
 	return nil
 }
 
+// DeleteIdentity deletes the identity with the given authentication method and identifier (or name, if unique).
+func (r *ProtocolLXD) DeleteIdentity(authenticationMethod string, nameOrIdentifier string) error {
+	err := r.CheckExtension("access_management_tls")
+	if err != nil {
+		return err
+	}
+
+	_, _, err = r.query(http.MethodDelete, api.NewURL().Path("auth", "identities", authenticationMethod, nameOrIdentifier).String(), nil, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetIdentityProviderGroupNames returns a list of identity provider group names.
 func (r *ProtocolLXD) GetIdentityProviderGroupNames() ([]string, error) {
 	err := r.CheckExtension("access_management")
