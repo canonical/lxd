@@ -158,6 +158,28 @@ var entityTypes = map[Type]typeInfo{
 	TypeIdentityProviderGroup: identityProviderGroup{},
 }
 
+// metricsEntityTypes is the source of truth for which entity types can be used to categorize endpoints
+// for the API metrics.
+var metricsEntityTypes = []Type{
+	TypeImage,
+	TypeProfile,
+	TypeProject,
+	TypeCertificate,
+	TypeInstance,
+	TypeNetwork,
+	TypeClusterMember,
+	TypeOperation,
+	TypeStoragePool,
+	TypeWarning,
+	TypeServer,
+	TypeIdentity,
+}
+
+// APIMetricsEntityTypes returns the list of entity types relevant for the API metrics.
+func APIMetricsEntityTypes() []Type {
+	return metricsEntityTypes
+}
+
 type container struct{}
 
 func (container) requiresProject() bool {
