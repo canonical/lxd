@@ -1668,7 +1668,8 @@ parts:
         -not -path "${CRAFT_PRIME}/bin/xfs_admin" \
         -not -path "${CRAFT_PRIME}/bin/uefivars.py" \
         -not -path "${CRAFT_PRIME}/bin/lxcfs" \
-        -exec strip -s {} +
+        -not -path "${CRAFT_PRIME}/bin/gpu-2404-custom-wrapper" \
+        -exec strip --strip-all {} +
 
       # Strip binaries not under bin/ due to being dynamically
       # added to the path with `snap set lxd`, like `criu.enable=true`
