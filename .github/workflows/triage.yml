@@ -18,7 +18,7 @@ jobs:
     name: PR labels
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/labeler@v5
+    - uses: actions/labeler@8558fd74291d67161a8a78ce36a881fa63b766a9  # v5.0.0
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
         sync-labels: true
@@ -30,7 +30,7 @@ jobs:
       issues: write
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871  # v4.2.1
       - name: Notify
         uses: iamfj/action-label-notification@v1.0.0
         with:
