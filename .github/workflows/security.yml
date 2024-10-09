@@ -47,7 +47,7 @@ jobs:
           --severity LOW,MEDIUM,HIGH,CRITICAL --output trivy-lxd-repo-scan-results.sarif .
 
       - name: Cache Trivy vulnerability database
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@3624ceb22c1c5a301c8db4169662070a689d9ea8  # v4.1.1
         with:
           path: /home/runner/vuln-cache
           key: trivy-cache-${{ github.run_id }}
@@ -88,7 +88,7 @@ jobs:
           sudo apt-get install trivy
 
       - name: Restore cached Trivy vulnerability database
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@3624ceb22c1c5a301c8db4169662070a689d9ea8  # v4.1.1
         with:
           path: /home/runner/vuln-cache
           key: trivy-cache-${{ github.run_id }}
