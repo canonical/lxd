@@ -65,7 +65,7 @@ runs:
           sudo microceph disk add --wipe "${{ steps.free_ephemeral_disk.outputs.ephemeral_disk }}"
           sudo rm -rf /etc/ceph
           sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
-          sudo microceph enable rgw || true # workaround to ignore already enabled rgw
+          sudo microceph enable rgw
           sudo microceph.ceph osd pool create cephfs_meta 32
           sudo microceph.ceph osd pool create cephfs_data 32
           sudo microceph.ceph fs new cephfs cephfs_meta cephfs_data
