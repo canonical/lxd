@@ -7182,169 +7182,6 @@ paths:
             summary: Get the identities
             tags:
                 - identities
-    /1.0/auth/identities/{authenticationMethod}:
-        get:
-            description: Returns a list of identities (URLs).
-            operationId: identities_get_by_auth_method
-            produces:
-                - application/json
-            responses:
-                "200":
-                    description: API endpoints
-                    schema:
-                        description: Sync response
-                        properties:
-                            metadata:
-                                description: List of endpoints
-                                example: |-
-                                    [
-                                      "/1.0/auth/identities/tls/e1e06266e36f67431c996d5678e66d732dfd12fe5073c161e62e6360619fc226",
-                                      "/1.0/auth/identities/oidc/auth0|4daf5e37ce230e455b64b65b"
-                                    ]
-                                items:
-                                    type: string
-                                type: array
-                            status:
-                                description: Status description
-                                example: Success
-                                type: string
-                            status_code:
-                                description: Status code
-                                example: 200
-                                type: integer
-                            type:
-                                description: Response type
-                                example: sync
-                                type: string
-                        type: object
-                "403":
-                    $ref: '#/responses/Forbidden'
-                "500":
-                    $ref: '#/responses/InternalServerError'
-            summary: Get the identities
-            tags:
-                - identities
-    /1.0/auth/identities/{authenticationMethod}/{nameOrIdentifier}:
-        get:
-            description: Gets a specific identity.
-            operationId: identity_get
-            produces:
-                - application/json
-            responses:
-                "200":
-                    description: API endpoints
-                    schema:
-                        description: Sync response
-                        properties:
-                            metadata:
-                                $ref: '#/definitions/Identity'
-                            status:
-                                description: Status description
-                                example: Success
-                                type: string
-                            status_code:
-                                description: Status code
-                                example: 200
-                                type: integer
-                            type:
-                                description: Response type
-                                example: sync
-                                type: string
-                        type: object
-                "403":
-                    $ref: '#/responses/Forbidden'
-                "500":
-                    $ref: '#/responses/InternalServerError'
-            summary: Get the identity
-            tags:
-                - identities
-        patch:
-            consumes:
-                - application/json
-            description: Updates the editable fields of an identity
-            operationId: identity_patch
-            parameters:
-                - description: Update request
-                  in: body
-                  name: identity
-                  schema:
-                    $ref: '#/definitions/IdentityPut'
-            produces:
-                - application/json
-            responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
-                "400":
-                    $ref: '#/responses/BadRequest'
-                "403":
-                    $ref: '#/responses/Forbidden'
-                "500":
-                    $ref: '#/responses/InternalServerError'
-            summary: Partially update the identity
-            tags:
-                - identities
-        put:
-            consumes:
-                - application/json
-            description: Replaces the editable fields of an identity
-            operationId: identity_put
-            parameters:
-                - description: Update request
-                  in: body
-                  name: identity
-                  schema:
-                    $ref: '#/definitions/IdentityPut'
-            produces:
-                - application/json
-            responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
-                "400":
-                    $ref: '#/responses/BadRequest'
-                "403":
-                    $ref: '#/responses/Forbidden'
-                "500":
-                    $ref: '#/responses/InternalServerError'
-            summary: Update the identity
-            tags:
-                - identities
-    /1.0/auth/identities/{authenticationMethod}?recursion=1:
-        get:
-            description: Returns a list of identities.
-            operationId: identities_get_by_auth_method_recursion1
-            produces:
-                - application/json
-            responses:
-                "200":
-                    description: API endpoints
-                    schema:
-                        description: Sync response
-                        properties:
-                            metadata:
-                                description: List of identities
-                                items:
-                                    $ref: '#/definitions/Identity'
-                                type: array
-                            status:
-                                description: Status description
-                                example: Success
-                                type: string
-                            status_code:
-                                description: Status code
-                                example: 200
-                                type: integer
-                            type:
-                                description: Response type
-                                example: sync
-                                type: string
-                        type: object
-                "403":
-                    $ref: '#/responses/Forbidden'
-                "500":
-                    $ref: '#/responses/InternalServerError'
-            summary: Get the identities
-            tags:
-                - identities
     /1.0/auth/identities/current:
         get:
             description: Gets the identity of the requestor, including contextual authorization information.
@@ -7377,6 +7214,386 @@ paths:
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Get the current identity
+            tags:
+                - identities
+    /1.0/auth/identities/oidc:
+        get:
+            description: Returns a list of OIDC identities (URLs).
+            operationId: identities_get_oidc
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of endpoints
+                                example: |-
+                                    [
+                                      "/1.0/auth/identities/oidc/jane.doe@example.com",
+                                      "/1.0/auth/identities/oidc/joe.bloggs@example.com"
+                                    ]
+                                items:
+                                    type: string
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the OIDC identities
+            tags:
+                - identities
+    /1.0/auth/identities/oidc/{nameOrIdentifier}:
+        delete:
+            description: Removes the OIDC identity.
+            operationId: identity_delete_oidc
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+                "501":
+                    $ref: '#/responses/NotImplemented'
+            summary: Delete the OIDC identity
+            tags:
+                - identities
+        get:
+            description: Gets a specific OIDC identity.
+            operationId: identity_get_oidc
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/Identity'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the OIDC identity
+            tags:
+                - identities
+        patch:
+            consumes:
+                - application/json
+            description: Updates the editable fields of an OIDC identity
+            operationId: identity_patch_oidc
+            parameters:
+                - description: Update request
+                  in: body
+                  name: identity
+                  schema:
+                    $ref: '#/definitions/IdentityPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+                "501":
+                    $ref: '#/responses/NotImplemented'
+            summary: Partially update the OIDC identity
+            tags:
+                - identities
+        put:
+            consumes:
+                - application/json
+            description: Replaces the editable fields of an OIDC identity
+            operationId: identity_put_oidc
+            parameters:
+                - description: Update request
+                  in: body
+                  name: identity
+                  schema:
+                    $ref: '#/definitions/IdentityPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+                "501":
+                    $ref: '#/responses/NotImplemented'
+            summary: Update the OIDC identity
+            tags:
+                - identities
+    /1.0/auth/identities/oidc?recursion=1:
+        get:
+            description: Returns a list of OIDC identities.
+            operationId: identities_get_oidc_recursion1
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of identities
+                                items:
+                                    $ref: '#/definitions/Identity'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the OIDC identities
+            tags:
+                - identities
+    /1.0/auth/identities/tls:
+        get:
+            description: Returns a list of TLS identities (URLs).
+            operationId: identities_get_tls
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of endpoints
+                                example: |-
+                                    [
+                                      "/1.0/auth/identities/tls/e1e06266e36f67431c996d5678e66d732dfd12fe5073c161e62e6360619fc226",
+                                      "/1.0/auth/identities/tls/6d5678e66d732dfd12fe5073c161eec9962e6360619fc2261e06266e36f67431"
+                                    ]
+                                items:
+                                    type: string
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the TLS identities
+            tags:
+                - identities
+    /1.0/auth/identities/tls/{nameOrIdentifier}:
+        delete:
+            description: Removes the TLS identity and revokes trust.
+            operationId: identity_delete_tls
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+                "501":
+                    $ref: '#/responses/NotImplemented'
+            summary: Delete the TLS identity
+            tags:
+                - identities
+        get:
+            description: Gets a specific TLS identity.
+            operationId: identity_get_tls
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/Identity'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the TLS identity
+            tags:
+                - identities
+        patch:
+            consumes:
+                - application/json
+            description: Updates the editable fields of a TLS identity
+            operationId: identity_patch_tls
+            parameters:
+                - description: Update request
+                  in: body
+                  name: identity
+                  schema:
+                    $ref: '#/definitions/IdentityPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+                "501":
+                    $ref: '#/responses/NotImplemented'
+            summary: Partially update the TLS identity
+            tags:
+                - identities
+        put:
+            consumes:
+                - application/json
+            description: Replaces the editable fields of a TLS identity
+            operationId: identity_put_tls
+            parameters:
+                - description: Update request
+                  in: body
+                  name: identity
+                  schema:
+                    $ref: '#/definitions/IdentityPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+                "501":
+                    $ref: '#/responses/NotImplemented'
+            summary: Update the TLS identity
+            tags:
+                - identities
+    /1.0/auth/identities/tls?recursion=1:
+        get:
+            description: Returns a list of TLS identities.
+            operationId: identities_get_tls_recursion1
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of identities
+                                items:
+                                    $ref: '#/definitions/Identity'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the TLS identities
             tags:
                 - identities
     /1.0/auth/identities?recursion=1:
@@ -16927,6 +17144,24 @@ responses:
                     x-go-name: Error
                 error_code:
                     example: 404
+                    format: int64
+                    type: integer
+                    x-go-name: ErrorCode
+                type:
+                    example: error
+                    type: string
+                    x-go-name: Type
+            type: object
+    NotImplemented:
+        description: Not implemented
+        schema:
+            properties:
+                error:
+                    example: not implemented
+                    type: string
+                    x-go-name: Error
+                error_code:
+                    example: 501
                     format: int64
                     type: integer
                     x-go-name: ErrorCode

@@ -31,34 +31,78 @@ var identitiesCmd = APIEndpoint{
 	Name: "identities",
 	Path: "auth/identities",
 	Get: APIEndpointAction{
-		Handler:       getIdentities,
+		// Empty authentication method will return all identities.
+		Handler:       getIdentities(""),
 		AccessHandler: allowAuthenticated,
 	},
 }
 
-var identitiesByAuthenticationMethodCmd = APIEndpoint{
+var currentIdentityCmd = APIEndpoint{
 	Name: "identities",
-	Path: "auth/identities/{authenticationMethod}",
+	Path: "auth/identities/current",
 	Get: APIEndpointAction{
-		Handler:       getIdentities,
+		Handler:       getCurrentIdentityInfo,
 		AccessHandler: allowAuthenticated,
 	},
 }
 
-var identityCmd = APIEndpoint{
+var tlsIdentitiesCmd = APIEndpoint{
+	Name: "identities",
+	Path: "auth/identities/tls",
+	Get: APIEndpointAction{
+		Handler:       getIdentities(api.AuthenticationMethodTLS),
+		AccessHandler: allowAuthenticated,
+	},
+}
+
+var oidcIdentitiesCmd = APIEndpoint{
+	Name: "identities",
+	Path: "auth/identities/oidc",
+	Get: APIEndpointAction{
+		Handler:       getIdentities(api.AuthenticationMethodOIDC),
+		AccessHandler: allowAuthenticated,
+	},
+}
+
+var tlsIdentityCmd = APIEndpoint{
 	Name: "identity",
-	Path: "auth/identities/{authenticationMethod}/{nameOrIdentifier}",
+	Path: "auth/identities/tls/{nameOrIdentifier}",
 	Get: APIEndpointAction{
 		Handler:       getIdentity,
-		AccessHandler: identityAccessHandler(auth.EntitlementCanView),
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodTLS, auth.EntitlementCanView),
 	},
 	Put: APIEndpointAction{
 		Handler:       updateIdentity,
-		AccessHandler: identityAccessHandler(auth.EntitlementCanEdit),
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodTLS, auth.EntitlementCanEdit),
 	},
 	Patch: APIEndpointAction{
 		Handler:       patchIdentity,
-		AccessHandler: identityAccessHandler(auth.EntitlementCanEdit),
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodTLS, auth.EntitlementCanEdit),
+	},
+	Delete: APIEndpointAction{
+		Handler:       deleteIdentity,
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodTLS, auth.EntitlementCanDelete),
+	},
+}
+
+var oidcIdentityCmd = APIEndpoint{
+	Name: "identity",
+	Path: "auth/identities/oidc/{nameOrIdentifier}",
+	Get: APIEndpointAction{
+		Handler:       getIdentity,
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanView),
+	},
+	Put: APIEndpointAction{
+		Handler:       updateIdentity,
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanEdit),
+	},
+	Patch: APIEndpointAction{
+		Handler:       patchIdentity,
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanEdit),
+	},
+	Delete: APIEndpointAction{
+		Handler:       deleteIdentity,
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanDelete),
 	},
 }
 
@@ -71,15 +115,9 @@ const (
 // identityAccessHandler performs some initial validation of the request and gets the identity by its name or
 // identifier. If one is found, the identifier is used in the URL that is passed to (auth.Authorizer).CheckPermission.
 // The cluster.Identity is set in the request context.
-func identityAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
+func identityAccessHandler(authenticationMethod string, entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		muxVars := mux.Vars(r)
-		authenticationMethod := muxVars["authenticationMethod"]
-		err := identity.ValidateAuthenticationMethod(authenticationMethod)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
 		nameOrID, err := url.PathUnescape(muxVars["nameOrIdentifier"])
 		if err != nil {
 			return response.InternalError(fmt.Errorf("Failed to unescape path argument: %w", err))
@@ -197,11 +235,11 @@ func identityAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 
-// swagger:operation GET /1.0/auth/identities/{authenticationMethod} identities identities_get_by_auth_method
+// swagger:operation GET /1.0/auth/identities/tls identities identities_get_tls
 //
-//	Get the identities
+//	Get the TLS identities
 //
-//	Returns a list of identities (URLs).
+//	Returns a list of TLS identities (URLs).
 //
 //	---
 //	produces:
@@ -233,18 +271,61 @@ func identityAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http
 //	          example: |-
 //	            [
 //	              "/1.0/auth/identities/tls/e1e06266e36f67431c996d5678e66d732dfd12fe5073c161e62e6360619fc226",
-//	              "/1.0/auth/identities/oidc/auth0|4daf5e37ce230e455b64b65b"
+//	              "/1.0/auth/identities/tls/6d5678e66d732dfd12fe5073c161eec9962e6360619fc2261e06266e36f67431"
 //	            ]
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 
-// swagger:operation GET /1.0/auth/identities/{authenticationMethod}?recursion=1 identities identities_get_by_auth_method_recursion1
+// swagger:operation GET /1.0/auth/identities/oidc identities identities_get_oidc
 //
-//	Get the identities
+//	Get the OIDC identities
 //
-//	Returns a list of identities.
+//	Returns a list of OIDC identities (URLs).
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of endpoints
+//	          items:
+//	            type: string
+//	          example: |-
+//	            [
+//	              "/1.0/auth/identities/oidc/jane.doe@example.com",
+//	              "/1.0/auth/identities/oidc/joe.bloggs@example.com"
+//	            ]
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/auth/identities/tls?recursion=1 identities identities_get_tls_recursion1
+//
+//	Get the TLS identities
+//
+//	Returns a list of TLS identities.
 //
 //	---
 //	produces:
@@ -277,137 +358,201 @@ func identityAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func getIdentities(d *Daemon, r *http.Request) response.Response {
-	authenticationMethod, err := url.PathUnescape(mux.Vars(r)["authenticationMethod"])
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to unescape path argument: %w", err))
-	}
 
-	if authenticationMethod == "current" {
-		return getCurrentIdentityInfo(d, r)
-	} else if authenticationMethod != "" {
-		err = identity.ValidateAuthenticationMethod(authenticationMethod)
+// swagger:operation GET /1.0/auth/identities/oidc?recursion=1 identities identities_get_oidc_recursion1
+//
+//	Get the OIDC identities
+//
+//	Returns a list of OIDC identities.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of identities
+//	          items:
+//	            $ref: "#/definitions/Identity"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
+		recursion := r.URL.Query().Get("recursion")
+		s := d.State()
+		canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
 		if err != nil {
 			return response.SmartError(err)
 		}
-	}
 
-	recursion := r.URL.Query().Get("recursion")
-	s := d.State()
-	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	canViewCertificate, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeCertificate)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	canView := func(id dbCluster.Identity) bool {
-		if identity.IsFineGrainedIdentityType(string(id.Type)) {
-			return canViewIdentity(entity.IdentityURL(string(id.AuthMethod), id.Identifier))
-		}
-
-		return canViewCertificate(entity.CertificateURL(id.Identifier))
-	}
-
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	var identities []dbCluster.Identity
-	var groupsByIdentityID map[int][]dbCluster.AuthGroup
-	var apiIdentity *api.Identity
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Get all identities, filter by authentication method if present.
-		var filters []dbCluster.IdentityFilter
-		if authenticationMethod != "" {
-			clusterAuthMethod := dbCluster.AuthMethod(authenticationMethod)
-			filters = append(filters, dbCluster.IdentityFilter{AuthMethod: &clusterAuthMethod})
-		}
-
-		allIdentities, err := dbCluster.GetIdentitys(ctx, tx.Tx(), filters...)
+		canViewCertificate, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeCertificate)
 		if err != nil {
-			return err
+			return response.SmartError(err)
 		}
 
-		// Filter results by what the user is allowed to view.
-		for _, id := range allIdentities {
-			if canView(id) {
-				identities = append(identities, id)
+		canView := func(id dbCluster.Identity) bool {
+			if identity.IsFineGrainedIdentityType(string(id.Type)) {
+				return canViewIdentity(entity.IdentityURL(string(id.AuthMethod), id.Identifier))
 			}
+
+			return canViewCertificate(entity.CertificateURL(id.Identifier))
 		}
 
-		if len(identities) == 0 {
-			return nil
+		canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
+		if err != nil {
+			return response.SmartError(err)
 		}
 
-		if recursion == "1" && len(identities) == 1 {
-			// It's likely that the user can only view themselves. If so we can optimise here by only getting the
-			// groups for that user.
-			apiIdentity, err = identities[0].ToAPI(ctx, tx.Tx(), canViewGroup)
+		var identities []dbCluster.Identity
+		var groupsByIdentityID map[int][]dbCluster.AuthGroup
+		var apiIdentity *api.Identity
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Get all identities, filter by authentication method if present.
+			var filters []dbCluster.IdentityFilter
+			if authenticationMethod != "" {
+				clusterAuthMethod := dbCluster.AuthMethod(authenticationMethod)
+				filters = append(filters, dbCluster.IdentityFilter{AuthMethod: &clusterAuthMethod})
+			}
+
+			allIdentities, err := dbCluster.GetIdentitys(ctx, tx.Tx(), filters...)
 			if err != nil {
 				return err
 			}
-		} else if recursion == "1" {
-			// Otherwise, get all groups and populate the identities outside of the transaction.
-			groupsByIdentityID, err = dbCluster.GetAllAuthGroupsByIdentityIDs(ctx, tx.Tx())
-			if err != nil {
-				return err
-			}
-		}
 
-		return nil
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Optimisation for user that can only view themselves.
-	if apiIdentity != nil {
-		return response.SyncResponse(true, []api.Identity{*apiIdentity})
-	}
-
-	if recursion == "1" {
-		// Convert the []cluster.Group in the groupsByIdentityID map to string slices of the group names.
-		groupNamesByIdentityID := make(map[int][]string, len(groupsByIdentityID))
-		for identityID, groups := range groupsByIdentityID {
-			for _, group := range groups {
-				if canViewGroup(entity.AuthGroupURL(group.Name)) {
-					groupNamesByIdentityID[identityID] = append(groupNamesByIdentityID[identityID], group.Name)
+			// Filter results by what the user is allowed to view.
+			for _, id := range allIdentities {
+				if canView(id) {
+					identities = append(identities, id)
 				}
 			}
+
+			if len(identities) == 0 {
+				return nil
+			}
+
+			if recursion == "1" && len(identities) == 1 {
+				// If there is only one identity to return (either the caller can only view themselves, or there is only one identity in database)
+				// we can optimise here by only getting the groups for that user. This sets the value of `apiIdentity`
+				// which is to be returned if non-nil.
+				apiIdentity, err = identities[0].ToAPI(ctx, tx.Tx(), canViewGroup)
+				if err != nil {
+					return err
+				}
+			} else if recursion == "1" {
+				// Otherwise, get all groups and populate the identities outside of the transaction.
+				// This optimisation prevents us from iterating through each identity and querying the database for the
+				// groups of each identity in turn.
+				groupsByIdentityID, err = dbCluster.GetAllAuthGroupsByIdentityIDs(ctx, tx.Tx())
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return response.SmartError(err)
 		}
 
-		apiIdentities := make([]api.Identity, 0, len(identities))
+		// Optimisation for when only one identity is present on the system.
+		if apiIdentity != nil {
+			return response.SyncResponse(true, []api.Identity{*apiIdentity})
+		}
+
+		if recursion == "1" {
+			// Convert the []cluster.Group in the groupsByIdentityID map to string slices of the group names.
+			groupNamesByIdentityID := make(map[int][]string, len(groupsByIdentityID))
+			for identityID, groups := range groupsByIdentityID {
+				for _, group := range groups {
+					if canViewGroup(entity.AuthGroupURL(group.Name)) {
+						groupNamesByIdentityID[identityID] = append(groupNamesByIdentityID[identityID], group.Name)
+					}
+				}
+			}
+
+			apiIdentities := make([]api.Identity, 0, len(identities))
+			for _, id := range identities {
+				apiIdentities = append(apiIdentities, api.Identity{
+					AuthenticationMethod: string(id.AuthMethod),
+					Type:                 string(id.Type),
+					Identifier:           id.Identifier,
+					Name:                 id.Name,
+					Groups:               groupNamesByIdentityID[id.ID],
+				})
+			}
+
+			return response.SyncResponse(true, apiIdentities)
+		}
+
+		urls := make([]string, 0, len(identities))
 		for _, id := range identities {
-			apiIdentities = append(apiIdentities, api.Identity{
-				AuthenticationMethod: string(id.AuthMethod),
-				Type:                 string(id.Type),
-				Identifier:           id.Identifier,
-				Name:                 id.Name,
-				Groups:               groupNamesByIdentityID[id.ID],
-			})
+			urls = append(urls, entity.IdentityURL(string(id.AuthMethod), id.Identifier).String())
 		}
 
-		return response.SyncResponse(true, apiIdentities)
+		return response.SyncResponse(true, urls)
 	}
-
-	urls := make([]string, 0, len(identities))
-	for _, id := range identities {
-		urls = append(urls, entity.IdentityURL(string(id.AuthMethod), id.Identifier).String())
-	}
-
-	return response.SyncResponse(true, urls)
 }
 
-// swagger:operation GET /1.0/auth/identities/{authenticationMethod}/{nameOrIdentifier} identities identity_get
+// swagger:operation GET /1.0/auth/identities/tls/{nameOrIdentifier} identities identity_get_tls
 //
-//	Get the identity
+//	Get the TLS identity
 //
-//	Gets a specific identity.
+//	Gets a specific TLS identity.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/Identity"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/auth/identities/oidc/{nameOrIdentifier} identities identity_get_oidc
+//
+//	Get the OIDC identity
+//
+//	Gets a specific OIDC identity.
 //
 //	---
 //	produces:
@@ -581,11 +726,11 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 	})
 }
 
-// swagger:operation PUT /1.0/auth/identities/{authenticationMethod}/{nameOrIdentifier} identities identity_put
+// swagger:operation PUT /1.0/auth/identities/tls/{nameOrIdentifier} identities identity_put_tls
 //
-//	Update the identity
+//	Update the TLS identity
 //
-//	Replaces the editable fields of an identity
+//	Replaces the editable fields of a TLS identity
 //
 //	---
 //	consumes:
@@ -605,8 +750,43 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+//	  "501":
+//	    $ref: "#/responses/NotImplemented"
+
+// swagger:operation PUT /1.0/auth/identities/oidc/{nameOrIdentifier} identities identity_put_oidc
+//
+//	Update the OIDC identity
+//
+//	Replaces the editable fields of an OIDC identity
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: identity
+//	    description: Update request
+//	    schema:
+//	      $ref: "#/definitions/IdentityPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+//	  "501":
+//	    $ref: "#/responses/NotImplemented"
 func updateIdentity(d *Daemon, r *http.Request) response.Response {
 	id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
 	if err != nil {
@@ -674,11 +854,11 @@ func updateIdentity(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// swagger:operation PATCH /1.0/auth/identities/{authenticationMethod}/{nameOrIdentifier} identities identity_patch
+// swagger:operation PATCH /1.0/auth/identities/tls/{nameOrIdentifier} identities identity_patch_tls
 //
-//	Partially update the identity
+//	Partially update the TLS identity
 //
-//	Updates the editable fields of an identity
+//	Updates the editable fields of a TLS identity
 //
 //	---
 //	consumes:
@@ -698,8 +878,43 @@ func updateIdentity(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+//	  "501":
+//	    $ref: "#/responses/NotImplemented"
+
+// swagger:operation PATCH /1.0/auth/identities/oidc/{nameOrIdentifier} identities identity_patch_oidc
+//
+//	Partially update the OIDC identity
+//
+//	Updates the editable fields of an OIDC identity
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: identity
+//	    description: Update request
+//	    schema:
+//	      $ref: "#/definitions/IdentityPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+//	  "501":
+//	    $ref: "#/responses/NotImplemented"
 func patchIdentity(d *Daemon, r *http.Request) response.Response {
 	id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
 	if err != nil {
@@ -767,6 +982,88 @@ func patchIdentity(d *Daemon, r *http.Request) response.Response {
 
 	// Send a lifecycle event for the identity update.
 	lc := lifecycle.IdentityUpdated.Event(string(id.AuthMethod), id.Identifier, request.CreateRequestor(r), nil)
+	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
+
+	s.UpdateIdentityCache()
+
+	return response.EmptySyncResponse
+}
+
+// swagger:operation DELETE /1.0/auth/identities/tls/{nameOrIdentifier} identities identity_delete_tls
+//
+//	Delete the TLS identity
+//
+//	Removes the TLS identity and revokes trust.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+//	  "501":
+//	    $ref: "#/responses/NotImplemented"
+
+// swagger:operation DELETE /1.0/auth/identities/oidc/{nameOrIdentifier} identities identity_delete_oidc
+//
+//	Delete the OIDC identity
+//
+//	Removes the OIDC identity.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+//	  "501":
+//	    $ref: "#/responses/NotImplemented"
+func deleteIdentity(d *Daemon, r *http.Request) response.Response {
+	id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !identity.IsFineGrainedIdentityType(string(id.Type)) {
+		return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
+	}
+
+	s := d.State()
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return dbCluster.DeleteIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier)
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Notify other cluster members to update their identity cache.
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = notifier(func(client lxd.InstanceServer) error {
+		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Send a lifecycle event for the identity update.
+	lc := lifecycle.IdentityDeleted.Event(string(id.AuthMethod), id.Identifier, request.CreateRequestor(r), nil)
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	s.UpdateIdentityCache()
