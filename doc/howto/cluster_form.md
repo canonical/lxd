@@ -97,7 +97,7 @@ Basically, the initialization process consists of the following steps:
 
 1. Authenticate with the cluster.
 
-   Generate a {ref}`join token <authentication-token>` for each new member.
+   Generate a cluster join token for each new member.
    To do so, run the following command on an existing cluster member (for example, the bootstrap server):
 
        lxc cluster add <new_member_name>
