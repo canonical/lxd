@@ -107,7 +107,8 @@ Basically, the initialization process consists of the following steps:
    `````{tabs}
 
    ````{group-tab} Authentication tokens (recommended)
-   If you configured your cluster to use {ref}`authentication tokens <authentication-token>`, you must generate a join token for each new member.
+   Generate a cluster join token for each new member.
+
    To do so, run the following command on an existing cluster member (for example, the bootstrap server):
 
        lxc cluster add <new_member_name>
