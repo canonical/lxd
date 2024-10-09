@@ -46,8 +46,8 @@ const (
 	// CtxTrusted is a boolean value that indicates whether the request was authenticated or not.
 	CtxTrusted CtxKey = "trusted"
 
-	// MetricsCallbackFunc is a callback function that can be called to mark the request as completed for the API metrics.
-	MetricsCallbackFunc CtxKey = "metrics_callback_function"
+	// CtxMetricsCallbackFunc is a callback function that can be called to mark the request as completed for the API metrics.
+	CtxMetricsCallbackFunc CtxKey = "metrics_callback_function"
 )
 
 // Headers.
