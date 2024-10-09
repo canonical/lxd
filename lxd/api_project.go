@@ -34,14 +34,16 @@ import (
 )
 
 var projectsCmd = APIEndpoint{
-	Path: "projects",
+	Path:        "projects",
+	MetricsType: entity.TypeProject,
 
 	Get:  APIEndpointAction{Handler: projectsGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: projectsPost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanCreateProjects)},
 }
 
 var projectCmd = APIEndpoint{
-	Path: "projects/{name}",
+	Path:        "projects/{name}",
+	MetricsType: entity.TypeProject,
 
 	Delete: APIEndpointAction{Handler: projectDelete, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanDelete, "name")},
 	Get:    APIEndpointAction{Handler: projectGet, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanView, "name")},
@@ -51,7 +53,8 @@ var projectCmd = APIEndpoint{
 }
 
 var projectStateCmd = APIEndpoint{
-	Path: "projects/{name}/state",
+	Path:        "projects/{name}/state",
+	MetricsType: entity.TypeProject,
 
 	Get: APIEndpointAction{Handler: projectStateGet, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanView, "name")},
 }

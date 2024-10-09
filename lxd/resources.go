@@ -15,13 +15,15 @@ import (
 )
 
 var api10ResourcesCmd = APIEndpoint{
-	Path: "resources",
+	Path:        "resources",
+	MetricsType: entity.TypeServer,
 
 	Get: APIEndpointAction{Handler: api10ResourcesGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanViewResources)},
 }
 
 var storagePoolResourcesCmd = APIEndpoint{
-	Path: "storage-pools/{name}/resources",
+	Path:        "storage-pools/{name}/resources",
+	MetricsType: entity.TypeStoragePool,
 
 	Get: APIEndpointAction{Handler: storagePoolResourcesGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanViewResources)},
 }

@@ -25,19 +25,22 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
 
 var storagePoolVolumeTypeCustomBackupsCmd = APIEndpoint{
-	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups",
+	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups",
+	MetricsType: entity.TypeStoragePool,
 
 	Get:  APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
 	Post: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsPost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageBackups)},
 }
 
 var storagePoolVolumeTypeCustomBackupCmd = APIEndpoint{
-	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName}",
+	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName}",
+	MetricsType: entity.TypeStoragePool,
 
 	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
 	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupPost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageBackups)},
@@ -45,7 +48,8 @@ var storagePoolVolumeTypeCustomBackupCmd = APIEndpoint{
 }
 
 var storagePoolVolumeTypeCustomBackupExportCmd = APIEndpoint{
-	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName}/export",
+	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName}/export",
+	MetricsType: entity.TypeStoragePool,
 
 	Get: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupExportGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
 }

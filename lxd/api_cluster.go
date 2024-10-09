@@ -72,21 +72,24 @@ type evacuateOpts struct {
 var targetGroupPrefix = "@"
 
 var clusterCmd = APIEndpoint{
-	Path: "cluster",
+	Path:        "cluster",
+	MetricsType: entity.TypeClusterMember,
 
 	Get: APIEndpointAction{Handler: clusterGet, AccessHandler: allowAuthenticated},
 	Put: APIEndpointAction{Handler: clusterPut, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var clusterNodesCmd = APIEndpoint{
-	Path: "cluster/members",
+	Path:        "cluster/members",
+	MetricsType: entity.TypeClusterMember,
 
 	Get:  APIEndpointAction{Handler: clusterNodesGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: clusterNodesPost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var clusterNodeCmd = APIEndpoint{
-	Path: "cluster/members/{name}",
+	Path:        "cluster/members/{name}",
+	MetricsType: entity.TypeClusterMember,
 
 	Delete: APIEndpointAction{Handler: clusterNodeDelete, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 	Get:    APIEndpointAction{Handler: clusterNodeGet, AccessHandler: allowAuthenticated},
@@ -96,27 +99,31 @@ var clusterNodeCmd = APIEndpoint{
 }
 
 var clusterNodeStateCmd = APIEndpoint{
-	Path: "cluster/members/{name}/state",
+	Path:        "cluster/members/{name}/state",
+	MetricsType: entity.TypeClusterMember,
 
 	Get:  APIEndpointAction{Handler: clusterNodeStateGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: clusterNodeStatePost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var clusterCertificateCmd = APIEndpoint{
-	Path: "cluster/certificate",
+	Path:        "cluster/certificate",
+	MetricsType: entity.TypeClusterMember,
 
 	Put: APIEndpointAction{Handler: clusterCertificatePut, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var clusterGroupsCmd = APIEndpoint{
-	Path: "cluster/groups",
+	Path:        "cluster/groups",
+	MetricsType: entity.TypeClusterMember,
 
 	Get:  APIEndpointAction{Handler: clusterGroupsGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: clusterGroupsPost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var clusterGroupCmd = APIEndpoint{
-	Path: "cluster/groups/{name}",
+	Path:        "cluster/groups/{name}",
+	MetricsType: entity.TypeClusterMember,
 
 	Get:    APIEndpointAction{Handler: clusterGroupGet, AccessHandler: allowAuthenticated},
 	Post:   APIEndpointAction{Handler: clusterGroupPost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
@@ -126,37 +133,43 @@ var clusterGroupCmd = APIEndpoint{
 }
 
 var internalClusterAcceptCmd = APIEndpoint{
-	Path: "cluster/accept",
+	Path:        "cluster/accept",
+	MetricsType: entity.TypeClusterMember,
 
 	Post: APIEndpointAction{Handler: internalClusterPostAccept, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalClusterRebalanceCmd = APIEndpoint{
-	Path: "cluster/rebalance",
+	Path:        "cluster/rebalance",
+	MetricsType: entity.TypeClusterMember,
 
 	Post: APIEndpointAction{Handler: internalClusterPostRebalance, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalClusterAssignCmd = APIEndpoint{
-	Path: "cluster/assign",
+	Path:        "cluster/assign",
+	MetricsType: entity.TypeClusterMember,
 
 	Post: APIEndpointAction{Handler: internalClusterPostAssign, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalClusterHandoverCmd = APIEndpoint{
-	Path: "cluster/handover",
+	Path:        "cluster/handover",
+	MetricsType: entity.TypeClusterMember,
 
 	Post: APIEndpointAction{Handler: internalClusterPostHandover, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalClusterRaftNodeCmd = APIEndpoint{
-	Path: "cluster/raft-node/{address}",
+	Path:        "cluster/raft-node/{address}",
+	MetricsType: entity.TypeClusterMember,
 
 	Delete: APIEndpointAction{Handler: internalClusterRaftNodeDelete, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalClusterHealCmd = APIEndpoint{
-	Path: "cluster/heal/{name}",
+	Path:        "cluster/heal/{name}",
+	MetricsType: entity.TypeClusterMember,
 
 	Post: APIEndpointAction{Handler: internalClusterHeal, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }

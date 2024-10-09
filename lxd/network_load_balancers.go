@@ -19,18 +19,21 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/version"
 )
 
 var networkLoadBalancersCmd = APIEndpoint{
-	Path: "networks/{networkName}/load-balancers",
+	Path:        "networks/{networkName}/load-balancers",
+	MetricsType: entity.TypeNetwork,
 
 	Get:  APIEndpointAction{Handler: networkLoadBalancersGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
 	Post: APIEndpointAction{Handler: networkLoadBalancersPost, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var networkLoadBalancerCmd = APIEndpoint{
-	Path: "networks/{networkName}/load-balancers/{listenAddress}",
+	Path:        "networks/{networkName}/load-balancers/{listenAddress}",
+	MetricsType: entity.TypeNetwork,
 
 	Delete: APIEndpointAction{Handler: networkLoadBalancerDelete, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
 	Get:    APIEndpointAction{Handler: networkLoadBalancerGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},

@@ -37,7 +37,8 @@ var metricsCache map[string]metricsCacheEntry
 var metricsCacheLock sync.Mutex
 
 var metricsCmd = APIEndpoint{
-	Path: "metrics",
+	Path:        "metrics",
+	MetricsType: entity.TypeServer,
 
 	Get: APIEndpointAction{Handler: metricsGet, AccessHandler: allowMetrics, AllowUntrusted: true},
 }

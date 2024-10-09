@@ -25,8 +25,9 @@ import (
 )
 
 var instanceLogCmd = APIEndpoint{
-	Name: "instanceLog",
-	Path: "instances/{name}/logs/{file}",
+	Name:        "instanceLog",
+	Path:        "instances/{name}/logs/{file}",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerLog", Path: "containers/{name}/logs/{file}"},
 		{Name: "vmLog", Path: "virtual-machines/{name}/logs/{file}"},
@@ -37,8 +38,9 @@ var instanceLogCmd = APIEndpoint{
 }
 
 var instanceLogsCmd = APIEndpoint{
-	Name: "instanceLogs",
-	Path: "instances/{name}/logs",
+	Name:        "instanceLogs",
+	Path:        "instances/{name}/logs",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerLogs", Path: "containers/{name}/logs"},
 		{Name: "vmLogs", Path: "virtual-machines/{name}/logs"},
@@ -48,8 +50,9 @@ var instanceLogsCmd = APIEndpoint{
 }
 
 var instanceExecOutputCmd = APIEndpoint{
-	Name: "instanceExecOutput",
-	Path: "instances/{name}/logs/exec-output/{file}",
+	Name:        "instanceExecOutput",
+	Path:        "instances/{name}/logs/exec-output/{file}",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerExecOutput", Path: "containers/{name}/logs/exec-output/{file}"},
 		{Name: "vmExecOutput", Path: "virtual-machines/{name}/logs/exec-output/{file}"},
@@ -60,8 +63,9 @@ var instanceExecOutputCmd = APIEndpoint{
 }
 
 var instanceExecOutputsCmd = APIEndpoint{
-	Name: "instanceExecOutputs",
-	Path: "instances/{name}/logs/exec-output",
+	Name:        "instanceExecOutputs",
+	Path:        "instances/{name}/logs/exec-output",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerExecOutputs", Path: "containers/{name}/logs/exec-output"},
 		{Name: "vmExecOutputs", Path: "virtual-machines/{name}/logs/exec-output"},

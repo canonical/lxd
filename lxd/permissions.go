@@ -14,8 +14,9 @@ import (
 )
 
 var permissionsCmd = APIEndpoint{
-	Name: "permissions",
-	Path: "auth/permissions",
+	Name:        "permissions",
+	Path:        "auth/permissions",
+	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
 		Handler:       getPermissions,
 		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanViewPermissions),
