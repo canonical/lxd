@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871  # v4.2.1
         with:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
@@ -240,7 +240,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871  # v4.2.1
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
@@ -357,7 +357,7 @@ jobs:
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871  # v4.2.1
         with:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
@@ -439,7 +439,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871  # v4.2.1
 
       - name: Install Go (${{ matrix.go }})
         uses: actions/setup-go@v5
@@ -518,7 +518,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871  # v4.2.1
 
       - name: Install Go (1.22)
         uses: actions/setup-go@v5
@@ -572,7 +572,7 @@ jobs:
     if: ${{ github.repository == 'canonical/lxd' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871  # v4.2.1
 
       - name: Setup Launchpad SSH access
         env:
