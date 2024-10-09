@@ -7,9 +7,11 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
@@ -79,6 +81,37 @@ func LocalSysInfo() (*api.ClusterMemberSysInfo, error) {
 	sysInfo.CPUThreads = uint64(runtime.NumCPU())
 
 	return sysInfo, nil
+}
+
+// ClusterState returns a map from clusterMemberName -> state for every member
+// of the cluster. This requires an HTTP call to the rest of the cluster.
+func ClusterState(s *state.State, members []db.NodeInfo) (map[string]api.ClusterMemberState, error) {
+	networkCert := s.Endpoints.NetworkCert()
+	serverCert := s.ServerCert()
+	memberStates := sync.Map{}
+
+	notifier, err := NewNotifier(s, networkCert, serverCert, NotifyAll, members...)
+	if err != nil {
+		return nil, err
+	}
+
+	notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+		state, _, err := client.GetClusterMemberState(member.Name)
+		if err != nil {
+			return err
+		}
+
+		memberStates.Store(member.Name, state)
+		return nil
+	})
+
+	rslt := make(map[string]api.ClusterMemberState)
+	memberStates.Range(func(memberName any, state any) bool {
+		rslt[memberName.(string)] = state.(api.ClusterMemberState)
+		return true
+	})
+
+	return rslt, nil
 }
 
 // MemberState retrieves state information about the cluster member.
