@@ -4,16 +4,18 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 )
 
 // DeviceSchedRebalance channel for scheduling a CPU rebalance.
 var DeviceSchedRebalance = make(chan []string, 2)
 
 // TaskSchedulerTrigger triggers a CPU rebalance.
-func TaskSchedulerTrigger(srcType string, srcName string, srcStatus string) {
+func TaskSchedulerTrigger(srcType instancetype.Type, srcName string, srcStatus string) {
 	// Spawn a go routine which then triggers the scheduler
 	select {
-	case DeviceSchedRebalance <- []string{srcType, srcName, srcStatus}:
+	case DeviceSchedRebalance <- []string{srcType.String(), srcName, srcStatus}:
 	default:
 		// Channel is full, drop the event
 	}
