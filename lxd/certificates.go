@@ -39,14 +39,16 @@ import (
 )
 
 var certificatesCmd = APIEndpoint{
-	Path: "certificates",
+	Path:        "certificates",
+	MetricsType: entity.TypeCertificate,
 
 	Get:  APIEndpointAction{Handler: certificatesGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: certificatesPost, AllowUntrusted: true},
 }
 
 var certificateCmd = APIEndpoint{
-	Path: "certificates/{fingerprint}",
+	Path:        "certificates/{fingerprint}",
+	MetricsType: entity.TypeCertificate,
 
 	Delete: APIEndpointAction{Handler: certificateDelete, AccessHandler: allowAuthenticated},
 	Get:    APIEndpointAction{Handler: certificateGet, AccessHandler: allowAuthenticated},

@@ -45,14 +45,16 @@ import (
 var networkCreateLock sync.Mutex
 
 var networksCmd = APIEndpoint{
-	Path: "networks",
+	Path:        "networks",
+	MetricsType: entity.TypeNetwork,
 
 	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: networksPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateNetworks)},
 }
 
 var networkCmd = APIEndpoint{
-	Path: "networks/{networkName}",
+	Path:        "networks/{networkName}",
+	MetricsType: entity.TypeNetwork,
 
 	Delete: APIEndpointAction{Handler: networkDelete, AccessHandler: networkAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: networkGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
@@ -62,13 +64,15 @@ var networkCmd = APIEndpoint{
 }
 
 var networkLeasesCmd = APIEndpoint{
-	Path: "networks/{networkName}/leases",
+	Path:        "networks/{networkName}/leases",
+	MetricsType: entity.TypeNetwork,
 
 	Get: APIEndpointAction{Handler: networkLeasesGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
 }
 
 var networkStateCmd = APIEndpoint{
-	Path: "networks/{networkName}/state",
+	Path:        "networks/{networkName}/state",
+	MetricsType: entity.TypeNetwork,
 
 	Get: APIEndpointAction{Handler: networkStateGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
 }

@@ -27,8 +27,9 @@ import (
 )
 
 var authGroupsCmd = APIEndpoint{
-	Name: "auth_groups",
-	Path: "auth/groups",
+	Name:        "auth_groups",
+	Path:        "auth/groups",
+	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
 		Handler:       getAuthGroups,
 		AccessHandler: allowAuthenticated,
@@ -40,8 +41,9 @@ var authGroupsCmd = APIEndpoint{
 }
 
 var authGroupCmd = APIEndpoint{
-	Name: "auth_group",
-	Path: "auth/groups/{groupName}",
+	Name:        "auth_group",
+	Path:        "auth/groups/{groupName}",
+	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
 		Handler:       getAuthGroup,
 		AccessHandler: allowPermission(entity.TypeAuthGroup, auth.EntitlementCanView, "groupName"),

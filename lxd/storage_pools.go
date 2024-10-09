@@ -37,14 +37,16 @@ import (
 var storagePoolCreateLock sync.Mutex
 
 var storagePoolsCmd = APIEndpoint{
-	Path: "storage-pools",
+	Path:        "storage-pools",
+	MetricsType: entity.TypeStoragePool,
 
 	Get:  APIEndpointAction{Handler: storagePoolsGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: storagePoolsPost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanCreateStoragePools)},
 }
 
 var storagePoolCmd = APIEndpoint{
-	Path: "storage-pools/{poolName}",
+	Path:        "storage-pools/{poolName}",
+	MetricsType: entity.TypeStoragePool,
 
 	Delete: APIEndpointAction{Handler: storagePoolDelete, AccessHandler: allowPermission(entity.TypeStoragePool, auth.EntitlementCanDelete, "poolName")},
 	Get:    APIEndpointAction{Handler: storagePoolGet, AccessHandler: allowAuthenticated},

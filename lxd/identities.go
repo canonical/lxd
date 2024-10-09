@@ -28,8 +28,10 @@ import (
 )
 
 var identitiesCmd = APIEndpoint{
-	Name: "identities",
-	Path: "auth/identities",
+	Name:        "identities",
+	Path:        "auth/identities",
+	MetricsType: entity.TypeIdentity,
+
 	Get: APIEndpointAction{
 		// Empty authentication method will return all identities.
 		Handler:       getIdentities(""),
@@ -38,8 +40,10 @@ var identitiesCmd = APIEndpoint{
 }
 
 var currentIdentityCmd = APIEndpoint{
-	Name: "identities",
-	Path: "auth/identities/current",
+	Name:        "identities",
+	Path:        "auth/identities/current",
+	MetricsType: entity.TypeIdentity,
+
 	Get: APIEndpointAction{
 		Handler:       getCurrentIdentityInfo,
 		AccessHandler: allowAuthenticated,
@@ -47,8 +51,10 @@ var currentIdentityCmd = APIEndpoint{
 }
 
 var tlsIdentitiesCmd = APIEndpoint{
-	Name: "identities",
-	Path: "auth/identities/tls",
+	Name:        "identities",
+	Path:        "auth/identities/tls",
+	MetricsType: entity.TypeIdentity,
+
 	Get: APIEndpointAction{
 		Handler:       getIdentities(api.AuthenticationMethodTLS),
 		AccessHandler: allowAuthenticated,
@@ -56,8 +62,10 @@ var tlsIdentitiesCmd = APIEndpoint{
 }
 
 var oidcIdentitiesCmd = APIEndpoint{
-	Name: "identities",
-	Path: "auth/identities/oidc",
+	Name:        "identities",
+	Path:        "auth/identities/oidc",
+	MetricsType: entity.TypeIdentity,
+
 	Get: APIEndpointAction{
 		Handler:       getIdentities(api.AuthenticationMethodOIDC),
 		AccessHandler: allowAuthenticated,
@@ -65,8 +73,10 @@ var oidcIdentitiesCmd = APIEndpoint{
 }
 
 var tlsIdentityCmd = APIEndpoint{
-	Name: "identity",
-	Path: "auth/identities/tls/{nameOrIdentifier}",
+	Name:        "identity",
+	Path:        "auth/identities/tls/{nameOrIdentifier}",
+	MetricsType: entity.TypeIdentity,
+
 	Get: APIEndpointAction{
 		Handler:       getIdentity,
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodTLS, auth.EntitlementCanView),
@@ -86,8 +96,10 @@ var tlsIdentityCmd = APIEndpoint{
 }
 
 var oidcIdentityCmd = APIEndpoint{
-	Name: "identity",
-	Path: "auth/identities/oidc/{nameOrIdentifier}",
+	Name:        "identity",
+	Path:        "auth/identities/oidc/{nameOrIdentifier}",
+	MetricsType: entity.TypeIdentity,
+
 	Get: APIEndpointAction{
 		Handler:       getIdentity,
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanView),
