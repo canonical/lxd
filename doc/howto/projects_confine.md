@@ -1,13 +1,14 @@
 (projects-confine)=
-# How to confine projects to specific users
+# How to confine users to specific projects
 
-You can use projects to confine the activities of different users or clients.
-See {ref}`projects-confined` for more information.
+You restrict users or clients to specific projects.
+Projects can be configured with features, limits, and restrictions to prevent misuse.
+See {ref}`exp-projects` for more information.
 
-How to confine a project to a specific user depends on the authentication method you choose.
+How to confine users to specific projects depends on whether LXD is accessible via the {ref}`HTTPS API <projects-confine-https>`, or via the {ref}`Unix socket <projects-confine-users>`.
 
-## Confine projects to specific TLS clients
-
+(projects-confine-https)=
+## Confine users to specific projects on the HTTPS API
 ```{youtube} https://www.youtube.com/watch?v=4iNpiL-lrXU&t=525s
 ```
 
@@ -103,7 +104,7 @@ Send the following request:
 Make sure that `restricted` is set to `true` and specify the projects that the certificate should give access to under `projects`.
 
 (projects-confine-users)=
-## Confine projects to specific LXD users
+## Confine users to specific LXD projects via Unix socket
 
 ```{youtube} https://www.youtube.com/watch?v=6O0q3rSWr8A
 ```
