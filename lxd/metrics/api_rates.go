@@ -89,7 +89,7 @@ func TrackStartedRequest(r *http.Request, endpointType entity.Type) {
 		})
 	}
 
-	request.SetCtxValue(r, request.MetricsCallbackFunc, callbackFunc)
+	request.SetCtxValue(r, request.CtxMetricsCallbackFunc, callbackFunc)
 
 	countStartedRequest(endpointType)
 }
@@ -97,7 +97,7 @@ func TrackStartedRequest(r *http.Request, endpointType entity.Type) {
 // UseMetricsCallback retrieves a callback function from the request context and calls it.
 // The callback function is used to mark the request as completed for the API metrics.
 func UseMetricsCallback(req *http.Request, result RequestResult) {
-	callback, err := request.GetCtxValue[func(RequestResult)](req.Context(), request.MetricsCallbackFunc)
+	callback, err := request.GetCtxValue[func(RequestResult)](req.Context(), request.CtxMetricsCallbackFunc)
 
 	// Verify the auth method in the request context to determine if the request comes from the /dev/lxd socket.
 	authMethod, _ := auth.GetAuthenticationMethodFromCtx(req.Context())
