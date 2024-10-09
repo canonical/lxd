@@ -2576,7 +2576,7 @@ func (d *lxc) onStart(_ map[string]string) error {
 	}
 
 	// Trigger a rebalance
-	cgroup.TaskSchedulerTrigger("container", d.name, "started")
+	cgroup.TaskSchedulerTrigger(d.dbType, d.name, "started")
 
 	// Record last start state.
 	err = d.recordLastState()
@@ -3055,7 +3055,7 @@ func (d *lxc) onStop(args map[string]string) error {
 		}
 
 		// Trigger a rebalance
-		cgroup.TaskSchedulerTrigger("container", d.name, "stopped")
+		cgroup.TaskSchedulerTrigger(d.dbType, d.name, "stopped")
 
 		// Destroy ephemeral containers
 		if d.ephemeral {
@@ -4872,7 +4872,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	if cpuLimitWasChanged {
 		// Trigger a scheduler re-run
-		cgroup.TaskSchedulerTrigger("container", d.name, "changed")
+		cgroup.TaskSchedulerTrigger(d.dbType, d.name, "changed")
 	}
 
 	if userRequested {
