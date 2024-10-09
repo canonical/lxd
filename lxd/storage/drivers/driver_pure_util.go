@@ -536,6 +536,91 @@ func (p *pureClient) deleteVolume(poolName string, volName string) error {
 	return nil
 }
 
+// getVolumeSnapshots retrieves all existing snapshot for the given storage volume.
+func (p *pureClient) getVolumeSnapshots(poolName string, volName string) ([]pureVolume, error) {
+	var resp pureResponse[pureVolume]
+
+	err := p.requestAuthenticated(http.MethodGet, fmt.Sprintf("/volume-snapshots?source_names=%s::%s", poolName, volName), nil, &resp)
+	if err != nil {
+		if isPureErrorNotFound(err) {
+			return nil, api.StatusErrorf(http.StatusNotFound, "Volume %q not found", volName)
+		}
+
+		return nil, fmt.Errorf("Failed to retrieve snapshots for volume %q in storage pool %q: %w", volName, poolName, err)
+	}
+
+	return resp.Items, nil
+}
+
+// getVolumeSnapshot retrieves an existing snapshot for the given storage volume.
+func (p *pureClient) getVolumeSnapshot(poolName string, volName string, snapshotName string) (*pureVolume, error) {
+	var resp pureResponse[pureVolume]
+
+	err := p.requestAuthenticated(http.MethodGet, fmt.Sprintf("/volume-snapshots?names=%s::%s.%s", poolName, volName, snapshotName), nil, &resp)
+	if err != nil {
+		if isPureErrorNotFound(err) {
+			return nil, api.StatusErrorf(http.StatusNotFound, "Snapshot %q not found", snapshotName)
+		}
+
+		return nil, fmt.Errorf("Failed to retrieve snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
+	}
+
+	if len(resp.Items) == 0 {
+		return nil, api.StatusErrorf(http.StatusNotFound, "Snapshot %q not found", snapshotName)
+	}
+
+	return &resp.Items[0], nil
+}
+
+// createVolumeSnapshot creates a new snapshot for the given storage volume.
+func (p *pureClient) createVolumeSnapshot(poolName string, volName string, snapshotName string) error {
+	req, err := p.createBodyReader(map[string]any{
+		"suffix": snapshotName,
+	})
+	if err != nil {
+		return err
+	}
+
+	err = p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/volume-snapshots?source_names=%s::%s", poolName, volName), req, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to create snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
+	}
+
+	return nil
+}
+
+// deleteVolumeSnapshot deletes an existing snapshot for the given storage volume.
+func (p *pureClient) deleteVolumeSnapshot(poolName string, volName string, snapshotName string) error {
+	snapshot, err := p.getVolumeSnapshot(poolName, volName, snapshotName)
+	if err != nil {
+		return err
+	}
+
+	if !snapshot.IsDestroyed {
+		// First destroy the snapshot.
+		req, err := p.createBodyReader(map[string]any{
+			"destroyed": true,
+		})
+		if err != nil {
+			return err
+		}
+
+		// Destroy snapshot.
+		err = p.requestAuthenticated(http.MethodPatch, fmt.Sprintf("/volume-snapshots?names=%s::%s.%s", poolName, volName, snapshotName), req, nil)
+		if err != nil {
+			return fmt.Errorf("Failed to destroy snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
+		}
+	}
+
+	// Delete (eradicate) snapshot.
+	err = p.requestAuthenticated(http.MethodDelete, fmt.Sprintf("/volume-snapshots?names=%s::%s.%s", poolName, volName, snapshotName), nil, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to delete snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
+	}
+
+	return nil
+}
+
 // getHosts retrieves an existing Pure Storage host.
 func (p *pureClient) getHosts() ([]pureHost, error) {
 	var resp pureResponse[pureHost]
