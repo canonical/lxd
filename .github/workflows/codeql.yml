@@ -12,11 +12,13 @@
 name: "CodeQL"
 
 on:
-  push:
-    branches:
-      - main
-      - stable-*
   pull_request:
+    paths-ignore:
+      - '.github/**'
+      - 'doc/**'
+      - 'po/**'
+      - 'tests/**'
+      - '**.md'
   schedule:
     - cron: '19 20 * * 5'
 
