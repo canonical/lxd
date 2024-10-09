@@ -99,9 +99,9 @@ func (n NodeInfo) ToAPI(ctx context.Context, tx *ClusterTx, args NodeInfoArgs) (
 
 	// From local database.
 	var raftNode *RaftNode
-	for _, node := range args.RaftNodes {
+	for i, node := range args.RaftNodes {
 		if node.Address == n.Address {
-			raftNode = &node
+			raftNode = &args.RaftNodes[i]
 			break
 		}
 	}
@@ -156,12 +156,12 @@ func (n NodeInfo) ToAPI(ctx context.Context, tx *ClusterTx, args NodeInfoArgs) (
 		result.Message = fmt.Sprintf("No heartbeat for %s (%s)", time.Since(n.Heartbeat), n.Heartbeat)
 	} else {
 		// Check if up to date.
-		n, err := util.CompareVersions(maxVersion, n.Version())
+		cmp, err := util.CompareVersions(maxVersion, n.Version())
 		if err != nil {
 			return nil, err
 		}
 
-		if n == 1 {
+		if cmp == 1 {
 			result.Status = "Blocked"
 			result.Message = "Needs updating to newer version"
 		}
@@ -241,7 +241,7 @@ func (c *ClusterTx) GetNodeWithID(ctx context.Context, nodeID int) (NodeInfo, er
 // GetPendingNodeByAddress returns the pending node with the given network address.
 func (c *ClusterTx) GetPendingNodeByAddress(ctx context.Context, address string) (NodeInfo, error) {
 	null := NodeInfo{}
-	nodes, err := c.nodes(ctx, true /*pending */, "address=?", address)
+	nodes, err := c.nodes(ctx, true /* pending */, "address=?", address)
 	if err != nil {
 		return null, err
 	}
