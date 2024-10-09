@@ -14,7 +14,7 @@ The following how-to guides cover common operations related to projects:
 
 :diataxis:Create and configure </howto/projects_create>
 :diataxis:Work with projects </howto/projects_work>
-:diataxis:Confine projects to users </howto/projects_confine>
+:diataxis:Confine users to projects </howto/projects_confine>
 ```
 
 ## Related topics
@@ -31,6 +31,6 @@ The following how-to guides cover common operations related to projects:
 :topical:/explanation/projects
 :topical:Create and configure projects </howto/projects_create>
 :topical:Work with different projects </howto/projects_work>
-:topical:Confine projects to users </howto/projects_confine>
+:topical:Confine users to projects </howto/projects_confine>
 :topical:/reference/projects
 ```
