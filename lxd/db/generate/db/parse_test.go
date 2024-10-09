@@ -4,13 +4,18 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/tools/go/packages"
 
 	"github.com/canonical/lxd/lxd/db/generate/db"
+	"github.com/canonical/lxd/lxd/db/generate/lex"
 )
 
 func TestPackages(t *testing.T) {
@@ -22,8 +27,9 @@ func TestPackages(t *testing.T) {
 	pkg := packages["api"]
 	assert.NotNil(t, pkg)
 
-	obj := pkg.Scope.Lookup("Project")
-	assert.NotNil(t, obj)
+	objs := db.GetVars(pkg)
+	assert.NotNil(t, objs)
+	assert.NotNil(t, objs["StatusCodeNames"])
 }
 
 type Person struct {
@@ -45,17 +51,39 @@ type Teacher struct {
 type TeacherFilter struct {
 }
 
-func TestParse(t *testing.T) {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "parse_test.go", nil, parser.ParseComments)
+func TestGetVar(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	pkg, err := lex.Parse(filepath.Dir(filename))
 	require.NoError(t, err)
 
-	files := map[string]*ast.File{
-		"parse_test": file,
+	objs := db.GetVars(pkg)
+	assert.NotNil(t, objs)
+	assert.NotNil(t, objs["Imports"])
+}
+
+func TestParse(t *testing.T) {
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, filepath.Join(cwd, "parse_test.go"), nil, parser.ParseComments)
+	require.NoError(t, err)
+
+	files := []*ast.File{file}
+
+	// Tests flag has to be set to parse test files.
+	pkgs, err := packages.Load(&packages.Config{Tests: true, Fset: fset}, cwd)
+	require.NoError(t, err)
+
+	var pkg *packages.Package
+	for _, p := range pkgs {
+		if p.Name == "db_test" {
+			pkg = p
+			pkg.Syntax = files
+		}
 	}
 
-	pkg, _ := ast.NewPackage(fset, files, nil, nil)
-
+	assert.NotNil(t, pkg)
 	m, err := db.Parse(pkg, "Teacher", "objects")
 	require.NoError(t, err)
 
