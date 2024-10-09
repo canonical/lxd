@@ -7,6 +7,11 @@ inputs:
     default: "latest/edge"
     type: string
 
+  install-ceph-common:
+    description: Whether to install `ceph-common` or not.
+    default: true
+    type: boolean
+
 runs:
   using: composite
   steps:
@@ -85,6 +90,7 @@ runs:
 
     - name: Install ceph-common package
       shell: bash
+      if: ${{ inputs.install-ceph-common }}
       run: |
           set -eux
 
