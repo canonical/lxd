@@ -7,12 +7,15 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -79,6 +82,75 @@ func LocalSysInfo() (*api.ClusterMemberSysInfo, error) {
 	sysInfo.LogicalCPUs = uint64(runtime.NumCPU())
 
 	return sysInfo, nil
+}
+
+// ClusterState returns a map from clusterMemberName -> state for every member
+// of the cluster. This requires an HTTP call to the rest of the cluster.
+func ClusterState(s *state.State, networkCert *shared.CertInfo, members ...db.NodeInfo) (map[string]api.ClusterMemberState, error) {
+	serverCert := s.ServerCert()
+
+	notifier, err := NewNotifier(s, networkCert, serverCert, NotifyAll, members...)
+	if err != nil {
+		return nil, err
+	}
+
+	type stateTuple struct {
+		name  string
+		state *api.ClusterMemberState
+	}
+
+	memberStates := make(map[string]api.ClusterMemberState)
+	statesChan := make(chan stateTuple)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		for state := range statesChan {
+			memberStates[state.name] = *state.state
+		}
+
+		wg.Done()
+	}()
+
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+		state, _, err := client.GetClusterMemberState(member.Name)
+		if err != nil {
+			return err
+		}
+
+		statesChan <- stateTuple{
+			name:  member.Name,
+			state: state,
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	close(statesChan)
+
+	includeLocalMember := len(members) == 0
+	for _, member := range members {
+		if member.Name == s.ServerName {
+			includeLocalMember = true
+			break
+		}
+	}
+
+	wg.Wait()
+
+	if includeLocalMember {
+		localState, err := MemberState(context.TODO(), s)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get local member state: %w", err)
+		}
+
+		memberStates[s.ServerName] = *localState
+	}
+
+	return memberStates, nil
 }
 
 // MemberState retrieves state information about the cluster member.
