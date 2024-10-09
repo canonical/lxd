@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/openfga/openfga/pkg/storage"
@@ -573,7 +572,7 @@ func (*openfgaStore) ReadAssertions(ctx context.Context, store, modelID string) 
 }
 
 // ReadChanges returns a not implemented error, because we do not need to use the read changes API.
-func (*openfgaStore) ReadChanges(ctx context.Context, store, objectType string, paginationOptions storage.ReadChangesOptions, horizonOffset time.Duration) ([]*openfgav1.TupleChange, []byte, error) {
+func (*openfgaStore) ReadChanges(ctx context.Context, store string, filter storage.ReadChangesFilter, options storage.ReadChangesOptions) ([]*openfgav1.TupleChange, []byte, error) {
 	return nil, nil, api.StatusErrorf(http.StatusNotImplemented, "not implemented")
 }
 
