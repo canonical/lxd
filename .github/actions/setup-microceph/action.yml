@@ -7,11 +7,6 @@ inputs:
     default: "latest/edge"
     type: string
 
-  install-ceph-common:
-    description: Whether to install `ceph-common` or not.
-    default: true
-    type: boolean
-
 runs:
   using: composite
   steps:
@@ -86,14 +81,3 @@ runs:
             fi
           done
           sudo microceph.ceph status
-          sudo rm -f /snap/bin/rbd
-
-    - name: Install ceph-common package
-      shell: bash
-      if: ${{ inputs.install-ceph-common }}
-      run: |
-          set -eux
-
-          sudo apt-get install --no-install-recommends -y ceph-common
-          # reclaim some space
-          sudo apt-get clean
