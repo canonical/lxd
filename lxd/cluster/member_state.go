@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 
 	"golang.org/x/sys/unix"
 
@@ -16,6 +17,10 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
+
+// ErrorClusterUnavailable is emitted when not all cluster members are reachable
+// to provide ClusterMemberSysInfo.
+var ErrorClusterUnavailable = fmt.Errorf("Cannot get sysinfo when cluster members are unreachable")
 
 // getLoadAvgs returns the host's load averages from /proc/loadavg.
 func getLoadAvgs() ([]float64, error) {
@@ -79,6 +84,66 @@ func LocalSysInfo() (*api.ClusterMemberSysInfo, error) {
 	sysInfo.CPUThreads = uint64(runtime.NumCPU())
 
 	return sysInfo, nil
+}
+
+// ClusterSysInfo returns a map from clusterMemberName -> sysinfo for every member
+// of the cluster. This requires an HTTP API call to the rest of the cluster.
+// Fails with ClusterUnavailableError if any requested member is offline.
+func ClusterSysInfo(s *state.State, members []db.NodeInfo) (map[string]api.ClusterMemberSysInfo, error) {
+	networkCert := s.Endpoints.NetworkCert()
+	serverCert := s.ServerCert()
+	sysinfos := make([]api.ClusterMemberSysInfo, len(members))
+	errors := make([]error, len(members))
+	wg := sync.WaitGroup{}
+	wg.Add(len(members))
+
+	for i, member := range members {
+		if member.Address == s.LocalConfig.ClusterAddress() || member.Address == "0.0.0.0" {
+			localInfo, err := LocalSysInfo()
+			if err != nil {
+				errors[i] = err
+				break
+			}
+
+			sysinfos[i] = *localInfo
+			wg.Done()
+			continue
+		}
+
+		if member.IsOffline(s.GlobalConfig.OfflineThreshold()) {
+			return nil, ErrorClusterUnavailable
+		}
+
+		go func(i int, member db.NodeInfo) {
+			defer wg.Done()
+
+			client, err := Connect(member.Address, networkCert, serverCert, nil, false)
+			if err != nil {
+				errors[i] = err
+			}
+
+			state, _, err := client.GetClusterMemberState(member.Name)
+			if err != nil {
+				errors[i] = err
+			}
+
+			sysinfos[i] = state.SysInfo
+		}(i, member)
+	}
+
+	wg.Wait()
+	for _, err := range errors {
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	sysinfo := make(map[string]api.ClusterMemberSysInfo)
+	for i, info := range sysinfos {
+		sysinfo[members[i].Name] = info
+	}
+
+	return sysinfo, nil
 }
 
 // MemberState retrieves state information about the cluster member.
