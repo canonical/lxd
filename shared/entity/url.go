@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
@@ -23,25 +22,6 @@ func nRequiredPathArguments(t typeInfo) int {
 	}
 
 	return nRequiredPathArguments
-}
-
-// EndpointEntityType derives the main entity type an endpoint is opertaing on from its URL.
-// This is used to label endpoints for the API rates metrics.
-func EndpointEntityType(url url.URL) Type {
-	// Extract the url prefix without slashes and the API version if present.
-	urlPrefix := strings.Split(strings.TrimPrefix(strings.TrimPrefix(url.Path, "/"+version.APIVersion), "/"), "/")[0]
-
-	// Match the extracted prefix with recognized entity types' prefixes.
-	for entityType, typeInfo := range entityTypes {
-		if shared.ValueInSlice(urlPrefix, typeInfo.apiMetricsURLPrefixes()) {
-			return entityType
-		}
-	}
-
-	// Use TypeServer as the default, is used for undefined URLs.
-	// This also applies to endpoints /, /{version}, /{version}/metrics, /{version}/events, /{version}/metadata and
-	// /{version}/resources.
-	return TypeServer
 }
 
 // URL returns a string URL for the Type.
