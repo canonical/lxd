@@ -48,7 +48,7 @@ jobs:
         uses: ./.github/actions/tune-disk-performance
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@5a2ce3f5b92ee19cbb1541a4984c76d921601d7c  # v4.3.4
         if: github.event_name == 'pull_request'
 
       # XXX: `make static-analysis` also run shellcheck but this one provides
