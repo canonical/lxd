@@ -58,7 +58,7 @@ runs:
           sudo microceph.ceph config set global osd_memory_target 939524096
           sudo microceph.ceph osd crush rule rm replicated_rule
           sudo microceph.ceph osd crush rule create-replicated replicated default osd
-          for flag in nosnaptrim noscrub nobackfill norebalance norecover noscrub nodeep-scrub; do
+          for flag in nosnaptrim nobackfill norebalance norecover noscrub nodeep-scrub; do
               sudo microceph.ceph osd set $flag
           done
           sudo microceph disk add --wipe "${{ steps.free_ephemeral_disk.outputs.ephemeral_disk }}"
