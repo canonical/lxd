@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/tools/go/packages"
+
 	"github.com/canonical/lxd/lxd/db/generate/lex"
 	"github.com/canonical/lxd/shared"
 )
@@ -19,8 +21,8 @@ import (
 // Packages returns the AST packages in which to search for structs.
 //
 // By default it includes the lxd/db and shared/api packages.
-func Packages() (map[string]*ast.Package, error) {
-	packages := map[string]*ast.Package{}
+func Packages() (map[string]*packages.Package, error) {
+	packages := map[string]*packages.Package{}
 
 	_, filename, _, _ := runtime.Caller(0)
 
@@ -38,7 +40,7 @@ func Packages() (map[string]*ast.Package, error) {
 }
 
 // ParsePackage returns the AST package in which to search for structs.
-func ParsePackage(pkgPath string) (*ast.Package, error) {
+func ParsePackage(pkgPath string) (*packages.Package, error) {
 	pkg, err := lex.Parse(pkgPath)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse package path %q: %w", pkgPath, err)
@@ -52,13 +54,40 @@ var defaultPackages = []string{
 	"lxd/db",
 }
 
+// GetVars gets all variable declarations in the given package, by name.
+func GetVars(pkg *packages.Package) map[string]*ast.ValueSpec {
+	objects := map[string]*ast.ValueSpec{}
+	for _, s := range pkg.Syntax {
+		for _, d := range s.Decls {
+			decl, ok := d.(*ast.GenDecl)
+			if !ok {
+				continue
+			}
+
+			for _, s := range decl.Specs {
+				spec, ok := s.(*ast.ValueSpec)
+				if !ok {
+					continue
+				}
+
+				if len(spec.Values) != 1 && len(spec.Names) != 1 {
+					continue
+				}
+
+				objects[spec.Names[0].Name] = spec
+			}
+		}
+	}
+
+	return objects
+}
+
 // FiltersFromStmt parses all filtering statement defined for the given entity. It
 // returns all supported combinations of filters, sorted by number of criteria, and
 // the corresponding set of unused filters from the Filter struct.
-func FiltersFromStmt(pkg *ast.Package, kind string, entity string, filters []*Field) ([][]string, [][]string) {
-	objects := pkg.Scope.Objects
+func FiltersFromStmt(pkg *packages.Package, kind string, entity string, filters []*Field) ([][]string, [][]string) {
+	objects := GetVars(pkg)
 	stmtFilters := [][]string{}
-
 	prefix := fmt.Sprintf("%s%sBy", lex.Minuscule(lex.Camel(entity)), lex.Camel(kind))
 
 	for name := range objects {
@@ -87,8 +116,8 @@ func FiltersFromStmt(pkg *ast.Package, kind string, entity string, filters []*Fi
 }
 
 // RefFiltersFromStmt parses all filtering statement defined for the given entity reference.
-func RefFiltersFromStmt(pkg *ast.Package, entity string, ref string, filters []*Field) ([][]string, [][]string) {
-	objects := pkg.Scope.Objects
+func RefFiltersFromStmt(pkg *packages.Package, entity string, ref string, filters []*Field) ([][]string, [][]string) {
+	objects := GetVars(pkg)
 	stmtFilters := [][]string{}
 
 	prefix := fmt.Sprintf("%s%sRefBy", lex.Minuscule(lex.Camel(entity)), lex.Capital(ref))
@@ -150,9 +179,9 @@ func sortFilter(filter []string) []string {
 
 // Parse the structure declaration with the given name found in the given Go package.
 // Any 'Entity' struct should also have an 'EntityFilter' struct defined in the same file.
-func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
+func Parse(pkg *packages.Package, name string, kind string) (*Mapping, error) {
 	// The main entity struct.
-	str := findStruct(pkg.Scope, name)
+	str := findStruct(pkg, name)
 	if str == nil {
 		return nil, fmt.Errorf("No declaration found for %q", name)
 	}
@@ -173,7 +202,7 @@ func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 	if m.Filterable {
 		// The 'EntityFilter' struct. This is used for filtering on specific fields of the entity.
 		filterName := name + "Filter"
-		filterStr := findStruct(pkg.Scope, filterName)
+		filterStr := findStruct(pkg, filterName)
 		if filterStr == nil {
 			return nil, fmt.Errorf("No declaration found for %q", filterName)
 		}
@@ -216,54 +245,64 @@ func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 
 // ParseStmt returns the SQL string passed as an argument to a variable declaration of a call to RegisterStmt with the given name.
 // e.g. the SELECT string from 'var instanceObjects = RegisterStmt(`SELECT * from instances...`)'.
-func ParseStmt(pkg *ast.Package, dbPkg *ast.Package, name string) (string, error) {
-	stmtVar := pkg.Scope.Lookup(name)
-	if stmtVar == nil && dbPkg != nil {
-		// Fallback to database helper package if provided, if we can't find the variable.
-		stmtVar = dbPkg.Scope.Lookup(name)
+func ParseStmt(pkg *packages.Package, dbPkg *packages.Package, name string) (string, error) {
+	pkgs := []*packages.Package{pkg}
+	if dbPkg != nil {
+		pkgs = append(pkgs, dbPkg)
 	}
 
-	if stmtVar == nil {
-		return "", fmt.Errorf("Failed to find variable named %q", name)
+	for _, defaultPkg := range pkgs {
+		for _, syntax := range defaultPkg.Syntax {
+			for _, d := range syntax.Decls {
+				decl, ok := d.(*ast.GenDecl)
+				if !ok {
+					continue
+				}
+
+				for _, s := range decl.Specs {
+					spec, ok := s.(*ast.ValueSpec)
+					if !ok {
+						continue
+					}
+
+					if len(spec.Values) != 1 && len(spec.Names) != 1 {
+						continue
+					}
+
+					if spec.Names[0].Name != name {
+						continue
+					}
+
+					expr, ok := spec.Values[0].(*ast.CallExpr)
+					if !ok {
+						return "", fmt.Errorf("Object %q is not variable defined as a function call to RegisterStmt", name)
+					}
+
+					if len(expr.Args) != 1 {
+						return "", fmt.Errorf("Object %q's call to RegisterStmt should have only one argument, found %d", name, len(expr.Args))
+					}
+
+					lit, ok := expr.Args[0].(*ast.BasicLit)
+					if !ok {
+						return "", fmt.Errorf("Object %q's call to RegisterStmt must have a SQL string as its argument", name)
+					}
+
+					return lit.Value, nil
+				}
+			}
+		}
 	}
 
-	if stmtVar.Kind != ast.Var {
-		return "", fmt.Errorf("Object %q is not a variable", name)
-	}
-
-	spec, ok := stmtVar.Decl.(*ast.ValueSpec)
-	if !ok {
-		return "", fmt.Errorf("Object %q is not a variable declaration", name)
-	}
-
-	if len(spec.Values) != 1 && len(spec.Names) != 1 {
-		return "", fmt.Errorf("Object %q must have 1 value, found %d", name, len(spec.Values))
-	}
-
-	expr, ok := spec.Values[0].(*ast.CallExpr)
-	if !ok {
-		return "", fmt.Errorf("Object %q is not variable defined as a function call to RegisterStmt", name)
-	}
-
-	if len(expr.Args) != 1 {
-		return "", fmt.Errorf("Object %q's call to RegisterStmt should have only one argument, found %d", name, len(expr.Args))
-	}
-
-	lit, ok := expr.Args[0].(*ast.BasicLit)
-	if !ok {
-		return "", fmt.Errorf("Object %q's call to RegisterStmt must have a SQL string as its argument", name)
-	}
-
-	return lit.Value, nil
+	return "", fmt.Errorf("Value %q not found", name)
 }
 
 // tableType determines the TableType for the given struct fields.
-func tableType(pkg *ast.Package, name string, fields []*Field) TableType {
+func tableType(pkg *packages.Package, name string, fields []*Field) TableType {
 	fieldNames := FieldNames(fields)
 	entities := strings.Split(lex.Snake(name), "_")
 	if len(entities) == 2 {
-		struct1 := findStruct(pkg.Scope, lex.Camel(lex.Singular(entities[0])))
-		struct2 := findStruct(pkg.Scope, lex.Camel(lex.Singular(entities[1])))
+		struct1 := findStruct(pkg, lex.Camel(lex.Singular(entities[0])))
+		struct2 := findStruct(pkg, lex.Camel(lex.Singular(entities[1])))
 		if struct1 != nil && struct2 != nil {
 			return AssociationTable
 		}
@@ -281,23 +320,35 @@ func tableType(pkg *ast.Package, name string, fields []*Field) TableType {
 }
 
 // Find the StructType node for the structure with the given name.
-func findStruct(scope *ast.Scope, name string) *ast.StructType {
-	obj := scope.Lookup(name)
-	if obj == nil {
-		return nil
+func findStruct(pkg *packages.Package, name string) *ast.StructType {
+	for _, syntax := range pkg.Syntax {
+		for _, d := range syntax.Decls {
+			decl, ok := d.(*ast.GenDecl)
+			if !ok {
+				continue
+			}
+
+			for _, s := range decl.Specs {
+				typ, ok := s.(*ast.TypeSpec)
+				if !ok {
+					continue
+				}
+
+				if typ.Name.Name != name {
+					continue
+				}
+
+				str, ok := typ.Type.(*ast.StructType)
+				if !ok {
+					return nil
+				}
+
+				return str
+			}
+		}
 	}
 
-	typ, ok := obj.Decl.(*ast.TypeSpec)
-	if !ok {
-		return nil
-	}
-
-	str, ok := typ.Type.(*ast.StructType)
-	if !ok {
-		return nil
-	}
-
-	return str
+	return nil
 }
 
 // Extract field information from the given structure.

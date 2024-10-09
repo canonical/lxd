@@ -2,9 +2,10 @@ package db
 
 import (
 	"fmt"
-	"go/ast"
 	"net/url"
 	"strings"
+
+	"golang.org/x/tools/go/packages"
 
 	"github.com/canonical/lxd/lxd/db/generate/lex"
 	"github.com/canonical/lxd/shared"
@@ -433,10 +434,7 @@ func (f *Field) JoinClause(mapping *Mapping, table string) (string, error) {
 // to select the ID to insert into this table.
 // - If a 'joinon' tag is present, but this table is not among the conditions, then the join will be considered indirect,
 // and an empty string will be returned.
-func (f *Field) InsertColumn(pkg *ast.Package, dbPkg *ast.Package, mapping *Mapping, primaryTable string) (string, string, error) {
-	var column string
-	var value string
-	var err error
+func (f *Field) InsertColumn(pkg *packages.Package, dbPkg *packages.Package, mapping *Mapping, primaryTable string) (column string, value string, err error) {
 	if f.IsScalar() {
 		tableName, columnName, err := f.SQLConfig()
 		if err != nil {
@@ -500,6 +498,7 @@ func (f *Field) InsertColumn(pkg *ast.Package, dbPkg *ast.Package, mapping *Mapp
 	return column, value, nil
 }
 
+// JoinConfig returns the `join` or `leftjoin` tag values.
 func (f Field) JoinConfig() string {
 	join := f.Config.Get("join")
 	if join == "" {
@@ -510,7 +509,7 @@ func (f Field) JoinConfig() string {
 }
 
 // SQLConfig returns the table and column specified by the 'sql' config key, if present.
-func (f Field) SQLConfig() (string, string, error) {
+func (f Field) SQLConfig() (tableName string, columnName string, err error) {
 	where := f.Config.Get("sql")
 
 	if where == "" {
@@ -526,7 +525,7 @@ func (f Field) SQLConfig() (string, string, error) {
 }
 
 // ScalarTableColumn gets the table and column from the join configuration.
-func (f Field) ScalarTableColumn() (string, string, error) {
+func (f Field) ScalarTableColumn() (tableName string, columnName string, err error) {
 	join := f.JoinConfig()
 
 	if join == "" {

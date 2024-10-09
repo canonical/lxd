@@ -4,11 +4,12 @@ package db
 
 import (
 	"fmt"
-	"go/ast"
 	"go/build"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/tools/go/packages"
 
 	"github.com/canonical/lxd/lxd/db/generate/file"
 	"github.com/canonical/lxd/lxd/db/generate/lex"
@@ -17,11 +18,11 @@ import (
 // Stmt generates a particular database query statement.
 type Stmt struct {
 	db     string            // Database package receiver
-	dbPkg  *ast.Package      // Package where database related helpers are located.
+	dbPkg  *packages.Package // Package where database related helpers are located.
 	entity string            // Name of the database entity
 	kind   string            // Kind of statement to generate
 	config map[string]string // Configuration parameters
-	pkg    *ast.Package      // Package to perform for struct declaration lookups
+	pkg    *packages.Package // Package to perform for struct declaration lookups
 }
 
 // NewStmt return a new statement code snippet for running the given kind of
@@ -48,7 +49,7 @@ func NewStmt(database, pkg, entity, kind string, config map[string]string) (*Stm
 		return nil, err
 	}
 
-	var dbPkg *ast.Package
+	var dbPkg *packages.Package
 	if database != "" {
 		importPkg, err := build.Import(database, "", build.FindOnly)
 		if err != nil {
