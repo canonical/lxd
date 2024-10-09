@@ -24,8 +24,9 @@ import (
 )
 
 var identityProviderGroupsCmd = APIEndpoint{
-	Name: "identity_provider_groups",
-	Path: "auth/identity-provider-groups",
+	Name:        "identity_provider_groups",
+	Path:        "auth/identity-provider-groups",
+	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
 		Handler:       getIdentityProviderGroups,
 		AccessHandler: allowAuthenticated,
@@ -37,8 +38,9 @@ var identityProviderGroupsCmd = APIEndpoint{
 }
 
 var identityProviderGroupCmd = APIEndpoint{
-	Name: "identity_provider_group",
-	Path: "auth/identity-provider-groups/{idpGroupName}",
+	Name:        "identity_provider_group",
+	Path:        "auth/identity-provider-groups/{idpGroupName}",
+	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
 		Handler:       getIdentityProviderGroup,
 		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanView, "idpGroupName"),

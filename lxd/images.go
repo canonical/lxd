@@ -58,14 +58,16 @@ import (
 )
 
 var imagesCmd = APIEndpoint{
-	Path: "images",
+	Path:        "images",
+	MetricsType: entity.TypeImage,
 
 	Get:  APIEndpointAction{Handler: imagesGet, AllowUntrusted: true},
 	Post: APIEndpointAction{Handler: imagesPost, AllowUntrusted: true},
 }
 
 var imageCmd = APIEndpoint{
-	Path: "images/{fingerprint}",
+	Path:        "images/{fingerprint}",
+	MetricsType: entity.TypeImage,
 
 	Delete: APIEndpointAction{Handler: imageDelete, AccessHandler: imageAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: imageGet, AllowUntrusted: true},
@@ -74,33 +76,38 @@ var imageCmd = APIEndpoint{
 }
 
 var imageExportCmd = APIEndpoint{
-	Path: "images/{fingerprint}/export",
+	Path:        "images/{fingerprint}/export",
+	MetricsType: entity.TypeImage,
 
 	Get:  APIEndpointAction{Handler: imageExport, AllowUntrusted: true},
 	Post: APIEndpointAction{Handler: imageExportPost, AccessHandler: imageAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var imageSecretCmd = APIEndpoint{
-	Path: "images/{fingerprint}/secret",
+	Path:        "images/{fingerprint}/secret",
+	MetricsType: entity.TypeImage,
 
 	Post: APIEndpointAction{Handler: imageSecret, AccessHandler: imageAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var imageRefreshCmd = APIEndpoint{
-	Path: "images/{fingerprint}/refresh",
+	Path:        "images/{fingerprint}/refresh",
+	MetricsType: entity.TypeImage,
 
 	Post: APIEndpointAction{Handler: imageRefresh, AccessHandler: imageAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var imageAliasesCmd = APIEndpoint{
-	Path: "images/aliases",
+	Path:        "images/aliases",
+	MetricsType: entity.TypeImage,
 
 	Get:  APIEndpointAction{Handler: imageAliasesGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: imageAliasesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateImageAliases)},
 }
 
 var imageAliasCmd = APIEndpoint{
-	Path: "images/aliases/{name:.*}",
+	Path:        "images/aliases/{name:.*}",
+	MetricsType: entity.TypeImage,
 
 	Delete: APIEndpointAction{Handler: imageAliasDelete, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: imageAliasGet, AllowUntrusted: true},
