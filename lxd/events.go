@@ -25,7 +25,8 @@ var eventTypes = []string{api.EventTypeLogging, api.EventTypeOperation, api.Even
 var privilegedEventTypes = []string{api.EventTypeLogging}
 
 var eventsCmd = APIEndpoint{
-	Path: "events",
+	Path:        "events",
+	MetricsType: entity.TypeServer,
 
 	Get: APIEndpointAction{Handler: eventsGet, AccessHandler: allowProjectResourceList},
 }
