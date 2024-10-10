@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"time"
 	"unsafe"
 
@@ -397,7 +398,7 @@ func ExitStatus(err error) (int, error) {
 	// Detect and extract ExitError to check the embedded exit status.
 	if errors.As(err, &exitErr) {
 		// If the process was signaled, extract the signal.
-		status, isWaitStatus := exitErr.Sys().(unix.WaitStatus)
+		status, isWaitStatus := exitErr.Sys().(syscall.WaitStatus)
 		if isWaitStatus && status.Signaled() {
 			return 128 + int(status.Signal()), nil // 128 + n == Fatal error signal "n"
 		}
