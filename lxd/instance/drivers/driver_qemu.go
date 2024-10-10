@@ -1576,7 +1576,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// Setup background process.
-	p, err := subprocess.NewProcess(d.state.OS.ExecPath, append(forkLimitsCmd, qemuCmd...), d.EarlyLogFilePath(), d.EarlyLogFilePath())
+	p, err := subprocess.NewProcess(fmt.Sprintf("/proc/%d/exe", os.Getpid()), append(forkLimitsCmd, qemuCmd...), d.EarlyLogFilePath(), d.EarlyLogFilePath())
 	if err != nil {
 		op.Done(err)
 		return err
