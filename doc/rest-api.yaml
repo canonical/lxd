@@ -3127,24 +3127,28 @@ definitions:
             e.g, instance, network forward, load-balancer, network...
         properties:
             addresses:
-                description: The network address of the allocation (in CIDR format)
+                description: The network address of the allocation (in CIDR format).
                 example: 192.0.2.1/24
                 type: string
                 x-go-name: Address
             hwaddr:
-                description: Hwaddr is the MAC address of the entity consuming the network address
+                description: Hwaddr is the MAC address of the entity consuming the network address.
                 type: string
                 x-go-name: Hwaddr
             nat:
-                description: Whether the entity comes from a network that LXD performs egress source NAT on
+                description: Whether the entity comes from a network that LXD performs egress source NAT on.
                 type: boolean
                 x-go-name: NAT
+            network:
+                description: Network is the name of the network the allocated address belongs to.
+                type: string
+                x-go-name: Network
             type:
-                description: Type of the entity consuming the network address
+                description: Type of the entity consuming the network address.
                 type: string
                 x-go-name: Type
             used_by:
-                description: Name of the entity consuming the network address
+                description: Name of the entity consuming the network address.
                 type: string
                 x-go-name: UsedBy
         type: object
@@ -12099,7 +12103,7 @@ paths:
                     $ref: '#/responses/Forbidden'
                 "500":
                     $ref: '#/responses/InternalServerError'
-            summary: Get the network allocations in use (`network`, `network-forward` and `load-balancer` and `instance`)
+            summary: Get the network allocations in use (`network`, `network-forward`, `load-balancer`, `uplink` and `instance`)
             tags:
                 - network-allocations
     /1.0/network-zones:

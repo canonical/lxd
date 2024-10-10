@@ -23,6 +23,7 @@ func (c *cmdNetworkListAllocations) pretty(allocs []api.NetworkAllocations) erro
 	header := []string{
 		i18n.G("USED BY"),
 		i18n.G("ADDRESS"),
+		i18n.G("NETWORK"),
 		i18n.G("TYPE"),
 		i18n.G("NAT"),
 		i18n.G("HARDWARE ADDRESS"),
@@ -33,6 +34,7 @@ func (c *cmdNetworkListAllocations) pretty(allocs []api.NetworkAllocations) erro
 		row := []string{
 			alloc.UsedBy,
 			alloc.Address,
+			alloc.Network,
 			alloc.Type,
 			fmt.Sprint(alloc.NAT),
 			alloc.Hwaddr,
