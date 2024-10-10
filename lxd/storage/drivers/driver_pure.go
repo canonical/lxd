@@ -274,7 +274,34 @@ func (d *pure) Unmount() (bool, error) {
 
 // GetResources returns the pool resource usage information.
 func (d *pure) GetResources() (*api.ResourcesStoragePool, error) {
+	pool, err := d.client().getStoragePool(d.name)
+	if err != nil {
+		return nil, err
+	}
+
 	res := &api.ResourcesStoragePool{}
+
+	res.Space.Total = uint64(pool.Quota)
+	res.Space.Used = uint64(pool.Space.UsedBytes)
+
+	if pool.Quota == 0 {
+		// If quota is set to 0, it means that the storage pool is unbounded. Therefore,
+		// collect the total capacity of arrays where storage pool provisioned.
+		arrayNames := make([]string, 0, len(pool.Arrays))
+		for _, array := range pool.Arrays {
+			arrayNames = append(arrayNames, array.Name)
+		}
+
+		arrays, err := d.client().getStorageArrays(arrayNames...)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, array := range arrays {
+			res.Space.Total += uint64(array.Capacity)
+		}
+	}
+
 	return res, nil
 }
 
