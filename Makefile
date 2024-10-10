@@ -198,7 +198,7 @@ dist: doc
 	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
 
 	# Download the dqlite library
-	git clone --depth=1 https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
+	git clone --depth=1 --branch leader-pseudo-coroutines https://github.com/cole-miller/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
 	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
 
 	# Copy doc output
