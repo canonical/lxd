@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -535,6 +536,41 @@ func (d *pure) RenameVolume(vol Volume, newVolName string, op *operations.Operat
 
 // RestoreVolume restores a volume from a snapshot.
 func (d *pure) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
+	ourUnmount, err := d.UnmountVolume(vol, false, op)
+	if err != nil {
+		return err
+	}
+
+	if ourUnmount {
+		defer func() { _ = d.MountVolume(vol, op) }()
+	}
+
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return err
+	}
+
+	snapVolName, err := d.getVolumeName(snapVol)
+	if err != nil {
+		return err
+	}
+
+	// Overwrite existing volume by copying the given snapshot content into it.
+	err = d.client().restoreVolumeSnapshot(vol.pool, volName, snapVolName)
+	if err != nil {
+		return err
+	}
+
+	// For VMs, also restore the filesystem volume.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		snapFSVol := snapVol.NewVMBlockFilesystemVolume()
+		err := d.RestoreVolume(fsVol, snapFSVol, op)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -682,13 +718,57 @@ func (d *pure) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (
 	return d.UnmountVolume(snapVol, false, op)
 }
 
-// VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
+// VolumeSnapshots returns a list of Pure Storage snapshot names for the given volume (in no particular order).
 func (d *pure) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
-	return []string{}, nil
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return nil, err
+	}
+
+	volumeSnapshots, err := d.client().getVolumeSnapshots(vol.pool, volName)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	snapshotNames := make([]string, 0, len(volumeSnapshots))
+	for _, snapshot := range volumeSnapshots {
+		// Snapshot name contains storage pool and volume names as prefix.
+		// Storage pool is delimited with double colon (::) and volume with a dot.
+		_, volAndSnapName, _ := strings.Cut(snapshot.Name, "::")
+		_, snapshotName, _ := strings.Cut(volAndSnapName, ".")
+
+		snapshotNames = append(snapshotNames, snapshotName)
+	}
+
+	return snapshotNames, nil
 }
 
-// CheckVolumeSnapshots checks that the volume's snapshots, according to the storage driver, match those provided.
+// CheckVolumeSnapshots checks that the volume's snapshots, according to the storage driver,
+// match those provided. Note that additional snapshots may exist within the Pure Storage pool
+// if protection groups are configured outside of LXD.
 func (d *pure) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *operations.Operation) error {
+	// Get all of the volume's snapshots in base64 encoded format.
+	storageSnapshotNames, err := vol.driver.VolumeSnapshots(vol, op)
+	if err != nil {
+		return err
+	}
+
+	// Check if the provided list of volume snapshots matches the ones from the storage.
+	for _, snap := range snapVols {
+		snapName, err := d.getVolumeName(snap)
+		if err != nil {
+			return err
+		}
+
+		if !slices.Contains(storageSnapshotNames, snapName) {
+			return fmt.Errorf("Snapshot %q expected but not in storage", snapName)
+		}
+	}
+
 	return nil
 }
 
