@@ -108,8 +108,8 @@ test_exec_exit_code() {
   [ "${exitCode:-0}" -eq 137 ] # 128 + 9(SIGKILL)
 
   # Try disconnecting a container stopping forcefully.
-  (sleep 1 && lxc stop -f x1) &
-  lxc exec x1 -- sleep 10 || exitCode=$?
+  (sleep 5 && lxc stop -f x1) &
+  lxc exec x1 -- sleep 60 || exitCode=$?
   [ "${exitCode:-0}" -eq 137 ]
   wait $!
 
