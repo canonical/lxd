@@ -55,7 +55,7 @@ jobs:
       #      useful feedback in the PR through github-code-scanning bot
       - id: ShellCheck
         name: Differential ShellCheck
-        uses: redhat-plumbers-in-action/differential-shellcheck@v5
+        uses: redhat-plumbers-in-action/differential-shellcheck@cc6721c45a8800cc666de45493545a07a638d121  # v5.4.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           strict-check-on-push: true
@@ -406,7 +406,7 @@ jobs:
           gocov-xml < "${GOCOVERDIR}"/coverage.json > "${GOCOVERDIR}"/coverage-go.xml
 
       - name: Run TICS
-        uses: tiobe/tics-github-action@v3
+        uses: tiobe/tics-github-action@d18bbcecfe7c96a6e3499bffc6792c4e8e9428a6  # v3.2.0
         with:
           mode: qserver
           project: LXD
@@ -549,7 +549,7 @@ jobs:
           make doc-spellcheck
 
       - name: Run inclusive naming checker
-        uses: get-woke/woke-action@v0
+        uses: get-woke/woke-action@b2ec032c4a2c912142b38a6a453ad62017813ed0  # v0
         with:
           fail-on-error: true
           woke-args: "*.md **/*.md -c https://github.com/canonical/Inclusive-naming/raw/main/config.yml"
