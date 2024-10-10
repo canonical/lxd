@@ -580,6 +580,23 @@ func (p *pureClient) deleteVolume(poolName string, volName string) error {
 	return nil
 }
 
+// resizeVolume resizes an existing volume. This function does not resize any filesystem inside the volume.
+func (p *pureClient) resizeVolume(poolName string, volName string, sizeBytes int64, truncate bool) error {
+	req, err := p.createBodyReader(map[string]any{
+		"provisioned": sizeBytes,
+	})
+	if err != nil {
+		return err
+	}
+
+	err = p.requestAuthenticated(http.MethodPatch, fmt.Sprintf("/volumes?names=%s::%s&truncate=%v", poolName, volName, truncate), req, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to resize volume %q in storage pool %q: %w", volName, poolName, err)
+	}
+
+	return nil
+}
+
 // copyVolume copies a source volume into destination volume. If overwrite is set to true,
 // the destination volume will be overwritten if it already exists.
 func (p *pureClient) copyVolume(srcPoolName string, srcVolName string, dstPoolName string, dstVolName string, overwrite bool) error {
