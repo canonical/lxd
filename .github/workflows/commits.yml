@@ -12,7 +12,7 @@ permissions:
 jobs:
   commits:
     name: Branch target and CLA
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
     - name: Check branch target
       env:
@@ -33,4 +33,4 @@ jobs:
         exit 1
 
     - name: Check if CLA signed
-      uses: canonical/has-signed-canonical-cla@main
+      uses: canonical/has-signed-canonical-cla@046337b42822b7868ad62970988929c79f9c1d40  # 1.2.3
