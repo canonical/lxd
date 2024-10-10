@@ -10,7 +10,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/sys"
-	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
@@ -215,15 +214,8 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			}
 		}
 
-		execPath := util.GetExecPath()
-		execPathFull, err := filepath.EvalSymlinks(execPath)
-		if err == nil {
-			execPath = execPathFull
-		}
-
 		err = qemuProfileTpl.Execute(sb, map[string]any{
 			"devicesPath":       inst.DevicesPath(),
-			"exePath":           execPath,
 			"libraryPath":       strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
 			"logPath":           inst.LogPath(),
 			"name":              InstanceProfileName(inst),
