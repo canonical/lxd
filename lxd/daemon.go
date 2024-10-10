@@ -223,15 +223,16 @@ func defaultDaemon() *Daemon {
 
 // APIEndpoint represents a URL in our API.
 type APIEndpoint struct {
-	Name    string             // Name for this endpoint.
-	Path    string             // Path pattern for this endpoint.
-	Aliases []APIEndpointAlias // Any aliases for this endpoint.
-	Get     APIEndpointAction
-	Head    APIEndpointAction
-	Put     APIEndpointAction
-	Post    APIEndpointAction
-	Delete  APIEndpointAction
-	Patch   APIEndpointAction
+	Name        string             // Name for this endpoint.
+	Path        string             // Path pattern for this endpoint.
+	MetricsType entity.Type        // Main entity type related to this endpoint. Used by the API metrics.
+	Aliases     []APIEndpointAlias // Any aliases for this endpoint.
+	Get         APIEndpointAction
+	Head        APIEndpointAction
+	Put         APIEndpointAction
+	Post        APIEndpointAction
+	Delete      APIEndpointAction
+	Patch       APIEndpointAction
 }
 
 // APIEndpointAlias represents an alias URL of and APIEndpoint in our API.
@@ -637,7 +638,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		// Only endpoints from the main API (version 1.0) should be counted for the metrics.
 		// This prevents internal endpoints from being included as well.
 		if version == "1.0" {
-			metrics.TrackStartedRequest(r)
+			metrics.TrackStartedRequest(r, c.MetricsType)
 		}
 
 		w.Header().Set("Content-Type", "application/json")

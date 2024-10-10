@@ -19,18 +19,21 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/version"
 )
 
 var networkForwardsCmd = APIEndpoint{
-	Path: "networks/{networkName}/forwards",
+	Path:        "networks/{networkName}/forwards",
+	MetricsType: entity.TypeNetwork,
 
 	Get:  APIEndpointAction{Handler: networkForwardsGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
 	Post: APIEndpointAction{Handler: networkForwardsPost, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var networkForwardCmd = APIEndpoint{
-	Path: "networks/{networkName}/forwards/{listenAddress}",
+	Path:        "networks/{networkName}/forwards/{listenAddress}",
+	MetricsType: entity.TypeNetwork,
 
 	Delete: APIEndpointAction{Handler: networkForwardDelete, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
 	Get:    APIEndpointAction{Handler: networkForwardGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},

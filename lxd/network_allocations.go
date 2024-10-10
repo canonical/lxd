@@ -22,7 +22,8 @@ import (
 )
 
 var networkAllocationsCmd = APIEndpoint{
-	Path: "network-allocations",
+	Path:        "network-allocations",
+	MetricsType: entity.TypeNetwork,
 
 	Get: APIEndpointAction{Handler: networkAllocationsGet, AccessHandler: allowProjectResourceList},
 }

@@ -27,8 +27,9 @@ import (
 )
 
 var instancesCmd = APIEndpoint{
-	Name: "instances",
-	Path: "instances",
+	Name:        "instances",
+	Path:        "instances",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containers", Path: "containers"},
 		{Name: "vms", Path: "virtual-machines"},
@@ -40,8 +41,9 @@ var instancesCmd = APIEndpoint{
 }
 
 var instanceCmd = APIEndpoint{
-	Name: "instance",
-	Path: "instances/{name}",
+	Name:        "instance",
+	Path:        "instances/{name}",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "container", Path: "containers/{name}"},
 		{Name: "vm", Path: "virtual-machines/{name}"},
@@ -55,8 +57,9 @@ var instanceCmd = APIEndpoint{
 }
 
 var instanceUEFIVarsCmd = APIEndpoint{
-	Name: "instanceUEFIVars",
-	Path: "instances/{name}/uefi-vars",
+	Name:        "instanceUEFIVars",
+	Path:        "instances/{name}/uefi-vars",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "vmUEFIVars", Path: "virtual-machines/{name}/uefi-vars"},
 	},
@@ -66,8 +69,9 @@ var instanceUEFIVarsCmd = APIEndpoint{
 }
 
 var instanceRebuildCmd = APIEndpoint{
-	Name: "instanceRebuild",
-	Path: "instances/{name}/rebuild",
+	Name:        "instanceRebuild",
+	Path:        "instances/{name}/rebuild",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerRebuild", Path: "containers/{name}/rebuild"},
 		{Name: "vmRebuild", Path: "virtual-machines/{name}/rebuild"},
@@ -77,8 +81,9 @@ var instanceRebuildCmd = APIEndpoint{
 }
 
 var instanceStateCmd = APIEndpoint{
-	Name: "instanceState",
-	Path: "instances/{name}/state",
+	Name:        "instanceState",
+	Path:        "instances/{name}/state",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerState", Path: "containers/{name}/state"},
 		{Name: "vmState", Path: "virtual-machines/{name}/state"},
@@ -89,8 +94,9 @@ var instanceStateCmd = APIEndpoint{
 }
 
 var instanceSFTPCmd = APIEndpoint{
-	Name: "instanceFile",
-	Path: "instances/{name}/sftp",
+	Name:        "instanceFile",
+	Path:        "instances/{name}/sftp",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerFile", Path: "containers/{name}/sftp"},
 		{Name: "vmFile", Path: "virtual-machines/{name}/sftp"},
@@ -100,8 +106,9 @@ var instanceSFTPCmd = APIEndpoint{
 }
 
 var instanceFileCmd = APIEndpoint{
-	Name: "instanceFile",
-	Path: "instances/{name}/files",
+	Name:        "instanceFile",
+	Path:        "instances/{name}/files",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerFile", Path: "containers/{name}/files"},
 		{Name: "vmFile", Path: "virtual-machines/{name}/files"},
@@ -114,8 +121,9 @@ var instanceFileCmd = APIEndpoint{
 }
 
 var instanceSnapshotsCmd = APIEndpoint{
-	Name: "instanceSnapshots",
-	Path: "instances/{name}/snapshots",
+	Name:        "instanceSnapshots",
+	Path:        "instances/{name}/snapshots",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerSnapshots", Path: "containers/{name}/snapshots"},
 		{Name: "vmSnapshots", Path: "virtual-machines/{name}/snapshots"},
@@ -126,8 +134,9 @@ var instanceSnapshotsCmd = APIEndpoint{
 }
 
 var instanceSnapshotCmd = APIEndpoint{
-	Name: "instanceSnapshot",
-	Path: "instances/{name}/snapshots/{snapshotName}",
+	Name:        "instanceSnapshot",
+	Path:        "instances/{name}/snapshots/{snapshotName}",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerSnapshot", Path: "containers/{name}/snapshots/{snapshotName}"},
 		{Name: "vmSnapshot", Path: "virtual-machines/{name}/snapshots/{snapshotName}"},
@@ -141,8 +150,9 @@ var instanceSnapshotCmd = APIEndpoint{
 }
 
 var instanceConsoleCmd = APIEndpoint{
-	Name: "instanceConsole",
-	Path: "instances/{name}/console",
+	Name:        "instanceConsole",
+	Path:        "instances/{name}/console",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerConsole", Path: "containers/{name}/console"},
 		{Name: "vmConsole", Path: "virtual-machines/{name}/console"},
@@ -154,8 +164,9 @@ var instanceConsoleCmd = APIEndpoint{
 }
 
 var instanceExecCmd = APIEndpoint{
-	Name: "instanceExec",
-	Path: "instances/{name}/exec",
+	Name:        "instanceExec",
+	Path:        "instances/{name}/exec",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerExec", Path: "containers/{name}/exec"},
 		{Name: "vmExec", Path: "virtual-machines/{name}/exec"},
@@ -165,8 +176,9 @@ var instanceExecCmd = APIEndpoint{
 }
 
 var instanceMetadataCmd = APIEndpoint{
-	Name: "instanceMetadata",
-	Path: "instances/{name}/metadata",
+	Name:        "instanceMetadata",
+	Path:        "instances/{name}/metadata",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerMetadata", Path: "containers/{name}/metadata"},
 		{Name: "vmMetadata", Path: "virtual-machines/{name}/metadata"},
@@ -178,8 +190,9 @@ var instanceMetadataCmd = APIEndpoint{
 }
 
 var instanceMetadataTemplatesCmd = APIEndpoint{
-	Name: "instanceMetadataTemplates",
-	Path: "instances/{name}/metadata/templates",
+	Name:        "instanceMetadataTemplates",
+	Path:        "instances/{name}/metadata/templates",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerMetadataTemplates", Path: "containers/{name}/metadata/templates"},
 		{Name: "vmMetadataTemplates", Path: "virtual-machines/{name}/metadata/templates"},
@@ -191,8 +204,9 @@ var instanceMetadataTemplatesCmd = APIEndpoint{
 }
 
 var instanceBackupsCmd = APIEndpoint{
-	Name: "instanceBackups",
-	Path: "instances/{name}/backups",
+	Name:        "instanceBackups",
+	Path:        "instances/{name}/backups",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerBackups", Path: "containers/{name}/backups"},
 		{Name: "vmBackups", Path: "virtual-machines/{name}/backups"},
@@ -203,8 +217,9 @@ var instanceBackupsCmd = APIEndpoint{
 }
 
 var instanceBackupCmd = APIEndpoint{
-	Name: "instanceBackup",
-	Path: "instances/{name}/backups/{backupName}",
+	Name:        "instanceBackup",
+	Path:        "instances/{name}/backups/{backupName}",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerBackup", Path: "containers/{name}/backups/{backupName}"},
 		{Name: "vmBackup", Path: "virtual-machines/{name}/backups/{backupName}"},
@@ -216,8 +231,9 @@ var instanceBackupCmd = APIEndpoint{
 }
 
 var instanceBackupExportCmd = APIEndpoint{
-	Name: "instanceBackupExport",
-	Path: "instances/{name}/backups/{backupName}/export",
+	Name:        "instanceBackupExport",
+	Path:        "instances/{name}/backups/{backupName}/export",
+	MetricsType: entity.TypeInstance,
 	Aliases: []APIEndpointAlias{
 		{Name: "containerBackupExport", Path: "containers/{name}/backups/{backupName}/export"},
 		{Name: "vmBackupExport", Path: "virtual-machines/{name}/backups/{backupName}/export"},

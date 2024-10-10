@@ -30,19 +30,22 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
 
 var storagePoolVolumeSnapshotsTypeCmd = APIEndpoint{
-	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots",
+	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots",
+	MetricsType: entity.TypeStoragePool,
 
 	Get:  APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
 	Post: APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypePost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageSnapshots)},
 }
 
 var storagePoolVolumeSnapshotTypeCmd = APIEndpoint{
-	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName}",
+	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName}",
+	MetricsType: entity.TypeStoragePool,
 
 	Delete: APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageSnapshots)},
 	Get:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
