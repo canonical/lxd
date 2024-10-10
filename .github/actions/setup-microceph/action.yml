@@ -52,20 +52,19 @@ runs:
           trap cleanup ERR HUP INT TERM
 
           sudo snap install microceph --channel "${{ inputs.microceph-channel }}"
-          sudo snap connect microceph:mount-observe
           sudo microceph cluster bootstrap
           sudo microceph.ceph config set global osd_pool_default_size 1
           sudo microceph.ceph config set global mon_allow_pool_delete true
           sudo microceph.ceph config set global osd_memory_target 939524096
           sudo microceph.ceph osd crush rule rm replicated_rule
           sudo microceph.ceph osd crush rule create-replicated replicated default osd
-          for flag in nosnaptrim noscrub nobackfill norebalance norecover noscrub nodeep-scrub; do
+          for flag in nosnaptrim nobackfill norebalance norecover noscrub nodeep-scrub; do
               sudo microceph.ceph osd set $flag
           done
           sudo microceph disk add --wipe "${{ steps.free_ephemeral_disk.outputs.ephemeral_disk }}"
           sudo rm -rf /etc/ceph
           sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
-          sudo microceph enable rgw || true # workaround to ignore already enabled rgw
+          sudo microceph enable rgw
           sudo microceph.ceph osd pool create cephfs_meta 32
           sudo microceph.ceph osd pool create cephfs_data 32
           sudo microceph.ceph fs new cephfs cephfs_meta cephfs_data
