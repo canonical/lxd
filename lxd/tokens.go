@@ -71,5 +71,5 @@ func autoRemoveExpiredTokensTask(d *Daemon) (task.Func, task.Schedule) {
 		autoRemoveExpiredTokens(ctx, d.State())
 	}
 
-	return f, task.Every(time.Minute)
+	return f, task.Every(time.Hour)
 }
