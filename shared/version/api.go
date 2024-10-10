@@ -419,6 +419,8 @@ var APIExtensions = []string{
 	"ubuntu_pro_guest_attach",
 	"metadata_configuration_entity_types",
 	"access_management_tls",
+	"vm_zfs_storage_disk_live_resize",
+	"vm_lvm_storage_disk_live_resize",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
