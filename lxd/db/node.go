@@ -99,9 +99,9 @@ func (n NodeInfo) ToAPI(ctx context.Context, tx *ClusterTx, args NodeInfoArgs) (
 
 	// From local database.
 	var raftNode *RaftNode
-	for _, node := range args.RaftNodes {
+	for i, node := range args.RaftNodes {
 		if node.Address == n.Address {
-			raftNode = &node
+			raftNode = &args.RaftNodes[i]
 			break
 		}
 	}
@@ -156,12 +156,12 @@ func (n NodeInfo) ToAPI(ctx context.Context, tx *ClusterTx, args NodeInfoArgs) (
 		result.Message = fmt.Sprintf("No heartbeat for %s (%s)", time.Since(n.Heartbeat), n.Heartbeat)
 	} else {
 		// Check if up to date.
-		n, err := util.CompareVersions(maxVersion, n.Version())
+		cmp, err := util.CompareVersions(maxVersion, n.Version())
 		if err != nil {
 			return nil, err
 		}
 
-		if n == 1 {
+		if cmp == 1 {
 			result.Status = "Blocked"
 			result.Message = "Needs updating to newer version"
 		}
@@ -241,7 +241,7 @@ func (c *ClusterTx) GetNodeWithID(ctx context.Context, nodeID int) (NodeInfo, er
 // GetPendingNodeByAddress returns the pending node with the given network address.
 func (c *ClusterTx) GetPendingNodeByAddress(ctx context.Context, address string) (NodeInfo, error) {
 	null := NodeInfo{}
-	nodes, err := c.nodes(ctx, true /*pending */, "address=?", address)
+	nodes, err := c.nodes(ctx, true /* pending */, "address=?", address)
 	if err != nil {
 		return null, err
 	}
@@ -1045,6 +1045,242 @@ func (c *ClusterTx) GetNodeOfflineThreshold(ctx context.Context) (time.Duration,
 	}
 
 	return threshold, nil
+}
+
+func paramList(count int) string {
+	return strings.Trim(strings.Repeat("?,", count), ",")
+}
+
+// Represents an SQL condition of the form `key IN (?, ...)` where the number
+// of SQL parameters is given by len. Optionally allow the value matched by the
+// condition to be NULL.
+type inCondition struct {
+	key       string
+	in        []string
+	canBeNull bool
+}
+
+func (cond *inCondition) sql(b *strings.Builder) {
+	b.WriteString("(")
+	b.WriteString(cond.key)
+	b.WriteString(" IN (")
+	b.WriteString(paramList(len(cond.in)))
+	b.WriteString(")")
+
+	if cond.canBeNull {
+		b.WriteString(" OR ")
+		b.WriteString(cond.key)
+		b.WriteString(" IS NULL")
+	}
+
+	b.WriteString(")\n")
+}
+
+func (cond *inCondition) params(args *[]any) {
+	for _, elem := range cond.in {
+		*args = append(*args, elem)
+	}
+}
+
+// whereClause returns a string `WHERE first AND and...` and appends cond.in to args.
+func whereClause(conditions []inCondition, args *[]any) string {
+	if len(conditions) == 0 {
+		return ""
+	}
+
+	b := strings.Builder{}
+
+	written := 0
+	for _, cond := range conditions {
+		if len(cond.in) == 0 {
+			continue
+		}
+
+		switch written {
+		case 0:
+			b.WriteString("WHERE ")
+		default:
+			b.WriteString(" AND ")
+		}
+
+		cond.sql(&b)
+		cond.params(args)
+		written += 1
+	}
+
+	return b.String()
+}
+
+// OverridableConfig is a config key that could be set on either a specific
+// cluster member or for the whole cluster.
+type OverridableConfig struct {
+	ClusterValue sql.NullString
+	MemberValue  sql.NullString
+}
+
+// GetMemberConfigWithGlobalDefault returns a mapping of
+// [clusterMemberName][key]cfg, with filters clusterMemberNames and keys. If
+// either slice is nil/empty, all clusterMembers/keys are returned.
+func (c *ClusterTx) GetMemberConfigWithGlobalDefault(ctx context.Context, clusterMemberNames []string, keys []string) (map[string]map[string]OverridableConfig, error) {
+	sql := `
+	WITH config_values AS (
+		SELECT
+			nodes.name AS node_name,
+			config.key AS key,
+			config.value AS cluster_value,
+			nodes_config.value AS node_value
+		FROM nodes
+		JOIN config
+		LEFT JOIN nodes_config
+			ON nodes_config.node_id = nodes.id AND nodes_config.key = config.KEY
+
+		UNION
+
+		SELECT
+			nodes.name,
+			nodes_config.key,
+			config.value,
+			nodes_config.value
+		FROM nodes
+		JOIN nodes_config
+			ON nodes_config.node_id = nodes.id
+		LEFT JOIN config
+			ON nodes_config.key = config.key
+		WHERE config.key IS NULL
+	)
+
+	SELECT *
+	FROM config_values
+	`
+
+	conditions := []inCondition{
+		{
+			key: "config_values.node_name",
+			in:  clusterMemberNames,
+		},
+		{
+			key: "config_values.key",
+			in:  keys,
+		},
+	}
+
+	args := make([]any, 0, len(clusterMemberNames)+len(keys))
+	sql += whereClause(conditions, &args)
+
+	rows := make(map[string]map[string]OverridableConfig)
+	err := query.Scan(ctx, c.tx, sql, func(scan func(dest ...any) error) error {
+		var nodeName string
+		var key string
+		var cfg OverridableConfig
+		err := scan(&nodeName, &key, &cfg.ClusterValue, &cfg.MemberValue)
+		if err != nil {
+			return err
+		}
+
+		_, hasNode := rows[nodeName]
+		if !hasNode {
+			rows[nodeName] = make(map[string]OverridableConfig)
+		}
+
+		rows[nodeName][key] = cfg
+
+		return nil
+	}, args...)
+
+	return rows, err
+}
+
+// InstanceKey maps instance name and config key to optional value.
+type InstanceKey struct {
+	InstanceName string
+	Key          string
+	Value        sql.NullString
+}
+
+// GetClusterMemberInstanceConfig returns a map from clusterMemberName -> InstanceKey
+// with optional filters clusterMemberNames and keys. If either slice is nil/empty,
+// the results will include all cluster members/config keys.
+func (c *ClusterTx) GetClusterMemberInstanceConfig(ctx context.Context, clusterMemberNames []string, keys []string) (map[string][]InstanceKey, error) {
+	if len(keys) == 0 {
+		return nil, nil
+	}
+
+	args := make([]any, 0, len(clusterMemberNames)+2*len(keys))
+
+	// Start with all instances and their config
+	s := `
+	WITH instance_configs AS (
+		SELECT
+			nodes.name AS node_name,
+			instances.name AS instance_name,
+			instances_config.key AS key,
+			instances_config.value AS value
+		FROM instances
+		JOIN instances_config
+			ON instances.id = instances_config.instance_id
+		JOIN nodes
+			ON nodes.id = instances.node_id
+	`
+
+	// Then include nulls if an instance doesn't have the required limits set
+	findMissing := `
+		UNION
+
+		SELECT
+			nodes.name,
+			instances.name,
+			?,
+			instances_config.value
+		FROM instances
+		JOIN nodes
+			ON instances.node_id = nodes.id
+		LEFT JOIN instances_config
+			ON instances.id = instances_config.instance_id AND instances_config.key = ?
+		WHERE
+			instances_config.value IS NULL
+	`
+
+	for _, key := range keys {
+		s += findMissing
+		args = append(args, key, key)
+	}
+
+	// Finally, select only the keys and nodes that we're interested in
+	s += `)
+
+	SELECT *
+	FROM instance_configs
+	`
+
+	conditions := []inCondition{
+		{
+			key: "instance_configs.node_name",
+			in:  clusterMemberNames,
+		},
+		{
+			key:       "instance_configs.key",
+			in:        keys,
+			canBeNull: true,
+		},
+	}
+
+	s += whereClause(conditions, &args)
+
+	rslt := map[string][]InstanceKey{}
+	err := query.Scan(ctx, c.tx, s, func(scan func(dest ...any) error) error {
+		var clusterMemberName string
+		var row InstanceKey
+		err := scan(&clusterMemberName, &row.InstanceName, &row.Key, &row.Value)
+		if err != nil {
+			return err
+		}
+
+		rslt[clusterMemberName] = append(rslt[clusterMemberName], row)
+
+		return nil
+	}, args...)
+
+	return rslt, err
 }
 
 // GetCandidateMembers returns cluster members that are online, in created state and don't need manual targeting.
