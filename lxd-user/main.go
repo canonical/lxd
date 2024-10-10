@@ -34,6 +34,10 @@ func main() {
 	app.PersistentFlags().BoolVar(&globalCmd.flagVersion, "version", false, "Print version number")
 	app.PersistentFlags().BoolVarP(&globalCmd.flagHelp, "help", "h", false, "Print help")
 
+	// callhook sub-command
+	callhookCmd := cmdCallhook{global: &globalCmd}
+	app.AddCommand(callhookCmd.Command())
+
 	// Version handling
 	app.SetVersionTemplate("{{.Version}}\n")
 	app.Version = version.Version
