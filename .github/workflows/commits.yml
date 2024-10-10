@@ -12,7 +12,7 @@ permissions:
 jobs:
   commits:
     name: Branch target and CLA
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
     - name: Check branch target
       env:
