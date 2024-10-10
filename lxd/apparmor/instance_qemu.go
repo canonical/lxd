@@ -60,7 +60,6 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .devicesPath }}/** rwk,
 
   # Needed for lxd fork commands
-  {{ .exePath }} mr,
   @{PROC}/@{pid}/cmdline r,
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
 
@@ -71,8 +70,6 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
 {{- if .snap }}
   # The binary itself (for nesting)
-  /var/snap/lxd/common/lxd.debug            mr,
-  /snap/lxd/*/bin/lxd                       mr,
   /snap/lxd/*/bin/qemu-system-*             mrix,
   /snap/lxd/*/share/qemu/**                 kr,
 
