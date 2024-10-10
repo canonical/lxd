@@ -638,6 +638,34 @@ func (p *pureClient) deleteVolume(poolName string, volName string) error {
 	return nil
 }
 
+// copyVolume copies a source volume into destination volume. If overwrite is set to true,
+// the destination volume will be overwritten if it already exists.
+func (p *pureClient) copyVolume(srcPoolName string, srcVolName string, dstPoolName string, dstVolName string, overwrite bool) error {
+	req, err := p.createBodyReader(map[string]any{
+		"source": map[string]string{
+			"name": srcPoolName + "::" + srcVolName,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	url := api.NewURL().Path("volumes").WithQuery("names", dstPoolName+"::"+dstVolName).WithQuery("overwrite", fmt.Sprint(overwrite))
+
+	if !overwrite {
+		// Disable default protection groups when creating a new volume to avoid potential issues
+		// when deleting the volume because protection group may prevent volume eridication.
+		url = url.WithQuery("with_default_protection", "false")
+	}
+
+	err = p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
+	if err != nil {
+		return fmt.Errorf(`Failed to copy volume "%s/%s" to "%s/%s": %w`, srcPoolName, srcVolName, dstPoolName, dstVolName, err)
+	}
+
+	return nil
+}
+
 // getVolumeSnapshots retrieves all existing snapshot for the given storage volume.
 func (p *pureClient) getVolumeSnapshots(poolName string, volName string) ([]pureVolume, error) {
 	var resp pureResponse[pureVolume]
@@ -726,6 +754,11 @@ func (p *pureClient) deleteVolumeSnapshot(poolName string, volName string, snaps
 	}
 
 	return nil
+}
+
+// restoreVolumeSnapshot restores the volume by copying the volume snapshot into its parent volume.
+func (p *pureClient) restoreVolumeSnapshot(poolName string, volName string, snapshotName string) error {
+	return p.copyVolume(poolName, volName+"."+snapshotName, poolName, volName, true)
 }
 
 // getHosts retrieves an existing Pure Storage host.
