@@ -1251,6 +1251,40 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return err
 			}
+
+			if len(candidateMembers) == 0 {
+				return api.StatusErrorf(http.StatusNotFound, "No suitable cluster member could be found")
+			}
+
+			// Check limits.reserve.* for the candidate members
+			// (don't try to create instances on full cluster members)
+			sysinfo, err := cluster.ClusterSysInfo(s, candidateMembers)
+			if err != nil {
+				return err
+			}
+
+			var globalConfigDump map[string]any
+			if s.GlobalConfig != nil {
+				globalConfigDump = s.GlobalConfig.Dump()
+			}
+
+			inst := api.Instance{
+				Name:   req.Name,
+				Config: req.Config,
+			}
+
+			reservationsErrors, err := limits.CheckReservationsWithInstance(ctx, tx, globalConfigDump, &inst, sysinfo)
+			if err != nil {
+				return err
+			}
+
+			candidateMembers = slices.DeleteFunc(candidateMembers, func(candidate db.NodeInfo) bool {
+				return reservationsErrors[candidate.Name] != nil
+			})
+
+			if len(candidateMembers) == 0 {
+				return api.StatusErrorf(http.StatusNotFound, "No suitable cluster member could be found: Instance would violate limits.reserve on all cluster members")
+			}
 		}
 
 		return nil
