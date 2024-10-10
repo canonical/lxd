@@ -98,6 +98,9 @@ You have different options to limit CPU usage:
 - Set {config:option}`instance-resource-limits:limits.cpu.allowance` to restrict the load an instance can put on the available CPUs.
   This option is available only for containers.
   See {ref}`instance-options-limits-cpu-container` for how to set this option.
+- Set {config:option}`instance-resource-limits:limits.cpu.pin_strategy` to specify the strategy for virtual-machine CPU auto pinning.
+  This option is available only for virtual machines.
+  See {ref}`instance-options-limits-cpu-vm` for how to set this option.
 
 It is possible to set both options at the same time to restrict both which CPUs are visible to the instance and the allowed usage of those instances.
 However, if you use {config:option}`instance-resource-limits:limits.cpu.allowance` with a time limit, you should avoid using {config:option}`instance-resource-limits:limits.cpu` in addition, because that puts a lot of constraints on the scheduler and might lead to less efficient allocations.
@@ -116,6 +119,7 @@ You can specify either which CPUs or how many CPUs are visible and available to 
 - If you specify a number (for example, `4`) of CPUs, LXD will do dynamic load-balancing of all instances that aren't pinned to specific CPUs, trying to spread the load on the machine.
   Instances are re-balanced every time an instance starts or stops, as well as whenever a CPU is added to the system.
 
+(instance-options-limits-cpu-vm)=
 ##### CPU limits for virtual machines
 
 ```{note}
@@ -127,10 +131,10 @@ Depending on the guest operating system, you might need to either restart the in
 LXD virtual machines default to having just one vCPU allocated, which shows up as matching the host CPU vendor and type, but has a single core and no threads.
 
 When {config:option}`instance-resource-limits:limits.cpu` is set to a single integer, LXD allocates multiple vCPUs and exposes them to the guest as full cores.
-Those vCPUs are not pinned to specific physical cores on the host.
+Unless {config:option}`instance-resource-limits:limits.cpu.pin_strategy` is set to `auto`, those vCPUs are not pinned to specific cores on the host.
 The number of vCPUs can be updated while the VM is running.
 
-When {config:option}`instance-resource-limits:limits.cpu` is set to a range or comma-separated list of CPU IDs (as provided by [`lxc info --resources`](lxc_info.md)), the vCPUs are pinned to those physical cores.
+When {config:option}`instance-resource-limits:limits.cpu` is set to a range or comma-separated list of CPU IDs (as provided by [`lxc info --resources`](lxc_info.md)), the vCPUs are pinned to those cores.
 In this scenario, LXD checks whether the CPU configuration lines up with a realistic hardware topology and if it does, it replicates that topology in the guest.
 When doing CPU pinning, it is not possible to change the configuration while the VM is running.
 

@@ -2501,3 +2501,7 @@ Expands APIs under `/1.0/auth` to include:
   The caller must provide a base64 encoded x509 certificate in the `certificate` field of the request body.
   Fine-grained TLS identities may update their own certificate.
   To update the certificate of another identity, the caller must have `can_edit` on the identity.
+
+## `vm_limits_cpu_pin_strategy`
+
+Adds a new {config:option}`instance-resource-limits:limits.cpu.pin_strategy` configuration option for virtual machines. This option controls the CPU pinning strategy. When set to `none`, CPU auto pinning is disabled. When set to `auto`, CPU auto pinning is enabled.

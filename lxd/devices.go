@@ -484,6 +484,12 @@ func deviceTaskBalance(s *state.State) {
 			}
 		}
 
+		cpuPinStrategy := conf["limits.cpu.pin_strategy"]
+		cpuPinningSpecified := strings.ContainsAny(cpulimit, ",-")
+		if c.Type() == instancetype.VM && (cpuPinStrategy == "none" || cpuPinStrategy == "") && !cpuPinningSpecified {
+			continue
+		}
+
 		// Check that the instance is running.
 		// We use InitPID here rather than IsRunning because this task can be triggered during the container's
 		// onStart hook, which is during the time that the start lock is held, which causes IsRunning to
