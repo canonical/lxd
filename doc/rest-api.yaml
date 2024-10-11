@@ -583,6 +583,10 @@ definitions:
                 format: uint64
                 type: integer
                 x-go-name: BufferRAM
+            cpu_threads:
+                format: uint64
+                type: integer
+                x-go-name: CPUThreads
             free_ram:
                 format: uint64
                 type: integer
