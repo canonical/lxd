@@ -324,12 +324,14 @@ test_container_devices_nic_bridged_filtering() {
 
   # Make sure br_netfilter is loaded, needed for IPv6 filtering.
   modprobe br_netfilter || true
-  if ! grep 1 /proc/sys/net/bridge/bridge-nf-call-ip6tables ; then
+  read -r CALL_IP6TABLES < /proc/sys/net/bridge/bridge-nf-call-ip6tables || true
+  if [ "${CALL_IP6TABLES:-0}" -ne 1 ]; then
     echo "br_netfilter didn't load, skipping IPv6 filter checks"
     lxc delete -f "${ctPrefix}A"
     lxc delete -f "${ctPrefix}B"
     lxc profile delete "${ctPrefix}"
     lxc network delete "${brName}"
+    modprobe -r br_netfilter || true
     return
   fi
 
@@ -901,4 +903,7 @@ test_container_devices_nic_bridged_filtering() {
     echo "leftover NICS detected"
     false
   fi
+
+  # Cleanup
+  modprobe -r br_netfilter || true
 }
