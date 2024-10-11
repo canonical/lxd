@@ -2416,3 +2416,23 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 
 	wg.Wait()
 }
+
+// leaderInfo returns whether this Daemon is the leader and the leader address, or an error if the leader cannot be found.
+// If the Daemon is not clustered then it is considered the leader and no address is returned.
+func (d *Daemon) leaderInfo() (bool, string, error) {
+	if !d.serverClustered {
+		return true, "", nil
+	}
+
+	localClusterAddress := d.localConfig.ClusterAddress()
+	leaderAddress, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return false, "", fmt.Errorf("Failed to get the address of the cluster leader: %w", err)
+	}
+
+	if leaderAddress == "" {
+		return false, "", fmt.Errorf("No leader address found")
+	}
+
+	return localClusterAddress == leaderAddress, leaderAddress, nil
+}
