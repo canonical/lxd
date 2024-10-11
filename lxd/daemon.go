@@ -604,6 +604,7 @@ func (d *Daemon) State() *state.State {
 		LocalConfig:         localConfig,
 		ServerName:          d.serverName,
 		ServerClustered:     d.serverClustered,
+		LeaderInfo:          func() (bool, string, error) { return d.leaderInfo() },
 		ServerUUID:          d.serverUUID,
 		StartTime:           d.startTime,
 		Authorizer:          d.authorizer,
