@@ -84,6 +84,9 @@ type State struct {
 	// Whether the server is clustered.
 	ServerClustered bool
 
+	// Whether we are the leader and the leader address if not.
+	LeaderInfo func() (bool, string, error)
+
 	// Local server UUID.
 	ServerUUID string
 
