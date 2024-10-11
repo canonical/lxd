@@ -38,17 +38,14 @@ func acmeProvideChallenge(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if s.ServerClustered {
-		leader, err := d.gateway.LeaderAddress()
+		isLeader, leaderAddress, err := s.LeaderInfo()
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		// This gives me the correct value
-		clusterAddress := s.LocalConfig.ClusterAddress()
-
-		if clusterAddress != "" && clusterAddress != leader {
+		if !isLeader {
 			// Forward the request to the leader
-			client, err := cluster.Connect(leader, s.Endpoints.NetworkCert(), s.ServerCert(), r, true)
+			client, err := cluster.Connect(leaderAddress, s.Endpoints.NetworkCert(), s.ServerCert(), r, true)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -84,15 +81,12 @@ func autoRenewCertificate(ctx context.Context, d *Daemon, force bool) error {
 
 	// If we are clustered, let the leader handle the certificate renewal.
 	if s.ServerClustered {
-		leader, err := d.gateway.LeaderAddress()
+		isLeader, _, err := s.LeaderInfo()
 		if err != nil {
 			return err
 		}
 
-		// Figure out our own cluster address.
-		clusterAddress := s.LocalConfig.ClusterAddress()
-
-		if clusterAddress != leader {
+		if !isLeader {
 			return nil
 		}
 	}
