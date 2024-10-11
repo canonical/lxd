@@ -1149,7 +1149,7 @@ func (g *cmdGlobal) cmpStoragePoolConfigs(poolName string) ([]string, cobra.Shel
 
 func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra.ShellCompDirective) {
 	if !strings.Contains(toComplete, "/") {
-		pools, compdir := g.cmpStoragePools(toComplete)
+		pools, compdir := g.cmpStoragePools(toComplete, false)
 		if compdir == cobra.ShellCompDirectiveError {
 			return nil, compdir
 		}
@@ -1174,13 +1174,16 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 
 	var results []string
 	for _, volume := range volumes {
-		results = append(results, fmt.Sprintf("%s/%s", pool, volume))
+		volName, _ := parseVolume("volume", volume)
+		results = append(results, pool+"/"+volName)
 	}
 
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
-func (g *cmdGlobal) cmpStoragePools(toComplete string) ([]string, cobra.ShellCompDirective) {
+// cmpStoragePools provides shell completion for storage pool names.
+// It takes a partial input string and a boolean indicating whether to avoid appending a space after the completion. The function returns a list of matching storage pool names and a shell completion directive.
+func (g *cmdGlobal) cmpStoragePools(toComplete string, noSpace bool) ([]string, cobra.ShellCompDirective) {
 	var results []string
 
 	resources, _ := g.ParseServers(toComplete)
@@ -1206,6 +1209,10 @@ func (g *cmdGlobal) cmpStoragePools(toComplete string) ([]string, cobra.ShellCom
 	if !strings.Contains(toComplete, ":") {
 		remotes, _ := g.cmpRemotes(false)
 		results = append(results, remotes...)
+	}
+
+	if noSpace {
+		return results, cobra.ShellCompDirectiveNoSpace
 	}
 
 	return results, cobra.ShellCompDirectiveNoFileComp
