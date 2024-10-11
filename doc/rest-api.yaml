@@ -602,6 +602,10 @@ definitions:
                     type: number
                 type: array
                 x-go-name: LoadAverages
+            logical_cpus:
+                format: uint64
+                type: integer
+                x-go-name: LogicalCPUs
             processes:
                 format: uint16
                 type: integer
