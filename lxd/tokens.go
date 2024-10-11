@@ -4,10 +4,13 @@ import (
 	"context"
 	"time"
 
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/task"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -28,7 +31,44 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 		}
 	}
 
-	if len(expiredTokenOps) == 0 {
+	isLeader, _, err := s.LeaderInfo()
+	if err != nil {
+		logger.Error("Failed to get database leader details", logger.Ctx{"err": err})
+	}
+
+	var expiredPendingTLSIdentities []cluster.Identity
+	if isLeader {
+		var pendingTLSIdentities []cluster.Identity
+		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			var err error
+			dbPendingIdentityType := cluster.IdentityType(api.IdentityTypeCertificateClientPending)
+			pendingTLSIdentities, err = cluster.GetIdentitys(ctx, tx.Tx(), cluster.IdentityFilter{Type: &dbPendingIdentityType})
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			logger.Error("Failed to retrieve pending TLS identities during removal of expired tokens task", logger.Ctx{"err": err})
+		}
+
+		expiredPendingTLSIdentities = make([]cluster.Identity, 0, len(pendingTLSIdentities))
+		for _, pendingTLSIdentity := range pendingTLSIdentities {
+			metadata, err := pendingTLSIdentity.PendingTLSMetadata()
+			if err != nil {
+				logger.Error("Failed to unmarshal pending TLS identity metadata", logger.Ctx{"err": err})
+				expiredPendingTLSIdentities = append(expiredPendingTLSIdentities, pendingTLSIdentity)
+				continue
+			}
+
+			if !metadata.Expiry.IsZero() && metadata.Expiry.Before(time.Now()) {
+				expiredPendingTLSIdentities = append(expiredPendingTLSIdentities, pendingTLSIdentity)
+			}
+		}
+	}
+
+	if len(expiredTokenOps) == 0 && len(expiredPendingTLSIdentities) == 0 {
 		return
 	}
 
@@ -38,6 +78,20 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 			if err != nil {
 				logger.Debug("Failed removing expired token", logger.Ctx{"err": err, "id": op.ID()})
 			}
+		}
+
+		err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			for _, expiredPendingTLSIdentity := range expiredPendingTLSIdentities {
+				err := cluster.DeleteIdentity(ctx, tx.Tx(), api.AuthenticationMethodTLS, expiredPendingTLSIdentity.Identifier)
+				if err != nil {
+					logger.Debug("Failed removing pending TLS identity", logger.Ctx{"err": err, "id": op.ID()})
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			logger.Debug("Failed removing pending TLS identities", logger.Ctx{"err": err, "id": op.ID()})
 		}
 
 		return nil
