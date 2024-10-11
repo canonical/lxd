@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -21,7 +20,6 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/network"
-	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
@@ -413,27 +411,13 @@ func patchDBNodesAutoInc(name string, d *Daemon) error {
 			return nil // Nothing to do.
 		}
 
-		// Only apply patch on leader, otherwise wait for it to be applied.
-		var localConfig *node.Config
-		err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-			localConfig, err = node.ConfigLoad(ctx, tx)
-			return err
-		})
+		isLeader, _, err := d.leaderInfo()
 		if err != nil {
 			return err
 		}
 
-		leaderAddress, err := d.gateway.LeaderAddress()
-		if err != nil {
-			if errors.Is(err, cluster.ErrNodeIsNotClustered) {
-				break // Apply change on standalone node.
-			}
-
-			return err
-		}
-
-		if localConfig.ClusterAddress() == leaderAddress {
-			break // Apply change on leader node.
+		if !isLeader {
+			break // Apply change on leader node (or standalone node).
 		}
 
 		logger.Warnf("Waiting for %q patch to be applied on leader cluster member", name)
