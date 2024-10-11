@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -1154,19 +1153,17 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
 
-		localClusterAddress := s.LocalConfig.ClusterAddress()
+		if !s.ServerClustered {
+			return
+		}
 
-		leader, err := d.gateway.LeaderAddress()
+		isLeader, _, err := s.LeaderInfo()
 		if err != nil {
-			if errors.Is(err, cluster.ErrNodeIsNotClustered) {
-				return // No error if not clustered.
-			}
-
 			logger.Error("Failed to get leader cluster member address", logger.Ctx{"err": err})
 			return
 		}
 
-		if localClusterAddress != leader {
+		if !isLeader {
 			logger.Debug("Skipping remove orphaned operations task since we're not leader")
 			return
 		}
