@@ -1253,15 +1253,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		if !clusterNotification {
-			// Check that the project's limits are not violated. Note this check is performed after
-			// automatically generated config values (such as ones from an InstanceType) have been set.
-			err = limits.AllowInstanceCreation(s.GlobalConfig, tx, targetProjectName, req)
-			if err != nil {
-				return err
-			}
-		}
-
 		return nil
 	})
 	if err != nil {
@@ -1331,6 +1322,20 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 		opAPI := op.Get()
 		return operations.ForwardedOperationResponse(targetProjectName, &opAPI)
+	}
+
+	sysinfo, err := cluster.LocalSysInfo()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Check that the project's limits are not violated. Note this check is performed after
+		// automatically generated config values (such as ones from an InstanceType) have been set.
+		return limits.AllowInstanceCreation(s.GlobalConfig, tx, targetProjectName, s.ServerName, sysinfo, req)
+	})
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	switch req.Source.Type {
