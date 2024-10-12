@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -65,7 +64,7 @@ func (g *cmdGlobal) cmpClusterGroups(toComplete string) ([]string, cobra.ShellCo
 		if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 			name = group
 		} else {
-			name = fmt.Sprintf("%s:%s", resource.remote, group)
+			name = resource.remote + ":" + group
 		}
 
 		results = append(results, name)
@@ -157,7 +156,7 @@ func (g *cmdGlobal) cmpClusterMembers(toComplete string) ([]string, cobra.ShellC
 			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 				name = member.ServerName
 			} else {
-				name = fmt.Sprintf("%s:%s", resource.remote, member.ServerName)
+				name = resource.remote + ":" + member.ServerName
 			}
 
 			results = append(results, name)
@@ -195,7 +194,7 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 			if remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 				name = alias.Name
 			} else {
-				name = fmt.Sprintf("%s:%s", remote, alias.Name)
+				name = remote + ":" + alias.Name
 			}
 
 			results = append(results, name)
@@ -310,7 +309,7 @@ func (g *cmdGlobal) cmpInstanceConfigTemplates(instanceName string) ([]string, c
 
 	results, err := client.GetInstanceTemplateFiles(instanceNameOnly)
 	if err != nil {
-		cobra.CompDebug(fmt.Sprintf("%v", err), true)
+		cobra.CompDebug(err.Error(), true)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
@@ -415,7 +414,7 @@ func (g *cmdGlobal) cmpInstances(toComplete string) ([]string, cobra.ShellCompDi
 			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 				name = instance
 			} else {
-				name = fmt.Sprintf("%s:%s", resource.remote, instance)
+				name = resource.remote + ":" + instance
 			}
 
 			results = append(results, name)
@@ -474,7 +473,7 @@ func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagFor
 				if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 					name = instance.Name
 				} else {
-					name = fmt.Sprintf("%s:%s", resource.remote, instance.Name)
+					name = resource.remote + ":" + instance.Name
 				}
 
 				results = append(results, name)
@@ -504,7 +503,7 @@ func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra
 			instName, _, _ := strings.Cut(resource.name, shared.SnapshotDelimiter)
 			snapshots, _ := resource.server.GetInstanceSnapshotNames(instName)
 			for _, snapshot := range snapshots {
-				results = append(results, fmt.Sprintf("%s/%s", instName, snapshot))
+				results = append(results, instName+"/"+snapshot)
 			}
 		} else {
 			instances, _ := resource.server.GetInstanceNames("")
@@ -514,7 +513,7 @@ func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra
 				if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 					name = instance
 				} else {
-					name = fmt.Sprintf("%s:%s", resource.remote, instance)
+					name = resource.remote + ":" + instance
 				}
 
 				results = append(results, name)
@@ -594,7 +593,7 @@ func (g *cmdGlobal) cmpNetworkACLs(toComplete string) ([]string, cobra.ShellComp
 		if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 			name = acl
 		} else {
-			name = fmt.Sprintf("%s:%s", resource.remote, acl)
+			name = resource.remote + ":" + acl
 		}
 
 		results = append(results, name)
@@ -614,7 +613,7 @@ func (g *cmdGlobal) cmpNetworkACLRuleProperties() ([]string, cobra.ShellCompDire
 
 	allowedKeys := networkACLRuleJSONStructFieldMap()
 	for key := range allowedKeys {
-		results = append(results, fmt.Sprintf("%s=", key))
+		results = append(results, key+"=")
 	}
 
 	return results, cobra.ShellCompDirectiveNoSpace
@@ -747,7 +746,7 @@ func (g *cmdGlobal) cmpNetworks(toComplete string) ([]string, cobra.ShellCompDir
 			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 				name = network
 			} else {
-				name = fmt.Sprintf("%s:%s", resource.remote, network)
+				name = resource.remote + ":" + network
 			}
 
 			results = append(results, name)
@@ -929,7 +928,7 @@ func (g *cmdGlobal) cmpNetworkZones(toComplete string) ([]string, cobra.ShellCom
 			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 				name = project
 			} else {
-				name = fmt.Sprintf("%s:%s", resource.remote, project)
+				name = resource.remote + ":" + project
 			}
 
 			results = append(results, name)
@@ -1022,7 +1021,7 @@ func (g *cmdGlobal) cmpProfiles(toComplete string, includeRemotes bool) ([]strin
 			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 				name = profile
 			} else {
-				name = fmt.Sprintf("%s:%s", resource.remote, profile)
+				name = resource.remote + ":" + profile
 			}
 
 			results = append(results, name)
@@ -1080,7 +1079,7 @@ func (g *cmdGlobal) cmpProjects(toComplete string) ([]string, cobra.ShellCompDir
 			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 				name = project
 			} else {
-				name = fmt.Sprintf("%s:%s", resource.remote, project)
+				name = resource.remote + ":" + project
 			}
 
 			results = append(results, name)
@@ -1104,7 +1103,7 @@ func (g *cmdGlobal) cmpRemotes(includeAll bool) ([]string, cobra.ShellCompDirect
 			continue
 		}
 
-		results = append(results, fmt.Sprintf("%s:", remoteName))
+		results = append(results, remoteName+":")
 	}
 
 	return results, cobra.ShellCompDirectiveNoSpace
@@ -1159,7 +1158,7 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 			if strings.HasSuffix(pool, ":") {
 				results = append(results, pool)
 			} else {
-				results = append(results, fmt.Sprintf("%s/", pool))
+				results = append(results, pool+"/")
 			}
 		}
 
@@ -1199,7 +1198,7 @@ func (g *cmdGlobal) cmpStoragePools(toComplete string, noSpace bool) ([]string, 
 			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 				name = storage
 			} else {
-				name = fmt.Sprintf("%s:%s", resource.remote, storage)
+				name = resource.remote + ":" + storage
 			}
 
 			results = append(results, name)
