@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -12,6 +11,8 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// cmpClusterGroupNames provides shell completion for cluster group names.
+// It takes a partial input string and returns a list of matching names along with a shell completion directive.
 func (g *cmdGlobal) cmpClusterGroupNames(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -37,6 +38,8 @@ func (g *cmdGlobal) cmpClusterGroupNames(toComplete string) ([]string, cobra.She
 	return results, cmpDirectives
 }
 
+// cmpClusterGroups provides shell completion for cluster groups and their remotes.
+// It takes a partial input string and returns a list of matching cluster groups along with a shell completion directive.
 func (g *cmdGlobal) cmpClusterGroups(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -65,7 +68,7 @@ func (g *cmdGlobal) cmpClusterGroups(toComplete string) ([]string, cobra.ShellCo
 		if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 			name = group
 		} else {
-			name = fmt.Sprintf("%s:%s", resource.remote, group)
+			name = resource.remote + ":" + group
 		}
 
 		results = append(results, name)
@@ -80,6 +83,8 @@ func (g *cmdGlobal) cmpClusterGroups(toComplete string) ([]string, cobra.ShellCo
 	return results, cmpDirectives
 }
 
+// cmpClusterMemberConfigs provides shell completion for cluster member configs.
+// It takes a partial input string (member name) and returns a list of matching cluster member configs along with a shell completion directive.
 func (g *cmdGlobal) cmpClusterMemberConfigs(memberName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(memberName)
@@ -108,6 +113,8 @@ func (g *cmdGlobal) cmpClusterMemberConfigs(memberName string) ([]string, cobra.
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpClusterMemberRoles provides shell completion for cluster member roles.
+// It takes a member name and returns a list of matching cluster member roles along with a shell completion directive.
 func (g *cmdGlobal) cmpClusterMemberRoles(memberName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(memberName)
@@ -131,6 +138,8 @@ func (g *cmdGlobal) cmpClusterMemberRoles(memberName string) ([]string, cobra.Sh
 	return member.Roles, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpClusterMembers provides shell completion for cluster members.
+// It takes a partial input string and returns a list of matching cluster members along with a shell completion directive.
 func (g *cmdGlobal) cmpClusterMembers(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -157,7 +166,7 @@ func (g *cmdGlobal) cmpClusterMembers(toComplete string) ([]string, cobra.ShellC
 			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 				name = member.ServerName
 			} else {
-				name = fmt.Sprintf("%s:%s", resource.remote, member.ServerName)
+				name = resource.remote + ":" + member.ServerName
 			}
 
 			results = append(results, name)
@@ -173,6 +182,8 @@ func (g *cmdGlobal) cmpClusterMembers(toComplete string) ([]string, cobra.ShellC
 	return results, cmpDirectives
 }
 
+// cmpImages provides shell completion for image aliases.
+// It takes a partial input string and returns a list of matching image aliases along with a shell completion directive.
 func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	var remote string
@@ -195,7 +206,7 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 			if remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 				name = alias.Name
 			} else {
-				name = fmt.Sprintf("%s:%s", remote, alias.Name)
+				name = remote + ":" + alias.Name
 			}
 
 			results = append(results, name)
@@ -211,6 +222,8 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 	return results, cmpDirectives
 }
 
+// cmpInstanceAllKeys provides shell completion for all instance configuration keys.
+// It takes an instance name and returns a list of all instance configuration keys along with a shell completion directive.
 func (g *cmdGlobal) cmpInstanceAllKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
 	var keys []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -256,6 +269,8 @@ func (g *cmdGlobal) cmpInstanceAllKeys(instanceName string) ([]string, cobra.She
 	return keys, cmpDirectives
 }
 
+// cmpServerAllKeys provides shell completion for all server configuration keys.
+// It takes an instance name and returns a list of all server configuration keys along with a shell completion directive.
 func (g *cmdGlobal) cmpServerAllKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
 	resources, err := g.ParseServers(instanceName)
 	if err != nil || len(resources) == 0 {
@@ -293,6 +308,8 @@ func (g *cmdGlobal) cmpServerAllKeys(instanceName string) ([]string, cobra.Shell
 	return keys, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpInstanceConfigTemplates provides shell completion for instance config templates.
+// It takes an instance name and returns a list of instance config templates along with a shell completion directive.
 func (g *cmdGlobal) cmpInstanceConfigTemplates(instanceName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(instanceName)
@@ -310,13 +327,15 @@ func (g *cmdGlobal) cmpInstanceConfigTemplates(instanceName string) ([]string, c
 
 	results, err := client.GetInstanceTemplateFiles(instanceNameOnly)
 	if err != nil {
-		cobra.CompDebug(fmt.Sprintf("%v", err), true)
+		cobra.CompDebug(err.Error(), true)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpInstanceDeviceNames provides shell completion for instance devices.
+// It takes an instance name and returns a list of instance device names along with a shell completion directive.
 func (g *cmdGlobal) cmpInstanceDeviceNames(instanceName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(instanceName)
@@ -340,6 +359,8 @@ func (g *cmdGlobal) cmpInstanceDeviceNames(instanceName string) ([]string, cobra
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpInstanceAllDevices provides shell completion for all instance devices.
+// It takes an instance name and returns a list of all possible instance devices along with a shell completion directive.
 func (g *cmdGlobal) cmpInstanceAllDevices(instanceName string) ([]string, cobra.ShellCompDirective) {
 	resources, err := g.ParseServers(instanceName)
 	if err != nil || len(resources) == 0 {
@@ -367,6 +388,8 @@ func (g *cmdGlobal) cmpInstanceAllDevices(instanceName string) ([]string, cobra.
 	return devices, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpInstanceAllDeviceOptions provides shell completion for all instance device options.
+// It takes an instance name and device name and returns a list of all possible instance device options along with a shell completion directive.
 func (g *cmdGlobal) cmpInstanceAllDeviceOptions(instanceName string, deviceName string) ([]string, cobra.ShellCompDirective) {
 	resources, err := g.ParseServers(instanceName)
 	if err != nil || len(resources) == 0 {
@@ -398,6 +421,8 @@ func (g *cmdGlobal) cmpInstanceAllDeviceOptions(instanceName string, deviceName 
 	return deviceOptions, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpInstances provides shell completion for all instances.
+// It takes a partial input string and returns a list of matching instances along with a shell completion directive.
 func (g *cmdGlobal) cmpInstances(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -415,7 +440,7 @@ func (g *cmdGlobal) cmpInstances(toComplete string) ([]string, cobra.ShellCompDi
 			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 				name = instance
 			} else {
-				name = fmt.Sprintf("%s:%s", resource.remote, instance)
+				name = resource.remote + ":" + instance
 			}
 
 			results = append(results, name)
@@ -431,6 +456,8 @@ func (g *cmdGlobal) cmpInstances(toComplete string) ([]string, cobra.ShellCompDi
 	return results, cmpDirectives
 }
 
+// cmpInstancesAction provides shell completion for all instance actions (start, pause, exec, stop and delete).
+// It takes a partial input string, an action, and a boolean indicating if the force flag has been passed in. It returns a list of applicable instances based on their state and the requested action, along with a shell completion directive.
 func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagForce bool) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -474,7 +501,7 @@ func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagFor
 				if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 					name = instance.Name
 				} else {
-					name = fmt.Sprintf("%s:%s", resource.remote, instance.Name)
+					name = resource.remote + ":" + instance.Name
 				}
 
 				results = append(results, name)
@@ -491,6 +518,8 @@ func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagFor
 	return results, cmpDirectives
 }
 
+// cmpInstancesAndSnapshots provides shell completion for instances and their snapshots.
+// It takes a partial input string and returns a list of matching instances and their snapshots, along with a shell completion directive.
 func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra.ShellCompDirective) {
 	results := []string{}
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -504,7 +533,7 @@ func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra
 			instName, _, _ := strings.Cut(resource.name, shared.SnapshotDelimiter)
 			snapshots, _ := resource.server.GetInstanceSnapshotNames(instName)
 			for _, snapshot := range snapshots {
-				results = append(results, fmt.Sprintf("%s/%s", instName, snapshot))
+				results = append(results, instName+"/"+snapshot)
 			}
 		} else {
 			instances, _ := resource.server.GetInstanceNames("")
@@ -514,7 +543,7 @@ func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra
 				if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 					name = instance
 				} else {
-					name = fmt.Sprintf("%s:%s", resource.remote, instance)
+					name = resource.remote + ":" + instance
 				}
 
 				results = append(results, name)
@@ -531,6 +560,8 @@ func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra
 	return results, cmpDirectives
 }
 
+// cmpInstanceNamesFromRemote provides shell completion for instances for a specific remote.
+// It takes a partial input string and returns a list of matching instances along with a shell completion directive.
 func (g *cmdGlobal) cmpInstanceNamesFromRemote(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 
@@ -548,6 +579,8 @@ func (g *cmdGlobal) cmpInstanceNamesFromRemote(toComplete string) ([]string, cob
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpNetworkACLConfigs provides shell completion for network ACL configs.
+// It takes an ACL name and returns a list of network ACL configs along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkACLConfigs(aclName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(aclName)
@@ -571,6 +604,8 @@ func (g *cmdGlobal) cmpNetworkACLConfigs(aclName string) ([]string, cobra.ShellC
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpNetworkACLs provides shell completion for network ACL's.
+// It takes a partial input string and returns a list of matching network ACL's along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkACLs(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -594,7 +629,7 @@ func (g *cmdGlobal) cmpNetworkACLs(toComplete string) ([]string, cobra.ShellComp
 		if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 			name = acl
 		} else {
-			name = fmt.Sprintf("%s:%s", resource.remote, acl)
+			name = resource.remote + ":" + acl
 		}
 
 		results = append(results, name)
@@ -609,17 +644,21 @@ func (g *cmdGlobal) cmpNetworkACLs(toComplete string) ([]string, cobra.ShellComp
 	return results, cmpDirectives
 }
 
+// cmpNetworkACLRuleProperties provides shell completion for network ACL rule properties.
+// It returns a list of network ACL rules provided by `networkACLRuleJSONStructFieldMap()“ along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkACLRuleProperties() ([]string, cobra.ShellCompDirective) {
 	var results []string
 
 	allowedKeys := networkACLRuleJSONStructFieldMap()
 	for key := range allowedKeys {
-		results = append(results, fmt.Sprintf("%s=", key))
+		results = append(results, key+"=")
 	}
 
 	return results, cobra.ShellCompDirectiveNoSpace
 }
 
+// cmpNetworkForwardConfigs provides shell completion for network forward configs.
+// It takes a network name and listen address, and returns a list of network forward configs along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkForwardConfigs(networkName string, listenAddress string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(networkName)
@@ -643,6 +682,8 @@ func (g *cmdGlobal) cmpNetworkForwardConfigs(networkName string, listenAddress s
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpNetworkForwards provides shell completion for network forwards.
+// It takes a network name and returns a list of network forwards along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkForwards(networkName string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -663,6 +704,8 @@ func (g *cmdGlobal) cmpNetworkForwards(networkName string) ([]string, cobra.Shel
 	return results, cmpDirectives
 }
 
+// cmpNetworkLoadBalancers provides shell completion for network load balancers.
+// It takes a network name and returns a list of network load balancers along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkLoadBalancers(networkName string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -683,6 +726,8 @@ func (g *cmdGlobal) cmpNetworkLoadBalancers(networkName string) ([]string, cobra
 	return results, cmpDirectives
 }
 
+// cmpNetworkPeerConfigs provides shell completion for network peer configs.
+// It takes a network name and peer name, and returns a list of network peer configs along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkPeerConfigs(networkName string, peerName string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -707,6 +752,8 @@ func (g *cmdGlobal) cmpNetworkPeerConfigs(networkName string, peerName string) (
 	return results, cmpDirectives
 }
 
+// cmpNetworkPeers provides shell completion for network peers.
+// It takes a network name and returns a list of network peers along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkPeers(networkName string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -727,6 +774,8 @@ func (g *cmdGlobal) cmpNetworkPeers(networkName string) ([]string, cobra.ShellCo
 	return results, cmpDirectives
 }
 
+// cmpNetworks provides shell completion for networks.
+// It takes a partial input string and returns a list of matching networks along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworks(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -747,7 +796,7 @@ func (g *cmdGlobal) cmpNetworks(toComplete string) ([]string, cobra.ShellCompDir
 			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 				name = network
 			} else {
-				name = fmt.Sprintf("%s:%s", resource.remote, network)
+				name = resource.remote + ":" + network
 			}
 
 			results = append(results, name)
@@ -763,6 +812,8 @@ func (g *cmdGlobal) cmpNetworks(toComplete string) ([]string, cobra.ShellCompDir
 	return results, cmpDirectives
 }
 
+// cmpNetworkConfigs provides shell completion for network configs.
+// It takes a network name and returns a list of network configs along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkConfigs(networkName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(networkName)
@@ -786,6 +837,8 @@ func (g *cmdGlobal) cmpNetworkConfigs(networkName string) ([]string, cobra.Shell
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpNetworkInstances provides shell completion for network instances.
+// It takes a network name and returns a list of instances along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkInstances(networkName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(networkName)
@@ -814,6 +867,8 @@ func (g *cmdGlobal) cmpNetworkInstances(networkName string) ([]string, cobra.She
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpNetworkProfiles provides shell completion for network profiles.
+// It takes a network name and returns a list of network profiles along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkProfiles(networkName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(networkName)
@@ -842,6 +897,8 @@ func (g *cmdGlobal) cmpNetworkProfiles(networkName string) ([]string, cobra.Shel
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpNetworkZoneConfigs provides shell completion for network zone configs.
+// It takes a zone name and returns a list of network zone configs, along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkZoneConfigs(zoneName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(zoneName)
@@ -865,6 +922,8 @@ func (g *cmdGlobal) cmpNetworkZoneConfigs(zoneName string) ([]string, cobra.Shel
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpNetworkZoneRecordConfigs provides shell completion for network zone record configs.
+// It takes a zone name and record name, and returns a list of network zone record configs along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkZoneRecordConfigs(zoneName string, recordName string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -889,6 +948,8 @@ func (g *cmdGlobal) cmpNetworkZoneRecordConfigs(zoneName string, recordName stri
 	return results, cmpDirectives
 }
 
+// cmpNetworkZoneRecords provides shell completion for network zone records.
+// It takes a zone name and returns a list of network zone records along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkZoneRecords(zoneName string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -909,6 +970,8 @@ func (g *cmdGlobal) cmpNetworkZoneRecords(zoneName string) ([]string, cobra.Shel
 	return results, cmpDirectives
 }
 
+// cmpNetworkZones provides shell completion for network zones.
+// It takes a partial input string and returns a list of network zones along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkZones(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -929,7 +992,7 @@ func (g *cmdGlobal) cmpNetworkZones(toComplete string) ([]string, cobra.ShellCom
 			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 				name = project
 			} else {
-				name = fmt.Sprintf("%s:%s", resource.remote, project)
+				name = resource.remote + ":" + project
 			}
 
 			results = append(results, name)
@@ -945,6 +1008,8 @@ func (g *cmdGlobal) cmpNetworkZones(toComplete string) ([]string, cobra.ShellCom
 	return results, cmpDirectives
 }
 
+// cmpProfileConfigs provides shell completion for profile configs.
+// It takes a profile name and returns a list of profile configs along with a shell completion directive.
 func (g *cmdGlobal) cmpProfileConfigs(profileName string) ([]string, cobra.ShellCompDirective) {
 	resources, err := g.ParseServers(profileName)
 	if err != nil || len(resources) == 0 {
@@ -967,6 +1032,8 @@ func (g *cmdGlobal) cmpProfileConfigs(profileName string) ([]string, cobra.Shell
 	return configs, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpProfileDeviceNames provides shell completion for profile device names.
+// It takes an instance name and returns a list of profile device names along with a shell completion directive.
 func (g *cmdGlobal) cmpProfileDeviceNames(instanceName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(instanceName)
@@ -990,6 +1057,8 @@ func (g *cmdGlobal) cmpProfileDeviceNames(instanceName string) ([]string, cobra.
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpProfileNamesFromRemote provides shell completion for profile names from a remote.
+// It takes a partial input string and returns a list of profile names along with a shell completion directive.
 func (g *cmdGlobal) cmpProfileNamesFromRemote(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 
@@ -1005,6 +1074,8 @@ func (g *cmdGlobal) cmpProfileNamesFromRemote(toComplete string) ([]string, cobr
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpProfiles provides shell completion for profiles.
+// It takes a partial input string and a boolean specifying whether to include remotes or not, and returns a list of profiles along with a shell completion directive.
 func (g *cmdGlobal) cmpProfiles(toComplete string, includeRemotes bool) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -1022,7 +1093,7 @@ func (g *cmdGlobal) cmpProfiles(toComplete string, includeRemotes bool) ([]strin
 			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 				name = profile
 			} else {
-				name = fmt.Sprintf("%s:%s", resource.remote, profile)
+				name = resource.remote + ":" + profile
 			}
 
 			results = append(results, name)
@@ -1038,6 +1109,8 @@ func (g *cmdGlobal) cmpProfiles(toComplete string, includeRemotes bool) ([]strin
 	return results, cmpDirectives
 }
 
+// cmpProjectConfigs provides shell completion for project configs.
+// It takes a project name and returns a list of project configs along with a shell completion directive.
 func (g *cmdGlobal) cmpProjectConfigs(projectName string) ([]string, cobra.ShellCompDirective) {
 	resources, err := g.ParseServers(projectName)
 	if err != nil || len(resources) == 0 {
@@ -1060,6 +1133,8 @@ func (g *cmdGlobal) cmpProjectConfigs(projectName string) ([]string, cobra.Shell
 	return configs, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpProjects provides shell completion for projects.
+// It takes a partial input string and returns a list of projects along with a shell completion directive.
 func (g *cmdGlobal) cmpProjects(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
@@ -1080,7 +1155,7 @@ func (g *cmdGlobal) cmpProjects(toComplete string) ([]string, cobra.ShellCompDir
 			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 				name = project
 			} else {
-				name = fmt.Sprintf("%s:%s", resource.remote, project)
+				name = resource.remote + ":" + project
 			}
 
 			results = append(results, name)
@@ -1096,6 +1171,8 @@ func (g *cmdGlobal) cmpProjects(toComplete string) ([]string, cobra.ShellCompDir
 	return results, cmpDirectives
 }
 
+// cmpRemotes provides shell completion for remotes.
+// It takes a boolean specifying whether to include all remotes or not and returns a list of remotes along with a shell completion directive.
 func (g *cmdGlobal) cmpRemotes(includeAll bool) ([]string, cobra.ShellCompDirective) {
 	results := make([]string, 0, len(g.conf.Remotes))
 
@@ -1104,12 +1181,14 @@ func (g *cmdGlobal) cmpRemotes(includeAll bool) ([]string, cobra.ShellCompDirect
 			continue
 		}
 
-		results = append(results, fmt.Sprintf("%s:", remoteName))
+		results = append(results, remoteName+":")
 	}
 
 	return results, cobra.ShellCompDirectiveNoSpace
 }
 
+// cmpRemoteNames provides shell completion for remote names.
+// It returns a list of remote names provided by `g.conf.Remotes` along with a shell completion directive.
 func (g *cmdGlobal) cmpRemoteNames() ([]string, cobra.ShellCompDirective) {
 	var results []string
 
@@ -1120,6 +1199,8 @@ func (g *cmdGlobal) cmpRemoteNames() ([]string, cobra.ShellCompDirective) {
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpStoragePoolConfigs provides shell completion for storage pool configs.
+// It takes a storage pool name and returns a list of storage pool configs, along with a shell completion directive.
 func (g *cmdGlobal) cmpStoragePoolConfigs(poolName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(poolName)
@@ -1147,9 +1228,11 @@ func (g *cmdGlobal) cmpStoragePoolConfigs(poolName string) ([]string, cobra.Shel
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpStoragePoolWithVolume provides shell completion for storage pools and their volumes.
+// It takes a partial input string and returns a list of storage pools and their volumes, along with a shell completion directive.
 func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra.ShellCompDirective) {
 	if !strings.Contains(toComplete, "/") {
-		pools, compdir := g.cmpStoragePools(toComplete)
+		pools, compdir := g.cmpStoragePools(toComplete, false)
 		if compdir == cobra.ShellCompDirectiveError {
 			return nil, compdir
 		}
@@ -1159,7 +1242,7 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 			if strings.HasSuffix(pool, ":") {
 				results = append(results, pool)
 			} else {
-				results = append(results, fmt.Sprintf("%s/", pool))
+				results = append(results, pool+"/")
 			}
 		}
 
@@ -1174,13 +1257,16 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 
 	var results []string
 	for _, volume := range volumes {
-		results = append(results, fmt.Sprintf("%s/%s", pool, volume))
+		volName, _ := parseVolume("volume", volume)
+		results = append(results, pool+"/"+volName)
 	}
 
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
-func (g *cmdGlobal) cmpStoragePools(toComplete string) ([]string, cobra.ShellCompDirective) {
+// cmpStoragePools provides shell completion for storage pool names.
+// It takes a partial input string and a boolean indicating whether to avoid appending a space after the completion. The function returns a list of matching storage pool names and a shell completion directive.
+func (g *cmdGlobal) cmpStoragePools(toComplete string, noSpace bool) ([]string, cobra.ShellCompDirective) {
 	var results []string
 
 	resources, _ := g.ParseServers(toComplete)
@@ -1196,7 +1282,7 @@ func (g *cmdGlobal) cmpStoragePools(toComplete string) ([]string, cobra.ShellCom
 			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
 				name = storage
 			} else {
-				name = fmt.Sprintf("%s:%s", resource.remote, storage)
+				name = resource.remote + ":" + storage
 			}
 
 			results = append(results, name)
@@ -1208,9 +1294,15 @@ func (g *cmdGlobal) cmpStoragePools(toComplete string) ([]string, cobra.ShellCom
 		results = append(results, remotes...)
 	}
 
+	if noSpace {
+		return results, cobra.ShellCompDirectiveNoSpace
+	}
+
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpStoragePoolVolumeConfigs provides shell completion for storage pool volume configs.
+// It takes a storage pool name and volume name, returns a list of storage pool volume configs, along with a shell completion directive.
 func (g *cmdGlobal) cmpStoragePoolVolumeConfigs(poolName string, volumeName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(poolName)
@@ -1241,6 +1333,8 @@ func (g *cmdGlobal) cmpStoragePoolVolumeConfigs(poolName string, volumeName stri
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpStoragePoolVolumeInstances provides shell completion for storage pool volume instances.
+// It takes a storage pool name and volume name, returns a list of storage pool volume instances, along with a shell completion directive.
 func (g *cmdGlobal) cmpStoragePoolVolumeInstances(poolName string, volumeName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(poolName)
@@ -1276,6 +1370,8 @@ func (g *cmdGlobal) cmpStoragePoolVolumeInstances(poolName string, volumeName st
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpStoragePoolVolumeProfiles provides shell completion for storage pool volume instances.
+// It takes a storage pool name and volume name, returns a list of storage pool volume profiles, along with a shell completion directive.
 func (g *cmdGlobal) cmpStoragePoolVolumeProfiles(poolName string, volumeName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(poolName)
@@ -1311,6 +1407,8 @@ func (g *cmdGlobal) cmpStoragePoolVolumeProfiles(poolName string, volumeName str
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpStoragePoolVolumeSnapshots provides shell completion for storage pool volume snapshots.
+// It takes a storage pool name and volume name, returns a list of storage pool volume snapshots, along with a shell completion directive.
 func (g *cmdGlobal) cmpStoragePoolVolumeSnapshots(poolName string, volumeName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(poolName)
@@ -1336,6 +1434,8 @@ func (g *cmdGlobal) cmpStoragePoolVolumeSnapshots(poolName string, volumeName st
 	return snapshots, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpStoragePoolVolumes provides shell completion for storage pool volumes.
+// It takes a storage pool name and returns a list of storage pool volumes along with a shell completion directive.
 func (g *cmdGlobal) cmpStoragePoolVolumes(poolName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(poolName)
