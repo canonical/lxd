@@ -118,14 +118,9 @@ func (r *forwardedOperationResponse) Render(w http.ResponseWriter, req *http.Req
 		debugLogger = logger.AddContext(logger.Ctx{"http_code": code})
 	}
 
-	err := util.WriteJSON(w, body, debugLogger)
+	metrics.UseMetricsCallback(req, metrics.Success)
 
-	if err == nil {
-		// If there was an error on Render, the callback function will be called during the error handling.
-		metrics.UseMetricsCallback(req, metrics.Success)
-	}
-
-	return err
+	return util.WriteJSON(w, body, debugLogger)
 }
 
 func (r *forwardedOperationResponse) String() string {
