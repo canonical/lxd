@@ -13,6 +13,7 @@ type cmdCallhook struct {
 	global *cmdGlobal
 }
 
+// Command returns a cobra command for `lxd callhook`.
 func (c *cmdCallhook) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "callhook <path> [<instance id>|<instance project> <instance name>] <hook>"
@@ -29,6 +30,7 @@ func (c *cmdCallhook) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the `lxd callhook` command.
 func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 	// Only root should run this.
 	if os.Geteuid() != 0 {
