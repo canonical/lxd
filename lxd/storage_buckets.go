@@ -25,14 +25,16 @@ import (
 )
 
 var storagePoolBucketsCmd = APIEndpoint{
-	Path: "storage-pools/{poolName}/buckets",
+	Path:        "storage-pools/{poolName}/buckets",
+	MetricsType: entity.TypeStoragePool,
 
 	Get:  APIEndpointAction{Handler: storagePoolBucketsGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: storagePoolBucketsPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateStorageBuckets)},
 }
 
 var storagePoolBucketCmd = APIEndpoint{
-	Path: "storage-pools/{poolName}/buckets/{bucketName}",
+	Path:        "storage-pools/{poolName}/buckets/{bucketName}",
+	MetricsType: entity.TypeStoragePool,
 
 	Delete: APIEndpointAction{Handler: storagePoolBucketDelete, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: storagePoolBucketGet, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanView)},
@@ -41,14 +43,16 @@ var storagePoolBucketCmd = APIEndpoint{
 }
 
 var storagePoolBucketKeysCmd = APIEndpoint{
-	Path: "storage-pools/{poolName}/buckets/{bucketName}/keys",
+	Path:        "storage-pools/{poolName}/buckets/{bucketName}/keys",
+	MetricsType: entity.TypeStoragePool,
 
 	Get:  APIEndpointAction{Handler: storagePoolBucketKeysGet, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanView)},
 	Post: APIEndpointAction{Handler: storagePoolBucketKeysPost, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var storagePoolBucketKeyCmd = APIEndpoint{
-	Path: "storage-pools/{poolName}/buckets/{bucketName}/keys/{keyName}",
+	Path:        "storage-pools/{poolName}/buckets/{bucketName}/keys/{keyName}",
+	MetricsType: entity.TypeStoragePool,
 
 	Delete: APIEndpointAction{Handler: storagePoolBucketKeyDelete, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanEdit)},
 	Get:    APIEndpointAction{Handler: storagePoolBucketKeyGet, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanView)},

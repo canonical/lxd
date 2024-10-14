@@ -47,33 +47,38 @@ import (
 )
 
 var storageVolumesCmd = APIEndpoint{
-	Path: "storage-volumes",
+	Path:        "storage-volumes",
+	MetricsType: entity.TypeStoragePool,
 
 	Get: APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList},
 }
 
 var storageVolumesTypeCmd = APIEndpoint{
-	Path: "storage-volumes/{type}",
+	Path:        "storage-volumes/{type}",
+	MetricsType: entity.TypeStoragePool,
 
 	Get: APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList},
 }
 
 var storagePoolVolumesCmd = APIEndpoint{
-	Path: "storage-pools/{poolName}/volumes",
+	Path:        "storage-pools/{poolName}/volumes",
+	MetricsType: entity.TypeStoragePool,
 
 	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes)},
 }
 
 var storagePoolVolumesTypeCmd = APIEndpoint{
-	Path: "storage-pools/{poolName}/volumes/{type}",
+	Path:        "storage-pools/{poolName}/volumes/{type}",
+	MetricsType: entity.TypeStoragePool,
 
 	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes)},
 }
 
 var storagePoolVolumeTypeCmd = APIEndpoint{
-	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}",
+	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}",
+	MetricsType: entity.TypeStoragePool,
 
 	Delete: APIEndpointAction{Handler: storagePoolVolumeDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: storagePoolVolumeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
