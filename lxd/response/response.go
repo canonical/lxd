@@ -158,7 +158,7 @@ func SyncResponsePlain(success bool, compress bool, metadata string) Response {
 }
 
 // Render renders a synchronous response.
-func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) (err error) {
+func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	// Set an appropriate ETag header
 	if r.etag != nil {
 		etag, err := util.EtagHash(r.etag)
@@ -216,13 +216,10 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) (err err
 
 	// defer calling the callback function after possibly considering the response a SmartError.
 	defer func() {
-		// If there was an error on Render, the callback function will be called during the error handling.
-		if err == nil {
-			if r.success {
-				metrics.UseMetricsCallback(req, metrics.Success)
-			} else {
-				metrics.UseMetricsCallback(req, metrics.ErrorServer)
-			}
+		if r.success {
+			metrics.UseMetricsCallback(req, metrics.Success)
+		} else {
+			metrics.UseMetricsCallback(req, metrics.ErrorServer)
 		}
 	}()
 
@@ -233,12 +230,12 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) (err err
 				comp := gzip.NewWriter(w)
 				defer comp.Close()
 
-				_, err = comp.Write([]byte(r.metadata.(string)))
+				_, err := comp.Write([]byte(r.metadata.(string)))
 				if err != nil {
 					return err
 				}
 			} else {
-				_, err = w.Write([]byte(r.metadata.(string)))
+				_, err := w.Write([]byte(r.metadata.(string)))
 				if err != nil {
 					return err
 				}
@@ -261,9 +258,7 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) (err err
 		debugLogger = logger.AddContext(logger.Ctx{"http_code": code})
 	}
 
-	err = util.WriteJSON(w, resp, debugLogger)
-
-	return err
+	return util.WriteJSON(w, resp, debugLogger)
 }
 
 func (r *syncResponse) String() string {
@@ -436,13 +431,14 @@ func FileResponse(files []FileResponseEntry, headers map[string]string) Response
 }
 
 // Render renders a file response.
-func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) (err error) {
+func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	if r.headers != nil {
 		for k, v := range r.headers {
 			w.Header().Set(k, v)
 		}
 	}
 
+	var err error
 	defer func() {
 		if err == nil {
 			// If there was an error on Render, the callback function will be called during the error handling.
@@ -537,7 +533,7 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) (err err
 			return err
 		}
 
-		_, err = io.Copy(fw, rd)
+		_, err := io.Copy(fw, rd)
 		if err != nil {
 			return err
 		}
