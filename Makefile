@@ -267,17 +267,5 @@ endif
 	fi
 	run-parts --verbose --exit-on-error --regex '.sh' test/lint
 
-.PHONY: staticcheck
-staticcheck:
-ifeq ($(shell command -v staticcheck),)
-	(cd / ; go install honnef.co/go/tools/cmd/staticcheck@latest)
-endif
-	# To get advance notice of deprecated function usage, consider running:
-	#   sed -i 's/^go 1\.[0-9]\+$/go 1.20/' go.mod
-	# before 'make staticcheck'.
-
-	# Run staticcheck against all the dirs containing Go files.
-	staticcheck $$(git ls-files *.go | sed 's|^|./|; s|/[^/]\+\.go$$||' | sort -u)
-
 tags: */*.go
 	find . -type f -name '*.go' | gotags -L - -f tags
