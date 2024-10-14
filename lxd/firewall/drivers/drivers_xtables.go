@@ -352,6 +352,11 @@ func (d Xtables) networkSetupOutboundNAT(networkName string, subnet *net.IPNet, 
 	args := []string{
 		"-s", subnet.String(),
 		"!", "-d", subnet.String(),
+		// If the output interface name is the network itself the traffic stays within the network.
+		// It's important to check for both the destination address and the output interface
+		// to not falsely snat/masquerade multicast traffic whose destination address it outside of the subnet.
+		// In case br_netfilter is loaded on the host multicast traffic also traverses the postrouting chain.
+		"!", "-o", networkName,
 	}
 
 	// If SNAT IP not supplied then use the IP of the outbound interface (MASQUERADE).
