@@ -472,10 +472,10 @@ func patchVMRenameUUIDKey(name string, d *Daemon) error {
 					newUUIDKey: uuid,
 				}
 
-				logger.Debugf("Renaming config key %q to %q for VM %q (Project %q)", oldUUIDKey, newUUIDKey, inst.Name, inst.Project)
+				logger.Debugf("Renaming config key %q to %q for VM %q (project %q)", oldUUIDKey, newUUIDKey, inst.Name, inst.Project)
 				err := tx.UpdateInstanceConfig(inst.ID, changes)
 				if err != nil {
-					return fmt.Errorf("Failed renaming config key %q to %q for VM %q (Project %q): %w", oldUUIDKey, newUUIDKey, inst.Name, inst.Project, err)
+					return fmt.Errorf("Failed renaming config key %q to %q for VM %q (project %q): %w", oldUUIDKey, newUUIDKey, inst.Name, inst.Project, err)
 				}
 			}
 
@@ -497,10 +497,10 @@ func patchVMRenameUUIDKey(name string, d *Daemon) error {
 						newUUIDKey: uuid,
 					}
 
-					logger.Debugf("Renaming config key %q to %q for VM %q (Project %q)", oldUUIDKey, newUUIDKey, snap.Name, snap.Project)
+					logger.Debugf("Renaming config key %q to %q for VM %q (project %q)", oldUUIDKey, newUUIDKey, snap.Name, snap.Project)
 					err = tx.UpdateInstanceSnapshotConfig(snap.ID, changes)
 					if err != nil {
-						return fmt.Errorf("Failed renaming config key %q to %q for VM %q (Project %q): %w", oldUUIDKey, newUUIDKey, snap.Name, snap.Project, err)
+						return fmt.Errorf("Failed renaming config key %q to %q for VM %q (project %q): %w", oldUUIDKey, newUUIDKey, snap.Name, snap.Project, err)
 					}
 				}
 			}
