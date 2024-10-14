@@ -35,7 +35,7 @@ require (
 	github.com/mdlayher/netx v0.0.0-20230430222610-7e21880baee8
 	github.com/mdlayher/vsock v1.2.1
 	github.com/miekg/dns v1.1.62
-	github.com/minio/minio-go/v7 v7.0.77
+	github.com/minio/minio-go/v7 v7.0.78
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/olekukonko/tablewriter v0.0.5
@@ -61,6 +61,7 @@ require (
 	golang.org/x/sys v0.26.0
 	golang.org/x/term v0.25.0
 	golang.org/x/text v0.19.0
+	golang.org/x/tools v0.26.0
 	google.golang.org/protobuf v1.35.1
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	gopkg.in/yaml.v2 v2.4.0
@@ -109,7 +110,7 @@ require (
 	github.com/juju/version v0.0.0-20210303051006-2015802527a8 // indirect
 	github.com/k-sone/critbitgo v1.4.0 // indirect
 	github.com/karlseguin/ccache/v3 v3.0.6 // indirect
-	github.com/klauspost/compress v1.17.10 // indirect
+	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
@@ -158,7 +159,6 @@ require (
 	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/net v0.30.0 // indirect
 	golang.org/x/time v0.6.0 // indirect
-	golang.org/x/tools v0.26.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240930140551-af27646dc61f // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240930140551-af27646dc61f // indirect
 	google.golang.org/grpc v1.67.1 // indirect
