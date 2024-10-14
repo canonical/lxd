@@ -35,6 +35,8 @@ import (
 )
 
 var api10Cmd = APIEndpoint{
+	MetricsType: entity.TypeServer,
+
 	Get:   APIEndpointAction{Handler: api10Get, AllowUntrusted: true},
 	Patch: APIEndpointAction{Handler: api10Patch, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 	Put:   APIEndpointAction{Handler: api10Put, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},

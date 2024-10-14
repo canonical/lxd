@@ -30,26 +30,30 @@ import (
 )
 
 var operationCmd = APIEndpoint{
-	Path: "operations/{id}",
+	Path:        "operations/{id}",
+	MetricsType: entity.TypeOperation,
 
 	Delete: APIEndpointAction{Handler: operationDelete, AccessHandler: allowAuthenticated},
 	Get:    APIEndpointAction{Handler: operationGet, AccessHandler: allowAuthenticated},
 }
 
 var operationsCmd = APIEndpoint{
-	Path: "operations",
+	Path:        "operations",
+	MetricsType: entity.TypeOperation,
 
 	Get: APIEndpointAction{Handler: operationsGet, AccessHandler: allowProjectResourceList},
 }
 
 var operationWait = APIEndpoint{
-	Path: "operations/{id}/wait",
+	Path:        "operations/{id}/wait",
+	MetricsType: entity.TypeOperation,
 
 	Get: APIEndpointAction{Handler: operationWaitGet, AllowUntrusted: true},
 }
 
 var operationWebsocket = APIEndpoint{
-	Path: "operations/{id}/websocket",
+	Path:        "operations/{id}/websocket",
+	MetricsType: entity.TypeOperation,
 
 	Get: APIEndpointAction{Handler: operationWebsocketGet, AllowUntrusted: true},
 }
