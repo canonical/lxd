@@ -32,9 +32,13 @@ chain pstrt{{.chainSeparator}}{{.networkName}} {
 
 	{{- range $ipFamily, $config := .rules}}
 	{{if $config.SNATAddress -}}
-	{{$ipFamily}} saddr {{$config.Subnet}} {{$ipFamily}} daddr != {{$config.Subnet}} snat {{$config.SNATAddress}}
+	# If the output interface name is the network itself the traffic stays within the network.
+	# It's important to check for both the destination address and the output interface
+	# to not falsely snat/masquerade multicast traffic whose destination address it outside of the subnet.
+	# In case br_netfilter is loaded on the host multicast traffic also traverses the postrouting chain.
+	{{$ipFamily}} saddr {{$config.Subnet}} {{$ipFamily}} daddr != {{$config.Subnet}} oifname != {{$.networkName}} snat {{$config.SNATAddress}}
 	{{else -}}
-	{{$ipFamily}} saddr {{$config.Subnet}} {{$ipFamily}} daddr != {{$config.Subnet}} masquerade
+	{{$ipFamily}} saddr {{$config.Subnet}} {{$ipFamily}} daddr != {{$config.Subnet}} oifname != {{$.networkName}} masquerade
 	{{- end}}
 	{{- end}}
 }
