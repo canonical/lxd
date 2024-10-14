@@ -1,17 +1,22 @@
 name: Triaging
 on:
-- pull_request_target
+  pull_request_target:
+  issues:
+    types:
+      - labeled
+      - unlabeled
 
 permissions:
   contents: read
 
 jobs:
   label:
+    if: github.event.pull_request
     permissions:
       contents: read  # for actions/labeler to determine modified files
       pull-requests: write  # for actions/labeler to add labels to PRs
     name: PR labels
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/labeler@v5
       with:
