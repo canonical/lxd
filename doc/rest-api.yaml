@@ -3139,6 +3139,10 @@ definitions:
                 description: Whether the entity comes from a network that LXD performs egress source NAT on
                 type: boolean
                 x-go-name: NAT
+            network:
+                description: Network is the name of the network the allocated address belongs to
+                type: string
+                x-go-name: Network
             type:
                 description: Type of the entity consuming the network address
                 type: string
@@ -3289,6 +3293,11 @@ definitions:
                 example: lxd01
                 type: string
                 x-go-name: Location
+            project:
+                description: Name of the project of the entity related to the hostname
+                example: default
+                type: string
+                x-go-name: Project
             type:
                 description: The type of record (static or dynamic)
                 example: dynamic
@@ -11882,7 +11891,7 @@ paths:
                     $ref: '#/responses/Forbidden'
                 "500":
                     $ref: '#/responses/InternalServerError'
-            summary: Get the network allocations in use (`network`, `network-forward` and `load-balancer` and `instance`)
+            summary: Get the network allocations in use (`network`, `network-forward`, `load-balancer`, `uplink` and `instance`)
             tags:
                 - network-allocations
     /1.0/network-zones:
