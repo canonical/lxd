@@ -1531,6 +1531,14 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 		return fmt.Errorf("Failed to bring up uplink veth interface %q: %w", vars.uplinkEnd, err)
 	}
 
+	// Add VLAN filter entry to the uplink end of the veth interface.
+	if uplinkNetConfig["vlan"] != "" {
+		err = link.BridgeVLANAdd(uplinkNetConfig["vlan"], true, true, false)
+		if err != nil {
+			return fmt.Errorf("Failed to configure VLAN for uplink veth interface %q: %w", vars.uplinkEnd, err)
+		}
+	}
+
 	// Ensure uplink OVS end veth interface is up.
 	link = &ip.Link{Name: vars.ovsEnd}
 	err = link.SetUp()
@@ -1644,6 +1652,11 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 	// Detect if uplink interface is a native bridge.
 	if IsNativeBridge(uplinkHostName) {
 		return n.startUplinkPortBridgeNative(uplinkNet, uplinkHostName)
+	}
+
+	// Handle case where uplink interface is bridge and VLAN is specified.
+	if IsNativeBridge(uplinkConfig["parent"]) && uplinkConfig["vlan"] != "" {
+		return n.startUplinkPortBridgeNative(uplinkNet, uplinkConfig["parent"])
 	}
 
 	// Detect if uplink interface is a OVS bridge.
@@ -1853,7 +1866,7 @@ func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 	uplinkHostName := GetHostDevice(uplinkConfig["parent"], uplinkConfig["vlan"])
 
 	// Detect if uplink interface is a native bridge.
-	if IsNativeBridge(uplinkHostName) {
+	if IsNativeBridge(uplinkHostName) || (IsNativeBridge(uplinkConfig["parent"]) && uplinkConfig["vlan"] != "") {
 		return n.deleteUplinkPortBridgeNative(uplinkNet)
 	}
 
