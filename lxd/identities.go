@@ -5,10 +5,13 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
@@ -59,6 +62,10 @@ var tlsIdentitiesCmd = APIEndpoint{
 	Get: APIEndpointAction{
 		Handler:       getIdentities(api.AuthenticationMethodTLS),
 		AccessHandler: allowAuthenticated,
+	},
+	Post: APIEndpointAction{
+		Handler:        createIdentityTLS,
+		AllowUntrusted: true,
 	},
 }
 
@@ -169,6 +176,361 @@ func identityAccessHandler(authenticationMethod string, entitlement auth.Entitle
 		request.SetCtxValue(r, ctxClusterDBIdentity, id)
 		return response.EmptySyncResponse
 	}
+}
+
+// swagger:operation POST /1.0/auth/identities/tls?public identities identities_post_tls_untrusted
+//
+//  Add a TLS identity
+//
+//  Adds a TLS identity as a trusted client.
+//  In this mode, the `token` property must be set to the correct value.
+//  The certificate that the client sent during the TLS handshake will be added.
+//  The `certificate` field must be omitted.
+//
+//  The `?public` part of the URL isn't required, it's simply used to
+//  separate the two behaviors of this endpoint.
+//
+//  ---
+//  consumes:
+//    - application/json
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: body
+//      name: TLS identity
+//      description: TLS Identity
+//      required: true
+//      schema:
+//        $ref: "#/definitions/IdentitiesPostTLS"
+//  responses:
+//    "201":
+//      $ref: "#/responses/EmptySyncResponse"
+//    "400":
+//      $ref: "#/responses/BadRequest"
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
+
+// swagger:operation POST /1.0/auth/identities/tls identities identities_post_tls
+//
+//	Add a TLS identity.
+//
+//	Adds a TLS identity as a trusted client, or creates a pending TLS identity and returns a token
+//	for use by an untrusted client. One of `token` or `certificate` must be set.
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: TLS identity
+//	    description: TLS Identity
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/IdentitiesPostTLS"
+//	responses:
+//	  "201":
+//	    oneOf:
+//	      - $ref: "#/responses/CertificateAddToken"
+//	      - $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func createIdentityTLS(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	// Parse the request.
+	req := api.IdentitiesTLSPost{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	networkCert := s.Endpoints.NetworkCert()
+	serverCert := s.ServerCert()
+	notify := newIdentityNotificationFunc(s, r, networkCert, serverCert)
+
+	if !auth.IsTrusted(r.Context()) {
+		return createIdentityTLSUntrusted(r.Context(), s, r.TLS.PeerCertificates, networkCert, req, notify)
+	}
+
+	return createIdentityTLSTrusted(r.Context(), s, networkCert, req, notify)
+}
+
+// createIdentityTLSUntrusted handles requests to create an identity when the caller is not trusted.
+func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertificates []*x509.Certificate, networkCert *shared.CertInfo, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
+	// If not trusted a token must be provided.
+	if req.TrustToken == "" {
+		return response.Forbidden(errors.New("Trust token required"))
+	}
+
+	// If not trusted other fields must not be populated.
+	if req.Token || req.Certificate != "" || req.Name != "" || len(req.Groups) > 0 {
+		return response.Forbidden(errors.New("Only trust token must be provided"))
+	}
+
+	// If not trusted get the certificate from the request TLS config.
+	if len(peerCertificates) < 1 {
+		return response.BadRequest(fmt.Errorf("No client certificate provided"))
+	}
+
+	cert := peerCertificates[len(peerCertificates)-1]
+
+	// Validate certificate.
+	err := certificateValidate(networkCert, cert)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Check if certificate add token is valid.
+	joinToken, err := shared.CertificateTokenDecode(req.TrustToken)
+	if err != nil {
+		return response.Forbidden(nil)
+	}
+
+	// If so then check there is a matching pending TLS identity.
+	identifier, err := tlsIdentityTokenValidate(ctx, s, *joinToken)
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed during search for pending TLS identity: %w", err))
+	}
+
+	// Activate the pending identity with the certificate.
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		return dbCluster.ActivateTLSIdentity(ctx, tx.Tx(), identifier, cert)
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Notify other members, update the cache, and send a lifecycle event.
+	lc, err := notify(lifecycle.IdentityUpdated, api.AuthenticationMethodTLS, identifier.String(), true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponseLocation(true, nil, lc.Source)
+}
+
+// createIdentityTLSTrusted handles requests to create an identity when the caller is trusted.
+func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *shared.CertInfo, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
+	// Check if the caller has permission to create identities.
+	err := s.Authorizer.CheckPermission(ctx, entity.ServerURL(), auth.EntitlementCanCreateIdentities)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// A name is required whether getting a token or directly creating the identity with a certificate.
+	if req.Name == "" {
+		return response.BadRequest(fmt.Errorf("Identity name must be provided"))
+	}
+
+	// If the caller is trusted, they should not be providing a trust token
+	if req.TrustToken != "" {
+		return response.Conflict(fmt.Errorf("Client already trusted"))
+	}
+
+	// Can't request a token if a certificate is provided.
+	if req.Token && req.Certificate != "" {
+		return response.BadRequest(fmt.Errorf("Can't use certificate if token is requested"))
+	}
+
+	// If a token is requested, create a pending TLS identity and return an api.CertificateAddToken.
+	if req.Token {
+		return createIdentityTLSPending(ctx, s, req, notify)
+	}
+
+	// If a token is not requested, the caller must provide a certificate.
+	if req.Certificate == "" {
+		return response.BadRequest(fmt.Errorf("Must provide a certificate"))
+	}
+
+	// Parse the certificate.
+	cert, err := shared.ParseCert([]byte(req.Certificate))
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("Invalid certificate material: %w", err))
+	}
+
+	// Validate the certificate.
+	err = certificateValidate(networkCert, cert)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Calculate the fingerprint and certificate metadata.
+	fingerprint := shared.CertFingerprint(cert)
+	metadata := dbCluster.CertificateMetadata{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))}
+	metadataJSON, err := json.Marshal(metadata)
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to encode certificate metadata: %w", err))
+	}
+
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Check if we already have the certificate.
+		_, err := dbCluster.GetIdentityID(ctx, tx.Tx(), api.AuthenticationMethodTLS, fingerprint)
+		if err == nil {
+			return api.StatusErrorf(http.StatusConflict, "Identity already exists")
+		}
+
+		// Create the identity.
+		id, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
+			AuthMethod: api.AuthenticationMethodTLS,
+			Type:       api.IdentityTypeCertificateClient,
+			Identifier: fingerprint,
+			Name:       req.Name,
+			Metadata:   string(metadataJSON),
+		})
+		if err != nil {
+			return err
+		}
+
+		if len(req.Groups) > 0 {
+			return dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), int(id), req.Groups)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Notify other members, update the cache, and send a lifecycle event.
+	lc, err := notify(lifecycle.IdentityCreated, api.AuthenticationMethodTLS, fingerprint, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponseLocation(true, nil, lc.Source)
+}
+
+func createIdentityTLSPending(ctx context.Context, s *state.State, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
+	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
+
+	// Tokens are useless if the server isn't listening (how will the untrusted client contact the server?)
+	if localHTTPSAddress == "" {
+		return response.BadRequest(fmt.Errorf("Can't issue token when server isn't listening on network"))
+	}
+
+	// Get all addresses the server is listening on. This is encoded in the certificate token,
+	// so that the client will not have to specify a server address. The client will iterate
+	// through all these addresses until it can connect to one of them.
+	addresses, err := util.ListenAddresses(localHTTPSAddress)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	// Generate join secret for new client. This will be stored inside the join token operation and will be
+	// supplied by the joining client (encoded inside the join token) which will allow us to lookup the correct
+	// operation in order to validate the requested joining client name is correct and authorised.
+	joinSecret, err := shared.RandomCryptoString()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	// Generate fingerprint of network certificate so joining member can automatically trust the correct
+	// certificate when it is presented during the join process.
+	fingerprint, err := shared.CertFingerprintStr(string(s.Endpoints.NetworkPublicKey()))
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	// Calculate an expiry for the pending TLS identity.
+	expiry := s.GlobalConfig.RemoteTokenExpiry()
+	var expiresAt time.Time
+	if expiry != "" {
+		expiresAt, err = shared.GetExpiry(time.Now(), expiry)
+		if err != nil {
+			return response.InternalError(err)
+		}
+	}
+
+	// Generate an identifier for the identity and calculate its metadata.
+	identifier := uuid.New()
+	metadata := dbCluster.PendingTLSMetadata{
+		Secret: joinSecret,
+		Expiry: expiresAt,
+	}
+
+	metadataJSON, err := json.Marshal(metadata)
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to encode pending TLS identity metadata: %w", err))
+	}
+
+	// Create the identity.
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		id, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
+			AuthMethod: api.AuthenticationMethodTLS,
+			Type:       api.IdentityTypeCertificateClientPending,
+			Identifier: identifier.String(),
+			Name:       req.Name,
+			Metadata:   string(metadataJSON),
+		})
+		if err != nil {
+			return err
+		}
+
+		if len(req.Groups) > 0 {
+			return dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), int(id), req.Groups)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to create pending TLS identity: %w", err))
+	}
+
+	// Return the CertificateAddToken.
+	token := api.CertificateAddToken{
+		ClientName:  req.Name,
+		Fingerprint: fingerprint,
+		Addresses:   addresses,
+		Secret:      joinSecret,
+		ExpiresAt:   expiresAt,
+		// Set the Type field so that the client can differentiate
+		// between tokens meant for the certificates API and the auth API.
+		Type: api.IdentityTypeCertificateClient,
+	}
+
+	// Notify other members, update the cache, and send a lifecycle event.
+	lc, err := notify(lifecycle.IdentityCreated, api.AuthenticationMethodTLS, identifier.String(), false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponseLocation(true, token, lc.Source)
+}
+
+func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.CertificateAddToken) (uuid.UUID, error) {
+	var id *dbCluster.Identity
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		id, err = dbCluster.GetPendingTLSIdentityByTokenSecret(ctx, tx.Tx(), token.Secret)
+		return err
+	})
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("Failed to find a matching pending identity: %w", err)
+	}
+
+	metadata, err := id.PendingTLSMetadata()
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("Failed extracting pending TLS identity metadata: %w", err)
+	}
+
+	if !metadata.Expiry.IsZero() && metadata.Expiry.Before(time.Now()) {
+		return uuid.UUID{}, api.StatusErrorf(http.StatusForbidden, "Token has expired")
+	}
+
+	uid, err := uuid.Parse(id.Identifier)
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("Unexpected identifier format for pending TLS identity: %w", err)
+	}
+
+	return uid, nil
 }
 
 // swagger:operation GET /1.0/auth/identities identities identities_get
