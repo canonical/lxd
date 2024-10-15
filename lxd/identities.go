@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -117,6 +118,10 @@ var oidcIdentityCmd = APIEndpoint{
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanDelete),
 	},
 }
+
+// identityNotificationFunc is used when an identity is created, updated, or deleted.
+// The signature is defined here as a convenience so that the function signature doesn't need to be written in full when used as an argument.
+type identityNotificationFunc func(action lifecycle.IdentityAction, authenticationMethod string, identifier string, updateCache bool) (*api.EventLifecycle, error)
 
 const (
 	// ctxClusterDBIdentity is used in the identityAccessHandler to set a cluster.Identity into the request context.
@@ -844,24 +849,11 @@ func updateIdentity(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Notify other cluster members to update their identity cache.
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
+	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
-
-	err = notifier(func(client lxd.InstanceServer) error {
-		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Send a lifecycle event for the identity update.
-	lc := lifecycle.IdentityUpdated.Event(string(id.AuthMethod), id.Identifier, request.CreateRequestor(r), nil)
-	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
-
-	s.UpdateIdentityCache()
 
 	return response.EmptySyncResponse
 }
@@ -979,24 +971,11 @@ func patchIdentity(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Notify other cluster members to update their identity cache.
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
+	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
-
-	err = notifier(func(client lxd.InstanceServer) error {
-		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Send a lifecycle event for the identity update.
-	lc := lifecycle.IdentityUpdated.Event(string(id.AuthMethod), id.Identifier, request.CreateRequestor(r), nil)
-	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
-
-	s.UpdateIdentityCache()
 
 	return response.EmptySyncResponse
 }
@@ -1061,26 +1040,43 @@ func deleteIdentity(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Notify other cluster members to update their identity cache.
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
+	_, err = notify(lifecycle.IdentityDeleted, string(id.AuthMethod), id.Identifier, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
-
-	err = notifier(func(client lxd.InstanceServer) error {
-		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Send a lifecycle event for the identity update.
-	lc := lifecycle.IdentityDeleted.Event(string(id.AuthMethod), id.Identifier, request.CreateRequestor(r), nil)
-	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
-
-	s.UpdateIdentityCache()
 
 	return response.EmptySyncResponse
+}
+
+// newIdentityNotificationFunc returns a function that creates and sends a lifecycle event for the identity.
+// If updateCache is true, the local identity cache is updated and a notification is sent to other members to do the same.
+func newIdentityNotificationFunc(s *state.State, r *http.Request, networkCert *shared.CertInfo, serverCert *shared.CertInfo) identityNotificationFunc {
+	return func(action lifecycle.IdentityAction, authenticationMethod string, identifier string, updateCache bool) (*api.EventLifecycle, error) {
+		if updateCache {
+			// Send a notification to other cluster members to refresh their identity cache.
+			notifier, err := cluster.NewNotifier(s, networkCert, serverCert, cluster.NotifyAlive)
+			if err != nil {
+				return nil, err
+			}
+
+			err = notifier(func(client lxd.InstanceServer) error {
+				_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
+				return err
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			// Reload the identity cache to add the new certificate.
+			s.UpdateIdentityCache()
+		}
+
+		lc := action.Event(authenticationMethod, identifier, request.CreateRequestor(r), nil)
+		s.Events.SendLifecycle(api.ProjectDefaultName, lc)
+
+		return &lc, nil
+	}
 }
 
 // updateIdentityCache reads all identities from the database and sets them in the identity.Cache.
