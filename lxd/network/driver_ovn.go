@@ -601,7 +601,7 @@ func (n *ovn) Validate(config map[string]string) error {
 	_, ipv6Net, _ := net.ParseCIDR(config["ipv6.address"])
 	if ipv6Net != nil {
 		ones, _ := ipv6Net.Mask.Size()
-		if ones < 64 {
+		if ones > 64 {
 			return fmt.Errorf("IPv6 subnet must be at least a /64")
 		}
 	}
@@ -4424,7 +4424,7 @@ func (n *ovn) DHCPv6Subnet() *net.IPNet {
 
 	if subnet != nil {
 		ones, _ := subnet.Mask.Size()
-		if ones < 64 {
+		if ones > 64 {
 			return nil // OVN only supports DHCPv6 allocated using EUI64 (which needs at least a /64).
 		}
 	}
