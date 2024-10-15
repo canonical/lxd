@@ -13,7 +13,7 @@ test_image_auto_update() {
   fp1="$(LXD_DIR=${LXD2_DIR} lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
 
   token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
-  lxc remote add l2 "${LXD2_ADDR}" --accept-certificate --token "${token}"
+  lxc remote add l2 "${LXD2_ADDR}" --token "${token}"
   lxc init l2:testimage c1
 
   # Now the first image image is in the local store, since it was

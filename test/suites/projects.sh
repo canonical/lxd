@@ -802,7 +802,7 @@ test_projects_limits() {
     (LXD_DIR=${LXD_REMOTE_DIR} deps/import-busybox --alias remoteimage --template start --public)
 
     token="$(LXD_DIR=${LXD_REMOTE_DIR} lxc config trust add --name foo -q)"
-    lxc remote add l2 "${LXD_REMOTE_ADDR}" --accept-certificate --token "${token}"
+    lxc remote add l2 "${LXD_REMOTE_ADDR}" --token "${token}"
 
     # Relax all constraints except the disk limits, which won't be enough for the
     # image to be downloaded.
