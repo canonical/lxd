@@ -779,6 +779,12 @@ func (p *pureClient) restoreVolumeSnapshot(poolName string, volName string, snap
 	return p.copyVolume(poolName, volName+"."+snapshotName, poolName, volName, true)
 }
 
+// copyVolumeSnapshot copies the volume snapshot into destination volume. Destination volume is overwritten
+// if already exists.
+func (p *pureClient) copyVolumeSnapshot(srcPoolName string, srcVolName string, srcSnapshotName string, dstPoolName string, dstVolName string) error {
+	return p.copyVolume(srcPoolName, fmt.Sprintf("%s.%s", srcVolName, srcSnapshotName), dstPoolName, dstVolName, true)
+}
+
 // getHosts retrieves an existing Pure Storage host.
 func (p *pureClient) getHosts() ([]pureHost, error) {
 	var resp pureResponse[pureHost]
