@@ -3440,15 +3440,17 @@ func (n *bridge) forwardSetupFirewall() error {
 
 // Leases returns a list of leases for the bridged network. It will reach out to other cluster members as needed.
 // The projectName passed here refers to the initial project from the API request which may differ from the network's project.
+// If projectName is empty, get leases from all projects.
 func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error) {
 	var err error
 	var projectMacs []string
+	instanceProjects := make(map[string]string)
 	leases := []api.NetworkLease{}
 
 	// Get all static leases.
 	if clientType == request.ClientTypeNormal {
 		// If requested project matches network's project then include gateway and downstream uplink IPs.
-		if projectName == n.project {
+		if projectName == n.project || projectName == "" {
 			// Add our own gateway IPs.
 			for _, addr := range []string{n.config["ipv4.address"], n.config["ipv6.address"]} {
 				ip, _, _ := net.ParseCIDR(addr)
@@ -3486,6 +3488,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 								Hostname: fmt.Sprintf("%s-%s.uplink", projectName, network.Name),
 								Address:  v,
 								Type:     "uplink",
+								Project:  projectName,
 							})
 						}
 					}
@@ -3494,12 +3497,19 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 		}
 
 		// Get all the instances in the requested project that are connected to this network.
-		filter := dbCluster.InstanceFilter{Project: &projectName}
+		var filter dbCluster.InstanceFilter
+		if projectName != "" {
+			filter = dbCluster.InstanceFilter{Project: &projectName}
+		}
+
 		err = UsedByInstanceDevices(n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 			// Fill in the hwaddr from volatile.
 			if nicConfig["hwaddr"] == "" {
 				nicConfig["hwaddr"] = inst.Config[fmt.Sprintf("volatile.%s.hwaddr", nicName)]
 			}
+
+			// Keep instance project to use on dynamic leases.
+			instanceProjects[inst.Name] = inst.Project
 
 			// Record the MAC.
 			hwAddr, _ := net.ParseMAC(nicConfig["hwaddr"])
@@ -3516,6 +3526,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 					Hwaddr:   hwAddr.String(),
 					Type:     "static",
 					Location: inst.Node,
+					Project:  inst.Project,
 				})
 			}
 
@@ -3527,6 +3538,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 					Hwaddr:   hwAddr.String(),
 					Type:     "static",
 					Location: inst.Node,
+					Project:  inst.Project,
 				})
 			}
 
@@ -3541,6 +3553,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 						Hwaddr:   hwAddr.String(),
 						Type:     "dynamic",
 						Location: inst.Node,
+						Project:  inst.Project,
 					})
 				}
 			}
@@ -3607,6 +3620,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 				Hwaddr:   macStr,
 				Type:     "dynamic",
 				Location: n.state.ServerName,
+				Project:  instanceProjects[fields[3]],
 			})
 		}
 	}
