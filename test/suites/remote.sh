@@ -31,6 +31,7 @@ test_remote_url() {
 
   # an invalid protocol returns an error
   ! lxc_remote remote add test "${url}" --accept-certificate --password foo --protocol foo || false
+  [ "$(DEBUG="" lxc_remote remote add test "${url}" --protocol foo 2>&1)" = "Error: Invalid protocol: foo" ]
 
   for url in ${urls}; do
     lxc_remote remote add test "${url}"
