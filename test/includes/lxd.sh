@@ -1,7 +1,7 @@
 # LXD-related test helpers.
 
 spawn_lxd() {
-    set +x
+    { set +x; } 2>/dev/null
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
 
@@ -75,7 +75,7 @@ spawn_lxd() {
 }
 
 respawn_lxd() {
-    set +x
+    { set +x; } 2>/dev/null
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
 
