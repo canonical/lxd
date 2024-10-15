@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-10-15 14:52+0100\n"
+"POT-Creation-Date: 2024-10-15 13:13-0300\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -2008,7 +2008,7 @@ msgstr "警告を削除します"
 #: lxc/network_acl.go:235 lxc/network_acl.go:291 lxc/network_acl.go:364
 #: lxc/network_acl.go:461 lxc/network_acl.go:549 lxc/network_acl.go:592
 #: lxc/network_acl.go:731 lxc/network_acl.go:788 lxc/network_acl.go:845
-#: lxc/network_acl.go:860 lxc/network_acl.go:997 lxc/network_allocations.go:51
+#: lxc/network_acl.go:860 lxc/network_acl.go:997 lxc/network_allocations.go:53
 #: lxc/network_forward.go:33 lxc/network_forward.go:90
 #: lxc/network_forward.go:179 lxc/network_forward.go:256
 #: lxc/network_forward.go:404 lxc/network_forward.go:489
@@ -2787,7 +2787,7 @@ msgstr ""
 #: lxc/cluster.go:125 lxc/cluster.go:978 lxc/cluster_group.go:442
 #: lxc/config_template.go:275 lxc/config_trust.go:352 lxc/config_trust.go:434
 #: lxc/image.go:1116 lxc/image_alias.go:157 lxc/list.go:133 lxc/network.go:1009
-#: lxc/network.go:1108 lxc/network_acl.go:98 lxc/network_allocations.go:57
+#: lxc/network.go:1108 lxc/network_acl.go:98 lxc/network_allocations.go:59
 #: lxc/network_forward.go:93 lxc/network_load_balancer.go:97
 #: lxc/network_peer.go:85 lxc/network_zone.go:89 lxc/network_zone.go:770
 #: lxc/operation.go:109 lxc/profile.go:707 lxc/project.go:474
@@ -3019,7 +3019,7 @@ msgstr "プロファイル名 %s を %s に変更しました"
 msgid "Group ID to run the command as (default 0)"
 msgstr "コマンドを実行する際のグループ ID (GID) (デフォルト 0)"
 
-#: lxc/network_allocations.go:28
+#: lxc/network_allocations.go:29
 #, fuzzy
 msgid "HARDWARE ADDRESS"
 msgstr "MAC ADDRESS"
@@ -3825,7 +3825,7 @@ msgstr ""
 "  MAXWIDTH: カラムの最大幅 (結果がこれより長い場合は切り詰められます)\n"
 "  デフォルトは -1 (制限なし)。0 はカラムのヘッダサイズに制限します。"
 
-#: lxc/network_allocations.go:50 lxc/network_allocations.go:51
+#: lxc/network_allocations.go:52 lxc/network_allocations.go:53
 #, fuzzy
 msgid "List network allocations in use"
 msgstr "ネットワーク設定をYAMLで編集します"
@@ -4617,9 +4617,14 @@ msgstr "インスタンス名を指定する必要があります: "
 msgid "NAME"
 msgstr "NAME"
 
-#: lxc/network_allocations.go:27
+#: lxc/network_allocations.go:28
 msgid "NAT"
 msgstr ""
+
+#: lxc/network_allocations.go:26
+#, fuzzy
+msgid "NETWORK"
+msgstr "NETWORKS"
 
 #: lxc/project.go:573
 msgid "NETWORK ZONES"
@@ -5604,7 +5609,7 @@ msgstr "クラスターメンバーに join するためのトークンを失効
 msgid "Role (admin or read-only)"
 msgstr "ロール（admin または read-only）"
 
-#: lxc/network_allocations.go:58
+#: lxc/network_allocations.go:60
 msgid "Run again a specific project"
 msgstr ""
 
@@ -5612,7 +5617,7 @@ msgstr ""
 msgid "Run against all instances"
 msgstr "すべてのインスタンスに対してコマンドを実行します"
 
-#: lxc/network_allocations.go:59
+#: lxc/network_allocations.go:61
 #, fuzzy
 msgid "Run against all projects"
 msgstr "すべてのインスタンスに対してコマンドを実行します"
@@ -6465,7 +6470,7 @@ msgstr "TOKEN"
 
 #: lxc/auth.go:967 lxc/config_trust.go:408 lxc/image.go:1141
 #: lxc/image_alias.go:236 lxc/list.go:579 lxc/network.go:1082
-#: lxc/network.go:1164 lxc/network_allocations.go:26 lxc/operation.go:172
+#: lxc/network.go:1164 lxc/network_allocations.go:27 lxc/operation.go:172
 #: lxc/storage_volume.go:1736 lxc/warning.go:216
 msgid "TYPE"
 msgstr "TYPE"
