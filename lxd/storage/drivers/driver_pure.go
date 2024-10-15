@@ -105,7 +105,7 @@ func (d *pure) Info() Info {
 		Name:                         "pure",
 		Version:                      pureVersion,
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
-		OptimizedImages:              false,
+		OptimizedImages:              true,
 		PreservesInodes:              false,
 		Remote:                       d.isRemote(),
 		VolumeTypes:                  []VolumeType{VolumeTypeCustom, VolumeTypeVM, VolumeTypeContainer, VolumeTypeImage},
