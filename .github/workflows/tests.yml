@@ -76,10 +76,8 @@ jobs:
       - name: Install build dependencies
         uses: ./.github/actions/install-lxd-builddeps
 
-      - name: Install test dependencies
+      - name: Download minio/mc
         run: |
-          python3 -m pip install flake8
-
           # Download minio ready to include in dependencies for system tests.
           mkdir -p "$(go env GOPATH)/bin"
           curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
