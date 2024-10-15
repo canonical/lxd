@@ -434,7 +434,7 @@ func GenerateMemCert(client bool, options CertOptions) ([]byte, []byte, error) {
 func ParseCert(cert []byte) (*x509.Certificate, error) {
 	certBlock, _ := pem.Decode(cert)
 	if certBlock == nil {
-		return nil, fmt.Errorf("Invalid certificate file")
+		return nil, fmt.Errorf("Invalid PEM block")
 	}
 
 	return x509.ParseCertificate(certBlock.Bytes)

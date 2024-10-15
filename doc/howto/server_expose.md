@@ -70,22 +70,51 @@ To be able to access the remote API, clients must authenticate with the LXD serv
 There are several authentication methods; see {ref}`authentication` for detailed information.
 
 The recommended method is to add the client's TLS certificate to the server's trust store through a trust token.
+There are two ways to create a token.
+Create a *pending fine-grained TLS identity* if you would like to manage client permissions via {ref}`fine-grained-authorization`.
+Create a *certificate add token* if you would like to grant the client full access to LXD, or manage their permissions via {ref}`restricted-tls-certs`.
 
 See {ref}`access-ui` for instructions on how to authenticate with the LXD server using the UI.
 To authenticate a CLI or API client using a trust token, complete the following steps:
 
 1. On the server, generate a trust token.
 
-   ````{tabs}
-   ```{group-tab} CLI
+   `````{tabs}
+   ````{group-tab} CLI
+   There are currently two ways to retrieve a trust token in LXD.
+
+   **Create a certificate add token**
+
    To generate a trust token, enter the following command on the server:
 
        lxc config trust add
 
    Enter the name of the client that you want to add.
    The command generates and prints a token that can be used to add the client certificate.
+
+   ```{note}
+   The recipient of this token will have full access to LXD.
+   To restrict the access of the client, you must use the `--restricted` flag.
+   See {ref}`projects-confine-https` for more details.
    ```
-   ```{group-tab} API
+
+   **Create a pending fine-grained TLS identity**
+
+   To create a pending fine-grained TLS identity, enter the following command on the server:
+
+       lxc auth identity create tls/<client_name>
+
+   The command generates and prints a token that can be used to add the client certificate.
+
+   ```{note}
+   The recipient of this token is not authorized to perform any actions in the LXD server.
+   To grant access, the identity must be added to one or more groups with permissions assigned.
+   See {ref}`fine-grained-authorization`.
+   ```
+   ````
+   ````{group-tab} API
+   **Create a certificate add token**
+
    To generate a trust token, send a POST request to the `/1.0/certificates` endpoint:
 
        lxc query --request POST /1.0/certificates --data '{
@@ -110,7 +139,7 @@ To authenticate a CLI or API client using a trust token, complete the following 
            ...
            "secret": "<secret>"
         },
-       ...
+        ...
        }
 
    Use this information to generate the trust token:
@@ -119,8 +148,40 @@ To authenticate a CLI or API client using a trust token, complete the following 
        '"addresses":["<server_address>"],'\
        '"secret":"<secret>","expires_at":"0001-01-01T00:00:00Z"}' | base64 -w0
    <!-- include end token API -->
-   ```
+
+   **Create a pending fine-grained TLS identity**
+
+   To generate a trust token, send a POST request to the `/1.0/auth/identities/tls` endpoint:
+
+       lxc query --request POST /1.0/auth/identities/tls --data '{
+         "name": "<client_name>",
+         "token": true
+       }'
+
+   <!-- include start tls identity API -->
+   See [`POST /1.0/auth/identities/tls`](swagger:/auth/identitites/identities_post_tls) for more information.
+
+   The return value of this query contains the information that is required to generate the trust token:
+
+       {
+           "client_name": "<client_name>",
+           "addresses": [
+              "<server_address>"
+           ],
+           "expires_at": "<expiry_date>"
+           "fingerprint": "<fingerprint>",
+           "type": "<type>",
+           "secret": "<secret>"
+       }
+
+   Use this information to generate the trust token:
+
+       echo -n '{"client_name":"<client_name>","fingerprint":"<fingerprint>",'\
+       '"addresses":["<server_address>"],'\
+       '"secret":"<secret>","expires_at":"0001-01-01T00:00:00Z","type":"<type>"}' | base64 -w0
+   <!-- include end tls identity API -->
    ````
+   `````
 
 1. Authenticate the client.
 
@@ -130,19 +191,31 @@ To authenticate a CLI or API client using a trust token, complete the following 
 
        lxc remote add <remote_name> <token>
 
-   % Include content from [../authentication.md](../authentication.md)
-   ```{include} ../authentication.md
-       :start-after: <!-- Include start NAT authentication -->
-       :end-before: <!-- Include end NAT authentication -->
+   ```{note}
+   If your LXD server is behind NAT, you must specify its external public address when adding it as a remote for a client:
+
+       lxc remote add <name> <IP_address>
+
+   When you are prompted for the token, specify the generated token from the previous step.
+   Alternatively, use the `--token` flag:
+
+       lxc remote add <name> <IP_address> --token <token>
+
+   When generating the token on the server, LXD includes a list of IP addresses that the client can use to access the server.
+   However, if the server is behind NAT, these addresses might be local addresses that the client cannot connect to.
+   In this case, you must specify the external address manually.
    ```
    ````
    ````{group-tab} API
-   <!-- include start authenticate API -->
+   <!-- include start gen cert -->
    On the client, generate a certificate to use for the connection:
 
        openssl req -x509 -newkey rsa:2048 -keyout "<keyfile_name>" -nodes \
        -out "<crtfile_name>" -subj "/CN=<client_name>"
 
+   <!-- include end gen cert -->
+   **Trust store entries**
+   <!-- include start cert token -->
    Then send a POST request to the `/1.0/certificates?public` endpoint to authenticate:
 
        curl -k -s --key "<keyfile_name>" --cert "<crtfile_name>" \
@@ -150,7 +223,17 @@ To authenticate a CLI or API client using a trust token, complete the following 
        --data '{ "trust_token": "<trust_token>" }'
 
    See [`POST /1.0/certificates?public`](swagger:/certificates/certificates_post_untrusted) for more information.
-   <!-- include end authenticate API -->
+   <!-- include end cert token -->
+   **TLS identities**
+   <!-- include start identity token -->
+   Send a POST request to the `/1.0/auth/identities/tls?public` endpoint to authenticate:
+
+       curl --insecure --key "<keyfile_name>" --cert "<crtfile_name>" \
+       -X POST https://<server_address>/1.0/auth/identities/tls \
+       --data '{ "trust_token": "<trust_token>" }'
+
+   See [`POST /1.0/auth/identities/tls?public`](swagger:/auth/identities/identities_post_tls_untrusted) for more information.
+   <!-- include end identity token -->
    ````
    `````
 

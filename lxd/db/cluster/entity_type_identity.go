@@ -28,12 +28,12 @@ SELECT
 		identities.identifier
 	) 
 FROM identities
-WHERE type IN (%d)
+WHERE type IN (%d, %d, %d)
 `,
 		e.code(),
 		authMethodTLS, api.AuthenticationMethodTLS,
 		authMethodOIDC, api.AuthenticationMethodOIDC,
-		identityTypeOIDCClient,
+		identityTypeOIDCClient, identityTypeCertificateClient, identityTypeCertificateClientPending,
 	)
 }
 

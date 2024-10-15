@@ -12,11 +12,15 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/identity"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
@@ -117,6 +121,8 @@ const (
 	identityTypeCertificateMetricsRestricted   int64 = 4
 	identityTypeOIDCClient                     int64 = 5
 	identityTypeCertificateMetricsUnrestricted int64 = 6
+	identityTypeCertificateClient              int64 = 7
+	identityTypeCertificateClientPending       int64 = 8
 )
 
 // Scan implements sql.Scanner for IdentityType. This converts the integer value back into the correct API constant or
@@ -149,6 +155,10 @@ func (i *IdentityType) Scan(value any) error {
 		*i = api.IdentityTypeCertificateMetricsUnrestricted
 	case identityTypeOIDCClient:
 		*i = api.IdentityTypeOIDCClient
+	case identityTypeCertificateClient:
+		*i = api.IdentityTypeCertificateClient
+	case identityTypeCertificateClientPending:
+		*i = api.IdentityTypeCertificateClientPending
 	default:
 		return fmt.Errorf("Unknown identity type `%d`", identityTypeInt)
 	}
@@ -171,6 +181,10 @@ func (i IdentityType) Value() (driver.Value, error) {
 		return identityTypeCertificateMetricsUnrestricted, nil
 	case api.IdentityTypeOIDCClient:
 		return identityTypeOIDCClient, nil
+	case api.IdentityTypeCertificateClient:
+		return identityTypeCertificateClient, nil
+	case api.IdentityTypeCertificateClientPending:
+		return identityTypeCertificateClientPending, nil
 	}
 
 	return nil, fmt.Errorf("Invalid identity type %q", i)
@@ -305,6 +319,27 @@ func (i Identity) Subject() (string, error) {
 	return metadata.Subject, nil
 }
 
+// PendingTLSMetadata contains metadata for the pending TLS certificate identity type.
+type PendingTLSMetadata struct {
+	Secret string    `json:"secret"`
+	Expiry time.Time `json:"expiry"`
+}
+
+// PendingTLSMetadata returns the pending TLS identity metadata.
+func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
+	if i.Type != api.IdentityTypeCertificateClientPending {
+		return nil, fmt.Errorf("Cannot extract pending TLS identity secret: Identity is not pending")
+	}
+
+	var metadata PendingTLSMetadata
+	err := json.Unmarshal([]byte(i.Metadata), &metadata)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal pending TLS identity metadata: %w", err)
+	}
+
+	return &metadata, nil
+}
+
 // ToAPI converts an Identity to an api.Identity, executing database queries as necessary.
 func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.Identity, error) {
 	groups, err := GetAuthGroupsByIdentityID(ctx, tx, i.ID)
@@ -326,6 +361,65 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 		Name:                 i.Name,
 		Groups:               groupNames,
 	}, nil
+}
+
+// ActivateTLSIdentity updates a TLS identity to make it valid by adding the fingerprint, PEM encoded certificate, and setting
+// the type to api.IdentityTypeCertificateClient.
+func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate) error {
+	fingerprint := shared.CertFingerprint(cert)
+	_, err := GetIdentityID(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
+	if err == nil {
+		return api.StatusErrorf(http.StatusConflict, "Identity already exists")
+	}
+
+	metadata := CertificateMetadata{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))}
+	b, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("Failed to encode certificate metadata: %w", err)
+	}
+
+	stmt := `UPDATE identities SET type = ?, identifier = ?, metadata = ? WHERE identifier = ? AND auth_method = ?`
+	res, err := tx.ExecContext(ctx, stmt, identityTypeCertificateClient, fingerprint, string(b), identifier.String(), authMethodTLS)
+	if err != nil {
+		return fmt.Errorf("Failed to activate TLS identity: %w", err)
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed to check for activated TLS identity: %w", err)
+	}
+
+	if n == 0 {
+		return api.StatusErrorf(http.StatusNotFound, "No pending TLS identity found with identifier %q", identifier)
+	} else if n > 1 {
+		return fmt.Errorf("Unknown error occurred when activating a TLS identity: %w", err)
+	}
+
+	return nil
+}
+
+var getPendingTLSIdentityByTokenSecretStmt = fmt.Sprintf(`
+SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
+	FROM identities
+	WHERE identities.type = %d
+	AND json_extract(identities.metadata, '$.secret') = ?
+`, identityTypeCertificateClientPending)
+
+// GetPendingTLSIdentityByTokenSecret gets a single identity of type identityTypeCertificateClientPending with the given
+// secret in its metadata. If no pending identity is found, an api.StatusError is returned with http.StatusNotFound.
+func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*Identity, error) {
+	identities, err := getIdentitysRaw(ctx, tx, getPendingTLSIdentityByTokenSecretStmt, secret)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(identities) == 0 {
+		return nil, api.NewStatusError(http.StatusNotFound, "No pending identities found with given secret")
+	} else if len(identities) > 1 {
+		return nil, errors.New("Multiple pending identities found with given secret")
+	}
+
+	return &identities[0], nil
 }
 
 // GetAuthGroupsByIdentityID returns a slice of groups that the identity with the given ID is a member of.
