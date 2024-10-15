@@ -19,7 +19,8 @@ test_remote_url() {
   urls="${LXD_DIR}/unix.socket unix:${LXD_DIR}/unix.socket unix://${LXD_DIR}/unix.socket"
 
   # an invalid protocol returns an error
-  ! lxc_remote remote add test "${url}" --token foo --protocol foo || false
+  ! lxc_remote remote add test "${url}" --protocol foo || false
+  [ "$(DEBUG="" lxc_remote remote add test "${url}" --protocol foo 2>&1)" = "Error: Invalid protocol: foo" ]
 
   for url in ${urls}; do
     lxc_remote remote add test "${url}"
