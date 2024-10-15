@@ -1,12 +1,12 @@
 # lxc CLI related test helpers.
 
 lxc() {
-    set +x
+    { set +x; } 2>/dev/null
     LXC_LOCAL=1 lxc_remote "$@"
 }
 
 lxc_remote() {
-    set +x
+    { set +x; } 2>/dev/null
     local injected cmd arg
 
     injected=0
