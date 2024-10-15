@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-10-14 13:30+0000\n"
+"POT-Creation-Date: 2024-10-15 14:52+0100\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -209,7 +209,7 @@ msgstr ""
 "###   source: /home/chb/mnt/lxd_test/default.img\n"
 "###   zfs.pool_name: default"
 
-#: lxc/auth.go:214
+#: lxc/auth.go:219
 msgid ""
 "### This is a YAML representation of the group.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -236,7 +236,7 @@ msgid ""
 "permissions can be modified"
 msgstr ""
 
-#: lxc/auth.go:972
+#: lxc/auth.go:1121
 msgid ""
 "### This is a YAML representation of the group.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -257,7 +257,7 @@ msgid ""
 "groups can be modified"
 msgstr ""
 
-#: lxc/auth.go:1644
+#: lxc/auth.go:1793
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the identity provider group.\n"
@@ -759,15 +759,15 @@ msgstr ""
 msgid "<old alias> <new alias>"
 msgstr ""
 
-#: lxc/remote.go:917 lxc/remote.go:982
+#: lxc/remote.go:951 lxc/remote.go:1016
 msgid "<remote>"
 msgstr ""
 
-#: lxc/remote.go:1030
+#: lxc/remote.go:1064
 msgid "<remote> <URL>"
 msgstr ""
 
-#: lxc/remote.go:836
+#: lxc/remote.go:870
 msgid "<remote> <new-name>"
 msgstr ""
 
@@ -801,11 +801,11 @@ msgstr "ALIAS"
 msgid "ARCHITECTURE"
 msgstr "ARCHITETTURA"
 
-#: lxc/remote.go:818
+#: lxc/remote.go:852
 msgid "AUTH TYPE"
 msgstr ""
 
-#: lxc/auth.go:817
+#: lxc/auth.go:966
 msgid "AUTHENTICATION METHOD"
 msgstr ""
 
@@ -844,11 +844,11 @@ msgstr "Azione (default a GET)"
 msgid "Add a cluster member to a cluster group"
 msgstr "Il nome del container è: %s"
 
-#: lxc/auth.go:1165 lxc/auth.go:1166
+#: lxc/auth.go:1314 lxc/auth.go:1315
 msgid "Add a group to an identity"
 msgstr ""
 
-#: lxc/auth.go:1933 lxc/auth.go:1934
+#: lxc/auth.go:2082 lxc/auth.go:2083
 msgid "Add a group to an identity provider group"
 msgstr ""
 
@@ -919,7 +919,7 @@ msgid ""
 "restricted to one or more projects.\n"
 msgstr ""
 
-#: lxc/auth.go:516 lxc/auth.go:517
+#: lxc/auth.go:521 lxc/auth.go:522
 msgid "Add permissions to groups"
 msgstr ""
 
@@ -954,7 +954,7 @@ msgstr ""
 msgid "Admin access key: %s"
 msgstr "Password amministratore per %s: "
 
-#: lxc/remote.go:648
+#: lxc/remote.go:680
 #, fuzzy, c-format
 msgid "Admin password (or token) for %s:"
 msgstr "Password amministratore per %s: "
@@ -1064,7 +1064,7 @@ msgid ""
 "as well as retrieve past log entries from it."
 msgstr ""
 
-#: lxc/remote.go:621
+#: lxc/remote.go:635
 #, c-format
 msgid "Authentication type '%s' not supported by server"
 msgstr ""
@@ -1243,7 +1243,7 @@ msgstr "Impossibile effettuare il pull di una directory senza --recursive"
 msgid "Can't read from stdin: %w"
 msgstr "Impossible leggere da stdin: %s"
 
-#: lxc/remote.go:961
+#: lxc/remote.go:995
 msgid "Can't remove the default remote"
 msgstr ""
 
@@ -1309,7 +1309,7 @@ msgstr ""
 msgid "Certificate add token for %s deleted"
 msgstr "Il nome del container è: %s"
 
-#: lxc/remote.go:509
+#: lxc/remote.go:523
 #, fuzzy
 msgid "Certificate fingerprint"
 msgstr "Creazione del container in corso"
@@ -1329,7 +1329,7 @@ msgstr ""
 msgid "Client %s certificate add token:"
 msgstr "Il nome del container è: %s"
 
-#: lxc/remote.go:687
+#: lxc/remote.go:721
 #, fuzzy
 msgid "Client certificate now trusted by server:"
 msgstr "Certificato del client salvato dal server: "
@@ -1578,12 +1578,12 @@ msgstr ""
 msgid "Cores:"
 msgstr ""
 
-#: lxc/remote.go:559
+#: lxc/remote.go:573
 #, fuzzy, c-format
 msgid "Could not close server cert file %q: %w"
 msgstr "Certificato del client salvato dal server: "
 
-#: lxc/remote.go:237 lxc/remote.go:543
+#: lxc/remote.go:237 lxc/remote.go:557
 msgid "Could not create server cert dir"
 msgstr ""
 
@@ -1597,12 +1597,12 @@ msgstr "Certificato del client salvato dal server: "
 msgid "Could not find certificate key file path: %s"
 msgstr ""
 
-#: lxc/auth.go:301 lxc/auth.go:1719
+#: lxc/auth.go:306 lxc/auth.go:1868
 #, c-format
 msgid "Could not parse group: %s"
 msgstr ""
 
-#: lxc/auth.go:1058
+#: lxc/auth.go:1207
 #, c-format
 msgid "Could not parse identity: %s"
 msgstr ""
@@ -1622,13 +1622,17 @@ msgstr "Certificato del client salvato dal server: "
 msgid "Could not write new remote certificate for remote '%s' with error: %v"
 msgstr ""
 
-#: lxc/remote.go:554
+#: lxc/remote.go:568
 #, fuzzy, c-format
 msgid "Could not write server cert file %q: %w"
 msgstr "Certificato del client salvato dal server: "
 
 #: lxc/network_zone.go:1536
 msgid "Couldn't find a matching entry"
+msgstr ""
+
+#: lxc/auth.go:776
+msgid "Create a TLS identity"
 msgstr ""
 
 #: lxc/cluster_group.go:169 lxc/cluster_group.go:170
@@ -1649,6 +1653,11 @@ msgstr ""
 msgid "Create an empty instance"
 msgstr "Creazione del container in corso"
 
+#: lxc/auth.go:775
+#, fuzzy
+msgid "Create an identity"
+msgstr "Creazione del container in corso"
+
 #: lxc/launch.go:23 lxc/launch.go:24
 #, fuzzy
 msgid "Create and start instances from images"
@@ -1663,11 +1672,11 @@ msgstr ""
 msgid "Create files and directories in instances"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:98 lxc/auth.go:99
+#: lxc/auth.go:103 lxc/auth.go:104
 msgid "Create groups"
 msgstr ""
 
-#: lxc/auth.go:1530 lxc/auth.go:1531
+#: lxc/auth.go:1679 lxc/auth.go:1680
 msgid "Create identity provider groups"
 msgstr ""
 
@@ -1782,7 +1791,7 @@ msgstr ""
 msgid "DEFAULT TARGET ADDRESS"
 msgstr ""
 
-#: lxc/auth.go:377 lxc/cluster.go:197 lxc/cluster_group.go:504
+#: lxc/auth.go:382 lxc/cluster.go:197 lxc/cluster_group.go:504
 #: lxc/image.go:1137 lxc/image_alias.go:237 lxc/list.go:565 lxc/network.go:1086
 #: lxc/network_acl.go:157 lxc/network_forward.go:157
 #: lxc/network_load_balancer.go:160 lxc/network_peer.go:149
@@ -1825,7 +1834,7 @@ msgstr ""
 msgid "Delete all warnings"
 msgstr ""
 
-#: lxc/auth.go:1088 lxc/auth.go:1089
+#: lxc/auth.go:1237 lxc/auth.go:1238
 msgid "Delete an identity"
 msgstr ""
 
@@ -1834,11 +1843,11 @@ msgstr ""
 msgid "Delete files in instances"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:152 lxc/auth.go:153
+#: lxc/auth.go:157 lxc/auth.go:158
 msgid "Delete groups"
 msgstr ""
 
-#: lxc/auth.go:1582 lxc/auth.go:1583
+#: lxc/auth.go:1731 lxc/auth.go:1732
 msgid "Delete identity provider groups"
 msgstr ""
 
@@ -1920,18 +1929,18 @@ msgstr ""
 
 #: lxc/action.go:33 lxc/action.go:58 lxc/action.go:84 lxc/action.go:111
 #: lxc/alias.go:23 lxc/alias.go:60 lxc/alias.go:110 lxc/alias.go:159
-#: lxc/alias.go:214 lxc/auth.go:31 lxc/auth.go:60 lxc/auth.go:99
-#: lxc/auth.go:153 lxc/auth.go:202 lxc/auth.go:333 lxc/auth.go:393
-#: lxc/auth.go:442 lxc/auth.go:494 lxc/auth.go:517 lxc/auth.go:576
-#: lxc/auth.go:732 lxc/auth.go:769 lxc/auth.go:836 lxc/auth.go:899
-#: lxc/auth.go:960 lxc/auth.go:1089 lxc/auth.go:1143 lxc/auth.go:1166
-#: lxc/auth.go:1224 lxc/auth.go:1293 lxc/auth.go:1315 lxc/auth.go:1493
-#: lxc/auth.go:1531 lxc/auth.go:1583 lxc/auth.go:1632 lxc/auth.go:1751
-#: lxc/auth.go:1811 lxc/auth.go:1860 lxc/auth.go:1911 lxc/auth.go:1934
-#: lxc/auth.go:1987 lxc/cluster.go:30 lxc/cluster.go:123 lxc/cluster.go:215
-#: lxc/cluster.go:272 lxc/cluster.go:331 lxc/cluster.go:404 lxc/cluster.go:484
-#: lxc/cluster.go:528 lxc/cluster.go:586 lxc/cluster.go:677 lxc/cluster.go:770
-#: lxc/cluster.go:893 lxc/cluster.go:977 lxc/cluster.go:1087
+#: lxc/alias.go:214 lxc/auth.go:36 lxc/auth.go:65 lxc/auth.go:104
+#: lxc/auth.go:158 lxc/auth.go:207 lxc/auth.go:338 lxc/auth.go:398
+#: lxc/auth.go:447 lxc/auth.go:499 lxc/auth.go:522 lxc/auth.go:581
+#: lxc/auth.go:737 lxc/auth.go:776 lxc/auth.go:918 lxc/auth.go:985
+#: lxc/auth.go:1048 lxc/auth.go:1109 lxc/auth.go:1238 lxc/auth.go:1292
+#: lxc/auth.go:1315 lxc/auth.go:1373 lxc/auth.go:1442 lxc/auth.go:1464
+#: lxc/auth.go:1642 lxc/auth.go:1680 lxc/auth.go:1732 lxc/auth.go:1781
+#: lxc/auth.go:1900 lxc/auth.go:1960 lxc/auth.go:2009 lxc/auth.go:2060
+#: lxc/auth.go:2083 lxc/auth.go:2136 lxc/cluster.go:30 lxc/cluster.go:123
+#: lxc/cluster.go:215 lxc/cluster.go:272 lxc/cluster.go:331 lxc/cluster.go:404
+#: lxc/cluster.go:484 lxc/cluster.go:528 lxc/cluster.go:586 lxc/cluster.go:677
+#: lxc/cluster.go:770 lxc/cluster.go:893 lxc/cluster.go:977 lxc/cluster.go:1087
 #: lxc/cluster.go:1175 lxc/cluster.go:1299 lxc/cluster.go:1329
 #: lxc/cluster_group.go:31 lxc/cluster_group.go:85 lxc/cluster_group.go:170
 #: lxc/cluster_group.go:256 lxc/cluster_group.go:316 lxc/cluster_group.go:440
@@ -2002,9 +2011,9 @@ msgstr ""
 #: lxc/project.go:191 lxc/project.go:262 lxc/project.go:398 lxc/project.go:472
 #: lxc/project.go:592 lxc/project.go:657 lxc/project.go:745 lxc/project.go:789
 #: lxc/project.go:850 lxc/project.go:917 lxc/publish.go:34 lxc/query.go:34
-#: lxc/rebuild.go:28 lxc/remote.go:35 lxc/remote.go:91 lxc/remote.go:715
-#: lxc/remote.go:753 lxc/remote.go:839 lxc/remote.go:920 lxc/remote.go:984
-#: lxc/remote.go:1032 lxc/rename.go:22 lxc/restore.go:24 lxc/snapshot.go:32
+#: lxc/rebuild.go:28 lxc/remote.go:35 lxc/remote.go:91 lxc/remote.go:749
+#: lxc/remote.go:787 lxc/remote.go:873 lxc/remote.go:954 lxc/remote.go:1018
+#: lxc/remote.go:1066 lxc/rename.go:22 lxc/restore.go:24 lxc/snapshot.go:32
 #: lxc/storage.go:34 lxc/storage.go:97 lxc/storage.go:203 lxc/storage.go:261
 #: lxc/storage.go:393 lxc/storage.go:475 lxc/storage.go:655 lxc/storage.go:742
 #: lxc/storage.go:846 lxc/storage.go:940 lxc/storage_bucket.go:30
@@ -2195,7 +2204,7 @@ msgstr ""
 msgid "Edit a cluster group"
 msgstr ""
 
-#: lxc/auth.go:959 lxc/auth.go:960
+#: lxc/auth.go:1108 lxc/auth.go:1109
 msgid "Edit an identity as YAML"
 msgstr ""
 
@@ -2208,11 +2217,11 @@ msgstr ""
 msgid "Edit files in instances"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:201 lxc/auth.go:202
+#: lxc/auth.go:206 lxc/auth.go:207
 msgid "Edit groups as YAML"
 msgstr ""
 
-#: lxc/auth.go:1631 lxc/auth.go:1632
+#: lxc/auth.go:1780 lxc/auth.go:1781
 msgid "Edit identity provider groups as YAML"
 msgstr ""
 
@@ -2596,12 +2605,12 @@ msgstr ""
 msgid "Failed to create alias %s: %w"
 msgstr "Accetta certificato"
 
-#: lxc/remote.go:486
+#: lxc/remote.go:500
 #, fuzzy, c-format
 msgid "Failed to decode trust token: %w"
 msgstr "Il nome del container è: %s"
 
-#: lxc/remote.go:292
+#: lxc/remote.go:306
 #, c-format
 msgid "Failed to find project: %w"
 msgstr ""
@@ -2707,7 +2716,7 @@ msgid ""
 "Are you really sure you want to force removing %s? (yes/no): "
 msgstr ""
 
-#: lxc/alias.go:112 lxc/auth.go:337 lxc/auth.go:773 lxc/auth.go:1755
+#: lxc/alias.go:112 lxc/auth.go:342 lxc/auth.go:922 lxc/auth.go:1904
 #: lxc/cluster.go:125 lxc/cluster.go:978 lxc/cluster_group.go:442
 #: lxc/config_template.go:275 lxc/config_trust.go:352 lxc/config_trust.go:434
 #: lxc/image.go:1116 lxc/image_alias.go:157 lxc/list.go:133 lxc/network.go:1009
@@ -2715,7 +2724,7 @@ msgstr ""
 #: lxc/network_forward.go:93 lxc/network_load_balancer.go:97
 #: lxc/network_peer.go:85 lxc/network_zone.go:89 lxc/network_zone.go:770
 #: lxc/operation.go:109 lxc/profile.go:707 lxc/project.go:474
-#: lxc/project.go:919 lxc/remote.go:757 lxc/storage.go:657
+#: lxc/project.go:919 lxc/remote.go:791 lxc/storage.go:657
 #: lxc/storage_bucket.go:460 lxc/storage_bucket.go:775
 #: lxc/storage_volume.go:1614 lxc/warning.go:94
 msgid "Format (csv|json|table|yaml|compact)"
@@ -2753,7 +2762,7 @@ msgstr ""
 msgid "Frequency: %vMhz (min: %vMhz, max: %vMhz)"
 msgstr ""
 
-#: lxc/remote.go:821
+#: lxc/remote.go:855
 msgid "GLOBAL"
 msgstr ""
 
@@ -2765,7 +2774,7 @@ msgstr ""
 msgid "GPUs:"
 msgstr ""
 
-#: lxc/auth.go:821 lxc/auth.go:1795
+#: lxc/auth.go:970 lxc/auth.go:1944
 msgid "GROUPS"
 msgstr ""
 
@@ -2773,7 +2782,7 @@ msgstr ""
 msgid "Generate manpages for all commands"
 msgstr ""
 
-#: lxc/remote.go:165 lxc/remote.go:443
+#: lxc/remote.go:165 lxc/remote.go:457
 msgid "Generating a client certificate. This may take a minute..."
 msgstr ""
 
@@ -2925,17 +2934,17 @@ msgstr ""
 msgid "Given target %q does not match source volume location %q"
 msgstr ""
 
-#: lxc/auth.go:137
+#: lxc/auth.go:142
 #, c-format
 msgid "Group %s created"
 msgstr ""
 
-#: lxc/auth.go:187
+#: lxc/auth.go:192
 #, c-format
 msgid "Group %s deleted"
 msgstr ""
 
-#: lxc/auth.go:427 lxc/auth.go:1845
+#: lxc/auth.go:432 lxc/auth.go:1994
 #, c-format
 msgid "Group %s renamed to %s"
 msgstr ""
@@ -2995,7 +3004,7 @@ msgstr ""
 msgid "ID: %s"
 msgstr ""
 
-#: lxc/auth.go:820
+#: lxc/auth.go:969
 msgid "IDENTIFIER"
 msgstr ""
 
@@ -3027,12 +3036,16 @@ msgstr ""
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/auth.go:1567
+#: lxc/auth.go:829
+msgid "Identity creation only supported for TLS identities"
+msgstr ""
+
+#: lxc/auth.go:1716
 #, c-format
 msgid "Identity provider group %s created"
 msgstr ""
 
-#: lxc/auth.go:1617
+#: lxc/auth.go:1766
 #, fuzzy, c-format
 msgid "Identity provider group %s deleted"
 msgstr "Il nome del container è: %s"
@@ -3163,7 +3176,7 @@ msgstr ""
 msgid "Input data"
 msgstr ""
 
-#: lxc/auth.go:1292 lxc/auth.go:1293
+#: lxc/auth.go:1441 lxc/auth.go:1442
 msgid "Inspect permissions"
 msgstr ""
 
@@ -3213,7 +3226,7 @@ msgstr "Il nome del container è: %s"
 msgid "Instance type"
 msgstr ""
 
-#: lxc/remote.go:395
+#: lxc/remote.go:409
 #, c-format
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr ""
@@ -3296,7 +3309,7 @@ msgstr "numero errato di argomenti del sottocomando"
 msgid "Invalid path %s"
 msgstr ""
 
-#: lxc/remote.go:384
+#: lxc/remote.go:398
 #, fuzzy, c-format
 msgid "Invalid protocol: %s"
 msgstr "Proprietà errata: %s"
@@ -3480,16 +3493,16 @@ msgstr ""
 msgid "List background operations"
 msgstr ""
 
-#: lxc/auth.go:332 lxc/auth.go:333
+#: lxc/auth.go:337 lxc/auth.go:338
 msgid "List groups"
 msgstr ""
 
-#: lxc/auth.go:768 lxc/auth.go:769
+#: lxc/auth.go:917 lxc/auth.go:918
 #, fuzzy
 msgid "List identities"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:1750 lxc/auth.go:1751
+#: lxc/auth.go:1899 lxc/auth.go:1900
 msgid "List identity provider groups"
 msgstr ""
 
@@ -3645,7 +3658,7 @@ msgstr ""
 msgid "List operations from all projects"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:1314 lxc/auth.go:1315
+#: lxc/auth.go:1463 lxc/auth.go:1464
 #, fuzzy
 msgid "List permissions"
 msgstr "Alias:"
@@ -3691,7 +3704,7 @@ msgid ""
 "    U - Current disk usage"
 msgstr ""
 
-#: lxc/remote.go:752 lxc/remote.go:753
+#: lxc/remote.go:786 lxc/remote.go:787
 msgid "List the available remotes"
 msgstr ""
 
@@ -3818,6 +3831,12 @@ msgstr ""
 msgid "Make the image public (accessible to unauthenticated clients as well)"
 msgstr ""
 
+#: lxc/auth.go:825
+msgid ""
+"Malformed argument, expected `[<remote>:]<authentication_method>/<name>`, "
+"got "
+msgstr ""
+
 #: lxc/network.go:32 lxc/network.go:33
 msgid "Manage and attach instances to networks"
 msgstr ""
@@ -3849,21 +3868,21 @@ msgstr "Creazione del container in corso"
 msgid "Manage files in instances"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:59 lxc/auth.go:60 lxc/auth.go:1492 lxc/auth.go:1493
+#: lxc/auth.go:64 lxc/auth.go:65 lxc/auth.go:1641 lxc/auth.go:1642
 #, fuzzy
 msgid "Manage groups"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:1142 lxc/auth.go:1143
+#: lxc/auth.go:1291 lxc/auth.go:1292
 msgid "Manage groups for the identity"
 msgstr ""
 
-#: lxc/auth.go:731 lxc/auth.go:732
+#: lxc/auth.go:736 lxc/auth.go:737
 #, fuzzy
 msgid "Manage identities"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:1910 lxc/auth.go:1911
+#: lxc/auth.go:2059 lxc/auth.go:2060
 msgid "Manage identity provider group mappings"
 msgstr ""
 
@@ -3963,7 +3982,7 @@ msgstr "Creazione del container in corso"
 msgid "Manage network zones"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:493 lxc/auth.go:494
+#: lxc/auth.go:498 lxc/auth.go:499
 #, fuzzy
 msgid "Manage permissions"
 msgstr "Creazione del container in corso"
@@ -4019,7 +4038,7 @@ msgstr ""
 msgid "Manage trusted clients"
 msgstr ""
 
-#: lxc/auth.go:30 lxc/auth.go:31
+#: lxc/auth.go:35 lxc/auth.go:36
 #, fuzzy
 msgid "Manage user authorization"
 msgstr "Il nome del container è: %s"
@@ -4121,24 +4140,24 @@ msgstr "Il nome del container è: %s"
 msgid "Missing cluster member name"
 msgstr "Il nome del container è: %s"
 
-#: lxc/auth.go:123 lxc/auth.go:177 lxc/auth.go:255 lxc/auth.go:417
-#: lxc/auth.go:466 lxc/auth.go:541 lxc/auth.go:600 lxc/auth.go:1884
+#: lxc/auth.go:128 lxc/auth.go:182 lxc/auth.go:260 lxc/auth.go:422
+#: lxc/auth.go:471 lxc/auth.go:546 lxc/auth.go:605 lxc/auth.go:2033
 #, fuzzy
 msgid "Missing group name"
 msgstr "Il nome del container è: %s"
 
-#: lxc/auth.go:866 lxc/auth.go:1007 lxc/auth.go:1124 lxc/auth.go:1190
-#: lxc/auth.go:1248
+#: lxc/auth.go:820 lxc/auth.go:1015 lxc/auth.go:1156 lxc/auth.go:1273
+#: lxc/auth.go:1339 lxc/auth.go:1397
 #, fuzzy
 msgid "Missing identity argument"
 msgstr "Il nome del container è: %s"
 
-#: lxc/auth.go:1554 lxc/auth.go:1607 lxc/auth.go:1673 lxc/auth.go:1835
+#: lxc/auth.go:1703 lxc/auth.go:1756 lxc/auth.go:1822 lxc/auth.go:1984
 #, fuzzy
 msgid "Missing identity provider group name"
 msgstr "Il nome del container è: %s"
 
-#: lxc/auth.go:1958 lxc/auth.go:2011
+#: lxc/auth.go:2107 lxc/auth.go:2160
 #, fuzzy
 msgid "Missing identity provider group name argument"
 msgstr "Il nome del container è: %s"
@@ -4371,12 +4390,12 @@ msgstr ""
 msgid "Must supply instance name for: "
 msgstr ""
 
-#: lxc/auth.go:376 lxc/auth.go:819 lxc/auth.go:1794 lxc/cluster.go:192
+#: lxc/auth.go:381 lxc/auth.go:968 lxc/auth.go:1943 lxc/cluster.go:192
 #: lxc/cluster.go:1069 lxc/cluster_group.go:503 lxc/config_trust.go:409
 #: lxc/config_trust.go:514 lxc/list.go:573 lxc/network.go:1081
 #: lxc/network_acl.go:156 lxc/network_peer.go:148 lxc/network_zone.go:147
 #: lxc/network_zone.go:827 lxc/profile.go:755 lxc/project.go:567
-#: lxc/remote.go:815 lxc/storage.go:715 lxc/storage_bucket.go:512
+#: lxc/remote.go:849 lxc/storage.go:715 lxc/storage_bucket.go:512
 #: lxc/storage_bucket.go:832 lxc/storage_volume.go:1737
 msgid "NAME"
 msgstr ""
@@ -4403,7 +4422,7 @@ msgstr ""
 
 #: lxc/network.go:1058 lxc/operation.go:155 lxc/project.go:525
 #: lxc/project.go:530 lxc/project.go:535 lxc/project.go:540 lxc/project.go:545
-#: lxc/project.go:550 lxc/remote.go:775 lxc/remote.go:780 lxc/remote.go:785
+#: lxc/project.go:550 lxc/remote.go:809 lxc/remote.go:814 lxc/remote.go:819
 msgid "NO"
 msgstr ""
 
@@ -4633,7 +4652,7 @@ msgstr ""
 msgid "Only \"custom\" volumes can be snapshotted"
 msgstr ""
 
-#: lxc/remote.go:378
+#: lxc/remote.go:392
 msgid "Only https URLs are supported for simplestreams"
 msgstr ""
 
@@ -4704,11 +4723,11 @@ msgstr ""
 msgid "PROJECT"
 msgstr ""
 
-#: lxc/remote.go:817
+#: lxc/remote.go:851
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:1136 lxc/remote.go:819
+#: lxc/image.go:1136 lxc/remote.go:853
 msgid "PUBLIC"
 msgstr ""
 
@@ -4751,7 +4770,7 @@ msgstr ""
 msgid "Please provide cluster member name: "
 msgstr "Il nome del container è: %s"
 
-#: lxc/remote.go:536
+#: lxc/remote.go:550
 msgid "Please type 'y', 'n' or the fingerprint: "
 msgstr ""
 
@@ -4768,7 +4787,7 @@ msgstr ""
 msgid "Press ctrl+c to finish"
 msgstr ""
 
-#: lxc/auth.go:302 lxc/auth.go:1059 lxc/auth.go:1720 lxc/cluster.go:860
+#: lxc/auth.go:307 lxc/auth.go:1208 lxc/auth.go:1869 lxc/cluster.go:860
 #: lxc/cluster_group.go:398 lxc/config.go:282 lxc/config.go:357
 #: lxc/config.go:1340 lxc/config_metadata.go:157 lxc/config_template.go:239
 #: lxc/config_trust.go:315 lxc/image.go:492 lxc/network.go:760
@@ -5076,33 +5095,33 @@ msgstr "Creazione del container in corso"
 msgid "Refreshing the image: %s"
 msgstr ""
 
-#: lxc/remote.go:877
+#: lxc/remote.go:911
 #, fuzzy, c-format
 msgid "Remote %s already exists"
 msgstr "il remote %s esiste già"
 
-#: lxc/project.go:884 lxc/remote.go:868 lxc/remote.go:949 lxc/remote.go:1013
-#: lxc/remote.go:1061
+#: lxc/project.go:884 lxc/remote.go:902 lxc/remote.go:983 lxc/remote.go:1047
+#: lxc/remote.go:1095
 #, fuzzy, c-format
 msgid "Remote %s doesn't exist"
 msgstr "il remote %s non esiste"
 
-#: lxc/remote.go:345
+#: lxc/remote.go:359
 #, fuzzy, c-format
 msgid "Remote %s exists as <%s>"
 msgstr "il remote %s esiste come %s"
 
-#: lxc/remote.go:957
+#: lxc/remote.go:991
 #, fuzzy, c-format
 msgid "Remote %s is global and cannot be removed"
 msgstr "il remote %s è statico e non può essere modificato"
 
-#: lxc/remote.go:872 lxc/remote.go:953 lxc/remote.go:1065
+#: lxc/remote.go:906 lxc/remote.go:987 lxc/remote.go:1099
 #, fuzzy, c-format
 msgid "Remote %s is static and cannot be modified"
 msgstr "il remote %s è statico e non può essere modificato"
 
-#: lxc/remote.go:319
+#: lxc/remote.go:333
 msgid "Remote address must not be empty"
 msgstr ""
 
@@ -5111,7 +5130,7 @@ msgstr ""
 msgid "Remote admin password"
 msgstr "Password amministratore per %s: "
 
-#: lxc/remote.go:339
+#: lxc/remote.go:353
 msgid "Remote names may not contain colons"
 msgstr ""
 
@@ -5134,7 +5153,7 @@ msgstr ""
 msgid "Remove a cluster member from a cluster group"
 msgstr "Il nome del container è: %s"
 
-#: lxc/auth.go:1223 lxc/auth.go:1224
+#: lxc/auth.go:1372 lxc/auth.go:1373
 msgid "Remove a group from an identity"
 msgstr ""
 
@@ -5173,7 +5192,7 @@ msgstr "Il nome del container è: %s"
 msgid "Remove entries from a network zone record"
 msgstr ""
 
-#: lxc/auth.go:1986 lxc/auth.go:1987
+#: lxc/auth.go:2135 lxc/auth.go:2136
 msgid "Remove identities from groups"
 msgstr ""
 
@@ -5186,7 +5205,7 @@ msgstr "Creazione del container in corso"
 msgid "Remove member from group"
 msgstr ""
 
-#: lxc/auth.go:575 lxc/auth.go:576
+#: lxc/auth.go:580 lxc/auth.go:581
 msgid "Remove permissions from groups"
 msgstr ""
 
@@ -5203,7 +5222,7 @@ msgstr "Il nome del container è: %s"
 msgid "Remove profiles from instances"
 msgstr ""
 
-#: lxc/remote.go:919 lxc/remote.go:920
+#: lxc/remote.go:953 lxc/remote.go:954
 msgid "Remove remotes"
 msgstr ""
 
@@ -5233,11 +5252,11 @@ msgstr ""
 msgid "Rename aliases"
 msgstr ""
 
-#: lxc/auth.go:392 lxc/auth.go:393
+#: lxc/auth.go:397 lxc/auth.go:398
 msgid "Rename groups"
 msgstr ""
 
-#: lxc/auth.go:1810 lxc/auth.go:1811
+#: lxc/auth.go:1959 lxc/auth.go:1960
 msgid "Rename identity provider groups"
 msgstr ""
 
@@ -5262,7 +5281,7 @@ msgstr ""
 msgid "Rename projects"
 msgstr ""
 
-#: lxc/remote.go:838 lxc/remote.go:839
+#: lxc/remote.go:872 lxc/remote.go:873
 msgid "Rename remotes"
 msgstr ""
 
@@ -5413,7 +5432,7 @@ msgstr ""
 msgid "STATE"
 msgstr ""
 
-#: lxc/remote.go:820
+#: lxc/remote.go:854
 msgid "STATIC"
 msgstr ""
 
@@ -5454,11 +5473,11 @@ msgstr ""
 msgid "Server authentication type (tls or oidc)"
 msgstr ""
 
-#: lxc/remote.go:532
+#: lxc/remote.go:546
 msgid "Server certificate NACKed by user"
 msgstr ""
 
-#: lxc/remote.go:285 lxc/remote.go:683
+#: lxc/remote.go:299 lxc/remote.go:717
 msgid "Server doesn't trust us after authentication"
 msgstr ""
 
@@ -5675,7 +5694,7 @@ msgid ""
 "    lxc storage volume set [<remote>:]<pool> [<type>/]<volume> <key> <value>"
 msgstr ""
 
-#: lxc/remote.go:1031 lxc/remote.go:1032
+#: lxc/remote.go:1065 lxc/remote.go:1066
 msgid "Set the URL for the remote"
 msgstr ""
 
@@ -5775,7 +5794,7 @@ msgstr ""
 msgid "Show all information messages"
 msgstr ""
 
-#: lxc/auth.go:1859 lxc/auth.go:1860
+#: lxc/auth.go:2008 lxc/auth.go:2009
 msgid "Show an identity provider group"
 msgstr ""
 
@@ -5804,12 +5823,12 @@ msgstr ""
 msgid "Show full device configuration"
 msgstr ""
 
-#: lxc/auth.go:441 lxc/auth.go:442
+#: lxc/auth.go:446 lxc/auth.go:447
 #, fuzzy
 msgid "Show group configurations"
 msgstr "Il nome del container è: %s"
 
-#: lxc/auth.go:836
+#: lxc/auth.go:985
 msgid ""
 "Show identity configurations\n"
 "\n"
@@ -5923,7 +5942,7 @@ msgstr ""
 msgid "Show storage volume state information"
 msgstr ""
 
-#: lxc/auth.go:899
+#: lxc/auth.go:1048
 msgid ""
 "Show the current identity\n"
 "\n"
@@ -5933,7 +5952,7 @@ msgid ""
 "that are granted via identity provider group mappings. \n"
 msgstr ""
 
-#: lxc/remote.go:714 lxc/remote.go:715
+#: lxc/remote.go:748 lxc/remote.go:749
 msgid "Show the default remote"
 msgstr ""
 
@@ -6149,7 +6168,7 @@ msgstr ""
 msgid "Switch the current project"
 msgstr ""
 
-#: lxc/remote.go:983 lxc/remote.go:984
+#: lxc/remote.go:1017 lxc/remote.go:1018
 msgid "Switch the default remote"
 msgstr ""
 
@@ -6161,11 +6180,21 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
+#: lxc/auth.go:876
+#, c-format
+msgid "TLS identity %q (%s) pending identity token:"
+msgstr ""
+
+#: lxc/auth.go:902
+#, c-format
+msgid "TLS identity %q created with fingerprint %q"
+msgstr ""
+
 #: lxc/cluster.go:1070 lxc/config_trust.go:515
 msgid "TOKEN"
 msgstr ""
 
-#: lxc/auth.go:818 lxc/config_trust.go:408 lxc/image.go:1141
+#: lxc/auth.go:967 lxc/config_trust.go:408 lxc/image.go:1141
 #: lxc/image_alias.go:236 lxc/list.go:579 lxc/network.go:1082
 #: lxc/network.go:1164 lxc/network_allocations.go:26 lxc/operation.go:172
 #: lxc/storage_volume.go:1736 lxc/warning.go:216
@@ -6185,7 +6214,7 @@ msgstr ""
 msgid "Target path must be a directory"
 msgstr ""
 
-#: lxc/remote.go:161 lxc/remote.go:334
+#: lxc/remote.go:161 lxc/remote.go:348
 msgid ""
 "The --accept-certificate flag is not supported when adding a remote using a "
 "trust token"
@@ -6342,7 +6371,7 @@ msgid ""
 "The property %q does not exist on the storage pool volume snapshot %s/%s: %v"
 msgstr ""
 
-#: lxc/remote.go:527
+#: lxc/remote.go:541
 msgid ""
 "The provided fingerprint does not match the server certificate fingerprint"
 msgstr ""
@@ -6482,15 +6511,15 @@ msgstr "Creazione del container in corso"
 msgid "Transmit policy"
 msgstr ""
 
-#: lxc/remote.go:329
+#: lxc/remote.go:343
 msgid "Trust token cannot be used for public remotes"
 msgstr ""
 
-#: lxc/remote.go:324
+#: lxc/remote.go:338
 msgid "Trust token cannot be used with OIDC authentication"
 msgstr ""
 
-#: lxc/remote.go:639
+#: lxc/remote.go:653
 #, c-format
 msgid "Trust token for %s: "
 msgstr ""
@@ -6534,7 +6563,7 @@ msgstr ""
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/cluster.go:193 lxc/remote.go:816
+#: lxc/cluster.go:193 lxc/remote.go:850
 msgid "URL"
 msgstr ""
 
@@ -6858,11 +6887,11 @@ msgstr ""
 msgid "Verb: %s (%s)"
 msgstr ""
 
-#: lxc/auth.go:835
+#: lxc/auth.go:984
 msgid "View an identity"
 msgstr ""
 
-#: lxc/auth.go:898
+#: lxc/auth.go:1047
 msgid "View the current identity"
 msgstr ""
 
@@ -6901,7 +6930,7 @@ msgstr ""
 
 #: lxc/network.go:1060 lxc/operation.go:157 lxc/project.go:527
 #: lxc/project.go:532 lxc/project.go:537 lxc/project.go:542 lxc/project.go:547
-#: lxc/project.go:552 lxc/remote.go:777 lxc/remote.go:782 lxc/remote.go:787
+#: lxc/project.go:552 lxc/remote.go:811 lxc/remote.go:816 lxc/remote.go:821
 msgid "YES"
 msgstr ""
 
@@ -6938,7 +6967,7 @@ msgstr "Creazione del container in corso"
 msgid "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:330 lxc/auth.go:766 lxc/auth.go:897 lxc/auth.go:1748
+#: lxc/auth.go:335 lxc/auth.go:915 lxc/auth.go:1046 lxc/auth.go:1897
 #: lxc/cluster.go:120 lxc/cluster.go:975 lxc/cluster_group.go:437
 #: lxc/config_trust.go:347 lxc/config_trust.go:430 lxc/monitor.go:32
 #: lxc/network.go:1002 lxc/network_acl.go:92 lxc/network_zone.go:83
@@ -6978,7 +7007,7 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:] [<filters>...]"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:1313
+#: lxc/auth.go:1462
 msgid "[<remote>:] [project=<project_name>] [entity_type=<entity_type>]"
 msgstr ""
 
@@ -7053,11 +7082,17 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:]<alias> <new-name>"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:834 lxc/auth.go:1086
+#: lxc/auth.go:774
+msgid ""
+"[<remote>:]<authentication_method>/<name> [<path to PEM encoded "
+"certificate>] [[--group <group_name>]]"
+msgstr ""
+
+#: lxc/auth.go:983 lxc/auth.go:1235
 msgid "[<remote>:]<authentication_method>/<name_or_identifier>"
 msgstr ""
 
-#: lxc/auth.go:1164 lxc/auth.go:1222 lxc/auth.go:1985
+#: lxc/auth.go:1313 lxc/auth.go:1371 lxc/auth.go:2134
 msgid "[<remote>:]<authentication_method>/<name_or_identifier> <group>"
 msgstr ""
 
@@ -7066,14 +7101,14 @@ msgstr ""
 msgid "[<remote>:]<fingerprint>"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:97 lxc/auth.go:150 lxc/auth.go:200 lxc/auth.go:440
-#: lxc/auth.go:958 lxc/auth.go:1529 lxc/cluster_group.go:168
+#: lxc/auth.go:102 lxc/auth.go:155 lxc/auth.go:205 lxc/auth.go:445
+#: lxc/auth.go:1107 lxc/auth.go:1678 lxc/cluster_group.go:168
 #: lxc/cluster_group.go:253 lxc/cluster_group.go:314 lxc/cluster_group.go:661
 #, fuzzy
 msgid "[<remote>:]<group>"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:515 lxc/auth.go:573
+#: lxc/auth.go:520 lxc/auth.go:578
 #, fuzzy
 msgid ""
 "[<remote>:]<group> <entity_type> [<entity_name>] <entitlement> "
@@ -7085,22 +7120,22 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:]<group> <new-name>"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:390
+#: lxc/auth.go:395
 #, fuzzy
 msgid "[<remote>:]<group> <new_name>"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:1580 lxc/auth.go:1630 lxc/auth.go:1858
+#: lxc/auth.go:1729 lxc/auth.go:1779 lxc/auth.go:2007
 #, fuzzy
 msgid "[<remote>:]<identity_provider_group>"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:1932
+#: lxc/auth.go:2081
 #, fuzzy
 msgid "[<remote>:]<identity_provider_group> <group>"
 msgstr "Creazione del container in corso"
 
-#: lxc/auth.go:1808
+#: lxc/auth.go:1957
 #, fuzzy
 msgid "[<remote>:]<identity_provider_group> <new_name>"
 msgstr "Creazione del container in corso"
@@ -7705,7 +7740,7 @@ msgstr "Creazione del container in corso"
 msgid "[[<remote>:]<member>]"
 msgstr "Creazione del container in corso"
 
-#: lxc/project.go:557 lxc/remote.go:806
+#: lxc/project.go:557 lxc/remote.go:840
 msgid "current"
 msgstr ""
 
@@ -7752,20 +7787,20 @@ msgid ""
 "    Rename existing alias \"list\" to \"my-list\"."
 msgstr ""
 
-#: lxc/auth.go:204
+#: lxc/auth.go:209
 msgid ""
 "lxc auth group edit <group> < group.yaml\n"
 "   Update a group using the content of group.yaml"
 msgstr ""
 
-#: lxc/auth.go:962
+#: lxc/auth.go:1111
 msgid ""
 "lxc auth identity edit <authentication_method>/<name_or_identifier> < "
 "identity.yaml\n"
 "   Update an identity using the content of identity.yaml"
 msgstr ""
 
-#: lxc/auth.go:1634
+#: lxc/auth.go:1783
 msgid ""
 "lxc auth identity-provider-group edit <identity_provider_group> < identity-"
 "provider-group.yaml\n"
@@ -8189,7 +8224,7 @@ msgid ""
 "the configuration from \"config.yaml\"."
 msgstr ""
 
-#: lxc/remote.go:531
+#: lxc/remote.go:545
 #, fuzzy
 msgid "n"
 msgstr "no"
@@ -8202,7 +8237,7 @@ msgstr ""
 msgid "no"
 msgstr "no"
 
-#: lxc/remote.go:510
+#: lxc/remote.go:524
 msgid "ok (y/n/[fingerprint])?"
 msgstr ""
 
@@ -8239,7 +8274,7 @@ msgstr ""
 msgid "used by"
 msgstr ""
 
-#: lxc/remote.go:519
+#: lxc/remote.go:533
 msgid "y"
 msgstr ""
 
