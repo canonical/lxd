@@ -50,7 +50,7 @@ class UnixHTTPConnection(http.client.HTTPConnection):
         self.sock = sock
 
 
-class LXD(object):
+class LXD:
     workdir = None
 
     def __init__(self, path, project="default"):
@@ -70,8 +70,7 @@ class LXD(object):
             data["project"] = self.project
             self.lxd.request(
                 method,
-                "%s?%s"
-                % "&".join(["%s=%s" % (key, value) for key, value in data.items()]),
+                "%s?%s" % "&".join([f"{key}={value}" for key, value in data.items()]),
                 headers,
             )
         else:
@@ -165,7 +164,7 @@ class LXD(object):
         return data["metadata"]["metadata"]
 
 
-class BusyBox(object):
+class BusyBox:
     workdir = None
 
     def __init__(self):
