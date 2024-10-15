@@ -153,8 +153,13 @@ func (c *cmdRemoteAdd) findProject(d lxd.InstanceServer, project string) (string
 	return project, nil
 }
 
-func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.CertificateAddToken) error {
+func (c *cmdRemoteAdd) runToken(addr string, server string, token string, rawToken *api.CertificateAddToken) error {
 	conf := c.global.conf
+
+	// Certificate cannot be blindly accepted when using a trust token.
+	if c.flagAcceptCert {
+		return errors.New(i18n.G("The --accept-certificate flag is not supported when adding a remote using a trust token"))
+	}
 
 	if !conf.HasClientCertificate() {
 		fmt.Fprint(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
@@ -164,6 +169,12 @@ func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.Certi
 		}
 	}
 
+	// If address is provided, use token on that specific address.
+	if addr != "" {
+		return c.addRemoteFromToken(addr, server, token, rawToken.Fingerprint)
+	}
+
+	// Otherwise, iterate over all addresses within the token.
 	for _, addr := range rawToken.Addresses {
 		addr = fmt.Sprintf("https://%s", addr)
 
@@ -179,6 +190,7 @@ func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.Certi
 		return nil
 	}
 
+	// Finally, fallback to manual input.
 	fmt.Println(i18n.G("All server addresses are unavailable"))
 	fmt.Print(i18n.G("Please provide an alternate server address (empty to abort):") + " ")
 
@@ -255,9 +267,22 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 		req.Password = token
 	}
 
+	// Add client certificate to trust store. Even if we are already trusted (src.Auth == "trusted"),
+	// we want to send the token to invalidate it. Therefore, we can ignore the conflict error, which
+	// is thrown if we are trying to add a client cert that is already trusted by LXD remote.
 	err = d.CreateCertificate(req)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusConflict) {
+		return err
+	}
+
+	// And check if trusted now.
+	srv, _, err := d.GetServer()
 	if err != nil {
-		return fmt.Errorf(i18n.G("Failed to create certificate: %w"), err)
+		return err
+	}
+
+	if srv.Auth != "trusted" {
+		return errors.New(i18n.G("Server doesn't trust us after authentication"))
 	}
 
 	// Handle project.
@@ -294,6 +319,21 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.G("Remote address must not be empty"))
 	}
 
+	// Trust token cannot be used when auth type is set to OIDC.
+	if c.flagToken != "" && c.flagAuthType == "oidc" {
+		return errors.New(i18n.G("Trust token cannot be used with OIDC authentication"))
+	}
+
+	// Trust token cannot be used for public remotes.
+	if c.flagToken != "" && c.flagPublic {
+		return errors.New(i18n.G("Trust token cannot be used for public remotes"))
+	}
+
+	// Certificate cannot be blindly accepted when using a trust token.
+	if c.flagToken != "" && c.flagAcceptCert {
+		return errors.New(i18n.G("The --accept-certificate flag is not supported when adding a remote using a trust token"))
+	}
+
 	// Validate the server name.
 	if strings.Contains(server, ":") {
 		return errors.New(i18n.G("Remote names may not contain colons"))
@@ -319,9 +359,11 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		conf.Remotes = map[string]config.Remote{}
 	}
 
+	// Check if the first argument is a trust token. In such case, we need to
+	// decode it and use it to connect to the remote.
 	rawToken, err := shared.CertificateTokenDecode(addr)
 	if err == nil {
-		return c.runToken(server, addr, rawToken)
+		return c.runToken("", server, addr, rawToken)
 	}
 
 	// Complex remote URL parsing
@@ -437,6 +479,16 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		return conf.SaveConfig(c.global.confPath)
 	}
 
+	// Handle adding a remote with trust token.
+	if c.flagToken != "" {
+		rawToken, err := shared.CertificateTokenDecode(c.flagToken)
+		if err != nil {
+			return fmt.Errorf(i18n.G("Failed to decode trust token: %w"), err)
+		}
+
+		return c.runToken(addr, server, c.flagToken, rawToken)
+	}
+
 	// Check if the system CA worked for the TLS connection
 	var certificate *x509.Certificate
 	if err != nil {
@@ -449,22 +501,39 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 
 	// Handle certificate prompt
 	if certificate != nil {
+		// Prompt for certificate acceptance if user did not allow us to blindly
+		// accept the remote certificate.
 		if !c.flagAcceptCert {
 			digest := shared.CertFingerprint(certificate)
 
 			fmt.Printf("%s: %s\n", i18n.G("Certificate fingerprint"), digest)
 			fmt.Print(i18n.G("ok (y/n/[fingerprint])?") + " ")
-			line, err := shared.ReadStdin()
-			if err != nil {
-				return err
-			}
+			for {
+				line, err := shared.ReadStdin()
+				if err != nil {
+					return err
+				}
 
-			if string(line) != digest {
+				// Continue with adding the remote if digest matches, or the user
+				// confirmed a fingerprint.
+				if string(line) == digest || strings.ToLower(string(line[0])) == i18n.G("y") {
+					break
+				}
+
+				// If the input length matches the certificate fingerprint length
+				// but the fingerprints do not match, return an error. This ensures
+				// the scripts do not hang if incorrect fingerprint is provided.
+				if len(line) == len(digest) {
+					return errors.New(i18n.G("The provided fingerprint does not match the server certificate fingerprint"))
+				}
+
+				// Error out if the user didn't confirm the fingerprint.
 				if len(line) < 1 || strings.ToLower(string(line[0])) == i18n.G("n") {
 					return errors.New(i18n.G("Server certificate NACKed by user"))
-				} else if strings.ToLower(string(line[0])) != i18n.G("y") {
-					return errors.New(i18n.G("Please type 'y', 'n' or the fingerprint:"))
 				}
+
+				// Ask again for any other invalid input.
+				fmt.Print(i18n.G("Please type 'y', 'n' or the fingerprint: "))
 			}
 		}
 
@@ -567,11 +636,9 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 			// use the token instead and prompt for it if not present.
 			if d.(lxd.InstanceServer).HasExtension("explicit_trust_token") && c.flagPassword == "" {
 				// Prompt for trust token.
-				if c.flagToken == "" {
-					c.flagToken, err = c.global.asker.AskString(fmt.Sprintf(i18n.G("Trust token for %s: "), server), "", nil)
-					if err != nil {
-						return err
-					}
+				c.flagToken, err = c.global.asker.AskString(fmt.Sprintf(i18n.G("Trust token for %s: "), server), "", nil)
+				if err != nil {
+					return err
 				}
 
 				req.TrustToken = c.flagToken
