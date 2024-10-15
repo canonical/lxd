@@ -336,6 +336,9 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 	case api.IdentityTypeOIDCClient:
 		// OIDC authenticated clients are governed by fine-grained auth. They can call the endpoint but may see an empty list.
 		return response.EmptySyncResponse
+	case api.IdentityTypeCertificateClient:
+		// Fine-grained TLS identities can list resources in any project. They may see an empty list.
+		return response.EmptySyncResponse
 	case api.IdentityTypeCertificateClientRestricted:
 		// A restricted client may be able to call the endpoint, continue.
 	default:
@@ -424,7 +427,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 
 	// List of candidate identity types for this request. We have already checked server certificates at the beginning of this method
 	// so we only need to consider client and metrics certificates. (OIDC auth was completed above).
-	candidateIdentityTypes := []string{api.IdentityTypeCertificateClientUnrestricted, api.IdentityTypeCertificateClientRestricted}
+	candidateIdentityTypes := []string{api.IdentityTypeCertificateClientUnrestricted, api.IdentityTypeCertificateClientRestricted, api.IdentityTypeCertificateClient}
 	if isMetricsRequest(*r.URL) {
 		// Metrics certificates can only authenticate when calling metrics related endpoints.
 		candidateIdentityTypes = append(candidateIdentityTypes, api.IdentityTypeCertificateMetricsUnrestricted, api.IdentityTypeCertificateMetricsRestricted)

@@ -292,6 +292,15 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 	}
 
 	if foundOp == nil {
+		err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			var err error
+			_, err = dbCluster.GetPendingTLSIdentityByTokenSecret(ctx, tx.Tx(), addToken.Secret)
+			return err
+		})
+		if err == nil {
+			return nil, api.NewStatusError(http.StatusBadRequest, "TLS Identity token detected (you must update your client)")
+		}
+
 		// No operation found.
 		return nil, nil
 	}
@@ -538,7 +547,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			// If so then check there is a matching join operation.
 			tokenReq, err := certificateTokenValid(s, r, joinToken)
 			if err != nil {
-				return response.InternalError(fmt.Errorf("Failed during search for certificate add token operation: %w", err))
+				return response.SmartError(fmt.Errorf("Failed during search for certificate add token operation: %w", err))
 			}
 
 			if tokenReq == nil {
@@ -636,20 +645,13 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
-		networkCert := s.Endpoints.NetworkCert()
-		if networkCert.CA() != nil {
-			// If we are in CA mode, we only allow adding certificates that are signed by the CA.
-			trusted, _, _ := util.CheckCASignature(*cert, networkCert)
-			if !trusted {
-				return response.Forbidden(fmt.Errorf("The certificate is not trusted by the CA or has been revoked"))
-			}
-		}
 	} else {
 		return response.BadRequest(fmt.Errorf("Can't use TLS data on non-TLS link"))
 	}
 
 	// Check validity.
-	err = certificateValidate(cert)
+	networkCert := d.endpoints.NetworkCert()
+	err = certificateValidate(networkCert, cert)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -697,7 +699,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Send a notification to other cluster members to refresh their identity cache.
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	notifier, err := cluster.NewNotifier(s, networkCert, s.ServerCert(), cluster.NotifyAlive)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1005,6 +1007,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 		}
 	}
 
+	networkCert := d.endpoints.NetworkCert()
 	if req.Certificate != "" && dbInfo.Certificate != req.Certificate {
 		// Add supplied certificate.
 		block, _ := pem.Decode([]byte(req.Certificate))
@@ -1018,7 +1021,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 		dbCert.Fingerprint = shared.CertFingerprint(cert)
 
 		// Check validity.
-		err = certificateValidate(cert)
+		err = certificateValidate(networkCert, cert)
 		if err != nil {
 			return response.BadRequest(err)
 		}
@@ -1043,7 +1046,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 	}
 
 	// Notify other cluster members to update their identity cache.
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	notifier, err := cluster.NewNotifier(s, networkCert, s.ServerCert(), cluster.NotifyAlive)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1175,13 +1178,21 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func certificateValidate(cert *x509.Certificate) error {
+func certificateValidate(networkCert *shared.CertInfo, cert *x509.Certificate) error {
 	if time.Now().Before(cert.NotBefore) {
 		return fmt.Errorf("The provided certificate isn't valid yet")
 	}
 
 	if time.Now().After(cert.NotAfter) {
 		return fmt.Errorf("The provided certificate is expired")
+	}
+
+	if networkCert != nil && networkCert.CA() != nil {
+		// If we are in CA mode, we only allow adding certificates that are signed by the CA.
+		trusted, _, _ := util.CheckCASignature(*cert, networkCert)
+		if !trusted {
+			return api.NewStatusError(http.StatusForbidden, "The certificate is not trusted by the CA or has been revoked")
+		}
 	}
 
 	if cert.PublicKeyAlgorithm == x509.RSA {
