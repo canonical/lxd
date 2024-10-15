@@ -175,9 +175,9 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 				})
 			}
 
-			leases, err := n.Leases(projectName, clusterRequest.ClientTypeNormal)
+			leases, err := n.Leases("", clusterRequest.ClientTypeNormal)
 			if err != nil && !errors.Is(err, network.ErrNotImplemented) {
-				return response.SmartError(fmt.Errorf("Failed getting leases for network %q in project %q: %w", networkName, projectName, err))
+				return response.SmartError(fmt.Errorf("Failed getting leases for network %q: %w", networkName, err))
 			}
 
 			for _, lease := range leases {
@@ -189,7 +189,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 					result = append(result, api.NetworkAllocations{
 						Address: cidrAddr,
-						UsedBy:  api.NewURL().Path(version.APIVersion, "instances", lease.Hostname).Project(projectName).String(),
+						UsedBy:  api.NewURL().Path(version.APIVersion, "instances", lease.Hostname).Project(lease.Project).String(),
 						Type:    "instance",
 						Hwaddr:  lease.Hwaddr,
 						NAT:     nat,
