@@ -40,32 +40,32 @@ type StoragePoolsPost struct {
 type StoragePool struct {
 	// Storage pool name
 	// Example: local
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name" yaml:"name" diff:"name,identifier" hcl:"name"`
 
 	// Description of the storage pool
 	// Example: Local SSD pool
 	//
 	// API extension: entity_description
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"`
 
 	// Storage pool driver (btrfs, ceph, cephfs, dir, lvm or zfs)
 	// Example: zfs
-	Driver string `json:"driver" yaml:"driver"`
+	Driver string `json:"driver" yaml:"driver" diff:"driver" hcl:"driver"`
 
 	// Pool status (Pending, Created, Errored or Unknown)
 	// Read only: true
 	// Example: Created
 	//
 	// API extension: clustering
-	Status string `json:"status" yaml:"status"`
+	Status string `json:"status" yaml:"status" diff:"-"`
 
 	// Storage pool configuration map (refer to doc/storage.md)
 	// Example: {"volume.block.filesystem": "ext4", "volume.size": "50GiB"}
-	Config map[string]string `json:"config" yaml:"config"`
+	Config map[string]string `json:"config" yaml:"config" diff:"config" hcl:"config,attr"`
 
 	// List of URLs of objects using this storage pool
 	// Example: ["/1.0/profiles/default", "/1.0/instances/c1"]
-	UsedBy []string `json:"used_by" yaml:"used_by"`
+	UsedBy []string `json:"used_by" yaml:"used_by" diff:"-"`
 
 	// Cluster members on which the storage pool has been defined
 	// Read only: true

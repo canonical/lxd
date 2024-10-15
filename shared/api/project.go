@@ -51,20 +51,20 @@ type Project struct {
 	// The project name
 	// Read only: true
 	// Example: foo
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name" yaml:"name" diff:"name,identifier" hcl:"name"`
 
 	// Description of the project
 	// Example: My new project
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"`
 
 	// Project configuration map (refer to doc/projects.md)
 	// Example: {"features.profiles": "true", "features.networks": "false"}
-	Config map[string]string `json:"config" yaml:"config"`
+	Config map[string]string `json:"config" yaml:"config" diff:"config" hcl:"config,attr"`
 
 	// List of URLs of objects using this project
 	// Read only: true
 	// Example: ["/1.0/images/0e60015346f06627f10580d56ac7fffd9ea775f6d4f25987217d5eed94910a20", "/1.0/instances/c1", "/1.0/networks/lxdbr0", "/1.0/profiles/default", "/1.0/storage-pools/default/volumes/custom/blah"]
-	UsedBy []string `json:"used_by" yaml:"used_by"`
+	UsedBy []string `json:"used_by" yaml:"used_by" diff:"-"`
 }
 
 // Writable converts a full Project struct into a ProjectPut struct (filters read-only fields)

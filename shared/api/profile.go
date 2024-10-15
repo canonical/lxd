@@ -44,26 +44,26 @@ type Profile struct {
 	// The profile name
 	// Read only: true
 	// Example: foo
-	Name string `json:"name" yaml:"name" db:"primary=yes"`
+	Name string `json:"name" yaml:"name" db:"primary=yes" diff:"name,identifier" hcl:"name"`
 
 	// Description of the profile
 	// Example: Medium size instances
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"`
 
 	// Instance configuration map (refer to doc/instances.md)
 	// Example: {"limits.cpu": "4", "limits.memory": "4GiB"}
-	Config map[string]string `json:"config" yaml:"config"`
+	Config map[string]string `json:"config" yaml:"config" diff:"config" hcl:"config,attr"`
 
 	// List of devices
 	// Example: {"root": {"type": "disk", "pool": "default", "path": "/"}, "eth0": {"type": "nic", "network": "lxdbr0", "name": "eth0"}}
-	Devices map[string]map[string]string `json:"devices" yaml:"devices"`
+	Devices map[string]map[string]string `json:"devices" yaml:"devices" diff:"devices" hcl:"device,block"`
 
 	// List of URLs of objects using this profile
 	// Read only: true
 	// Example: ["/1.0/instances/c1", "/1.0/instances/v1"]
 	//
 	// API extension: profile_usedby
-	UsedBy []string `json:"used_by" yaml:"used_by"`
+	UsedBy []string `json:"used_by" yaml:"used_by" diff:"-"`
 }
 
 // Writable converts a full Profile struct into a ProfilePut struct (filters read-only fields).

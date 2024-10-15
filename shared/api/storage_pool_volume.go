@@ -104,54 +104,54 @@ type StorageVolumePostTarget struct {
 type StorageVolume struct {
 	// Volume name
 	// Example: foo
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name" yaml:"name" diff:"name,identifier" hcl:"name"`
 
 	// Description of the storage volume
 	// Example: My custom volume
 	//
 	// API extension: entity_description
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"`
 
 	// Volume type
 	// Example: custom
-	Type string `json:"type" yaml:"type"`
+	Type string `json:"type" yaml:"type" diff:"type" hcl:"type"`
 
 	// Name of the pool the volume is using
 	// Example: "default"
 	//
 	// API extension: storage_volumes_all
-	Pool string `json:"pool" yaml:"pool"`
+	Pool string `json:"pool" yaml:"pool" diff:"pool" hcl:"pool"`
 
 	// Volume content type (filesystem or block)
 	// Example: filesystem
 	//
 	// API extension: custom_block_volumes
-	ContentType string `json:"content_type" yaml:"content_type"`
+	ContentType string `json:"content_type" yaml:"content_type" diff:"content_type" hcl:"content_type"`
 
 	// Project containing the volume.
 	// Example: default
 	//
 	// API extension: storage_volumes_all_projects
-	Project string `json:"project" yaml:"project"`
+	Project string `json:"project" yaml:"project" diff:"project" hcl:"project"`
 
 	// What cluster member this record was found on
 	// Example: lxd01
 	//
 	// API extension: clustering
-	Location string `json:"location" yaml:"location"`
+	Location string `json:"location" yaml:"location" diff:"location"`
 
 	// Volume creation timestamp
 	// Example: 2021-03-23T20:00:00-04:00
 	// API extension: storage_volumes_created_at
-	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
+	CreatedAt time.Time `json:"created_at" yaml:"created_at" diff:"-"`
 
 	// Storage volume configuration map (refer to doc/storage.md)
 	// Example: {"zfs.remove_snapshots": "true", "size": "50GiB"}
-	Config map[string]string `json:"config" yaml:"config"`
+	Config map[string]string `json:"config" yaml:"config" diff:"config" hcl:"config,attr"`
 
 	// List of URLs of objects using this storage volume
 	// Example: ["/1.0/instances/blah"]
-	UsedBy []string `json:"used_by" yaml:"used_by"`
+	UsedBy []string `json:"used_by" yaml:"used_by" diff:"-"`
 }
 
 // URL returns the URL for the volume.

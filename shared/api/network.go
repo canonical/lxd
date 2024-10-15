@@ -67,48 +67,48 @@ type Network struct {
 	// The network name
 	// Read only: true
 	// Example: lxdbr0
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name" yaml:"name" diff:"name,identifier" hcl:"name"`
 
 	// Description of the profile
 	// Example: My new LXD bridge
 	//
 	// API extension: entity_description
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"`
 
 	// The network type
 	// Read only: true
 	// Example: bridge
-	Type string `json:"type" yaml:"type"`
+	Type string `json:"type" yaml:"type" diff:"type" hcl:"type"`
 
 	// Whether this is a LXD managed network
 	// Read only: true
 	// Example: true
 	//
 	// API extension: network
-	Managed bool `json:"managed" yaml:"managed"`
+	Managed bool `json:"managed" yaml:"managed" diff:"managed"`
 
 	// The state of the network (for managed network in clusters)
 	// Read only: true
 	// Example: Created
 	//
 	// API extension: clustering
-	Status string `json:"status" yaml:"status"`
+	Status string `json:"status" yaml:"status" diff:"-" `
 
 	// Network configuration map (refer to doc/networks.md)
 	// Example: {"ipv4.address": "10.0.0.1/24", "ipv4.nat": "true", "ipv6.address": "none"}
-	Config map[string]string `json:"config" yaml:"config"`
+	Config map[string]string `json:"config" yaml:"config" diff:"config" hcl:"config,attr"`
 
 	// List of URLs of objects using this profile
 	// Read only: true
 	// Example: ["/1.0/profiles/default", "/1.0/instances/c1"]
-	UsedBy []string `json:"used_by" yaml:"used_by"`
+	UsedBy []string `json:"used_by" yaml:"used_by" diff:"-"`
 
 	// Cluster members on which the network has been defined
 	// Read only: true
 	// Example: ["lxd01", "lxd02", "lxd03"]
 	//
 	// API extension: clustering
-	Locations []string `json:"locations" yaml:"locations"`
+	Locations []string `json:"locations" yaml:"locations" diff:"locations"`
 }
 
 // Writable converts a full Network struct into a NetworkPut struct (filters read-only fields).
