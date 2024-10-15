@@ -20,7 +20,7 @@ type NetworkACLRule struct {
 
 	// Action to perform on rule match
 	// Example: allow
-	Action string `json:"action" yaml:"action"`
+	Action string `json:"action" yaml:"action" diff:"action" hcl:"action"`
 
 	// lxdmeta:generate(entities=network-acl; group=rule-properties; key=source)
 	// Sources can be specified as CIDR or IP ranges, source subject name selectors (for ingress rules), or be left empty for any.
@@ -31,7 +31,7 @@ type NetworkACLRule struct {
 
 	// Source address
 	// Example: @internal
-	Source string `json:"source,omitempty" yaml:"source,omitempty"`
+	Source string `json:"source,omitempty" yaml:"source,omitempty" diff:"source" hcl:"source"`
 
 	// lxdmeta:generate(entities=network-acl; group=rule-properties; key=destination)
 	// Destinations can be specified as CIDR or IP ranges, destination subject name selectors (for egress rules), or be left empty for any.
@@ -42,7 +42,7 @@ type NetworkACLRule struct {
 
 	// Destination address
 	// Example: 8.8.8.8/32,8.8.4.4/32
-	Destination string `json:"destination,omitempty" yaml:"destination,omitempty"`
+	Destination string `json:"destination,omitempty" yaml:"destination,omitempty" diff:"destination" hcl:"destination"`
 
 	// lxdmeta:generate(entities=network-acl; group=rule-properties; key=protocol)
 	// Possible values are `icmp4`, `icmp6`, `tcp`, and `udp`.
@@ -54,7 +54,7 @@ type NetworkACLRule struct {
 
 	// Protocol
 	// Example: udp
-	Protocol string `json:"protocol,omitempty" yaml:"protocol,omitempty"`
+	Protocol string `json:"protocol,omitempty" yaml:"protocol,omitempty" diff:"protocol" hcl:"protocol"`
 
 	// lxdmeta:generate(entities=network-acl; group=rule-properties; key=source_port)
 	// This option is valid only if the protocol is `udp` or `tcp`.
@@ -66,7 +66,7 @@ type NetworkACLRule struct {
 
 	// Source port
 	// Example: 1234
-	SourcePort string `json:"source_port,omitempty" yaml:"source_port,omitempty"`
+	SourcePort string `json:"source_port,omitempty" yaml:"source_port,omitempty" `
 
 	// lxdmeta:generate(entities=network-acl; group=rule-properties; key=destination_port)
 	// This option is valid only if the protocol is `udp` or `tcp`.
@@ -78,7 +78,7 @@ type NetworkACLRule struct {
 
 	// Destination port
 	// Example: 53
-	DestinationPort string `json:"destination_port,omitempty" yaml:"destination_port,omitempty"`
+	DestinationPort string `json:"destination_port,omitempty" yaml:"destination_port,omitempty" diff:"destination_port" hcl:"destination_port"`
 
 	// lxdmeta:generate(entities=network-acl; group=rule-properties; key=icmp_type)
 	// This option is valid only if the protocol is `icmp4` or `icmp6`.
@@ -90,7 +90,7 @@ type NetworkACLRule struct {
 
 	// Type of ICMP message (for ICMP protocol)
 	// Example: 8
-	ICMPType string `json:"icmp_type,omitempty" yaml:"icmp_type,omitempty"`
+	ICMPType string `json:"icmp_type,omitempty" yaml:"icmp_type,omitempty" diff:"icmp_type" hcl:"icmp_type"`
 
 	// lxdmeta:generate(entities=network-acl; group=rule-properties; key=icmp_code)
 	// This option is valid only if the protocol is `icmp4` or `icmp6`.
@@ -102,7 +102,7 @@ type NetworkACLRule struct {
 
 	// ICMP message code (for ICMP protocol)
 	// Example: 0
-	ICMPCode string `json:"icmp_code,omitempty" yaml:"icmp_code,omitempty"`
+	ICMPCode string `json:"icmp_code,omitempty" yaml:"icmp_code,omitempty" diff:"icmp_code" hcl:"icmp_code"`
 
 	// lxdmeta:generate(entities=network-acl; group=rule-properties; key=description)
 	//
@@ -113,7 +113,7 @@ type NetworkACLRule struct {
 
 	// Description of the rule
 	// Example: Allow DNS queries to Google DNS
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
+	Description string `json:"description,omitempty" yaml:"description,omitempty" diff:"description" hcl:"description"`
 
 	// lxdmeta:generate(entities=network-acl; group=rule-properties; key=state)
 	// Possible values are `enabled`, `disabled`, and `logged`.
@@ -125,7 +125,7 @@ type NetworkACLRule struct {
 
 	// State of the rule
 	// Example: enabled
-	State string `json:"state" yaml:"state"`
+	State string `json:"state" yaml:"state" diff:"state" hcl:"state"`
 }
 
 // Normalise normalises the fields in the rule so that they are comparable with ones stored.
@@ -245,26 +245,26 @@ type NetworkACLPut struct {
 type NetworkACL struct {
 	// The new name for the ACL
 	// Example: bar
-	Name string `json:"name" yaml:"name"` // Name of ACL.
+	Name string `json:"name" yaml:"name" diff:"name,identifier" hcl:"name"` // Name of ACL.
 
 	// Description of the ACL
 	// Example: Web servers
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"` // Description of ACL.
 
 	// List of egress rules (order independent)
-	Egress []NetworkACLRule `json:"egress" yaml:"egress"`
+	Egress []NetworkACLRule `json:"egress" yaml:"egress" diff:"egress" hcl:"egress,attr"` // Egress rules.
 
 	// List of ingress rules (order independent)
-	Ingress []NetworkACLRule `json:"ingress" yaml:"ingress"`
+	Ingress []NetworkACLRule `json:"ingress" yaml:"ingress" diff:"ingress" hcl:"ingress,attr"` // Ingress rules.
 
 	// ACL configuration map (refer to doc/network-acls.md)
 	// Example: {"user.mykey": "foo"}
-	Config map[string]string `json:"config" yaml:"config"`
+	Config map[string]string `json:"config" yaml:"config" diff:"config" hcl:"config,attr"` // Config of ACL.
 
 	// List of URLs of objects using this profile
 	// Read only: true
 	// Example: ["/1.0/instances/c1", "/1.0/instances/v1", "/1.0/networks/lxdbr0"]
-	UsedBy []string `json:"used_by" yaml:"used_by"` // Resources that use the ACL.
+	UsedBy []string `json:"used_by" yaml:"used_by" diff:"-"` // Resources that use the ACL.
 }
 
 // Writable converts a full NetworkACL struct into a NetworkACLPut struct (filters read-only fields).

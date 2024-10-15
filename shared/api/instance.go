@@ -209,73 +209,73 @@ type InstanceRebuildPost struct {
 type Instance struct {
 	// Instance name
 	// Example: foo
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name" yaml:"name" diff:"name,identifier" hcl:"name"`
 
 	// Instance description
 	// Example: My test instance
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"`
 
 	// Instance status (see instance_state)
 	// Example: Running
-	Status string `json:"status" yaml:"status"`
+	Status string `json:"status" yaml:"status" diff:"-"`
 
 	// Instance status code (see instance_state)
 	// Example: 101
-	StatusCode StatusCode `json:"status_code" yaml:"status_code"`
+	StatusCode StatusCode `json:"status_code" yaml:"status_code" diff:"-"`
 
 	// Instance creation timestamp
 	// Example: 2021-03-23T20:00:00-04:00
-	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
+	CreatedAt time.Time `json:"created_at" yaml:"created_at" diff:"-"`
 
 	// Last start timestamp
 	// Example: 2021-03-23T20:00:00-04:00
-	LastUsedAt time.Time `json:"last_used_at" yaml:"last_used_at"`
+	LastUsedAt time.Time `json:"last_used_at" yaml:"last_used_at" diff:"-"`
 
 	// What cluster member this instance is located on
 	// Example: lxd01
-	Location string `json:"location" yaml:"location"`
+	Location string `json:"location" yaml:"location" diff:"location"`
 
 	// The type of instance (container or virtual-machine)
 	// Example: container
-	Type string `json:"type" yaml:"type"`
+	Type string `json:"type" yaml:"type" diff:"type" hcl:"type"`
 
 	// Instance project name
 	// Example: foo
 	//
 	// API extension: instance_all_projects
-	Project string `json:"project" yaml:"project"`
+	Project string `json:"project" yaml:"project" diff:"project" hcl:"project"`
 
 	// Architecture name
 	// Example: x86_64
-	Architecture string `json:"architecture" yaml:"architecture"`
+	Architecture string `json:"architecture" yaml:"architecture" diff:"architecture"`
 
 	// Whether the instance is ephemeral (deleted on shutdown)
 	// Example: false
-	Ephemeral bool `json:"ephemeral" yaml:"ephemeral"`
+	Ephemeral bool `json:"ephemeral" yaml:"ephemeral" diff:"ephemeral" hcl:"ephemeral"`
 
 	// Whether the instance currently has saved state on disk
 	// Example: false
-	Stateful bool `json:"stateful" yaml:"stateful"`
+	Stateful bool `json:"stateful" yaml:"stateful" diff:"stateful"`
 
 	// List of profiles applied to the instance
 	// Example: ["default"]
-	Profiles []string `json:"profiles" yaml:"profiles"`
+	Profiles []string `json:"profiles" yaml:"profiles" diff:"profiles" hcl:"profiles,attr"`
 
 	// Instance configuration (see doc/instances.md)
 	// Example: {"security.nesting": "true"}
-	Config map[string]string `json:"config" yaml:"config"`
+	Config map[string]string `json:"config" yaml:"config" diff:"config" hcl:"config,attr"`
 
 	// Instance devices (see doc/instances.md)
 	// Example: {"root": {"type": "disk", "pool": "default", "path": "/"}}
-	Devices map[string]map[string]string `json:"devices" yaml:"devices"`
+	Devices map[string]map[string]string `json:"devices" yaml:"devices" diff:"devices" hcl:"device,block"`
 
 	// Expanded configuration (all profiles and local config merged)
 	// Example: {"security.nesting": "true"}
-	ExpandedConfig map[string]string `json:"expanded_config,omitempty" yaml:"expanded_config,omitempty"`
+	ExpandedConfig map[string]string `json:"expanded_config,omitempty" yaml:"expanded_config,omitempty" diff:"-"`
 
 	// Expanded devices (all profiles and local devices merged)
 	// Example: {"root": {"type": "disk", "pool": "default", "path": "/"}}
-	ExpandedDevices map[string]map[string]string `json:"expanded_devices,omitempty" yaml:"expanded_devices,omitempty"`
+	ExpandedDevices map[string]map[string]string `json:"expanded_devices,omitempty" yaml:"expanded_devices,omitempty" diff:"-"`
 }
 
 // InstanceFull is a combination of Instance, InstanceBackup, InstanceState and InstanceSnapshot.

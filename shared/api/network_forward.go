@@ -20,7 +20,7 @@ type NetworkForwardPort struct {
 
 	// Description of the forward port
 	// Example: My web server forward
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"`
 
 	// lxdmeta:generate(entities=network-forward; group=port-properties; key=protocol)
 	//  Possible values are `tcp` and `udp`.
@@ -31,7 +31,7 @@ type NetworkForwardPort struct {
 
 	// Protocol for port forward (either tcp or udp)
 	// Example: tcp
-	Protocol string `json:"protocol" yaml:"protocol"`
+	Protocol string `json:"protocol" yaml:"protocol" diff:"protocol" hcl:"protocol"`
 
 	// lxdmeta:generate(entities=network-forward; group=port-properties; key=listen_port)
 	// For example: `80,90-100`
@@ -42,7 +42,7 @@ type NetworkForwardPort struct {
 
 	// ListenPort(s) to forward (comma delimited ranges)
 	// Example: 80,81,8080-8090
-	ListenPort string `json:"listen_port" yaml:"listen_port"`
+	ListenPort string `json:"listen_port" yaml:"listen_port" diff:"listen_port" hcl:"listen_port"`
 
 	// lxdmeta:generate(entities=network-forward; group=port-properties; key=target_port)
 	// For example: `70,80-90` or `90`
@@ -54,7 +54,7 @@ type NetworkForwardPort struct {
 
 	// TargetPort(s) to forward ListenPorts to (allows for many-to-one)
 	// Example: 80,81,8080-8090
-	TargetPort string `json:"target_port" yaml:"target_port"`
+	TargetPort string `json:"target_port" yaml:"target_port" default:"" diff:"target_port" hcl:"target_port"`
 
 	// lxdmeta:generate(entities=network-forward; group=port-properties; key=target_address)
 	//
@@ -65,7 +65,7 @@ type NetworkForwardPort struct {
 
 	// TargetAddress to forward ListenPorts to
 	// Example: 198.51.100.2
-	TargetAddress string `json:"target_address" yaml:"target_address"`
+	TargetAddress string `json:"target_address" yaml:"target_address" diff:"target_address" hcl:"target_address"`
 }
 
 // Normalise normalises the fields in the rule so that they are comparable with ones stored.
@@ -187,7 +187,7 @@ func (f *NetworkForwardPut) Normalise() {
 type NetworkForward struct {
 	// The listen address of the forward
 	// Example: 192.0.2.1
-	ListenAddress string `json:"listen_address" yaml:"listen_address"`
+	ListenAddress string `json:"listen_address" yaml:"listen_address" diff:"listen_address,identifier" hcl:"listen_address"`
 
 	// What cluster member this record was found on
 	// Example: lxd01
@@ -195,14 +195,14 @@ type NetworkForward struct {
 
 	// Description of the forward listen IP
 	// Example: My public IP forward
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"`
 
 	// Forward configuration map (refer to doc/network-forwards.md)
 	// Example: {"user.mykey": "foo"}
-	Config map[string]string `json:"config" yaml:"config"`
+	Config map[string]string `json:"config" yaml:"config" diff:"config" hcl:"config,attr"`
 
 	// Port forwards (optional)
-	Ports []NetworkForwardPort `json:"ports" yaml:"ports"`
+	Ports []NetworkForwardPort `json:"ports" yaml:"ports" diff:"ports" hcl:"ports,attr"`
 }
 
 // Normalise normalises the fields in the rule so that they are comparable with ones stored.

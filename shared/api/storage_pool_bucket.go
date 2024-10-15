@@ -44,31 +44,31 @@ type StorageBucket struct {
 	// Example: foo
 	//
 	// API extension: storage_buckets
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name" yaml:"name" diff:"name,identifier" hcl:"name"`
 
 	// Description of the storage bucket
 	// Example: My custom bucket
 	//
 	// API extension: storage_buckets
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"`
 
 	// Bucket S3 URL
 	// Example: https://127.0.0.1:8080/foo
 	//
 	// API extension: storage_buckets
-	S3URL string `json:"s3_url" yaml:"s3_url"`
+	S3URL string `json:"s3_url" yaml:"s3_url" diff:"s3_url" hcl:"s3_url"`
 
 	// What cluster member this record was found on
 	// Example: lxd01
 	//
 	// API extension: storage_buckets
-	Location string `json:"location" yaml:"location"`
+	Location string `json:"location" yaml:"location" diff:"location"`
 
 	// Storage bucket configuration map
 	// Example: {"size": "50GiB"}
 	//
 	// API extension: storage_buckets
-	Config map[string]string `json:"config" yaml:"config"`
+	Config map[string]string `json:"config" yaml:"config" diff:"config" hcl:"config,attr"`
 }
 
 // Etag returns the values used for etag generation.
@@ -151,19 +151,19 @@ type StorageBucketKey struct {
 	// Example: my-read-only-key
 	//
 	// API extension: storage_buckets
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name" yaml:"name" diff:"name,identifier" hcl:"name"`
 
 	// Description of the storage bucket key
 	// Example: My read-only bucket key
 	//
 	// API extension: storage_buckets
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"`
 
 	// Whether the key can perform write actions or not.
 	// Example: read-only
 	//
 	// API extension: storage_buckets
-	Role string `json:"role" yaml:"role"`
+	Role string `json:"role" yaml:"role" diff:"role" hcl:"role"`
 
 	// Access key
 	// Example: 33UgkaIBLBIxb7O1

@@ -36,20 +36,20 @@ type NetworkZonePut struct {
 type NetworkZone struct {
 	// The name of the zone (DNS domain name)
 	// Example: example.net
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name" yaml:"name" diff:"name,identifier" hcl:"name"`
 
 	// Description of the network zone
 	// Example: Internal domain
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"`
 
 	// Zone configuration map (refer to doc/network-zones.md)
 	// Example: {"user.mykey": "foo"}
-	Config map[string]string `json:"config" yaml:"config"`
+	Config map[string]string `json:"config" yaml:"config" diff:"config" hcl:"config,attr"`
 
 	// List of URLs of objects using this network zone
 	// Read only: true
 	// Example: ["/1.0/networks/foo", "/1.0/networks/bar"]
-	UsedBy []string `json:"used_by" yaml:"used_by"` // Resources that use the zone.
+	UsedBy []string `json:"used_by" yaml:"used_by" diff:"-"` // Resources that use the zone.
 }
 
 // Writable converts a full NetworkZone struct into a NetworkZonePut struct (filters read-only fields).
@@ -105,15 +105,15 @@ type NetworkZoneRecordPut struct {
 type NetworkZoneRecordEntry struct {
 	// Type of DNS entry
 	// Example: TXT
-	Type string `json:"type" yaml:"type"`
+	Type string `json:"type" yaml:"type" diff:"type" hcl:"type"`
 
 	// TTL for the entry
 	// Example: 3600
-	TTL uint64 `json:"ttl,omitempty" yaml:"ttl,omitempty"`
+	TTL uint64 `json:"ttl,omitempty" yaml:"ttl,omitempty" diff:"ttl" hcl:"ttl"`
 
 	// Value for the record
 	// Example: v=spf1 mx ~all
-	Value string `json:"value" yaml:"value"`
+	Value string `json:"value" yaml:"value" diff:"value" hcl:"value"`
 }
 
 // NetworkZoneRecord represents a network zone (DNS) record.
@@ -124,14 +124,14 @@ type NetworkZoneRecordEntry struct {
 type NetworkZoneRecord struct {
 	// The name of the record
 	// Example: @
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name" yaml:"name" diff:"name,identifier" hcl:"name"`
 
 	// Description of the record
 	// Example: SPF record
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"`
 
 	// Entries in the record
-	Entries []NetworkZoneRecordEntry `json:"entries" yaml:"entries"`
+	Entries []NetworkZoneRecordEntry `json:"entries" yaml:"entries" diff:"entries" hcl:"entry,block"`
 
 	// Advanced configuration for the record
 	// Example: {"user.mykey": "foo"}

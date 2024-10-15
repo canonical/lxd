@@ -20,7 +20,7 @@ type NetworkLoadBalancerBackend struct {
 
 	// Name of the load balancer backend
 	// Example: c1-http
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name" yaml:"name" diff:"name,identifier" hcl:"name"`
 
 	// lxdmeta:generate(entities=network-load-balancer; group=load-balancer-backend-properties; key=description)
 	//
@@ -31,7 +31,7 @@ type NetworkLoadBalancerBackend struct {
 
 	// Description of the load balancer backend
 	// Example: C1 webserver
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"`
 
 	// lxdmeta:generate(entities=network-load-balancer; group=load-balancer-backend-properties; key=target_port)
 	// For example: `70,80-90` or `90`
@@ -43,7 +43,7 @@ type NetworkLoadBalancerBackend struct {
 
 	// TargetPort(s) to forward ListenPorts to (allows for many-to-one)
 	// Example: 80,81,8080-8090
-	TargetPort string `json:"target_port" yaml:"target_port"`
+	TargetPort string `json:"target_port" yaml:"target_port" diff:"target_port" hcl:"target_port"`
 
 	// lxdmeta:generate(entities=network-load-balancer; group=load-balancer-backend-properties; key=target_address)
 	//
@@ -54,7 +54,7 @@ type NetworkLoadBalancerBackend struct {
 
 	// TargetAddress to forward ListenPorts to
 	// Example: 198.51.100.2
-	TargetAddress string `json:"target_address" yaml:"target_address"`
+	TargetAddress string `json:"target_address" yaml:"target_address" diff:"target_address" hcl:"target_address"`
 }
 
 // Normalise normalises the fields in the load balancer backend so that they are comparable with ones stored.
@@ -91,7 +91,7 @@ type NetworkLoadBalancerPort struct {
 
 	// Description of the load balancer port
 	// Example: My web server load balancer
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"`
 
 	// lxdmeta:generate(entities=network-load-balancer; group=load-balancer-port-properties; key=protocol)
 	// Possible values are `tcp` and `udp`.
@@ -102,7 +102,7 @@ type NetworkLoadBalancerPort struct {
 
 	// Protocol for load balancer port (either tcp or udp)
 	// Example: tcp
-	Protocol string `json:"protocol" yaml:"protocol"`
+	Protocol string `json:"protocol" yaml:"protocol" diff:"protocol" hcl:"protocol"`
 
 	// lxdmeta:generate(entities=network-load-balancer; group=load-balancer-port-properties; key=listen_port)
 	// For example: `80,90-100`
@@ -113,7 +113,7 @@ type NetworkLoadBalancerPort struct {
 
 	// ListenPort(s) of load balancer (comma delimited ranges)
 	// Example: 80,81,8080-8090
-	ListenPort string `json:"listen_port" yaml:"listen_port"`
+	ListenPort string `json:"listen_port" yaml:"listen_port" diff:"listen_port" hcl:"listen_port"`
 
 	// lxdmeta:generate(entities=network-load-balancer; group=load-balancer-port-properties; key=target_backend)
 	//
@@ -124,7 +124,7 @@ type NetworkLoadBalancerPort struct {
 
 	// TargetBackend backend names to load balance ListenPorts to
 	// Example: ["c1-http","c2-http"]
-	TargetBackend []string `json:"target_backend" yaml:"target_backend"`
+	TargetBackend []string `json:"target_backend" yaml:"target_backend" diff:"target_backend" hcl:"target_backend"`
 }
 
 // Normalise normalises the fields in the load balancer port so that they are comparable with ones stored.
@@ -231,25 +231,25 @@ func (f *NetworkLoadBalancerPut) Normalise() {
 type NetworkLoadBalancer struct {
 	// The listen address of the load balancer
 	// Example: 192.0.2.1
-	ListenAddress string `json:"listen_address" yaml:"listen_address"`
+	ListenAddress string `json:"listen_address" yaml:"listen_address" diff:"listen_address,identifier" hcl:"listen_address"`
 
 	// What cluster member this record was found on
 	// Example: lxd01
-	Location string `json:"location" yaml:"location"`
+	Location string `json:"location" yaml:"location" diff:"location"`
 
 	// Description of the load balancer listen IP
 	// Example: My public IP load balancer
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"`
 
 	// Load balancer configuration map (refer to doc/network-load-balancers.md)
 	// Example: {"user.mykey": "foo"}
-	Config map[string]string `json:"config" yaml:"config"`
+	Config map[string]string `json:"config" yaml:"config" diff:"config" hcl:"config,attr"`
 
 	// Backends (optional)
-	Backends []NetworkLoadBalancerBackend `json:"backends" yaml:"backends"`
+	Backends []NetworkLoadBalancerBackend `json:"backends" yaml:"backends" diff:"backends" hcl:"backend,block"`
 
 	// Port forwards (optional)
-	Ports []NetworkLoadBalancerPort `json:"ports" yaml:"ports"`
+	Ports []NetworkLoadBalancerPort `json:"ports" yaml:"ports" diff:"ports" hcl:"port,block"`
 }
 
 // Normalise normalises the fields in the load balancer so that they are comparable with ones stored.

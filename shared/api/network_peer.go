@@ -80,21 +80,21 @@ type NetworkPeer struct {
 	// Name of the peer
 	// Read only: true
 	// Example: project1-network1
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name" yaml:"name" diff:"name,identifier" hcl:"name"`
 
 	// Description of the peer
 	// Example: Peering with network1 in project1
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description" yaml:"description" diff:"description" hcl:"description"`
 
 	// Name of the target project
 	// Read only: true
 	// Example: project1
-	TargetProject string `json:"target_project" yaml:"target_project"`
+	TargetProject string `json:"target_project" yaml:"target_project" diff:"target_project"`
 
 	// Name of the target network
 	// Read only: true
 	// Example: network1
-	TargetNetwork string `json:"target_network" yaml:"target_network"`
+	TargetNetwork string `json:"target_network" yaml:"target_network" diff:"target_network"`
 
 	// lxdmeta:generate(entities=network-peering; group=peering-properties; key=status)
 	// Indicates if mutual peering exists with the target network.
@@ -107,16 +107,16 @@ type NetworkPeer struct {
 	// The state of the peering
 	// Read only: true
 	// Example: Pending
-	Status string `json:"status" yaml:"status"`
+	Status string `json:"status" yaml:"status" diff:"-"`
 
 	// Peer configuration map (refer to doc/network-peers.md)
 	// Example: {"user.mykey": "foo"}
-	Config map[string]string `json:"config" yaml:"config"`
+	Config map[string]string `json:"config" yaml:"config" diff:"config" hcl:"config,attr"`
 
 	// List of URLs of objects using this network peering
 	// Read only: true
 	// Example: ["/1.0/network-acls/test", "/1.0/network-acls/foo"]
-	UsedBy []string `json:"used_by" yaml:"used_by"`
+	UsedBy []string `json:"used_by" yaml:"used_by" diff:"-"`
 }
 
 // Etag returns the values used for etag generation.
