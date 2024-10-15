@@ -265,7 +265,7 @@ const (
 	// EntitlementCanManageSnapshots is the "can_manage_snapshots" entitlement. It applies to the following entities: entity.TypeInstance, entity.TypeStorageVolume.
 	EntitlementCanManageSnapshots Entitlement = "can_manage_snapshots"
 
-	// EntitlementCanManageBackups is the "can_manage_backups" entitlement. It applies to the following entities: entity.TypeInstance, entity.TypeStorageVolume.
+	// EntitlementCanManageBackups is the "can_manage_backups" entitlement. It applies to the following entities: entity.TypeInstance, entity.TypeStorageBucket, entity.TypeStorageVolume.
 	EntitlementCanManageBackups Entitlement = "can_manage_backups"
 
 	// EntitlementCanConnectSFTP is the "can_connect_sftp" entitlement. It applies to the following entities: entity.TypeInstance.
@@ -569,6 +569,8 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanDelete,
 		// Grants permission to view the storage bucket.
 		EntitlementCanView,
+		// Grants permission to create and delete backups of the storage bucket.
+		EntitlementCanManageBackups,
 	},
 	entity.TypeStoragePool: {
 		// Grants permission to edit the storage pool.
