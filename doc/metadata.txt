@@ -6331,6 +6331,9 @@ container or containers that use it. This allows using the `zfs` command in the 
 `can_view`
 : Grants permission to view the storage bucket.
 
+`can_manage_backups`
+: Grants permission to create and delete backups of the storage bucket.
+
 
 <!-- entity group storage_bucket end -->
 <!-- entity group storage_pool start -->

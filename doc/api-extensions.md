@@ -2501,3 +2501,18 @@ Expands APIs under `/1.0/auth` to include:
   The caller must provide a base64 encoded x509 certificate in the `certificate` field of the request body.
   Fine-grained TLS identities may update their own certificate.
   To update the certificate of another identity, the caller must have `can_edit` on the identity.
+
+## `storage_bucket_backup`
+
+Add storage bucket backup support.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/storage-pools/<pool>/buckets/<bucket>/backups`
+* `POST /1.0/storage-pools/<pool>/buckets/<bucket>/backups`
+
+* `GET /1.0/storage-pools/<pool>/buckets/<bucket>/backups/<name>`
+* `POST /1.0/storage-pools/<pool>/buckets/<bucket>/backups/<name>`
+* `DELETE /1.0/storage-pools/<pool>/buckets/<bucket>/backups/<name>`
+
+* `GET /1.0/storage-pools/<pool>/buckets/<bucket>/backups/<name>/export`

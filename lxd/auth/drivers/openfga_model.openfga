@@ -464,3 +464,6 @@ type storage_bucket
 
     # Grants permission to view the storage bucket.
     define can_view: [identity, service_account, group#member] or can_edit or can_delete or can_view_storage_buckets from project
+
+    # Grants permission to create and delete backups of the storage bucket.
+    define can_manage_backups: [identity, service_account, group#member] or can_edit_storage_buckets from project

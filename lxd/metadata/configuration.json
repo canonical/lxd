@@ -7174,6 +7174,10 @@
 				{
 					"name": "can_view",
 					"description": "Grants permission to view the storage bucket."
+				},
+				{
+					"name": "can_manage_backups",
+					"description": "Grants permission to create and delete backups of the storage bucket."
 				}
 			]
 		},
