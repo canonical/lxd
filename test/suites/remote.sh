@@ -19,7 +19,8 @@ test_remote_url() {
   urls="${LXD_DIR}/unix.socket unix:${LXD_DIR}/unix.socket unix://${LXD_DIR}/unix.socket"
 
   # an invalid protocol returns an error
-  ! lxc_remote remote add test "${url}" --token foo --protocol foo || false
+  ! lxc_remote remote add test "${url}" --protocol foo || false
+  [ "$(DEBUG="" lxc_remote remote add test "${url}" --protocol foo 2>&1)" = "Error: Invalid protocol: foo" ]
 
   for url in ${urls}; do
     lxc_remote remote add test "${url}"
@@ -147,8 +148,9 @@ test_remote_url_with_token() {
 }
 
 test_remote_admin() {
-  ! lxc_remote remote add badpass "${LXD_ADDR}" --token badtoken || false
-  ! lxc_remote list badpass: || false
+  lxc_remote remote add badtoken "${LXD_ADDR}" --token badtoken 2>&1 | grep -F "Error: Failed to decode trust token:"
+  ! lxc_remote remote add badtoken "${LXD_ADDR}" --token badtoken || false
+  ! lxc_remote remote list | grep -wF badtoken || false
 
   token="$(lxc config trust add --name foo -q)"
 
