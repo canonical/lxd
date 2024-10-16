@@ -3942,7 +3942,7 @@ test_clustering_trust_add() {
   # and query LXD_ONE for it. LXD_TWO should cancel the operation by sending a DELETE /1.0/operations/{uuid} to LXD_ONE
   # and needs to parse the metadata of the operation into the correct type to complete the trust process.
   # The expiry time should be parsed and found to be expired so the add action should fail.
-  ! lxc remote add lxd_two "${lxd_two_address}" --accept-certificate --token "${lxd_one_token}" || false
+  ! lxc remote add lxd_two "${lxd_two_address}" --token "${lxd_one_token}" || false
 
   # Expect the operation to be cancelled.
   LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,CANCELLED"
@@ -3968,7 +3968,7 @@ test_clustering_trust_add() {
   # LXD_TWO does not have the operation running locally, so it should find the UUID of the operation in the database
   # and query LXD_ONE for it. LXD_TWO should cancel the operation by sending a DELETE /1.0/operations/{uuid} to LXD_ONE
   # and needs to parse the metadata of the operation into the correct type to complete the trust process.
-  lxc remote add lxd_two "${lxd_two_address}" --accept-certificate --token "${lxd_one_token}"
+  lxc remote add lxd_two "${lxd_two_address}" --token "${lxd_one_token}"
 
   # Expect the operation to be cancelled.
   LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,CANCELLED"
