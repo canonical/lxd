@@ -263,11 +263,6 @@ ifneq "$(shell shellcheck --version | grep version: | cut -d ' ' -f2)" "0.8.0"
 	@echo "WARN: shellcheck version is not 0.8.0"
 endif
 endif
-ifeq ($(shell command -v flake8),)
-	echo "Please install flake8"
-	exit 1
-endif
-	flake8 test/deps/import-busybox
 	shellcheck test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh test/extras/*.sh
 	NOT_EXEC="$(shell find test/lint -type f -not -executable)"; \
 	if [ -n "$$NOT_EXEC" ]; then \
