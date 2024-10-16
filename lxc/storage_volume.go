@@ -1862,7 +1862,13 @@ func (c *cmdStorageVolumeMove) command() *cobra.Command {
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePools(toComplete, false)
+			completions, directive := c.global.cmpStoragePools(toComplete, true)
+			for i, completion := range completions {
+				if !strings.Contains(completion, ":") {
+					completions[i] = completion + "/"
+				}
+			}
+			return completions, directive
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
