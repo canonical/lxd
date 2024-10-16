@@ -341,13 +341,18 @@ func (n *ovn) Validate(config map[string]string) error {
 		return err
 	}
 
-	// Check that if IPv6 enabled then the network size must be at least a /64 as both RA and DHCPv6
-	// in OVN (as it generates addresses using EUI64) require at least a /64 subnet to operate.
-	_, ipv6Net, _ := net.ParseCIDR(config["ipv6.address"])
-	if ipv6Net != nil {
-		ones, _ := ipv6Net.Mask.Size()
-		if ones > 64 {
-			return fmt.Errorf("IPv6 subnet must be at least a /64")
+	// Peform composite key checks after per-key validation.
+
+	// Check that if stateless DHCPv6 is enabled and IPv6 subnet is set then the network size
+	// must be at least a /64 as both RA and DHCPv6 in OVN (as it generates addresses using EUI64)
+	// require at least a /64 subnet to operate.
+	if shared.IsTrueOrEmpty(config["ipv6.dhcp"]) && shared.IsFalseOrEmpty(config["ipv6.dhcp.stateful"]) {
+		_, ipv6Net, _ := net.ParseCIDR(config["ipv6.address"])
+		if ipv6Net != nil {
+			ones, _ := ipv6Net.Mask.Size()
+			if ones > 64 {
+				return fmt.Errorf("IPv6 subnet must be at least a /64 when stateless DHCPv6 is enabled")
+			}
 		}
 	}
 
