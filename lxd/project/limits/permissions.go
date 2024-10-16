@@ -1723,3 +1723,55 @@ func CheckTarget(ctx context.Context, authorizer auth.Authorizer, r *http.Reques
 
 	return nil, "", nil
 }
+
+func parseLimit(limit string, val string) (int64, error) {
+	if val == "" {
+		return 0, fmt.Errorf("%q was not configured for instance or profile", limit)
+	}
+
+	parser, hasParser := aggregateLimitConfigValueParsers[limit]
+	if !hasParser {
+		return 0, fmt.Errorf("Missing parser for %q", limit)
+	}
+
+	value, err := parser(val)
+	if err != nil {
+		return 0, fmt.Errorf("Parse %q: %w", limit, err)
+	}
+
+	return value, nil
+}
+
+// requiredLimits is a map from clusterMemberName -> limits where limits are the
+// limit keys (limits.{cpu,memory}) that are required for that cluster member.
+func getClusterMemberAggregateLimits(ctx context.Context, tx *db.ClusterTx, globalConfig map[string]any, requiredLimits map[string][]string) (map[string]map[string]int64, error) {
+	filters := []cluster.InstanceFilter{}
+	for clusterMemberName := range requiredLimits {
+		filters = append(filters, cluster.InstanceFilter{Node: &clusterMemberName})
+	}
+
+	aggregates := make(map[string]map[string]int64)
+
+	instanceLoad := func(inst db.InstanceArgs, project api.Project) error {
+		_, clusterMemberSeen := aggregates[inst.Node]
+		if !clusterMemberSeen {
+			aggregates[inst.Node] = make(map[string]int64)
+		}
+
+		instConfig := instancetype.ExpandInstanceConfig(globalConfig, inst.Config, inst.Profiles)
+
+		for _, limit := range requiredLimits[inst.Node] {
+			value, err := parseLimit(limit, instConfig[limit])
+			if err != nil {
+				return fmt.Errorf("Parse %q for instance %q: %w", limit, inst.Name, err)
+			}
+
+			aggregates[inst.Node][limit] += value
+		}
+
+		return nil
+	}
+
+	err := tx.InstanceList(ctx, instanceLoad, filters...)
+	return aggregates, err
+}
