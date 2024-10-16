@@ -1257,8 +1257,10 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 
 	var results []string
 	for _, volume := range volumes {
-		volName, _ := parseVolume("volume", volume)
-		results = append(results, pool+"/"+volName)
+		volName, volType := parseVolume("custom", volume)
+		if volType == "custom" {
+			results = append(results, pool+"/"+volName)
+		}
 	}
 
 	return results, cobra.ShellCompDirectiveNoFileComp
