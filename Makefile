@@ -258,6 +258,9 @@ endif
 ifeq ($(shell command -v golangci-lint),)
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin
 endif
+ifneq ($(shell command -v yamllint),)
+	yamllint .github/workflows/*.yml
+endif
 ifeq ($(shell command -v shellcheck),)
 	echo "Please install shellcheck"
 	exit 1
