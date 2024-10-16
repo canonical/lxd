@@ -158,7 +158,7 @@ For example:
 See [`PUT /1.0/projects/{name}`](swagger:/projects/project_put) for more information.
 ```
 ```{group-tab} UI
-To UI does not currently support editing the full YAML configuration for a project.
+The UI does not currently support editing the full YAML configuration for a project.
 However, you can update several or all configuration options at the same time through the UI.
 ```
 ````
