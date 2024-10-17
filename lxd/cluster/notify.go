@@ -15,9 +15,10 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
-// Notifier is a function that invokes the given function against each node in
-// the cluster excluding the invoking one.
-type Notifier func(hook func(lxd.InstanceServer) error) error
+// Notifier is a function that invokes `hook` against each node in the cluster,
+// excluding the invoking one. The NodeInfo passed to `hook` describes the
+// cluster member of InstanceServer.
+type Notifier func(hook func(db.NodeInfo, lxd.InstanceServer) error) error
 
 // NotifierPolicy can be used to tweak the behavior of NewNotifier in case of
 // some nodes are down.
@@ -45,7 +46,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 
 	// Fast-track the case where we're not clustered at all.
 	if !state.ServerClustered {
-		nullNotifier := func(func(lxd.InstanceServer) error) error { return nil }
+		nullNotifier := func(func(db.NodeInfo, lxd.InstanceServer) error) error { return nil }
 		return nullNotifier, nil
 	}
 
@@ -73,7 +74,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 		}
 	}
 
-	peers := []string{}
+	var peers []db.NodeInfo
 	for _, member := range members {
 		if member.Address == localClusterAddress || member.Address == "0.0.0.0" {
 			continue // Exclude ourselves
@@ -87,7 +88,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 			if !HasConnectivity(networkCert, serverCert, member.Address) {
 				switch policy {
 				case NotifyAll:
-					return nil, fmt.Errorf("peer node %s is down", member.Address)
+					return nil, fmt.Errorf("Peer cluster member %s at %s is down", member.Name, member.Address)
 				case NotifyAlive:
 					continue // Just skip this node
 				case NotifyTryAll:
@@ -95,28 +96,28 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 			}
 		}
 
-		peers = append(peers, member.Address)
+		peers = append(peers, member)
 	}
 
-	notifier := func(hook func(lxd.InstanceServer) error) error {
+	notifier := func(hook func(db.NodeInfo, lxd.InstanceServer) error) error {
 		errs := make([]error, len(peers))
 		wg := sync.WaitGroup{}
 		wg.Add(len(peers))
-		for i, address := range peers {
-			logger.Debugf("Notify node %s of state changes", address)
-			go func(i int, address string) {
+		for i, member := range peers {
+			logger.Debug("Notify cluster member of state changes", logger.Ctx{"name": member.Name, "address": member.Address})
+			go func(i int, member db.NodeInfo) {
 				defer wg.Done()
-				client, err := Connect(address, networkCert, serverCert, nil, true)
+				client, err := Connect(member.Address, networkCert, serverCert, nil, true)
 				if err != nil {
-					errs[i] = fmt.Errorf("failed to connect to peer %s: %w", address, err)
+					errs[i] = fmt.Errorf("Failed to connect to peer %s at %s: %w", member.Name, member.Address, err)
 					return
 				}
 
-				err = hook(client)
+				err = hook(member, client)
 				if err != nil {
-					errs[i] = fmt.Errorf("failed to notify peer %s: %w", address, err)
+					errs[i] = fmt.Errorf("Failed to notify peer %s at %s: %w", member.Name, member.Address, err)
 				}
-			}(i, address)
+			}(i, member)
 		}
 
 		wg.Wait()
@@ -126,7 +127,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 				isDown := shared.IsConnectionError(err) || api.StatusErrorCheck(err, http.StatusServiceUnavailable)
 
 				if isDown && policy == NotifyAlive {
-					logger.Warnf("Could not notify node %s", peers[i])
+					logger.Warn("Could not notify cluster member", logger.Ctx{"name": peers[i].Name, "address": peers[i].Address})
 					continue
 				}
 
