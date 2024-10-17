@@ -2501,3 +2501,11 @@ Expands APIs under `/1.0/auth` to include:
   The caller must provide a base64 encoded x509 certificate in the `certificate` field of the request body.
   Fine-grained TLS identities may update their own certificate.
   To update the certificate of another identity, the caller must have `can_edit` on the identity.
+
+## `vm_zfs_storage_disk_live_resize`
+
+This enables resizing of virtual machine `zfs` disks without requiring a restart for the changes to take effect.
+
+## `vm_lvm_storage_disk_live_resize`
+
+This enables resizing of virtual machine `lvm` disks without requiring a restart for the changes to take effect.

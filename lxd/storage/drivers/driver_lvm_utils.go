@@ -443,6 +443,24 @@ func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol Volume, snapVol 
 	return targetVolDevPath, nil
 }
 
+// acquireExclusive switches a volume lock to exclusive mode.
+func (d *lvm) acquireExclusive(vol Volume) (func(), error) {
+	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
+
+	if !shared.PathExists(volDevPath) {
+		return func() {}, nil
+	}
+
+	_, err := shared.TryRunCommand("lvchange", "--activate", "ey", "--ignoreactivationskip", volDevPath)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to acquire exclusive lock on LVM logical volume %q: %w", volDevPath, err)
+	}
+
+	return func() {
+		_, _ = shared.TryRunCommand("lvchange", "--activate", "sy", "--ignoreactivationskip", volDevPath)
+	}, nil
+}
+
 // removeLogicalVolume removes a logical volume.
 func (d *lvm) removeLogicalVolume(volDevPath string) error {
 	_, err := shared.TryRunCommand("lvremove", "-f", volDevPath)
@@ -572,27 +590,27 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []string, refr
 	}
 
 	if volExists {
-		if refresh {
-			newVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
-			tmpVolName := fmt.Sprintf("%s%s", vol.name, tmpVolSuffix)
-			tmpVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, tmpVolName)
-
-			// Rename existing volume to temporary new name so we can revert if needed.
-			err := d.renameLogicalVolume(newVolDevPath, tmpVolDevPath)
-			if err != nil {
-				return fmt.Errorf("Error temporarily renaming original LVM logical volume: %w", err)
-			}
-
-			// Record this volume to be removed at the very end.
-			removeVols = append(removeVols, tmpVolName)
-
-			revert.Add(func() {
-				// Rename the original volume back to the original name.
-				_ = d.renameLogicalVolume(tmpVolDevPath, newVolDevPath)
-			})
-		} else {
+		if !refresh {
 			return fmt.Errorf("LVM volume already exists %q", vol.name)
 		}
+
+		newVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
+		tmpVolName := fmt.Sprintf("%s%s", vol.name, tmpVolSuffix)
+		tmpVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, tmpVolName)
+
+		// Rename existing volume to temporary new name so we can revert if needed.
+		err := d.renameLogicalVolume(newVolDevPath, tmpVolDevPath)
+		if err != nil {
+			return fmt.Errorf("Error temporarily renaming original LVM logical volume: %w", err)
+		}
+
+		// Record this volume to be removed at the very end.
+		removeVols = append(removeVols, tmpVolName)
+
+		revert.Add(func() {
+			// Rename the original volume back to the original name.
+			_ = d.renameLogicalVolume(tmpVolDevPath, newVolDevPath)
+		})
 	} else {
 		volPath := vol.MountPath()
 		err := vol.EnsureMountPath()
@@ -675,7 +693,7 @@ func (d *lvm) logicalVolumeSize(volDevPath string) (int64, error) {
 	return strconv.ParseInt(output, 10, 64)
 }
 
-func (d *lvm) thinPoolVolumeUsage(volDevPath string) (uint64, uint64, error) {
+func (d *lvm) thinPoolVolumeUsage(volDevPath string) (totalSize uint64, usedSize uint64, err error) {
 	args := []string{
 		volDevPath,
 		"--noheadings",
@@ -700,7 +718,7 @@ func (d *lvm) thinPoolVolumeUsage(volDevPath string) (uint64, uint64, error) {
 		return 0, 0, fmt.Errorf("Failed parsing thin volume total size (%q): %w", parts[0], err)
 	}
 
-	totalSize := total
+	totalSize = total
 
 	// Used percentage is not available if thin volume isn't activated.
 	if parts[1] == "" {
@@ -722,7 +740,7 @@ func (d *lvm) thinPoolVolumeUsage(volDevPath string) (uint64, uint64, error) {
 		}
 	}
 
-	usedSize := uint64(float64(total) * ((dataPerc + metaPerc) / 100))
+	usedSize = uint64(float64(total) * ((dataPerc + metaPerc) / 100))
 
 	return totalSize, usedSize, nil
 }
