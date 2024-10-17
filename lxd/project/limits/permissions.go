@@ -56,10 +56,27 @@ func HiddenStoragePools(ctx context.Context, tx *db.ClusterTx, projectName strin
 
 // AllowInstanceCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new instance.
-func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
+func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, clusterMemberName string, sysinfo *api.ClusterMemberSysInfo, req api.InstancesPost) error {
 	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
+	}
+
+	instance := api.Instance{
+		Name:    req.Name,
+		Project: projectName,
+	}
+
+	instance.SetWritable(req.InstancePut)
+
+	errors, err := CheckReservationsWithInstance(context.TODO(), tx, globalConfigDump, &instance, map[string]api.ClusterMemberSysInfo{clusterMemberName: *sysinfo})
+	if err != nil {
+		return fmt.Errorf("Failed validating resource reservations: %w", err)
+	}
+
+	err = errors[clusterMemberName]
+	if err != nil {
+		return fmt.Errorf("Reservation exceeded on cluster member %q: %w", clusterMemberName, err)
 	}
 
 	info, err := fetchProject(globalConfigDump, tx, projectName, true)
@@ -96,12 +113,6 @@ func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx,
 	}
 
 	// Add the instance being created.
-	instance := api.Instance{
-		Name:    req.Name,
-		Project: projectName,
-	}
-
-	instance.SetWritable(req.InstancePut)
 	info.Instances = append(info.Instances, instance)
 
 	// Special case restriction checks on volatile.* keys.
@@ -118,7 +129,7 @@ func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx,
 		return err
 	}
 
-	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkRestrictionsAndAggregateLimits(globalConfig, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if instance creation allowed: %w", err)
 	}
@@ -292,7 +303,7 @@ func AllowVolumeCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 		PoolName: poolName,
 	})
 
-	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkRestrictionsAndAggregateLimits(globalConfig, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if volume creation allowed: %w", err)
 	}
@@ -356,7 +367,7 @@ func GetImageSpaceBudget(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 
 // Check that we would not violate the project limits or restrictions if we
 // were to commit the given instances and profiles.
-func checkRestrictionsAndAggregateLimits(globalConfig *clusterConfig.Config, tx *db.ClusterTx, info *projectInfo) error {
+func checkRestrictionsAndAggregateLimits(globalConfig *clusterConfig.Config, info *projectInfo) error {
 	// List of config keys for which we need to check aggregate values
 	// across all project instances.
 	aggregateKeys := []string{}
@@ -905,13 +916,28 @@ func isVMLowLevelOptionForbidden(key string) bool {
 
 // AllowInstanceUpdate returns an error if any project-specific limit or
 // restriction is violated when updating an existing instance.
-func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut, currentConfig map[string]string) error {
-	var updatedInstance *api.Instance
-
+func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, instanceName string, clusterMemberName string, sysinfo *api.ClusterMemberSysInfo, req api.InstancePut, currentConfig map[string]string) error {
 	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
 	}
+
+	inst := api.Instance{
+		Name:   instanceName,
+		Config: req.Config,
+	}
+
+	errors, err := CheckReservationsWithInstance(context.TODO(), tx, globalConfigDump, &inst, map[string]api.ClusterMemberSysInfo{clusterMemberName: *sysinfo})
+	if err != nil {
+		return err
+	}
+
+	err = errors[clusterMemberName]
+	if err != nil {
+		return fmt.Errorf("Reservation exceeded on cluster member %q: %w", clusterMemberName, err)
+	}
+
+	var updatedInstance *api.Instance
 
 	info, err := fetchProject(globalConfigDump, tx, projectName, true)
 	if err != nil {
@@ -947,7 +973,7 @@ func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 		return err
 	}
 
-	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkRestrictionsAndAggregateLimits(globalConfig, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if instance update allowed: %w", err)
 	}
@@ -986,7 +1012,7 @@ func AllowVolumeUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pro
 		info.Volumes[i].Config = req.Config
 	}
 
-	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkRestrictionsAndAggregateLimits(globalConfig, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if volume update allowed: %w", err)
 	}
@@ -1021,7 +1047,7 @@ func AllowProfileUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pr
 		info.Profiles[i].Devices = req.Devices
 	}
 
-	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkRestrictionsAndAggregateLimits(globalConfig, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if profile update allowed: %w", err)
 	}
@@ -1582,6 +1608,168 @@ func CheckClusterTargetRestriction(authorizer auth.Authorizer, r *http.Request, 
 	return nil
 }
 
+func coalesceOverrides(config map[string]db.OverridableConfig) map[string]string {
+	overridden := make(map[string]string)
+	for key, cfg := range config {
+		if cfg.ClusterValue.Valid {
+			overridden[key] = cfg.ClusterValue.String
+		}
+
+		if cfg.MemberValue.Valid {
+			overridden[key] = cfg.MemberValue.String
+		}
+	}
+
+	return overridden
+}
+
+// AllowClusterUpdate returns err if replacing the cluster configuration with
+// newConfig would violate any limits.reserve.* configuration.
+func AllowClusterUpdate(ctx context.Context, tx *db.ClusterTx, globalConfig map[string]any, sysinfo map[string]api.ClusterMemberSysInfo, newConfig map[string]any) error {
+	membersConfig, err := tx.GetMemberConfigWithGlobalDefault(ctx, []string{}, allReservations)
+	if err != nil {
+		return err
+	}
+
+	requiredLimits := make(map[string][]string, len(sysinfo))
+
+	// Modify membersConfig with any new global config options
+	for reservationKey, newValue := range newConfig {
+		if !slices.Contains(allReservations, reservationKey) {
+			continue
+		}
+
+		newValue, ok := newValue.(string)
+		if !ok {
+			return fmt.Errorf("Invalid type for %q", reservationKey)
+		}
+
+		for memberName := range sysinfo {
+			// Ensure that every member has an entry in membersConfig
+			memberConfig, hasMember := membersConfig[memberName]
+			if !hasMember {
+				memberConfig = make(map[string]db.OverridableConfig)
+			}
+
+			overridable := memberConfig[reservationKey]
+			if newValue != "" {
+				overridable.ClusterValue.String = newValue
+				overridable.ClusterValue.Valid = true
+			}
+
+			if !overridable.ClusterValue.Valid && !overridable.MemberValue.Valid {
+				delete(memberConfig, reservationKey)
+			} else {
+				limitKey, err := reservationLimit(reservationKey)
+				if err != nil {
+					return err
+				}
+
+				requiredLimits[memberName] = append(requiredLimits[memberName], limitKey)
+				memberConfig[reservationKey] = overridable
+			}
+
+			membersConfig[memberName] = memberConfig
+		}
+	}
+
+	if len(requiredLimits) == 0 {
+		return nil
+	}
+
+	clusterMemberNames := []string{}
+	for clusterMemberName := range membersConfig {
+		clusterMemberNames = append(clusterMemberNames, clusterMemberName)
+	}
+
+	aggregates, err := getClusterMemberAggregateLimits(ctx, tx, globalConfig, clusterMemberNames, limits)
+	if err != nil {
+		return err
+	}
+
+	// Validate each cluster member's new config
+	for clusterMemberName, config := range membersConfig {
+		aggregateLimits, hasAggregates := aggregates[clusterMemberName]
+		if !hasAggregates {
+			// No instances on this cluster member
+			continue
+		}
+
+		reservations := coalesceOverrides(config)
+
+		memberSysInfo, hasSysInfo := sysinfo[clusterMemberName]
+		if !hasSysInfo {
+			return fmt.Errorf("Missing sysinfo for cluster member %q", clusterMemberName)
+		}
+
+		err = checkClusterMemberReservations(reservations, aggregateLimits, &memberSysInfo)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AllowClusterMemberUpdate returns err if replacing the cluster member's
+// configuration with newConfig would violate any limits.reserve.* configuration.
+func AllowClusterMemberUpdate(ctx context.Context, tx *db.ClusterTx, globalConfig map[string]any, clusterMemberName string, sysinfo *api.ClusterMemberSysInfo, newConfig map[string]string) error {
+	membersConfig, err := tx.GetMemberConfigWithGlobalDefault(ctx, []string{clusterMemberName}, allReservations)
+	if err != nil {
+		return err
+	}
+
+	memberConfig := membersConfig[clusterMemberName]
+	if memberConfig == nil {
+		memberConfig = make(map[string]db.OverridableConfig)
+	}
+
+	// update the existing config
+	for reservationKey, newValue := range newConfig {
+		if !slices.Contains(allReservations, reservationKey) {
+			continue
+		}
+
+		overridable := memberConfig[reservationKey]
+		if newValue != "" {
+			overridable.MemberValue.String = newValue
+			overridable.MemberValue.Valid = true
+		}
+
+		if !overridable.MemberValue.Valid && !overridable.ClusterValue.Valid {
+			delete(memberConfig, reservationKey)
+		} else {
+			memberConfig[reservationKey] = overridable
+		}
+	}
+
+	reservations := coalesceOverrides(memberConfig)
+
+	// No reservations are set for this cluster member so skip checking them
+	if len(reservations) == 0 {
+		return nil
+	}
+
+	membersConfig[clusterMemberName] = memberConfig
+	requiredLimits, err := getLimits(membersConfig)
+	if err != nil {
+		return err
+	}
+
+	clusterAggregateLimits, err := getClusterMemberAggregateLimits(ctx, tx, globalConfig, requiredLimits)
+	if err != nil {
+		return err
+	}
+
+	aggregateLimits, hasClusterMember := clusterAggregateLimits[clusterMemberName]
+	if !hasClusterMember {
+		// No instances on this cluster member
+		return nil
+	}
+
+	return checkClusterMemberReservations(reservations, aggregateLimits, sysinfo)
+}
+
 // AllowBackupCreation returns an error if any project-specific restriction is violated
 // when creating a new backup in a project.
 func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
@@ -1722,4 +1910,188 @@ func CheckTarget(ctx context.Context, authorizer auth.Authorizer, r *http.Reques
 	}
 
 	return nil, "", nil
+}
+
+func parseLimit(limit string, val string) (int64, error) {
+	if val == "" {
+		return 0, fmt.Errorf("%q was not configured for instance or profile", limit)
+	}
+
+	parser, hasParser := aggregateLimitConfigValueParsers[limit]
+	if !hasParser {
+		return 0, fmt.Errorf("Missing parser for %q", limit)
+	}
+
+	value, err := parser(val)
+	if err != nil {
+		return 0, fmt.Errorf("Parse %q: %w", limit, err)
+	}
+
+	return value, nil
+}
+
+// requiredLimits is a map from clusterMemberName -> limits where limits are the
+// limit keys (limits.{cpu,memory}) that are required for that cluster member.
+func getClusterMemberAggregateLimits(ctx context.Context, tx *db.ClusterTx, globalConfig map[string]any, requiredLimits map[string][]string) (map[string]map[string]int64, error) {
+	return getPatchedClusterMemberAggregateLimits(ctx, tx, globalConfig, requiredLimits, nil)
+}
+
+func getPatchedClusterMemberAggregateLimits(ctx context.Context, tx *db.ClusterTx, globalConfig map[string]any, requiredLimits map[string][]string, patch func(inst *db.InstanceArgs)) (map[string]map[string]int64, error) {
+	filters := []cluster.InstanceFilter{}
+	for clusterMemberName := range requiredLimits {
+		filters = append(filters, cluster.InstanceFilter{Node: &clusterMemberName})
+	}
+
+	aggregates := make(map[string]map[string]int64)
+
+	instanceLoad := func(inst db.InstanceArgs, project api.Project) error {
+		_, clusterMemberSeen := aggregates[inst.Node]
+		if !clusterMemberSeen {
+			aggregates[inst.Node] = make(map[string]int64)
+		}
+
+		if patch != nil {
+			patch(&inst)
+		}
+
+		config := instancetype.ExpandInstanceConfig(globalConfig, inst.Config, inst.Profiles)
+
+		for _, limit := range requiredLimits[inst.Node] {
+			value, err := parseLimit(limit, config[limit])
+			if err != nil {
+				return fmt.Errorf("Parse %q for instance %q: %w", limit, inst.Name, err)
+			}
+
+			aggregates[inst.Node][limit] += value
+		}
+
+		return nil
+	}
+
+	err := tx.InstanceList(ctx, instanceLoad, filters...)
+	return aggregates, err
+}
+
+var allReservations = []string{
+	"limits.reserve.cpu",
+	"limits.reserve.memory",
+}
+
+func reservationLimit(reservation string) (string, error) {
+	switch reservation {
+	case "limits.reserve.cpu":
+		return "limits.cpu", nil
+	case "limits.reserve.memory":
+		return "limits.memory", nil
+	default:
+		return "", fmt.Errorf("Invalid reservation key %q", reservation)
+	}
+}
+
+func getLimits(reservations map[string]map[string]db.OverridableConfig) (map[string][]string, error) {
+	limits := map[string][]string{}
+	for clusterMemberName, clusterMemberReservations := range reservations {
+		for reservationKey := range clusterMemberReservations {
+			limit, err := reservationLimit(reservationKey)
+			if err != nil {
+				return nil, err
+			}
+
+			limits[clusterMemberName] = append(limits[clusterMemberName], limit)
+		}
+	}
+
+	return limits, nil
+}
+
+// CheckReservationsWithInstance returns a map of clusterMemberName -> error.
+// sysinfo is a map of clusterMemberName -> sysinfo.
+// An entry will be present in the returned map for every cluster member whose
+// limits.reserve.* would prevent `instance` from being created.
+func CheckReservationsWithInstance(ctx context.Context, tx *db.ClusterTx, globalConfig map[string]any, instance *api.Instance, sysinfo map[string]api.ClusterMemberSysInfo) (map[string]error, error) {
+	clusterMembers := make([]string, 0, len(sysinfo))
+	for clusterMemberName := range sysinfo {
+		clusterMembers = append(clusterMembers, clusterMemberName)
+	}
+
+	clusterOverrides, err := tx.GetMemberConfigWithGlobalDefault(ctx, clusterMembers, allReservations)
+	if err != nil {
+		return nil, err
+	}
+
+	// No reservations are set for any cluster member so skip the aggregates query
+	if len(clusterOverrides) == 0 {
+		return nil, nil
+	}
+
+	requiredLimits, err := getLimits(clusterOverrides)
+	if err != nil {
+		return nil, err
+	}
+
+	patchInstConfig := func(inst *db.InstanceArgs) {
+		if inst.Name == instance.Name {
+			inst.Config = instance.Config
+		}
+	}
+
+	clusterAggregateLimits, err := getPatchedClusterMemberAggregateLimits(ctx, tx, globalConfig, requiredLimits, patchInstConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	errors := make(map[string]error)
+	for clusterMemberName, overrides := range clusterOverrides {
+		aggregateLimits, hasClusterMember := clusterAggregateLimits[clusterMemberName]
+		if !hasClusterMember {
+			aggregateLimits = make(map[string]int64, len(requiredLimits[clusterMemberName]))
+		}
+
+		for _, limit := range requiredLimits[clusterMemberName] {
+			value, err := parseLimit(limit, instance.Config[limit])
+			if err != nil {
+				errors[clusterMemberName] = err
+				continue
+			}
+
+			aggregateLimits[limit] += value
+		}
+
+		reservations := coalesceOverrides(overrides)
+
+		memberSysInfo := sysinfo[clusterMemberName]
+		err = checkClusterMemberReservations(reservations, aggregateLimits, &memberSysInfo)
+		if err != nil {
+			errors[clusterMemberName] = err
+		}
+	}
+
+	return errors, nil
+}
+
+// effectiveReservations is reservationKey -> effectiveReservation
+// aggregateLimits is limitKey -> aggregate value for cluster member
+func checkClusterMemberReservations(effectiveReservations map[string]string, aggregateLimits map[string]int64, sysinfo *api.ClusterMemberSysInfo) error {
+	available := map[string]uint64{
+		"limits.reserve.cpu":    sysinfo.CPUThreads,
+		"limits.reserve.memory": sysinfo.TotalRAM,
+	}
+
+	for reservationKey, reservation := range effectiveReservations {
+		limitKey, err := reservationLimit(reservationKey)
+		if err != nil {
+			return err
+		}
+
+		reservation, err := aggregateLimitConfigValueParsers[limitKey](reservation)
+		if err != nil {
+			return err
+		}
+
+		if int64(available[reservationKey]) < reservation+aggregateLimits[limitKey] {
+			return fmt.Errorf("%s exceeded", reservationKey)
+		}
+	}
+
+	return nil
 }

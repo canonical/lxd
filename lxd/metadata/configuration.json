@@ -4,6 +4,20 @@
 			"cluster": {
 				"keys": [
 					{
+						"limits.reserve.cpu": {
+							"longdesc": "Number of CPUs to reserve for the LXD server. This setting only limits\nthe sum of instance `limits.cpu` that can be located on a cluster member.\n\nWhen this key is set, all instances on that member must have\n`limits.cpu` set.",
+							"shortdesc": "Number of CPUs to reserve for the LXD server",
+							"type": "integer"
+						}
+					},
+					{
+						"limits.reserve.memory": {
+							"longdesc": "Amount of memory to reserve for the LXD server. This setting only limits\nthe sum of instance `limits.memory` that can be located on a cluster member.\n\nWhen this key is set, all instances on that member must have\n`limits.memory` set.",
+							"shortdesc": "Amount of memory to reserve for the LXD server",
+							"type": "string"
+						}
+					},
+					{
 						"scheduler.instance": {
 							"defaultdesc": "`all`",
 							"longdesc": "Possible values are `all`, `manual`, and `group`. See\n{ref}`clustering-instance-placement` for more information.",
@@ -5220,6 +5234,22 @@
 							"longdesc": "When using custom automatic instance placement logic, this option stores the scriptlet.\nSee {ref}`clustering-instance-placement-scriptlet` for more information.",
 							"scope": "global",
 							"shortdesc": "Instance placement scriptlet for automatic instance placement",
+							"type": "string"
+						}
+					},
+					{
+						"limits.reserve.cpu": {
+							"longdesc": "Number of CPUs to reserve for the LXD server. This setting only limits\nthe sum of instance `limits.cpu` that can be located on any cluster member.\n\nThis value is overridden by the corresponding cluster member configuration key.\n\nWhen this key is set, all instances must have `limits.cpu` set.",
+							"scope": "global",
+							"shortdesc": "Number CPUs to reserve for the LXD server",
+							"type": "integer"
+						}
+					},
+					{
+						"limits.reserve.memory": {
+							"longdesc": "Amount of memory to reserve for the LXD server. This setting only limits\nthe sum of instance `limits.memory` that can be located on any cluster member.\n\nThis value is overridden by the corresponding cluster member configuration key.\n\nWhen this key is set, all instances must have `limits.memory` set.",
+							"scope": "global",
+							"shortdesc": "Amount of memory to reserve for the LXD server",
 							"type": "string"
 						}
 					},

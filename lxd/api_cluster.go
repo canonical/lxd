@@ -35,6 +35,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/scriptlet"
@@ -1634,6 +1635,11 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 		return response.SmartError(err)
 	}
 
+	resp := forwardedResponseToNode(s, r, name)
+	if resp != nil {
+		return resp
+	}
+
 	leaderAddress, err := gateway.LeaderAddress()
 	if err != nil {
 		return response.InternalError(err)
@@ -1728,6 +1734,16 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 		newRoles = append(newRoles, db.ClusterRole(role))
 	}
 
+	sysinfo, err := cluster.LocalSysInfo()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	var globalConfigDump map[string]any
+	if s.GlobalConfig != nil {
+		globalConfigDump = s.GlobalConfig.Dump()
+	}
+
 	// Update the database
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		nodeInfo, err := tx.GetNodeByName(ctx, name)
@@ -1752,6 +1768,11 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 					}
 				}
 			}
+		}
+
+		err = limits.AllowClusterMemberUpdate(ctx, tx, globalConfigDump, name, sysinfo, req.Config)
+		if err != nil {
+			return fmt.Errorf("Permission denied: %w", err)
 		}
 
 		// Update node config.
@@ -1842,6 +1863,28 @@ func clusterValidateConfig(config map[string]string) error {
 		//  defaultdesc: `all`
 		//  shortdesc: Controls how instances are scheduled to run on this member
 		"scheduler.instance": validate.Optional(validate.IsOneOf("all", "group", "manual")),
+
+		// lxdmeta:generate(entities=cluster; group=cluster; key=limits.reserve.cpu)
+		// Number of CPUs to reserve for the LXD server. This setting only limits
+		// the sum of instance `limits.cpu` that can be located on a cluster member.
+		//
+		// When this key is set, all instances on that member must have
+		// `limits.cpu` set.
+		// ---
+		//  type: integer
+		//  shortdesc: Number of CPUs to reserve for the LXD server
+		"limits.reserve.cpu": validate.IsAny,
+
+		// lxdmeta:generate(entities=cluster; group=cluster; key=limits.reserve.memory)
+		// Amount of memory to reserve for the LXD server. This setting only limits
+		// the sum of instance `limits.memory` that can be located on a cluster member.
+		//
+		// When this key is set, all instances on that member must have
+		// `limits.memory` set.
+		// ---
+		//  type: string
+		//  shortdesc: Amount of memory to reserve for the LXD server
+		"limits.reserve.memory": validate.IsAny,
 	}
 
 	for k, v := range config {
@@ -2974,7 +3017,7 @@ func clusterNodeStateGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	memberState, err := cluster.MemberState(r.Context(), s, memberName)
+	memberState, err := cluster.MemberState(r.Context(), s)
 	if err != nil {
 		return response.SmartError(err)
 	}

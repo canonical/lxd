@@ -720,6 +720,11 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		return response.BadRequest(err)
 	}
 
+	sysinfo, err := cluster.LocalSysInfo()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
 	// Check project permissions.
 	var req api.InstancesPost
 	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -730,7 +735,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			Type:        api.InstanceType(bInfo.Config.Container.Type),
 		}
 
-		return limits.AllowInstanceCreation(s.GlobalConfig, tx, projectName, req)
+		return limits.AllowInstanceCreation(s.GlobalConfig, tx, projectName, s.ServerName, sysinfo, req)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -1246,14 +1251,39 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return err
 			}
-		}
 
-		if !clusterNotification {
-			// Check that the project's limits are not violated. Note this check is performed after
-			// automatically generated config values (such as ones from an InstanceType) have been set.
-			err = limits.AllowInstanceCreation(s.GlobalConfig, tx, targetProjectName, req)
+			if len(candidateMembers) == 0 {
+				return api.StatusErrorf(http.StatusNotFound, "No suitable cluster member could be found")
+			}
+
+			// Check limits.reserve.* for the candidate members
+			// (don't try to create instances on full cluster members)
+			sysinfo, err := cluster.ClusterSysInfo(s, candidateMembers)
 			if err != nil {
 				return err
+			}
+
+			var globalConfigDump map[string]any
+			if s.GlobalConfig != nil {
+				globalConfigDump = s.GlobalConfig.Dump()
+			}
+
+			inst := api.Instance{
+				Name:   req.Name,
+				Config: req.Config,
+			}
+
+			reservationsErrors, err := limits.CheckReservationsWithInstance(ctx, tx, globalConfigDump, &inst, sysinfo)
+			if err != nil {
+				return err
+			}
+
+			candidateMembers = slices.DeleteFunc(candidateMembers, func(candidate db.NodeInfo) bool {
+				return reservationsErrors[candidate.Name] != nil
+			})
+
+			if len(candidateMembers) == 0 {
+				return api.StatusErrorf(http.StatusNotFound, "No suitable cluster member could be found: Instance would violate limits.reserve on all cluster members")
 			}
 		}
 
@@ -1326,6 +1356,20 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 		opAPI := op.Get()
 		return operations.ForwardedOperationResponse(targetProjectName, &opAPI)
+	}
+
+	sysinfo, err := cluster.LocalSysInfo()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Check that the project's limits are not violated. Note this check is performed after
+		// automatically generated config values (such as ones from an InstanceType) have been set.
+		return limits.AllowInstanceCreation(s.GlobalConfig, tx, targetProjectName, s.ServerName, sysinfo, req)
+	})
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	switch req.Source.Type {

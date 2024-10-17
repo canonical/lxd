@@ -11,8 +11,9 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
-	"github.com/canonical/lxd/lxd/db/cluster"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/project/limits"
@@ -183,10 +184,15 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	sysinfo, err := cluster.LocalSysInfo()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
 	// Check project limits.
 	apiProfiles := make([]api.Profile, 0, len(req.Profiles))
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, req.Profiles)
+		profiles, err := dbCluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, req.Profiles)
 		if err != nil {
 			return err
 		}
@@ -200,7 +206,7 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 			apiProfiles = append(apiProfiles, *apiProfile)
 		}
 
-		return limits.AllowInstanceUpdate(s.GlobalConfig, tx, projectName, name, req, c.LocalConfig())
+		return limits.AllowInstanceUpdate(s.GlobalConfig, tx, projectName, name, s.ServerName, sysinfo, req, c.LocalConfig())
 	})
 	if err != nil {
 		return response.SmartError(err)
