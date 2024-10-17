@@ -1,5 +1,5 @@
 ---
-discourse: ubuntu:43824,16647
+discourse: ubuntu:[New&#32;LXD&#32;image&#32;server&#32;available&#32;(images.lxd.canonical.com)](43824),[Image&#32;server&#32;infrastructure](16647)
 relatedlinks: https://www.youtube.com/watch?v=pM0EgUqj2a0
 ---
 
