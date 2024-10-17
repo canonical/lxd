@@ -1638,6 +1638,11 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 		return response.SmartError(err)
 	}
 
+	resp := forwardedResponseToNode(s, r, name)
+	if resp != nil {
+		return resp
+	}
+
 	leaderAddress, err := gateway.LeaderAddress()
 	if err != nil {
 		return response.InternalError(err)
