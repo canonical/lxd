@@ -32,7 +32,7 @@ const (
 
 // NewNotifier builds a Notifier that can be used to notify other peers using
 // the given policy.
-func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *shared.CertInfo, policy NotifierPolicy) (Notifier, error) {
+func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *shared.CertInfo, policy NotifierPolicy, members ...db.NodeInfo) (Notifier, error) {
 	localClusterAddress := state.LocalConfig.ClusterAddress()
 
 	// Unfortunately the notifier is called during database startup before the
@@ -49,25 +49,28 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 		return nullNotifier, nil
 	}
 
-	var err error
-	var members []db.NodeInfo
-	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		if state.GlobalConfig == nil {
-			offlineThreshold, err = tx.GetNodeOfflineThreshold(ctx)
-			if err != nil {
-				return fmt.Errorf("Failed getting cluster offline threshold: %w", err)
+	if len(members) == 0 || state.GlobalConfig == nil {
+		err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			var err error
+			if state.GlobalConfig == nil {
+				offlineThreshold, err = tx.GetNodeOfflineThreshold(ctx)
+				if err != nil {
+					return fmt.Errorf("Failed getting cluster offline threshold: %w", err)
+				}
 			}
-		}
 
-		members, err = tx.GetNodes(ctx)
+			if len(members) == 0 {
+				members, err = tx.GetNodes(ctx)
+				if err != nil {
+					return fmt.Errorf("Failed getting cluster members: %w", err)
+				}
+			}
+
+			return nil
+		})
 		if err != nil {
-			return fmt.Errorf("Failed getting cluster members: %w", err)
+			return nil, err
 		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	peers := []string{}
