@@ -44,7 +44,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 	}
 
 	// Fast-track the case where we're not clustered at all.
-	if localClusterAddress == "" {
+	if !state.ServerClustered {
 		nullNotifier := func(func(lxd.InstanceServer) error) error { return nil }
 		return nullNotifier, nil
 	}
