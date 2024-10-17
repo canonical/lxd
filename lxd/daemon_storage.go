@@ -50,7 +50,7 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 			return err
 		}
 
-		// Mount volume.
+		// Unmount volume.
 		_, err = pool.UnmountCustomVolume(api.ProjectDefaultName, volumeName, nil)
 		if err != nil {
 			return fmt.Errorf("Failed to unmount storage volume %q: %w", source, err)
