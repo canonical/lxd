@@ -2029,7 +2029,13 @@ func CheckReservationsWithInstance(ctx context.Context, tx *db.ClusterTx, global
 		return nil, err
 	}
 
-	clusterAggregateLimits, err := getClusterMemberAggregateLimits(ctx, tx, globalConfig, requiredLimits)
+	patchInstConfig := func(inst *db.InstanceArgs) {
+		if inst.Name == instance.Name {
+			inst.Config = instance.Config
+		}
+	}
+
+	clusterAggregateLimits, err := getPatchedClusterMemberAggregateLimits(ctx, tx, globalConfig, requiredLimits, patchInstConfig)
 	if err != nil {
 		return nil, err
 	}
