@@ -526,12 +526,7 @@ func storagePoolsPostCluster(s *state.State, pool *api.StoragePool, req api.Stor
 	}
 
 	// Notify all other nodes to create the pool.
-	err = notifier(func(client lxd.InstanceServer) error {
-		server, _, err := client.GetServer()
-		if err != nil {
-			return err
-		}
-
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		nodeReq := req
 
 		// Clone fresh node config so we don't modify req.Config with this node's specific config which
@@ -542,7 +537,7 @@ func storagePoolsPostCluster(s *state.State, pool *api.StoragePool, req api.Stor
 		}
 
 		// Merge node specific config items into global config.
-		for key, value := range configs[server.Environment.ServerName] {
+		for key, value := range configs[member.Name] {
 			nodeReq.Config[key] = value
 		}
 
@@ -551,7 +546,7 @@ func storagePoolsPostCluster(s *state.State, pool *api.StoragePool, req api.Stor
 			return err
 		}
 
-		logger.Debug("Created storage pool on cluster member", logger.Ctx{"pool": req.Name, "member": server.Environment.ServerName})
+		logger.Debug("Created storage pool on cluster member", logger.Ctx{"pool": req.Name, "member": member.Name})
 
 		return nil
 	})
@@ -921,7 +916,7 @@ func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.Storage
 			sendPool.Config[k] = v
 		}
 
-		err = notifier(func(client lxd.InstanceServer) error {
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			return client.UpdateStoragePool(pool.Name(), sendPool, "")
 		})
 		if err != nil {
@@ -1045,12 +1040,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If we are clustered, also notify all other nodes.
-	err = notifier(func(client lxd.InstanceServer) error {
-		_, _, err := client.GetServer()
-		if err != nil {
-			return err
-		}
-
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		return client.DeleteStoragePool(pool.Name())
 	})
 	if err != nil {
