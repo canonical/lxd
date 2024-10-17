@@ -5437,12 +5437,13 @@ func (n *ovn) LoadBalancerDelete(listenAddress string, clientType request.Client
 }
 
 // Leases returns a list of leases for the OVN network. Those are directly extracted from the OVN database.
+// If projectName is empty, get leases from all projects.
 func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error) {
 	var err error
 	leases := []api.NetworkLease{}
 
 	// If requested project matches network's project then include gateway IPs.
-	if projectName == n.project {
+	if projectName == n.project || projectName == "" {
 		// Add our own gateway IPs.
 		for _, addr := range []string{n.config["ipv4.address"], n.config["ipv6.address"]} {
 			ip, _, _ := net.ParseCIDR(addr)
@@ -5451,13 +5452,18 @@ func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.N
 					Hostname: fmt.Sprintf("%s.gw", n.Name()),
 					Address:  ip.String(),
 					Type:     "gateway",
+					Project:  n.project,
 				})
 			}
 		}
 	}
 
 	// Get all the instances in the requested project that are connected to this network.
-	filter := dbCluster.InstanceFilter{Project: &projectName}
+	var filter dbCluster.InstanceFilter
+	if projectName != "" {
+		filter = dbCluster.InstanceFilter{Project: &projectName}
+	}
+
 	err = UsedByInstanceDevices(n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		// Get the instance UUID needed for OVN port name generation.
 		instanceUUID := inst.Config["volatile.uuid"]
@@ -5491,6 +5497,7 @@ func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.N
 				Hwaddr:   hwAddr.String(),
 				Type:     leaseType,
 				Location: inst.Node,
+				Project:  inst.Project,
 			})
 		}
 
