@@ -68,6 +68,10 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 		return "", err
 	}
 
+	if !shared.IsDir(source) {
+		return "", fmt.Errorf("rsync source (%s) is not a directory", source)
+	}
+
 	rsyncVerbosity := "-q"
 	if Debug {
 		rsyncVerbosity = "-vi"
