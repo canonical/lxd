@@ -232,7 +232,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if targetMemberInfo == nil && s.GlobalConfig.InstancesPlacementScriptlet() != "" {
-			leaderAddress, err := d.gateway.LeaderAddress()
+			_, leaderAddress, err := s.LeaderInfo()
 			if err != nil {
 				return response.InternalError(err)
 			}
