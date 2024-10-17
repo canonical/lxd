@@ -1268,6 +1268,11 @@ func fetchProject(globalConfig map[string]any, tx *db.ClusterTx, projectName str
 		return nil, fmt.Errorf("Fetch profiles from database: %w", err)
 	}
 
+	dbProfileConfigs, err := cluster.GetConfig(ctx, tx.Tx(), "profile")
+	if err != nil {
+		return nil, fmt.Errorf("Fetch profile configs from database: %w", err)
+	}
+
 	dbProfileDevices, err := cluster.GetDevices(ctx, tx.Tx(), "profile")
 	if err != nil {
 		return nil, fmt.Errorf("Fetch profile devices from database: %w", err)
@@ -1275,7 +1280,7 @@ func fetchProject(globalConfig map[string]any, tx *db.ClusterTx, projectName str
 
 	profiles := make([]api.Profile, 0, len(dbProfiles))
 	for _, profile := range dbProfiles {
-		apiProfile, err := profile.ToAPI(ctx, tx.Tx(), dbProfileDevices)
+		apiProfile, err := profile.ToAPI(ctx, tx.Tx(), dbProfileConfigs, dbProfileDevices)
 		if err != nil {
 			return nil, err
 		}
@@ -1300,7 +1305,7 @@ func fetchProject(globalConfig map[string]any, tx *db.ClusterTx, projectName str
 
 	instances := make([]api.Instance, 0, len(dbInstances))
 	for _, instance := range dbInstances {
-		apiInstance, err := instance.ToAPI(ctx, tx.Tx(), globalConfig, dbInstanceDevices, dbProfileDevices)
+		apiInstance, err := instance.ToAPI(ctx, tx.Tx(), globalConfig, dbInstanceDevices, dbProfileConfigs, dbProfileDevices)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get API data for instance %q in project %q: %w", instance.Name, instance.Project, err)
 		}
