@@ -9721,6 +9721,43 @@ paths:
             summary: Get the image aliases
             tags:
                 - images
+    /1.0/images?all-projects=true:
+        get:
+            description: Returns a list of images (structs) across all projects.
+            operationId: images_get_all-projectstrue
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of images
+                                items:
+                                    $ref: '#/definitions/Image'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the images
+            tags:
+                - images
     /1.0/images?public:
         get:
             description: Returns a list of publicly available images (URLs).

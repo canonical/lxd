@@ -1508,6 +1508,26 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 	return resultString, nil
 }
 
+func doImagesGetAllProjects(ctx context.Context, tx *db.ClusterTx, public bool, clauses *filter.ClauseSet, hasPermission auth.PermissionChecker) ([]*api.Image, error) {
+	var result []*api.Image
+
+	projects, err := dbCluster.GetProjectNames(ctx, tx.Tx())
+	if err != nil {
+		return nil, err
+	}
+
+	for _, projectName := range projects {
+		images, err := doImagesGet(ctx, tx, true, projectName, public, clauses, hasPermission)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, images.([]*api.Image)...)
+	}
+
+	return result, nil
+}
+
 // swagger:operation GET /1.0/images?public images images_get_untrusted
 //
 //  Get the public images
@@ -1713,8 +1733,48 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/images?all-projects=true images images_get_all-projectstrue
+//
+//	Get the images
+//
+//	Returns a list of images (structs) across all projects.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of images
+//	          items:
+//	            $ref: "#/definitions/Image"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+
 func imagesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := request.ProjectParam(r)
+	allProjects := request.QueryParam(r, "all-projects")
 	filterStr := r.FormValue("filter")
 
 	s := d.State()
@@ -1748,9 +1808,16 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	var result any
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		result, err = doImagesGet(ctx, tx, util.IsRecursionRequest(r), projectName, publicOnly, clauses, canViewImage)
-		if err != nil {
-			return err
+		if allProjects == "true" {
+			result, err = doImagesGetAllProjects(ctx, tx, publicOnly, clauses, canViewImage)
+			if err != nil {
+				return err
+			}
+		} else {
+			result, err = doImagesGet(ctx, tx, util.IsRecursionRequest(r), projectName, publicOnly, clauses, canViewImage)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil

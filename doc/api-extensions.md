@@ -2501,3 +2501,7 @@ Expands APIs under `/1.0/auth` to include:
   The caller must provide a base64 encoded x509 certificate in the `certificate` field of the request body.
   Fine-grained TLS identities may update their own certificate.
   To update the certificate of another identity, the caller must have `can_edit` on the identity.
+
+## `images_all_projects`
+
+This extension adds support for fetching images across all projects.
