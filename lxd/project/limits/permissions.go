@@ -1933,6 +1933,10 @@ func parseLimit(limit string, val string) (int64, error) {
 // requiredLimits is a map from clusterMemberName -> limits where limits are the
 // limit keys (limits.{cpu,memory}) that are required for that cluster member.
 func getClusterMemberAggregateLimits(ctx context.Context, tx *db.ClusterTx, globalConfig map[string]any, requiredLimits map[string][]string) (map[string]map[string]int64, error) {
+	return getPatchedClusterMemberAggregateLimits(ctx, tx, globalConfig, requiredLimits, nil)
+}
+
+func getPatchedClusterMemberAggregateLimits(ctx context.Context, tx *db.ClusterTx, globalConfig map[string]any, requiredLimits map[string][]string, patch func(inst *db.InstanceArgs)) (map[string]map[string]int64, error) {
 	filters := []cluster.InstanceFilter{}
 	for clusterMemberName := range requiredLimits {
 		filters = append(filters, cluster.InstanceFilter{Node: &clusterMemberName})
@@ -1946,10 +1950,14 @@ func getClusterMemberAggregateLimits(ctx context.Context, tx *db.ClusterTx, glob
 			aggregates[inst.Node] = make(map[string]int64)
 		}
 
-		instConfig := instancetype.ExpandInstanceConfig(globalConfig, inst.Config, inst.Profiles)
+		if patch != nil {
+			patch(&inst)
+		}
+
+		config := instancetype.ExpandInstanceConfig(globalConfig, inst.Config, inst.Profiles)
 
 		for _, limit := range requiredLimits[inst.Node] {
-			value, err := parseLimit(limit, instConfig[limit])
+			value, err := parseLimit(limit, config[limit])
 			if err != nil {
 				return fmt.Errorf("Parse %q for instance %q: %w", limit, inst.Name, err)
 			}
