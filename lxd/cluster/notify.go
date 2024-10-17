@@ -35,6 +35,14 @@ const (
 func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *shared.CertInfo, policy NotifierPolicy) (Notifier, error) {
 	localClusterAddress := state.LocalConfig.ClusterAddress()
 
+	// Unfortunately the notifier is called during database startup before the
+	// global config has been loaded, so we need to fall back on loading the
+	// offline threshold from the database.
+	var offlineThreshold time.Duration
+	if state.GlobalConfig != nil {
+		offlineThreshold = state.GlobalConfig.OfflineThreshold()
+	}
+
 	// Fast-track the case where we're not clustered at all.
 	if localClusterAddress == "" {
 		nullNotifier := func(func(lxd.InstanceServer) error) error { return nil }
@@ -43,11 +51,12 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 
 	var err error
 	var members []db.NodeInfo
-	var offlineThreshold time.Duration
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		offlineThreshold, err = tx.GetNodeOfflineThreshold(ctx)
-		if err != nil {
-			return err
+		if state.GlobalConfig == nil {
+			offlineThreshold, err = tx.GetNodeOfflineThreshold(ctx)
+			if err != nil {
+				return fmt.Errorf("Failed getting cluster offline threshold: %w", err)
+			}
 		}
 
 		members, err = tx.GetNodes(ctx)
