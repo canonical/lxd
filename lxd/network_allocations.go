@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/canonical/lxd/lxd/auth"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
@@ -30,7 +31,7 @@ var networkAllocationsCmd = APIEndpoint{
 
 // swagger:operation GET /1.0/network-allocations network-allocations network_allocations_get
 //
-//	Get the network allocations in use (`network`, `network-forward` and `load-balancer` and `instance`)
+//	Get the network allocations in use (`network`, `network-forward`, `load-balancer`, `uplink` and `instance`)
 //
 //	Returns a list of network allocations in use by a LXD deployment.
 //
@@ -173,27 +174,39 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 					UsedBy:  api.NewURL().Path(version.APIVersion, "networks", networkName).Project(projectName).String(),
 					Type:    "network",
 					NAT:     shared.IsTrue(netConf[fmt.Sprintf("%s.nat", keyPrefix)]),
+					Network: networkName,
 				})
 			}
 
-			leases, err := n.Leases(projectName, clusterRequest.ClientTypeNormal)
+			leases, err := n.Leases("", clusterRequest.ClientTypeNormal)
 			if err != nil && !errors.Is(err, network.ErrNotImplemented) {
-				return response.SmartError(fmt.Errorf("Failed getting leases for network %q in project %q: %w", networkName, projectName, err))
+				return response.SmartError(fmt.Errorf("Failed getting leases for network %q: %w", networkName, err))
 			}
 
 			for _, lease := range leases {
-				if shared.ValueInSlice(lease.Type, []string{"static", "dynamic"}) {
+				if shared.ValueInSlice(lease.Type, []string{"static", "dynamic", "uplink"}) {
 					cidrAddr, nat, err := ipToCIDR(lease.Address, netConf)
 					if err != nil {
 						return response.SmartError(err)
 					}
 
+					var allocationType, usedBy string
+					if lease.Type == "uplink" {
+						allocationType = "uplink"
+						networkName := strings.TrimSuffix(strings.TrimPrefix(lease.Hostname, lease.Project+"-"), ".uplink")
+						usedBy = api.NewURL().Path(version.APIVersion, "networks", networkName).Project(lease.Project).String()
+					} else {
+						allocationType = "instance"
+						usedBy = api.NewURL().Path(version.APIVersion, "instances", lease.Hostname).Project(lease.Project).String()
+					}
+
 					result = append(result, api.NetworkAllocations{
 						Address: cidrAddr,
-						UsedBy:  api.NewURL().Path(version.APIVersion, "instances", lease.Hostname).Project(projectName).String(),
-						Type:    "instance",
+						UsedBy:  usedBy,
+						Type:    allocationType,
 						Hwaddr:  lease.Hwaddr,
 						NAT:     nat,
+						Network: networkName,
 					})
 				}
 			}
@@ -222,6 +235,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 						UsedBy:  api.NewURL().Path(version.APIVersion, "networks", networkName, "forwards", forward.ListenAddress).Project(projectName).String(),
 						Type:    "network-forward",
 						NAT:     false, // Network forwards are ingress and so aren't affected by SNAT.
+						Network: networkName,
 					},
 				)
 			}
@@ -250,6 +264,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 						UsedBy:  api.NewURL().Path(version.APIVersion, "networks", networkName, "load-balancers", loadBalancer.ListenAddress).Project(projectName).String(),
 						Type:    "network-load-balancer",
 						NAT:     false, // Network load-balancers are ingress and so aren't affected by SNAT.
+						Network: networkName,
 					},
 				)
 			}

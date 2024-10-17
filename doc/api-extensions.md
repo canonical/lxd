@@ -2501,3 +2501,9 @@ Expands APIs under `/1.0/auth` to include:
   The caller must provide a base64 encoded x509 certificate in the `certificate` field of the request body.
   Fine-grained TLS identities may update their own certificate.
   To update the certificate of another identity, the caller must have `can_edit` on the identity.
+
+## `network_allocations_ovn_uplink`
+
+Includes OVN virtual routers external IPs to `/1.0/network-allocations` responses with the type `uplink`.
+Introduces the `network` field on each allocation, indicating to which network each allocated address belongs.
+And lastly, adds a `project` field on leases, leases can be retrieved via `/1.0/networks/<network>/leases`.
