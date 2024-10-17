@@ -104,6 +104,11 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 			return err
 		}
 
+		profileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
+		if err != nil {
+			return err
+		}
+
 		profileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
 		if err != nil {
 			return err
@@ -116,7 +121,7 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 				projectProfiles[profile.Project] = []*api.Profile{}
 			}
 
-			apiProfile, err := profile.ToAPI(ctx, tx.Tx(), profileDevices)
+			apiProfile, err := profile.ToAPI(ctx, tx.Tx(), profileConfigs, profileDevices)
 			if err != nil {
 				return err
 			}
