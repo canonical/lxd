@@ -25,7 +25,7 @@ The UI requires LXD to be exposed to the network.
 Therefore, you must use the CLI or API to originally expose LXD to the network.
 
 Once you have access to the UI, you can use it to update the setting.
-However, be careful when changing the configured value, because using an invalid value might cause you to loose access to the UI.
+However, be careful when changing the configured value, because using an invalid value might cause you to lose access to the UI.
 ```
 
 Go to {guilabel}`Settings` and edit the value for `core.https_address`.
