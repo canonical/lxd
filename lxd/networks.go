@@ -696,12 +696,7 @@ func networksPostCluster(s *state.State, projectName string, netInfo *api.Networ
 	}
 
 	// Notify other nodes to create the network.
-	err = notifier(func(client lxd.InstanceServer) error {
-		server, _, err := client.GetServer()
-		if err != nil {
-			return err
-		}
-
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		// Clone the network config for this node so we don't modify it and potentially end up sending
 		// this node's config to another node.
 		nodeConfig := make(map[string]string, len(netConfig))
@@ -710,7 +705,7 @@ func networksPostCluster(s *state.State, projectName string, netInfo *api.Networ
 		}
 
 		// Merge node specific config items into global config.
-		for key, value := range nodeConfigs[server.Environment.ServerName] {
+		for key, value := range nodeConfigs[member.Name] {
 			nodeConfig[key] = value
 		}
 
@@ -729,7 +724,7 @@ func networksPostCluster(s *state.State, projectName string, netInfo *api.Networ
 			return err
 		}
 
-		logger.Debug("Created network on cluster member", logger.Ctx{"project": n.Project(), "network": n.Name(), "member": server.Environment.ServerName, "config": nodeReq.Config})
+		logger.Debug("Created network on cluster member", logger.Ctx{"project": n.Project(), "network": n.Name(), "member": member.Name, "config": nodeReq.Config})
 
 		return nil
 	})
@@ -1072,7 +1067,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		err = notifier(func(client lxd.InstanceServer) error {
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			return client.UseProject(n.Project()).DeleteNetwork(n.Name())
 		})
 		if err != nil {

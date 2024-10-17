@@ -3632,7 +3632,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 			return nil, err
 		}
 
-		err = notifier(func(client lxd.InstanceServer) error {
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			memberLeases, err := client.GetNetworkLeases(n.name)
 			if err != nil {
 				return err
