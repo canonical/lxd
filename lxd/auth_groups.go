@@ -713,7 +713,7 @@ func renameAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = notifier(func(client lxd.InstanceServer) error {
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
 		return err
 	})
@@ -774,7 +774,7 @@ func deleteAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = notifier(func(client lxd.InstanceServer) error {
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
 		return err
 	})
