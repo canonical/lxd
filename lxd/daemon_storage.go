@@ -316,6 +316,30 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 		return err
 	}
 
+	// Validate pool and volume exist.
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Validate pool exists.
+		poolID, _, _, err := tx.GetStoragePool(ctx, poolName)
+		if err != nil {
+			return fmt.Errorf("Unable to load storage pool %q: %w", poolName, err)
+		}
+
+		// Confirm volume exists.
+		dbVol, err := tx.GetStoragePoolVolume(ctx, poolID, api.ProjectDefaultName, cluster.StoragePoolVolumeTypeCustom, volumeName, true)
+		if err != nil {
+			return fmt.Errorf("Failed loading storage volume %q in %q project: %w", target, api.ProjectDefaultName, err)
+		}
+
+		if dbVol.ContentType != cluster.StoragePoolVolumeContentTypeNameFS {
+			return fmt.Errorf("Storage volume %q in %q project is not filesystem content type", target, api.ProjectDefaultName)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return err
