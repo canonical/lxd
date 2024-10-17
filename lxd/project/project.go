@@ -65,6 +65,11 @@ func StorageVolumeParts(projectStorageVolumeName string) (projectName string, st
 		return "", projectStorageVolumeName
 	}
 
+	// Separator not found.
+	if len(parts) != 2 {
+		return "", ""
+	}
+
 	return parts[0], parts[1]
 }
 
