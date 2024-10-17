@@ -710,7 +710,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		Type:        api.CertificateTypeClient,
 	}
 
-	err = notifier(func(client lxd.InstanceServer) error {
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
 		return err
 	})
@@ -1051,7 +1051,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 		return response.SmartError(err)
 	}
 
-	err = notifier(func(client lxd.InstanceServer) error {
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
 		return err
 	})
@@ -1162,7 +1162,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = notifier(func(client lxd.InstanceServer) error {
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
 		return err
 	})

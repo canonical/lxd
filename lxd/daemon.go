@@ -549,7 +549,7 @@ func (d *Daemon) handleOIDCAuthenticationResult(r *http.Request, result *oidc.Au
 			return fmt.Errorf("Failed to notify cluster members of new or updated OIDC identity: %w", err)
 		}
 
-		err = notifier(func(client lxd.InstanceServer) error {
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
 			return err
 		})
