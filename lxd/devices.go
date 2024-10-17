@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 type deviceTaskCPU struct {
@@ -482,6 +483,14 @@ func deviceTaskBalance(s *state.State) {
 			} else {
 				cpulimit = effectiveCpus
 			}
+		}
+
+		// Determine CPU pinning strategy and static pinning settings.
+		// When pinning strategy does not equal auto (none or empty), don't auto pin CPUs.
+		cpuPinStrategy := conf["limits.cpu.pin_strategy"]
+		staticPinning, _ := validate.IsStaticCPUPinning(cpulimit)
+		if c.Type() == instancetype.VM && !staticPinning && cpuPinStrategy != "auto" {
+			continue
 		}
 
 		// Check that the instance is running.
