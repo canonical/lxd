@@ -36,6 +36,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
+	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -109,6 +110,14 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 
 	if shared.IsTrue(config["security.privileged"]) && shared.IsTrue(config["nvidia.runtime"]) {
 		return fmt.Errorf("nvidia.runtime is incompatible with privileged containers")
+	}
+
+	// Validate pinning strategy when limits.cpu specifies static pinning.
+	cpuPinStrategy := config["limits.cpu.pin_strategy"]
+	cpuLimit := config["limits.cpu"]
+	err = validate.IsStaticCPUPinning(cpuLimit)
+	if err == nil && !expanded && cpuPinStrategy == "auto" {
+		return fmt.Errorf(`CPU pinning specified, but pinning strategy is set to "auto"`)
 	}
 
 	return nil
