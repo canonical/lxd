@@ -420,6 +420,7 @@ var APIExtensions = []string{
 	"metadata_configuration_entity_types",
 	"access_management_tls",
 	"network_allocations_ovn_uplink",
+	"network_ovn_uplink_vlan",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
