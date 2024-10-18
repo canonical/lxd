@@ -520,6 +520,10 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			}
 
 			localHTTPSAddress = req.ServerAddress
+		} else if util.IsWildCardAddress(localHTTPSAddress) {
+			// Clustering requires an explicit address,
+			// so if core.https_address is a wildcard, we should still use the explicitly defined address.
+			localHTTPSAddress = req.ServerAddress
 		}
 
 		// Update the cluster.https_address config key.
