@@ -1,5 +1,5 @@
 ---
-discourse: ubuntu:37214
+discourse: ubuntu:[Managing&#32;the&#32;LXD&#32;snap&#32;package](37214)
 ---
 
 (howto-snap)=
