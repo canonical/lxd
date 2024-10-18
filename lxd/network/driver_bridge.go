@@ -3110,6 +3110,18 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 			return nil, err
 		}
 
+		leasesCh := make(chan api.NetworkLease)
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			for lease := range leasesCh {
+				leases = append(leases, lease)
+			}
+
+			wg.Done()
+		}()
+
 		err = notifier(func(client lxd.InstanceServer) error {
 			memberLeases, err := client.GetNetworkLeases(n.name)
 			if err != nil {
@@ -3119,12 +3131,17 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 			// Add local leases from other members, filtering them for MACs that belong to the project.
 			for _, lease := range memberLeases {
 				if lease.Hwaddr != "" && shared.StringInSlice(lease.Hwaddr, projectMacs) {
-					leases = append(leases, lease)
+					leasesCh <- lease
 				}
 			}
 
 			return nil
 		})
+
+		// Finish up and wait for go routine.
+		close(leasesCh)
+		wg.Wait()
+
 		if err != nil {
 			return nil, err
 		}
