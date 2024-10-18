@@ -91,8 +91,18 @@ test_network() {
   grep -q "${v6_addr}.*nettest" "${LXD_DIR}/networks/lxdt$$/dnsmasq.hosts/nettest.eth0"
   lxc start nettest
 
+  # Create new project with an instance with ipv[46] for the next tests.
+  lxc project create foo -c features.networks=false -c features.images=false -c features.profiles=false
+  lxc launch testimage outsider -n lxdt$$ --project foo
+  v4_addr_foo="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)1"
+  v6_addr_foo="$(lxc network get lxdt$$ ipv6.address | cut -d/ -f1)01"
+  lxc config device set outsider eth0 ipv4.address "${v4_addr_foo}" --project foo
+  lxc config device set outsider eth0 ipv6.address "${v6_addr_foo}" --project foo
+
   lxc network list-leases lxdt$$ | grep STATIC | grep -q "${v4_addr}"
   lxc network list-leases lxdt$$ | grep STATIC | grep -q "${v6_addr}"
+  lxc network list-leases lxdt$$ --project foo | grep STATIC | grep -q "${v4_addr_foo}"
+  lxc network list-leases lxdt$$ --project foo | grep STATIC | grep -q "${v6_addr_foo}"
 
   # Request DHCPv6 lease (if udhcpc6 is in busybox image).
   busyboxUdhcpc6=1
@@ -114,7 +124,11 @@ test_network() {
   lxc network list-allocations localhost: | grep -e "${net_ipv4}" -e "${net_ipv6}"
   lxc network list-allocations localhost: | grep -e "/1.0/networks/lxdt$$" -e "/1.0/instances/nettest"
   lxc network list-allocations localhost: | grep -e "${v4_addr}" -e "${v6_addr}"
+  lxc network list-allocations --format csv | grep -q "/1.0/instances/outsider?project=foo,${v4_addr_foo}"
+  lxc network list-allocations --format csv | grep -q "/1.0/instances/outsider?project=foo,${v6_addr_foo}"
 
+  lxc delete -f outsider --project foo
+  lxc project delete foo
   lxc delete nettest -f
   lxc network delete lxdt$$
 }

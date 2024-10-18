@@ -18,7 +18,7 @@ defaults:
 
 jobs:
   trivy-repo:
-    name: Trivy vulnerability scanner - Repository
+    name: Trivy - Repository
     runs-on: ubuntu-22.04
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     steps:
@@ -49,7 +49,7 @@ jobs:
           ref: refs/heads/main
 
   trivy-snap:
-    name: Trivy vulnerability scanner - Snap
+    name: Trivy - Snap
     runs-on: ubuntu-22.04
     needs: trivy-repo
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}

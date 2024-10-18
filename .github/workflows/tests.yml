@@ -76,10 +76,8 @@ jobs:
       - name: Install build dependencies
         uses: ./.github/actions/install-lxd-builddeps
 
-      - name: Install test dependencies
+      - name: Download minio/mc
         run: |
-          python3 -m pip install flake8
-
           # Download minio ready to include in dependencies for system tests.
           mkdir -p "$(go env GOPATH)/bin"
           curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
@@ -417,13 +415,6 @@ jobs:
           calc: ALL
           tmpdir: /tmp/tics
 
-      # Verify doc links work
-      - name: Run link checker
-        shell: 'script -q -e -c "export TERM=xterm-256color; bash {0}"'
-        run: |
-          set -eux
-          make doc-linkcheck
-
   client:
     name: Client
     strategy:
@@ -554,9 +545,13 @@ jobs:
           fail-on-error: true
           woke-args: "*.md **/*.md -c https://github.com/canonical/Inclusive-naming/raw/main/config.yml"
 
-      # XXX: not running `make doc-linkcheck` here as it often fails due to
-      # remote sites applying rate limits. It is instead ran on a schedule
-      # along with Tiobe TICS
+      - name: Run link checker
+        # Run link checker during scheduled CI runs only
+        if: ${{ github.event_name == 'schedule' }}
+        shell: 'script -q -e -c "export TERM=xterm-256color; bash {0}"'
+        run: |
+          set -eux
+          make doc-linkcheck
 
       - name: Upload documentation artifacts
         if: always()
