@@ -197,11 +197,12 @@ type notifyFixtures struct {
 func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 	if n > 1 {
 		h.state.ServerClustered = true
+		h.state.ServerName = "0"
 	}
 
 	servers := make([]*httptest.Server, n)
 	for i := 0; i < n; i++ {
-		servers[i] = newRestServer(cert)
+		servers[i] = newRestServer(strconv.Itoa(i), cert)
 	}
 
 	// Insert new entries in the nodes table of the cluster database.
@@ -286,7 +287,7 @@ func (h *notifyFixtures) Unavailable(i int, err error) {
 
 // Returns a minimal stub for the LXD RESTful API server, just realistic
 // enough to make lxd.ConnectLXD succeed.
-func newRestServer(cert *shared.CertInfo) *httptest.Server {
+func newRestServer(name string, cert *shared.CertInfo) *httptest.Server {
 	mux := http.NewServeMux()
 
 	server := httptest.NewUnstartedServer(mux)
@@ -297,6 +298,17 @@ func newRestServer(cert *shared.CertInfo) *httptest.Server {
 		w.Header().Set("Content-Type", "application/json")
 		config := map[string]any{"cluster.https_address": server.Listener.Addr().String()}
 		metadata := api.ServerPut{Config: config}
+		_ = util.WriteJSON(w, api.ResponseRaw{Metadata: metadata}, nil)
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/1.0/cluster/members/%s/state", name), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		metadata := api.ClusterMemberState{
+			SysInfo: api.ClusterMemberSysInfo{
+				LogicalCPUs: 24,
+			},
+		}
+
 		_ = util.WriteJSON(w, api.ResponseRaw{Metadata: metadata}, nil)
 	})
 
