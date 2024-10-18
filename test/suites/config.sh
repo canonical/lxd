@@ -181,6 +181,12 @@ test_config_profiles() {
   lxc profile device list onenic | grep eth0
   lxc profile device show onenic | grep p2p
 
+  # test setting limits.cpu.pin_strategy at the local config and profile level
+  ! lxc config set c1 limits.cpu.pin_strategy=auto || false
+  lxc profile set default limits.cpu.pin_strategy=auto
+  ! lxc profile set default limits.cpu=1-2 || false # test adding a cpu limit with limits.cpu.pin_strategy set (should fail)
+  lxc profile unset default limits.cpu.pin_strategy
+
   # test live-adding a nic
   veth_host_name="veth$$"
   lxc start foo
