@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-10-16 10:01+0000\n"
+"POT-Creation-Date: 2024-10-18 09:58+0100\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://hosted.weblate.org/projects/linux-containers/"
@@ -1707,7 +1707,7 @@ msgstr ""
 #: lxc/network_acl.go:267 lxc/network_acl.go:328 lxc/network_acl.go:417
 #: lxc/network_acl.go:497 lxc/network_acl.go:527 lxc/network_acl.go:658
 #: lxc/network_acl.go:707 lxc/network_acl.go:756 lxc/network_acl.go:771
-#: lxc/network_acl.go:892 lxc/network_allocations.go:51
+#: lxc/network_acl.go:892 lxc/network_allocations.go:53
 #: lxc/network_forward.go:33 lxc/network_forward.go:90
 #: lxc/network_forward.go:171 lxc/network_forward.go:236
 #: lxc/network_forward.go:384 lxc/network_forward.go:453
@@ -2442,7 +2442,7 @@ msgstr ""
 #: lxc/cluster.go:125 lxc/cluster.go:882 lxc/cluster_group.go:406
 #: lxc/config_template.go:243 lxc/config_trust.go:352 lxc/config_trust.go:434
 #: lxc/image.go:1064 lxc/image_alias.go:157 lxc/list.go:133 lxc/network.go:917
-#: lxc/network.go:1008 lxc/network_acl.go:98 lxc/network_allocations.go:57
+#: lxc/network.go:1008 lxc/network_acl.go:98 lxc/network_allocations.go:59
 #: lxc/network_forward.go:93 lxc/network_load_balancer.go:97
 #: lxc/network_peer.go:85 lxc/network_zone.go:89 lxc/network_zone.go:697
 #: lxc/operation.go:109 lxc/profile.go:638 lxc/project.go:436
@@ -2677,7 +2677,7 @@ msgstr ""
 msgid "Group ID to run the command as (default 0)"
 msgstr ""
 
-#: lxc/network_allocations.go:28
+#: lxc/network_allocations.go:29
 msgid "HARDWARE ADDRESS"
 msgstr ""
 
@@ -3348,7 +3348,7 @@ msgid ""
 "  Defaults to -1 (unlimited). Use 0 to limit to the column header size."
 msgstr ""
 
-#: lxc/network_allocations.go:50 lxc/network_allocations.go:51
+#: lxc/network_allocations.go:52 lxc/network_allocations.go:53
 msgid "List network allocations in use"
 msgstr ""
 
@@ -4077,8 +4077,12 @@ msgstr ""
 msgid "NAME"
 msgstr ""
 
-#: lxc/network_allocations.go:27
+#: lxc/network_allocations.go:28
 msgid "NAT"
+msgstr ""
+
+#: lxc/network_allocations.go:26
+msgid "NETWORK"
 msgstr ""
 
 #: lxc/project.go:528
@@ -5048,7 +5052,7 @@ msgstr ""
 msgid "Role (admin or read-only)"
 msgstr ""
 
-#: lxc/network_allocations.go:58
+#: lxc/network_allocations.go:60
 msgid "Run again a specific project"
 msgstr ""
 
@@ -5056,7 +5060,7 @@ msgstr ""
 msgid "Run against all instances"
 msgstr ""
 
-#: lxc/network_allocations.go:59
+#: lxc/network_allocations.go:61
 msgid "Run against all projects"
 msgstr ""
 
@@ -5848,7 +5852,7 @@ msgstr ""
 
 #: lxc/auth.go:815 lxc/config_trust.go:408 lxc/image.go:1081
 #: lxc/image_alias.go:236 lxc/list.go:571 lxc/network.go:982
-#: lxc/network.go:1056 lxc/network_allocations.go:26 lxc/operation.go:172
+#: lxc/network.go:1056 lxc/network_allocations.go:27 lxc/operation.go:172
 #: lxc/storage_volume.go:1583 lxc/warning.go:216
 msgid "TYPE"
 msgstr ""
