@@ -1203,14 +1203,107 @@ func (d *pure) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 	return nil
 }
 
-// MountVolumeSnapshot simulates mounting a volume snapshot.
+// MountVolumeSnapshot creates a new temporary volume from a volume snapshot to allow mounting it.
 func (d *pure) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
-	return d.MountVolume(snapVol, op)
+	revert := revert.New()
+	defer revert.Fail()
+
+	parentVol := getSnapshotParentVolume(snapVol)
+
+	// Get the parent volume name.
+	parentVolName, err := d.getVolumeName(parentVol)
+	if err != nil {
+		return err
+	}
+
+	// Get the snapshot volume name.
+	snapVolName, err := d.getVolumeName(snapVol)
+	if err != nil {
+		return err
+	}
+
+	// A Pure Storage snapshot cannot be mounted. To mount a snapshot, a new volume
+	// has to be created from the snapshot.
+	err = d.client().copyVolumeSnapshot(snapVol.pool, parentVolName, snapVolName, snapVol.pool, snapVolName)
+	if err != nil {
+		return err
+	}
+
+	// Ensure temporary snapshot volume is remooved in case of an error.
+	revert.Add(func() { _ = d.client().deleteVolume(snapVol.pool, snapVolName) })
+
+	// For VMs, also create the temporary filesystem volume snapshot.
+	if snapVol.IsVMBlock() {
+		snapFsVol := snapVol.NewVMBlockFilesystemVolume()
+		snapFsVol.SetParentUUID(snapVol.parentUUID)
+
+		parentFsVol := getSnapshotParentVolume(snapFsVol)
+
+		snapFsVolName, err := d.getVolumeName(snapFsVol)
+		if err != nil {
+			return err
+		}
+
+		parentFsVolName, err := d.getVolumeName(parentFsVol)
+		if err != nil {
+			return err
+		}
+
+		err = d.client().copyVolumeSnapshot(snapVol.pool, parentFsVolName, snapFsVolName, snapVol.pool, snapFsVolName)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { _ = d.client().deleteVolume(snapVol.pool, snapFsVolName) })
+	}
+
+	err = d.MountVolume(snapVol, op)
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
+	return nil
 }
 
-// UnmountVolumeSnapshot simulates unmounting a volume snapshot.
+// UnmountVolumeSnapshot unmountes and deletes volume that was temporary created from a snapshot
+// to allow mounting it.
 func (d *pure) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
-	return d.UnmountVolume(snapVol, false, op)
+	ourUnmount, err := d.UnmountVolume(snapVol, false, op)
+	if err != nil {
+		return false, err
+	}
+
+	if !ourUnmount {
+		return false, nil
+	}
+
+	snapVolName, err := d.getVolumeName(snapVol)
+	if err != nil {
+		return true, err
+	}
+
+	// Cleanup temporary snapshot volume.
+	err = d.client().deleteVolume(snapVol.pool, snapVolName)
+	if err != nil {
+		return true, err
+	}
+
+	// For VMs, also cleanup the temporary volume for a filesystem snapshot.
+	if snapVol.IsVMBlock() {
+		snapFsVol := snapVol.NewVMBlockFilesystemVolume()
+		snapFsVolName, err := d.getVolumeName(snapFsVol)
+		if err != nil {
+			return true, err
+		}
+
+		err = d.client().deleteVolume(snapVol.pool, snapFsVolName)
+		if err != nil {
+			return true, err
+		}
+	}
+
+	return ourUnmount, nil
 }
 
 // VolumeSnapshots returns a list of Pure Storage snapshot names for the given volume (in no particular order).
