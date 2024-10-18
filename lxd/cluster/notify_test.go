@@ -49,7 +49,7 @@ func TestNewNotifier(t *testing.T) {
 	require.NoError(t, err)
 
 	peers := make(chan string, 2)
-	hook := func(client lxd.InstanceServer) error {
+	hook := func(member db.NodeInfo, client lxd.InstanceServer) error {
 		server, _, err := client.GetServer()
 		require.NoError(t, err)
 		address, ok := server.Config["cluster.https_address"].(string)
@@ -101,7 +101,7 @@ func TestNewNotify_NotifyAllError(t *testing.T) {
 	notifier, err := cluster.NewNotifier(state, cert, cert, cluster.NotifyAll)
 	assert.Nil(t, notifier)
 	require.Error(t, err)
-	assert.Regexp(t, "peer node .+ is down", err.Error())
+	assert.Regexp(t, "Peer cluster member .+ at .+ is down", err.Error())
 }
 
 // Creating a new notifier does not fail if the policy is set to NotifyAlive
@@ -133,7 +133,7 @@ func TestNewNotify_NotifyAlive(t *testing.T) {
 	assert.NoError(t, err)
 
 	i := 0
-	hook := func(client lxd.InstanceServer) error {
+	hook := func(member db.NodeInfo, client lxd.InstanceServer) error {
 		i++
 		return nil
 	}
@@ -171,7 +171,7 @@ func TestNewNotify_NotifyAliveShuttingDown(t *testing.T) {
 	assert.NoError(t, err)
 
 	connections := 0
-	hook := func(client lxd.InstanceServer) error {
+	hook := func(member db.NodeInfo, client lxd.InstanceServer) error {
 		connections++
 		// Notifiers do not GetServer() when they set up the connection;
 		_, _, err := client.GetServer()
@@ -195,6 +195,10 @@ type notifyFixtures struct {
 // The address of the first node spawned will be saved as local
 // cluster.https_address.
 func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
+	if n > 1 {
+		h.state.ServerClustered = true
+	}
+
 	servers := make([]*httptest.Server, n)
 	for i := 0; i < n; i++ {
 		servers[i] = newRestServer(cert)
