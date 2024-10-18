@@ -82,7 +82,7 @@ func MACDevName(mac net.HardwareAddr) string {
 func UsedByInstanceDevices(s *state.State, networkProjectName string, networkName string, networkType string, usageFunc func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error, filters ...cluster.InstanceFilter) error {
 	// Get the instances.
 	projects := map[string]api.Project{}
-	instances := []db.InstanceArgs{}
+	var instances []db.InstanceArgs
 
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
@@ -105,7 +105,7 @@ func UsedByInstanceDevices(s *state.State, networkProjectName string, networkNam
 
 		// Skip instances who's effective network project doesn't match this Network's project.
 		if instNetworkProject != networkProjectName {
-			return nil
+			continue
 		}
 
 		// Look for NIC devices using this network.
