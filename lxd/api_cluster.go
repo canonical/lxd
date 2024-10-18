@@ -1634,6 +1634,11 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 		return response.SmartError(err)
 	}
 
+	resp := forwardedResponseToNode(s, r, name)
+	if resp != nil {
+		return resp
+	}
+
 	leaderAddress, err := gateway.LeaderAddress()
 	if err != nil {
 		return response.InternalError(err)
@@ -2974,7 +2979,7 @@ func clusterNodeStateGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	memberState, err := cluster.MemberState(r.Context(), s, memberName)
+	memberState, err := cluster.MemberState(r.Context(), s)
 	if err != nil {
 		return response.SmartError(err)
 	}
