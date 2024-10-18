@@ -416,6 +416,7 @@ var APIExtensions = []string{
 	"ubuntu_pro_guest_attach",
 	"metadata_configuration_entity_types",
 	"network_allocations_ovn_uplink",
+	"network_ovn_uplink_vlan",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
