@@ -50,7 +50,7 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 			return err
 		}
 
-		// Mount volume.
+		// Unmount volume.
 		_, err = pool.UnmountCustomVolume(api.ProjectDefaultName, volumeName, nil)
 		if err != nil {
 			return fmt.Errorf("Failed to unmount storage volume %q: %w", source, err)
@@ -133,7 +133,7 @@ func daemonStorageMount(s *state.State) error {
 }
 
 func daemonStorageSplitVolume(volume string) (poolName string, volumeName string, err error) {
-	fields := strings.Split(volume, "/")
+	fields := strings.SplitN(volume, "/", 3)
 	if len(fields) != 2 {
 		return "", "", fmt.Errorf("Invalid syntax for volume, must be <pool>/<volume>")
 	}
@@ -312,6 +312,30 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 
 	// Parse the target.
 	poolName, volumeName, err := daemonStorageSplitVolume(target)
+	if err != nil {
+		return err
+	}
+
+	// Validate pool and volume exist.
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Validate pool exists.
+		poolID, _, _, err := tx.GetStoragePool(ctx, poolName)
+		if err != nil {
+			return fmt.Errorf("Unable to load storage pool %q: %w", poolName, err)
+		}
+
+		// Confirm volume exists.
+		dbVol, err := tx.GetStoragePoolVolume(ctx, poolID, api.ProjectDefaultName, cluster.StoragePoolVolumeTypeCustom, volumeName, true)
+		if err != nil {
+			return fmt.Errorf("Failed loading storage volume %q in %q project: %w", target, api.ProjectDefaultName, err)
+		}
+
+		if dbVol.ContentType != cluster.StoragePoolVolumeContentTypeNameFS {
+			return fmt.Errorf("Storage volume %q in %q project is not filesystem content type", target, api.ProjectDefaultName)
+		}
+
+		return nil
+	})
 	if err != nil {
 		return err
 	}
