@@ -1087,7 +1087,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		subnetSize, _ := subnet.Mask.Size()
 
-		if subnetSize > 64 {
+		if subnetSize < 64 {
 			n.logger.Warn("IPv6 networks with a prefix larger than 64 aren't properly supported by dnsmasq")
 
 			err = n.state.DB.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), warningtype.LargerIPv6PrefixThanSupported, "")
