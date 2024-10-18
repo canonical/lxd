@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-10-01 10:44+0100\n"
+"POT-Creation-Date: 2024-10-18 13:21+0000\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -579,15 +579,15 @@ msgstr "<alias> <target>"
 msgid "<old alias> <new alias>"
 msgstr "<old alias> <new alias>"
 
-#: lxc/remote.go:830 lxc/remote.go:887
+#: lxc/remote.go:848 lxc/remote.go:905
 msgid "<remote>"
 msgstr "<remote>"
 
-#: lxc/remote.go:927
+#: lxc/remote.go:945
 msgid "<remote> <URL>"
 msgstr "<remote> <URL>"
 
-#: lxc/remote.go:757
+#: lxc/remote.go:775
 msgid "<remote> <new-name>"
 msgstr "<remote> <new-name>"
 
@@ -622,7 +622,7 @@ msgstr "ALIASES"
 msgid "ARCHITECTURE"
 msgstr "ARCHITECTURE"
 
-#: lxc/remote.go:739
+#: lxc/remote.go:757
 msgid "AUTH TYPE"
 msgstr "AUTH TYPE"
 
@@ -740,7 +740,7 @@ msgstr "ACLにルールを追加します"
 msgid "Address: %s"
 msgstr "アドレス: %s"
 
-#: lxc/remote.go:564
+#: lxc/remote.go:582
 #, fuzzy, c-format
 msgid "Admin password (or token) for %s:"
 msgstr "%s の管理者パスワード:"
@@ -773,7 +773,7 @@ msgstr "エイリアス:"
 msgid "All projects"
 msgstr "利用可能なプロジェクト:"
 
-#: lxc/remote.go:181
+#: lxc/remote.go:188
 msgid "All server addresses are unavailable"
 msgstr ""
 
@@ -849,7 +849,7 @@ msgstr ""
 "このコマンドはインスタンスのブートコンソールに接続できます。\n"
 "そしてそこから過去のログエントリを取り出すことができます。"
 
-#: lxc/remote.go:550
+#: lxc/remote.go:568
 #, c-format
 msgid "Authentication type '%s' not supported by server"
 msgstr "認証タイプ '%s' はサーバではサポートされていません"
@@ -1024,7 +1024,7 @@ msgstr ""
 msgid "Can't read from stdin: %w"
 msgstr "標準入力から読み込めません: %w"
 
-#: lxc/remote.go:866
+#: lxc/remote.go:884
 msgid "Can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
 
@@ -1092,14 +1092,14 @@ msgstr "カード: %s (%s)"
 msgid "Certificate add token for %s deleted"
 msgstr "%s に対する証明書追加トークンが削除されました"
 
-#: lxc/remote.go:218
+#: lxc/remote.go:225
 #, c-format
 msgid ""
 "Certificate fingerprint mismatch between certificate token and server %q"
 msgstr ""
 "証明書のフィンガープリントが証明書トークンとサーバの間で一致しません %q"
 
-#: lxc/remote.go:451
+#: lxc/remote.go:469
 #, c-format
 msgid "Certificate fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
@@ -1113,7 +1113,7 @@ msgstr "Chassis"
 msgid "Client %s certificate add token:"
 msgstr "クライアント %s の証明書追加トークン:"
 
-#: lxc/remote.go:604
+#: lxc/remote.go:622
 msgid "Client certificate now trusted by server:"
 msgstr "クライアント証明書がサーバに信頼されました:"
 
@@ -1360,12 +1360,12 @@ msgstr "コア %d"
 msgid "Cores:"
 msgstr "コア:"
 
-#: lxc/remote.go:486
+#: lxc/remote.go:504
 #, fuzzy, c-format
 msgid "Could not close server cert file %q: %w"
 msgstr "サーバ証明書格納用のディレクトリを作成できません"
 
-#: lxc/remote.go:224 lxc/remote.go:470
+#: lxc/remote.go:231 lxc/remote.go:488
 msgid "Could not create server cert dir"
 msgstr "サーバ証明書格納用のディレクトリを作成できません"
 
@@ -1394,7 +1394,7 @@ msgstr "秘密鍵ファイル %s をエラーで読み込めません: %v"
 msgid "Could not write new remote certificate for remote '%s' with error: %v"
 msgstr "リモート '%s' に対する新しいリモート証明書がエラーで書き込めません: %v"
 
-#: lxc/remote.go:481
+#: lxc/remote.go:499
 #, fuzzy, c-format
 msgid "Could not write server cert file %q: %w"
 msgstr "サーバ証明書格納用のディレクトリを作成できません"
@@ -1690,8 +1690,8 @@ msgstr "警告を削除します"
 #: lxc/project.go:221 lxc/project.go:348 lxc/project.go:409 lxc/project.go:510
 #: lxc/project.go:567 lxc/project.go:646 lxc/project.go:677 lxc/project.go:730
 #: lxc/project.go:789 lxc/publish.go:33 lxc/query.go:34 lxc/remote.go:34
-#: lxc/remote.go:90 lxc/remote.go:632 lxc/remote.go:670 lxc/remote.go:760
-#: lxc/remote.go:833 lxc/remote.go:889 lxc/remote.go:929 lxc/rename.go:21
+#: lxc/remote.go:90 lxc/remote.go:650 lxc/remote.go:688 lxc/remote.go:778
+#: lxc/remote.go:851 lxc/remote.go:907 lxc/remote.go:947 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:92
 #: lxc/storage.go:166 lxc/storage.go:216 lxc/storage.go:340 lxc/storage.go:410
 #: lxc/storage.go:582 lxc/storage.go:661 lxc/storage.go:757 lxc/storage.go:843
@@ -2241,11 +2241,11 @@ msgstr "sshfs の起動に失敗しました: %w"
 msgid "Failed to accept incoming connection: %w"
 msgstr "受信接続の受け入れに失敗しました: %w"
 
-#: lxc/remote.go:190
+#: lxc/remote.go:197
 msgid "Failed to add remote"
 msgstr "リモートの追加に失敗しました"
 
-#: lxc/remote.go:241
+#: lxc/remote.go:248
 #, fuzzy, c-format
 msgid "Failed to close server cert file %q: %w"
 msgstr "%q の作成に失敗しました: %w"
@@ -2255,7 +2255,7 @@ msgstr "%q の作成に失敗しました: %w"
 msgid "Failed to connect to cluster member: %w"
 msgstr "クラスタメンバへの接続に失敗しました: %w"
 
-#: lxc/remote.go:231
+#: lxc/remote.go:238
 #, c-format
 msgid "Failed to create %q: %w"
 msgstr "%q の作成に失敗しました: %w"
@@ -2265,12 +2265,12 @@ msgstr "%q の作成に失敗しました: %w"
 msgid "Failed to create alias %s: %w"
 msgstr "エイリアス %s の作成に失敗しました: %w"
 
-#: lxc/remote.go:256
+#: lxc/remote.go:263
 #, c-format
 msgid "Failed to create certificate: %w"
 msgstr "証明書の作成に失敗しました: %w"
 
-#: lxc/remote.go:263
+#: lxc/remote.go:270
 #, c-format
 msgid "Failed to find project: %w"
 msgstr "プロジェクトが見つけられませんでした: %w"
@@ -2295,7 +2295,7 @@ msgstr "エイリアス %s の削除に失敗しました: %w"
 msgid "Failed to walk path for %s: %s"
 msgstr "パス %s にアクセスできませんでした: %s"
 
-#: lxc/remote.go:236
+#: lxc/remote.go:243
 #, fuzzy, c-format
 msgid "Failed to write server cert file %q: %w"
 msgstr "証明書の作成に失敗しました: %w"
@@ -2390,7 +2390,7 @@ msgstr ""
 #: lxc/network_allocations.go:57 lxc/network_forward.go:89
 #: lxc/network_peer.go:84 lxc/network_zone.go:88 lxc/network_zone.go:692
 #: lxc/operation.go:108 lxc/profile.go:617 lxc/project.go:411
-#: lxc/project.go:791 lxc/remote.go:674 lxc/storage.go:584
+#: lxc/project.go:791 lxc/remote.go:692 lxc/storage.go:584
 #: lxc/storage_volume.go:1418 lxc/warning.go:93
 msgid "Format (csv|json|table|yaml|compact)"
 msgstr "フォーマット (csv|json|table|yaml|compact)"
@@ -2427,7 +2427,7 @@ msgstr "クロック数: %vMhz"
 msgid "Frequency: %vMhz (min: %vMhz, max: %vMhz)"
 msgstr "クロック数: %vMhz (最小: %vMhz, 最大: %vMhz)"
 
-#: lxc/remote.go:742
+#: lxc/remote.go:760
 msgid "GLOBAL"
 msgstr "GLOBAL"
 
@@ -2443,7 +2443,7 @@ msgstr "GPUs:"
 msgid "Generate manpages for all commands"
 msgstr "すべてのコマンドに対する man ページを作成します"
 
-#: lxc/remote.go:159 lxc/remote.go:397
+#: lxc/remote.go:159 lxc/remote.go:406
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "クライアント証明書を生成します。1分ぐらいかかります..."
 
@@ -2813,7 +2813,7 @@ msgstr "インスタンスは以下のフィンガープリントで publish さ
 msgid "Instance type"
 msgstr "インスタンスタイプ"
 
-#: lxc/remote.go:349
+#: lxc/remote.go:358
 #, c-format
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr "不正な URL スキーム \"%s\" (\"%s\" 内)"
@@ -2902,7 +2902,7 @@ msgstr "引数の数が不正です"
 msgid "Invalid path %s"
 msgstr "不正なパス %s"
 
-#: lxc/remote.go:338
+#: lxc/remote.go:347
 #, c-format
 msgid "Invalid protocol: %s"
 msgstr "不正なプロトコル: %s"
@@ -3364,7 +3364,7 @@ msgstr ""
 "    L - インスタンスの場所 (例: its cluster member)\n"
 "    U - 現在のディスク使用量"
 
-#: lxc/remote.go:669 lxc/remote.go:670
+#: lxc/remote.go:687 lxc/remote.go:688
 msgid "List the available remotes"
 msgstr "利用可能なリモートサーバを一覧表示します"
 
@@ -3941,7 +3941,7 @@ msgstr "インスタンス名を指定する必要があります: "
 #: lxc/config_trust.go:409 lxc/config_trust.go:514 lxc/list.go:566
 #: lxc/network.go:976 lxc/network_acl.go:147 lxc/network_peer.go:139
 #: lxc/network_zone.go:138 lxc/network_zone.go:741 lxc/profile.go:657
-#: lxc/project.go:487 lxc/remote.go:736 lxc/storage.go:634
+#: lxc/project.go:487 lxc/remote.go:754 lxc/storage.go:634
 #: lxc/storage_volume.go:1506
 msgid "NAME"
 msgstr "NAME"
@@ -3963,8 +3963,8 @@ msgid "NICs:"
 msgstr "NICs:"
 
 #: lxc/network.go:953 lxc/operation.go:154 lxc/project.go:455
-#: lxc/project.go:460 lxc/project.go:465 lxc/project.go:470 lxc/remote.go:692
-#: lxc/remote.go:697 lxc/remote.go:702
+#: lxc/project.go:460 lxc/project.go:465 lxc/project.go:470 lxc/remote.go:710
+#: lxc/remote.go:715 lxc/remote.go:720
 msgid "NO"
 msgstr "NO"
 
@@ -4182,7 +4182,7 @@ msgstr "\"カスタム\" のボリュームのみがエクスポートできま�
 msgid "Only \"custom\" volumes can be snapshotted"
 msgstr "\"カスタム\" のボリュームのみがスナップショットを取得できます"
 
-#: lxc/remote.go:332
+#: lxc/remote.go:341
 msgid "Only https URLs are supported for simplestreams"
 msgstr "simplestreams は https の URL のみサポートします"
 
@@ -4249,11 +4249,11 @@ msgstr "PROFILES"
 msgid "PROJECT"
 msgstr "PROJECT"
 
-#: lxc/remote.go:738
+#: lxc/remote.go:756
 msgid "PROTOCOL"
 msgstr "PROTOCOL"
 
-#: lxc/image.go:1070 lxc/remote.go:740
+#: lxc/image.go:1070 lxc/remote.go:758
 msgid "PUBLIC"
 msgstr "PUBLIC"
 
@@ -4282,7 +4282,7 @@ msgstr "インスタンスを一時停止します"
 msgid "Perform an incremental copy"
 msgstr "インクリメンタルコピーを実行します"
 
-#: lxc/remote.go:182
+#: lxc/remote.go:189
 #, fuzzy
 msgid "Please provide an alternate server address (empty to abort):"
 msgstr "別のサーバ用設定ディレクトリ"
@@ -4295,7 +4295,7 @@ msgstr "クライアント名を入力してください: "
 msgid "Please provide cluster member name: "
 msgstr "クラスターメンバー名を入力してください: "
 
-#: lxc/remote.go:462
+#: lxc/remote.go:480
 msgid "Please type 'y', 'n' or the fingerprint:"
 msgstr "'y', 'n', フィンガープリントのどれかを入力してください:"
 
@@ -4601,33 +4601,33 @@ msgstr "インスタンスの更新中: %s"
 msgid "Refreshing the image: %s"
 msgstr "イメージの更新中: %s"
 
-#: lxc/remote.go:790
+#: lxc/remote.go:808
 #, c-format
 msgid "Remote %s already exists"
 msgstr "リモート %s は既に存在します"
 
-#: lxc/project.go:756 lxc/remote.go:781 lxc/remote.go:854 lxc/remote.go:910
-#: lxc/remote.go:950
+#: lxc/project.go:756 lxc/remote.go:799 lxc/remote.go:872 lxc/remote.go:928
+#: lxc/remote.go:968
 #, c-format
 msgid "Remote %s doesn't exist"
 msgstr "リモート %s は存在しません"
 
-#: lxc/remote.go:301
+#: lxc/remote.go:308
 #, c-format
 msgid "Remote %s exists as <%s>"
 msgstr "リモート %s は <%s> として存在します"
 
-#: lxc/remote.go:862
+#: lxc/remote.go:880
 #, c-format
 msgid "Remote %s is global and cannot be removed"
 msgstr "リモート %s は global ですので削除できません"
 
-#: lxc/remote.go:785 lxc/remote.go:858 lxc/remote.go:954
+#: lxc/remote.go:803 lxc/remote.go:876 lxc/remote.go:972
 #, c-format
 msgid "Remote %s is static and cannot be modified"
 msgstr "リモート %s は static ですので変更できません"
 
-#: lxc/remote.go:290
+#: lxc/remote.go:297
 msgid "Remote address must not be empty"
 msgstr ""
 
@@ -4635,7 +4635,7 @@ msgstr ""
 msgid "Remote admin password"
 msgstr "リモートの管理者パスワード"
 
-#: lxc/remote.go:295
+#: lxc/remote.go:302
 msgid "Remote names may not contain colons"
 msgstr "リモート名にコロンを含めることはできません"
 
@@ -4693,7 +4693,7 @@ msgstr "フォワードからポートを削除します"
 msgid "Remove profiles from instances"
 msgstr "インスタンスからプロファイルを削除します"
 
-#: lxc/remote.go:832 lxc/remote.go:833
+#: lxc/remote.go:850 lxc/remote.go:851
 msgid "Remove remotes"
 msgstr "リモートサーバを削除します"
 
@@ -4744,7 +4744,7 @@ msgstr "プロファイル名を変更します"
 msgid "Rename projects"
 msgstr "プロジェクト名を変更します"
 
-#: lxc/remote.go:759 lxc/remote.go:760
+#: lxc/remote.go:777 lxc/remote.go:778
 msgid "Rename remotes"
 msgstr "リモートサーバ名を変更します"
 
@@ -4889,7 +4889,7 @@ msgstr "SSH クライアントが切断されました %q"
 msgid "STATE"
 msgstr "STATE"
 
-#: lxc/remote.go:741
+#: lxc/remote.go:759
 msgid "STATIC"
 msgstr "STATIC"
 
@@ -4917,11 +4917,11 @@ msgstr "直接リクエスト (raw query) を LXD に送ります"
 msgid "Server authentication type (tls or candid)"
 msgstr "サーバの認証タイプ (tls もしくは candid)"
 
-#: lxc/remote.go:460
+#: lxc/remote.go:478
 msgid "Server certificate NACKed by user"
 msgstr "ユーザによりサーバ証明書が拒否されました"
 
-#: lxc/remote.go:600
+#: lxc/remote.go:618
 msgid "Server doesn't trust us after authentication"
 msgstr "認証後、サーバが我々を信用していません"
 
@@ -5151,7 +5151,7 @@ msgstr ""
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
 "    lxc storage volume set [<remote>:]<pool> <volume> <key> <value>"
 
-#: lxc/remote.go:928 lxc/remote.go:929
+#: lxc/remote.go:946 lxc/remote.go:947
 msgid "Set the URL for the remote"
 msgstr "リモートの URL を設定します"
 
@@ -5334,7 +5334,7 @@ msgstr "ストレージボリュームの設定を表示する"
 msgid "Show storage volume state information"
 msgstr "ストレージボリュームの状態を表示します"
 
-#: lxc/remote.go:631 lxc/remote.go:632
+#: lxc/remote.go:649 lxc/remote.go:650
 msgid "Show the default remote"
 msgstr "デフォルトのリモートを表示します"
 
@@ -5522,7 +5522,7 @@ msgstr "Swap (ピーク)"
 msgid "Switch the current project"
 msgstr "現在のプロジェクトを切り替えます"
 
-#: lxc/remote.go:888 lxc/remote.go:889
+#: lxc/remote.go:906 lxc/remote.go:907
 msgid "Switch the default remote"
 msgstr "デフォルトのリモートを切り替えます"
 
@@ -5892,7 +5892,7 @@ msgstr "UNLIMITED"
 msgid "UPLOAD DATE"
 msgstr "UPLOAD DATE"
 
-#: lxc/cluster.go:180 lxc/remote.go:737
+#: lxc/cluster.go:180 lxc/remote.go:755
 msgid "URL"
 msgstr "URL"
 
@@ -5920,7 +5920,7 @@ msgstr "UUID: %v"
 msgid "Unable to create a temporary file: %v"
 msgstr "テンポラリファイルを作成できません: %v"
 
-#: lxc/remote.go:213 lxc/remote.go:247
+#: lxc/remote.go:220 lxc/remote.go:254
 #, fuzzy
 msgid "Unavailable remote server"
 msgstr "新たにリモートサーバを追加します"
@@ -6215,8 +6215,8 @@ msgid "Whether or not to snapshot the instance's running state"
 msgstr "インスタンスの稼動状態のスナップショットを取得するかどうか"
 
 #: lxc/network.go:955 lxc/operation.go:156 lxc/project.go:457
-#: lxc/project.go:462 lxc/project.go:467 lxc/project.go:472 lxc/remote.go:694
-#: lxc/remote.go:699 lxc/remote.go:704
+#: lxc/project.go:462 lxc/project.go:467 lxc/project.go:472 lxc/remote.go:712
+#: lxc/remote.go:717 lxc/remote.go:722
 msgid "YES"
 msgstr "YES"
 
@@ -6801,7 +6801,7 @@ msgstr "[<remote>] <IP|FQDN|URL|token>"
 msgid "[[<remote>:]<name>]"
 msgstr "[<remote>:] <name>"
 
-#: lxc/project.go:477 lxc/remote.go:727
+#: lxc/project.go:477 lxc/remote.go:745
 msgid "current"
 msgstr "現在値"
 
@@ -7219,7 +7219,7 @@ msgstr ""
 "lxc storage volume import default backup0.tar.gz\n"
 "\t\tbackup0.tar.gz を使って新しいカスタムボリュームを作成します。"
 
-#: lxc/remote.go:459
+#: lxc/remote.go:477
 msgid "n"
 msgstr "n"
 
@@ -7231,7 +7231,7 @@ msgstr "名前"
 msgid "no"
 msgstr "no"
 
-#: lxc/remote.go:452
+#: lxc/remote.go:470
 msgid "ok (y/n/[fingerprint])?"
 msgstr "ok (y/n/[fingerprint])?"
 
@@ -7270,7 +7270,7 @@ msgstr "サーバに接続できません"
 msgid "used by"
 msgstr "ストレージを使用中の"
 
-#: lxc/remote.go:461
+#: lxc/remote.go:479
 msgid "y"
 msgstr "y"
 
