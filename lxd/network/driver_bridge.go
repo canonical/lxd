@@ -3447,10 +3447,23 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 	instanceProjects := make(map[string]string)
 	leases := []api.NetworkLease{}
 
+	// Include gateway leases if network is visible from requested project or requesting all projects.
+	// Avoid querying project if we don't need to check features.networks.
+	includeGatewayLeases := projectName == "" || n.project == projectName
+	if !includeGatewayLeases {
+		var effectiveProject string
+		effectiveProject, _, err = project.NetworkProject(n.state.DB.Cluster, projectName)
+		if err != nil {
+			return nil, err
+		}
+
+		includeGatewayLeases = n.project == effectiveProject
+	}
+
 	// Get all static leases.
 	if clientType == request.ClientTypeNormal {
-		// If requested project matches network's project then include gateway and downstream uplink IPs.
-		if projectName == n.project || projectName == "" {
+		// Include gateway IPs if applicable.
+		if includeGatewayLeases {
 			// Add our own gateway IPs.
 			for _, addr := range []string{n.config["ipv4.address"], n.config["ipv6.address"]} {
 				ip, _, _ := net.ParseCIDR(addr)
