@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-10-18 13:21+0000\n"
+"POT-Creation-Date: 2024-10-21 14:19+0100\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -6712,7 +6712,8 @@ msgid "[<remote>:]<profile> <key>"
 msgstr "[<remote>:]<profile> <key>"
 
 #: lxc/profile.go:800
-msgid "[<remote>:]<profile> <key><value>..."
+#, fuzzy
+msgid "[<remote>:]<profile> <key>=<value>..."
 msgstr "[<remote>:]<profile> <key><value>..."
 
 #: lxc/config_device.go:445
