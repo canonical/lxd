@@ -796,7 +796,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Failed loading project %q: %w", name, err)
 			}
 
-			empty, err := projectIsEmpty(ctx, project, tx)
+			empty, err := projectIsEmpty(ctx, project, tx, true)
 			if err != nil {
 				return err
 			}
@@ -867,13 +867,27 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Fetch project %q: %w", name, err)
 		}
 
-		empty, err := projectIsEmpty(ctx, project, tx)
+		empty, err := projectIsEmpty(ctx, project, tx, true)
 		if err != nil {
 			return err
 		}
 
 		if !empty {
 			return fmt.Errorf("Only empty projects can be removed")
+		}
+
+		// Remove any automatically cached images.
+		filterForCached := true
+		cachedImages, err := cluster.GetImages(ctx, tx.Tx(), cluster.ImageFilter{Project: &project.Name, Cached: &filterForCached})
+		if err != nil {
+			return err
+		}
+
+		for _, image := range cachedImages {
+			err = tx.DeleteImage(ctx, image.ID)
+			if err != nil {
+				return err
+			}
 		}
 
 		return cluster.DeleteProject(ctx, tx.Tx(), name)
@@ -953,7 +967,7 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 }
 
 // Check if a project is empty.
-func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.ClusterTx) (bool, error) {
+func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.ClusterTx, ignoreCachedImages bool) (bool, error) {
 	instances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: &project.Name})
 	if err != nil {
 		return false, err
@@ -969,7 +983,15 @@ func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.Cluste
 	}
 
 	if len(images) > 0 {
-		return false, nil
+		if !ignoreCachedImages {
+			return false, nil
+		}
+
+		for _, image := range images {
+			if !image.Cached {
+				return false, nil
+			}
+		}
 	}
 
 	profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{Project: &project.Name})
