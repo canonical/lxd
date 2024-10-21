@@ -421,6 +421,7 @@ var APIExtensions = []string{
 	"metrics_api_requests",
 	"projects_limits_disk_pool",
 	"access_management_tls",
+	"state_logical_cpus",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

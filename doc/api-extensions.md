@@ -2511,3 +2511,8 @@ Expands APIs under `/1.0/auth` to include:
   The caller must provide a base64 encoded x509 certificate in the `certificate` field of the request body.
   Fine-grained TLS identities may update their own certificate.
   To update the certificate of another identity, the caller must have `can_edit` on the identity.
+
+## `state_logical_cpus`
+
+Adds `logical_cpus` field to `GET /1.0/cluster/members/{name}/state` which
+contains the total available logical CPUs available when LXD started.
