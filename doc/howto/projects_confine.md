@@ -58,7 +58,7 @@ However, it does not confine the client to this project.
 First create a group and grant the group the `operator` entitlement on the project.
 
     lxc auth group create <group_name>
-    lxc auth group permission add <group_name> project operator <project_name>
+    lxc auth group permission add <group_name> project <project_name> operator
 
 The `operator` entitlement grants members of the group permission to create and edit resources belonging to that project, but does not grant permission to delete the project or edit its configuration.
 See {ref}`fine-grained-authorization` for more details.
@@ -194,7 +194,7 @@ Make sure that `restricted` is set to `true` and specify the projects that the c
 Create a group with the `operator` entitlement on the project:
 
     lxc auth group create <group_name>
-    lxc auth group permission add <group_name> project operator <project_name>
+    lxc auth group permission add <group_name> project <project_name> operator
 
 Then add the group to the identity. For TLS identities run:
 
