@@ -138,7 +138,7 @@ func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, 
 
 		// Get the local resource usage.
 		if memberName == s.ServerName {
-			memberState, err = cluster.MemberState(ctx, s, memberName)
+			memberState, err = cluster.MemberState(ctx, s)
 			if err != nil {
 				return nil, err
 			}

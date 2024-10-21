@@ -2821,7 +2821,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			err = notifier(func(client lxd.InstanceServer) error {
+			err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 				op, err := client.UseProject(projectName).DeleteImage(details.image.Fingerprint)
 				if err != nil {
 					return fmt.Errorf("Failed to request to delete image from peer node: %w", err)
