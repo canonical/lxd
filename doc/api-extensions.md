@@ -2511,3 +2511,8 @@ And lastly, adds a `project` field on leases, leases can be retrieved via `/1.0/
 ## `network_ovn_uplink_vlan`
 
 Adds support for using a bridge network with a specified VLAN ID as an OVN uplink.
+
+## `state_logical_cpus`
+
+Adds `logical_cpus` field to `GET /1.0/cluster/members/{name}/state` which
+contains the total available logical CPUs available when LXD started.
