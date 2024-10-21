@@ -389,7 +389,9 @@ func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.Clus
 		out.AddSamples(metrics.WarningsTotal, metrics.Sample{Value: float64(len(warnings))})
 	}
 
-	operations, err := dbCluster.GetOperations(ctx, tx.Tx())
+	// Create local variable to get a pointer.
+	nodeID := tx.GetNodeID()
+	operations, err := dbCluster.GetOperations(ctx, tx.Tx(), dbCluster.OperationFilter{NodeID: &nodeID})
 	if err != nil {
 		logger.Warn("Failed to get operations", logger.Ctx{"err": err})
 	} else {
