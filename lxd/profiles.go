@@ -232,13 +232,23 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if recursion {
+			profileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
+			if err != nil {
+				return err
+			}
+
+			profileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
+			if err != nil {
+				return err
+			}
+
 			apiProfiles = make([]*api.Profile, 0, len(profiles))
 			for _, profile := range profiles {
 				if !userHasPermission(entity.ProfileURL(requestProjectName, profile.Name)) {
 					continue
 				}
 
-				apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+				apiProfile, err := profile.ToAPI(ctx, tx.Tx(), profileConfigs, profileDevices)
 				if err != nil {
 					return err
 				}
@@ -465,7 +475,17 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Fetch profile: %w", err)
 		}
 
-		resp, err = profile.ToAPI(ctx, tx.Tx())
+		profileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
+		if err != nil {
+			return err
+		}
+
+		profileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
+		if err != nil {
+			return err
+		}
+
+		resp, err = profile.ToAPI(ctx, tx.Tx(), profileConfigs, profileDevices)
 		if err != nil {
 			return err
 		}
@@ -551,7 +571,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed to retrieve profile %q: %w", details.profileName, err)
 		}
 
-		profile, err = current.ToAPI(ctx, tx.Tx())
+		profile, err = current.ToAPI(ctx, tx.Tx(), nil, nil)
 		if err != nil {
 			return err
 		}
@@ -651,7 +671,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed to retrieve profile=%q: %w", details.profileName, err)
 		}
 
-		profile, err = current.ToAPI(ctx, tx.Tx())
+		profile, err = current.ToAPI(ctx, tx.Tx(), nil, nil)
 		if err != nil {
 			return err
 		}
