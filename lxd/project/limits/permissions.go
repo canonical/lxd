@@ -1288,43 +1288,39 @@ func fetchProject(globalConfig map[string]any, tx *db.ClusterTx, projectName str
 		profiles = append(profiles, *apiProfile)
 	}
 
-	drivers, err := tx.GetStoragePoolDrivers(ctx)
+	info := &projectInfo{
+		Project:  *project,
+		Profiles: profiles,
+	}
+
+	instanceFilter := cluster.InstanceFilter{
+		Project: &projectName,
+	}
+
+	instanceFunc := func(inst db.InstanceArgs, project api.Project) error {
+		apiInstance, err := inst.ToAPI()
+		if err != nil {
+			return err
+		}
+
+		info.Instances = append(info.Instances, *apiInstance)
+
+		return nil
+	}
+
+	err = tx.InstanceList(ctx, instanceFunc, instanceFilter)
+	if err != nil {
+		return nil, fmt.Errorf("Fetch instances from database: %w", err)
+	}
+
+	info.StoragePoolDrivers, err = tx.GetStoragePoolDrivers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Fetch storage pools from database: %w", err)
 	}
 
-	dbInstances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: &projectName})
-	if err != nil {
-		return nil, fmt.Errorf("Fetch project instances from database: %w", err)
-	}
-
-	dbInstanceDevices, err := cluster.GetDevices(ctx, tx.Tx(), "instance")
-	if err != nil {
-		return nil, fmt.Errorf("Fetch instance devices from database: %w", err)
-	}
-
-	instances := make([]api.Instance, 0, len(dbInstances))
-	for _, instance := range dbInstances {
-		apiInstance, err := instance.ToAPI(ctx, tx.Tx(), globalConfig, dbInstanceDevices, dbProfileConfigs, dbProfileDevices)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get API data for instance %q in project %q: %w", instance.Name, instance.Project, err)
-		}
-
-		instances = append(instances, *apiInstance)
-	}
-
-	volumes, err := tx.GetCustomVolumesInProject(ctx, projectName)
+	info.Volumes, err = tx.GetCustomVolumesInProject(ctx, projectName)
 	if err != nil {
 		return nil, fmt.Errorf("Fetch project custom volumes from database: %w", err)
-	}
-
-	info := &projectInfo{
-		Project:   *project,
-		Profiles:  profiles,
-		Instances: instances,
-		Volumes:   volumes,
-
-		StoragePoolDrivers: drivers,
 	}
 
 	return info, nil
