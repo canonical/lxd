@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-        "POT-Creation-Date: 2024-10-18 09:58+0100\n"
+        "POT-Creation-Date: 2024-10-21 13:44+0100\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6549,7 +6549,7 @@ msgid   "[<remote>:]<profile> <key>"
 msgstr  ""
 
 #: lxc/profile.go:821
-msgid   "[<remote>:]<profile> <key><value>..."
+msgid   "[<remote>:]<profile> <key>=<value>..."
 msgstr  ""
 
 #: lxc/config_device.go:446

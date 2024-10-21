@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-10-18 09:58+0100\n"
+"POT-Creation-Date: 2024-10-21 13:43+0100\n"
 "PO-Revision-Date: 2023-06-16 20:55+0000\n"
 "Last-Translator: Francisco Serrador <fserrador@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -7592,7 +7592,7 @@ msgstr "No se puede proveer el nombre del container a la lista"
 
 #: lxc/profile.go:821
 #, fuzzy
-msgid "[<remote>:]<profile> <key><value>..."
+msgid "[<remote>:]<profile> <key>=<value>..."
 msgstr "No se puede proveer el nombre del container a la lista"
 
 #: lxc/config_device.go:446
