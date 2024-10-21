@@ -1,5 +1,5 @@
 ---
-discourse: ubuntu:37214, ubuntu:37327
+discourse: ubuntu:[Managing&#32;the&#32;LXD&#32;snap&#32;package](37214), ubuntu:[Building&#32;custom&#32;LXD&#32;binaries&#32;for&#32;side&#32;loading&#32;into&#32;an&#32;existing&#32;snap&#32;installation](37327)
 ---
 
 # How to install LXD
