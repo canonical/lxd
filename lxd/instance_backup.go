@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
@@ -24,6 +25,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -162,10 +164,25 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 	resultString := []string{}
 	resultMap := []*api.InstanceBackup{}
 
+	canView, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeInstanceBackup)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	for _, backup := range backups {
+		_, backupName, ok := strings.Cut(backup.Name(), "/")
+		if !ok {
+			// Not adding the name to the error response here because we were unable to check if the caller is allowed to view it.
+			return response.InternalError(fmt.Errorf("Instance backup has invalid name"))
+		}
+
+		if !canView(entity.InstanceBackupURL(projectName, c.Name(), backupName)) {
+			continue
+		}
+
 		if !recursion {
 			url := fmt.Sprintf("/%s/instances/%s/backups/%s",
-				version.APIVersion, cname, strings.Split(backup.Name(), "/")[1])
+				version.APIVersion, cname, backupName)
 			resultString = append(resultString, url)
 		} else {
 			render := backup.Render()
