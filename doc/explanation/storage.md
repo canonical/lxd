@@ -24,6 +24,7 @@ The following storage drivers are supported:
 - [CephFS - `cephfs`](storage-cephfs)
 - [Ceph Object - `cephobject`](storage-cephobject)
 - [Dell PowerFlex - `powerflex`](storage-powerflex)
+- [Pure Storage - `pure`](storage-pure)
 
 See the following how-to guides for additional information:
 
@@ -36,12 +37,12 @@ See the following how-to guides for additional information:
 Where the LXD data is stored depends on the configuration and the selected storage driver.
 Depending on the storage driver that is used, LXD can either share the file system with its host or keep its data separate.
 
-Storage location         | Directory | Btrfs    | LVM      | ZFS      | Ceph (all) | Dell PowerFlex |
-:---                     | :-:       | :-:      | :-:      | :-:      | :-:        | :-:            |
-Shared with the host     | &#x2713;  | &#x2713; | -        | &#x2713; | -          | -              |
-Dedicated disk/partition | -         | &#x2713; | &#x2713; | &#x2713; | -          | -              |
-Loop disk                | -         | &#x2713; | &#x2713; | &#x2713; | -          | -              |
-Remote storage           | -         | -        | -        | -        | &#x2713;   | &#x2713;       |
+Storage location         | Directory | Btrfs    | LVM      | ZFS      | Ceph (all) | Dell PowerFlex | Pure Storage |
+:---                     | :-:       | :-:      | :-:      | :-:      | :-:        | :-:            | :-:         |
+Shared with the host     | &#x2713;  | &#x2713; | -        | &#x2713; | -          | -              | -           |
+Dedicated disk/partition | -         | &#x2713; | &#x2713; | &#x2713; | -          | -              | -           |
+Loop disk                | -         | &#x2713; | &#x2713; | &#x2713; | -          | -              | -           |
+Remote storage           | -         | -        | -        | -        | &#x2713;   | &#x2713;       | &#x2713;    |
 
 #### Shared with the host
 
@@ -71,7 +72,7 @@ You can increase their size (quota) though; see {ref}`storage-resize-pool`.
 #### Remote storage
 
 The `ceph`, `cephfs` and `cephobject` drivers store the data in a completely independent Ceph storage cluster that must be set up separately.
-The same applies to the `powerflex` driver.
+The same applies to the `powerflex` and `pure` drivers.
 
 (storage-default-pool)=
 ### Default storage pool
