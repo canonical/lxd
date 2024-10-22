@@ -15,6 +15,7 @@ storage_cephfs
 storage_cephobject
 storage_ceph
 storage_powerflex
+storage_pure
 storage_dir
 storage_lvm
 storage_zfs
@@ -27,29 +28,30 @@ See the corresponding pages for driver-specific information and configuration op
 
 Where possible, LXD uses the advanced features of each storage system to optimize operations.
 
-Feature                                     | Directory | Btrfs | LVM   | ZFS    | Ceph RBD | CephFS | Ceph Object | Dell PowerFlex
-:---                                        | :---      | :---  | :---  | :---   | :---     | :---   | :---        | :---
-{ref}`storage-optimized-image-storage`      | ❌        | ✅   | ✅     | ✅     | ✅       | ➖     | ➖          | ❌
-Optimized instance creation                 | ❌        | ✅   | ✅     | ✅     | ✅       | ➖     | ➖          | ❌
-Optimized snapshot creation                 | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ✅
-Optimized image transfer                    | ❌        | ✅   | ❌     | ✅     | ✅       | ➖     | ➖          | ❌
-Optimized backup (import/export)            | ❌        | ✅   | ❌     | ✅     | ❌       | ➖     | ➖          | ❌
-{ref}`storage-optimized-volume-transfer`    | ❌        | ✅   | ❌     | ✅     | ✅[^1]   | ➖     | ➖          | ❌
-{ref}`storage-optimized-volume-refresh`     | ❌        | ✅   | ✅[^2] | ✅     | ✅[^3]   | ➖     | ➖          | ❌
-Copy on write                               | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ✅
-Block based                                 | ❌        | ❌   | ✅     | ❌      | ✅      | ❌     | ➖          | ✅
-Instant cloning                             | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ❌
-Storage driver usable inside a container    | ✅        | ✅   | ❌     | ✅[^4] | ❌       | ➖     | ➖          | ❌
-Restore from older snapshots (not latest)   | ✅        | ✅   | ✅     | ❌      | ✅      | ✅     | ➖          | ✅
-Storage quotas                              | ✅[^5]    | ✅   | ✅     | ✅     | ✅       | ✅     | ✅          | ✅
-Available on `lxd init`                     | ✅        | ✅   | ✅     | ✅     | ✅       | ❌     | ❌          | ❌
-Object storage                              | ✅        | ✅   | ✅     | ✅     | ❌       | ❌     | ✅          | ❌
+Feature                                     | Directory | Btrfs | LVM   | ZFS    | Ceph RBD | CephFS | Ceph Object | Dell PowerFlex | PureStorage
+:---                                        | :---      | :---  | :---  | :---   | :---     | :---   | :---        | :---           | :---
+{ref}`storage-optimized-image-storage`      | ❌        | ✅   | ✅     | ✅     | ✅       | ➖     | ➖          | ❌              | ✅
+Optimized instance creation                 | ❌        | ✅   | ✅     | ✅     | ✅       | ➖     | ➖          | ❌              | ✅
+Optimized snapshot creation                 | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ✅              | ✅
+Optimized image transfer                    | ❌        | ✅   | ❌     | ✅     | ✅       | ➖     | ➖          | ❌              | ✅
+Optimized backup (import/export)            | ❌        | ✅   | ❌     | ✅     | ❌       | ➖     | ➖          | ❌              | ❌
+{ref}`storage-optimized-volume-transfer`    | ❌        | ✅   | ❌     | ✅     | ✅[^1]   | ➖     | ➖          | ❌              | ✅[^6]
+{ref}`storage-optimized-volume-refresh`     | ❌        | ✅   | ✅[^2] | ✅     | ✅[^3]   | ➖     | ➖          | ❌              | ✅[^6]
+Copy on write                               | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ✅              | ✅
+Block based                                 | ❌        | ❌   | ✅     | ❌      | ✅      | ❌     | ➖          | ✅              | ✅
+Instant cloning                             | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ❌              | ✅
+Storage driver usable inside a container    | ✅        | ✅   | ❌     | ✅[^4] | ❌       | ➖     | ➖          | ❌              | ❌
+Restore from older snapshots (not latest)   | ✅        | ✅   | ✅     | ❌      | ✅      | ✅     | ➖          | ✅              | ✅
+Storage quotas                              | ✅[^5]    | ✅   | ✅     | ✅     | ✅       | ✅     | ✅          | ✅              | ✅
+Available on `lxd init`                     | ✅        | ✅   | ✅     | ✅     | ✅       | ❌     | ❌          | ❌              | ❌
+Object storage                              | ✅        | ✅   | ✅     | ✅     | ❌       | ❌     | ✅          | ❌              | ❌
 
 [^1]: Volumes of type `block` will fall back to non-optimized transfer when migrating to an older LXD server that doesn't yet support the `RBD_AND_RSYNC` migration type.
 [^2]: Requires {config:option}`storage-lvm-pool-conf:lvm.use_thinpool` to be enabled. Only when refreshing local volumes.
 [^3]: Only for volumes of type `block`.
 [^4]: Requires {config:option}`storage-zfs-volume-conf:zfs.delegate` to be enabled.
 [^5]: % Include content from [storage_dir.md](storage_dir.md)
+[^6]: The optimized refresh works only on the single PureStorage array that is used by single LXD host or cluster.
 
       ```{include} storage_dir.md
          :start-after: <!-- Include start dir quotas -->
