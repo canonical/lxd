@@ -389,6 +389,21 @@ type instance
 
     # Grants permission to start a terminal session.
     define can_exec: [identity, service_account, group#member] or user or operator or can_operate_instances from project
+
+type instance_snapshot
+  relations
+    define instance: [instance]
+    define can_view: can_view from instance
+    define can_edit: can_manage_snapshots from instance
+    define can_delete: can_manage_snapshots from instance
+
+type instance_backup
+  relations
+    define instance: [instance]
+    define can_view: can_view from instance
+    define can_edit: can_manage_backups from instance
+    define can_delete: can_manage_backups from instance
+
 type network
   relations
     define project: [project]
@@ -455,6 +470,21 @@ type storage_volume
 
     # Grants permission to create and delete backups of the storage volume.
     define can_manage_backups: [identity, service_account, group#member] or can_edit_storage_volumes from project
+
+type storage_volume_snapshot
+  relations
+    define storage_volume: [storage_volume]
+    define can_view: can_view from storage_volume
+    define can_edit: can_manage_snapshots from storage_volume
+    define can_delete: can_manage_snapshots from storage_volume
+
+type storage_volume_backup
+  relations
+    define storage_volume: [storage_volume]
+    define can_view: can_view from storage_volume
+    define can_edit: can_manage_backups from storage_volume
+    define can_delete: can_manage_backups from storage_volume
+        
 type storage_bucket
   relations
     define project: [project]
