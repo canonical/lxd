@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -378,10 +379,39 @@ func getFilteredMetrics(s *state.State, r *http.Request, compress bool, metricSe
 	return response.SyncResponsePlain(true, compress, metricSet.String())
 }
 
+// clusterMemberWarnings returns the list of unresolved and unacknowledged warnings related to this cluster member.
+// If this member is the leader, also include nodeless warnings.
+// This way we include them while avoiding counting them redundantly across cluster members.
+func clusterMemberWarnings(ctx context.Context, s *state.State, tx *db.ClusterTx) ([]dbCluster.Warning, error) {
+	var filters []dbCluster.WarningFilter
+
+	leaderInfo, err := s.LeaderInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	// Use local variable to get pointer.
+	emptyNode := ""
+
+	for status := range warningtype.Statuses {
+		// Do not include resolved warnings that are resolved but not yet pruned neither those that were acknowledged.
+		if status != warningtype.StatusResolved && status != warningtype.StatusAcknowledged {
+			filters = append(filters, dbCluster.WarningFilter{Node: &s.ServerName, Status: &status})
+			if leaderInfo.Leader {
+				// Count the nodeless warnings as belonging to the leader node.
+				filters = append(filters, dbCluster.WarningFilter{Node: &emptyNode, Status: &status})
+			}
+		}
+	}
+
+	return dbCluster.GetWarnings(ctx, tx.Tx(), filters...)
+}
+
 func internalMetrics(ctx context.Context, s *state.State, tx *db.ClusterTx) *metrics.MetricSet {
 	out := metrics.NewMetricSet(nil)
 
-	warnings, err := dbCluster.GetWarnings(ctx, tx.Tx())
+	warnings, err := clusterMemberWarnings(ctx, s, tx)
+
 	if err != nil {
 		logger.Warn("Failed to get warnings", logger.Ctx{"err": err})
 	} else {
