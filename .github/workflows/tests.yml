@@ -68,10 +68,10 @@ jobs:
           path: ${{ steps.ShellCheck.outputs.sarif }}
         if: github.event_name == 'pull_request'
 
-      - name: Install Go (1.22)
+      - name: Install Go
         uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32  # v5.0.2
         with:
-          go-version: 1.22.x
+          go-version-file: 'go.mod'
 
       - name: Install build dependencies
         uses: ./.github/actions/install-lxd-builddeps
