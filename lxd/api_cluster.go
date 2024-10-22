@@ -35,6 +35,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/scriptlet"
@@ -3359,7 +3360,9 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 				return fmt.Errorf("Failed getting cluster members: %w", err)
 			}
 
-			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, "", nil, opts.s.GlobalConfig.OfflineThreshold())
+			clusterGroupsAllowed := limits.GetRestrictedClusterGroups(&instProject)
+
+			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, "", clusterGroupsAllowed, opts.s.GlobalConfig.OfflineThreshold())
 			if err != nil {
 				return err
 			}
