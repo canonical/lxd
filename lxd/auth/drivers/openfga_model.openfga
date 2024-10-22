@@ -366,7 +366,7 @@ type instance
     # Grants permission to delete the instance.
     define can_delete: [identity, service_account, group#member] or can_delete_instances from project
 
-    # Grants permission to view the instance.
+    # Grants permission to view the instance and any snapshots or backups it might have.
     define can_view: [identity, service_account, group#member] or user or operator or can_edit or can_delete or can_view_instances from project
 
     # Grants permission to change the instance state.
@@ -462,7 +462,7 @@ type storage_volume
     # Grants permission to delete the storage volume.
     define can_delete: [identity, service_account, group#member] or can_delete_storage_volumes from project
 
-    # Grants permission to view the storage volume.
+    # Grants permission to view the storage volume and any snapshots or backups it might have.
     define can_view: [identity, service_account, group#member] or can_edit or can_delete or can_view_storage_volumes from project
 
     # Grants permission to create and delete snapshots of the storage volume.
