@@ -134,11 +134,6 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 		return fmt.Errorf("Failed to parse entity URL: %w", err)
 	}
 
-	err = auth.ValidateEntitlement(entityType, entitlement)
-	if err != nil {
-		return fmt.Errorf("Cannot check permissions for entity type %q and entitlement %q: %w", entityType, entitlement, err)
-	}
-
 	logCtx := logger.Ctx{"entity_url": entityURL.String(), "entitlement": entitlement}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -324,11 +319,6 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 // this function is called. The returned auth.PermissionChecker will expect entity URLs to contain the request URL. These
 // will be re-written to contain the effective project if set, so that they correspond to the list returned by OpenFGA.
 func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
-	err := auth.ValidateEntitlement(entityType, entitlement)
-	if err != nil {
-		return nil, fmt.Errorf("Cannot get a permission checker for entity type %q and entitlement %q: %w", entityType, entitlement, err)
-	}
-
 	logCtx := logger.Ctx{"entity_type": entityType, "entitlement": entitlement}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
