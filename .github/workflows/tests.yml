@@ -256,6 +256,8 @@ jobs:
       - name: Setup MicroCeph
         if: ${{ matrix.backend == 'ceph' }}
         uses: ./.github/actions/setup-microceph
+        with:
+          osd-count: 3
 
       - name: Make GOCOVERDIR
         run: |
