@@ -6728,7 +6728,7 @@
 				},
 				{
 					"name": "can_view",
-					"description": "Grants permission to view the instance."
+					"description": "Grants permission to view the instance and any snapshots or backups it might have."
 				},
 				{
 					"name": "can_update_state",
@@ -7225,7 +7225,7 @@
 				},
 				{
 					"name": "can_view",
-					"description": "Grants permission to view the storage volume."
+					"description": "Grants permission to view the storage volume and any snapshots or backups it might have."
 				},
 				{
 					"name": "can_manage_snapshots",
