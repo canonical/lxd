@@ -39,19 +39,19 @@ var storagePoolVolumeSnapshotsTypeCmd = APIEndpoint{
 	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots",
 	MetricsType: entity.TypeStoragePool,
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
-	Post: APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypePost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageSnapshots)},
+	Get:  APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypeGet, AccessHandler: allowProjectResourceList},
+	Post: APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypePost, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanManageSnapshots)},
 }
 
 var storagePoolVolumeSnapshotTypeCmd = APIEndpoint{
 	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName}",
 	MetricsType: entity.TypeStoragePool,
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageSnapshots)},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageSnapshots)},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePatch, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageSnapshots)},
-	Put:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePut, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageSnapshots)},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeSnapshot, auth.EntitlementCanDelete)},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeSnapshot, auth.EntitlementCanView)},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePost, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeSnapshot, auth.EntitlementCanEdit)},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePatch, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeSnapshot, auth.EntitlementCanEdit)},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePut, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeSnapshot, auth.EntitlementCanEdit)},
 }
 
 // swagger:operation POST /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots storage storage_pool_volumes_type_snapshots_post
@@ -346,6 +346,11 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
+	err := addStoragePoolVolumeDetailsToRequestContext(s, r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -380,11 +385,20 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 		return response.SmartError(err)
 	}
 
+	canView, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeStorageVolumeSnapshot)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Prepare the response.
 	resultString := []string{}
 	resultMap := []*api.StorageVolumeSnapshot{}
 	for _, volume := range volumes {
 		_, snapshotName, _ := api.GetParentAndSnapshotName(volume.Name)
+
+		if !canView(entity.StorageVolumeSnapshotURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, snapshotName)) {
+			continue
+		}
 
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s", version.APIVersion, details.pool.Name(), details.volumeTypeName, details.volumeName, snapshotName))
