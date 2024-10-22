@@ -391,12 +391,10 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 	relationEntityType := entity.Type(filter.Relation)
 
 	// If the relation is "project" or "server", we are listing all resources under the project/server.
-	if relationEntityType == entity.TypeProject || relationEntityType == entity.TypeServer {
-		// Expect that the user entity type is expected for the relation.
-		if relationEntityType == entity.TypeProject && userEntityType != entity.TypeProject {
-			return nil, fmt.Errorf("ReadStartingWithUser: Cannot list project relations for non-project entities")
-		} else if relationEntityType == entity.TypeServer && userEntityType != entity.TypeServer {
-			return nil, fmt.Errorf("ReadStartingWithUser: Cannot list server relations for non-server entities")
+	if shared.ValueInSlice(relationEntityType, []entity.Type{entity.TypeProject, entity.TypeServer, entity.TypeInstance, entity.TypeStorageVolume}) {
+		if filter.Relation != string(userEntityType) {
+			// Expect that the user entity type is expected for the relation.
+			return nil, fmt.Errorf("ReadStartingWithUser: Relation %q is not valid for entities of type %q", filter.Relation, userEntityType)
 		}
 
 		// Get the entity URLs with the given type and project (if set).
@@ -416,23 +414,57 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 		// Compose the expected tuples relating the server/project to the entities.
 		var tuples []*openfgav1.Tuple
 		for _, entityURL := range entityURLs[entityType] {
-			if relationEntityType == entity.TypeProject {
-				tuples = append(tuples, &openfgav1.Tuple{
-					Key: &openfgav1.TupleKey{
-						Object:   fmt.Sprintf("%s:%s", entityType, entityURL.String()),
-						Relation: "project",
-						User:     fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName)),
-					},
-				})
-			} else {
-				tuples = append(tuples, &openfgav1.Tuple{
-					Key: &openfgav1.TupleKey{
-						Object:   fmt.Sprintf("%s:%s", entityType, entityURL.String()),
-						Relation: "server",
-						User:     fmt.Sprintf("%s:%s", entity.TypeServer, entity.ServerURL()),
-					},
-				})
+			tupleKey := &openfgav1.TupleKey{Object: string(entityType) + ":" + entityURL.String(), Relation: filter.Relation}
+			switch relationEntityType {
+			case entity.TypeProject:
+				tupleKey.User = string(entity.TypeProject) + ":" + entity.ProjectURL(projectName).String()
+			case entity.TypeServer:
+				tupleKey.User = string(entity.TypeServer) + ":" + entity.ServerURL().String()
+			case entity.TypeInstance:
+				_, projectName, _, pathArgs, err := entity.ParseURL(entityURL.URL)
+				if err != nil {
+					return nil, fmt.Errorf("ReadStartingWithUser: Received invalid URL: %w", err)
+				}
+
+				if len(pathArgs) < 1 {
+					return nil, fmt.Errorf("Received invalid object URL %q with %q parent-child relation", entityURL, filter.Relation)
+				}
+
+				if len(userURLPathArguments) < 1 {
+					return nil, fmt.Errorf("Received invalid user URL %q with %q parent-child relation", userURL, filter.Relation)
+				}
+
+				if userURLPathArguments[0] != pathArgs[0] {
+					// We're returning the parent instance of snapshots or backups here.
+					// It's only a parent if it has the same instance name.
+					continue
+				}
+
+				tupleKey.User = string(entity.TypeInstance) + ":" + entity.InstanceURL(projectName, pathArgs[0]).String()
+			case entity.TypeStorageVolume:
+				_, projectName, location, pathArgs, err := entity.ParseURL(entityURL.URL)
+				if err != nil {
+					return nil, fmt.Errorf("ReadStartingWithUser: Received invalid URL: %w", err)
+				}
+
+				if len(pathArgs) < 3 {
+					return nil, fmt.Errorf("Received invalid object URL %q with %q parent-child relation", entityURL, filter.Relation)
+				}
+
+				if len(userURLPathArguments) < 3 {
+					return nil, fmt.Errorf("Received invalid user URL %q with %q parent-child relation", userURL, filter.Relation)
+				}
+
+				if userURLPathArguments[0] != pathArgs[0] && userURLPathArguments[1] != pathArgs[1] && userURLPathArguments[2] != pathArgs[2] {
+					// We're returning the parent storage volume of snapshots or backups here.
+					// It's only a parent if it has the same storage pool, volume type, and volume name.
+					continue
+				}
+
+				tupleKey.User = string(entity.TypeStorageVolume) + ":" + entity.StorageVolumeURL(projectName, location, pathArgs[0], pathArgs[1], pathArgs[2]).String()
 			}
+
+			tuples = append(tuples, &openfgav1.Tuple{Key: tupleKey})
 		}
 
 		return storage.NewStaticTupleIterator(tuples), nil
