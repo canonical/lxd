@@ -225,16 +225,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.22.x"]
         suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
-        include:
-          - go: stable
-            suite: cluster
-            backend: dir
-          - go: stable
-            suite: standalone
-            backend: dir
 
     steps:
       - name: Checkout
@@ -249,10 +241,10 @@ jobs:
       - name: Remove docker
         uses: ./.github/actions/disable-docker
 
-      - name: Install Go (${{ matrix.go }})
+      - name: Install Go
         uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32  # v5.0.2
         with:
-          go-version: ${{ matrix.go }}
+          go-version-file: 'go.mod'
 
       - name: Install dependencies
         run: |
