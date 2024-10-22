@@ -5999,7 +5999,7 @@ container or containers that use it. This allows using the `zfs` command in the 
 : Grants permission to delete the instance.
 
 `can_view`
-: Grants permission to view the instance.
+: Grants permission to view the instance and any snapshots or backups it might have.
 
 `can_update_state`
 : Grants permission to change the instance state.
@@ -6365,7 +6365,7 @@ container or containers that use it. This allows using the `zfs` command in the 
 : Grants permission to delete the storage volume.
 
 `can_view`
-: Grants permission to view the storage volume.
+: Grants permission to view the storage volume and any snapshots or backups it might have.
 
 `can_manage_snapshots`
 : Grants permission to create and delete snapshots of the storage volume.
