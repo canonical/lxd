@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
@@ -97,7 +98,7 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 		return nil, fmt.Errorf("Read: Failed to parse entity URL %q: %w", entityURL, err)
 	}
 
-	urlEntityType, projectName, _, _, err := entity.ParseURL(*u)
+	urlEntityType, projectName, location, pathArgs, err := entity.ParseURL(*u)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse entity URL %q: %w", entityURL, err)
 	}
@@ -111,9 +112,14 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 		return nil, err
 	}
 
+	// We're returning a single relation between a parent and child. Set up the tuple key with the object and relation.
+	tupleKey := &openfgav1.TupleKey{
+		Object:   obj,
+		Relation: relation,
+	}
+
 	// Our parent-child relations are always named as the entity type of the parent.
 	relationEntityType := entity.Type(relation)
-	var tuples []*openfgav1.Tuple
 	switch relationEntityType {
 	case entity.TypeProject:
 		// If the entity type is not project specific but we're looking for project relations then the input is invalid.
@@ -122,16 +128,8 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 			return nil, fmt.Errorf("Received unexpected query, entities of type %q do not have a project relation", entityType)
 		}
 
-		// Return a tuple relating the object to its parent project.
-		tuples = []*openfgav1.Tuple{
-			{
-				Key: &openfgav1.TupleKey{
-					Object:   obj,
-					Relation: relation,
-					User:     string(entity.TypeProject) + ":" + entity.ProjectURL(projectName).String(),
-				},
-			},
-		}
+		// Set the user to relate the object (child) to the user (parent). In this case a parent project.
+		tupleKey.User = string(entity.TypeProject) + ":" + entity.ProjectURL(projectName).String()
 
 	case entity.TypeServer:
 		// If the entity type is project specific but we're looking for server relations then the input is invalid.
@@ -140,23 +138,39 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 			return nil, fmt.Errorf("Received unexpected query, entities of type %q do not have a server relation", entityType)
 		}
 
-		// Return a tuple relating the object to the server.
-		tuples = []*openfgav1.Tuple{
-			{
-				Key: &openfgav1.TupleKey{
-					Object:   obj,
-					Relation: relation,
-					User:     string(entity.TypeServer) + ":" + entity.ServerURL().String(),
-				},
-			},
+		// Set the user to relate the object (child) to the user (parent). In this case a parent server.
+		tupleKey.User = string(entity.TypeServer) + ":" + entity.ServerURL().String()
+
+	case entity.TypeInstance:
+		if !shared.ValueInSlice(entityType, []entity.Type{entity.TypeInstanceBackup, entity.TypeInstanceSnapshot}) {
+			return nil, fmt.Errorf("Received unexpected query, entities of type %q do not have an instance relation", entityType)
 		}
+
+		if len(pathArgs) < 1 {
+			return nil, fmt.Errorf("Received invalid entity URL %q with %q parent-child relation", entityURL, relation)
+		}
+
+		// Set the user to relate the object (child) to the user (parent). In this case a parent instance.
+		tupleKey.User = string(entity.TypeInstance) + ":" + entity.InstanceURL(projectName, pathArgs[0]).String()
+
+	case entity.TypeStorageVolume:
+		if !shared.ValueInSlice(entityType, []entity.Type{entity.TypeStorageVolumeBackup, entity.TypeStorageVolumeSnapshot}) {
+			return nil, fmt.Errorf("Received unexpected query, entities of type %q do not have an instance relation", entityType)
+		}
+
+		if len(pathArgs) < 3 {
+			return nil, fmt.Errorf("Received invalid entity URL %q with %q parent-child relation", entityURL, relation)
+		}
+
+		// Set the user to relate the object (child) to the user (parent). In this case a parent storage volume.
+		tupleKey.User = string(entity.TypeStorageVolume) + ":" + entity.StorageVolumeURL(projectName, location, pathArgs[0], pathArgs[1], pathArgs[2]).String()
 
 	default:
 		// Return an error if we get an unexpected relation.
 		return nil, fmt.Errorf("Relation %q not supported", relation)
 	}
 
-	return storage.NewStaticTupleIterator(tuples), nil
+	return storage.NewStaticTupleIterator([]*openfgav1.Tuple{{Key: tupleKey}}), nil
 }
 
 // ReadUserTuple reads a single tuple from the store.
