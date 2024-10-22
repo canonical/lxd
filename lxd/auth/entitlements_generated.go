@@ -339,7 +339,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanEdit,
 		// Grants permission to delete the instance.
 		EntitlementCanDelete,
-		// Grants permission to view the instance.
+		// Grants permission to view the instance and any snapshots or backups it might have.
 		EntitlementCanView,
 		// Grants permission to change the instance state.
 		EntitlementCanUpdateState,
@@ -581,7 +581,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanEdit,
 		// Grants permission to delete the storage volume.
 		EntitlementCanDelete,
-		// Grants permission to view the storage volume.
+		// Grants permission to view the storage volume and any snapshots or backups it might have.
 		EntitlementCanView,
 		// Grants permission to create and delete snapshots of the storage volume.
 		EntitlementCanManageSnapshots,
