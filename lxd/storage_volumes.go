@@ -80,11 +80,11 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}",
 	MetricsType: entity.TypeStoragePool,
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanDelete)},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumePatch, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanEdit)},
-	Post:   APIEndpointAction{Handler: storagePoolVolumePost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanEdit)},
-	Put:    APIEndpointAction{Handler: storagePoolVolumePut, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanEdit)},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanDelete)},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanView)},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumePatch, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanEdit)},
+	Post:   APIEndpointAction{Handler: storagePoolVolumePost, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanEdit)},
+	Put:    APIEndpointAction{Handler: storagePoolVolumePut, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanEdit)},
 }
 
 // storagePoolVolumeTypeAccessHandler returns an access handler which checks the given entitlement on a storage volume.
