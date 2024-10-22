@@ -88,7 +88,7 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 }
 
 // storagePoolVolumeTypeAccessHandler returns an access handler which checks the given entitlement on a storage volume.
-func storagePoolVolumeTypeAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
+func storagePoolVolumeTypeAccessHandler(entityType entity.Type, entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		s := d.State()
 		err := addStoragePoolVolumeDetailsToRequestContext(s, r)
@@ -101,7 +101,29 @@ func storagePoolVolumeTypeAccessHandler(entitlement auth.Entitlement) func(d *Da
 			return response.SmartError(err)
 		}
 
-		err = s.Authorizer.CheckPermission(r.Context(), entity.StorageVolumeURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName), entitlement)
+		var u *api.URL
+		switch entityType {
+		case entity.TypeStorageVolume:
+			u = entity.StorageVolumeURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName)
+		case entity.TypeStorageVolumeBackup:
+			backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			u = entity.StorageVolumeBackupURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, backupName)
+		case entity.TypeStorageVolumeSnapshot:
+			snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			u = entity.StorageVolumeSnapshotURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, snapshotName)
+		default:
+			return response.InternalError(fmt.Errorf("Cannot use storage volume access handler with entities of type %q", entityType))
+		}
+
+		err = s.Authorizer.CheckPermission(r.Context(), u, entitlement)
 		if err != nil {
 			return response.SmartError(err)
 		}
