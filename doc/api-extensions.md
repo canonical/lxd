@@ -2516,3 +2516,7 @@ Adds support for using a bridge network with a specified VLAN ID as an OVN uplin
 
 Adds `logical_cpus` field to `GET /1.0/cluster/members/{name}/state` which
 contains the total available logical CPUs available when LXD started.
+
+## `vm_storage_disk_live_resize`
+
+This enables resizing of virtual machine `zfs`, `lvm` and `ceph` disks without requiring a restart for the changes to take effect.
