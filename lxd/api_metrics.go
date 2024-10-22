@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -129,7 +130,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Register internal metrics.
-		intMetrics = internalMetrics(ctx, s.StartTime, tx)
+		intMetrics = internalMetrics(ctx, s, tx)
 		return nil
 	})
 	if err != nil {
@@ -378,10 +379,32 @@ func getFilteredMetrics(s *state.State, r *http.Request, compress bool, metricSe
 	return response.SyncResponsePlain(true, compress, metricSet.String())
 }
 
-func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.ClusterTx) *metrics.MetricSet {
+func internalMetrics(ctx context.Context, s *state.State, tx *db.ClusterTx) *metrics.MetricSet {
 	out := metrics.NewMetricSet(nil)
+	var warnings []dbCluster.Warning
+	var filters []dbCluster.WarningFilter
 
-	warnings, err := dbCluster.GetWarnings(ctx, tx.Tx())
+	isLeader, _, err := s.LeaderInfo()
+
+	// Use local variables to get pointers.
+	memberName := s.ServerName
+	emptyNode := ""
+
+	for status := range warningtype.Statuses {
+		// Do not include resolved warnings that are not yet pruned.
+		if status != warningtype.StatusResolved {
+			filters = append(filters, dbCluster.WarningFilter{Node: &memberName, Status: &status})
+			if isLeader {
+				// Also include nodeless warnings if scraping metrics on the leader node.
+				filters = append(filters, dbCluster.WarningFilter{Node: &emptyNode, Status: &status})
+			}
+		}
+	}
+
+	if err == nil {
+		warnings, err = dbCluster.GetWarnings(ctx, tx.Tx(), filters...)
+	}
+
 	if err != nil {
 		logger.Warn("Failed to get warnings", logger.Ctx{"err": err})
 	} else {
@@ -421,7 +444,7 @@ func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.Clus
 	}
 
 	// Daemon uptime
-	out.AddSamples(metrics.UptimeSeconds, metrics.Sample{Value: time.Since(daemonStartTime).Seconds()})
+	out.AddSamples(metrics.UptimeSeconds, metrics.Sample{Value: time.Since(s.StartTime).Seconds()})
 
 	// Number of goroutines
 	out.AddSamples(metrics.GoGoroutines, metrics.Sample{Value: float64(runtime.NumGoroutine())})
