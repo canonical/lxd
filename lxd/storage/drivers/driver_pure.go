@@ -307,5 +307,46 @@ func (d *pure) GetResources() (*api.ResourcesStoragePool, error) {
 
 // MigrationTypes returns the type of transfer methods to be used when doing migrations between pools in preference order.
 func (d *pure) MigrationTypes(contentType ContentType, refresh bool, copySnapshots bool) []migration.Type {
-	return []migration.Type{}
+	var rsyncFeatures []string
+
+	// Do not pass compression argument to rsync if the associated
+	// config key, that is rsync.compression, is set to false.
+	if shared.IsFalse(d.Config()["rsync.compression"]) {
+		rsyncFeatures = []string{"xattrs", "delete", "bidirectional"}
+	} else {
+		rsyncFeatures = []string{"xattrs", "delete", "compress", "bidirectional"}
+	}
+
+	if refresh {
+		var transportType migration.MigrationFSType
+
+		if IsContentBlock(contentType) {
+			transportType = migration.MigrationFSType_BLOCK_AND_RSYNC
+		} else {
+			transportType = migration.MigrationFSType_RSYNC
+		}
+
+		return []migration.Type{
+			{
+				FSType:   transportType,
+				Features: rsyncFeatures,
+			},
+		}
+	}
+
+	if contentType == ContentTypeBlock {
+		return []migration.Type{
+			{
+				FSType:   migration.MigrationFSType_BLOCK_AND_RSYNC,
+				Features: rsyncFeatures,
+			},
+		}
+	}
+
+	return []migration.Type{
+		{
+			FSType:   migration.MigrationFSType_RSYNC,
+			Features: rsyncFeatures,
+		},
+	}
 }
