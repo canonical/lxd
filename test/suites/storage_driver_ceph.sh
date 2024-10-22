@@ -130,6 +130,25 @@ test_storage_driver_ceph() {
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool1"
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool2"
     ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool rm "lxdtest-$(basename "${LXD_DIR}")-existing-osd-pool" "lxdtest-$(basename "${LXD_DIR}")-existing-osd-pool"  --yes-i-really-really-mean-it
+
+
+    # Test that pre-existing OSD pools are not affected by the config option in LXD. Only the associated pool should be affected.
+    # .mgr is auto-created by Ceph, so give it a value that is different from the size supplied to the `lxc storage create` commands.
+    ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool set ".mgr" size 3
+    pool1="lxdtest-$(basename "${LXD_DIR}")-pool1"
+    pool2="lxdtest-$(basename "${LXD_DIR}")-pool2"
+    lxc storage create "${pool1}" ceph volume.size=25MiB ceph.osd.pg_num=16 ceph.osd.pool_size=1
+    [[ "$(ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool get "${pool1}" size --format json | jq '.size')" = "1" ]]
+    [[ "$(ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool get ".mgr" size --format json | jq '.size')" = "3" ]]
+
+    lxc storage create "${pool2}" ceph volume.size=25MiB ceph.osd.pg_num=16 ceph.osd.pool_size=2
+    [[ "$(ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool get "${pool1}" size --format json | jq '.size')" = "1" ]]
+    [[ "$(ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool get "${pool2}" size --format json | jq '.size')" = "2" ]]
+    [[ "$(ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool get ".mgr" size --format json | jq '.size')" = "3" ]]
+
+    lxc storage delete "${pool1}"
+    lxc storage delete "${pool2}"
+    ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool set ".mgr" size 1 --yes-i-really-mean-it
   )
 
   # shellcheck disable=SC2031
