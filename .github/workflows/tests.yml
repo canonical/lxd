@@ -68,10 +68,10 @@ jobs:
           path: ${{ steps.ShellCheck.outputs.sarif }}
         if: github.event_name == 'pull_request'
 
-      - name: Install Go (1.22)
+      - name: Install Go
         uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32  # v5.0.2
         with:
-          go-version: 1.22.x
+          go-version-file: 'go.mod'
 
       - name: Install build dependencies
         uses: ./.github/actions/install-lxd-builddeps
@@ -225,16 +225,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.22.x"]
         suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
-        include:
-          - go: stable
-            suite: cluster
-            backend: dir
-          - go: stable
-            suite: standalone
-            backend: dir
 
     steps:
       - name: Checkout
@@ -249,10 +241,10 @@ jobs:
       - name: Remove docker
         uses: ./.github/actions/disable-docker
 
-      - name: Install Go (${{ matrix.go }})
+      - name: Install Go
         uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32  # v5.0.2
         with:
-          go-version: ${{ matrix.go }}
+          go-version-file: 'go.mod'
 
       - name: Install dependencies
         run: |
@@ -372,7 +364,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32  # v5.0.2
         with:
-          go-version: 1.22.x
+          go-version-file: 'go.mod'
 
       - name: Download coverage data
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4.1.8
@@ -420,8 +412,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go:
-          - 1.22.x
         os:
           - ubuntu-latest
           - macos-latest
@@ -432,10 +422,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871  # v4.2.1
 
-      - name: Install Go (${{ matrix.go }})
+      - name: Install Go
         uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32  # v5.0.2
         with:
-          go-version: ${{ matrix.go }}
+          go-version-file: 'go.mod'
 
       - name: Create build directory
         run: |
@@ -511,10 +501,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871  # v4.2.1
 
-      - name: Install Go (1.22)
+      - name: Install Go
         uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32  # v5.0.2
         with:
-          go-version: 1.22.x
+          go-version-file: 'go.mod'
 
       - name: Install dependencies
         run: |
@@ -587,7 +577,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32  # v5.0.2
         with:
-          go-version: 1.22.x
+          go-version-file: 'go.mod'
 
       - name: Trigger Launchpad snap build
         env:
