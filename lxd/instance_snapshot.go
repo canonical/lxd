@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
@@ -26,6 +27,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -150,6 +152,11 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	canView, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeInstanceSnapshot)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	recursion := util.IsRecursionRequest(r)
 	resultString := []string{}
 	resultMap := []*api.InstanceSnapshot{}
@@ -170,6 +177,11 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 
 		for _, snap := range snaps {
 			_, snapName, _ := api.GetParentAndSnapshotName(snap)
+
+			if !canView(entity.InstanceSnapshotURL(projectName, cname, snapName)) {
+				continue
+			}
+
 			if projectName == api.ProjectDefaultName {
 				url := fmt.Sprintf("/%s/instances/%s/snapshots/%s", version.APIVersion, cname, snapName)
 				resultString = append(resultString, url)
@@ -190,6 +202,12 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, snap := range snaps {
+			_, snapName, _ := api.GetParentAndSnapshotName(snap.Name())
+
+			if !canView(entity.InstanceSnapshotURL(projectName, cname, snapName)) {
+				continue
+			}
+
 			render, _, err := snap.Render(storagePools.RenderSnapshotUsage(s, snap))
 			if err != nil {
 				continue
