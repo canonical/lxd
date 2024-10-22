@@ -53,6 +53,15 @@ SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, ''
   ORDER BY warnings.uuid
 `)
 
+var warningObjectsByNodeAndStatus = RegisterStmt(`
+SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
+  FROM warnings
+  LEFT JOIN nodes ON warnings.node_id = nodes.id
+  LEFT JOIN projects ON warnings.project_id = projects.id
+  WHERE ( coalesce(node, '') = ? AND warnings.status = ? )
+  ORDER BY warnings.uuid
+`)
+
 var warningObjectsByNodeAndTypeCode = RegisterStmt(`
 SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
   FROM warnings
@@ -228,6 +237,30 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filters ...WarningFilter) ([]W
 			}
 
 			query, err := StmtString(warningObjectsByNodeAndTypeCode)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"warningObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Node != nil && filter.Status != nil && filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.TypeCode == nil && filter.EntityType == nil && filter.EntityID == nil {
+			args = append(args, []any{filter.Node, filter.Status}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, warningObjectsByNodeAndStatus)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"warningObjectsByNodeAndStatus\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(warningObjectsByNodeAndStatus)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to get \"warningObjects\" prepared statement: %w", err)
 			}
