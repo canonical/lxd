@@ -136,27 +136,47 @@ const (
 	ctxClusterDBIdentity request.CtxKey = "cluster-db-identity"
 )
 
+func addIdentityDetailsToContext(s *state.State, r *http.Request, authenticationMethod string) error {
+	muxVars := mux.Vars(r)
+	nameOrID, err := url.PathUnescape(muxVars["nameOrIdentifier"])
+	if err != nil {
+		return fmt.Errorf("Failed to unescape path argument: %w", err)
+	}
+
+	var id *dbCluster.Identity
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		id, err = dbCluster.GetIdentityByNameOrIdentifier(ctx, tx.Tx(), authenticationMethod, nameOrID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			// Mask not found error to prevent discovery
+			return api.NewGenericStatusError(http.StatusNotFound)
+		}
+
+		return err
+	}
+
+	request.SetCtxValue(r, ctxClusterDBIdentity, id)
+	return nil
+}
+
 // identityAccessHandler performs some initial validation of the request and gets the identity by its name or
 // identifier. If one is found, the identifier is used in the URL that is passed to (auth.Authorizer).CheckPermission.
 // The cluster.Identity is set in the request context.
 func identityAccessHandler(authenticationMethod string, entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
-		muxVars := mux.Vars(r)
-		nameOrID, err := url.PathUnescape(muxVars["nameOrIdentifier"])
+		s := d.State()
+		err := addIdentityDetailsToContext(s, r, authenticationMethod)
 		if err != nil {
-			return response.InternalError(fmt.Errorf("Failed to unescape path argument: %w", err))
+			return response.SmartError(err)
 		}
 
-		s := d.State()
-		var id *dbCluster.Identity
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			id, err = dbCluster.GetIdentityByNameOrIdentifier(ctx, tx.Tx(), authenticationMethod, nameOrID)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
+		id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
 		if err != nil {
 			return response.SmartError(err)
 		}
