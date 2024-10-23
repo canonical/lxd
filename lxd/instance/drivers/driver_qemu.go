@@ -1668,7 +1668,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// Trigger a rebalance procedure which will set vCPU affinity (pinning) (explicit or implicit)
-	cgroup.TaskSchedulerTrigger("virtual-machine", d.name, "started")
+	cgroup.TaskSchedulerTrigger(d.dbType, d.name, "started")
 
 	// Run monitor hooks from devices.
 	for _, monHook := range monHooks {
@@ -4937,7 +4937,7 @@ func (d *qemu) Stop(stateful bool) error {
 	}
 
 	// Trigger a rebalance
-	cgroup.TaskSchedulerTrigger("virtual-machine", d.name, "stopped")
+	cgroup.TaskSchedulerTrigger(d.dbType, d.name, "stopped")
 
 	return nil
 }
@@ -5807,7 +5807,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	if cpuLimitWasChanged {
 		// Trigger a scheduler re-run
-		cgroup.TaskSchedulerTrigger("virtual-machine", d.name, "changed")
+		cgroup.TaskSchedulerTrigger(d.dbType, d.name, "changed")
 	}
 
 	if isRunning {
