@@ -3626,6 +3626,19 @@ EOF
   # Delete the cluster group "yamlgroup"
   lxc cluster group delete cluster:yamlgroup
 
+  # Try to initialize a cluster group with multiple nodes
+  lxc query cluster:/1.0/cluster/groups -X POST -d '{\"name\":\"multi-node-group\",\"description\":\"\",\"members\":[\"node1\",\"node2\",\"node3\"]}'
+
+  # Ensure cluster group created with requested members
+  [ "$(lxc query cluster:/1.0/cluster/groups/multi-node-group | jq '.members | length')" -eq 3 ]
+
+  # Remove nodes and delete cluster group
+  lxc cluster group remove cluster:node1 multi-node-group
+  lxc cluster group remove cluster:node2 multi-node-group
+  lxc cluster group remove cluster:node3 multi-node-group
+
+  lxc cluster group delete cluster:multi-node-group
+
   # With these settings:
   # - node1 will receive instances unless a different node is directly targeted (not via group)
   # - node2 will receive instances if either targeted by group or directly
