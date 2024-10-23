@@ -90,12 +90,12 @@ var tlsIdentityCmd = APIEndpoint{
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodTLS, auth.EntitlementCanView),
 	},
 	Put: APIEndpointAction{
-		Handler:       updateIdentity,
-		AccessHandler: identityAccessHandler(api.AuthenticationMethodTLS, auth.EntitlementCanEdit),
+		Handler:       updateIdentity(api.AuthenticationMethodTLS),
+		AccessHandler: allowAuthenticated,
 	},
 	Patch: APIEndpointAction{
-		Handler:       patchIdentity,
-		AccessHandler: identityAccessHandler(api.AuthenticationMethodTLS, auth.EntitlementCanEdit),
+		Handler:       patchIdentity(api.AuthenticationMethodTLS),
+		AccessHandler: allowAuthenticated,
 	},
 	Delete: APIEndpointAction{
 		Handler:       deleteIdentity,
@@ -113,11 +113,11 @@ var oidcIdentityCmd = APIEndpoint{
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanView),
 	},
 	Put: APIEndpointAction{
-		Handler:       updateIdentity,
+		Handler:       updateIdentity(api.AuthenticationMethodOIDC),
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanEdit),
 	},
 	Patch: APIEndpointAction{
-		Handler:       patchIdentity,
+		Handler:       patchIdentity(api.AuthenticationMethodOIDC),
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanEdit),
 	},
 	Delete: APIEndpointAction{
@@ -1197,58 +1197,70 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 //	  "501":
 //	    $ref: "#/responses/NotImplemented"
-func updateIdentity(d *Daemon, r *http.Request) response.Response {
-	id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	var identityPut api.IdentityPut
-	err = json.NewDecoder(r.Body).Decode(&identityPut)
-	if err != nil {
-		return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
-	}
-
-	if !identity.IsFineGrainedIdentityType(string(id.Type)) {
-		return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
-	}
-
-	s := d.State()
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		apiIdentity, err := id.ToAPI(ctx, tx.Tx(), canViewGroup)
+func updateIdentity(authenticationMethod string) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
+		s := d.State()
+		err := addIdentityDetailsToContext(s, r, authenticationMethod)
 		if err != nil {
-			return err
+			return response.SmartError(err)
 		}
 
-		err = util.EtagCheck(r, apiIdentity)
+		id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
 		if err != nil {
-			return err
+			return response.SmartError(err)
 		}
 
-		err = dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), id.ID, identityPut.Groups)
+		err = s.Authorizer.CheckPermission(r.Context(), entity.IdentityURL(authenticationMethod, id.Identifier), auth.EntitlementCanEdit)
 		if err != nil {
-			return err
+			return response.SmartError(err)
 		}
 
-		return nil
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
+		var identityPut api.IdentityPut
+		err = json.NewDecoder(r.Body).Decode(&identityPut)
+		if err != nil {
+			return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
+		}
 
-	// Notify other cluster members to update their identity cache.
-	notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
-	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true)
-	if err != nil {
-		return response.SmartError(err)
-	}
+		if !identity.IsFineGrainedIdentityType(string(id.Type)) {
+			return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
+		}
 
-	return response.EmptySyncResponse
+		canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			apiIdentity, err := id.ToAPI(ctx, tx.Tx(), canViewGroup)
+			if err != nil {
+				return err
+			}
+
+			err = util.EtagCheck(r, apiIdentity)
+			if err != nil {
+				return err
+			}
+
+			err = dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), id.ID, identityPut.Groups)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Notify other cluster members to update their identity cache.
+		notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
+		_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
 }
 
 // swagger:operation PATCH /1.0/auth/identities/tls/{nameOrIdentifier} identities identity_patch_tls
@@ -1312,65 +1324,77 @@ func updateIdentity(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 //	  "501":
 //	    $ref: "#/responses/NotImplemented"
-func patchIdentity(d *Daemon, r *http.Request) response.Response {
-	id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	var identityPut api.IdentityPut
-	err = json.NewDecoder(r.Body).Decode(&identityPut)
-	if err != nil {
-		return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
-	}
-
-	if !identity.IsFineGrainedIdentityType(string(id.Type)) {
-		return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
-	}
-
-	s := d.State()
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	var apiIdentity *api.Identity
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		apiIdentity, err = id.ToAPI(ctx, tx.Tx(), canViewGroup)
+func patchIdentity(authenticationMethod string) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
+		s := d.State()
+		err := addIdentityDetailsToContext(s, r, authenticationMethod)
 		if err != nil {
-			return err
+			return response.SmartError(err)
 		}
 
-		err = util.EtagCheck(r, apiIdentity)
+		id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
 		if err != nil {
-			return err
+			return response.SmartError(err)
 		}
 
-		for _, groupName := range identityPut.Groups {
-			if !shared.ValueInSlice(groupName, apiIdentity.Groups) {
-				apiIdentity.Groups = append(apiIdentity.Groups, groupName)
+		err = s.Authorizer.CheckPermission(r.Context(), entity.IdentityURL(authenticationMethod, id.Identifier), auth.EntitlementCanEdit)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		var identityPut api.IdentityPut
+		err = json.NewDecoder(r.Body).Decode(&identityPut)
+		if err != nil {
+			return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
+		}
+
+		if !identity.IsFineGrainedIdentityType(string(id.Type)) {
+			return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
+		}
+
+		canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		var apiIdentity *api.Identity
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			apiIdentity, err = id.ToAPI(ctx, tx.Tx(), canViewGroup)
+			if err != nil {
+				return err
 			}
-		}
 
-		err = dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), id.ID, identityPut.Groups)
+			err = util.EtagCheck(r, apiIdentity)
+			if err != nil {
+				return err
+			}
+
+			for _, groupName := range identityPut.Groups {
+				if !shared.ValueInSlice(groupName, apiIdentity.Groups) {
+					apiIdentity.Groups = append(apiIdentity.Groups, groupName)
+				}
+			}
+
+			err = dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), id.ID, identityPut.Groups)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
 		if err != nil {
-			return err
+			return response.SmartError(err)
 		}
 
-		return nil
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
+		// Notify other cluster members to update their identity cache.
+		notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
+		_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true)
+		if err != nil {
+			return response.SmartError(err)
+		}
 
-	// Notify other cluster members to update their identity cache.
-	notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
-	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true)
-	if err != nil {
-		return response.SmartError(err)
+		return response.EmptySyncResponse
 	}
-
-	return response.EmptySyncResponse
 }
 
 // swagger:operation DELETE /1.0/auth/identities/tls/{nameOrIdentifier} identities identity_delete_tls
