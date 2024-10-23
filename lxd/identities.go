@@ -137,27 +137,46 @@ const (
 	ctxClusterDBIdentity request.CtxKey = "cluster-db-identity"
 )
 
+// addIdentityDetailsToContext queries the database for the identity with the given authentication method and the
+// `nameOrIdentifier` path argument. This expands the `nameOrIdentifier` so that we can get the fully qualified URL
+// of the identity matching what is expected by the authorizer. It returns the Identity for convenience, and also adds
+// it to the request context with the ctxClusterDBIdentity context key for later use.
+func addIdentityDetailsToContext(s *state.State, r *http.Request, authenticationMethod string) (*dbCluster.Identity, error) {
+	muxVars := mux.Vars(r)
+	nameOrID, err := url.PathUnescape(muxVars["nameOrIdentifier"])
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unescape path argument: %w", err)
+	}
+
+	var id *dbCluster.Identity
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		id, err = dbCluster.GetIdentityByNameOrIdentifier(ctx, tx.Tx(), authenticationMethod, nameOrID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			// Mask not found error to prevent discovery
+			return nil, api.NewGenericStatusError(http.StatusNotFound)
+		}
+
+		return nil, err
+	}
+
+	request.SetCtxValue(r, ctxClusterDBIdentity, id)
+	return id, nil
+}
+
 // identityAccessHandler performs some initial validation of the request and gets the identity by its name or
 // identifier. If one is found, the identifier is used in the URL that is passed to (auth.Authorizer).CheckPermission.
 // The cluster.Identity is set in the request context.
 func identityAccessHandler(authenticationMethod string, entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
-		muxVars := mux.Vars(r)
-		nameOrID, err := url.PathUnescape(muxVars["nameOrIdentifier"])
-		if err != nil {
-			return response.InternalError(fmt.Errorf("Failed to unescape path argument: %w", err))
-		}
-
 		s := d.State()
-		var id *dbCluster.Identity
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			id, err = dbCluster.GetIdentityByNameOrIdentifier(ctx, tx.Tx(), authenticationMethod, nameOrID)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
+		id, err := addIdentityDetailsToContext(s, r, authenticationMethod)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -174,7 +193,6 @@ func identityAccessHandler(authenticationMethod string, entitlement auth.Entitle
 			}
 		}
 
-		request.SetCtxValue(r, ctxClusterDBIdentity, id)
 		return response.EmptySyncResponse
 	}
 }
