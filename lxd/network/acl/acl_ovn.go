@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1042,7 +1043,23 @@ type ovnLogEntry struct {
 }
 
 // ovnParseLogEntry takes a log line and expected ACL prefix and returns a re-formated log entry if matching.
-func ovnParseLogEntry(input string, prefix string) string {
+// The 'timestamp' string is in microseconds format. If empty, the timestamp is extracted from the log entry.
+func ovnParseLogEntry(input string, timestamp string, prefix string) string {
+	parseLogTimeFromFields := func(fields []string) (time.Time, error) {
+		return time.Parse(time.RFC3339, fields[0])
+	}
+
+	parseLogTimeFromTimestamp := func(timestamp string) (time.Time, error) {
+		tsInt, err := strconv.ParseInt(timestamp, 10, 64)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("Failed to parse timestamp: %w", err)
+		}
+
+		// The provided timestamp is in microseconds and need to be converted to nanoseconds.
+		tsNs := tsInt * 1000
+		return time.Unix(0, tsNs).UTC(), nil
+	}
+
 	fields := strings.Split(input, "|")
 
 	// Skip unknown formatting.
@@ -1071,10 +1088,18 @@ func ovnParseLogEntry(input string, prefix string) string {
 		return ""
 	}
 
-	// Parse the timestamp.
-	logTime, err := time.Parse(time.RFC3339, fields[0])
-	if err != nil {
-		return ""
+	var logTime time.Time
+	var err error
+	if timestamp == "" {
+		logTime, err = parseLogTimeFromFields(fields)
+		if err != nil {
+			return ""
+		}
+	} else {
+		logTime, err = parseLogTimeFromTimestamp(timestamp)
+		if err != nil {
+			return ""
+		}
 	}
 
 	// Get the protocol.
