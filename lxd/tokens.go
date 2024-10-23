@@ -55,7 +55,7 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 		for _, op := range expiredTokenOps {
 			_, err := op.Cancel()
 			if err != nil {
-				logger.Debug("Failed removing expired token", logger.Ctx{"err": err, "id": op.ID()})
+				logger.Warn("Failed removing expired token", logger.Ctx{"err": err, "operation": op.ID()})
 			}
 		}
 
@@ -70,7 +70,7 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 			return nil
 		})
 		if err != nil {
-			logger.Warn("Failed removing pending TLS identities", logger.Ctx{"err": err, "id": op.ID()})
+			logger.Warn("Failed removing pending TLS identities", logger.Ctx{"err": err, "operation": op.ID()})
 		}
 
 		return nil
@@ -78,7 +78,7 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 
 	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.RemoveExpiredTokens, nil, nil, opRun, nil, nil, nil)
 	if err != nil {
-		logger.Error("Failed creating remove expired tokens operation", logger.Ctx{"err": err})
+		logger.Warn("Failed creating remove expired tokens operation", logger.Ctx{"err": err})
 		return
 	}
 
@@ -86,13 +86,13 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 
 	err = op.Start()
 	if err != nil {
-		logger.Error("Failed starting remove expired tokens operation", logger.Ctx{"err": err})
+		logger.Warn("Failed starting remove expired tokens operation", logger.Ctx{"err": err})
 		return
 	}
 
 	err = op.Wait(ctx)
 	if err != nil {
-		logger.Error("Failed removing expired tokens", logger.Ctx{"err": err})
+		logger.Warn("Failed removing expired tokens", logger.Ctx{"err": err})
 		return
 	}
 
