@@ -1180,11 +1180,11 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 
 func certificateValidate(networkCert *shared.CertInfo, cert *x509.Certificate) error {
 	if time.Now().Before(cert.NotBefore) {
-		return fmt.Errorf("The provided certificate isn't valid yet")
+		return api.NewStatusError(http.StatusBadRequest, "The provided certificate isn't valid yet")
 	}
 
 	if time.Now().After(cert.NotAfter) {
-		return fmt.Errorf("The provided certificate is expired")
+		return api.NewStatusError(http.StatusBadRequest, "The provided certificate is expired")
 	}
 
 	if networkCert != nil && networkCert.CA() != nil {
@@ -1203,7 +1203,7 @@ func certificateValidate(networkCert *shared.CertInfo, cert *x509.Certificate) e
 
 		// Check that we're dealing with at least 2048bit (Size returns a value in bytes).
 		if pubKey.Size()*8 < 2048 {
-			return fmt.Errorf("RSA key is too weak (minimum of 2048bit)")
+			return api.NewStatusError(http.StatusBadRequest, "RSA key is too weak (minimum of 2048bit)")
 		}
 	}
 
