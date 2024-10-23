@@ -7,7 +7,6 @@ package cluster
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -31,16 +30,6 @@ SELECT nodes_cluster_groups.group_id, nodes.name AS node
   JOIN nodes ON nodes_cluster_groups.node_id = nodes.id
   WHERE ( nodes_cluster_groups.group_id = ? )
   ORDER BY nodes_cluster_groups.group_id
-`)
-
-var nodeClusterGroupID = RegisterStmt(`
-SELECT nodes_cluster_groups.id FROM nodes_cluster_groups
-  WHERE nodes_cluster_groups.group_id = ?
-`)
-
-var nodeClusterGroupCreate = RegisterStmt(`
-INSERT INTO nodes_cluster_groups (group_id, node_id)
-  VALUES (?, (SELECT nodes.id FROM nodes WHERE nodes.name = ?))
 `)
 
 var nodeClusterGroupDeleteByGroupID = RegisterStmt(`
@@ -166,82 +155,6 @@ func GetNodeClusterGroups(ctx context.Context, tx *sql.Tx, filters ...NodeCluste
 	}
 
 	return objects, nil
-}
-
-// CreateNodeClusterGroup adds a new node_cluster_group to the database.
-// generator: node_cluster_group Create
-func CreateNodeClusterGroup(ctx context.Context, tx *sql.Tx, object NodeClusterGroup) (int64, error) {
-	// Check if a node_cluster_group with the same key exists.
-	exists, err := NodeClusterGroupExists(ctx, tx, object.GroupID)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
-	}
-
-	if exists {
-		return -1, api.StatusErrorf(http.StatusConflict, "This \"nodes_clusters_groups\" entry already exists")
-	}
-
-	args := make([]any, 2)
-
-	// Populate the statement arguments.
-	args[0] = object.GroupID
-	args[1] = object.Node
-
-	// Prepared statement to use.
-	stmt, err := Stmt(tx, nodeClusterGroupCreate)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"nodeClusterGroupCreate\" prepared statement: %w", err)
-	}
-
-	// Execute the statement.
-	result, err := stmt.Exec(args...)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to create \"nodes_clusters_groups\" entry: %w", err)
-	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		return -1, fmt.Errorf("Failed to fetch \"nodes_clusters_groups\" entry ID: %w", err)
-	}
-
-	return id, nil
-}
-
-// NodeClusterGroupExists checks if a node_cluster_group with the given key exists.
-// generator: node_cluster_group Exists
-func NodeClusterGroupExists(ctx context.Context, tx *sql.Tx, groupID int) (bool, error) {
-	_, err := GetNodeClusterGroupID(ctx, tx, groupID)
-	if err != nil {
-		if api.StatusErrorCheck(err, http.StatusNotFound) {
-			return false, nil
-		}
-
-		return false, err
-	}
-
-	return true, nil
-}
-
-// GetNodeClusterGroupID return the ID of the node_cluster_group with the given key.
-// generator: node_cluster_group ID
-func GetNodeClusterGroupID(ctx context.Context, tx *sql.Tx, groupID int) (int64, error) {
-	stmt, err := Stmt(tx, nodeClusterGroupID)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"nodeClusterGroupID\" prepared statement: %w", err)
-	}
-
-	row := stmt.QueryRowContext(ctx, groupID)
-	var id int64
-	err = row.Scan(&id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return -1, api.StatusErrorf(http.StatusNotFound, "NodeClusterGroup not found")
-	}
-
-	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"nodes_clusters_groups\" ID: %w", err)
-	}
-
-	return id, nil
 }
 
 // DeleteNodeClusterGroup deletes the node_cluster_group matching the given key parameters.
