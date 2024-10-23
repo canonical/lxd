@@ -364,29 +364,9 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 		return createIdentityTLSPending(ctx, s, req, notify)
 	}
 
-	// If a token is not requested, the caller must provide a certificate.
-	if req.Certificate == "" {
-		return response.BadRequest(fmt.Errorf("Must provide a certificate"))
-	}
-
-	// Parse the certificate.
-	cert, err := shared.ParseCert([]byte(req.Certificate))
+	fingerprint, metadata, err := validateIdentityCert(networkCert, req.Certificate)
 	if err != nil {
-		return response.BadRequest(fmt.Errorf("Invalid certificate material: %w", err))
-	}
-
-	// Validate the certificate.
-	err = certificateValidate(networkCert, cert)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	// Calculate the fingerprint and certificate metadata.
-	fingerprint := shared.CertFingerprint(cert)
-	metadata := dbCluster.CertificateMetadata{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))}
-	metadataJSON, err := json.Marshal(metadata)
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to encode certificate metadata: %w", err))
+		return response.SmartError(err)
 	}
 
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -402,7 +382,7 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 			Type:       api.IdentityTypeCertificateClient,
 			Identifier: fingerprint,
 			Name:       req.Name,
-			Metadata:   string(metadataJSON),
+			Metadata:   metadata,
 		})
 		if err != nil {
 			return err
@@ -1496,6 +1476,31 @@ func newIdentityNotificationFunc(s *state.State, r *http.Request, networkCert *s
 
 		return &lc, nil
 	}
+}
+
+// validateIdentityCert validates the certificate and returns the fingerprint and dbCluster.CertificateMetadata for the
+// identity encoded as JSON.
+func validateIdentityCert(networkCert *shared.CertInfo, cert string) (fingerprint string, metadataJSON string, err error) {
+	if cert == "" {
+		return "", "", api.NewStatusError(http.StatusBadRequest, "Must provide a certificate")
+	}
+
+	x509Cert, err := shared.ParseCert([]byte(cert))
+	if err != nil {
+		return "", "", api.StatusErrorf(http.StatusBadRequest, "Failed to parse certificate: %w", err)
+	}
+
+	err = certificateValidate(networkCert, x509Cert)
+	if err != nil {
+		return "", "", fmt.Errorf("Invalid certificate: %w", err)
+	}
+
+	b, err := json.Marshal(dbCluster.CertificateMetadata{Certificate: cert})
+	if err != nil {
+		return "", "", fmt.Errorf("Failed to encode certificate metadata: %w", err)
+	}
+
+	return shared.CertFingerprint(x509Cert), string(b), nil
 }
 
 // updateIdentityCache reads all identities from the database and sets them in the identity.Cache.
