@@ -370,12 +370,23 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 		}
 	}
 
+	var tlsCertificate string
+	if i.AuthMethod == api.AuthenticationMethodTLS && i.Type != api.IdentityTypeCertificateClientPending {
+		metadata, err := i.CertificateMetadata()
+		if err != nil {
+			return nil, err
+		}
+
+		tlsCertificate = metadata.Certificate
+	}
+
 	return &api.Identity{
 		AuthenticationMethod: string(i.AuthMethod),
 		Type:                 string(i.Type),
 		Identifier:           i.Identifier,
 		Name:                 i.Name,
 		Groups:               groupNames,
+		TLSCertificate:       tlsCertificate,
 	}, nil
 }
 
