@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/canonical/lxd/lxd/archive"
 	"github.com/canonical/lxd/lxd/sys"
@@ -33,4 +34,23 @@ func TarReader(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*tar.Reader, 
 	}
 
 	return tr, cancelFunc, nil
+}
+
+// ValidateBackupName validates the given backup name.
+// If the name is legal, then the legal name and a nil error are returned.
+// If the name is illegal, then an empty string and an error are returned.
+func ValidateBackupName(backupName string) (string, error) {
+	if strings.Contains(backupName, "/") {
+		return "", fmt.Errorf("Backup name must not contain forward slashes")
+	}
+
+	if strings.Contains(backupName, "\\") {
+		return "", fmt.Errorf("Backup name must not contain back slashes")
+	}
+
+	if strings.Contains(backupName, "..") {
+		return "", fmt.Errorf("Backup name must not contain '..'")
+	}
+
+	return backupName, nil
 }

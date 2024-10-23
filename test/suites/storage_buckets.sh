@@ -186,3 +186,113 @@ EOF
 
   delete_object_storage_pool "${poolName}"
 }
+
+test_storage_bucket_export() {
+  # shellcheck disable=2039,3043
+  local lxd_backend
+
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  # Skip the test if we are not using a Ceph or Dir backend, because the test requires a storage pool
+  # larger than 1 GiB due to the Minio requirements: https://github.com/minio/minio/issues/6795
+  if [ ! "$lxd_backend" = "ceph" ] && [ ! "$lxd_backend" = "dir" ]; then
+    return
+  fi
+
+  if [ "$lxd_backend" = "ceph" ]; then
+    if [ -z "${LXD_CEPH_CEPHOBJECT_RADOSGW:-}" ]; then
+      # Check LXD_CEPH_CEPHOBJECT_RADOSGW specified for ceph bucket tests.
+      export TEST_UNMET_REQUIREMENT="LXD_CEPH_CEPHOBJECT_RADOSGW not specified"
+      return
+    fi
+  elif ! command -v minio ; then
+    # Check minio is installed for local storage pool buckets.
+    export TEST_UNMET_REQUIREMENT="minio command not found"
+    return
+  fi
+
+  poolName=$(lxc profile device get default root pool)
+  bucketPrefix="lxd$$"
+
+  # Check cephobject.radosgw.endpoint is required for cephobject pools.
+  if [ "$lxd_backend" = "ceph" ]; then
+    ! lxc storage create s3 cephobject || false
+    lxc storage create s3 cephobject cephobject.radosgw.endpoint="${LXD_CEPH_CEPHOBJECT_RADOSGW}"
+    lxc storage show s3
+    poolName="s3"
+    s3Endpoint="${LXD_CEPH_CEPHOBJECT_RADOSGW}"
+  else
+    # Create a loop device for dir pools as MinIO doesn't support running on tmpfs (which the test suite can do).
+    if [ "$lxd_backend" = "dir" ]; then
+      configure_loop_device loop_file_1 loop_device_1
+      # shellcheck disable=SC2154
+      mkfs.ext4 "${loop_device_1}"
+      mkdir "${TEST_DIR}/${bucketPrefix}"
+      mount "${loop_device_1}" "${TEST_DIR}/${bucketPrefix}"
+      losetup -d "${loop_device_1}"
+      mkdir "${TEST_DIR}/${bucketPrefix}/s3"
+      # shellcheck disable=SC2034
+      lxc storage create s3 dir source="${TEST_DIR}/${bucketPrefix}/s3"
+      poolName="s3"
+    fi
+
+    buckets_addr="127.0.0.1:$(local_tcp_port)"
+    lxc config set core.storage_buckets_address "${buckets_addr}"
+    s3Endpoint="https://${buckets_addr}"
+  fi
+
+  # Create test bucket
+  initCreds=$(lxc storage bucket create "${poolName}" "${bucketPrefix}.foo" user.foo=comment)
+  initAccessKey=$(echo "${initCreds}" | awk '{ if ($2 == "access" && $3 == "key:") {print $4}}')
+  initSecretKey=$(echo "${initCreds}" | awk '{ if ($2 == "secret" && $3 == "key:") {print $4}}')
+  s3cmdrun "${lxd_backend}" "${initAccessKey}" "${initSecretKey}" ls | grep -F "${bucketPrefix}.foo"
+
+  # Test putting a file into a bucket.
+  lxdTestFile="bucketfile_${bucketPrefix}.txt"
+  echo "hello world"> "${lxdTestFile}"
+  s3cmdrun "${lxd_backend}" "${initAccessKey}" "${initSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo"
+
+  # Export test bucket
+  lxc storage bucket export "${poolName}" "${bucketPrefix}.foo" "${LXD_DIR}/testbucket.tar.gz"
+  [ -f "${LXD_DIR}/testbucket.tar.gz" ]
+
+  # Extract storage backup tarball.
+  mkdir "${LXD_DIR}/storage-bucket-export"
+  tar -xzf "${LXD_DIR}/testbucket.tar.gz" -C "${LXD_DIR}/storage-bucket-export"
+
+  # Check tarball content.
+  [ -f "${LXD_DIR}/storage-bucket-export/backup/index.yaml" ]
+  [ -f "${LXD_DIR}/storage-bucket-export/backup/bucket/${lxdTestFile}" ]
+  [ "$(cat "${LXD_DIR}/storage-bucket-export/backup/bucket/${lxdTestFile}")" = "hello world" ]
+
+  # Delete bucket and import exported bucket
+  lxc storage bucket delete "${poolName}" "${bucketPrefix}.foo"
+  lxc storage bucket import "${poolName}" "${LXD_DIR}/testbucket.tar.gz" "${bucketPrefix}.bar"
+  rm "${LXD_DIR}/testbucket.tar.gz"
+
+  # Test listing bucket files via S3.
+  s3cmdrun "${lxd_backend}" "${initAccessKey}" "${initSecretKey}" ls "s3://${bucketPrefix}.bar" | grep -F "${lxdTestFile}"
+
+  # Test getting admin key from bucket.
+  lxc storage bucket key list "${poolName}" "${bucketPrefix}.bar" | grep -F "admin"
+
+  # Clean up.
+  lxc storage bucket delete "${poolName}" "${bucketPrefix}.bar"
+  ! lxc storage bucket list "${poolName}" | grep -F "${bucketPrefix}.bar" || false
+  ! lxc storage bucket show "${poolName}" "${bucketPrefix}.bar" || false
+
+  if [ "$lxd_backend" = "ceph" ] || [ "$lxd_backend" = "dir" ]; then
+    lxc storage delete "${poolName}"
+  fi
+
+  if [ "$lxd_backend" = "dir" ]; then
+    umount "${TEST_DIR}/${bucketPrefix}"
+    rmdir "${TEST_DIR}/${bucketPrefix}"
+
+    # shellcheck disable=SC2154
+    deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
+  fi
+
+  rm -rf "${LXD_DIR}/storage-bucket-export/"*
+  rmdir "${LXD_DIR}/storage-bucket-export"
+}

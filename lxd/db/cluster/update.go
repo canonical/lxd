@@ -110,6 +110,27 @@ var updates = map[int]schema.Update{
 	71: updateFromV70,
 	72: updateFromV71,
 	73: updateFromV72,
+	74: updateFromV73,
+}
+
+func updateFromV73(ctx context.Context, tx *sql.Tx) error {
+	q := `
+CREATE TABLE "storage_buckets_backups" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_bucket_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    creation_date DATETIME,
+    expiry_date DATETIME,
+    FOREIGN KEY (storage_bucket_id) REFERENCES "storage_buckets" (id) ON DELETE CASCADE,
+    UNIQUE (storage_bucket_id, name)
+);
+`
+	_, err := tx.Exec(q)
+	if err != nil {
+		return fmt.Errorf("Failed adding storage bucket backup table: %w", err)
+	}
+
+	return nil
 }
 
 func updateFromV72(ctx context.Context, tx *sql.Tx) error {
