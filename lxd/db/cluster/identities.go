@@ -284,16 +284,32 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 	return c, nil
 }
 
-// X509 returns an x509.Certificate from the identity metadata. The AuthMethod of the Identity must be api.AuthenticationMethodTLS.
-func (i Identity) X509() (*x509.Certificate, error) {
+// CertificateMetadata returns the metadata associated with the identity as CertificateMetadata. It fails if the
+// authentication method is not api.AuthentictionMethodTLS or if the type is api.IdentityTypeClientCertificatePending,
+// as they do not have metadata of this type.
+func (i Identity) CertificateMetadata() (*CertificateMetadata, error) {
 	if i.AuthMethod != api.AuthenticationMethodTLS {
-		return nil, fmt.Errorf("Cannot extract X509 certificate from identity: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodTLS)
+		return nil, fmt.Errorf("Cannot get certificate metadata: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodTLS)
+	}
+
+	if i.Type == api.IdentityTypeCertificateClientPending {
+		return nil, fmt.Errorf("Cannot get certificate metadata: Identity is pending")
 	}
 
 	var metadata CertificateMetadata
 	err := json.Unmarshal([]byte(i.Metadata), &metadata)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
+	}
+
+	return &metadata, nil
+}
+
+// X509 returns an x509.Certificate from the identity metadata. The AuthMethod of the Identity must be api.AuthenticationMethodTLS.
+func (i Identity) X509() (*x509.Certificate, error) {
+	metadata, err := i.CertificateMetadata()
+	if err != nil {
+		return nil, err
 	}
 
 	return metadata.X509()
