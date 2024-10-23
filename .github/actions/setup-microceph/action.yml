@@ -87,6 +87,7 @@ runs:
       run: |
           set -eux
 
+          sudo apt-get update
           sudo apt-get install --no-install-recommends -y ceph-common
           # reclaim some space
           sudo apt-get clean
