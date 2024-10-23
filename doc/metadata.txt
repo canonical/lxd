@@ -4894,6 +4894,13 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 
 ```
 
+```{config:option} ceph.osd.pool_size storage-ceph-pool-conf
+:defaultdesc: "`3`"
+:shortdesc: "Number of RADOS object replicas. Set to 1 for no replication."
+:type: "string"
+
+```
+
 ```{config:option} ceph.rbd.clone_copy storage-ceph-pool-conf
 :defaultdesc: "`true`"
 :shortdesc: "Whether to use RBD lightweight clones"
@@ -5072,6 +5079,14 @@ creating a file system automatically.
 :type: "string"
 This option specifies the number of OSD pool placement groups (`pg_num`) to use
 when creating a missing OSD pool.
+```
+
+```{config:option} cephfs.osd_pool_size storage-cephfs-pool-conf
+:defaultdesc: "`3`"
+:shortdesc: "Number of RADOS object replicas. Set to 1 for no replication."
+:type: "string"
+This option specifies the number of OSD pool replicas to use
+when creating an OSD pool.
 ```
 
 ```{config:option} cephfs.path storage-cephfs-pool-conf

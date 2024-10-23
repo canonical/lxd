@@ -1,14 +1,12 @@
 package drivers
 
 import (
-	"fmt"
-
 	"github.com/canonical/lxd/shared"
 )
 
 // fsExists checks that the Ceph FS instance indeed exists.
 func (d *cephfs) fsExists(clusterName string, userName string, fsName string) (bool, error) {
-	_, err := shared.RunCommand("ceph", "--name", fmt.Sprintf("client.%s", userName), "--cluster", clusterName, "fs", "get", fsName)
+	_, err := shared.RunCommand("ceph", "--name", "client.%s"+userName, "--cluster", clusterName, "fs", "get", fsName)
 	if err != nil {
 		status, _ := shared.ExitStatus(err)
 		// If the error status code is 2, the fs definitely doesn't exist.
@@ -27,7 +25,7 @@ func (d *cephfs) fsExists(clusterName string, userName string, fsName string) (b
 
 // osdPoolExists checks that the Ceph OSD Pool indeed exists.
 func (d *cephfs) osdPoolExists(clusterName string, userName string, osdPoolName string) (bool, error) {
-	_, err := shared.RunCommand("ceph", "--name", fmt.Sprintf("client.%s", userName), "--cluster", clusterName, "osd", "pool", "get", osdPoolName, "size")
+	_, err := shared.RunCommand("ceph", "--name", "client.%s"+userName, "--cluster", clusterName, "osd", "pool", "get", osdPoolName, "size")
 	if err != nil {
 		status, _ := shared.ExitStatus(err)
 		// If the error status code is 2, the pool definitely doesn't exist.

@@ -51,9 +51,23 @@ runs:
           }
           trap cleanup ERR HUP INT TERM
 
+          ephemeral_disk="${{ steps.free_ephemeral_disk.outputs.ephemeral_disk }}"
+          sudo parted "${ephemeral_disk}" --script mklabel gpt
+          sudo parted "${ephemeral_disk}" --script mkpart primary 0% 33%
+          sudo parted "${ephemeral_disk}" --script mkpart primary 33% 66%
+          sudo parted "${ephemeral_disk}" --script mkpart primary 66% 100%
+
+          disk1="$(losetup -f)"
+          sudo losetup "${disk1}" "${ephemeral_disk}1"
+          disk2="$(losetup -f)"
+          sudo losetup "${disk2}" "${ephemeral_disk}2"
+          disk3="$(losetup -f)"
+          sudo losetup "${disk3}" "${ephemeral_disk}3"
+
           sudo snap install microceph --channel "${{ inputs.microceph-channel }}"
           sudo microceph cluster bootstrap
           sudo microceph.ceph config set global osd_pool_default_size 1
+          sudo microceph.ceph config set global mon_allow_pool_size_one true
           sudo microceph.ceph config set global mon_allow_pool_delete true
           sudo microceph.ceph config set global osd_memory_target 939524096
           sudo microceph.ceph osd crush rule rm replicated_rule
@@ -61,7 +75,9 @@ runs:
           for flag in nosnaptrim nobackfill norebalance norecover noscrub nodeep-scrub; do
               sudo microceph.ceph osd set $flag
           done
-          sudo microceph disk add --wipe "${{ steps.free_ephemeral_disk.outputs.ephemeral_disk }}"
+          sudo microceph disk add --wipe "${disk1}"
+          sudo microceph disk add --wipe "${disk2}"
+          sudo microceph disk add --wipe "${disk3}"
           sudo rm -rf /etc/ceph
           sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
           sudo microceph enable rgw

@@ -2517,6 +2517,10 @@ Adds support for using a bridge network with a specified VLAN ID as an OVN uplin
 Adds `logical_cpus` field to `GET /1.0/cluster/members/{name}/state` which
 contains the total available logical CPUs available when LXD started.
 
+<<<<<<< HEAD
 ## `vm_limits_cpu_pin_strategy`
 
 Adds a new {config:option}`instance-resource-limits:limits.cpu.pin_strategy` configuration option for virtual machines. This option controls the CPU pinning strategy. When set to `none`, CPU auto pinning is disabled. When set to `auto`, CPU auto pinning is enabled.
+
+## `storage_ceph_osd_pool_size`
+This introduces the configuration keys {config:option}`storage-ceph-pool-conf:ceph.osd.pool_size`, and {config:option}`storage-cephfs-pool-conf:cephfs.osd_pool_size` to be used when adding or updating a `ceph` or `cephfs` storage pool to instruct LXD to create set the replication size for the underlying OSD pools.

@@ -49,7 +49,7 @@ var cephVolTypePrefixes = map[VolumeType]string{
 func (d *ceph) osdPoolExists() (bool, error) {
 	_, err := shared.RunCommand(
 		"ceph",
-		"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
+		"--name", "client.%s"+d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
 		"osd",
 		"pool",
@@ -83,7 +83,7 @@ func (d *ceph) osdPoolExists() (bool, error) {
 func (d *ceph) osdDeletePool() error {
 	_, err := shared.RunCommand(
 		"ceph",
-		"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
+		"--name", "client.%s"+d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
 		"osd",
 		"pool",

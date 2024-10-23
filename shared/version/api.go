@@ -423,6 +423,7 @@ var APIExtensions = []string{
 	"network_ovn_uplink_vlan",
 	"state_logical_cpus",
 	"vm_limits_cpu_pin_strategy",
+	"storage_ceph_osd_pool_size",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
