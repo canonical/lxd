@@ -970,6 +970,19 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  shortdesc: Whether to back the instance using huge pages
 	"limits.memory.hugepages": validate.Optional(validate.IsBool),
 
+	// lxdmeta:generate(entities=instance; group=resource-limits; key=limits.cpu.pin_strategy)
+	// Specify the strategy for VM CPU auto pinning.
+	// Possible values: `none` (disables CPU auto pinning) and `auto` (enables CPU auto pinning).
+	//
+	// See {ref}`instance-options-limits-cpu-vm` for more information.
+	// ---
+	//  type: string
+	//  defaultdesc: `none`
+	//  liveupdate: no
+	//	condition: virtual machine
+	//  shortdesc: VM CPU auto pinning strategy
+	"limits.cpu.pin_strategy": validate.Optional(validate.IsOneOf("none", "auto")),
+
 	// lxdmeta:generate(entities=instance; group=migration; key=migration.stateful)
 	// Enabling this option prevents the use of some features that are incompatible with it.
 	// ---
