@@ -3689,13 +3689,13 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 			Nodes:       req.Members,
 		}
 
-		groupID, err := dbCluster.CreateClusterGroup(ctx, tx.Tx(), obj)
+		_, err := dbCluster.CreateClusterGroup(ctx, tx.Tx(), obj)
 		if err != nil {
 			return err
 		}
 
 		for _, node := range obj.Nodes {
-			_, err = dbCluster.CreateNodeClusterGroup(ctx, tx.Tx(), dbCluster.NodeClusterGroup{GroupID: int(groupID), Node: node})
+			err = tx.AddNodeToClusterGroup(ctx, obj.Name, node)
 			if err != nil {
 				return err
 			}
@@ -4242,7 +4242,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, node := range obj.Nodes {
-			_, err = dbCluster.CreateNodeClusterGroup(ctx, tx.Tx(), dbCluster.NodeClusterGroup{GroupID: int(groupID), Node: node})
+			err = tx.AddNodeToClusterGroup(ctx, obj.Name, node)
 			if err != nil {
 				return err
 			}
