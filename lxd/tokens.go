@@ -2,17 +2,24 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
+
+func removeTokenHandler(d *Daemon, r *http.Request) response.Response {
+	autoRemoveExpiredTokens(r.Context(), d.State())
+	return response.EmptySyncResponse
+}
 
 func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 	expiredTokenOps := make([]*operations.Operation, 0)
@@ -55,7 +62,7 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 		for _, op := range expiredTokenOps {
 			_, err := op.Cancel()
 			if err != nil {
-				logger.Warn("Failed removing expired token", logger.Ctx{"err": err, "operation": op.ID()})
+				logger.Debug("Failed removing expired token", logger.Ctx{"err": err, "operation": op.ID()})
 			}
 		}
 
