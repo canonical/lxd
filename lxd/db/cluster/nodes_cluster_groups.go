@@ -7,14 +7,9 @@ package cluster
 //
 //go:generate mapper stmt -e node_cluster_group objects table=nodes_cluster_groups
 //go:generate mapper stmt -e node_cluster_group objects-by-GroupID table=nodes_cluster_groups
-//go:generate mapper stmt -e node_cluster_group id table=nodes_cluster_groups
-//go:generate mapper stmt -e node_cluster_group create table=nodes_cluster_groups
 //go:generate mapper stmt -e node_cluster_group delete-by-GroupID table=nodes_cluster_groups
 //
 //go:generate mapper method -e node_cluster_group GetMany
-//go:generate mapper method -e node_cluster_group Create
-//go:generate mapper method -e node_cluster_group Exists
-//go:generate mapper method -e node_cluster_group ID
 //go:generate mapper method -e node_cluster_group DeleteOne-by-GroupID
 
 // NodeClusterGroup associates a node to a cluster group.
