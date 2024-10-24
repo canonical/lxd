@@ -459,6 +459,12 @@ func (d *zone) Content() (*strings.Builder, error) {
 
 					// Convert leases to usable PTR records.
 					for _, lease := range leases {
+						// Networks can be visible from more than one project and
+						// we don't want to consider gateway leases unless dealing with the network's project.
+						if forwardZoneProjectName != n.Project() && lease.Type == "gateway" {
+							continue
+						}
+
 						ip := net.ParseIP(lease.Address)
 
 						// Get the record.
@@ -479,6 +485,12 @@ func (d *zone) Content() (*strings.Builder, error) {
 
 				// Convert leases to usable records.
 				for _, lease := range leases {
+					// Networks can be visible from more than one project and
+					// we don't want to consider gateway leases unless dealing with the network's project.
+					if d.projectName != n.Project() && lease.Type == "gateway" {
+						continue
+					}
+
 					ip := net.ParseIP(lease.Address)
 
 					// Get the record.
