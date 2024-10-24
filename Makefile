@@ -13,6 +13,7 @@ SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
 GOMIN=1.22.7
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
+DQLITE_BRANCH=lts-1.17.x
 
 ifneq "$(wildcard vendor)" ""
 	DQLITE_PATH=$(CURDIR)/vendor/dqlite
@@ -89,8 +90,10 @@ endif
 deps:
 	# dqlite (+raft)
 	@if [ ! -e "$(DQLITE_PATH)" ]; then \
-		git clone --depth=1 "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
+		echo "Retrieving dqlite from ${DQLITE_BRANCH} branch"; \
+		git clone --depth=1 --branch "${DQLITE_BRANCH}" "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
 	elif [ -e "$(DQLITE_PATH)/.git" ]; then \
+		echo "Updating existing dqlite branch"; \
 		cd "$(DQLITE_PATH)"; git pull; \
 	fi
 
@@ -198,7 +201,7 @@ dist: doc
 	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
 
 	# Download the dqlite library
-	git clone --depth=1 https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
+	git clone --depth=1 --branch "${DQLITE_BRANCH}" https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
 	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
 
 	# Copy doc output
