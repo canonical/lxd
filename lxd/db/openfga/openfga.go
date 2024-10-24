@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
@@ -97,7 +98,7 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 		return nil, fmt.Errorf("Read: Failed to parse entity URL %q: %w", entityURL, err)
 	}
 
-	urlEntityType, projectName, _, _, err := entity.ParseURL(*u)
+	urlEntityType, projectName, location, pathArgs, err := entity.ParseURL(*u)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse entity URL %q: %w", entityURL, err)
 	}
@@ -145,6 +146,40 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 					Object:   obj,
 					Relation: relation,
 					User:     fmt.Sprintf("%s:%s", entity.TypeServer, entity.ServerURL().String()),
+				},
+			},
+		}
+
+	case "instance":
+		if !shared.ValueInSlice(entityType, []entity.Type{entity.TypeInstanceBackup, entity.TypeInstanceSnapshot}) {
+			return nil, fmt.Errorf("Received unexpected query, entities of type %q do not have an instance relation", entityType)
+		}
+
+		// Return a tuple relating the snapshot or backup to the instance.
+		// We can do this without a database query because the relevant info is stored in the backup or snapshot URL.
+		tuples = []*openfgav1.Tuple{
+			{
+				Key: &openfgav1.TupleKey{
+					Object:   obj,
+					Relation: relation,
+					User:     fmt.Sprintf("%s:%s", entity.TypeInstance, entity.InstanceURL(projectName, pathArgs[0]).String()),
+				},
+			},
+		}
+
+	case "storage_volume":
+		if !shared.ValueInSlice(entityType, []entity.Type{entity.TypeStorageVolumeBackup, entity.TypeStorageVolumeSnapshot}) {
+			return nil, fmt.Errorf("Received unexpected query, entities of type %q do not have an instance relation", entityType)
+		}
+
+		// Return a tuple relating the snapshot or backup to the instance.
+		// We can do this without a database query because the relevant info is stored in the backup or snapshot URL.
+		tuples = []*openfgav1.Tuple{
+			{
+				Key: &openfgav1.TupleKey{
+					Object:   obj,
+					Relation: relation,
+					User:     fmt.Sprintf("%s:%s", entity.TypeStorageVolume, entity.StorageVolumeURL(projectName, location, pathArgs[0], pathArgs[1], pathArgs[2]).String()),
 				},
 			},
 		}
@@ -372,12 +407,10 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 	}
 
 	// If the relation is "project" or "server", we are listing all resources under the project/server.
-	if filter.Relation == "project" || filter.Relation == "server" {
-		// Expect that the user entity type is expected for the relation.
-		if filter.Relation == "project" && userEntityType != entity.TypeProject {
-			return nil, fmt.Errorf("ReadStartingWithUser: Cannot list project relations for non-project entities")
-		} else if filter.Relation == "server" && userEntityType != entity.TypeServer {
-			return nil, fmt.Errorf("ReadStartingWithUser: Cannot list server relations for non-server entities")
+	if shared.ValueInSlice(filter.Relation, []string{"project", "server", "instance", "storage_volume"}) {
+		if filter.Relation != string(userEntityType) {
+			// Expect that the user entity type is expected for the relation.
+			return nil, fmt.Errorf("ReadStartingWithUser: Relation %q is not valid for entities of type %q", filter.Relation, userEntityType)
 		}
 
 		// Get the entity URLs with the given type and project (if set).
@@ -397,23 +430,37 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 		// Compose the expected tuples relating the server/project to the entities.
 		var tuples []*openfgav1.Tuple
 		for _, entityURL := range entityURLs[entityType] {
-			if filter.Relation == "project" {
-				tuples = append(tuples, &openfgav1.Tuple{
-					Key: &openfgav1.TupleKey{
-						Object:   fmt.Sprintf("%s:%s", entityType, entityURL.String()),
-						Relation: "project",
-						User:     fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName)),
-					},
-				})
-			} else {
-				tuples = append(tuples, &openfgav1.Tuple{
-					Key: &openfgav1.TupleKey{
-						Object:   fmt.Sprintf("%s:%s", entityType, entityURL.String()),
-						Relation: "server",
-						User:     fmt.Sprintf("%s:%s", entity.TypeServer, entity.ServerURL()),
-					},
-				})
+			tupleKey := &openfgav1.TupleKey{Object: string(entityType) + ":" + entityURL.String(), Relation: filter.Relation}
+			switch filter.Relation {
+			case "project":
+				tupleKey.User = string(entity.TypeProject) + ":" + entity.ProjectURL(projectName).String()
+			case "server":
+				tupleKey.User = string(entity.TypeServer) + ":" + entity.ServerURL().String()
+			case "instance":
+				_, projectName, _, pathArgs, err := entity.ParseURL(entityURL.URL)
+				if err != nil {
+					return nil, fmt.Errorf("ReadStartingWithUser: Received invalid URL: %w", err)
+				}
+
+				if userURLPathArguments[0] != pathArgs[0] {
+					continue
+				}
+
+				tupleKey.User = string(entity.TypeInstance) + ":" + entity.InstanceURL(projectName, pathArgs[0]).String()
+			case "storage_volume":
+				_, projectName, location, pathArgs, err := entity.ParseURL(entityURL.URL)
+				if err != nil {
+					return nil, fmt.Errorf("ReadStartingWithUser: Received invalid URL: %w", err)
+				}
+
+				if userURLPathArguments[0] != pathArgs[0] && userURLPathArguments[1] != pathArgs[1] && userURLPathArguments[2] != pathArgs[2] {
+					continue
+				}
+
+				tupleKey.User = string(entity.TypeStorageVolume) + ":" + entity.StorageVolumeURL(projectName, location, pathArgs[0], pathArgs[1], pathArgs[2]).String()
 			}
+
+			tuples = append(tuples, &openfgav1.Tuple{Key: tupleKey})
 		}
 
 		return storage.NewStaticTupleIterator(tuples), nil
