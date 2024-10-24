@@ -1226,9 +1226,13 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 	s := d.State()
 
-	leaderAddress, err := d.gateway.LeaderAddress()
+	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.InternalError(err)
+	}
+
+	if !leaderInfo.Clustered {
+		return response.InternalError(cluster.ErrNodeIsNotClustered)
 	}
 
 	var raftNodes []db.RaftNode
@@ -1268,7 +1272,7 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		args := db.NodeInfoArgs{
-			LeaderAddress:        leaderAddress,
+			LeaderAddress:        leaderInfo.Address,
 			FailureDomains:       failureDomains,
 			MemberFailureDomains: memberFailureDomains,
 			OfflineThreshold:     s.GlobalConfig.OfflineThreshold(),
@@ -1503,9 +1507,13 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	leaderAddress, err := d.gateway.LeaderAddress()
+	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.InternalError(err)
+	}
+
+	if !leaderInfo.Clustered {
+		return response.InternalError(cluster.ErrNodeIsNotClustered)
 	}
 
 	var raftNodes []db.RaftNode
@@ -1544,7 +1552,7 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		args := db.NodeInfoArgs{
-			LeaderAddress:        leaderAddress,
+			LeaderAddress:        leaderInfo.Address,
 			FailureDomains:       failureDomains,
 			MemberFailureDomains: memberFailureDomains,
 			OfflineThreshold:     s.GlobalConfig.OfflineThreshold(),
@@ -1981,24 +1989,27 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Redirect all requests to the leader, which is the one with
-	// knowing what nodes are part of the raft cluster.
+	// knowledge of which nodes are part of the raft cluster.
 	localClusterAddress := s.LocalConfig.ClusterAddress()
-
-	leader, err := d.gateway.LeaderAddress()
+	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
-		return response.InternalError(err)
+		return response.SmartError(err)
 	}
 
-	var localInfo, leaderInfo db.NodeInfo
+	if !leaderInfo.Clustered {
+		return response.InternalError(cluster.ErrNodeIsNotClustered)
+	}
+
+	var localInfo, leaderNodeInfo db.NodeInfo
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		localInfo, err = tx.GetNodeByAddress(ctx, localClusterAddress)
 		if err != nil {
 			return fmt.Errorf("Failed loading local member info %q: %w", localClusterAddress, err)
 		}
 
-		leaderInfo, err = tx.GetNodeByAddress(ctx, leader)
+		leaderNodeInfo, err = tx.GetNodeByAddress(ctx, leaderInfo.Address)
 		if err != nil {
-			return fmt.Errorf("Failed loading leader member info %q: %w", leader, err)
+			return fmt.Errorf("Failed loading leader member info %q: %w", leaderInfo.Address, err)
 		}
 
 		return nil
@@ -2018,7 +2029,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Unable to get raft nodes: %w", err))
 	}
 
-	if localClusterAddress != leader {
+	if !leaderInfo.Leader {
 		if localInfo.Name == name {
 			// If the member being removed is ourselves and we are not the leader, then lock the
 			// clusterPutDisableMu before we forward the request to the leader, so that when the leader
@@ -2035,8 +2046,8 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			}()
 		}
 
-		logger.Debugf("Redirect member delete request to %s", leader)
-		client, err := cluster.Connect(leader, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+		logger.Debugf("Redirect member delete request to %s", leaderInfo.Address)
+		client, err := cluster.Connect(leaderInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -2048,7 +2059,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 		// If we are the only remaining node, wait until promotion to leader,
 		// then update cluster certs.
-		if name == leaderInfo.Name && len(nodes) == 2 {
+		if name == leaderNodeInfo.Name && len(nodes) == 2 {
 			err = d.gateway.WaitLeadership()
 			if err != nil {
 				return response.SmartError(err)
@@ -2080,9 +2091,9 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	defer d.clusterMembershipMutex.Unlock()
 
 	// If we are removing the leader of a 2 node cluster, ensure the other node can be a leader.
-	if name == leaderInfo.Name && len(nodes) == 2 {
+	if name == leaderNodeInfo.Name && len(nodes) == 2 {
 		for i := range nodes {
-			if nodes[i].Address != leader && nodes[i].Role != db.RaftVoter {
+			if nodes[i].Address != leaderInfo.Address && nodes[i].Role != db.RaftVoter {
 				// Promote the remaining node.
 				nodes[i].Role = db.RaftVoter
 				err := changeMemberRole(s, r, nodes[i].Address, nodes)
@@ -2426,25 +2437,23 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Redirect all requests to the leader, which is the one with
-	// knowning what nodes are part of the raft cluster.
-	localClusterAddress := s.LocalConfig.ClusterAddress()
-
-	leader, err := d.gateway.LeaderAddress()
+	// knowledge of which nodes are part of the raft cluster.
+	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	if localClusterAddress != leader {
-		logger.Debugf("Redirect member accept request to %s", leader)
+	if !leaderInfo.Clustered {
+		return response.InternalError(cluster.ErrNodeIsNotClustered)
+	}
 
-		if leader == "" {
-			return response.SmartError(fmt.Errorf("Unable to find leader address"))
-		}
+	if !leaderInfo.Leader {
+		logger.Debugf("Redirect member accept request to %s", leaderInfo.Address)
 
 		url := &url.URL{
 			Scheme: "https",
 			Path:   "/internal/cluster/accept",
-			Host:   leader,
+			Host:   leaderInfo.Address,
 		}
 
 		return response.SyncResponseRedirect(url.String())
@@ -2517,19 +2526,21 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 
 	// Redirect all requests to the leader, which is the one with with
 	// up-to-date knowledge of what nodes are part of the raft cluster.
-	localClusterAddress := s.LocalConfig.ClusterAddress()
-
-	leader, err := d.gateway.LeaderAddress()
+	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	if localClusterAddress != leader {
-		logger.Debugf("Redirect cluster rebalance request to %s", leader)
+	if !leaderInfo.Clustered {
+		return response.InternalError(cluster.ErrNodeIsNotClustered)
+	}
+
+	if !leaderInfo.Leader {
+		logger.Debugf("Redirect cluster rebalance request to %s", leaderInfo.Address)
 		url := &url.URL{
 			Scheme: "https",
 			Path:   "/internal/cluster/rebalance",
-			Host:   leader,
+			Host:   leaderInfo.Address,
 		}
 
 		return response.SyncResponseRedirect(url.String())
@@ -2662,16 +2673,12 @@ func handoverMemberRole(s *state.State, gateway *cluster.Gateway) error {
 
 	// Find the cluster leader.
 findLeader:
-	leader, err := gateway.LeaderAddress()
+	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return err
 	}
 
-	if leader == "" {
-		return fmt.Errorf("No leader address found")
-	}
-
-	if leader == localClusterAddress {
+	if leaderInfo.Leader {
 		logger.Info("Transferring leadership", logCtx)
 		err := gateway.TransferLeadership()
 		if err != nil {
@@ -2682,7 +2689,7 @@ findLeader:
 	}
 
 	logger.Info("Handing over cluster member role", logCtx)
-	client, err := cluster.Connect(leader, s.Endpoints.NetworkCert(), s.ServerCert(), nil, true)
+	client, err := cluster.Connect(leaderInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), nil, true)
 	if err != nil {
 		return fmt.Errorf("Failed handing over cluster member role: %w", err)
 	}
@@ -2752,21 +2759,17 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 	// authoritative knowledge of the current raft configuration.
 	localClusterAddress := s.LocalConfig.ClusterAddress()
 
-	leader, err := d.gateway.LeaderAddress()
+	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	if leader == "" {
-		return response.SmartError(fmt.Errorf("No leader address found"))
-	}
-
-	if localClusterAddress != leader {
-		logger.Debugf("Redirect handover request to %s", leader)
+	if !leaderInfo.Leader {
+		logger.Debugf("Redirect handover request to %s", leaderInfo.Address)
 		url := &url.URL{
 			Scheme: "https",
 			Path:   "/internal/cluster/handover",
-			Host:   leader,
+			Host:   leaderInfo.Address,
 		}
 
 		return response.SyncResponseRedirect(url.String())
@@ -4462,17 +4465,13 @@ func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
 			return // Skip healing if it's disabled.
 		}
 
-		leader, err := d.gateway.LeaderAddress()
+		leaderInfo, err := s.LeaderInfo()
 		if err != nil {
-			if errors.Is(err, cluster.ErrNodeIsNotClustered) {
-				return // Skip healing if not clustered.
-			}
-
-			logger.Error("Failed to get leader cluster member address", logger.Ctx{"err": err})
+			logger.Error("Failed to determine cluster leader", logger.Ctx{"err": err})
 			return
 		}
 
-		if s.LocalConfig.ClusterAddress() != leader {
+		if !leaderInfo.Clustered || !leaderInfo.Leader {
 			return // Skip healing if not cluster leader.
 		}
 
