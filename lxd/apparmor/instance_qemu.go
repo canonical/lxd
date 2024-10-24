@@ -73,6 +73,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   # The binary itself (for nesting)
   /var/snap/lxd/common/lxd.debug            mr,
   /snap/lxd/*/bin/lxd                       mr,
+  /snap/lxd/*/sbin/lxd                      mr,
   /snap/lxd/*/bin/qemu-system-*             mrix,
   /snap/lxd/*/share/qemu/**                 kr,
 
