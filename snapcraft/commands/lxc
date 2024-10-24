@@ -11,13 +11,6 @@ if [ -z "${SNAP_REAL_HOME:-""}" ]; then
     fi
 fi
 
-# Migrate data if needed
-if [ ! -d "${SNAP_USER_COMMON}/config" ]; then
-    if [ -d "${SNAP_REAL_HOME}/.config/lxc" ]; then
-        cp -r "${SNAP_REAL_HOME}/.config/lxc" "${SNAP_USER_COMMON}/config" || true
-    fi
-fi
-
 # Set the environment
 if [ -z "${LXD_DIR:-""}" ]; then
     export LXD_DIR="${SNAP_COMMON}/lxd/"
