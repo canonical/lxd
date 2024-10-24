@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/canonical/go-dqlite/driver"
+	"github.com/canonical/go-dqlite/v2/driver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
