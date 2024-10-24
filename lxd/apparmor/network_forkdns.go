@@ -44,6 +44,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   # The binary itself (for nesting)
   /var/snap/lxd/common/lxd.debug      mr,
   /snap/lxd/*/bin/lxd                 mr,
+  /snap/lxd/*/sbin/lxd                mr,
 
   # Snap-specific libraries
   /snap/lxd/*/lib/**.so*              mr,
