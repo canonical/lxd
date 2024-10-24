@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"strings"
 
-	dqliteDriver "github.com/canonical/go-dqlite/driver"
+	dqliteDriver "github.com/canonical/go-dqlite/v3/driver"
 
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
