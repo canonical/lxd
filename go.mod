@@ -8,6 +8,7 @@ require (
 	github.com/armon/go-proxyproto v0.1.0
 	github.com/canonical/go-dqlite v1.22.0
 	github.com/checkpoint-restore/go-criu/v6 v6.3.0
+	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/dell/goscaleio v1.16.0
 	github.com/digitalocean/go-qemu v0.0.0-20230711162256-2e3d0186973e
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
@@ -92,6 +93,7 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/goccy/go-json v0.10.3 // indirect
+	github.com/godbus/dbus/v5 v5.0.4 // indirect
 	github.com/google/cel-go v0.21.0 // indirect
 	github.com/google/renameio v1.0.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect

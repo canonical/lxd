@@ -26,6 +26,7 @@ runs:
           libseccomp-dev \
           libselinux-dev \
           libsqlite3-dev \
+          libsystemd-dev \
           libtool \
           libudev-dev \
           libuv1-dev \

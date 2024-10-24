@@ -8,6 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/go-systemd/v22/dbus"
+	"github.com/coreos/go-systemd/v22/sdjournal"
+
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
@@ -1130,4 +1133,103 @@ func ovnParseLogEntry(input string, prefix string) string {
 	}
 
 	return string(out)
+}
+
+// checkSystemDUnitStatus checks the status of a systemd unit (loaded and active).
+func checkSystemDUnitStatus(unitName string) error {
+	ctx := context.Background()
+	conn, err := dbus.NewSystemConnectionContext(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to connect to systemd: %v", err)
+	}
+
+	defer conn.Close()
+	unitStatus, err := conn.GetUnitPropertiesContext(ctx, unitName)
+	if err != nil {
+		return fmt.Errorf("Failed to get unit properties: %v", err)
+	}
+
+	loadState, ok := unitStatus["LoadState"].(string)
+	if !ok || loadState != "loaded" {
+		return fmt.Errorf("Unit %q is not loaded (LoadState=%s)", unitName, loadState)
+	}
+
+	activeState, ok := unitStatus["ActiveState"].(string)
+	if !ok || activeState != "active" {
+		return fmt.Errorf("Unit %q is not active (ActiveState=%s)", unitName, activeState)
+	}
+
+	return nil
+}
+
+// ovnParseLogEntriesFromSyslog reads the OVN log entries from the systemd journal and returns them as a list of string entries.
+func ovnParseLogEntriesFromSyslog(l logger.Logger, systemdUnitName string, prefix string) ([]string, error) {
+	var logEntries []string
+	j, err := sdjournal.NewJournal()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to open a Systemd journal instance: %v", err)
+	}
+
+	defer func() { _ = j.Close() }()
+
+	match := sdjournal.Match{
+		Field: sdjournal.SD_JOURNAL_FIELD_SYSTEMD_UNIT,
+		Value: systemdUnitName,
+	}
+	err = j.AddMatch(match.String())
+	if err != nil {
+		return nil, fmt.Errorf("Failed to add match: %v", err)
+	}
+
+	err = j.SeekTail()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to seek to journal tail: %v", err)
+	}
+
+	_, err = j.Previous()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to move to previous entry: %v", err)
+	}
+
+	// Iterate over the journal entries backwards.
+	// For now, we output a maximum of 5000 entries.
+	count := 0
+	maxCount := 5000
+	for count < maxCount {
+		n, err := j.Previous()
+		if err != nil {
+			return nil, fmt.Errorf("Error reading journal: %v", err)
+		}
+
+		if n == 0 {
+			break // No more entries
+		}
+
+		entry, err := j.GetEntry()
+		if err != nil {
+			return nil, fmt.Errorf("Error getting journal entry: %v", err)
+		}
+
+		message, ok := entry.Fields["MESSAGE"]
+		if !ok {
+			l.Error("GABRIEL 1 - No message field in journal entry", logger.Ctx{"entry": entry})
+			continue
+		}
+
+		logEntry := ovnParseLogEntry(message, prefix)
+		if logEntry == "" {
+			l.Error("GABRIEL 2 - log entry empty", logger.Ctx{"message": message})
+			continue
+		}
+
+		l.Error("GABRIEL 3 - log entry", logger.Ctx{"logEntry": logEntry})
+		logEntries = append(logEntries, logEntry)
+		count++
+	}
+
+	for i, j := 0, len(logEntries)-1; i < j; i, j = i+1, j-1 {
+		logEntries[i], logEntries[j] = logEntries[j], logEntries[i]
+	}
+
+	return logEntries, nil
 }

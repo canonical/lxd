@@ -752,32 +752,55 @@ func (d *common) Delete() error {
 func (d *common) GetLog(clientType request.ClientType) (string, error) {
 	// ACLs aren't specific to a particular network type but the log only works with OVN.
 	logPath := shared.HostPath("/var/log/ovn/ovn-controller.log")
-	if !shared.PathExists(logPath) {
-		return "", fmt.Errorf("Only OVN log entries may be retrieved at this time")
-	}
-
-	// Open the log file.
-	logFile, err := os.Open(logPath)
-	if err != nil {
-		return "", fmt.Errorf("Couldn't open OVN log file: %w", err)
-	}
-
-	defer func() { _ = logFile.Close() }()
-
 	logEntries := []string{}
-	scanner := bufio.NewScanner(logFile)
-	for scanner.Scan() {
-		logEntry := ovnParseLogEntry(scanner.Text(), fmt.Sprintf("lxd_acl%d-", d.id))
-		if logEntry == "" {
-			continue
+	if !shared.PathExists(logPath) {
+		// Check if this is OVN builtin of if OVN is provided by a MicroOVN deployment.
+		targetPath, err := os.Readlink("/run/openvswitch")
+		if err != nil {
+			return "", fmt.Errorf("Failed to read symlink while checking for OVN logs: %v\n", err)
 		}
 
-		logEntries = append(logEntries, logEntry)
-	}
+		if !strings.HasPrefix(targetPath, "/var/snap/microovn") {
+			// This is a builtin OVN deployment (snap-based or not) but the log file doesn't exist. This is an error.
+			return "", fmt.Errorf("Only OVN log entries may be retrieved at this time")
+		}
 
-	err = scanner.Err()
-	if err != nil {
-		return "", fmt.Errorf("Failed to read OVN log file: %w", err)
+		// This means that the OVN controller is provided as part of a MicroOVN deployment.
+		// (the 'ovn-chassis' snap interface is connected to the MicroOVN snap).
+		// In this case, we can't access the OVN log directly from a file because MicroOVN stores
+		// them in its systemd journal. LXD should have root access to the host so it should be able to read them.
+		err = checkSystemDUnitStatus("snap.microovn.chassis.service")
+		if err != nil {
+			return "", fmt.Errorf("Failed to check status of MicroOVN systemd unit: %v\n", err)
+		}
+
+		logEntries, err = ovnParseLogEntriesFromSyslog(d.logger, "snap.microovn.chassis.service", fmt.Sprintf("lxd_acl%d-", d.id))
+		if err != nil {
+			return "", fmt.Errorf("Failed to get OVN log entries from syslog: %v\n", err)
+		}
+	} else {
+		// Open the log file.
+		logFile, err := os.Open(logPath)
+		if err != nil {
+			return "", fmt.Errorf("Couldn't open OVN log file: %w", err)
+		}
+
+		defer func() { _ = logFile.Close() }()
+
+		scanner := bufio.NewScanner(logFile)
+		for scanner.Scan() {
+			logEntry := ovnParseLogEntry(scanner.Text(), fmt.Sprintf("lxd_acl%d-", d.id))
+			if logEntry == "" {
+				continue
+			}
+
+			logEntries = append(logEntries, logEntry)
+		}
+
+		err = scanner.Err()
+		if err != nil {
+			return "", fmt.Errorf("Failed to read OVN log file: %w", err)
+		}
 	}
 
 	// Aggregates the entries from the rest of the cluster.

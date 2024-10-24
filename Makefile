@@ -13,6 +13,7 @@ SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
 GOMIN=1.22.7
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
+SYSTEMD_HEADER=$(shell find /usr/include -name sd-journal.h 2>/dev/null)
 
 ifneq "$(wildcard vendor)" ""
 	DQLITE_PATH=$(CURDIR)/vendor/dqlite
@@ -34,6 +35,11 @@ ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing dqlite, run \"make deps\" to setup."
 	exit 1
 endif
+
+	@if [ ! -e "$(SYSTEMD_HEADER)" ]; then \
+		echo "Required header file systemd/sd-journal.h not found. Please install the systemd development package (e.g., sudo apt-get install libsystemd-dev -y)."; \
+		exit 1; \
+	fi
 
 ifeq "$(GOCOVERDIR)" ""
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath $(DEBUG) ./lxd ./lxc-to-lxd
