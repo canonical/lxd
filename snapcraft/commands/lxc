@@ -16,8 +16,6 @@ if [ ! -d "${SNAP_USER_COMMON}/config" ]; then
     if [ -d "${SNAP_REAL_HOME}/.config/lxc" ]; then
         cp -r "${SNAP_REAL_HOME}/.config/lxc" "${SNAP_USER_COMMON}/config" || true
     fi
-
-    mkdir -p "${SNAP_USER_COMMON}/config"
 fi
 
 # Set the environment
@@ -30,6 +28,7 @@ if [ -z "${LXD_DIR:-""}" ]; then
 fi
 
 export LXD_CONF="${SNAP_USER_COMMON}/config"
+[ -d "${LXD_CONF}" ] || mkdir -p "${LXD_CONF}"
 export LXD_GLOBAL_CONF="${LXD_GLOBAL_CONF:-"${SNAP_COMMON}/global-conf/"}"
 
 # Use editor wrapper
