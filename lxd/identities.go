@@ -885,12 +885,23 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 
 			apiIdentities := make([]api.Identity, 0, len(identities))
 			for _, id := range identities {
+				var certificate string
+				if id.AuthMethod == api.AuthenticationMethodTLS && id.Type != api.IdentityTypeCertificateClientPending {
+					metadata, err := id.CertificateMetadata()
+					if err != nil {
+						return response.SmartError(err)
+					}
+
+					certificate = metadata.Certificate
+				}
+
 				apiIdentities = append(apiIdentities, api.Identity{
 					AuthenticationMethod: string(id.AuthMethod),
 					Type:                 string(id.Type),
 					Identifier:           id.Identifier,
 					Name:                 id.Name,
 					Groups:               groupNamesByIdentityID[id.ID],
+					TLSCertificate:       certificate,
 				})
 			}
 
