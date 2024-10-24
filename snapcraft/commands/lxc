@@ -42,10 +42,7 @@ fi
 
 # Run lxc itself outside of apparmor confinement
 if [ -d /sys/kernel/security/apparmor ]; then
-  label="$(while read -r l; do echo "$l"; done < /proc/self/attr/current)"
-  if [ "$label" != "unconfined" ] && [ -n "${label##*(unconfined)}" ]; then
-    exec /usr/bin/aa-exec -p unconfined -- "${LXC}" "$@"
-  fi
+  exec /usr/bin/aa-exec -p unconfined -- "${LXC}" "$@"
 fi
 
 # Run lxc itself
