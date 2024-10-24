@@ -1180,11 +1180,11 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 
 func certificateValidate(networkCert *shared.CertInfo, cert *x509.Certificate) error {
 	if time.Now().Before(cert.NotBefore) {
-		return fmt.Errorf("The provided certificate isn't valid yet")
+		return api.NewStatusError(http.StatusBadRequest, "The provided certificate isn't valid yet")
 	}
 
 	if time.Now().After(cert.NotAfter) {
-		return fmt.Errorf("The provided certificate is expired")
+		return api.NewStatusError(http.StatusBadRequest, "The provided certificate is expired")
 	}
 
 	if networkCert != nil && networkCert.CA() != nil {
