@@ -172,6 +172,7 @@ run_test() {
   TEST_CURRENT=${1}
   TEST_CURRENT_DESCRIPTION=${2:-${1}}
   TEST_UNMET_REQUIREMENT=""
+  cwd="$(pwd)"
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
   START_TIME=$(date +%s)
@@ -211,6 +212,9 @@ run_test() {
   fi
 
   END_TIME=$(date +%s)
+  cd "${cwd}"
+
+  panic_checker "${TEST_DIR}"
 
   echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} ($((END_TIME-START_TIME))s)"
 }

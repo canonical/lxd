@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+
+import sys
+import re
+
+# Looks for a panic by grepping for stacktraces in a log file.
+# If a panic is found, it exits with code 1 and prints the stacktrace plus the last log message.
+# Only the first panic is returned.
+# If no panics are found it exits with code 0
+with open(sys.argv[1]) as file:
+    output = ""
+    lastline = ""
+    for line in file:
+        if output == "" and not re.search("^goroutine\s+\d+\s+\[running]:", line):
+            # Output empty and no regex match so nothing found yet.
+            lastline = line
+            continue
+
+        if lastline != "":
+            # Got a regex match on this line, start the output with the last line and set it empty.
+            output = lastline + line
+            lastline = ""
+            continue
+
+        if re.search("(INFO|DEBUG|TRACE|WARNING|ERROR)", line):
+            # Print the stack trace and exit when we encounter the next standard log message
+            sys.stdout.write(output)
+            exit(1)
+        else:
+            # While we don't have standard log messages, append the output (the stacktrace).
+            output += line
+
+exit(0)
+
+

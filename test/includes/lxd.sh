@@ -302,6 +302,16 @@ wipe() {
     rm -Rf "${1}"
 }
 
+panic_checker() {
+  local test_dir daemon_dir
+  test_dir="${1}"
+
+  sleep 1
+  while read -r daemon_dir; do
+    deps/panic-checker "${daemon_dir}/lxd.log"
+  done < "${test_dir}/daemons"
+}
+
 # Kill and cleanup LXD instances and related resources
 cleanup_lxds() {
     local test_dir daemon_dir
