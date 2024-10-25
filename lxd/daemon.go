@@ -584,7 +584,7 @@ func (d *Daemon) State() *state.State {
 	localConfig := d.localConfig
 	d.globalConfigMu.Unlock()
 
-	return &state.State{
+	s := &state.State{
 		ShutdownCtx:         d.shutdownCtx,
 		DB:                  d.db,
 		MAAS:                d.maas,
@@ -609,6 +609,30 @@ func (d *Daemon) State() *state.State {
 		Authorizer:          d.authorizer,
 		UbuntuPro:           d.ubuntuPro,
 	}
+
+	s.LeaderInfo = func() (*state.LeaderInfo, error) {
+		if !s.ServerClustered {
+			return &state.LeaderInfo{
+				Clustered: false,
+				Leader:    true,
+				Address:   "",
+			}, nil
+		}
+
+		localClusterAddress := s.LocalConfig.ClusterAddress()
+		leaderAddress, err := d.gateway.LeaderAddress()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get the address of the cluster leader: %w", err)
+		}
+
+		return &state.LeaderInfo{
+			Clustered: true,
+			Leader:    localClusterAddress == leaderAddress,
+			Address:   leaderAddress,
+		}, nil
+	}
+
+	return s
 }
 
 // UnixSocket returns the full path to the unix.socket file that this daemon is

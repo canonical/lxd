@@ -232,7 +232,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if targetMemberInfo == nil && s.GlobalConfig.InstancesPlacementScriptlet() != "" {
-			leaderAddress, err := d.gateway.LeaderAddress()
+			leaderInfo, err := s.LeaderInfo()
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -250,7 +250,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				Reason:  apiScriptlet.InstancePlacementReasonRelocation,
 			}
 
-			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, &req, candidateMembers, leaderAddress)
+			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, &req, candidateMembers, leaderInfo.Address)
 			if err != nil {
 				return response.BadRequest(fmt.Errorf("Failed instance placement scriptlet: %w", err))
 			}
