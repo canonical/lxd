@@ -8,11 +8,7 @@ runs:
       shell: bash
       run: |
         set -eux
-        sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
         sudo apt-get update
-
-        sudo systemctl mask lxc.service lxc-net.service
-
         sudo apt-get install --no-install-recommends -y \
           build-essential \
           curl \
