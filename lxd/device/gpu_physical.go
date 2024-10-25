@@ -75,6 +75,14 @@ func (d *gpuPhysical) validateConfig(instConf instance.ConfigReader) error {
 				return fmt.Errorf(`Cannot use %q when "id" is set`, field)
 			}
 		}
+
+		// If user requests CDI in conjunction with nvidia.runtime=true we should forbid that.
+		if shared.IsTrue(instConf.ExpandedConfig()["nvidia.runtime"]) {
+			_, err := cdi.ToCDI(d.config["id"])
+			if err == nil {
+				return fmt.Errorf("CDI mode is incompatible with nvidia.runtime=true")
+			}
+		}
 	}
 
 	return nil
