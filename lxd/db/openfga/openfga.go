@@ -111,9 +111,11 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 		return nil, err
 	}
 
+	// Our parent-child relations are always named as the entity type of the parent.
+	relationEntityType := entity.Type(relation)
 	var tuples []*openfgav1.Tuple
-	switch relation {
-	case "project":
+	switch relationEntityType {
+	case entity.TypeProject:
 		// If the entity type is not project specific but we're looking for project relations then the input is invalid.
 		// (Likely an error in the authorization driver).
 		if !requiresProject {
@@ -126,12 +128,12 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 				Key: &openfgav1.TupleKey{
 					Object:   obj,
 					Relation: relation,
-					User:     fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName).String()),
+					User:     string(entity.TypeProject) + ":" + entity.ProjectURL(projectName).String(),
 				},
 			},
 		}
 
-	case "server":
+	case entity.TypeServer:
 		// If the entity type is project specific but we're looking for server relations then the input is invalid.
 		// (Likely an error in the authorization driver).
 		if requiresProject {
@@ -144,7 +146,7 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 				Key: &openfgav1.TupleKey{
 					Object:   obj,
 					Relation: relation,
-					User:     fmt.Sprintf("%s:%s", entity.TypeServer, entity.ServerURL().String()),
+					User:     string(entity.TypeServer) + ":" + entity.ServerURL().String(),
 				},
 			},
 		}
@@ -371,12 +373,15 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 		return nil, fmt.Errorf("ReadStartingWithUser: Unexpected user entity URL %q: %w", userURL, err)
 	}
 
+	// Our parent-child relations are always named as the entity type of the parent.
+	relationEntityType := entity.Type(filter.Relation)
+
 	// If the relation is "project" or "server", we are listing all resources under the project/server.
-	if filter.Relation == "project" || filter.Relation == "server" {
+	if relationEntityType == entity.TypeProject || relationEntityType == entity.TypeServer {
 		// Expect that the user entity type is expected for the relation.
-		if filter.Relation == "project" && userEntityType != entity.TypeProject {
+		if relationEntityType == entity.TypeProject && userEntityType != entity.TypeProject {
 			return nil, fmt.Errorf("ReadStartingWithUser: Cannot list project relations for non-project entities")
-		} else if filter.Relation == "server" && userEntityType != entity.TypeServer {
+		} else if relationEntityType == entity.TypeServer && userEntityType != entity.TypeServer {
 			return nil, fmt.Errorf("ReadStartingWithUser: Cannot list server relations for non-server entities")
 		}
 
@@ -397,7 +402,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 		// Compose the expected tuples relating the server/project to the entities.
 		var tuples []*openfgav1.Tuple
 		for _, entityURL := range entityURLs[entityType] {
-			if filter.Relation == "project" {
+			if relationEntityType == entity.TypeProject {
 				tuples = append(tuples, &openfgav1.Tuple{
 					Key: &openfgav1.TupleKey{
 						Object:   fmt.Sprintf("%s:%s", entityType, entityURL.String()),
