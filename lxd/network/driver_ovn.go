@@ -5442,8 +5442,21 @@ func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.N
 	var err error
 	leases := []api.NetworkLease{}
 
-	// If requested project matches network's project then include gateway IPs.
-	if projectName == n.project || projectName == "" {
+	// Include gateway leases if network is visible from requested project or requesting all projects.
+	// Avoid querying project if we don't need to check features.networks.
+	includeGatewayLeases := projectName == "" || n.project == projectName
+	if !includeGatewayLeases {
+		var effectiveProject string
+		effectiveProject, _, err = project.NetworkProject(n.state.DB.Cluster, projectName)
+		if err != nil {
+			return nil, err
+		}
+
+		includeGatewayLeases = n.project == effectiveProject
+	}
+
+	// Include gateway IPs if applicable.
+	if includeGatewayLeases {
 		// Add our own gateway IPs.
 		for _, addr := range []string{n.config["ipv4.address"], n.config["ipv6.address"]} {
 			ip, _, _ := net.ParseCIDR(addr)

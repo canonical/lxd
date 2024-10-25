@@ -94,6 +94,7 @@ test_network() {
   # Create new project with an instance with ipv[46] for the next tests.
   lxc project create foo -c features.networks=false -c features.images=false -c features.profiles=false
   lxc launch testimage outsider -n lxdt$$ --project foo
+  gateway_addr="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)"
   v4_addr_foo="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)1"
   v6_addr_foo="$(lxc network get lxdt$$ ipv6.address | cut -d/ -f1)01"
   lxc config device set outsider eth0 ipv4.address "${v4_addr_foo}" --project foo
@@ -101,8 +102,10 @@ test_network() {
 
   lxc network list-leases lxdt$$ | grep STATIC | grep -q "${v4_addr}"
   lxc network list-leases lxdt$$ | grep STATIC | grep -q "${v6_addr}"
+  lxc network list-leases lxdt$$ | grep GATEWAY | grep -q "${gateway_addr}"
   lxc network list-leases lxdt$$ --project foo | grep STATIC | grep -q "${v4_addr_foo}"
   lxc network list-leases lxdt$$ --project foo | grep STATIC | grep -q "${v6_addr_foo}"
+  lxc network list-leases lxdt$$ --project foo | grep GATEWAY | grep -q "${gateway_addr}"
 
   # Request DHCPv6 lease (if udhcpc6 is in busybox image).
   busyboxUdhcpc6=1
