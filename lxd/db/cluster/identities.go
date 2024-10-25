@@ -328,13 +328,13 @@ type PendingTLSMetadata struct {
 // PendingTLSMetadata returns the pending TLS identity metadata.
 func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
 	if i.Type != api.IdentityTypeCertificateClientPending {
-		return nil, fmt.Errorf("Cannot extract pending TLS identity secret: Identity is not pending")
+		return nil, api.NewStatusError(http.StatusBadRequest, "Cannot extract pending TLS identity secret: Identity is not pending")
 	}
 
 	var metadata PendingTLSMetadata
 	err := json.Unmarshal([]byte(i.Metadata), &metadata)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal pending TLS identity metadata: %w", err)
+		return nil, api.StatusErrorf(http.StatusInternalServerError, "Failed to unmarshal pending TLS identity metadata: %w", err)
 	}
 
 	return &metadata, nil
