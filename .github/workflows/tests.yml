@@ -131,7 +131,7 @@ jobs:
           tar -xzf lxd-test.tar.gz -C /home/runner/work/lxd/
           rm lxd-test.tar.gz
 
-      - name: Build LXD dependencies
+      - name: Build dqlite
         run: |
           set -eux
 
