@@ -278,7 +278,7 @@ jobs:
             libdbus-1-dev \
             liblxc-dev \
             libseccomp-dev \
-            libselinux-dev \
+            libselinux1-dev \
             libsqlite3-dev \
             libtool \
             libudev-dev \
