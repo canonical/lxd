@@ -76,6 +76,26 @@ jobs:
       - name: Install build dependencies
         uses: ./.github/actions/install-lxd-builddeps
 
+      - name: Build liblxc
+        run: |
+            set -eux
+            git clone --depth=1 --branch main https://github.com/lxc/lxc /home/runner/work/lxd/liblxc
+            cd /home/runner/work/lxd/liblxc
+            meson setup \
+              -Dprefix=/usr \
+              -Dexamples=false \
+              -Dman=false \
+              -Dtools=true \
+              -Dtests=false \
+              -Dmemfd-rexec=false \
+              -Dapparmor=true \
+              -Dseccomp=true \
+              -Dselinux=true \
+              -Dcapabilities=true \
+              -Dthread-safety=true
+              build
+              make
+
       - name: Download minio/mc
         run: |
           # Download minio ready to include in dependencies for system tests.
