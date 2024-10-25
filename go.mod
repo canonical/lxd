@@ -6,7 +6,7 @@ require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.16.2
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.1.0
-	github.com/canonical/go-dqlite v1.22.0
+	github.com/canonical/go-dqlite/v3 v3.0.0
 	github.com/checkpoint-restore/go-criu/v6 v6.3.0
 	github.com/dell/goscaleio v1.16.0
 	github.com/digitalocean/go-qemu v0.0.0-20230711162256-2e3d0186973e
