@@ -71,63 +71,61 @@ func (c *cmdLaunch) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Check if the instance was started by the server.
-	if d.HasExtension("instance_create_start") {
-		return nil
-	}
+	// Start the instance if it wasn't started by the server
+	if !d.HasExtension("instance_create_start") {
+		// Get the remote
+		var remote string
+		if len(args) == 2 {
+			remote, _, err = conf.ParseRemote(args[1])
+			if err != nil {
+				return err
+			}
+		} else {
+			remote, _, err = conf.ParseRemote("")
+			if err != nil {
+				return err
+			}
+		}
 
-	// Get the remote
-	var remote string
-	if len(args) == 2 {
-		remote, _, err = conf.ParseRemote(args[1])
+		// Start the instance
+		if !c.global.flagQuiet {
+			fmt.Printf(i18n.G("Starting %s")+"\n", name)
+		}
+
+		req := api.InstanceStatePut{
+			Action:  "start",
+			Timeout: -1,
+		}
+
+		op, err := d.UpdateInstanceState(name, req, "")
 		if err != nil {
 			return err
 		}
-	} else {
-		remote, _, err = conf.ParseRemote("")
+
+		progress := cli.ProgressRenderer{
+			Quiet: c.global.flagQuiet,
+		}
+
+		_, err = op.AddHandler(progress.UpdateOp)
 		if err != nil {
+			progress.Done("")
 			return err
 		}
-	}
 
-	// Start the instance
-	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Starting %s")+"\n", name)
-	}
+		// Wait for operation to finish
+		err = cli.CancelableWait(op, &progress)
+		if err != nil {
+			progress.Done("")
+			prettyName := name
+			if remote != "" {
+				prettyName = fmt.Sprintf("%s:%s", remote, name)
+			}
 
-	req := api.InstanceStatePut{
-		Action:  "start",
-		Timeout: -1,
-	}
-
-	op, err := d.UpdateInstanceState(name, req, "")
-	if err != nil {
-		return err
-	}
-
-	progress := cli.ProgressRenderer{
-		Quiet: c.global.flagQuiet,
-	}
-
-	_, err = op.AddHandler(progress.UpdateOp)
-	if err != nil {
-		progress.Done("")
-		return err
-	}
-
-	// Wait for operation to finish
-	err = cli.CancelableWait(op, &progress)
-	if err != nil {
-		progress.Done("")
-		prettyName := name
-		if remote != "" {
-			prettyName = fmt.Sprintf("%s:%s", remote, name)
+			return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, prettyName)
 		}
 
-		return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, prettyName)
+		progress.Done("")
 	}
-
-	progress.Done("")
 
 	// Handle console attach
 	if c.flagConsole != "" {
