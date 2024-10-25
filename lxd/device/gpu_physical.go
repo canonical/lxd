@@ -289,7 +289,7 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 				return nil, fmt.Errorf(`MIG GPU notation detected for a "physical" gputype device. Choose a "mig" gputype device instead.`)
 			}
 
-			configDevices, hooks, err := cdi.GenerateFromCDI(d.inst, cdiID, d.logger)
+			configDevices, hooks, err := cdi.GenerateFromCDI(d.state, d.inst, cdiID, d.logger)
 			if err != nil {
 				return nil, err
 			}

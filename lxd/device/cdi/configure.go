@@ -11,6 +11,7 @@ import (
 	"tags.cncf.io/container-device-interface/specs-go"
 
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -277,9 +278,9 @@ func applyContainerEdits(edits specs.ContainerEdits, configDevices *ConfigDevice
 //  4. Now we process all the mounts we collected from the spec in order to turn them into disk devices.
 //     This operations generate a side effect: it generates a list of indirect symlinks (see `specMountToNativeDev`)
 //  5. Merge all the hooks (direct + indirect) into a single list of hooks.
-func GenerateFromCDI(inst instance.Instance, cdiID ID, l logger.Logger) (*ConfigDevices, *Hooks, error) {
+func GenerateFromCDI(s *state.State, inst instance.Instance, cdiID ID, l logger.Logger) (*ConfigDevices, *Hooks, error) {
 	// 1. Generate the CDI specification
-	spec, err := generateSpec(cdiID, inst)
+	spec, err := generateSpec(s, cdiID, inst)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to generate CDI spec: %w", err)
 	}
