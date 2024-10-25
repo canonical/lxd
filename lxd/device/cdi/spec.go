@@ -13,6 +13,7 @@ import (
 	"tags.cncf.io/container-device-interface/specs-go"
 
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -39,7 +40,7 @@ func defaultNvidiaTegraCSVFiles(rootPath string) []string {
 }
 
 // generateNvidiaSpec generates a CDI spec for an Nvidia vendor.
-func generateNvidiaSpec(cdiID ID, inst instance.Instance) (*specs.Spec, error) {
+func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*specs.Spec, error) {
 	l := logger.AddContext(logger.Ctx{"instanceName": inst.Name(), "projectName": inst.Project().Name, "cdiID": cdiID.String()})
 	mode := nvcdi.ModeAuto
 	if cdiID.Class == IGPU {
@@ -62,15 +63,30 @@ func generateNvidiaSpec(cdiID ID, inst instance.Instance) (*specs.Spec, error) {
 	}
 
 	rootPath := ""
-	if shared.InSnap() {
+	devRootPath := ""
+	if s.OS.InUbuntuCore() {
+		//
+		// This magic "gpu-2404-2" name comes from:
+		// https://github.com/canonical/mesa-2404/blob/0e48b4d1b8e5cb4d3098d64417025824decd9846/scripts/bin/gpu-2404-provider-wrapper.in#L5
+		//
+		// Also, we can't use `/snap/lxd/current/gpu-2404-2` as a rootPath because of a bug in nvcdi package
+		// which make nvcdi to fail to lookup for a library when driver root path contains a symlink
+		// (in our case it's `/snap/lxd/current`).
+		// We workaround it by using $SNAP environment variable which is not a symlink but a path to lxd snap
+		// with a revision number like `/snap/lxd/12345`.
+		//
+		rootPath = os.Getenv("SNAP") + "/gpu-2404-2"
+		devRootPath = "/"
+	} else if shared.InSnap() {
 		rootPath = "/var/lib/snapd/hostfs"
+		devRootPath = rootPath
 	}
 
 	cdilib, err := nvcdi.New(
 		nvcdi.WithDeviceNamers(indexDeviceNamer, uuidDeviceNamer),
 		nvcdi.WithLogger(NewCDILogger(l)),
 		nvcdi.WithDriverRoot(rootPath),
-		nvcdi.WithDevRoot(rootPath),
+		nvcdi.WithDevRoot(devRootPath),
 		nvcdi.WithNVIDIACDIHookPath(nvidiaCTKPath),
 		nvcdi.WithMode(mode),
 		nvcdi.WithCSVFiles(defaultNvidiaTegraCSVFiles(rootPath)),
@@ -109,10 +125,10 @@ func generateNvidiaSpec(cdiID ID, inst instance.Instance) (*specs.Spec, error) {
 }
 
 // generateSpec generates a CDI spec for the given CDI ID.
-func generateSpec(cdiID ID, inst instance.Instance) (*specs.Spec, error) {
+func generateSpec(s *state.State, cdiID ID, inst instance.Instance) (*specs.Spec, error) {
 	switch cdiID.Vendor {
 	case NVIDIA:
-		return generateNvidiaSpec(cdiID, inst)
+		return generateNvidiaSpec(s, cdiID, inst)
 	default:
 		return nil, fmt.Errorf("Unsupported CDI vendor (%q) for the spec generation", cdiID.Vendor)
 	}
