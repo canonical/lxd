@@ -77,6 +77,12 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 		//
 		rootPath = os.Getenv("SNAP") + "/gpu-2404-2"
 		devRootPath = "/"
+
+		// Let's ensure that user did:
+		// snap connect mesa-2404:kernel-gpu-2404 pc-kernel
+		if !shared.PathExists("/snap/lxd/current/gpu-2404-2/usr/bin/nvidia-smi") {
+			return nil, fmt.Errorf("Failed to find nvidia-smi tool. Please ensure that pc-kernel snap is connected to mesa-2404.")
+		}
 	} else if shared.InSnap() {
 		rootPath = "/var/lib/snapd/hostfs"
 		devRootPath = rootPath
