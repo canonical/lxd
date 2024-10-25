@@ -81,6 +81,7 @@ jobs:
             set -eux
             git clone --depth=1 --branch main https://github.com/lxc/lxc /home/runner/work/lxd/liblxc
             cd /home/runner/work/lxd/liblxc
+            ls -la
             meson setup \
               -Dprefix=/usr \
               -Dexamples=false \

@@ -12,20 +12,23 @@ runs:
         sudo apt-get install --no-install-recommends -y \
           build-essential \
           curl \
+          dpkg-dev \
           gettext \
           git \
           libacl1-dev \
           libcap-dev \
           libdbus-1-dev \
-          liblxc-dev \
+          libgnutls28-dev \
           lxc-templates \
           libseccomp-dev \
-          libselinux-dev \
+          libselinux1-dev \
           libsqlite3-dev \
           libtool \
           libudev-dev \
           libuv1-dev \
           make \
+          meson \
+          ninja-build \
           pkg-config \
           shellcheck
 
