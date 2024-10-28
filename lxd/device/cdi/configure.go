@@ -291,14 +291,38 @@ func GenerateFromCDI(s *state.State, inst instance.Instance, cdiID ID, l logger.
 	configDevices := &ConfigDevices{UnixCharDevs: make([]map[string]string, 0), BindMounts: make([]map[string]string, 0)}
 
 	// 2. Process the specific device configuration
+	lookedUpDevs := make(map[string]struct{})
 	for _, device := range spec.Devices {
-		if device.Name == cdiID.Name {
-			mounts, err = applyContainerEdits(device.ContainerEdits, configDevices, hooks, mounts, l)
-			if err != nil {
-				return nil, nil, err
+		if cdiID.Name == All {
+			// When 'all' is selected as a CDI identifier,
+			// we should make the difference between CDI device index that are integer and the ones represented by a UUID
+			// that could contain the same cards. Having a lookup map avoid to add the same devices multiple times.
+			devToAdd := true
+			for _, devNode := range device.ContainerEdits.DeviceNodes {
+				_, ok := lookedUpDevs[devNode.Path]
+				if ok {
+					devToAdd = false
+					break
+				}
+
+				lookedUpDevs[devNode.Path] = struct{}{}
 			}
 
-			break
+			if devToAdd {
+				mounts, err = applyContainerEdits(device.ContainerEdits, configDevices, hooks, mounts, l)
+				if err != nil {
+					return nil, nil, err
+				}
+			}
+		} else {
+			if device.Name == cdiID.Name {
+				mounts, err = applyContainerEdits(device.ContainerEdits, configDevices, hooks, mounts, l)
+				if err != nil {
+					return nil, nil, err
+				}
+
+				break
+			}
 		}
 	}
 
