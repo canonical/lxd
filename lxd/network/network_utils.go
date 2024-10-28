@@ -2,6 +2,7 @@ package network
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	cryptorand "crypto/rand"
 	"encoding/hex"
@@ -10,8 +11,10 @@ import (
 	"math/big"
 	"math/rand"
 	"net"
+	"net/netip"
 	"os"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1503,4 +1506,98 @@ func AllowedUplinkNetworks(ctx context.Context, tx *db.ClusterTx, projectConfig 
 	}
 
 	return allowedUplinkNetworkNames, nil
+}
+
+// complementRangesIP4 returns the complement of the provided IPv4 network ranges.
+// Accepts a slice of IPv4 ranges and its network's address as parameters.
+// It calculates the IPv4 ranges that are *not* covered by the input slice and
+// returns the result.
+// Network address is used to find the boundaries of the network (first and last IP),
+// this in turn allows the function to consider the full IP space that the ranges belong to.
+func complementRangesIP4(ranges []*shared.IPRange, netAddr *net.IPNet) ([]shared.IPRange, error) {
+	var complement []shared.IPRange
+
+	// Sort the input slice of IP ranges by their start address from lowest to highest.
+	// This is important because it allows us to find gaps within ranges by making a single linear pass
+	// over the given ranges.
+	sort.Slice(ranges, func(i, j int) bool {
+		return bytes.Compare(ranges[i].Start, ranges[j].Start) < 0
+	})
+
+	ipv4NetPrefix, err := netip.ParsePrefix(netAddr.String())
+	if err != nil {
+		return nil, err
+	}
+
+	// Initialize a cursor to the start of the network. It tracks
+	// the end of the last covered IP range.
+	previousEnd := ipv4NetPrefix.Addr()
+
+	// Iterate over the sorted list of given IP ranges to find the gaps between them.
+	for _, r := range ranges {
+		startAddr, err := netip.ParseAddr(r.Start.String())
+		if err != nil {
+			return nil, err
+		}
+
+		endAddr, err := netip.ParseAddr(r.End.String())
+		if err != nil {
+			return nil, err
+		}
+
+		previousEndNext := previousEnd.Next()
+
+		// Check if a gap exists between the last covered range and the current one.
+		// A gap is present only if the start of this range comes *after* the IP
+		// immediately following the previous end (previousEnd.Next()).
+		// This correctly handles adjacent ranges (e.g., ending in .20, starting at .21) by not
+		// flagging them as a gap.
+		if startAddr.Compare(previousEndNext) == 1 {
+			newStart := previousEndNext
+			newEnd := startAddr.Prev()
+
+			// Check if the calculated gap is just a single IP or a multi-IP range.
+			if newStart.Compare(newEnd) == 0 {
+				// The gap is a single IP. It is allowed to set only the "Start"
+				// field for single IP ranges.
+				complement = append(complement, shared.IPRange{Start: net.ParseIP(newStart.String())})
+			} else {
+				// The gap consists of multiple IPs, therefore, append a range with both "Start" and "End" fields set.
+				complement = append(complement, shared.IPRange{Start: net.ParseIP(newStart.String()), End: net.ParseIP(newEnd.String())})
+			}
+		}
+
+		// Advance the cursor to the end of the current range if it extends further
+		// than the previous one. This correctly handles overlapping ranges.
+		if endAddr.Compare(previousEnd) == 1 {
+			previousEnd = endAddr
+		}
+	}
+
+	// Set "endAddr" to the end of the network (broadcast address).
+	endAddr, err := netip.ParseAddr(dhcpalloc.GetIP(netAddr, -1).String()) // Returns broadcast address.
+	if err != nil {
+		return nil, err
+	}
+
+	// Check for a final gap between the end of the last processed range
+	// and the end of the network.
+	if previousEnd.Compare(endAddr) == -1 {
+		complement = append(complement, shared.IPRange{Start: net.ParseIP(previousEnd.Next().String()), End: net.ParseIP(endAddr.String())})
+	}
+
+	return complement, nil
+}
+
+// ipInRanges checks whether the given IP address is contained within any of the
+// provided IP network ranges.
+func ipInRanges(ipAddr net.IP, ipRanges []shared.IPRange) bool {
+	for _, r := range ipRanges {
+		containsIP := r.ContainsIP(ipAddr)
+		if containsIP {
+			return true
+		}
+	}
+
+	return false
 }
