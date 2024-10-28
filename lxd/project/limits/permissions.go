@@ -1251,66 +1251,17 @@ func fetchProject(globalConfig map[string]any, tx *db.ClusterTx, projectName str
 		return nil, nil
 	}
 
-	profilesFilter := cluster.ProfileFilter{}
-
-	// If the project has the profiles feature enabled, we use its own
-	// profiles to expand the instances configs, otherwise we use the
-	// profiles from the default project.
-	defaultProject := api.ProjectDefaultName
-	if projectName == api.ProjectDefaultName || shared.IsTrue(project.Config["features.profiles"]) {
-		profilesFilter.Project = &projectName
-	} else {
-		profilesFilter.Project = &defaultProject
-	}
-
-	dbProfiles, err := cluster.GetProfiles(ctx, tx.Tx(), profilesFilter)
+	projectArgs, err := tx.GetProjectInstancesAndProfiles(ctx, project)
 	if err != nil {
-		return nil, fmt.Errorf("Fetch profiles from database: %w", err)
+		return nil, fmt.Errorf("Failed to fetch instances from database: %w", err)
 	}
 
-	dbProfileConfigs, err := cluster.GetConfig(ctx, tx.Tx(), "profile")
-	if err != nil {
-		return nil, fmt.Errorf("Fetch profile configs from database: %w", err)
-	}
-
-	dbProfileDevices, err := cluster.GetDevices(ctx, tx.Tx(), "profile")
-	if err != nil {
-		return nil, fmt.Errorf("Fetch profile devices from database: %w", err)
-	}
-
-	profiles := make([]api.Profile, 0, len(dbProfiles))
-	for _, profile := range dbProfiles {
-		apiProfile, err := profile.ToAPI(ctx, tx.Tx(), dbProfileConfigs, dbProfileDevices)
-		if err != nil {
-			return nil, err
-		}
-
-		profiles = append(profiles, *apiProfile)
-	}
+	args := projectArgs[projectName]
 
 	info := &projectInfo{
-		Project:  *project,
-		Profiles: profiles,
-	}
-
-	instanceFilter := cluster.InstanceFilter{
-		Project: &projectName,
-	}
-
-	instanceFunc := func(inst db.InstanceArgs, project api.Project) error {
-		apiInstance, err := inst.ToAPI()
-		if err != nil {
-			return err
-		}
-
-		info.Instances = append(info.Instances, *apiInstance)
-
-		return nil
-	}
-
-	err = tx.InstanceList(ctx, instanceFunc, instanceFilter)
-	if err != nil {
-		return nil, fmt.Errorf("Fetch instances from database: %w", err)
+		Project:   *project,
+		Profiles:  args.Profiles,
+		Instances: args.Instances,
 	}
 
 	info.StoragePoolDrivers, err = tx.GetStoragePoolDrivers(ctx)
