@@ -30,7 +30,7 @@ jobs:
       issues: write
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Notify
         uses: iamfj/action-label-notification@4e60f368a1f941089eeda54fdeb120f3f49ff66c # v1.0.0
         with:
