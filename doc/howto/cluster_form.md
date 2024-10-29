@@ -13,8 +13,7 @@ See {ref}`clustering-members` for more information.
 
 You can form the LXD cluster interactively by providing configuration information during the initialization process or by using preseed files that contain the full configuration.
 
-To quickly and automatically set up a basic LXD cluster, you can use MicroCloud.
-Note, however, that this project is still in an early phase.
+To quickly and automatically set up a basic LXD cluster, you can use {ref}`MicroCloud <use-microcloud>`.
 
 ## Configure the cluster interactively
 
@@ -397,6 +396,7 @@ opyQ1VRpAg2sV2C4W8irbNqeUsTeZZxhLqp4vNOXXBBrSqUCdPu1JXADV0kavg1l
 ````
 `````
 
+(use-microcloud)=
 ## Use MicroCloud
 
 ```{youtube} https://www.youtube.com/watch?v=iWZYUU8lX5A
