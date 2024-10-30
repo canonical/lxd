@@ -408,7 +408,7 @@ func (c *cmdConfigGet) command() *cobra.Command {
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpInstanceAllKeys(args[0])
+			return c.global.cmpInstanceKeys(args[0])
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -565,7 +565,7 @@ lxc config set core.https_address=[::]:8443
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpInstanceAllKeys(args[0])
+			return c.global.cmpInstanceKeys(args[0])
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -918,7 +918,7 @@ func (c *cmdConfigUnset) command() *cobra.Command {
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpInstanceAllKeys(args[0])
+			return c.global.cmpInstanceKeys(args[0])
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
