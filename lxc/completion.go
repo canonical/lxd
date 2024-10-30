@@ -222,9 +222,9 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 	return results, cmpDirectives
 }
 
-// cmpInstanceAllKeys provides shell completion for all instance configuration keys.
-// It takes an instance name and returns a list of all instance configuration keys along with a shell completion directive.
-func (g *cmdGlobal) cmpInstanceAllKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
+// cmpInstanceKeys provides shell completion for all instance configuration keys.
+// It takes an instance name to determine instance type and returns a list of all instance configuration keys along with a shell completion directive.
+func (g *cmdGlobal) cmpInstanceKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
 	var keys []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
@@ -260,6 +260,27 @@ func (g *cmdGlobal) cmpInstanceAllKeys(instanceName string) ([]string, cobra.She
 		for k := range instancetype.InstanceConfigKeysVM {
 			keys = append(keys, k)
 		}
+	}
+
+	for k := range instancetype.InstanceConfigKeysAny {
+		keys = append(keys, k)
+	}
+
+	return keys, cmpDirectives
+}
+
+// cmpInstanceAllKeys provides shell completion for all possible instance configuration keys.
+// It returns a list of all possible instance configuration keys along with a shell completion directive.
+func (g *cmdGlobal) cmpInstanceAllKeys() ([]string, cobra.ShellCompDirective) {
+	keys := make([]string, 0, len(instancetype.InstanceConfigKeysContainer)+len(instancetype.InstanceConfigKeysVM)+len(instancetype.InstanceConfigKeysAny))
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
+
+	for k := range instancetype.InstanceConfigKeysContainer {
+		keys = append(keys, k)
+	}
+
+	for k := range instancetype.InstanceConfigKeysVM {
+		keys = append(keys, k)
 	}
 
 	for k := range instancetype.InstanceConfigKeysAny {
