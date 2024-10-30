@@ -6,7 +6,7 @@ If you run into problems when using LXD, check the following how-to guides to se
 ```{toctree}
 :titlesonly:
 
-Configure your firewall </howto/network_bridge_firewalld>
+Configure your firewall </howto/network_bridge_firewall>
 Troubleshoot instances </howto/instances_troubleshoot.md>
 Troubleshoot Dqlite </howto/dqlite_troubleshoot.md>
 ```

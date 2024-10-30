@@ -86,5 +86,5 @@ See {ref}`network-bridge-firewall` for instructions on how to troubleshoot firew
 :hidden:
 
 :topical:Integrate with resolved </howto/network_bridge_resolved>
-:topical:Configure your firewall </howto/network_bridge_firewalld>
+:topical:Configure your firewall </howto/network_bridge_firewall>
 ```

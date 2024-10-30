@@ -38,7 +38,7 @@ How to configure specific networking features (managed bridge networks only):
 ```{filtered-toctree}
 :titlesonly:
 
-:diataxis:Configure your firewall </howto/network_bridge_firewalld>
+:diataxis:Configure your firewall </howto/network_bridge_firewall>
 :diataxis:Integrate with resolved </howto/network_bridge_resolved>
 ```
 
