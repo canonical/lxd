@@ -565,7 +565,7 @@ func (g *Gateway) Sync() {
 		return
 	}
 
-	dir := filepath.Join(g.db.Dir(), "global")
+	dir := g.db.DqliteDir()
 	for _, file := range files {
 		path := filepath.Join(dir, file.Name)
 		err := os.WriteFile(path, file.Data, 0600)
@@ -588,7 +588,7 @@ func (g *Gateway) Reset(networkCert *shared.CertInfo) error {
 		return err
 	}
 
-	err = os.RemoveAll(filepath.Join(g.db.Dir(), "global"))
+	err = os.RemoveAll(g.db.DqliteDir())
 	if err != nil {
 		return err
 	}
@@ -725,7 +725,7 @@ func (g *Gateway) init(bootstrap bool) error {
 		return fmt.Errorf("Failed to create raft factory: %w", err)
 	}
 
-	dir := filepath.Join(g.db.Dir(), "global")
+	dir := g.db.DqliteDir()
 	if shared.PathExists(filepath.Join(dir, "logs.db")) {
 		return fmt.Errorf("Unsupported upgrade path, please first upgrade to LXD 4.0")
 	}
