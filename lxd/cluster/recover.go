@@ -98,7 +98,7 @@ func Recover(database *db.Node) error {
 		return fmt.Errorf("This LXD instance is not clustered")
 	}
 
-	dir := filepath.Join(database.Dir(), "global")
+	dir := database.DqliteDir()
 
 	cluster := []dqlite.NodeInfo{
 		{
@@ -237,7 +237,7 @@ func Reconfigure(database *db.Node, raftNodes []db.RaftNode) (string, error) {
 		}
 	}
 
-	dir := filepath.Join(database.Dir(), "global")
+	dir := database.DqliteDir()
 	// Replace cluster configuration in dqlite.
 	err = dqlite.ReconfigureMembershipExt(dir, nodes)
 	if err != nil {
@@ -310,7 +310,7 @@ func writeRecoveryTarball(databaseDir string, raftNodes []db.RaftNode) (string, 
 // and writes a global patch file to update the global database with any changed
 // addresses.
 func DatabaseReplaceFromTarball(tarballPath string, database *db.Node) error {
-	globalDBDir := path.Join(database.Dir(), "global")
+	globalDBDir := database.DqliteDir()
 	unpackDir := filepath.Join(database.Dir(), "global.recover")
 
 	logger.Warn("Recovery tarball located; attempting DB recovery", logger.Ctx{"tarball": tarballPath})
