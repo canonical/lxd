@@ -177,3 +177,16 @@ Allow egress network traffic flows
   You  must make these firewall rules persistent across host reboots.
   How to do this depends on your Linux distribution.
   ```
+
+(network-lxd-br-netfilter)=
+## Prevent connectivity issues with LXD and `br_netfilter`
+
+When using LXD bridges, the `br_netfilter` modules must not be loaded. When that module is loaded, even intra-bridge traffic becomes subjects to the firewall ruleset. This means that two instances connected to the same bridge would be unable to use multicast to communicate together as the traffic would not be permitted at the firewall level.
+
+  To verify if that module is loaded:
+
+    lsmod | grep br_netfilter
+
+  To unload that module:
+
+    rmmod br_netfilter
