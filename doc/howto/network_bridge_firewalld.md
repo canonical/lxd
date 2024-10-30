@@ -178,15 +178,19 @@ Allow egress network traffic flows
   How to do this depends on your Linux distribution.
   ```
 
-(network-lxd-br-netfilter)=
-## Prevent connectivity issues with LXD and `br_netfilter`
+```{note}
+The Docker snap is also known to load the `br_netfilter` module, see {ref}`network-lxd-br-netfilter`.
+```
 
-When using LXD bridges, the `br_netfilter` modules must not be loaded. When that module is loaded, even intra-bridge traffic becomes subjects to the firewall ruleset. This means that two instances connected to the same bridge would be unable to use multicast to communicate together as the traffic would not be permitted at the firewall level.
+(network-lxd-br-netfilter)=
+## Prevent connectivity issues with LXD and bridge filtering
+
+When using LXD bridges, the `br_netfilter` modules must not be loaded. When that module is loaded, even internal bridge traffic becomes subjects to firewall evaluation. This means that two instances connected to the same bridge would be unable to communicate with multicast as the traffic would be blocked at the firewall level.
 
   To verify if that module is loaded:
 
-    lsmod | grep br_netfilter
+      lsmod | grep br_netfilter
 
   To unload that module:
 
-    rmmod br_netfilter
+      rmmod br_netfilter
