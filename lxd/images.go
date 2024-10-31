@@ -2704,17 +2704,9 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 		}
 
 		// Remove main image file.
-		fname := filepath.Join(s.OS.VarDir, "images", fingerprint)
-		err = os.Remove(fname)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Error deleting image file %q: %w", fname, err)
-		}
-
-		// Remove the rootfs file for the image.
-		fname = filepath.Join(s.OS.VarDir, "images", fingerprint) + ".rootfs"
-		err = os.Remove(fname)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Error deleting image file %q: %w", fname, err)
+		err := imageDeleteFromDisk(fingerprint)
+		if err != nil {
+			return err
 		}
 
 		logger.Info("Deleted expired cached image files and volumes", logger.Ctx{"fingerprint": fingerprint})
@@ -2874,6 +2866,12 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
+		// Remove main image file from disk.
+		err = imageDeleteFromDisk(details.image.Fingerprint)
+		if err != nil {
+			return err
+		}
+
 		// Remove the database entry.
 		if !isClusterNotification(r) {
 			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -2883,9 +2881,6 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Error deleting image info from the database: %w", err)
 			}
 		}
-
-		// Remove main image file from disk.
-		imageDeleteFromDisk(details.image.Fingerprint)
 
 		s.Events.SendLifecycle(projectName, lifecycle.ImageDeleted.Event(details.image.Fingerprint, projectName, op.Requestor(), nil))
 
@@ -2903,14 +2898,14 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-// Helper to delete an image file from the local images directory.
-func imageDeleteFromDisk(fingerprint string) {
+// imageDeleteFromDisk removes the main image file and rootfs file of an image.
+func imageDeleteFromDisk(fingerprint string) error {
 	// Remove main image file.
 	fname := shared.VarPath("images", fingerprint)
 	if shared.PathExists(fname) {
 		err := os.Remove(fname)
 		if err != nil && !os.IsNotExist(err) {
-			logger.Errorf("Error deleting image file %s: %s", fname, err)
+			return fmt.Errorf("Error deleting image file %s: %s", fname, err)
 		}
 	}
 
@@ -2919,9 +2914,11 @@ func imageDeleteFromDisk(fingerprint string) {
 	if shared.PathExists(fname) {
 		err := os.Remove(fname)
 		if err != nil && !os.IsNotExist(err) {
-			logger.Errorf("Error deleting image file %s: %s", fname, err)
+			return fmt.Errorf("Error deleting image file %s: %s", fname, err)
 		}
 	}
+
+	return nil
 }
 
 func doImageGet(ctx context.Context, tx *db.ClusterTx, project, fingerprint string, public bool) (*api.Image, error) {
