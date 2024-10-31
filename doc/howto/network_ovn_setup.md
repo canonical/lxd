@@ -162,6 +162,10 @@ See the linked YouTube video for the complete tutorial using four machines.
 
        lxc config set network.ovn.northbound_connection <ovn-northd-nb-db>
 
+   ```{note}
+   If you are using a MicroOVN deployment, pass the value of the MicroOVN node IP address you want to target. Prefix the IP address with `ssl:`, and suffix it with the `:6641` port number that corresponds to the OVN central service within MicroOVN.
+   ```
+
 1. Finally, create the actual OVN network (on the first machine):
 
        lxc network create my-ovn --type=ovn
