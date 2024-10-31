@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -4603,21 +4602,19 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
 
-		// In order to only have one task operation executed per image when syncing the images
-		// across the cluster, only leader node can launch the task, no others.
-		localClusterAddress := s.LocalConfig.ClusterAddress()
-
-		leader, err := d.gateway.LeaderAddress()
+		leaderInfo, err := s.LeaderInfo()
 		if err != nil {
-			if errors.Is(err, cluster.ErrNodeIsNotClustered) {
-				return // No error if not clustered.
-			}
-
 			logger.Error("Failed to get leader cluster member address", logger.Ctx{"err": err})
 			return
 		}
 
-		if localClusterAddress != leader {
+		if !leaderInfo.Clustered {
+			return
+		}
+
+		// In order to only have one task operation executed per image when syncing the images
+		// across the cluster, only leader node can launch the task, no others.
+		if !leaderInfo.Leader {
 			logger.Debug("Skipping image synchronization task since we're not leader")
 			return
 		}

@@ -29,6 +29,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 var identitiesCmd = APIEndpoint{
@@ -516,6 +517,18 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 		return uuid.UUID{}, fmt.Errorf("Failed to find a matching pending identity: %w", err)
 	}
 
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	reverter.Add(func() {
+		err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			return dbCluster.DeleteIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier)
+		})
+		if err != nil {
+			logger.Warn("Failed to delete invalid or expired pending TLS identity", logger.Ctx{"err": err, "identity_id": id.Identifier})
+		}
+	})
+
 	metadata, err := id.PendingTLSMetadata()
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("Failed extracting pending TLS identity metadata: %w", err)
@@ -530,6 +543,7 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 		return uuid.UUID{}, fmt.Errorf("Unexpected identifier format for pending TLS identity: %w", err)
 	}
 
+	reverter.Success()
 	return uid, nil
 }
 

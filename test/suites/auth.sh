@@ -99,6 +99,16 @@ test_authorization() {
   LXD_CONF="${LXD_CONF3}" gen_cert_and_key "client"
   ! LXD_CONF="${LXD_CONF3}" lxc remote add tls "${tls_identity_token2}" || false
 
+  # The token was used, so the pending identity should be deleted.
+  [ "$(lxc auth identity list --format csv | grep -cF 'pending')" = 0 ]
+
+  # Check token prune task works
+  lxc auth identity create tls/test-user2 --quiet
+  [ "$(lxc auth identity list --format csv | grep -cF 'pending')" = 1 ]
+  sleep 2 # Wait for token to expire (expiry is still set to 1 second)
+  lxc query --request POST /internal/testing/prune-tokens
+  [ "$(lxc auth identity list --format csv | grep -cF 'pending')" = 0 ]
+
   # Check users have been added to the group.
   tls_identity_fingerprint="$(cert_fingerprint "${LXD_CONF2}/client.crt")"
   lxc auth identity list --format csv | grep -Fq 'oidc,OIDC client," ",test-user@example.com,test-group'
