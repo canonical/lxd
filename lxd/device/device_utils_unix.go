@@ -328,7 +328,7 @@ func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, devi
 func unixDeviceSetupCharNum(s *state.State, devicesPath string, typePrefix string, deviceName string, m deviceConfig.Device, major uint32, minor uint32, path string, defaultMode bool, runConf *deviceConfig.RunConfig) error {
 	configCopy := m.Clone()
 
-	// Overridng these in the config copy should avoid the need for unixDeviceSetup to stat
+	// Overriding these in the config copy should avoid the need for unixDeviceSetup to stat
 	// the origin device to ascertain this information.
 	configCopy["type"] = "unix-char"
 	configCopy["major"] = fmt.Sprintf("%d", major)
@@ -346,7 +346,7 @@ func unixDeviceSetupCharNum(s *state.State, devicesPath string, typePrefix strin
 func unixDeviceSetupBlockNum(s *state.State, devicesPath string, typePrefix string, deviceName string, m deviceConfig.Device, major uint32, minor uint32, path string, defaultMode bool, runConf *deviceConfig.RunConfig) error {
 	configCopy := m.Clone()
 
-	// Overridng these in the config copy should avoid the need for unixDeviceSetup to stat
+	// Overriding these in the config copy should avoid the need for unixDeviceSetup to stat
 	// the origin device to ascertain this information.
 	configCopy["type"] = "unix-block"
 	configCopy["major"] = fmt.Sprintf("%d", major)
