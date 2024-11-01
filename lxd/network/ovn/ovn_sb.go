@@ -7,12 +7,15 @@ import (
 	"encoding/pem"
 	"errors"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/go-logr/logr"
+	ovsdbCache "github.com/ovn-kubernetes/libovsdb/cache"
 	ovsdbClient "github.com/ovn-kubernetes/libovsdb/client"
+	ovsdbModel "github.com/ovn-kubernetes/libovsdb/model"
 
 	ovnSB "github.com/canonical/lxd/lxd/network/ovn/schema/ovn-sb"
 	"github.com/canonical/lxd/shared"
@@ -153,6 +156,55 @@ func NewSB(dbAddr string, sslSettings func() (sslCACert string, sslClientCert st
 	if err != nil {
 		return nil, err
 	}
+
+	// Set up event handlers.
+	eventHandler := &ovsdbCache.EventHandlerFuncs{}
+	eventHandler.AddFunc = func(table string, newModel ovsdbModel.Model) {
+		sbEventHandlersMu.Lock()
+		defer sbEventHandlersMu.Unlock()
+
+		if sbEventHandlers == nil {
+			return
+		}
+
+		for _, handler := range sbEventHandlers {
+			if handler.Hook != nil && slices.Contains(handler.Tables, table) {
+				go handler.Hook("add", table, nil, newModel)
+			}
+		}
+	}
+
+	eventHandler.UpdateFunc = func(table string, oldModel ovsdbModel.Model, newModel ovsdbModel.Model) {
+		sbEventHandlersMu.Lock()
+		defer sbEventHandlersMu.Unlock()
+
+		if sbEventHandlers == nil {
+			return
+		}
+
+		for _, handler := range sbEventHandlers {
+			if handler.Hook != nil && slices.Contains(handler.Tables, table) {
+				go handler.Hook("update", table, oldModel, newModel)
+			}
+		}
+	}
+
+	eventHandler.DeleteFunc = func(table string, oldModel ovsdbModel.Model) {
+		sbEventHandlersMu.Lock()
+		defer sbEventHandlersMu.Unlock()
+
+		if sbEventHandlers == nil {
+			return
+		}
+
+		for _, handler := range sbEventHandlers {
+			if handler.Hook != nil && slices.Contains(handler.Tables, table) {
+				go handler.Hook("remove", table, oldModel, nil)
+			}
+		}
+	}
+
+	ovn.Cache().AddEventHandler(eventHandler)
 
 	// Create the client struct.
 	client := &SB{
