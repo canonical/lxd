@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/state"
 	"tags.cncf.io/container-device-interface/specs-go"
 )
 
@@ -13,6 +14,6 @@ func defaultNvidiaTegraCSVFiles(rootPath string) []string {
 	return []string{}
 }
 
-func generateSpec(cdiID ID, inst instance.Instance) (*specs.Spec, error) {
+func generateSpec(s *state.State, cdiID ID, inst instance.Instance) (*specs.Spec, error) {
 	return nil, fmt.Errorf("NVIDIA CDI operations not supported on this platform")
 }
