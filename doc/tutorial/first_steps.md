@@ -46,7 +46,7 @@ If you prefer a different installation method, or use a Linux distribution that 
 
        sudo snap install lxd
 
-   If you get an error message that the snap is already installed, run the following command to refresh it and ensure that you are running an up-to-date version:
+   If you get an error message that the LXD snap is already installed, run the following command to refresh it and ensure that you are running an up-to-date version:
 
        sudo snap refresh lxd
 
