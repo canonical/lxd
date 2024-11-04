@@ -6980,7 +6980,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		// Wait for completion.
 		err = forkfile.Wait()
 		if err != nil {
-			d.logger.Error("SFTP server stopped with error", logger.Ctx{"err": err, "stderr": strings.TrimSpace(stderr.String())})
+			d.logger.Warn("SFTP server stopped with error", logger.Ctx{"err": err, "stderr": strings.TrimSpace(stderr.String())})
 			return
 		}
 	}()
