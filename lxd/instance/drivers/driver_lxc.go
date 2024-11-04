@@ -1357,7 +1357,7 @@ func (d *lxc) IdmappedStorage(path string, fstype string) idmap.IdmapStorageType
 	if bindMount {
 		err := unix.Statfs(path, buf)
 		if err != nil {
-			d.logger.Error("Failed to statfs", logger.Ctx{"path": path, "err": err})
+			d.logger.Warn("Failed to statfs", logger.Ctx{"path": path, "err": err})
 			return mode
 		}
 	}
