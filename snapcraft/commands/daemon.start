@@ -314,12 +314,12 @@ fi
 echo "==> Setting up LVM configuration"
 mkdir -p /etc/lvm/
 sed \
-    -e "s%obtain_device_list_from_udev = 1%obtain_device_list_from_udev = 0%" \
-    -e "s%cache_file_prefix = \"\"%cache_file_prefix = \"lxd\"%" \
-    -e "s%udev_sync = 1%udev_sync = 0%" \
-    -e "s%udev_rules = 1%udev_rules = 0%" \
-    -e "s%use_lvmetad = 1%use_lvmetad = 0%" \
-    -e "s%monitoring = 1%monitoring = 0%" \
+    -e "s%\(# \)\?obtain_device_list_from_udev = 1%obtain_device_list_from_udev = 0%" \
+    -e "s%\(# \)\?cache_file_prefix = \"\"%cache_file_prefix = \"lxd\"%" \
+    -e "s%\(# \)\?udev_sync = 1%udev_sync = 0%" \
+    -e "s%\(# \)\?udev_rules = 1%udev_rules = 0%" \
+    -e "s%\(# \)\?use_lvmetad = 1%use_lvmetad = 0%" \
+    -e "s%\(# \)\?monitoring = 1%monitoring = 0%" \
     -e "s%# executable = \"/sbin/dmeventd\"%executable = \"${SNAP}/bin/dmeventd\"%" \
     -e "/# .*_executable =/s/# //" \
     -e "s%/usr/sbin/%${SNAP}/bin/%" \
