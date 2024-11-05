@@ -70,7 +70,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 	downloads := map[string][][]string{}
 
 	images := []api.Image{}
-	nameLayoutLong := "20060102_0304" // Date and time.
+	nameLayoutLong := "20060102_1504" // Date and time.
 	nameLayoutShort := "20060102"     // Date only.
 	eolLayout := "2006-01-02"
 
