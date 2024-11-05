@@ -65,23 +65,43 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 	rootPath := ""
 	devRootPath := ""
 	if s.OS.InUbuntuCore() {
-		//
-		// This magic "gpu-2404-2" name comes from:
-		// https://github.com/canonical/mesa-2404/blob/0e48b4d1b8e5cb4d3098d64417025824decd9846/scripts/bin/gpu-2404-provider-wrapper.in#L5
-		//
-		// Also, we can't use `/snap/lxd/current/gpu-2404-2` as a rootPath because of a bug in nvcdi package
-		// which make nvcdi to fail to lookup for a library when driver root path contains a symlink
-		// (in our case it's `/snap/lxd/current`).
-		// We workaround it by using $SNAP environment variable which is not a symlink but a path to lxd snap
-		// with a revision number like `/snap/lxd/12345`.
-		//
-		rootPath = os.Getenv("SNAP") + "/gpu-2404-2"
 		devRootPath = "/"
+
+		gpuInterfaceProviderWrapper := os.Getenv("SNAP") + "/gpu-2404/bin/gpu-2404-provider-wrapper"
+
+		// Let's ensure that user has mesa-2404 snap connected.
+		if !shared.PathExists(gpuInterfaceProviderWrapper) {
+			return nil, fmt.Errorf("Failed to find gpu-2404-provider-wrapper. Please ensure that mesa-2404 snap is connected to lxd.")
+		}
+
+		//
+		// NVIDIA_DRIVER_ROOT environment variable name comes from:
+		// https://git.launchpad.net/~canonical-kernel-snaps/canonical-kernel-snaps/+git/kernel-snaps-u24.04/commit/?id=928d273d881abc8599f9cb754eeb753aa7113852
+		//
+		// You may wonder why we need this
+		// gpu-2404-provider-wrapper printenv NVIDIA_DRIVER_ROOT
+		// machinery instead of simple os.Getenv("NVIDIA_DRIVER_ROOT").
+		// Reason is that mesa-2404 or pc-kernel may be upgraded (refreshed)
+		// while LXD snap version remains the same and there is no guarantee
+		// that NVIDIA_DRIVER_ROOT value won't change between those refreshes...
+		//
+		cmd := []string{
+			gpuInterfaceProviderWrapper,
+			"printenv",
+			"NVIDIA_DRIVER_ROOT",
+		}
+
+		rootPath, err = shared.RunCommand(cmd[0], cmd[1:]...)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to determine NVIDIA driver root path: %w", err)
+		}
+
+		rootPath = strings.TrimSuffix(rootPath, "\n")
 
 		// Let's ensure that user did:
 		// snap connect mesa-2404:kernel-gpu-2404 pc-kernel
-		if !shared.PathExists("/snap/lxd/current/gpu-2404-2/usr/bin/nvidia-smi") {
-			return nil, fmt.Errorf("Failed to find nvidia-smi tool. Please ensure that pc-kernel snap is connected to mesa-2404.")
+		if !shared.PathExists(rootPath + "/usr/bin/nvidia-smi") {
+			return nil, fmt.Errorf("Failed to find nvidia-smi tool in %q. Please ensure that pc-kernel snap is connected to mesa-2404.", rootPath)
 		}
 	} else if shared.InSnap() {
 		rootPath = "/var/lib/snapd/hostfs"
