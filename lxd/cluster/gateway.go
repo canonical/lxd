@@ -517,7 +517,7 @@ func (g *Gateway) DemoteOfflineNode(raftID uint64) error {
 
 // Shutdown this gateway, stopping the gRPC server and possibly the raft factory.
 func (g *Gateway) Shutdown() error {
-	logger.Infof("Stop database gateway")
+	logger.Info("Stop database gateway")
 
 	var err error
 	if g.server != nil {
@@ -533,6 +533,18 @@ func (g *Gateway) Shutdown() error {
 		g.lock.Lock()
 		g.memoryDial = nil
 		g.lock.Unlock()
+
+		// Record the raft term and index in the logs on every shutdown. This
+		// allows an administrator to determine the furthest-ahead cluster member
+		// in case recovery is needed.
+		lastEntryInfo, err := dqlite.ReadLastEntryInfo(g.db.Dir())
+		if err != nil {
+			return err
+		}
+
+		// This isn't really a warning, but it's important that this break through
+		// the snap's default log level of 'Warn'.
+		logger.Warn("Dqlite last entry", logger.Ctx{"term": lastEntryInfo.Term, "index": lastEntryInfo.Index})
 	}
 
 	return err
@@ -565,7 +577,7 @@ func (g *Gateway) Sync() {
 		return
 	}
 
-	dir := filepath.Join(g.db.Dir(), "global")
+	dir := g.db.DqliteDir()
 	for _, file := range files {
 		path := filepath.Join(dir, file.Name)
 		err := os.WriteFile(path, file.Data, 0600)
@@ -588,7 +600,7 @@ func (g *Gateway) Reset(networkCert *shared.CertInfo) error {
 		return err
 	}
 
-	err = os.RemoveAll(filepath.Join(g.db.Dir(), "global"))
+	err = os.RemoveAll(g.db.DqliteDir())
 	if err != nil {
 		return err
 	}
@@ -725,7 +737,7 @@ func (g *Gateway) init(bootstrap bool) error {
 		return fmt.Errorf("Failed to create raft factory: %w", err)
 	}
 
-	dir := filepath.Join(g.db.Dir(), "global")
+	dir := g.db.DqliteDir()
 	if shared.PathExists(filepath.Join(dir, "logs.db")) {
 		return fmt.Errorf("Unsupported upgrade path, please first upgrade to LXD 4.0")
 	}

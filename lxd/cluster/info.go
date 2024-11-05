@@ -3,7 +3,6 @@ package cluster
 import (
 	"context"
 	"os"
-	"path/filepath"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/node"
@@ -38,7 +37,7 @@ func loadInfo(database *db.Node) (*db.RaftNode, error) {
 	logger.Info("Starting database node", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
 
 	// Data directory
-	dir := filepath.Join(database.Dir(), "global")
+	dir := database.DqliteDir()
 	if !shared.PathExists(dir) {
 		err := os.Mkdir(dir, 0750)
 		if err != nil {
