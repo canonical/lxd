@@ -17,8 +17,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/canonical/go-dqlite"
-	"github.com/canonical/go-dqlite/client"
+	"github.com/canonical/go-dqlite/v2"
+	"github.com/canonical/go-dqlite/v2/client"
 
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db"
@@ -766,16 +766,6 @@ func (g *Gateway) init(bootstrap bool) error {
 			options = append(options, dqlite.WithDialFunc(g.raftDial()))
 		}
 
-		server, err := dqlite.New(
-			info.ID,
-			info.Address,
-			dir,
-			options...,
-		)
-		if err != nil {
-			return fmt.Errorf("Failed to create dqlite server: %w", err)
-		}
-
 		// Force the correct configuration into the bootstrap node, this is needed
 		// when the raft node already has log entries, in which case a regular
 		// bootstrap fails, resulting in the node containing outdated configuration.
@@ -786,10 +776,20 @@ func (g *Gateway) init(bootstrap bool) error {
 				{ID: uint64(info.ID), Address: info.Address},
 			}
 
-			err = server.Recover(cluster)
+			err = dqlite.ReconfigureMembershipExt(dir, cluster)
 			if err != nil {
 				return fmt.Errorf("Failed to recover database state: %w", err)
 			}
+		}
+
+		server, err := dqlite.New(
+			info.ID,
+			info.Address,
+			dir,
+			options...,
+		)
+		if err != nil {
+			return fmt.Errorf("Failed to create dqlite server: %w", err)
 		}
 
 		err = server.Start()

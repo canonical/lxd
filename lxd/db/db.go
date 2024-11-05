@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/canonical/go-dqlite/driver"
+	"github.com/canonical/go-dqlite/v2/driver"
 
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/node"
@@ -431,8 +431,8 @@ func begin(db *sql.DB) (*sql.Tx, error) {
 		time.Sleep(30 * time.Millisecond)
 	}
 
-	logger.Debugf("DbBegin: DB still locked")
-	logger.Debugf(logger.GetStack())
+	logger.Debug("DbBegin: DB still locked")
+	logger.Debug(logger.GetStack())
 	return nil, fmt.Errorf("DB is locked")
 }
 

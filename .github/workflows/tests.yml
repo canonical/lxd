@@ -57,10 +57,10 @@ jobs:
           path: ${{ steps.ShellCheck.outputs.sarif }}
         if: github.event_name == 'pull_request'
 
-      - name: Install Go (1.22)
+      - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22.x
+          go-version-file: 'go.mod'
 
       - name: Install dependencies
         run: |
@@ -177,22 +177,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.22.x"]
         suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
-        include:
-          - go: "1.22.x"
-            suite: cluster
-            backend: dir
-          - go: "1.22.x"
-            suite: standalone
-            backend: dir
-          - go: stable
-            suite: cluster
-            backend: dir
-          - go: stable
-            suite: standalone
-            backend: dir
 
     steps:
       - name: Performance tuning
@@ -237,13 +223,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Go (${{ matrix.go }})
+      - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go }}
+          go-version-file: 'go.mod'
 
-      - name: Check compatibility with min Go version (${{ matrix.go }})
-        if: matrix.go == '1.22.x'
+      - name: Check compatibility with min Go version
         run: |
           set -eux
           GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
@@ -267,7 +252,7 @@ jobs:
             libacl1-dev \
             libcap-dev \
             libdbus-1-dev \
-            libdqlite-dev \
+            libdqlite1.17-dev \
             liblxc-dev \
             libseccomp-dev \
             libselinux-dev \
@@ -380,7 +365,7 @@ jobs:
           sudo microceph.ceph status
           sudo rm -f /snap/bin/rbd
 
-      - name: "Run system tests (${{ matrix.go }}, ${{ matrix.suite }}, ${{ matrix.backend }})"
+      - name: "Run system tests (${{ matrix.suite }}, ${{ matrix.backend }})"
         run: |
           set -eux
           chmod +x ~
@@ -393,8 +378,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go:
-          - 1.22.x
         os:
           - ubuntu-latest
           - macos-latest
@@ -405,10 +388,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Go (${{ matrix.go }})
+      - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go }}
+          go-version-file: 'go.mod'
 
       - name: Create build directory
         run: |
@@ -475,10 +458,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Go (1.22)
+      - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22.x
+          go-version-file: 'go.mod'
 
       - name: Install dependencies
         run: |
@@ -544,10 +527,10 @@ jobs:
           ssh-keyscan git.launchpad.net >> ~/.ssh/known_hosts
           ssh-keygen -qlF git.launchpad.net | grep -xF 'git.launchpad.net RSA SHA256:UNOzlP66WpDuEo34Wgs8mewypV0UzqHLsIFoqwe8dYo'
 
-      - name: Install Go (${{ matrix.go }})
+      - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22.x
+          go-version-file: 'go.mod'
 
       - name: Trigger Launchpad snap build
         env:
