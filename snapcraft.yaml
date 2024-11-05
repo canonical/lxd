@@ -750,7 +750,7 @@ parts:
       - libusb
       - spice-protocol
       - spice-server
-    source: https://gitlab.com/qemu-project/qemu
+    source: https://github.com/qemu/qemu
     source-commit: 6bbce8b464206e6622216b62841cb3e953d56eb8 # v8.0.5
     source-depth: 1
     source-type: git
