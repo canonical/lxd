@@ -1062,10 +1062,15 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 	var apiIdentity *api.Identity
 	var effectiveGroups []string
 	var effectivePermissions []api.Permission
+	var isFineGrained bool
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(protocol), identifier)
 		if err != nil {
 			return fmt.Errorf("Failed to get current identity from database: %w", err)
+		}
+
+		if identity.IsFineGrainedIdentityType(string(id.Type)) {
+			isFineGrained = true
 		}
 
 		// Using a permission checker here is redundant, we know who the user is, and we know that they are allowed
@@ -1116,6 +1121,7 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 		Identity:             *apiIdentity,
 		EffectiveGroups:      effectiveGroups,
 		EffectivePermissions: effectivePermissions,
+		IsFineGrained:        isFineGrained,
 	})
 }
 
