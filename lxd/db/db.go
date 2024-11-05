@@ -93,6 +93,11 @@ func (n *Node) Dir() string {
 	return n.dir
 }
 
+// DqliteDir returns the global database directory used by dqlite.
+func (n *Node) DqliteDir() string {
+	return filepath.Join(n.Dir(), "global")
+}
+
 // Transaction creates a new NodeTx object and transactionally executes the
 // node-level database interactions invoked by the given function. If the
 // function returns no error, all database changes are committed to the
