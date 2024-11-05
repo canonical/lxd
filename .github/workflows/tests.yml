@@ -252,7 +252,7 @@ jobs:
             libacl1-dev \
             libcap-dev \
             libdbus-1-dev \
-            libdqlite-dev \
+            libdqlite1.17-dev \
             liblxc-dev \
             libseccomp-dev \
             libselinux-dev \
