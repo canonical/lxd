@@ -2520,3 +2520,8 @@ contains the total available logical CPUs available when LXD started.
 ## `vm_limits_cpu_pin_strategy`
 
 Adds a new {config:option}`instance-resource-limits:limits.cpu.pin_strategy` configuration option for virtual machines. This option controls the CPU pinning strategy. When set to `none`, CPU auto pinning is disabled. When set to `auto`, CPU auto pinning is enabled.
+
+## `is_current_identity_fine_grained`
+
+Adds `is_fine_grained` field to `GET /1.0/auth/identities/current` to indicate if the current identity
+interacting with the LXD API is fine-grained (i.e, associated permissions are managed via group membership).
