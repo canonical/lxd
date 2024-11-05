@@ -57,12 +57,7 @@ func HiddenStoragePools(ctx context.Context, tx *db.ClusterTx, projectName strin
 // AllowInstanceCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new instance.
 func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+	info, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -266,12 +261,7 @@ func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instanc
 // AllowVolumeCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new custom volume in a project.
 func AllowVolumeCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, poolName string, req api.StorageVolumesPost) error {
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+	info, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -310,7 +300,7 @@ func GetImageSpaceBudget(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 		globalConfigDump = globalConfig.Dump()
 	}
 
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+	info, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return -1, err
 	}
@@ -908,12 +898,7 @@ func isVMLowLevelOptionForbidden(key string) bool {
 func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut, currentConfig map[string]string) error {
 	var updatedInstance *api.Instance
 
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+	info, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -958,12 +943,7 @@ func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 // AllowVolumeUpdate returns an error if any project-specific limit or
 // restriction is violated when updating an existing custom volume.
 func AllowVolumeUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, volumeName string, req api.StorageVolumePut, currentConfig map[string]string) error {
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+	info, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -997,12 +977,7 @@ func AllowVolumeUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pro
 // AllowProfileUpdate checks that project limits and restrictions are not
 // violated when changing a profile.
 func AllowProfileUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, profileName string, req api.ProfilePut) error {
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+	info, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -1036,7 +1011,7 @@ func AllowProjectUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pr
 		globalConfigDump = globalConfig.Dump()
 	}
 
-	info, err := fetchProject(globalConfigDump, tx, projectName, false)
+	info, err := fetchProject(tx, projectName, false)
 	if err != nil {
 		return err
 	}
