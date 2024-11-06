@@ -346,7 +346,8 @@ parts:
       git config user.name "LXD snap builder"
 
       # Fix submodules
-      sed -i "s#https://git.cryptomilk.org/projects/cmocka#https://gitlab.com/cmocka/cmocka#g" .gitmodules
+      # see https://github.com/tianocore/edk2/commit/95d8a1c255cfb8e063d679930d08ca6426eb5701
+      sed -i "s#https://github.com/Zeex/subhook.git#https://github.com/tianocore/edk2-subhook.git#g" .gitmodules
       git submodule update --init --recursive
 
       # Apply patches
