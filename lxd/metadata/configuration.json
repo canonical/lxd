@@ -5411,7 +5411,7 @@
 				"keys": [
 					{
 						"security.shared": {
-							"condition": "custom block volume",
+							"condition": "virtual-machine or custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
 							"shortdesc": "Enable volume sharing",
@@ -5588,7 +5588,7 @@
 					},
 					{
 						"security.shared": {
-							"condition": "custom block volume",
+							"condition": "virtual-machine or custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
 							"shortdesc": "Enable volume sharing",
@@ -5745,7 +5745,7 @@
 				"keys": [
 					{
 						"security.shared": {
-							"condition": "custom block volume",
+							"condition": "virtual-machine or custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
 							"shortdesc": "Enable volume sharing",
@@ -5910,7 +5910,7 @@
 				"keys": [
 					{
 						"security.shared": {
-							"condition": "custom block volume",
+							"condition": "virtual-machine or custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
 							"shortdesc": "Enable volume sharing",
@@ -6117,7 +6117,7 @@
 					},
 					{
 						"security.shared": {
-							"condition": "custom block volume",
+							"condition": "virtual-machine or custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
 							"shortdesc": "Enable volume sharing",
@@ -6316,7 +6316,7 @@
 					},
 					{
 						"security.shared": {
-							"condition": "custom block volume",
+							"condition": "virtual-machine or custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
 							"shortdesc": "Enable volume sharing",
@@ -6474,7 +6474,7 @@
 					},
 					{
 						"security.shared": {
-							"condition": "custom block volume",
+							"condition": "virtual-machine or custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
 							"shortdesc": "Enable volume sharing",
