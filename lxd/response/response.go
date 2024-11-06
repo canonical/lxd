@@ -21,9 +21,19 @@ import (
 
 var debug bool
 
-// Init sets the debug variable to the provided value.
-func Init(d bool) {
+// Init sets the debug variable to the provided value and registers any additional smart error mappings.
+func Init(d bool, smartErrors map[int][]error) {
 	debug = d
+
+	for code, additionalErrors := range smartErrors {
+		existingErrs, ok := httpResponseErrors[code]
+		if ok {
+			httpResponseErrors[code] = append(existingErrs, additionalErrors...)
+			continue
+		}
+
+		httpResponseErrors[code] = additionalErrors
+	}
 }
 
 // Response represents an API response.
