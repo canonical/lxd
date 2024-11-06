@@ -578,6 +578,7 @@ parts:
       - -bin/lvmetad
       - -bin/lvmpolld
       - etc/lvm/lvm.conf
+      - etc/lvm/profile/*
       - lib/*/device-mapper/*
       - lib/*/libaio.so*
       - lib/*/libdevmapper*
