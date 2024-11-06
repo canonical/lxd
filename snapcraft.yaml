@@ -751,7 +751,6 @@ parts:
       - spice-protocol
       - spice-server
     source: https://github.com/qemu/qemu
-    source-commit: 6bbce8b464206e6622216b62841cb3e953d56eb8 # v8.0.5
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -817,7 +816,26 @@ parts:
       craftctl default
     override-pull: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
-      craftctl default
+      set -ex
+
+      # We have to do this manual git clone because of edk2/subhook submodule URL has changed.
+      # See https://github.com/tianocore/edk2/commit/95d8a1c255cfb8e063d679930d08ca6426eb5701
+      # What is interesting is that we don't even need to do:
+      # git config --global url.https://github.com/tianocore/edk2-subhook.git.insteadOf https://github.com/Zeex/subhook.git
+      # because QEMU version which we checkout points to that version of edk2 which does not depends on subhook submodule.
+      # And as we do `git submodule update --init --recursive` *after* `git checkout ..` we have no problems.
+      # While if we do the same with built-in functionality in snapcraft it fails, because snapcraft does
+      # `git clone --recurse-submodules ...` and pulls master branch and fails on edk2/subhook before snapcraft does
+      # `git checkout ...` to the specified commit.
+
+      git config --global transfer.fsckobjects true
+
+      git clone https://github.com/qemu/qemu .
+
+      # FIXME: check if we can get rid of override-pull after the next QEMU version bump
+      git checkout 6bbce8b464206e6622216b62841cb3e953d56eb8 # v8.0.5
+
+      git submodule update --init --recursive
     override-build: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
       set -ex
