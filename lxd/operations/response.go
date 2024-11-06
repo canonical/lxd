@@ -21,7 +21,8 @@ func OperationResponse(op *Operation) response.Response {
 	return &operationResponse{op}
 }
 
-func (r *operationResponse) Render(w http.ResponseWriter) error {
+// Render builds operationResponse and writes it to http.ResponseWriter.
+func (r *operationResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	err := r.op.Start()
 	if err != nil {
 		return err
@@ -79,7 +80,8 @@ func ForwardedOperationResponse(project string, op *api.Operation) response.Resp
 	}
 }
 
-func (r *forwardedOperationResponse) Render(w http.ResponseWriter) error {
+// Render builds forwardedOperationResponse and writes it to http.ResponseWriter.
+func (r *forwardedOperationResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	url := fmt.Sprintf("/%s/operations/%s", version.APIVersion, r.op.ID)
 	if r.project != "" {
 		url += fmt.Sprintf("?project=%s", r.project)

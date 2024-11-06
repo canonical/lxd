@@ -121,7 +121,7 @@ func devlxdImageExportHandler(d *Daemon, c instance.Instance, w http.ResponseWri
 
 	resp := imageExport(d, r)
 
-	err := resp.Render(w)
+	err := resp.Render(w, r)
 	if err != nil {
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
 	}
@@ -390,7 +390,7 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 		}
 
 		resp := f(d, c, w, r)
-		_ = resp.Render(w)
+		_ = resp.Render(w, r)
 	}
 }
 

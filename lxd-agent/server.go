@@ -23,7 +23,7 @@ func restServer(tlsConfig *tls.Config, cert *x509.Certificate, d *Daemon) *http.
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)
+		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w, r)
 	})
 
 	for _, c := range api10 {
@@ -46,7 +46,7 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 
 		if !authenticate(r, cert) {
 			logger.Error("Not authorized")
-			_ = response.InternalError(fmt.Errorf("Not authorized")).Render(w)
+			_ = response.InternalError(fmt.Errorf("Not authorized")).Render(w, r)
 			return
 		}
 
@@ -57,7 +57,7 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 			multiW := io.MultiWriter(newBody, captured)
 			_, err := io.Copy(multiW, r.Body)
 			if err != nil {
-				_ = response.InternalError(err).Render(w)
+				_ = response.InternalError(err).Render(w, r)
 				return
 			}
 
@@ -92,9 +92,9 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 		}
 
 		// Handle errors
-		err := resp.Render(w)
+		err := resp.Render(w, r)
 		if err != nil {
-			writeErr := response.InternalError(err).Render(w)
+			writeErr := response.InternalError(err).Render(w, r)
 			if writeErr != nil {
 				logger.Error("Failed writing error for HTTP response", logger.Ctx{"url": uri, "err": err, "writeErr": writeErr})
 			}

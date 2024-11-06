@@ -109,7 +109,7 @@ func (r *sftpServeResponse) String() string {
 }
 
 // Render renders the server response.
-func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
+func (r *sftpServeResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	defer func() { _ = r.instConn.Close() }()
 
 	hijacker, ok := w.(http.Hijacker)

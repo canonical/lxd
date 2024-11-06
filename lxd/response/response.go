@@ -28,7 +28,7 @@ func Init(d bool) {
 
 // Response represents an API response.
 type Response interface {
-	Render(w http.ResponseWriter) error
+	Render(w http.ResponseWriter, r *http.Request) error
 	String() string
 }
 
@@ -39,7 +39,8 @@ type devLxdResponse struct {
 	contentType string
 }
 
-func (r *devLxdResponse) Render(w http.ResponseWriter) error {
+// Render renders a response for requests against the /dev/lxd socket.
+func (r *devLxdResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	var err error
 
 	if r.code != http.StatusOK {
@@ -144,7 +145,8 @@ func SyncResponsePlain(success bool, compress bool, metadata string) Response {
 	return &syncResponse{success: success, metadata: metadata, plaintext: true, compress: compress}
 }
 
-func (r *syncResponse) Render(w http.ResponseWriter) error {
+// Render renders a synchronous response.
+func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	// Set an appropriate ETag header
 	if r.etag != nil {
 		etag, err := util.EtagHash(r.etag)
@@ -196,7 +198,7 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 		// to propagate the data and preserve the status code.
 		err, ok := r.metadata.(error)
 		if ok {
-			return SmartError(err).Render(w)
+			return SmartError(err).Render(w, req)
 		}
 	}
 
@@ -327,7 +329,8 @@ func (r *errorResponse) String() string {
 	return r.msg
 }
 
-func (r *errorResponse) Render(w http.ResponseWriter) error {
+// Render renders a response that indicates an error on the request handling.
+func (r *errorResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	var output io.Writer
 
 	buf := &bytes.Buffer{}
@@ -396,7 +399,8 @@ func FileResponse(r *http.Request, files []FileResponseEntry, headers map[string
 	return &fileResponse{r, files, headers}
 }
 
-func (r *fileResponse) Render(w http.ResponseWriter) error {
+// Render renders a file response.
+func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	if r.headers != nil {
 		for k, v := range r.headers {
 			w.Header().Set(k, v)
@@ -517,7 +521,8 @@ func ForwardedResponse(client lxd.InstanceServer, request *http.Request) Respons
 	}
 }
 
-func (r *forwardedResponse) Render(w http.ResponseWriter) error {
+// Render renders a response for a forwarded request.
+func (r *forwardedResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	info, err := r.client.GetConnectionInfo()
 	if err != nil {
 		return err
@@ -568,7 +573,8 @@ func ManualResponse(hook func(w http.ResponseWriter) error) Response {
 	return &manualResponse{hook: hook}
 }
 
-func (r *manualResponse) Render(w http.ResponseWriter) error {
+// Render renders a manual response.
+func (r *manualResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	return r.hook(w)
 }
 

@@ -174,7 +174,7 @@ func restServer(d *Daemon) *http.Server {
 		}
 
 		// Normal client handling.
-		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)
+		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w, r)
 	})
 
 	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.identityCache) {
@@ -206,7 +206,7 @@ func restServer(d *Daemon) *http.Server {
 	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
 		w.Header().Set("Content-Type", "application/json")
-		_ = response.NotFound(nil).Render(w)
+		_ = response.NotFound(nil).Render(w, r)
 	})
 
 	return &http.Server{
@@ -232,7 +232,7 @@ func hoistReqVM(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Re
 		}
 
 		resp := f(d, inst, w, r)
-		_ = resp.Render(w)
+		_ = resp.Render(w, r)
 	}
 }
 
@@ -248,7 +248,7 @@ func metricsServer(d *Daemon) *http.Server {
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)
+		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w, r)
 	})
 
 	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.identityCache) {
@@ -261,7 +261,7 @@ func metricsServer(d *Daemon) *http.Server {
 	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
 		w.Header().Set("Content-Type", "application/json")
-		_ = response.NotFound(nil).Render(w)
+		_ = response.NotFound(nil).Render(w, r)
 	})
 
 	return &http.Server{Handler: &lxdHTTPServer{r: mux, d: d}}
