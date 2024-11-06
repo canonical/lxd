@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/lxd/daemon"
+	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/response"
@@ -54,7 +55,7 @@ func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	operations.Init(daemon.Debug)
 
 	// Set debug for the response package
-	response.Init(daemon.Debug)
+	response.Init(daemon.Debug, db.SmartErrors)
 
 	// Setup logger
 	syslog := ""
