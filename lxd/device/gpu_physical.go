@@ -76,11 +76,13 @@ func (d *gpuPhysical) validateConfig(instConf instance.ConfigReader) error {
 			}
 		}
 
-		// If user requests CDI in conjunction with nvidia.runtime=true we should forbid that.
-		if shared.IsTrue(instConf.ExpandedConfig()["nvidia.runtime"]) {
-			_, err := cdi.ToCDI(d.config["id"])
-			if err == nil {
-				return fmt.Errorf("CDI mode is incompatible with nvidia.runtime=true")
+		// If user requests CDI in conjunction with any nvidia.<options>=true we should forbid that.
+		for k, v := range instConf.ExpandedConfig() {
+			if strings.HasPrefix(k, "nvidia.") && shared.IsTrue(v) {
+				_, err := cdi.ToCDI(d.config["id"])
+				if err == nil {
+					return fmt.Errorf("CDI mode is incompatible with any NVIDIA instance configuration option (%q)", k)
+				}
 			}
 		}
 	}
