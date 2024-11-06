@@ -592,14 +592,14 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		rules["security.unmapped"] = validate.Optional(validate.IsBool)
 	}
 
-	// security.shared is only relevant for custom block volumes.
-	if vol == nil || (vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeBlock) {
+	// security.shared guards virtual-machine and custom block volumes.
+	if vol == nil || ((vol.Type() == drivers.VolumeTypeCustom || vol.Type() == drivers.VolumeTypeVM) && vol.ContentType() == drivers.ContentTypeBlock) {
 		// lxdmeta:generate(entities=storage-btrfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=security.shared)
 		// Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
 		//
 		// ---
 		//  type: bool
-		//  condition: custom block volume
+		//  condition: virtual-machine or custom block volume
 		//  defaultdesc: same as `volume.security.shared` or `false`
 		//  shortdesc: Enable volume sharing
 		//  scope: global
