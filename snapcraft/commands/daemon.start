@@ -320,9 +320,8 @@ sed \
     -e "s%\(# \)\?udev_rules = 1%udev_rules = 0%" \
     -e "s%\(# \)\?use_lvmetad = 1%use_lvmetad = 0%" \
     -e "s%\(# \)\?monitoring = 1%monitoring = 0%" \
-    -e "s%# executable = \"/s\?bin/dmeventd\"%executable = \"${SNAP}/bin/dmeventd\"%" \
-    -e "/# .*_executable =/s/# //" \
-    -e "s%/usr/s\?bin/%${SNAP}/bin/%" \
+    -e "/# .*_\?executable =/s/# //" \
+    -e "s%\(/usr\)\?/s\?bin/%${SNAP}/bin/%" \
     "${SNAP}/etc/lvm/lvm.conf" > /etc/lvm/lvm.conf
 
 # Setup for OVN
