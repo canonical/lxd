@@ -311,18 +311,16 @@ else
 fi
 
 # Setup for LVM
-echo "==> Setting up LVM configuration"
-mkdir -p /etc/lvm/
-sed \
-    -e "s%\(# \)\?obtain_device_list_from_udev = 1%obtain_device_list_from_udev = 0%" \
-    -e "s%\(# \)\?cache_file_prefix = \"\"%cache_file_prefix = \"lxd\"%" \
-    -e "s%\(# \)\?udev_sync = 1%udev_sync = 0%" \
-    -e "s%\(# \)\?udev_rules = 1%udev_rules = 0%" \
-    -e "s%\(# \)\?use_lvmetad = 1%use_lvmetad = 0%" \
-    -e "s%\(# \)\?monitoring = 1%monitoring = 0%" \
-    -e "/# .*_\?executable =/s/# //" \
-    -e "s%\(/usr\)\?/s\?bin/%${SNAP}/bin/%" \
-    "${SNAP}/etc/lvm/lvm.conf" > /etc/lvm/lvm.conf
+if [ "${lvm_external:-"false"}" = "false" ]; then
+    echo "==> Setting up LVM configuration"
+    # XXX: the directory ${SNAP}/etc/lvm cannot be symlink'ed as LVM tools try
+    # to create /etc/lvm/{archive,backup} dirs which is not possible as ${SNAP}
+    # is read-only.
+    mkdir -p /etc/lvm
+    ln -sf "${SNAP}/etc/lvm/lvm.conf" /etc/lvm/
+    # the /etc/lvm/profile dir is however only read from so a symlink is OK
+    ln -sf "${SNAP}/etc/lvm/profile" /etc/lvm/
+fi
 
 # Setup for OVN
 echo "==> Setting up OVN configuration"
