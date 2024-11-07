@@ -317,7 +317,8 @@ parts:
       - nasm
     source: https://github.com/tianocore/edk2
     source-depth: 1
-    source-tag: IRRELEVANT
+    source-commit: 8736b8fdca85e02933cdb0a13309de14c9799ece # edk2-stable202311
+    source-submodules: []
     source-type: git
     plugin: nil
     build-packages:
@@ -334,9 +335,16 @@ parts:
       craftctl default
     override-pull: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      craftctl default
+
       set -ex
-      git config --global transfer.fsckobjects true
-      git clone https://github.com/tianocore/edk2 . -b edk2-stable202311
+
+      # Fix submodule sources
+      # see https://github.com/tianocore/edk2/commit/95d8a1c255cfb8e063d679930d08ca6426eb5701
+      sed -i "s#https://github.com/Zeex/subhook.git#https://github.com/tianocore/edk2-subhook.git#g" .gitmodules
+
+      # Pull submodules after switching to source-commit
+      git submodule update --init --recursive
     override-build: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       set -ex
@@ -344,11 +352,6 @@ parts:
       # Git cherry-picks
       git config user.email "noreply@lists.canonical.com"
       git config user.name "LXD snap builder"
-
-      # Fix submodules
-      # see https://github.com/tianocore/edk2/commit/95d8a1c255cfb8e063d679930d08ca6426eb5701
-      sed -i "s#https://github.com/Zeex/subhook.git#https://github.com/tianocore/edk2-subhook.git#g" .gitmodules
-      git submodule update --init --recursive
 
       # Apply patches
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0001-force-DUID-LLT.patch"
