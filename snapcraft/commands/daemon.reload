@@ -11,4 +11,4 @@ fi
 
 echo reload > "${SNAP_COMMON}/state"
 read -r PID < "${SNAP_COMMON}/lxd.pid"
-kill "$PID"
+exec kill "$PID"

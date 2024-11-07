@@ -1,14 +1,6 @@
 #!/bin/sh
 set -eu
 
-# Re-exec outside of apparmor confinement
-if [ -d /sys/kernel/security/apparmor ]; then
-  label="$(while read -r l; do echo "$l"; done < /proc/self/attr/current)"
-  if [ "$label" != "unconfined" ] && [ -n "${label##*(unconfined)}" ]; then
-    exec /usr/bin/aa-exec -p unconfined -- "$0" "$@"
-  fi
-fi
-
 # Fill SNAP_REAL_HOME if missing
 if [ -z "${SNAP_REAL_HOME:-""}" ]; then
     SNAP_REAL_HOME="${HOME}"
@@ -17,15 +9,6 @@ if [ -z "${SNAP_REAL_HOME:-""}" ]; then
     elif [ -n "${USER:-}" ] && [ -e "/home/${USER}" ]; then
         SNAP_REAL_HOME="/home/${USER}"
     fi
-fi
-
-# Migrate data if needed
-if [ ! -d "${SNAP_USER_COMMON}/config" ]; then
-    if [ -d "${SNAP_REAL_HOME}/.config/lxc" ]; then
-        cp -r "${SNAP_REAL_HOME}/.config/lxc" "${SNAP_USER_COMMON}/config" || true
-    fi
-
-    mkdir -p "${SNAP_USER_COMMON}/config"
 fi
 
 # Set the environment
@@ -38,6 +21,7 @@ if [ -z "${LXD_DIR:-""}" ]; then
 fi
 
 export LXD_CONF="${SNAP_USER_COMMON}/config"
+[ -d "${LXD_CONF}" ] || mkdir -p "${LXD_CONF}"
 export LXD_GLOBAL_CONF="${LXD_GLOBAL_CONF:-"${SNAP_COMMON}/global-conf/"}"
 
 # Use editor wrapper
@@ -54,6 +38,11 @@ export PATH="/run/bin:${PATH}"
 LXC="${SNAP}/bin/lxc"
 if [ -x "${SNAP_COMMON}/lxc.debug" ]; then
     LXC="${SNAP_COMMON}/lxc.debug"
+fi
+
+# Run lxc itself outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ]; then
+  exec /usr/bin/aa-exec -p unconfined -- "${LXC}" "$@"
 fi
 
 # Run lxc itself
