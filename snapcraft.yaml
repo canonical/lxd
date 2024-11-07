@@ -277,7 +277,8 @@ parts:
       - nasm
     source: https://github.com/tianocore/edk2
     source-depth: 1
-    source-tag: IRRELEVANT
+    source-commit: ba0e0e4c6a174b71b18ccd6e47319cc45878893c # edk2-stable202208
+    source-submodules: []
     source-type: git
     plugin: nil
     build-packages:
@@ -294,9 +295,12 @@ parts:
       craftctl default
     override-pull: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      craftctl default
+
       set -ex
-      git config --global transfer.fsckobjects true
-      git clone https://github.com/tianocore/edk2 . -b edk2-stable202208
+
+      # Pull submodules after switching to source-commit
+      git submodule update --init --recursive
     override-build: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       set -ex
@@ -304,10 +308,6 @@ parts:
       # Git cherry-picks
       git config user.email "noreply@lists.canonical.com"
       git config user.name "LXD snap builder"
-
-      # Fix submodules
-      sed -i "s#https://git.cryptomilk.org/projects/cmocka#https://gitlab.com/cmocka/cmocka#g" .gitmodules
-      git submodule update --init --recursive
 
       # Apply patches
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0001-force-DUID-LLT.patch"
