@@ -3887,7 +3887,7 @@
 							"condition": "standard mode",
 							"defaultdesc": "initial value on creation: `auto`",
 							"longdesc": "Use CIDR notation.\n\nYou can set the option to `none` to turn off IPv4, or to `auto` to generate a new random unused subnet.",
-							"shortdesc": "IPv4 address for the bridge",
+							"shortdesc": "IPv4 address for the OVN network",
 							"type": "string"
 						}
 					},
@@ -3931,7 +3931,7 @@
 							"condition": "standard mode",
 							"defaultdesc": "initial value on creation: `auto`",
 							"longdesc": "Use CIDR notation.\n\nYou can set the option to `none` to turn off IPv6, or to `auto` to generate a new random unused subnet.",
-							"shortdesc": "IPv6 address for the bridge",
+							"shortdesc": "IPv6 address for the OVN network",
 							"type": "string"
 						}
 					},

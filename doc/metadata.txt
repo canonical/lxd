@@ -3429,7 +3429,7 @@ Specify a comma-separated list of DNS zone names.
 ```{config:option} ipv4.address network-ovn-network-conf
 :condition: "standard mode"
 :defaultdesc: "initial value on creation: `auto`"
-:shortdesc: "IPv4 address for the bridge"
+:shortdesc: "IPv4 address for the OVN network"
 :type: "string"
 Use CIDR notation.
 
@@ -3470,7 +3470,7 @@ You can set the option to `none` to turn off IPv4, or to `auto` to generate a ne
 ```{config:option} ipv6.address network-ovn-network-conf
 :condition: "standard mode"
 :defaultdesc: "initial value on creation: `auto`"
-:shortdesc: "IPv6 address for the bridge"
+:shortdesc: "IPv6 address for the OVN network"
 :type: "string"
 Use CIDR notation.
 
