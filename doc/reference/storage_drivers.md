@@ -44,6 +44,7 @@ Restore from older snapshots (not latest)   | ✅        | ✅   | ✅     | ❌
 Storage quotas                              | ✅[^5]    | ✅   | ✅     | ✅     | ✅       | ✅     | ✅          | ✅
 Available on `lxd init`                     | ✅        | ✅   | ✅     | ✅     | ✅       | ❌     | ❌          | ❌
 Object storage                              | ✅        | ✅   | ✅     | ✅     | ❌       | ❌     | ✅          | ❌
+Online growing of disks                | ❌        | ❌   | ✅     | ✅     | ❌       | ❌     | ❌          | ❌
 
 [^1]: Volumes of type `block` will fall back to non-optimized transfer when migrating to an older LXD server that doesn't yet support the `RBD_AND_RSYNC` migration type.
 [^2]: Requires {config:option}`storage-lvm-pool-conf:lvm.use_thinpool` to be enabled. Only when refreshing local volumes.
