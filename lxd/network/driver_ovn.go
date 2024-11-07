@@ -408,7 +408,7 @@ func (n *ovn) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: standard mode
 		//  defaultdesc: initial value on creation: `auto`
-		//  shortdesc: IPv4 address for the bridge
+		//  shortdesc: IPv4 address for the OVN network
 		"ipv4.address": validate.Optional(func(value string) error {
 			if validate.IsOneOf("none", "auto")(value) == nil {
 				return nil
@@ -432,7 +432,7 @@ func (n *ovn) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: standard mode
 		//  defaultdesc: initial value on creation: `auto`
-		//  shortdesc: IPv6 address for the bridge
+		//  shortdesc: IPv6 address for the OVN network
 		"ipv6.address": validate.Optional(func(value string) error {
 			if validate.IsOneOf("none", "auto")(value) == nil {
 				return nil
