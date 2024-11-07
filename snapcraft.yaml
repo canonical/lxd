@@ -251,14 +251,13 @@ parts:
       set -ex
       git clone https://github.com/tianocore/edk2 . -b edk2-stable202208
 
+      # Pull submodules after switching to source-commit
+      git submodule update --init --recursive
+
       git config user.email "noreply@lists.canonical.com"
       git config user.name "LXD snap builder"
     override-build: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-
-      # Fix submodules
-      sed -i "s#https://git.cryptomilk.org/projects/cmocka#https://gitlab.com/cmocka/cmocka#g" .gitmodules
-      git submodule update --init --recursive
 
       # Apply patches
       patch -p1 < "${SNAPCRAFT_PROJECT_DIR}/patches/edk2-0001-force-DUID-LLT.patch"
