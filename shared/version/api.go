@@ -424,6 +424,7 @@ var APIExtensions = []string{
 	"vm_limits_cpu_pin_strategy",
 	"gpu_cdi",
 	"images_all_projects",
+	"network_get_target",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
