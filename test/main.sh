@@ -395,6 +395,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_storage_driver_cephfs "cephfs storage driver"
     run_test test_storage_driver_dir "dir storage driver"
     run_test test_storage_driver_zfs "zfs storage driver"
+    run_test test_storage_driver_pure "pure storage driver"
     run_test test_storage_buckets "storage buckets"
     run_test test_storage_volume_import "storage volume import"
     run_test test_storage_volume_initial_config "storage volume initial configuration"
