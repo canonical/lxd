@@ -4158,7 +4158,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 
 // shouldUseOptimizedImage determines if an optimized image should be used based on the provided volume config.
 // It returns true if the volume config aligns with the pool's default configuration, and an optimized image does
-// not exist or also matches the pool's default confgiuration.
+// not exist or also matches the pool's default configuration.
 func (b *lxdBackend) shouldUseOptimizedImage(fingerprint string, contentType drivers.ContentType, volConfig map[string]string) (bool, error) {
 	canOptimizeImage := b.driver.Info().OptimizedImages
 
