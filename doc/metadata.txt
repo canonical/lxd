@@ -6338,6 +6338,9 @@ container or containers that use it. This allows using the `zfs` command in the 
 `can_view_warnings`
 : Grants permission to view warnings.
 
+`can_view_unmanaged_networks`
+: Grants permission to view unmanaged networks on the LXD host machines.
+
 
 <!-- entity group server end -->
 <!-- entity group storage_bucket start -->
