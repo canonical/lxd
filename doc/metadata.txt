@@ -2144,7 +2144,7 @@ See {ref}`dev-lxd` for more information.
 
 ```{config:option} security.devlxd.images instance-security
 :defaultdesc: "`false`"
-:liveupdate: "no"
+:liveupdate: "yes"
 :shortdesc: "Controls the availability of the `/1.0/images` API over `devlxd`"
 :type: "bool"
 
