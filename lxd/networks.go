@@ -241,11 +241,17 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
-	var networkNames []string
+	// networks holds the network names of the managed and unmanaged networks. They are in two different slices so that
+	// we can perform access control checks differently.
+	var networks [2][]string
+	const (
+		managed = iota
+		unmanaged
+	)
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get list of managed networks (that may or may not have network interfaces on the host).
-		networkNames, err = tx.GetNetworks(ctx, effectiveProjectName)
+		networks[managed], err = tx.GetNetworks(ctx, effectiveProjectName)
 
 		return err
 	})
@@ -253,8 +259,18 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	// Get list of actual network interfaces on the host as well if the effective project is Default.
+	// Get list of actual network interfaces on the host if the effective project is default and the caller has permission.
+	var getUnmanagedNetworks bool
 	if effectiveProjectName == api.ProjectDefaultName {
+		err := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewUnmanagedNetworks)
+		if err == nil {
+			getUnmanagedNetworks = true
+		} else if !auth.IsDeniedError(err) {
+			return response.SmartError(err)
+		}
+	}
+
+	if getUnmanagedNetworks {
 		ifaces, err := net.Interfaces()
 		if err != nil {
 			return response.InternalError(err)
@@ -267,12 +283,13 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Append to the list of networks if a managed network of same name doesn't exist.
-			if !shared.ValueInSlice(iface.Name, networkNames) {
-				networkNames = append(networkNames, iface.Name)
+			if !shared.ValueInSlice(iface.Name, networks[managed]) {
+				networks[unmanaged] = append(networks[unmanaged], iface.Name)
 			}
 		}
 	}
 
+	// Permission checker works for managed networks only, since they are present in the database.
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeNetwork)
 	if err != nil {
 		return response.InternalError(err)
@@ -280,20 +297,23 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 
 	resultString := []string{}
 	resultMap := []api.Network{}
-	for _, networkName := range networkNames {
-		if !userHasPermission(entity.NetworkURL(requestProjectName, networkName)) {
-			continue
-		}
-
-		if !recursion {
-			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName))
-		} else {
-			net, err := doNetworkGet(s, r, s.ServerClustered, requestProjectName, reqProject.Config, networkName)
-			if err != nil {
+	for kind, networkNames := range networks {
+		for _, networkName := range networkNames {
+			// Filter out managed networks that the caller doesn't have permission to view.
+			if kind == managed && !userHasPermission(entity.NetworkURL(requestProjectName, networkName)) {
 				continue
 			}
 
-			resultMap = append(resultMap, net)
+			if !recursion {
+				resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName))
+			} else {
+				net, err := doNetworkGet(s, r, s.ServerClustered, requestProjectName, reqProject.Config, networkName)
+				if err != nil {
+					continue
+				}
+
+				resultMap = append(resultMap, net)
+			}
 		}
 	}
 
