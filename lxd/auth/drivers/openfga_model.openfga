@@ -136,6 +136,9 @@ type server
 
     # Grants permission to view warnings.
     define can_view_warnings: [identity, service_account, group#member] or admin or viewer
+
+    # Grants permission to view unmanaged networks on the LXD host machines.
+    define can_view_unmanaged_networks: [identity, service_account, group#member] or admin or viewer
 type certificate
   relations
     define server: [server]
