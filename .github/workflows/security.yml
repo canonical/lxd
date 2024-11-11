@@ -37,7 +37,7 @@ jobs:
 
       - name: Use previous downloaded database
         if: ${{ steps.db_download.outcome == 'failure' }}
-        uses: actions/cache/restore@3624ceb22c1c5a301c8db4169662070a689d9ea8 # v4.1.1
+        uses: actions/cache/restore@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
         with:
           path: /home/runner/vuln-cache
           key: trivy-latest-cache
