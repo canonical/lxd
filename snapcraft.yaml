@@ -208,18 +208,20 @@ parts:
 
   dqlite:
     after:
-      - raft
       - sqlite
     source: https://github.com/canonical/dqlite
-    source-commit: 50ee9af350b2fb4e79f9eb58db22c8a0927138de # few commits before v1.13.0
+    source-branch: lts-1.17.x
     source-type: git
     source-depth: 1
     plugin: autotools
     autotools-configure-parameters:
       - --prefix=
+      - --enable-build-raft
     stage-packages:
+      - liblz4-1
       - libuv1
     build-packages:
+      - liblz4-dev
       - libuv1-dev
     organize:
       usr/lib/: lib/
@@ -746,26 +748,6 @@ parts:
         "${SNAPCRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.ms.fd"
     prime:
       - share/qemu/*
-
-  raft:
-    source: https://github.com/canonical/raft
-    source-commit: abf9c42a9bb63c24920ab9f0bfbc4b7a47e7e5f4 # no proximate release tag/version
-    source-type: git
-    source-depth: 1
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=
-    stage-packages:
-      - libuv1
-      - liblz4-1
-    build-packages:
-      - libuv1-dev
-      - liblz4-dev
-    organize:
-      usr/lib/: lib/
-    prime:
-      - lib/libraft*so*
-      - lib/*/libuv.so*
 
   sqlite:
     source: https://github.com/sqlite/sqlite
@@ -1303,7 +1285,6 @@ parts:
       - nano
       - nvidia-container
       - openvswitch
-      - raft
       - sqlite
       - squashfs-tools-ng
       - vim
