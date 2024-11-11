@@ -2411,7 +2411,7 @@
 					{
 						"security.devlxd.images": {
 							"defaultdesc": "`false`",
-							"liveupdate": "no",
+							"liveupdate": "yes",
 							"longdesc": "",
 							"shortdesc": "Controls the availability of the `/1.0/images` API over `devlxd`",
 							"type": "bool"
