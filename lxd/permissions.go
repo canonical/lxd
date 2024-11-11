@@ -1,9 +1,11 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
@@ -222,8 +224,38 @@ func getPermissions(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if recursion == "1" {
+		slices.SortFunc(apiPermissionInfos, comparePermissionInfo)
 		return response.SyncResponse(true, apiPermissionInfos)
 	}
 
+	slices.SortFunc(apiPermissions, comparePermission)
 	return response.SyncResponse(true, apiPermissions)
+}
+
+func comparePermission(a, b api.Permission) int {
+	result := cmp.Compare(a.EntityType, b.EntityType)
+	if result != 0 {
+		return result
+	}
+
+	result = cmp.Compare(a.EntityReference, b.EntityReference)
+	if result != 0 {
+		return result
+	}
+
+	return cmp.Compare(a.Entitlement, b.Entitlement)
+}
+
+func comparePermissionInfo(a, b api.PermissionInfo) int {
+	result := cmp.Compare(a.EntityType, b.EntityType)
+	if result != 0 {
+		return result
+	}
+
+	result = cmp.Compare(a.EntityReference, b.EntityReference)
+	if result != 0 {
+		return result
+	}
+
+	return cmp.Compare(a.Entitlement, b.Entitlement)
 }
