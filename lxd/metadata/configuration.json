@@ -7167,6 +7167,10 @@
 				{
 					"name": "can_view_warnings",
 					"description": "Grants permission to view warnings."
+				},
+				{
+					"name": "can_view_unmanaged_networks",
+					"description": "Grants permission to view unmanaged networks on the LXD host machines."
 				}
 			]
 		},
