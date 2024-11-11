@@ -340,7 +340,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// ---
 	//  type: bool
 	//  defaultdesc: `false`
-	//  liveupdate: no
+	//  liveupdate: yes
 	//  shortdesc: Controls the availability of the `/1.0/images` API over `devlxd`
 	"security.devlxd.images": validate.Optional(validate.IsBool),
 
