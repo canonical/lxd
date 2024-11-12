@@ -549,6 +549,11 @@ user_is_server_admin() {
   lxc_remote storage set "${remote}:test-pool" rsync.compression=true
   lxc_remote storage show "${remote}:test-pool" | grep -Fq 'rsync.compression:'
   lxc_remote storage delete "${remote}:test-pool"
+
+  # Should be able to view all managed and unmanaged networks
+  host_networks="$(ip a | grep -P '^\d+:' | cut -d' ' -f2 | tr -d ':' | grep -vP '^veth.*' | sort)"
+  lxd_networks="$(lxc_remote query "${remote}:/1.0/networks?recursion=1" | jq -r '.[].name' | sort)"
+  [ "${host_networks}" = "${lxd_networks}" ]
 }
 
 user_is_server_operator() {
