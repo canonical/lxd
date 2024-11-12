@@ -427,22 +427,23 @@ user_is_server_admin() {
   # Should be able to see server config.
   lxc_remote info "${remote}:" | grep -Fq 'core.https_address'
 
-  # Should be able to add/remove certificates.
-  gen_cert openfga-test
-  # shellcheck disable=SC2153
-  test_cert_fingerprint="$(cert_fingerprint "${LXD_CONF}/openfga-test.crt")"
-  certificate_add_token="$(lxc_remote config trust add "${remote}:" --name test --quiet)"
-  mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client.crt.bak"
-  mv "${LXD_CONF}/client.key" "${LXD_CONF}/client.key.bak"
-  mv "${LXD_CONF}/openfga-test.crt" "${LXD_CONF}/client.crt"
-  mv "${LXD_CONF}/openfga-test.key" "${LXD_CONF}/client.key"
-  lxc_remote remote add test-remote "${certificate_add_token}"
-  mv "${LXD_CONF}/client.crt.bak" "${LXD_CONF}/client.crt"
-  mv "${LXD_CONF}/client.key.bak" "${LXD_CONF}/client.key"
-  lxc_remote config trust remove "${remote}:${test_cert_fingerprint}"
-  lxc_remote remote remove test-remote
+  ## Should be able to add/remove certificates.
+  # Create a temporary lxc config directory with some certs to test with.
+  TMP_LXD_CONF=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${TMP_LXD_CONF}" gen_cert_and_key client
+  tmp_cert_fingerprint="$(cert_fingerprint "${TMP_LXD_CONF}/client.crt")"
 
-  # Should be able to create/edit/delete a storage pool.
+  # Can get a certificate add token as a server administrator.
+  certificate_add_token="$(lxc_remote config trust add "${remote}:" --name test --quiet)"
+
+  # The token works.
+  LXD_CONF="${TMP_LXD_CONF}" lxc_remote remote add test-remote "${certificate_add_token}"
+
+  # Clean up test certificate and config dir.
+  lxc_remote config trust remove "${remote}:${tmp_cert_fingerprint}"
+  rm -r "${TMP_LXD_CONF}"
+
+  ## Should be able to create/edit/delete a storage pool.
   lxc_remote storage create "${remote}:test-pool" dir
   lxc_remote storage set "${remote}:test-pool" rsync.compression=true
   lxc_remote storage show "${remote}:test-pool" | grep -Fq 'rsync.compression:'
