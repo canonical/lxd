@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/canonical/go-dqlite/app"
-	"github.com/canonical/go-dqlite/client"
+	"github.com/canonical/go-dqlite/v2/app"
+	"github.com/canonical/go-dqlite/v2/client"
 	"gopkg.in/inconshreveable/log15.v2"
 	log "gopkg.in/inconshreveable/log15.v2"
 

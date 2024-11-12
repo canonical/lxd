@@ -11,7 +11,7 @@ import (
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 
-	"github.com/canonical/go-dqlite/client"
+	"github.com/canonical/go-dqlite/v2/client"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxc/utils"

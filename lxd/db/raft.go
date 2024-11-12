@@ -6,7 +6,7 @@ package db
 import (
 	"fmt"
 
-	"github.com/canonical/go-dqlite/client"
+	"github.com/canonical/go-dqlite/v2/client"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/pkg/errors"
 )
