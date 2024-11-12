@@ -570,10 +570,11 @@ parts:
       - libseccomp
     source: https://github.com/NVIDIA/libnvidia-container
     source-commit: 4c2494f16573b585788a42e9c7bee76ecd48c73d # v1.16.1
-    # XXX: fails to build if using source-commit and source-depth
-    #source-depth: 1
+    source-depth: 1
     source-type: git
     plugin: make
+    build-environment:
+      - GIT_TAG: "1.16.1" # Enables source-depth: 1, should match git tag without "v" prefix.
     build-packages:
       - bmake
       - curl
