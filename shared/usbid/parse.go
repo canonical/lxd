@@ -209,8 +209,8 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 	}
 
 	// TODO(kevlar): Parse class information, etc
-	//var class *Class
-	//var subclass *SubClass
+	// var class *Class
+	// var subclass *SubClass
 
 	var kind string
 
