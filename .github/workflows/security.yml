@@ -96,12 +96,12 @@ jobs:
 
       - name: Run Trivy vulnerability scanner
         run: |
-          trivy fs --skip-db-update \
+          trivy rootfs --skip-db-update \
           --scanners vuln,secret,misconfig \
           --format sarif \
           --cache-dir /home/runner/vuln-cache \
           --severity LOW,MEDIUM,HIGH,CRITICAL \
-          --output /home/runner/${{ matrix.version }}-stable.sarif .
+          --output /home/runner/${{ matrix.version }}-stable.sarif squashfs-root
 
       - name: Flag snap scanning alerts
         run: |
