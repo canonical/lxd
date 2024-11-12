@@ -11,7 +11,11 @@ test_container_move() {
 
   # Setup.
   lxc project create "${project}"
-  lxc storage create "${pool2}" "${lxd_backend}"
+  if [ "${lxd_backend}" = "pure" ]; then
+    configure_pure_pool "${pool2}"
+  else
+    lxc storage create "${pool2}" "${lxd_backend}"
+  fi
   lxc profile create "${profile}" --project "${project}"
   lxc profile device add "${profile}" root disk pool="${pool2}" path=/ --project "${project}"
 
