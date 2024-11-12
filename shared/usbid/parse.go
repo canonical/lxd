@@ -81,7 +81,7 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 		pieces := strings.SplitN(s, "  ", 2)
 		if len(pieces) != 2 {
 			err = fmt.Errorf("malformatted line %q", s)
-			return
+			return kind, level, id, name, err
 		}
 
 		// Save the name
@@ -102,12 +102,12 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 		i, err := strconv.ParseUint(pieces[0], 16, 16)
 		if err != nil {
 			err = fmt.Errorf("malformatted id %q: %w", pieces[0], err)
-			return
+			return kind, level, id, name, err
 		}
 
 		id = uint16(i)
 
-		return
+		return kind, level, id, name, err
 	}
 
 	// Hold the interim values
