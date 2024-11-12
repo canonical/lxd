@@ -63,6 +63,7 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 
 			return &drivers.ErrInvalidPath{PrefixPath: d.state.DevMonitor.PrefixPath()}
 		},
+
 		// lxdmeta:generate(entities=device-unix-{char+block}; group=device-conf; key=path)
 		//
 		// ---
@@ -70,6 +71,7 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		//  required: either `source` or `path` must be set
 		//  shortdesc: Path inside the instance
 		"path": validate.IsAny,
+
 		// lxdmeta:generate(entities=device-unix-{char+block}; group=device-conf; key=major)
 		//
 		// ---
@@ -77,6 +79,7 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		//  defaultdesc: device on host
 		//  shortdesc: Device major number
 		"major": unixValidDeviceNum,
+
 		// lxdmeta:generate(entities=device-unix-{char+block}; group=device-conf; key=minor)
 		//
 		// ---
@@ -84,6 +87,7 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		//  defaultdesc: device on host
 		//  shortdesc: Device minor number
 		"minor": unixValidDeviceNum,
+
 		// lxdmeta:generate(entities=device-unix-{char+block+hotplug}; group=device-conf; key=uid)
 		//
 		// ---
@@ -97,8 +101,9 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		//  type: integer
 		//  defaultdesc: `0`
 		//  condition: container
-		//  shortdesc: UID of the device owner in the container
+		//  shortdesc: UID of the device owner in the instance
 		"uid": unixValidUserID,
+
 		// lxdmeta:generate(entities=device-unix-{char+block+hotplug}; group=device-conf; key=gid)
 		//
 		// ---
@@ -112,8 +117,9 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		//  type: integer
 		//  defaultdesc: `0`
 		//  condition: container
-		//  shortdesc: GID of the device owner in the container
+		//  shortdesc: GID of the device owner in the instance
 		"gid": unixValidUserID,
+
 		// lxdmeta:generate(entities=device-unix-{char+block+hotplug}; group=device-conf; key=mode)
 		//
 		// ---
@@ -127,8 +133,9 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		//  type: integer
 		//  defaultdesc: `0660`
 		//  condition: container
-		//  shortdesc: Mode of the device in the container
+		//  shortdesc: Mode of the device in the instance
 		"mode": unixValidOctalFileMode,
+
 		// lxdmeta:generate(entities=device-unix-char; group=device-conf; key=required)
 		// See {ref}`devices-unix-char-hotplugging` for more information.
 		// ---
