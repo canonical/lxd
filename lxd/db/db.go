@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/canonical/go-dqlite/driver"
+	"github.com/canonical/go-dqlite/v2/driver"
 	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 

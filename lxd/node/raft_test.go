@@ -3,7 +3,7 @@ package node_test
 import (
 	"testing"
 
-	"github.com/canonical/go-dqlite/client"
+	"github.com/canonical/go-dqlite/v2/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

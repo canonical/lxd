@@ -17,15 +17,15 @@ import (
 	"time"
 
 	"github.com/canonical/candid/candidclient"
-	dqliteclient "github.com/canonical/go-dqlite/client"
-	"github.com/canonical/go-dqlite/driver"
+	dqliteclient "github.com/canonical/go-dqlite/v2/client"
+	"github.com/canonical/go-dqlite/v2/driver"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
-	client "github.com/canonical/go-dqlite/client"
+	client "github.com/canonical/go-dqlite/v2/client"
 	"gopkg.in/macaroon-bakery.v2/bakery"
 	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
 	"gopkg.in/macaroon-bakery.v2/bakery/identchecker"

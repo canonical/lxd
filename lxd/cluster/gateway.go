@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	dqlite "github.com/canonical/go-dqlite"
-	client "github.com/canonical/go-dqlite/client"
+	dqlite "github.com/canonical/go-dqlite/v2"
+	client "github.com/canonical/go-dqlite/v2/client"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/canonical/lxd/lxd/db"
