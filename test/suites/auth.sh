@@ -115,15 +115,16 @@ test_authorization() {
   lxc auth identity list --format csv | grep -Fq "tls,Client certificate,test-user,${tls_identity_fingerprint},test-group"
 
   # Test `lxc auth identity info`
-  expectedOIDCInfo="authentication_method: oidc
+  expectedOIDCInfo='authentication_method: oidc
 type: OIDC client
 id: test-user@example.com
-name: ' '
+name: '"'"' '"'"'
 groups:
 - test-group
+tls_certificate: ""
 effective_groups:
 - test-group
-effective_permissions: []"
+effective_permissions: []'
   [ "$(lxc auth identity info oidc:)" = "${expectedOIDCInfo}" ]
 
   expectedTLSInfo="authentication_method: tls
@@ -132,6 +133,8 @@ id: ${tls_identity_fingerprint}
 name: test-user
 groups:
 - test-group
+tls_certificate: |
+$(awk '{printf "  %s\n", $0}' "${LXD_CONF2}/client.crt")
 effective_groups:
 - test-group
 effective_permissions: []"
@@ -209,6 +212,42 @@ effective_permissions: []"
   # The TLS identity is not trusted after deletion.
   [ "$(LXD_CONF="${LXD_CONF2}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "untrusted" ]
 
+  # Check a TLS identity can update their own certificate.
+  # First create a new TLS identity and add it to test-group
+  LXD_CONF4=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF4}" gen_cert_and_key "client"
+  token="$(lxc auth identity create tls/test-user4 --quiet)"
+  LXD_CONF="${LXD_CONF4}" lxc_remote remote add tls "${token}"
+  lxc auth identity group add tls/test-user4 test-group
+
+  # Create another certificate to update to
+  LXD_CONF5=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF5}" gen_cert_and_key "client"
+
+  # We're using my_curl because the lxc wrapper function splits the --data argument on the spaces between "BEGIN CERTIFICATE" and lxc query returns a usage error.
+  # We could use lxc edit as it accepts stdin input, but replacing the certificate in the yaml was quite complicated.
+
+  # This asserts that test-user4 cannot change their own group membership
+  [ "$(LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")\"}" | jq -r '.error_code')" -eq 403 ]
+
+  # This asserts that test-user4 can change their own certificate as long as the groups are unchanged
+  [ "$(LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")\", \"groups\":[\"test-group\"]}" | jq -r '.status_code')" -eq 200 ]
+
+  # The original certificate is untrusted after the update
+  [ "$(LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "untrusted" ]
+
+  # Add the remote for the lxc config directory with the other certificates. No token needed as we're already trusted.
+  LXD_CONF="${LXD_CONF5}" lxc remote add tls "${LXD_ADDR}" --accept-certificate --auth-type tls
+  [ "$(LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "trusted" ]
+
+  # Do the same tests with patch. test-user4 cannot change their group membership
+  [ "$(LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")\", \"groups\":[\"new-group\"]}" | jq -r '.error_code')" -eq 403 ]
+
+  # Change the certificate back to the original, using patch. Here no groups are in the request, only the certificate.
+  [ "$(LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")\"}" | jq -r '.status_code')" -eq 200 ]
+  [ "$(LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "trusted" ]
+  [ "$(LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "untrusted" ]
+
   # Cleanup
   lxc auth group delete test-group
   lxc auth identity-provider-group delete test-idp-group
@@ -217,6 +256,8 @@ effective_permissions: []"
   rm "${TEST_DIR}/oidc.user"
   rm -r "${LXD_CONF2}"
   rm -r "${LXD_CONF3}"
+  rm -r "${LXD_CONF4}"
+  rm -r "${LXD_CONF5}"
   lxc config unset core.remote_token_expiry
   lxc config unset oidc.issuer
   lxc config unset oidc.client.id
