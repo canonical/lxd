@@ -785,6 +785,13 @@ definitions:
                 example: Jane Doe
                 type: string
                 x-go-name: Name
+            tls_certificate:
+                description: |-
+                    TLSCertificate is a PEM encoded x509 certificate. This is only set if the AuthenticationMethod is AuthenticationMethodTLS.
+
+                    API extension: access_management_tls.
+                type: string
+                x-go-name: TLSCertificate
             type:
                 description: Type is the type of identity.
                 example: oidc-service-account
@@ -843,6 +850,13 @@ definitions:
                 example: Jane Doe
                 type: string
                 x-go-name: Name
+            tls_certificate:
+                description: |-
+                    TLSCertificate is a PEM encoded x509 certificate. This is only set if the AuthenticationMethod is AuthenticationMethodTLS.
+
+                    API extension: access_management_tls.
+                type: string
+                x-go-name: TLSCertificate
             type:
                 description: Type is the type of identity.
                 example: oidc-service-account
@@ -903,6 +917,13 @@ definitions:
                     type: string
                 type: array
                 x-go-name: Groups
+            tls_certificate:
+                description: |-
+                    TLSCertificate is a base64 encoded x509 certificate. This can only be set if the authentication method of the identity is AuthenticationMethodTLS.
+
+                    API extension: access_management_tls.
+                type: string
+                x-go-name: TLSCertificate
         title: IdentityPut contains the editable fields of an IdentityInfo.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api

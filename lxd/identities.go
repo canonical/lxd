@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -91,12 +92,12 @@ var tlsIdentityCmd = APIEndpoint{
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodTLS, auth.EntitlementCanView),
 	},
 	Put: APIEndpointAction{
-		Handler:       updateIdentity,
-		AccessHandler: identityAccessHandler(api.AuthenticationMethodTLS, auth.EntitlementCanEdit),
+		Handler:       updateIdentity(api.AuthenticationMethodTLS),
+		AccessHandler: allowAuthenticated,
 	},
 	Patch: APIEndpointAction{
-		Handler:       patchIdentity,
-		AccessHandler: identityAccessHandler(api.AuthenticationMethodTLS, auth.EntitlementCanEdit),
+		Handler:       patchIdentity(api.AuthenticationMethodTLS),
+		AccessHandler: allowAuthenticated,
 	},
 	Delete: APIEndpointAction{
 		Handler:       deleteIdentity,
@@ -114,11 +115,11 @@ var oidcIdentityCmd = APIEndpoint{
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanView),
 	},
 	Put: APIEndpointAction{
-		Handler:       updateIdentity,
+		Handler:       updateIdentity(api.AuthenticationMethodOIDC),
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanEdit),
 	},
 	Patch: APIEndpointAction{
-		Handler:       patchIdentity,
+		Handler:       patchIdentity(api.AuthenticationMethodOIDC),
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanEdit),
 	},
 	Delete: APIEndpointAction{
@@ -137,27 +138,46 @@ const (
 	ctxClusterDBIdentity request.CtxKey = "cluster-db-identity"
 )
 
+// addIdentityDetailsToContext queries the database for the identity with the given authentication method and the
+// `nameOrIdentifier` path argument. This expands the `nameOrIdentifier` so that we can get the fully qualified URL
+// of the identity matching what is expected by the authorizer. It returns the Identity for convenience, and also adds
+// it to the request context with the ctxClusterDBIdentity context key for later use.
+func addIdentityDetailsToContext(s *state.State, r *http.Request, authenticationMethod string) (*dbCluster.Identity, error) {
+	muxVars := mux.Vars(r)
+	nameOrID, err := url.PathUnescape(muxVars["nameOrIdentifier"])
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unescape path argument: %w", err)
+	}
+
+	var id *dbCluster.Identity
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		id, err = dbCluster.GetIdentityByNameOrIdentifier(ctx, tx.Tx(), authenticationMethod, nameOrID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			// Mask not found error to prevent discovery
+			return nil, api.NewGenericStatusError(http.StatusNotFound)
+		}
+
+		return nil, err
+	}
+
+	request.SetCtxValue(r, ctxClusterDBIdentity, id)
+	return id, nil
+}
+
 // identityAccessHandler performs some initial validation of the request and gets the identity by its name or
 // identifier. If one is found, the identifier is used in the URL that is passed to (auth.Authorizer).CheckPermission.
 // The cluster.Identity is set in the request context.
 func identityAccessHandler(authenticationMethod string, entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
-		muxVars := mux.Vars(r)
-		nameOrID, err := url.PathUnescape(muxVars["nameOrIdentifier"])
-		if err != nil {
-			return response.InternalError(fmt.Errorf("Failed to unescape path argument: %w", err))
-		}
-
 		s := d.State()
-		var id *dbCluster.Identity
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			id, err = dbCluster.GetIdentityByNameOrIdentifier(ctx, tx.Tx(), authenticationMethod, nameOrID)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
+		id, err := addIdentityDetailsToContext(s, r, authenticationMethod)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -174,7 +194,6 @@ func identityAccessHandler(authenticationMethod string, entitlement auth.Entitle
 			}
 		}
 
-		request.SetCtxValue(r, ctxClusterDBIdentity, id)
 		return response.EmptySyncResponse
 	}
 }
@@ -346,29 +365,9 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 		return createIdentityTLSPending(ctx, s, req, notify)
 	}
 
-	// If a token is not requested, the caller must provide a certificate.
-	if req.Certificate == "" {
-		return response.BadRequest(fmt.Errorf("Must provide a certificate"))
-	}
-
-	// Parse the certificate.
-	cert, err := shared.ParseCert([]byte(req.Certificate))
+	fingerprint, metadata, err := validateIdentityCert(networkCert, req.Certificate)
 	if err != nil {
-		return response.BadRequest(fmt.Errorf("Invalid certificate material: %w", err))
-	}
-
-	// Validate the certificate.
-	err = certificateValidate(networkCert, cert)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	// Calculate the fingerprint and certificate metadata.
-	fingerprint := shared.CertFingerprint(cert)
-	metadata := dbCluster.CertificateMetadata{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))}
-	metadataJSON, err := json.Marshal(metadata)
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to encode certificate metadata: %w", err))
+		return response.SmartError(err)
 	}
 
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -384,7 +383,7 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 			Type:       api.IdentityTypeCertificateClient,
 			Identifier: fingerprint,
 			Name:       req.Name,
-			Metadata:   string(metadataJSON),
+			Metadata:   metadata,
 		})
 		if err != nil {
 			return err
@@ -885,12 +884,23 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 
 			apiIdentities := make([]api.Identity, 0, len(identities))
 			for _, id := range identities {
+				var certificate string
+				if id.AuthMethod == api.AuthenticationMethodTLS && id.Type != api.IdentityTypeCertificateClientPending {
+					metadata, err := id.CertificateMetadata()
+					if err != nil {
+						return response.SmartError(err)
+					}
+
+					certificate = metadata.Certificate
+				}
+
 				apiIdentities = append(apiIdentities, api.Identity{
 					AuthenticationMethod: string(id.AuthMethod),
 					Type:                 string(id.Type),
 					Identifier:           id.Identifier,
 					Name:                 id.Name,
 					Groups:               groupNamesByIdentityID[id.ID],
+					TLSCertificate:       certificate,
 				})
 			}
 
@@ -1180,23 +1190,129 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 //	  "501":
 //	    $ref: "#/responses/NotImplemented"
-func updateIdentity(d *Daemon, r *http.Request) response.Response {
-	id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
+func updateIdentity(authenticationMethod string) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
+		s := d.State()
+		id, err := addIdentityDetailsToContext(s, r, authenticationMethod)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if !identity.IsFineGrainedIdentityType(string(id.Type)) {
+			return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
+		}
+
+		var identityPut api.IdentityPut
+		err = json.NewDecoder(r.Body).Decode(&identityPut)
+		if err != nil {
+			return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
+		}
+
+		if id.Type != api.IdentityTypeCertificateClient && identityPut.TLSCertificate != "" {
+			return response.BadRequest(fmt.Errorf("Cannot update certificate for identities of type %q", id.Type))
+		}
+
+		err = s.Authorizer.CheckPermission(r.Context(), entity.IdentityURL(authenticationMethod, id.Identifier), auth.EntitlementCanEdit)
+		if err == nil {
+			return updateIdentityPrivileged(s, r, *id, identityPut)
+		} else if !auth.IsDeniedError(err) {
+			return response.SmartError(err)
+		}
+
+		// Only identities of type api.IdentityTypeCertificateClient may update their own certificate
+		if id.Type != api.IdentityTypeCertificateClient {
+			return response.Forbidden(nil)
+		}
+
+		username, err := auth.GetUsernameFromCtx(r.Context())
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Identities may only update their own certificate
+		if username != id.Identifier {
+			return response.Forbidden(nil)
+		}
+
+		return updateSelfIdentityUnprivileged(s, r, *id, identityPut)
+	}
+}
+
+// updateSelfIdentityUnprivileged is only invoked when an identity of type api.IdentityTypeClientCertificate updates their
+// own identity and does not have permission to change their own groups.
+func updateSelfIdentityUnprivileged(s *state.State, r *http.Request, id dbCluster.Identity, identityPut api.IdentityPut) response.Response {
+	// Validate the given certificate
+	fingerprint, metadata, err := validateIdentityCert(s.Endpoints.NetworkCert(), identityPut.TLSCertificate)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	var identityPut api.IdentityPut
-	err = json.NewDecoder(r.Body).Decode(&identityPut)
+	// We need to perform an ETag check. To do so we need to convert the DB Identity to an API identity and this
+	// requires a permission checker on groups. We know that the caller is updating themselves and they are able to view
+	// all groups that they are a member of, so we can return true for any url here.
+	canViewGroup := func(entityURL *api.URL) bool { return true }
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		apiIdentity, err := id.ToAPI(ctx, tx.Tx(), canViewGroup)
+		if err != nil {
+			return err
+		}
+
+		err = util.EtagCheck(r, apiIdentity)
+		if err != nil {
+			return err
+		}
+
+		// Return an error if the caller tries to update their own groups.
+		if !slices.Equal(identityPut.Groups, apiIdentity.Groups) {
+			return api.NewStatusError(http.StatusForbidden, "Only the certificate may be changed")
+		}
+
+		// We needed to start this transaction to check the ETag and the list of groups. However, the only property
+		// that the unprivileged caller is allowed to update is the certificate. If the given certificate is identical
+		// to the existing certificate there is no reason to perform the update and we can return without an error
+		// (making the request idempotent).
+		if fingerprint == id.Identifier {
+			return nil
+		}
+
+		return dbCluster.UpdateIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier, dbCluster.Identity{
+			AuthMethod: id.AuthMethod,
+			Type:       id.Type,
+			Identifier: fingerprint,
+			Name:       id.Name,
+			Metadata:   metadata,
+		})
+	})
 	if err != nil {
-		return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
+		return response.SmartError(err)
 	}
 
-	if !identity.IsFineGrainedIdentityType(string(id.Type)) {
-		return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
+	// Notify other cluster members to update their identity cache.
+	notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
+	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
-	s := d.State()
+	return response.EmptySyncResponse
+}
+
+// updateIdentityPrivileged is called when the caller has `can_edit` on the identity. It must account for both OIDC and TLS identities.
+func updateIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Identity, identityPut api.IdentityPut) response.Response {
+	// Validate certificate if given (not present for OIDC or pending TLS identities).
+	var fingerprint string
+	var metadata string
+	if identityPut.TLSCertificate != "" {
+		var err error
+		fingerprint, metadata, err = validateIdentityCert(s.Endpoints.NetworkCert(), identityPut.TLSCertificate)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	// We need to perform an ETag check. To do so we need to convert the DB Identity to an API identity and this
+	// requires a permission checker on groups.
 	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
@@ -1213,12 +1329,24 @@ func updateIdentity(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		// Set the groups
 		err = dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), id.ID, identityPut.Groups)
 		if err != nil {
 			return err
 		}
 
-		return nil
+		if identityPut.TLSCertificate == "" || fingerprint == id.Identifier {
+			return nil
+		}
+
+		// Only update certificate if present and different to the existing one.
+		return dbCluster.UpdateIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier, dbCluster.Identity{
+			AuthMethod: id.AuthMethod,
+			Type:       id.Type,
+			Identifier: fingerprint,
+			Name:       id.Name,
+			Metadata:   metadata,
+		})
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -1295,23 +1423,74 @@ func updateIdentity(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 //	  "501":
 //	    $ref: "#/responses/NotImplemented"
-func patchIdentity(d *Daemon, r *http.Request) response.Response {
-	id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
-	if err != nil {
-		return response.SmartError(err)
+func patchIdentity(authenticationMethod string) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
+		s := d.State()
+		id, err := addIdentityDetailsToContext(s, r, authenticationMethod)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if !identity.IsFineGrainedIdentityType(string(id.Type)) {
+			return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
+		}
+
+		var identityPut api.IdentityPut
+		err = json.NewDecoder(r.Body).Decode(&identityPut)
+		if err != nil {
+			return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
+		}
+
+		if id.Type != api.IdentityTypeCertificateClient && identityPut.TLSCertificate != "" {
+			return response.BadRequest(fmt.Errorf("Cannot update certificate for identities of type %q", id.Type))
+		}
+
+		if len(identityPut.Groups) == 0 && identityPut.TLSCertificate == "" {
+			// Nothing to do
+			return response.EmptySyncResponse
+		}
+
+		err = s.Authorizer.CheckPermission(r.Context(), entity.IdentityURL(authenticationMethod, id.Identifier), auth.EntitlementCanEdit)
+		if err == nil {
+			return patchIdentityPrivileged(s, r, *id, identityPut)
+		} else if !auth.IsDeniedError(err) {
+			return response.SmartError(err)
+		}
+
+		// Only identities of type api.IdentityTypeCertificateClient may update their own certificate
+		if id.Type != api.IdentityTypeCertificateClient {
+			return response.Forbidden(nil)
+		}
+
+		username, err := auth.GetUsernameFromCtx(r.Context())
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Identities may only update their own certificate
+		if username != id.Identifier {
+			return response.Forbidden(nil)
+		}
+
+		return patchSelfIdentityUnprivileged(s, r, *id, identityPut)
+	}
+}
+
+// patchIdentityPrivileged is invoked when the caller has `can_edit` on the identity. It must handle both OIDC and TLS identities.
+func patchIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Identity, identityPut api.IdentityPut) response.Response {
+	// Parse the certificate if given.
+	var fingerprint string
+	var metadata string
+	if identityPut.TLSCertificate != "" {
+		var err error
+		fingerprint, metadata, err = validateIdentityCert(s.Endpoints.NetworkCert(), identityPut.TLSCertificate)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
-	var identityPut api.IdentityPut
-	err = json.NewDecoder(r.Body).Decode(&identityPut)
-	if err != nil {
-		return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
-	}
-
-	if !identity.IsFineGrainedIdentityType(string(id.Type)) {
-		return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
-	}
-
-	s := d.State()
+	// We need to perform an ETag check. To do so we need to convert the DB Identity to an API identity and this
+	// requires a permission checker on groups.
 	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
@@ -1340,7 +1519,82 @@ func patchIdentity(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		// Only update the certificate if it is given. Additionally, we don't need to update it if it's the same as the
+		// existing one.
+		if identityPut.TLSCertificate != "" && fingerprint != id.Identifier {
+			return dbCluster.UpdateIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier, dbCluster.Identity{
+				AuthMethod: id.AuthMethod,
+				Type:       id.Type,
+				Identifier: fingerprint,
+				Name:       id.Name,
+				Metadata:   metadata,
+			})
+		}
+
 		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Notify other cluster members to update their identity cache.
+	notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
+	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
+}
+
+// patchSelfIdentityUnprivileged is only invoked when an identity of type api.IdentityTypeClientCertificate updates their
+// own identity and does not have permission to change their own groups.
+func patchSelfIdentityUnprivileged(s *state.State, r *http.Request, id dbCluster.Identity, identityPut api.IdentityPut) response.Response {
+	if len(identityPut.Groups) > 0 {
+		return response.Forbidden(errors.New("Only the certificate may be changed"))
+	}
+
+	if identityPut.TLSCertificate == "" {
+		// Can only edit the TLS certificate, if one wasn't provided there's nothing to do.
+		return response.EmptySyncResponse
+	}
+
+	fingerprint, metadata, err := validateIdentityCert(s.Endpoints.NetworkCert(), identityPut.TLSCertificate)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if fingerprint == id.Identifier {
+		// The only property that the unprivileged caller is allowed to update is the certificate. If the given
+		// certificate is identical to the existing certificate there is no reason to perform the update and we can
+		// return without an error (making the request idempotent).
+		return response.EmptySyncResponse
+	}
+
+	// We need to perform an ETag check. To do so we need to convert the DB Identity to an API identity and this
+	// requires a permission checker on groups. We know that the caller is updating themselves and they are able to view
+	// all groups that they are a member of, so we can return true for any url here.
+	canViewGroup := func(entityURL *api.URL) bool { return true }
+
+	var apiIdentity *api.Identity
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		apiIdentity, err = id.ToAPI(ctx, tx.Tx(), canViewGroup)
+		if err != nil {
+			return err
+		}
+
+		err = util.EtagCheck(r, apiIdentity)
+		if err != nil {
+			return err
+		}
+
+		return dbCluster.UpdateIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier, dbCluster.Identity{
+			AuthMethod: id.AuthMethod,
+			Type:       id.Type,
+			Identifier: fingerprint,
+			Name:       id.Name,
+			Metadata:   metadata,
+		})
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -1453,6 +1707,31 @@ func newIdentityNotificationFunc(s *state.State, r *http.Request, networkCert *s
 
 		return &lc, nil
 	}
+}
+
+// validateIdentityCert validates the certificate and returns the fingerprint and dbCluster.CertificateMetadata for the
+// identity encoded as JSON.
+func validateIdentityCert(networkCert *shared.CertInfo, cert string) (fingerprint string, metadataJSON string, err error) {
+	if cert == "" {
+		return "", "", api.NewStatusError(http.StatusBadRequest, "Must provide a certificate")
+	}
+
+	x509Cert, err := shared.ParseCert([]byte(cert))
+	if err != nil {
+		return "", "", api.StatusErrorf(http.StatusBadRequest, "Failed to parse certificate: %w", err)
+	}
+
+	err = certificateValidate(networkCert, x509Cert)
+	if err != nil {
+		return "", "", fmt.Errorf("Invalid certificate: %w", err)
+	}
+
+	b, err := json.Marshal(dbCluster.CertificateMetadata{Certificate: cert})
+	if err != nil {
+		return "", "", fmt.Errorf("Failed to encode certificate metadata: %w", err)
+	}
+
+	return shared.CertFingerprint(x509Cert), string(b), nil
 }
 
 // updateIdentityCache reads all identities from the database and sets them in the identity.Cache.
