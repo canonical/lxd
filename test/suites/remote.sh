@@ -191,7 +191,7 @@ test_remote_admin() {
 
   # we just re-add our cert under a different name to test the cert
   # manipulation mechanism.
-  gen_cert client2
+  gen_cert_and_key client2
 
   # Test for #623
   lxc_remote remote add test-623 "${LXD_ADDR}" --accept-certificate --password foo
