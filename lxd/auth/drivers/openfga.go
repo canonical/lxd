@@ -250,6 +250,12 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 	l.Debug("Checking OpenFGA relation")
 	resp, err := e.server.Check(ctx, req)
 	if err != nil {
+		// If we have a not found error from the underlying OpenFGADatastore we should mask it to make requests consistent.
+		// (all not found errors returned before an access control decision is made are masked to prevent discovery).
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return api.NewGenericStatusError(http.StatusNotFound)
+		}
+
 		// Attempt to extract the internal error. This allows bubbling errors up from the OpenFGA datastore implementation.
 		// (Otherwise we just get "rpc error (4000): Internal Server Error" or similar which isn't useful).
 		var openFGAInternalError openFGAErrors.InternalError
@@ -275,6 +281,12 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 			l.Debug("Checking OpenFGA relation")
 			resp, err := e.server.Check(ctx, req)
 			if err != nil {
+				// If we have a not found error from the underlying OpenFGADatastore we should mask it to make requests consistent.
+				// (all not found errors returned before an access control decision is made are masked to prevent discovery).
+				if api.StatusErrorCheck(err, http.StatusNotFound) {
+					return api.NewGenericStatusError(http.StatusNotFound)
+				}
+
 				// Attempt to extract the internal error. This allows bubbling errors up from the OpenFGA datastore implementation.
 				// (Otherwise we just get "rpc error (4000): Internal Server Error" or similar which isn't useful).
 				var openFGAInternalError openFGAErrors.InternalError
