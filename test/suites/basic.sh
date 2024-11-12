@@ -136,7 +136,7 @@ test_basic_usage() {
   lxc delete foo
 
   # gen untrusted cert
-  gen_cert client3
+  gen_cert_and_key client3
 
   # don't allow requests without a cert to get trusted data
   [ "$(curl -k -s -o /dev/null -w "%{http_code}" -X GET "https://${LXD_ADDR}/1.0/containers/foo")" = "403" ]
