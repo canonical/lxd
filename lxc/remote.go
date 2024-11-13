@@ -255,9 +255,17 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 		}
 	}
 
+	// Implicitly runs GetServer which updates the servers extensions.
 	d, err := conf.GetInstanceServer(server)
 	if err != nil {
 		return api.StatusErrorf(http.StatusServiceUnavailable, "%s: %w", i18n.G("Unavailable remote server"), err)
+	}
+
+	req := api.CertificatesPost{}
+	if d.HasExtension("explicit_trust_token") {
+		req.TrustToken = token
+	} else {
+		req.Password = token
 	}
 
 	// Add client certificate to trust store. Even if we are already trusted (src.Auth == "trusted"),
