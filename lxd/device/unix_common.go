@@ -69,7 +69,7 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		// ---
 		//  type: string
 		//  required: either `source` or `path` must be set
-		//  shortdesc: Path inside the instance
+		//  shortdesc: Path inside the container
 		"path": validate.IsAny,
 
 		// lxdmeta:generate(entities=device-unix-{char+block}; group=device-conf; key=major)
@@ -93,7 +93,7 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		// ---
 		//  type: integer
 		//  defaultdesc: `0`
-		//  shortdesc: UID of the device owner in the instance
+		//  shortdesc: UID of the device owner in the container
 
 		// lxdmeta:generate(entities=device-unix-usb; group=device-conf; key=uid)
 		//
@@ -109,7 +109,7 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		// ---
 		//  type: integer
 		//  defaultdesc: `0`
-		//  shortdesc: GID of the device owner in the instance
+		//  shortdesc: GID of the device owner in the container
 
 		// lxdmeta:generate(entities=device-unix-usb; group=device-conf; key=gid)
 		//
@@ -125,7 +125,7 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		// ---
 		//  type: integer
 		//  defaultdesc: `0660`
-		//  shortdesc: Mode of the device in the instance
+		//  shortdesc: Mode of the device in the container
 
 		// lxdmeta:generate(entities=device-unix-usb; group=device-conf; key=mode)
 		//
@@ -141,14 +141,14 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		// ---
 		//  type: bool
 		//  defaultdesc: `true`
-		//  shortdesc: Whether this device is required to start the instance
+		//  shortdesc: Whether this device is required to start the container
 
 		// lxdmeta:generate(entities=device-unix-block; group=device-conf; key=required)
 		// See {ref}`devices-unix-block-hotplugging` for more information.
 		// ---
 		//  type: bool
 		//  defaultdesc: `true`
-		//  shortdesc: Whether this device is required to start the instance
+		//  shortdesc: Whether this device is required to start the container
 
 		// lxdmeta:generate(entities=device-unix-{hotplug+usb}; group=device-conf; key=required)
 		// The default is `false`, which means that all devices can be hotplugged.
