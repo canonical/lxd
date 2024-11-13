@@ -109,6 +109,9 @@ const (
 	// EntitlementCanViewWarnings is the "can_view_warnings" entitlement. It applies to the following entities: entity.TypeServer.
 	EntitlementCanViewWarnings Entitlement = "can_view_warnings"
 
+	// EntitlementCanViewUnmanagedNetworks is the "can_view_unmanaged_networks" entitlement. It applies to the following entities: entity.TypeServer.
+	EntitlementCanViewUnmanagedNetworks Entitlement = "can_view_unmanaged_networks"
+
 	// EntitlementOperator is the "operator" entitlement. It applies to the following entities: entity.TypeInstance, entity.TypeProject.
 	EntitlementOperator Entitlement = "operator"
 
@@ -561,6 +564,8 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanViewMetrics,
 		// Grants permission to view warnings.
 		EntitlementCanViewWarnings,
+		// Grants permission to view unmanaged networks on the LXD host machines.
+		EntitlementCanViewUnmanagedNetworks,
 	},
 	entity.TypeStorageBucket: {
 		// Grants permission to edit the storage bucket.
