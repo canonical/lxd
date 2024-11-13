@@ -45,6 +45,20 @@ func unixDeviceAttributes(path string) (dType string, major uint32, minor uint32
 	return dType, major, minor, nil
 }
 
+// unixDeviceOwnership returns the ownership (gid and uid) for a device.
+func unixDeviceOwnership(path string) (gid uint32, uid uint32, err error) {
+	stat := unix.Stat_t{}
+	err = unix.Stat(path, &stat)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	gid = stat.Gid
+	uid = stat.Uid
+
+	return gid, uid, nil
+}
+
 // unixDeviceModeOct converts a string unix octal mode to an int.
 func unixDeviceModeOct(strmode string) (int, error) {
 	i, err := strconv.ParseInt(strmode, 8, 32)
@@ -97,7 +111,7 @@ func unixDeviceDestPath(m deviceConfig.Device) string {
 // defaultMode is set as true, then the device is created with the supplied or default mode (0660)
 // respectively, otherwise the origin device's mode is used. If the device config doesn't contain a
 // type field then it defaults to created a unix-char device. The ownership of the created device
-// defaults to root (0) but can be specified with the uid and gid fields in the device config map.
+// defaults to root (0) but can be specified with the uid and gid fields in the device config map. If ownership.inherit is set to true, the device ownership is inherited from the host.
 // It returns a UnixDevice containing information about the device created.
 func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath string, prefix string, m deviceConfig.Device, defaultMode bool) (*UnixDevice, error) {
 	var err error
@@ -171,17 +185,37 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 	}
 
 	// Get the device owner.
-	if m["uid"] != "" {
-		d.UID, err = strconv.Atoi(m["uid"])
-		if err != nil {
-			return nil, fmt.Errorf("Invalid uid %s in device %s", m["uid"], srcPath)
-		}
-	}
+	if shared.IsTrue(m["ownership.inherit"]) {
+		if m["uid"] == "" {
+			_, uid, err := unixDeviceOwnership(srcPath)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to retrieve host UID of device %q: %w", srcPath, err)
+			}
 
-	if m["gid"] != "" {
-		d.GID, err = strconv.Atoi(m["gid"])
-		if err != nil {
-			return nil, fmt.Errorf("Invalid gid %s in device %s", m["gid"], srcPath)
+			d.UID = int(uid)
+		}
+
+		if m["gid"] == "" {
+			gid, _, err := unixDeviceOwnership(srcPath)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to retrieve host GID of device %q: %w", srcPath, err)
+			}
+
+			d.GID = int(gid)
+		}
+	} else {
+		if m["uid"] != "" {
+			d.UID, err = strconv.Atoi(m["uid"])
+			if err != nil {
+				return nil, fmt.Errorf("Invalid UID %q in device %q", m["uid"], srcPath)
+			}
+		}
+
+		if m["gid"] != "" {
+			d.GID, err = strconv.Atoi(m["gid"])
+			if err != nil {
+				return nil, fmt.Errorf("Invalid GID %q in device %q", m["gid"], srcPath)
+			}
 		}
 	}
 
