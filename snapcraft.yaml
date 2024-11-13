@@ -634,11 +634,12 @@ parts:
 
   nvidia-container:
     source: https://github.com/NVIDIA/libnvidia-container
-    source-commit: d2eb0afe86f0b643e33624ee64f065dd60e952d4 # v1.14.6
-    # XXX: fails to build if using source-commit and source-depth
-    #source-depth: 1
+    source-commit: 63d366ee3b4183513c310ac557bf31b05b83328f # v1.17.1
+    source-depth: 1
     source-type: git
     plugin: make
+    build-environment:
+      - GIT_TAG: "1.17.1" # Enables source-depth: 1, should match git tag without "v" prefix.
     build-packages:
       - bmake
       - curl
