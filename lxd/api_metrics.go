@@ -129,7 +129,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Register internal metrics.
-		intMetrics = internalMetrics(ctx, s.StartTime, tx)
+		intMetrics = internalMetrics(ctx, s, tx)
 		return nil
 	})
 	if err != nil {
@@ -378,7 +378,7 @@ func getFilteredMetrics(s *state.State, r *http.Request, compress bool, metricSe
 	return response.SyncResponsePlain(true, compress, metricSet.String())
 }
 
-func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.ClusterTx) *metrics.MetricSet {
+func internalMetrics(ctx context.Context, s *state.State, tx *db.ClusterTx) *metrics.MetricSet {
 	out := metrics.NewMetricSet(nil)
 
 	warnings, err := dbCluster.GetWarnings(ctx, tx.Tx())
@@ -421,7 +421,7 @@ func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.Clus
 	}
 
 	// Daemon uptime
-	out.AddSamples(metrics.UptimeSeconds, metrics.Sample{Value: time.Since(daemonStartTime).Seconds()})
+	out.AddSamples(metrics.UptimeSeconds, metrics.Sample{Value: time.Since(s.StartTime).Seconds()})
 
 	// Number of goroutines
 	out.AddSamples(metrics.GoGoroutines, metrics.Sample{Value: float64(runtime.NumGoroutine())})
