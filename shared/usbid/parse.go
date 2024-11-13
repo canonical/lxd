@@ -77,11 +77,11 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 	vendors := make(map[ID]*Vendor, 2800)
 	classes := make(map[ClassCode]*Class) // TODO(kevlar): count
 
-	split := func(s string) (kind string, level int, id uint64, name string, err error) {
+	split := func(s string) (kind string, level int, id uint16, name string, err error) {
 		pieces := strings.SplitN(s, "  ", 2)
 		if len(pieces) != 2 {
 			err = fmt.Errorf("malformatted line %q", s)
-			return
+			return kind, level, id, name, err
 		}
 
 		// Save the name
@@ -102,19 +102,19 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 		i, err := strconv.ParseUint(pieces[0], 16, 16)
 		if err != nil {
 			err = fmt.Errorf("malformatted id %q: %w", pieces[0], err)
-			return
+			return kind, level, id, name, err
 		}
 
-		id = i
+		id = uint16(i)
 
-		return
+		return kind, level, id, name, err
 	}
 
 	// Hold the interim values
 	var vendor *Vendor
 	var device *Product
 
-	parseVendor := func(level int, raw uint64, name string) error {
+	parseVendor := func(level int, raw uint16, name string) error {
 		id := ID(raw)
 
 		switch level {
@@ -162,7 +162,11 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 	var class *Class
 	var subclass *SubClass
 
-	parseClass := func(level int, id uint64, name string) error {
+	parseClass := func(level int, id uint16, name string) error {
+		if id > 255 {
+			return fmt.Errorf("integer overflow")
+		}
+
 		switch level {
 		case 0:
 			class = &Class{
@@ -205,8 +209,8 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 	}
 
 	// TODO(kevlar): Parse class information, etc
-	//var class *Class
-	//var subclass *SubClass
+	// var class *Class
+	// var subclass *SubClass
 
 	var kind string
 
