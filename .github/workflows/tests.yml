@@ -35,6 +35,7 @@ jobs:
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
+      GOTRACEBACK: "crash"
     name: Code
     runs-on: ubuntu-22.04
     steps:
@@ -211,6 +212,7 @@ jobs:
       LXD_VERBOSE: "1"
       LXD_OFFLINE: "1"
       LXD_TMPFS: "1"
+      GOTRACEBACK: "crash"
     name: System
     runs-on: ubuntu-22.04
     needs: code-tests
@@ -318,7 +320,7 @@ jobs:
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
-          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
 
       - name: Upload coverage data
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3

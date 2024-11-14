@@ -337,7 +337,7 @@ func devlxdUbuntuProTokenPostHandler(d *Daemon, c instance.Instance, w http.Resp
 	return response.DevLxdResponse(http.StatusOK, tokenJSON, "json", c.Type() == instancetype.VM)
 }
 
-var handlers = []devLxdHandler{
+var devLxdHandlers = []devLxdHandler{
 	{
 		path: "/",
 		handlerFunc: func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
@@ -398,7 +398,7 @@ func devLxdAPI(d *Daemon, f hoistFunc) http.Handler {
 	m := mux.NewRouter()
 	m.UseEncodedPath() // Allow encoded values in path segments.
 
-	for _, handler := range handlers {
+	for _, handler := range devLxdHandlers {
 		m.HandleFunc(handler.path, f(handler.handlerFunc, d))
 	}
 
