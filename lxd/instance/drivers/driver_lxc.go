@@ -4070,6 +4070,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	reverter := revert.New()
 	defer reverter.Fail()
 
+	logger.Info("Reached instance update backup file lock")
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
@@ -4122,6 +4123,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	var profiles []string
 
+	logger.Info("Reached instance update get profile names")
 	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Validate the new profiles
 		profiles, err = tx.GetProfileNames(ctx, args.Project)
@@ -4132,6 +4134,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		return fmt.Errorf("Failed to get profiles: %w", err)
 	}
 
+	logger.Info("Reached instance update check profiles")
 	checkedProfiles := []string{}
 	for _, profile := range args.Profiles {
 		if !shared.ValueInSlice(profile.Name, profiles) {
@@ -4153,6 +4156,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
+	logger.Info("Reached instance update copy old config")
 	// Get a copy of the old configuration
 	oldDescription := d.Description()
 	oldArchitecture := 0
@@ -4254,6 +4258,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
+	logger.Info("Reached instance update device diff")
 	// Diff the devices
 	removeDevices, addDevices, updateDevices, allUpdatedKeys := oldExpandedDevices.Update(d.expandedDevices, func(oldDevice deviceConfig.Device, newDevice deviceConfig.Device) []string {
 		// This function needs to return a list of fields that are excluded from differences
@@ -4301,6 +4306,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	if userRequested {
+		logger.Info("Reached instance update config validation")
 		// Look for deleted idmap keys.
 		protectedKeys := []string{
 			"volatile.idmap.base",
@@ -4448,6 +4454,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// Apply the live changes
 	if isRunning {
+		logger.Info("Reached instance update apply live changes")
 		cc, err := d.initLXC(false)
 		if err != nil {
 			return err
@@ -4460,6 +4467,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 		// Live update the container config
 		for _, key := range changedConfig {
+			logger.Info("Reached instance update apply config key live", logger.Ctx{"key": key})
 			value := d.expandedConfig[key]
 
 			if key == "raw.apparmor" || key == "security.nesting" {
@@ -4785,6 +4793,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
+	logger.Info("Reached instance update apply database changes")
 	// Finally, apply the changes to the database
 	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Snapshots should update only their descriptions and expiry date.
@@ -4833,6 +4842,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		return fmt.Errorf("Failed to update database: %w", err)
 	}
 
+	logger.Info("Reached instance update apply backup file changes")
 	err = d.UpdateBackupFile()
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("Failed to write backup file: %w", err)
@@ -4840,6 +4850,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// Send devlxd notifications
 	if isRunning {
+		logger.Info("Reached instance update send devlxd notifications")
 		// Config changes (only for user.* keys
 		for _, key := range changedConfig {
 			if !strings.HasPrefix(key, "user.") {

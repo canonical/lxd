@@ -24,6 +24,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
@@ -61,6 +62,7 @@ import (
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instancePut(d *Daemon, r *http.Request) response.Response {
+	logger.Info("Reached instance put")
 	// Don't mess with instance while in setup mode.
 	<-d.waitReady.Done()
 
@@ -166,6 +168,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 
 		// Update container configuration
 		do = func(op *operations.Operation) error {
+			logger.Info("Reached instance put operation")
 			defer unlock()
 
 			args := db.InstanceArgs{

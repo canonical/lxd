@@ -2,8 +2,10 @@ package operations
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"runtime"
 	"sync"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/events"
+	"github.com/canonical/lxd/lxd/recovery"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -295,6 +298,38 @@ func (op *Operation) Start() error {
 
 	if op.onRun != nil {
 		go func(op *Operation) {
+			defer func() {
+				r := recover()
+				if r == nil {
+					return
+				}
+
+				if op != nil {
+					op.lock.Lock()
+					op.status = api.Failure
+					op.err = errors.New("Unexpected error occurred")
+					op.lock.Unlock()
+					op.done()
+
+					op.logger.Debug("Failure for operation", logger.Ctx{"err": op.err})
+					_, md, _ := op.Render()
+
+					op.lock.Lock()
+					op.sendEvent(md)
+					op.lock.Unlock()
+					time.Sleep(500 * time.Millisecond)
+				}
+
+				const size = 64 << 10
+				buf := make([]byte, size)
+				buf = buf[:runtime.Stack(buf, false)]
+
+				recovery.Panic <- recovery.PanicResult{
+					Err:        fmt.Errorf("%v", r),
+					Stacktrace: buf,
+				}
+			}()
+
 			err := op.onRun(op)
 			if err != nil {
 				op.lock.Lock()
