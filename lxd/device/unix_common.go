@@ -150,7 +150,7 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		//  defaultdesc: `true`
 		//  shortdesc: Whether this device is required to start the container
 
-		// lxdmeta:generate(entities=device-unix-{hotplug+usb}; group=device-conf; key=required)
+		// lxdmeta:generate(entities=device-unix-usb; group=device-conf; key=required)
 		// The default is `false`, which means that all devices can be hotplugged.
 		// ---
 		//  type: bool
