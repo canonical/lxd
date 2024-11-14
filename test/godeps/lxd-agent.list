@@ -11,6 +11,7 @@ github.com/canonical/lxd/lxd/instance/instancetype
 github.com/canonical/lxd/lxd/ip
 github.com/canonical/lxd/lxd/metrics
 github.com/canonical/lxd/lxd/operations
+github.com/canonical/lxd/lxd/recovery
 github.com/canonical/lxd/lxd/request
 github.com/canonical/lxd/lxd/response
 github.com/canonical/lxd/lxd/state

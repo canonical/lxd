@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -57,6 +58,7 @@ import (
 	"github.com/canonical/lxd/lxd/metrics"
 	networkZone "github.com/canonical/lxd/lxd/network/zone"
 	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/lxd/recovery"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
@@ -168,6 +170,8 @@ type Daemon struct {
 
 	// Ubuntu Pro settings
 	ubuntuPro *ubuntupro.Client
+
+	panics chan [2]any
 }
 
 // DaemonConfig holds configuration values for Daemon.
@@ -199,6 +203,7 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 		shutdownCtx:    shutdownCtx,
 		shutdownCancel: shutdownCancel,
 		shutdownDoneCh: make(chan error),
+		panics:         make(chan [2]any),
 	}
 
 	d.serverCert = func() *shared.CertInfo { return d.serverCertInt }
@@ -646,7 +651,7 @@ func (d *Daemon) UnixSocket() string {
 	return filepath.Join(d.os.VarDir, "unix.socket")
 }
 
-// createCmd creates API handlers for the provided endpoint including some useful behavior,
+// createCmd creates API devLxdHandlers for the provided endpoint including some useful behavior,
 // such as appropriate authentication, authorization and checking server availability.
 //
 // The created handler also keeps track of handled requests for the API metrics
@@ -661,7 +666,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		uri = fmt.Sprintf("/%s", c.Path)
 	}
 
-	route := restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
 		// Only endpoints from the main API (version 1.0) should be counted for the metrics.
 		// This prevents internal endpoints from being included as well.
 		if version == "1.0" {
@@ -861,12 +866,39 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 				logger.Warn("Failed writing error for HTTP response", logger.Ctx{"url": uri, "err": err, "writeErr": writeErr})
 			}
 		}
-	})
+	}
+
+	route := restAPI.Handle(uri, recoveryWrapper(handler))
 
 	// If the endpoint has a canonical name then record it so it can be used to build URLS
 	// and accessed in the context of the request by the handler function.
 	if c.Name != "" {
 		route.Name(c.Name)
+	}
+}
+
+func recoveryWrapper(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			rec := recover()
+			if rec == nil {
+				return
+			}
+
+			// If we panic, return an error to the user, then panic again to propagate the error back to the main
+			// go routine.
+			_ = response.InternalError(errors.New("Unexpected error occurred")).Render(w, r)
+
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			recovery.Panic <- recovery.PanicResult{
+				Err:        fmt.Errorf("%v", rec),
+				Stacktrace: buf,
+			}
+		}()
+
+		h.ServeHTTP(w, r)
 	}
 }
 

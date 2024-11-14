@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/lxd/recovery"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -21,7 +23,7 @@ type cmdDaemon struct {
 	flagGroup string
 }
 
-func (c *cmdDaemon) Command() *cobra.Command {
+func (c *cmdDaemon) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "lxd"
 	cmd.Short = "The LXD container manager (daemon)"
@@ -34,13 +36,13 @@ func (c *cmdDaemon) Command() *cobra.Command {
   There are however a number of subcommands that let you interact directly with
   the local LXD daemon and which may not be performed through the REST API alone.
 `
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringVar(&c.flagGroup, "group", "", "The group of users that will be allowed to talk to LXD"+"``")
 
 	return cmd
 }
 
-func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdDaemon) run(cmd *cobra.Command, args []string) error {
 	if len(args) > 1 || (len(args) == 1 && args[0] != "daemon" && args[0] != "") {
 		return fmt.Errorf("unknown command \"%s\" for \"%s\"", args[0], cmd.CommandPath())
 	}
@@ -93,6 +95,11 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 
 		case err = <-d.shutdownDoneCh:
 			return err
+
+		case p := <-recovery.Panic:
+			_, _ = os.Stderr.Write([]byte(fmt.Sprintf("panic: %v\n", p.Err)))
+			_, _ = os.Stderr.Write(p.Stacktrace)
+			return errors.New("Unexpected error occurred")
 		}
 	}
 }
