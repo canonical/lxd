@@ -2523,3 +2523,7 @@ Adds support for using the Container Device Interface (CDI) specification to con
 ## `metadata_configuration_scope`
 
 This adds scope metadata to `GET /1.0/metadata/configuration`. Options marked with a `global` scope are applied to all cluster members. Options with a `local` scope must be set on a per-member basis.
+
+## `unix_device_hotplug_ownership_inherit`
+
+Adds a new {config:option}`device-unix-hotplug-device-conf:ownership.inherit` configuration option for `unix-hotplug` devices. This option controls whether the device inherits ownership (GID and/or UID) from the host. When set to `true` and GID and/or UID are unset, host ownership is inherited. When set to `false`, host ownership is not inherited and ownership can be configured by setting {config:option}`device-unix-hotplug-device-conf:gid` and {config:option}`device-unix-hotplug-device-conf:uid`.

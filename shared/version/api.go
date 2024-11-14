@@ -424,6 +424,7 @@ var APIExtensions = []string{
 	"vm_limits_cpu_pin_strategy",
 	"gpu_cdi",
 	"metadata_configuration_scope",
+	"unix_device_hotplug_ownership_inherit",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
