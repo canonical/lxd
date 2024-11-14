@@ -8152,6 +8152,17 @@ func (d *lxc) statusCode() api.StatusCode {
 		return api.Error
 	}
 
+	// The state that we get from LXC could be stale; if the container is self-stopping,
+	// the on-stop hook handler may be called while we are waiting for getLxcState. If
+	// that happens, we might return `STOPPED` even though a Stop operation is still
+	// running.
+	if state == liblxc.STOPPED {
+		operationStatus = d.operationStatusCode()
+		if operationStatus != nil {
+			return *operationStatus
+		}
+	}
+
 	statusCode := lxcStatusCode(state)
 
 	if statusCode == api.Running && shared.IsTrue(d.LocalConfig()["volatile.last_state.ready"]) {
