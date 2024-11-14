@@ -72,7 +72,14 @@ func (d *unixHotplug) validateConfig(instConf instance.ConfigReader) error {
 		"uid":       unixValidUserID,
 		"gid":       unixValidUserID,
 		"mode":      unixValidOctalFileMode,
-		"required":  validate.Optional(validate.IsBool),
+
+		// lxdmeta:generate(entities=device-unix-hotplug; group=device-conf; key=required)
+		// The default is `false`, which means that all devices can be hotplugged.
+		// ---
+		//  type: bool
+		//  defaultdesc: `false`
+		//  shortdesc: Whether this device is required to start the container
+		"required": validate.Optional(validate.IsBool),
 	}
 
 	err := d.config.Validate(rules)
