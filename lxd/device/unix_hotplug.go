@@ -16,16 +16,27 @@ import (
 	"github.com/canonical/lxd/shared/validate"
 )
 
-// unixHotplugIsOurDevice indicates whether the unixHotplug device event qualifies as part of our device.
-// This function is not defined against the unixHotplug struct type so that it can be used in event
-// callbacks without needing to keep a reference to the unixHotplug device struct.
-func unixHotplugIsOurDevice(config deviceConfig.Device, unixHotplug *UnixHotplugEvent) bool {
-	// Check if event matches criteria for this device, if not return.
-	if (config["vendorid"] != "" && config["vendorid"] != unixHotplug.Vendor) || (config["productid"] != "" && config["productid"] != unixHotplug.Product) {
+// unixHotplugDeviceMatch matches a unix-hotplug device based on vendorid and productid. USB bus and devices with a major number of 0 are ignored. This function is used to indicate whether a unix hotplug event qualifies as part of our registered devices, and to load matching devices.
+func unixHotplugDeviceMatch(config deviceConfig.Device, vendorid string, productid string, subsystem string, major uint32) bool {
+	match := false
+	vendorIDMatch := vendorid == config["vendorid"]
+	productIDMatch := productid == config["productid"]
+
+	// Ignore USB bus devices (handled by `usb` device type) since we don't want `unix-hotplug` and `usb` devices conflicting. We want to add all device nodes besides those with a `usb` subsystem.
+	// We ignore devices with a major number of 0, since this indicates they are unnamed devices (e.g. non-device mounts).
+	if strings.HasPrefix(subsystem, "usb") || major == 0 {
 		return false
 	}
 
-	return true
+	if config["vendorid"] != "" && config["productid"] != "" {
+		match = vendorIDMatch && productIDMatch
+	} else if config["vendorid"] != "" {
+		match = vendorIDMatch
+	} else if config["productid"] != "" {
+		match = productIDMatch
+	}
+
+	return match
 }
 
 type unixHotplug struct {
@@ -107,7 +118,7 @@ func (d *unixHotplug) Register() error {
 		runConf := deviceConfig.RunConfig{}
 
 		if e.Action == "add" {
-			if !unixHotplugIsOurDevice(devConfig, &e) {
+			if !unixHotplugDeviceMatch(devConfig, e.Vendor, e.Product, e.Subsystem, e.Major) {
 				return nil, nil
 			}
 
@@ -248,24 +259,12 @@ func (d *unixHotplug) loadUnixDevices() []udev.Device {
 	for i := range devices {
 		device := devices[i]
 
-		// Ignore USB bus devices (handled by `usb` device type) since we don't want `unix-hotplug` and `usb` devices conflicting. We want to add all device nodes besides those with a `usb` subsystem.
-		// We ignore devices with a major number of 0, since this indicates they are unnamed devices (e.g. non-device mounts).
 		// We ignore devices without an associated device node file name, as this indicates they are not accessible via the standard interface in /dev/.
-		if device == nil || device.Devnum().Major() == 0 || device.Devnode() == "" || strings.HasPrefix(device.Subsystem(), "usb") {
+		if device == nil || device.Devnode() == "" {
 			continue
 		}
 
-		match := false
-		vendorIDMatch := device.PropertyValue("ID_VENDOR_ID") == d.config["vendorid"]
-		productIDMatch := device.PropertyValue("ID_MODEL_ID") == d.config["productid"]
-
-		if d.config["vendorid"] != "" && d.config["productid"] != "" {
-			match = vendorIDMatch && productIDMatch
-		} else if d.config["vendorid"] != "" {
-			match = vendorIDMatch
-		} else if d.config["productid"] != "" {
-			match = productIDMatch
-		}
+		match := unixHotplugDeviceMatch(d.config, device.PropertyValue("ID_VENDOR_ID"), device.PropertyValue("ID_MODEL_ID"), device.Subsystem(), uint32(device.Devnum().Major()))
 
 		if !match {
 			continue
