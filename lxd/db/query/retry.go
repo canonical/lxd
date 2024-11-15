@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/Rican7/retry/jitter"
-	"github.com/canonical/go-dqlite/v3/driver"
+	"github.com/canonical/go-dqlite/driver"
 	"github.com/mattn/go-sqlite3"
 
 	"github.com/canonical/lxd/shared/api"

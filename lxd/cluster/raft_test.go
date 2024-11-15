@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/canonical/go-dqlite/v3/client"
+	"github.com/canonical/go-dqlite/client"
 	"github.com/stretchr/testify/require"
 
 	"github.com/canonical/lxd/lxd/db"
