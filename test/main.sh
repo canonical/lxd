@@ -110,6 +110,11 @@ cleanup() {
     if [ "${expandDmesg}" = "no" ]; then
       echo "::endgroup::"
     fi
+
+    echo "::group::crashes"
+    ls -la /var/crash
+    cat /var/crash/*
+    echo "::endgroup::"
   fi
 
   if [ -n "${GITHUB_ACTIONS:-}" ]; then
