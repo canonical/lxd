@@ -1611,7 +1611,11 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	}
 
 	if dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock || dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameISO {
-		srcPath, err = d.pool.GetCustomVolumeDisk(storageProjectName, volumeName)
+		volStorageName := project.StorageVolume(storageProjectName, volumeName)
+
+		volume := d.pool.GetVolume(storageDrivers.VolumeTypeCustom, storageDrivers.ContentType(dbVolume.ContentType), volStorageName, dbVolume.Config)
+
+		srcPath, err = d.pool.Driver().GetVolumeDiskPath(volume)
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("Failed to get disk path: %w", err)
 		}
