@@ -107,7 +107,7 @@ func daemonStorageMount(s *state.State) error {
 		}
 
 		// Mount volume.
-		_, err = pool.MountCustomVolume(api.ProjectDefaultName, volumeName, nil)
+		_, err = pool.MountVolume(api.ProjectDefaultName, volumeName, storageDrivers.VolumeTypeCustom, nil)
 		if err != nil {
 			return fmt.Errorf("Failed to mount storage volume %q: %w", source, err)
 		}
@@ -196,7 +196,7 @@ func daemonStorageValidate(s *state.State, target string) error {
 	}
 
 	// Mount volume.
-	_, err = pool.MountCustomVolume(api.ProjectDefaultName, volumeName, nil)
+	_, err = pool.MountVolume(api.ProjectDefaultName, volumeName, storageDrivers.VolumeTypeCustom, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to mount storage volume %q: %w", target, err)
 	}
@@ -322,7 +322,7 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 	}
 
 	// Mount volume.
-	_, err = pool.MountCustomVolume(api.ProjectDefaultName, volumeName, nil)
+	_, err = pool.MountVolume(api.ProjectDefaultName, volumeName, storageDrivers.VolumeTypeCustom, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to mount storage volume %q: %w", target, err)
 	}
