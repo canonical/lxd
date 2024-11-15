@@ -382,8 +382,8 @@ func (b *mockBackend) GetCustomVolumeUsage(projectName string, volName string) (
 	return nil, nil
 }
 
-// MountCustomVolume ...
-func (b *mockBackend) MountCustomVolume(projectName string, volName string, op *operations.Operation) (*MountInfo, error) {
+// MountVolume ...
+func (b *mockBackend) MountVolume(projectName string, volName string, volType drivers.VolumeType, op *operations.Operation) (*MountInfo, error) {
 	return nil, nil
 }
 
