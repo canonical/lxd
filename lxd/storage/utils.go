@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -183,6 +184,51 @@ func VolumeContentTypeNameToContentType(contentTypeName string) (int, error) {
 	}
 
 	return -1, fmt.Errorf("Invalid volume content type name")
+}
+
+// DiskVolumeSourceParse parses a disk device's `source` property when it refers to a
+// storage volume.
+func DiskVolumeSourceParse(source string) (volType drivers.VolumeType, dbVolType int, volTypeName string, volName string, err error) {
+	source = filepath.Clean(source)
+
+	slash := strings.Index(source, "/")
+	if (slash > 0) && (len(source) > slash) {
+		// Extract volume name.
+		volName = source[(slash + 1):]
+		// Extract volume type.
+		volTypeName = source[:slash]
+	} else {
+		volName = source
+	}
+
+	// Check volume type name is custom.
+	switch volTypeName {
+	case cluster.StoragePoolVolumeTypeNameContainer:
+		err = errors.New("Using container storage volumes is not supported")
+	case cluster.StoragePoolVolumeTypeNameVM:
+		err = errors.New("Using virtual-machine storage volumes is not supported")
+	case "":
+		// We simply received the name of a custom storage volume.
+		volTypeName = cluster.StoragePoolVolumeTypeNameCustom
+	case cluster.StoragePoolVolumeTypeNameCustom:
+	case cluster.StoragePoolVolumeTypeNameImage:
+		err = errors.New("Using image storage volumes is not supported")
+	default:
+		err = fmt.Errorf("Unknown storage type prefix %q found", volTypeName)
+	}
+
+	if err != nil {
+		return volType, dbVolType, "", "", err
+	}
+
+	dbVolType, err = VolumeTypeNameToDBType(volTypeName)
+	if err != nil {
+		return volType, dbVolType, "", "", err
+	}
+
+	volType, err = VolumeDBTypeToType(dbVolType)
+
+	return volType, dbVolType, volTypeName, volName, err
 }
 
 // VolumeDBGet loads a volume from the database.
