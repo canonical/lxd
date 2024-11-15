@@ -1986,6 +1986,86 @@ test_clustering_projects() {
   kill_lxd "${LXD_TWO_DIR}"
 }
 
+test_clustering_metrics() {
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML as weird rules..
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  # Create one running container in each node and a stopped one on the leader.
+  LXD_DIR="${LXD_ONE_DIR}" deps/import-busybox --project default --alias testimage
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 testimage c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 testimage stopped
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 testimage c2
+
+  # Check that scraping metrics on each node only includes started instances on that node.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/metrics" | grep 'name="c1"'
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/metrics" | grep 'name="stopped"' || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/metrics" | grep 'name="c2"' || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/metrics" | grep 'name="c1"' || false
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/metrics" | grep 'name="c2"'
+
+  # Stopped container is counted on lxd_instances.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/metrics | grep -xF 'lxd_instances{project="default",type="container"} 2'
+  LXD_DIR="${LXD_TWO_DIR}" lxc query /1.0/metrics | grep -xF 'lxd_instances{project="default",type="container"} 1'
+
+  # Remove previously existing warnings so they don't interfere with tests.
+  LXD_DIR="${LXD_ONE_DIR}" lxc warning delete --all
+
+  # Populate database with dummy warnings and check that each node only counts their own warnings.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST -d '{\"location\": \"node1\", \"type_code\": 0, \"message\": \"node1 is in a bad mood\"}' /internal/testing/warnings
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST -d '{\"location\": \"node1\", \"type_code\": 1, \"message\": \"node1 is bored\"}' /internal/testing/warnings
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST -d '{\"location\": \"node2\", \"type_code\": 0, \"message\": \"node2 is too cool for this\"}' /internal/testing/warnings
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 1"
+
+  # Add a nodeless warning and check if count incremented only on the leader node.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"nodeless warning\"}' /internal/testing/warnings
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 3"
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 1"
+
+  # Acknowledge/resolve a warning and check if the count decremented on the node relative to the resolved warning.
+  uuid=$(LXD_DIR="${LXD_ONE_DIR}" lxc warning list --format json | jq -r '.[] | select(.last_message=="node1 is bored") | .uuid')
+  LXD_DIR="${LXD_ONE_DIR}" lxc warning ack "${uuid}"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 1"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1 stopped c2
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
+
 test_clustering_address() {
   local LXD_DIR
 
