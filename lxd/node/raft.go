@@ -3,7 +3,7 @@ package node
 import (
 	"context"
 
-	"github.com/canonical/go-dqlite/v3/client"
+	"github.com/canonical/go-dqlite/client"
 
 	"github.com/canonical/lxd/lxd/db"
 )

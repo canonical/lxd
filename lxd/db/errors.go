@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/canonical/go-dqlite/v3/driver"
+	"github.com/canonical/go-dqlite/driver"
 	"github.com/mattn/go-sqlite3"
 )
 

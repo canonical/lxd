@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/canonical/go-dqlite/v3"
+	"github.com/canonical/go-dqlite"
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/lxd/daemon"
