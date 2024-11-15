@@ -387,8 +387,8 @@ func (b *mockBackend) MountVolume(projectName string, volName string, volType dr
 	return nil, nil
 }
 
-// UnmountCustomVolume ...
-func (b *mockBackend) UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error) {
+// UnmountVolume ...
+func (b *mockBackend) UnmountVolume(projectName string, volName string, volType drivers.VolumeType, op *operations.Operation) (bool, error) {
 	return true, nil
 }
 
