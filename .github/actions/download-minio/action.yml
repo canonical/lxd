@@ -1,0 +1,18 @@
+name: Download minio/mc
+description: Download minio/mc
+
+runs:
+  using: composite
+  steps:
+    - name: Download minio/mc
+      shell: bash
+      run: |
+        set -eux
+        mkdir -p "$(go env GOPATH)/bin"
+        # Download minio ready to include in dependencies for system tests.
+        curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
+        chmod +x "$(go env GOPATH)/bin/minio"
+
+        # Also grab the latest minio client to maintain compatibility with the server.
+        curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc --output "$(go env GOPATH)/bin/mc"
+        chmod +x "$(go env GOPATH)/bin/mc"
