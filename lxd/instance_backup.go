@@ -304,8 +304,9 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 
 		base := name + shared.SnapshotDelimiter + "backup"
 		length := len(base)
-		max := 0
+		backupNo := 0
 
+		// Iterate over previous backups to autoincrement the backup number.
 		for _, backup := range backups {
 			// Ignore backups not containing base.
 			if !strings.HasPrefix(backup.Name(), base) {
@@ -319,12 +320,12 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			if num >= max {
-				max = num + 1
+			if num >= backupNo {
+				backupNo = num + 1
 			}
 		}
 
-		req.Name = fmt.Sprintf("backup%d", max)
+		req.Name = fmt.Sprintf("backup%d", backupNo)
 	}
 
 	// Validate the name.
