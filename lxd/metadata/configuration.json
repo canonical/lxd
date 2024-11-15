@@ -1631,7 +1631,7 @@
 						"gid": {
 							"defaultdesc": "`0`",
 							"longdesc": "",
-							"shortdesc": "GID of the device owner in the instance",
+							"shortdesc": "GID of the device owner in the container",
 							"type": "integer"
 						}
 					},
@@ -1655,7 +1655,7 @@
 						"mode": {
 							"defaultdesc": "`0660`",
 							"longdesc": "",
-							"shortdesc": "Mode of the device in the instance",
+							"shortdesc": "Mode of the device in the container",
 							"type": "integer"
 						}
 					},
@@ -1663,7 +1663,7 @@
 						"path": {
 							"longdesc": "",
 							"required": "either `source` or `path` must be set",
-							"shortdesc": "Path inside the instance",
+							"shortdesc": "Path inside the container",
 							"type": "string"
 						}
 					},
@@ -1671,7 +1671,7 @@
 						"required": {
 							"defaultdesc": "`true`",
 							"longdesc": "See {ref}`devices-unix-block-hotplugging` for more information.",
-							"shortdesc": "Whether this device is required to start the instance",
+							"shortdesc": "Whether this device is required to start the container",
 							"type": "bool"
 						}
 					},
@@ -1687,7 +1687,7 @@
 						"uid": {
 							"defaultdesc": "`0`",
 							"longdesc": "",
-							"shortdesc": "UID of the device owner in the instance",
+							"shortdesc": "UID of the device owner in the container",
 							"type": "integer"
 						}
 					}
@@ -1701,7 +1701,7 @@
 						"gid": {
 							"defaultdesc": "`0`",
 							"longdesc": "",
-							"shortdesc": "GID of the device owner in the instance",
+							"shortdesc": "GID of the device owner in the container",
 							"type": "integer"
 						}
 					},
@@ -1725,7 +1725,7 @@
 						"mode": {
 							"defaultdesc": "`0660`",
 							"longdesc": "",
-							"shortdesc": "Mode of the device in the instance",
+							"shortdesc": "Mode of the device in the container",
 							"type": "integer"
 						}
 					},
@@ -1733,7 +1733,7 @@
 						"path": {
 							"longdesc": "",
 							"required": "either `source` or `path` must be set",
-							"shortdesc": "Path inside the instance",
+							"shortdesc": "Path inside the container",
 							"type": "string"
 						}
 					},
@@ -1741,7 +1741,7 @@
 						"required": {
 							"defaultdesc": "`true`",
 							"longdesc": "See {ref}`devices-unix-char-hotplugging` for more information.",
-							"shortdesc": "Whether this device is required to start the instance",
+							"shortdesc": "Whether this device is required to start the container",
 							"type": "bool"
 						}
 					},
@@ -1757,7 +1757,7 @@
 						"uid": {
 							"defaultdesc": "`0`",
 							"longdesc": "",
-							"shortdesc": "UID of the device owner in the instance",
+							"shortdesc": "UID of the device owner in the container",
 							"type": "integer"
 						}
 					}
@@ -1771,7 +1771,7 @@
 						"gid": {
 							"defaultdesc": "`0`",
 							"longdesc": "",
-							"shortdesc": "GID of the device owner in the instance",
+							"shortdesc": "GID of the device owner in the container",
 							"type": "integer"
 						}
 					},
@@ -1779,7 +1779,7 @@
 						"mode": {
 							"defaultdesc": "`0660`",
 							"longdesc": "",
-							"shortdesc": "Mode of the device in the instance",
+							"shortdesc": "Mode of the device in the container",
 							"type": "integer"
 						}
 					},
@@ -1794,7 +1794,7 @@
 						"required": {
 							"defaultdesc": "`false`",
 							"longdesc": "The default is `false`, which means that all devices can be hotplugged.",
-							"shortdesc": "Whether this device is required to start the instance",
+							"shortdesc": "Whether this device is required to start the container",
 							"type": "bool"
 						}
 					},
@@ -1802,7 +1802,7 @@
 						"uid": {
 							"defaultdesc": "`0`",
 							"longdesc": "",
-							"shortdesc": "UID of the device owner in the instance",
+							"shortdesc": "UID of the device owner in the container",
 							"type": "integer"
 						}
 					},
@@ -1838,7 +1838,7 @@
 							"condition": "container",
 							"defaultdesc": "`0`",
 							"longdesc": "",
-							"shortdesc": "GID of the device owner in the container",
+							"shortdesc": "GID of the device owner in the instance",
 							"type": "integer"
 						}
 					},
@@ -1847,7 +1847,7 @@
 							"condition": "container",
 							"defaultdesc": "`0660`",
 							"longdesc": "",
-							"shortdesc": "Mode of the device in the container",
+							"shortdesc": "Mode of the device in the instance",
 							"type": "integer"
 						}
 					},
@@ -1878,7 +1878,7 @@
 							"condition": "container",
 							"defaultdesc": "`0`",
 							"longdesc": "",
-							"shortdesc": "UID of the device owner in the container",
+							"shortdesc": "UID of the device owner in the instance",
 							"type": "integer"
 						}
 					},
