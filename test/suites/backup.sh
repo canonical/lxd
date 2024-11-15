@@ -6,6 +6,11 @@ test_storage_volume_recover() {
   poolName=$(lxc profile device get default root pool)
   poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
 
+  if [ "${poolDriver}" = "pure" ]; then
+    echo "==> SKIP: Storage driver does not support recovery"
+    return
+  fi
+
   # Create custom block volume.
   lxc storage volume create "${poolName}" vol1 --type=block
 
@@ -76,6 +81,11 @@ test_container_recover() {
     # shellcheck disable=SC2030
     LXD_DIR=${LXD_IMPORT_DIR}
     lxd_backend=$(storage_backend "$LXD_DIR")
+
+    if [ "${lxd_backend}" = "pure" ]; then
+      echo "==> SKIP: Storage driver does not support recovery"
+      return
+    fi
 
     ensure_import_testimage
 
@@ -1008,6 +1018,13 @@ test_backup_volume_expiry() {
 }
 
 test_backup_export_import_recover() {
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  if [ "$lxd_backend" = "pure" ]; then
+    echo "==> SKIP: Storage driver does not support recovery"
+    return
+  fi
+
   (
     set -e
 
