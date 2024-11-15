@@ -1548,42 +1548,21 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		return nil, "", nil, fmt.Errorf(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
 	}
 
-	volumeTypeName := ""
-	volumeName := filepath.Clean(d.config["source"])
-	slash := strings.Index(volumeName, "/")
-	if (slash > 0) && (len(volumeName) > slash) {
-		// Extract volume name.
-		volumeName = d.config["source"][(slash + 1):]
-		// Extract volume type.
-		volumeTypeName = d.config["source"][:slash]
-	}
-
-	var srcPath string
-
-	// Check volume type name is custom.
-	switch volumeTypeName {
-	case cluster.StoragePoolVolumeTypeNameContainer:
-		return nil, "", nil, fmt.Errorf("Using instance storage volumes is not supported")
-	case "":
-		// We simply received the name of a storage volume.
-		volumeTypeName = cluster.StoragePoolVolumeTypeNameCustom
-	case cluster.StoragePoolVolumeTypeNameCustom:
-	case cluster.StoragePoolVolumeTypeNameImage:
-		return nil, "", nil, fmt.Errorf("Using image storage volumes is not supported")
-	default:
-		return nil, "", nil, fmt.Errorf("Unknown storage type prefix %q found", volumeTypeName)
+	volumeType, dbVolumeType, volumeTypeName, volumeName, err := storagePools.DiskVolumeSourceParse(d.config["source"])
+	if err != nil {
+		return nil, "", nil, err
 	}
 
 	// Only custom volumes can be attached currently.
-	storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, cluster.StoragePoolVolumeTypeCustom)
+	storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, dbVolumeType)
 	if err != nil {
 		return nil, "", nil, err
 	}
 
 	volStorageName := project.StorageVolume(storageProjectName, volumeName)
-	srcPath = storageDrivers.GetVolumeMountPath(d.config["pool"], storageDrivers.VolumeTypeCustom, volStorageName)
+	srcPath := storageDrivers.GetVolumeMountPath(d.config["pool"], volumeType, volStorageName)
 
-	mountInfo, err = d.pool.MountVolume(storageProjectName, volumeName, storageDrivers.VolumeTypeCustom, nil)
+	mountInfo, err = d.pool.MountVolume(storageProjectName, volumeName, volumeType, nil)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("Failed mounting storage volume %q of type %q on storage pool %q: %w", volumeName, volumeTypeName, d.pool.Name(), err)
 	}
@@ -1594,7 +1573,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 
 	var dbVolume *db.StorageVolume
 	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, cluster.StoragePoolVolumeTypeCustom, volumeName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, dbVolumeType, volumeName, true)
 		return err
 	})
 	if err != nil {
@@ -1606,7 +1585,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 			return nil, "", nil, fmt.Errorf("Only filesystem volumes are supported for containers")
 		}
 
-		err = d.storagePoolVolumeAttachShift(storageProjectName, d.pool.Name(), volumeName, cluster.StoragePoolVolumeTypeCustom, srcPath)
+		err = d.storagePoolVolumeAttachShift(storageProjectName, d.pool.Name(), volumeName, dbVolumeType, srcPath)
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("Failed shifting storage volume %q of type %q on storage pool %q: %w", volumeName, volumeTypeName, d.pool.Name(), err)
 		}
@@ -1615,7 +1594,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	if dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock || dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameISO {
 		volStorageName := project.StorageVolume(storageProjectName, volumeName)
 
-		volume := d.pool.GetVolume(storageDrivers.VolumeTypeCustom, storageDrivers.ContentType(dbVolume.ContentType), volStorageName, dbVolume.Config)
+		volume := d.pool.GetVolume(volumeType, storageDrivers.ContentType(dbVolume.ContentType), volStorageName, dbVolume.Config)
 
 		srcPath, err = d.pool.Driver().GetVolumeDiskPath(volume)
 		if err != nil {
