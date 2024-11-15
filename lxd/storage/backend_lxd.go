@@ -6214,21 +6214,6 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	return nil
 }
 
-// GetCustomVolumeDisk returns the location of the disk.
-func (b *lxdBackend) GetCustomVolumeDisk(projectName, volName string) (string, error) {
-	volume, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
-	if err != nil {
-		return "", err
-	}
-
-	// Get the volume name on storage.
-	volStorageName := project.StorageVolume(projectName, volName)
-
-	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
-
-	return b.driver.GetVolumeDiskPath(vol)
-}
-
 // GetCustomVolumeUsage returns the disk space used by the custom volume.
 func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (*VolumeUsage, error) {
 	err := b.isStatusReady()
