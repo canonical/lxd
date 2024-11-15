@@ -1417,7 +1417,7 @@ For example: `/dev/tpmrm0`
 <!-- config group device-unix-block-device-conf start -->
 ```{config:option} gid device-unix-block-device-conf
 :defaultdesc: "`0`"
-:shortdesc: "GID of the device owner in the instance"
+:shortdesc: "GID of the device owner in the container"
 :type: "integer"
 
 ```
@@ -1438,21 +1438,21 @@ For example: `/dev/tpmrm0`
 
 ```{config:option} mode device-unix-block-device-conf
 :defaultdesc: "`0660`"
-:shortdesc: "Mode of the device in the instance"
+:shortdesc: "Mode of the device in the container"
 :type: "integer"
 
 ```
 
 ```{config:option} path device-unix-block-device-conf
 :required: "either `source` or `path` must be set"
-:shortdesc: "Path inside the instance"
+:shortdesc: "Path inside the container"
 :type: "string"
 
 ```
 
 ```{config:option} required device-unix-block-device-conf
 :defaultdesc: "`true`"
-:shortdesc: "Whether this device is required to start the instance"
+:shortdesc: "Whether this device is required to start the container"
 :type: "bool"
 See {ref}`devices-unix-block-hotplugging` for more information.
 ```
@@ -1466,7 +1466,7 @@ See {ref}`devices-unix-block-hotplugging` for more information.
 
 ```{config:option} uid device-unix-block-device-conf
 :defaultdesc: "`0`"
-:shortdesc: "UID of the device owner in the instance"
+:shortdesc: "UID of the device owner in the container"
 :type: "integer"
 
 ```
@@ -1475,7 +1475,7 @@ See {ref}`devices-unix-block-hotplugging` for more information.
 <!-- config group device-unix-char-device-conf start -->
 ```{config:option} gid device-unix-char-device-conf
 :defaultdesc: "`0`"
-:shortdesc: "GID of the device owner in the instance"
+:shortdesc: "GID of the device owner in the container"
 :type: "integer"
 
 ```
@@ -1496,21 +1496,21 @@ See {ref}`devices-unix-block-hotplugging` for more information.
 
 ```{config:option} mode device-unix-char-device-conf
 :defaultdesc: "`0660`"
-:shortdesc: "Mode of the device in the instance"
+:shortdesc: "Mode of the device in the container"
 :type: "integer"
 
 ```
 
 ```{config:option} path device-unix-char-device-conf
 :required: "either `source` or `path` must be set"
-:shortdesc: "Path inside the instance"
+:shortdesc: "Path inside the container"
 :type: "string"
 
 ```
 
 ```{config:option} required device-unix-char-device-conf
 :defaultdesc: "`true`"
-:shortdesc: "Whether this device is required to start the instance"
+:shortdesc: "Whether this device is required to start the container"
 :type: "bool"
 See {ref}`devices-unix-char-hotplugging` for more information.
 ```
@@ -1524,7 +1524,7 @@ See {ref}`devices-unix-char-hotplugging` for more information.
 
 ```{config:option} uid device-unix-char-device-conf
 :defaultdesc: "`0`"
-:shortdesc: "UID of the device owner in the instance"
+:shortdesc: "UID of the device owner in the container"
 :type: "integer"
 
 ```
@@ -1533,14 +1533,14 @@ See {ref}`devices-unix-char-hotplugging` for more information.
 <!-- config group device-unix-hotplug-device-conf start -->
 ```{config:option} gid device-unix-hotplug-device-conf
 :defaultdesc: "`0`"
-:shortdesc: "GID of the device owner in the instance"
+:shortdesc: "GID of the device owner in the container"
 :type: "integer"
 
 ```
 
 ```{config:option} mode device-unix-hotplug-device-conf
 :defaultdesc: "`0660`"
-:shortdesc: "Mode of the device in the instance"
+:shortdesc: "Mode of the device in the container"
 :type: "integer"
 
 ```
@@ -1553,14 +1553,14 @@ See {ref}`devices-unix-char-hotplugging` for more information.
 
 ```{config:option} required device-unix-hotplug-device-conf
 :defaultdesc: "`false`"
-:shortdesc: "Whether this device is required to start the instance"
+:shortdesc: "Whether this device is required to start the container"
 :type: "bool"
 The default is `false`, which means that all devices can be hotplugged.
 ```
 
 ```{config:option} uid device-unix-hotplug-device-conf
 :defaultdesc: "`0`"
-:shortdesc: "UID of the device owner in the instance"
+:shortdesc: "UID of the device owner in the container"
 :type: "integer"
 
 ```
@@ -1588,7 +1588,7 @@ The default is `false`, which means that all devices can be hotplugged.
 ```{config:option} gid device-unix-usb-device-conf
 :condition: "container"
 :defaultdesc: "`0`"
-:shortdesc: "GID of the device owner in the container"
+:shortdesc: "GID of the device owner in the instance"
 :type: "integer"
 
 ```
@@ -1596,7 +1596,7 @@ The default is `false`, which means that all devices can be hotplugged.
 ```{config:option} mode device-unix-usb-device-conf
 :condition: "container"
 :defaultdesc: "`0660`"
-:shortdesc: "Mode of the device in the container"
+:shortdesc: "Mode of the device in the instance"
 :type: "integer"
 
 ```
@@ -1623,7 +1623,7 @@ The default is `false`, which means that all devices can be hotplugged.
 ```{config:option} uid device-unix-usb-device-conf
 :condition: "container"
 :defaultdesc: "`0`"
-:shortdesc: "UID of the device owner in the container"
+:shortdesc: "UID of the device owner in the instance"
 :type: "integer"
 
 ```
