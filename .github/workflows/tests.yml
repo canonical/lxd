@@ -76,17 +76,6 @@ jobs:
       - name: Install build dependencies
         uses: ./.github/actions/install-lxd-builddeps
 
-      - name: Download minio/mc
-        run: |
-          # Download minio ready to include in dependencies for system tests.
-          mkdir -p "$(go env GOPATH)/bin"
-          curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
-          chmod +x "$(go env GOPATH)/bin/minio"
-
-          # Also grab the latest minio client to maintain compatibility with the server.
-          curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc --output "$(go env GOPATH)/bin/mc"
-          chmod +x "$(go env GOPATH)/bin/mc"
-
       - name: Download go dependencies
         run: |
           set -eux
@@ -197,6 +186,9 @@ jobs:
           name: coverage-unit
           path: ${{env.GOCOVERDIR}}
         if: env.GOCOVERDIR != ''
+
+      - name: Download minio/mc to add to system test dependencies
+        uses: ./.github/actions/download-minio
 
       - name: Upload system test dependencies
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
