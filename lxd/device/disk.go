@@ -684,7 +684,7 @@ func (d *disk) Register() error {
 		}
 
 		// Try to mount the volume that should already be mounted to reinitialise the ref counter.
-		_, err = d.pool.MountCustomVolume(storageProjectName, d.config["source"], nil)
+		_, err = d.pool.MountVolume(storageProjectName, d.config["source"], storageDrivers.VolumeTypeCustom, nil)
 		if err != nil {
 			return err
 		}
@@ -1583,7 +1583,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	volStorageName := project.StorageVolume(storageProjectName, volumeName)
 	srcPath = storageDrivers.GetVolumeMountPath(d.config["pool"], storageDrivers.VolumeTypeCustom, volStorageName)
 
-	mountInfo, err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
+	mountInfo, err = d.pool.MountVolume(storageProjectName, volumeName, storageDrivers.VolumeTypeCustom, nil)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("Failed mounting storage volume %q of type %q on storage pool %q: %w", volumeName, volumeTypeName, d.pool.Name(), err)
 	}
