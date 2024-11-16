@@ -87,7 +87,6 @@ All of LXD's features can be driven through the various commands below.
 For help with any of those, simply call them with --help.`))
 	app.SilenceUsage = true
 	app.SilenceErrors = true
-	app.CompletionOptions = cobra.CompletionOptions{HiddenDefaultCmd: true}
 
 	// Global flags
 	globalCmd := cmdGlobal{cmd: app, asker: cli.NewAsker(bufio.NewReader(os.Stdin), nil)}
