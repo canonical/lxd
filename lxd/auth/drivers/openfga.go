@@ -88,6 +88,9 @@ func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cach
 		// Our driver cannot perform concurrent reads.
 		server.WithMaxConcurrentReadsForListObjects(1),
 		server.WithMaxConcurrentReadsForCheck(1),
+		// Enable context propagation to the datastore so that the OpenFGA cache
+		// created for each request can be accessed from our OpenFGA datastore implementation.
+		server.WithContextPropagationToDatastore(true),
 	}
 
 	e.server, err = server.NewServerWithOpts(openfgaServerOptions...)
