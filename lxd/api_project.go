@@ -143,6 +143,10 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	recursion := util.IsRecursionRequest(r)
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeProject)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeProject)
 	if err != nil {
@@ -198,6 +202,22 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 	for _, apiProject := range apiProjects {
 		apiProject.UsedBy = projecthelpers.FilterUsedBy(s.Authorizer, r, apiProject.UsedBy)
+	}
+
+	if len(withEntitlements) > 0 {
+		entities := make([]*entity.EntityWithEntitlementsAndURL, len(apiProjects))
+		for i, u := range apiProjects {
+			entities[i] = &entity.EntityWithEntitlementsAndURL{
+				Entity:     u,
+				EntityType: entity.TypeProject,
+				EntityURL:  entity.ProjectURL(u.Name),
+			}
+		}
+
+		err = d.authorizer.AddEntitlementsToEntities(r.Context(), entities, withEntitlements)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponse(true, apiProjects)
@@ -396,6 +416,11 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeProject)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the database entry
 	var project *api.Project
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -416,12 +441,18 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	project.UsedBy = projecthelpers.FilterUsedBy(s.Authorizer, r, project.UsedBy)
+	if len(withEntitlements) > 0 {
+		err = d.authorizer.AddEntitlements(r.Context(), &entity.EntityWithEntitlementsAndURL{Entity: project, EntityType: entity.TypeProject, EntityURL: entity.ProjectURL(name)}, withEntitlements)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
 	etag := []any{
 		project.Description,
 		project.Config,
 	}
-
-	project.UsedBy = projecthelpers.FilterUsedBy(s.Authorizer, r, project.UsedBy)
 
 	return response.SyncResponseETag(true, project, etag)
 }
