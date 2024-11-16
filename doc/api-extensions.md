@@ -2519,3 +2519,10 @@ Adds a new {config:option}`instance-resource-limits:limits.cpu.pin_strategy` con
 ## `gpu_cdi`
 
 Adds support for using the Container Device Interface (CDI) specification to configure GPU passthrough in LXD containers. The `id` field of GPU devices now accepts CDI identifiers (for example, `{VENDOR_DOMAIN_NAME}/gpu=gpu{INDEX}`) for containers, in addition to DRM card IDs. This enables GPU passthrough for devices that don't use PCI addressing (like NVIDIA Tegra iGPUs) and provides a more flexible way to identify and configure GPU devices.
+
+## `resources_with_entitlements`
+
+Adds `is_fine_grained` field to `GET /1.0/auth/identities/current` to indicate if the current identity
+interacting with the LXD API is fine-grained (that is, associated permissions are managed via group membership).
+Allows LXD resources to be returned with an `entitlements` field if the current identity is fine-grained and the
+GET request to fetch the LXD resources has the `with-entitlements=true` query parameter.
