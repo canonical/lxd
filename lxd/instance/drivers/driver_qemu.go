@@ -8235,19 +8235,9 @@ func (d *qemu) InitPID() int {
 
 func (d *qemu) statusCode() api.StatusCode {
 	// Shortcut to avoid spamming QMP during ongoing operations.
-	op := operationlock.Get(d.Project().Name, d.Name())
-	if op != nil {
-		if op.Action() == operationlock.ActionStart {
-			return api.Stopped
-		}
-
-		if op.Action() == operationlock.ActionStop {
-			if shared.IsTrue(d.LocalConfig()["volatile.last_state.ready"]) {
-				return api.Ready
-			}
-
-			return api.Running
-		}
+	operationStatus := d.operationStatusCode()
+	if operationStatus != nil {
+		return *operationStatus
 	}
 
 	// Connect to the monitor.
