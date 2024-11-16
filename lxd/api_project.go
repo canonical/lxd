@@ -144,6 +144,10 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	recursion := util.IsRecursionRequest(r)
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeProject, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeProject)
 	if err != nil {
@@ -199,6 +203,19 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 	for _, apiProject := range apiProjects {
 		apiProject.UsedBy = projecthelpers.FilterUsedBy(s.Authorizer, r, apiProject.UsedBy)
+	}
+
+	if len(withEntitlements) > 0 {
+		urlToProject := make(map[*api.URL]auth.EntitlementReporter, len(apiProjects))
+		for _, p := range apiProjects {
+			u := entity.ProjectURL(p.Name)
+			urlToProject[u] = p
+		}
+
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProject, withEntitlements, urlToProject)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponse(true, apiProjects)
@@ -397,6 +414,11 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeProject, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the database entry
 	var project *api.Project
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -415,6 +437,13 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProject, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ProjectURL(name): project})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	etag := []any{
