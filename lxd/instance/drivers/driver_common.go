@@ -1035,6 +1035,30 @@ func (d *common) validateStartup(statusCode api.StatusCode) error {
 	return nil
 }
 
+// Returns an api status code for any ongoing instance operations, or nil if no
+// operation is ongoing.
+func (d *common) operationStatusCode() *api.StatusCode {
+	op := operationlock.Get(d.Project().Name, d.Name())
+	if op != nil {
+		if op.Action() == operationlock.ActionStart {
+			stopped := api.Stopped
+			return &stopped
+		}
+
+		if op.Action() == operationlock.ActionStop {
+			if shared.IsTrue(d.LocalConfig()["volatile.last_state.ready"]) {
+				ready := api.Ready
+				return &ready
+			}
+
+			running := api.Running
+			return &running
+		}
+	}
+
+	return nil
+}
+
 // onStopOperationSetup creates or picks up the relevant operation. This is used in the stopns and stop hooks to
 // ensure that a lock on their activities is held before the instance process is stopped. This prevents a start
 // request run at the same time from overlapping with the stop process.
