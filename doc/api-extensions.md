@@ -2542,3 +2542,10 @@ This introduces the configuration keys {config:option}`storage-ceph-pool-conf:ce
 ## `network_get_target`
 
 Adds optional `target` parameter to `GET /1.0/network`. When target is set, forward the request to the specified cluster member and return the non-managed interfaces from that member.
+
+## `entities_with_entitlements`
+
+Adds `is_fine_grained` field to `GET /1.0/auth/identities/current` to indicate if the current identity
+interacting with the LXD API is fine-grained (that is, associated permissions are managed via group membership).
+Allows LXD entities to be returned with an `entitlements` field if the current identity is fine-grained and the
+GET request to fetch the LXD entities has the `with-entitlements=<comma_separated_list_of_candidate_entitlements>` query parameter.
