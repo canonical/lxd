@@ -247,6 +247,12 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := request.QueryParam(r, "project")
 	allProjects := shared.IsTrue(r.FormValue("all-projects"))
 
+	// Detect if we want to also returns entitlements for each instance.
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeInstance)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	if allProjects && projectName != "" {
 		return response.BadRequest(fmt.Errorf("Cannot specify a project when requesting all projects"))
 	} else if !allProjects && projectName == "" {
@@ -512,7 +518,31 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 			resultList = append(resultList, &resultFullList[i].Instance)
 		}
 
+		if len(withEntitlements) > 0 {
+			entities := make([]*entity.EntityWithEntitlementsAndURL, len(resultFullList))
+			for i, inst := range resultList {
+				entities[i] = &entity.EntityWithEntitlementsAndURL{Entity: inst, EntityType: entity.TypeInstance, EntityURL: entity.InstanceURL(inst.Project, inst.Name)}
+			}
+
+			err = d.authorizer.AddEntitlementsToEntities(r.Context(), entities, withEntitlements)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
 		return response.SyncResponse(true, resultList)
+	}
+
+	if len(withEntitlements) > 0 {
+		entities := make([]*entity.EntityWithEntitlementsAndURL, len(resultFullList))
+		for i, inst := range resultFullList {
+			entities[i] = &entity.EntityWithEntitlementsAndURL{Entity: inst, EntityType: entity.TypeInstance, EntityURL: entity.InstanceURL(inst.Project, inst.Name)}
+		}
+
+		err = d.authorizer.AddEntitlementsToEntities(r.Context(), entities, withEntitlements)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponse(true, resultFullList)

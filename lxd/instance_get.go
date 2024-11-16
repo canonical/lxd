@@ -13,6 +13,8 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 // swagger:operation GET /1.0/instances/{name} instances instance_get
@@ -124,6 +126,12 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 		recursion = 0
 	}
 
+	// Detect if we want to also returns entitlements for each instance.
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeInstance)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
@@ -150,6 +158,20 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if len(withEntitlements) > 0 {
+		if recursion == 0 {
+			err = d.authorizer.AddEntitlements(r.Context(), &entity.EntityWithEntitlementsAndURL{Entity: state.(*api.Instance), EntityType: entity.TypeProject, EntityURL: entity.InstanceURL(c.Project().Name, c.Name())}, withEntitlements)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		} else {
+			err = d.authorizer.AddEntitlements(r.Context(), &entity.EntityWithEntitlementsAndURL{Entity: state.(*api.InstanceFull), EntityType: entity.TypeProject, EntityURL: entity.InstanceURL(c.Project().Name, c.Name())}, withEntitlements)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
 	}
 
 	return response.SyncResponseETag(true, state, etag)
