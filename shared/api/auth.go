@@ -99,6 +99,10 @@ type IdentityInfo struct {
 	// Effective permissions is the combined and deduplicated list of permissions that the identity has by virtue of
 	// direct membership to a LXD group, or effective membership of a LXD group via identity provider group mappings.
 	EffectivePermissions []Permission `json:"effective_permissions" yaml:"effective_permissions"`
+
+	// FineGrained is a boolean indicating whether the identity is fine-grained,
+	// meaning that permissions are managed via group membership.
+	FineGrained bool `json:"fine_grained" yaml:"fine_grained"`
 }
 
 // IdentityPut contains the editable fields of an IdentityInfo.
