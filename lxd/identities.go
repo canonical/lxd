@@ -1126,6 +1126,7 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 		Identity:             *apiIdentity,
 		EffectiveGroups:      effectiveGroups,
 		EffectivePermissions: effectivePermissions,
+		IsFineGrained:        identity.IsFineGrainedIdentityType(apiIdentity.Type),
 	})
 }
 
