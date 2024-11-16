@@ -8,12 +8,14 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 // swagger:operation GET /1.0/instances/{name} instances instance_get
@@ -120,6 +122,12 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 	// Parse the recursion field
 	recursive := util.IsRecursionRequest(r)
 
+	// Detect if we want to also return entitlements for each instance.
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeInstance, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 
@@ -152,6 +160,13 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeInstance, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.InstanceURL(c.Project().Name, c.Name()): state.(auth.EntitlementReporter)})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponseETag(true, state, etag)
