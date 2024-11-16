@@ -40,6 +40,8 @@ const (
 //
 // API extension: access_management.
 type Identity struct {
+	AttachedEntitlements `yaml:",inline"`
+
 	// AuthenticationMethod is the authentication method that the identity
 	// authenticates to LXD with.
 	// Example: tls
@@ -99,6 +101,10 @@ type IdentityInfo struct {
 	// Effective permissions is the combined and deduplicated list of permissions that the identity has by virtue of
 	// direct membership to a LXD group, or effective membership of a LXD group via identity provider group mappings.
 	EffectivePermissions []Permission `json:"effective_permissions" yaml:"effective_permissions"`
+
+	// IsFineGrained is a boolean indicating whether the identity is fine-grained,
+	// meaning that permissions are managed via group membership.
+	IsFineGrained bool `json:"is_fine_grained" yaml:"is_fine_grained"`
 }
 
 // IdentityPut contains the editable fields of an IdentityInfo.
@@ -149,6 +155,8 @@ type IdentitiesTLSPost struct {
 //
 // API extension: access_management.
 type AuthGroup struct {
+	AttachedEntitlements `yaml:",inline"`
+
 	// Name is the name of the group.
 	// Example: default-c1-viewers
 	Name string `json:"name" yaml:"name"`
@@ -224,6 +232,8 @@ type AuthGroupPut struct {
 //
 // API extension: access_management.
 type IdentityProviderGroup struct {
+	AttachedEntitlements `yaml:",inline"`
+
 	// Name is the name of the IdP group.
 	Name string `json:"name" yaml:"name"`
 
@@ -295,4 +305,15 @@ type PermissionInfo struct {
 	// Groups is a list of groups that have the Entitlement on the Entity.
 	// Example: ["foo", "bar"]
 	Groups []string `json:"groups" yaml:"groups"`
+}
+
+// AttachedEntitlements is part of any LXD entity that may have entitlements attached to it.
+//
+// swagger:model
+//
+// API extension: resources_with_entitlements.
+type AttachedEntitlements struct {
+	// Entitlements that are granted to the requesting user on the attached entity.
+	// Example: ["can_view", "can_edit"]
+	Entitlements []string `json:"entitlements" yaml:"entitlements"`
 }
