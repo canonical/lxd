@@ -40,6 +40,8 @@ const (
 //
 // API extension: access_management.
 type Identity struct {
+	AttachedEntitlements `yaml:",inline"`
+
 	// AuthenticationMethod is the authentication method that the identity
 	// authenticates to LXD with.
 	// Example: tls
@@ -149,6 +151,8 @@ type IdentitiesTLSPost struct {
 //
 // API extension: access_management.
 type AuthGroup struct {
+	AttachedEntitlements `yaml:",inline"`
+
 	// Name is the name of the group.
 	// Example: default-c1-viewers
 	Name string `json:"name" yaml:"name"`
@@ -224,6 +228,8 @@ type AuthGroupPut struct {
 //
 // API extension: access_management.
 type IdentityProviderGroup struct {
+	AttachedEntitlements `yaml:",inline"`
+
 	// Name is the name of the IdP group.
 	Name string `json:"name" yaml:"name"`
 
@@ -295,4 +301,15 @@ type PermissionInfo struct {
 	// Groups is a list of groups that have the Entitlement on the Entity.
 	// Example: ["foo", "bar"]
 	Groups []string `json:"groups" yaml:"groups"`
+}
+
+// AttachedEntitlements is part of any LXD entity that may have entitlements attached to it.
+//
+// swagger:model
+//
+// API extension: resources_with_entitlements.
+type AttachedEntitlements struct {
+	// Entitlements that are granted to the requesting user on the attached entity.
+	// Example: ["can_view", "can_edit"]
+	Entitlements []string `json:"entitlements" yaml:"entitlements"`
 }
