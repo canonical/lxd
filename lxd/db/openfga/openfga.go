@@ -9,12 +9,14 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/alphadose/haxmap"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/openfga/openfga/pkg/storage"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -27,6 +29,85 @@ func NewOpenFGAStore(clusterDB *db.Cluster) storage.OpenFGADatastore {
 	}
 
 	return store
+}
+
+// OpenFGACache store OpenFGA tuples keyed by `ReadStartingWithUser` filters and `ReadUsersetTuples` filters.
+type OpenFGACache struct {
+	readStartingFromUserCache *haxmap.Map[string, []*openfgav1.Tuple]
+	readUsersetTuplesCache    *haxmap.Map[string, []*openfgav1.Tuple]
+}
+
+// NewOpenFGACache returns a new OpenFGA cache.
+func NewOpenFGACache() *OpenFGACache {
+	return &OpenFGACache{
+		readStartingFromUserCache: haxmap.New[string, []*openfgav1.Tuple](),
+		readUsersetTuplesCache:    haxmap.New[string, []*openfgav1.Tuple](),
+	}
+}
+
+// ReadReadStartingFromUserCache reads tuples from the cache.
+func (c *OpenFGACache) ReadReadStartingFromUserCache(filter storage.ReadStartingWithUserFilter) (bool, string, []*openfgav1.Tuple, error) {
+	var builder strings.Builder
+
+	builder.WriteString("objectType-")
+	builder.WriteString(filter.ObjectType)
+	builder.WriteString(",relation-")
+	builder.WriteString(filter.Relation)
+
+	if len(filter.UserFilter) > 0 {
+		builder.WriteString(",userFilters(")
+		for i, userFilter := range filter.UserFilter {
+			if i > 0 {
+				builder.WriteByte(',')
+			}
+
+			builder.WriteString(userFilter.Object)
+			builder.WriteByte(':')
+			builder.WriteString(userFilter.Relation)
+		}
+
+		builder.WriteByte(')')
+	}
+
+	key := builder.String()
+	tuples, ok := c.readStartingFromUserCache.Get(key)
+	if ok {
+		return true, key, tuples, nil
+	}
+
+	return false, key, nil, nil
+}
+
+// ReadReadUsersetTuplesCache reads tuples from the cache.
+func (c *OpenFGACache) ReadReadUsersetTuplesCache(filter storage.ReadUsersetTuplesFilter) (bool, string, []*openfgav1.Tuple, error) {
+	var builder strings.Builder
+	builder.WriteString("object-")
+	builder.WriteString(filter.Object)
+	builder.WriteString(",relation-")
+	builder.WriteString(filter.Relation)
+
+	if len(filter.AllowedUserTypeRestrictions) > 0 {
+		builder.WriteString(",restrictions(")
+		for i, restriction := range filter.AllowedUserTypeRestrictions {
+			if i > 0 {
+				builder.WriteByte(',')
+			}
+
+			builder.WriteString(restriction.Type)
+			builder.WriteByte(':')
+			builder.WriteString(restriction.Condition)
+		}
+
+		builder.WriteByte(')')
+	}
+
+	key := builder.String()
+	tuples, ok := c.readUsersetTuplesCache.Get(key)
+	if ok {
+		return true, key, tuples, nil
+	}
+
+	return false, key, nil, nil
 }
 
 // openfgaStore is an implementation of storage.OpenFGADatastore that reads directly from our cluster database.
@@ -248,6 +329,24 @@ func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filt
 		return nil, fmt.Errorf("ReadUsersetTuples: Failed to parse entity URL %q: %w", entityURL, err)
 	}
 
+	// Check the request cache.
+	var cacheKey string
+	var tuples []*openfgav1.Tuple
+	var cacheHit bool
+	cache, err := request.GetCtxValue[*OpenFGACache](ctx, request.CtxOpenFGARequestCache)
+	if err == nil {
+		cacheHit, cacheKey, tuples, err = cache.ReadReadUsersetTuplesCache(filter)
+		if err != nil {
+			return nil, fmt.Errorf("ReadUsersetTuples: Failed to read cache: %w", err)
+		}
+
+		if cacheHit {
+			// If we have the tuples in the cache, return them.
+			return storage.NewStaticTupleIterator(tuples), nil
+		}
+	}
+
+	// If we miss the cache, we need to query the database.
 	var groupNames []string
 	err = o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the ID of the entity.
@@ -273,6 +372,10 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 	if err != nil {
 		if !api.StatusErrorCheck(err, http.StatusNotFound) {
 			// If we have a not found error then there are no tuples to return, but the datastore shouldn't return an error.
+			if cacheKey != "" {
+				cache.readUsersetTuplesCache.Set(cacheKey, nil)
+			}
+
 			return storage.NewStaticTupleIterator(nil), nil
 		}
 
@@ -280,7 +383,7 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 	}
 
 	// Return the groups as tuples relating them to the object via the relation.
-	tuples := make([]*openfgav1.Tuple, 0, len(groupNames))
+	tuples = make([]*openfgav1.Tuple, 0, len(groupNames))
 	for _, groupName := range groupNames {
 		tuples = append(tuples, &openfgav1.Tuple{
 			Key: &openfgav1.TupleKey{
@@ -290,6 +393,11 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 				User: fmt.Sprintf("%s:%s#member", entity.TypeAuthGroup, entity.AuthGroupURL(groupName)),
 			},
 		})
+	}
+
+	// Cache the tuples.
+	if cacheKey != "" {
+		cache.readUsersetTuplesCache.Set(cacheKey, tuples)
 	}
 
 	return storage.NewStaticTupleIterator(tuples), nil
@@ -356,7 +464,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 	entityType := entity.Type(filter.ObjectType)
 	err := entityType.Validate()
 	if err != nil {
-		return nil, fmt.Errorf("ReadUsersetTuples: Invalid object filter %q: %w", entityType, err)
+		return nil, fmt.Errorf("ReadStartingWithUser: Invalid object filter %q: %w", entityType, err)
 	}
 
 	// Expect that there will be exactly one user filter.
@@ -391,6 +499,23 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 	// Our parent-child relations are always named as the entity type of the parent.
 	relationEntityType := entity.Type(filter.Relation)
 
+	// Check the request cache.
+	var cacheKey string
+	var tuples []*openfgav1.Tuple
+	var cacheHit bool
+	cache, err := request.GetCtxValue[*OpenFGACache](ctx, request.CtxOpenFGARequestCache)
+	if err == nil {
+		cacheHit, cacheKey, tuples, err = cache.ReadReadStartingFromUserCache(filter)
+		if err != nil {
+			return nil, fmt.Errorf("ReadStartingWithUser: Failed to read cache: %w", err)
+		}
+
+		if cacheHit {
+			// If we have the tuples in the cache, return them.
+			return storage.NewStaticTupleIterator(tuples), nil
+		}
+	}
+
 	// If the relation is "project" or "server", we are listing all resources under the project/server.
 	if shared.ValueInSlice(relationEntityType, []entity.Type{entity.TypeProject, entity.TypeServer, entity.TypeInstance, entity.TypeStorageVolume}) {
 		if filter.Relation != string(userEntityType) {
@@ -413,7 +538,6 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 		}
 
 		// Compose the expected tuples relating the server/project to the entities.
-		var tuples []*openfgav1.Tuple
 		for _, entityURL := range entityURLs[entityType] {
 			tupleKey := &openfgav1.TupleKey{Object: string(entityType) + ":" + entityURL.String(), Relation: filter.Relation}
 			switch relationEntityType {
@@ -466,6 +590,11 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 			}
 
 			tuples = append(tuples, &openfgav1.Tuple{Key: tupleKey})
+		}
+
+		// Cache the tuples.
+		if cacheKey != "" {
+			cache.readStartingFromUserCache.Set(cacheKey, tuples)
 		}
 
 		return storage.NewStaticTupleIterator(tuples), nil
@@ -524,7 +653,6 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 	}
 
 	// Construct the tuples relating the group to the entities via the expected entitlement.
-	var tuples []*openfgav1.Tuple
 	for _, permission := range permissions {
 		tuples = append(tuples, &openfgav1.Tuple{
 			Key: &openfgav1.TupleKey{
@@ -534,6 +662,11 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 				User: fmt.Sprintf("%s:%s#member", entity.TypeAuthGroup, entity.AuthGroupURL(groupName)),
 			},
 		})
+	}
+
+	// Cache the tuples.
+	if cacheKey != "" {
+		cache.readStartingFromUserCache.Set(cacheKey, tuples)
 	}
 
 	return storage.NewStaticTupleIterator(tuples), nil
