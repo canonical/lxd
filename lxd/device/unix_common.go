@@ -63,13 +63,15 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 
 			return &drivers.ErrInvalidPath{PrefixPath: d.state.DevMonitor.PrefixPath()}
 		},
+
 		// lxdmeta:generate(entities=device-unix-{char+block}; group=device-conf; key=path)
 		//
 		// ---
 		//  type: string
 		//  required: either `source` or `path` must be set
-		//  shortdesc: Path inside the instance
+		//  shortdesc: Path inside the container
 		"path": validate.IsAny,
+
 		// lxdmeta:generate(entities=device-unix-{char+block}; group=device-conf; key=major)
 		//
 		// ---
@@ -77,6 +79,7 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		//  defaultdesc: device on host
 		//  shortdesc: Device major number
 		"major": unixValidDeviceNum,
+
 		// lxdmeta:generate(entities=device-unix-{char+block}; group=device-conf; key=minor)
 		//
 		// ---
@@ -84,12 +87,13 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		//  defaultdesc: device on host
 		//  shortdesc: Device minor number
 		"minor": unixValidDeviceNum,
+
 		// lxdmeta:generate(entities=device-unix-{char+block+hotplug}; group=device-conf; key=uid)
 		//
 		// ---
 		//  type: integer
 		//  defaultdesc: `0`
-		//  shortdesc: UID of the device owner in the instance
+		//  shortdesc: UID of the device owner in the container
 
 		// lxdmeta:generate(entities=device-unix-usb; group=device-conf; key=uid)
 		//
@@ -97,14 +101,15 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		//  type: integer
 		//  defaultdesc: `0`
 		//  condition: container
-		//  shortdesc: UID of the device owner in the container
+		//  shortdesc: UID of the device owner in the instance
 		"uid": unixValidUserID,
+
 		// lxdmeta:generate(entities=device-unix-{char+block+hotplug}; group=device-conf; key=gid)
 		//
 		// ---
 		//  type: integer
 		//  defaultdesc: `0`
-		//  shortdesc: GID of the device owner in the instance
+		//  shortdesc: GID of the device owner in the container
 
 		// lxdmeta:generate(entities=device-unix-usb; group=device-conf; key=gid)
 		//
@@ -112,14 +117,15 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		//  type: integer
 		//  defaultdesc: `0`
 		//  condition: container
-		//  shortdesc: GID of the device owner in the container
+		//  shortdesc: GID of the device owner in the instance
 		"gid": unixValidUserID,
+
 		// lxdmeta:generate(entities=device-unix-{char+block+hotplug}; group=device-conf; key=mode)
 		//
 		// ---
 		//  type: integer
 		//  defaultdesc: `0660`
-		//  shortdesc: Mode of the device in the instance
+		//  shortdesc: Mode of the device in the container
 
 		// lxdmeta:generate(entities=device-unix-usb; group=device-conf; key=mode)
 		//
@@ -127,23 +133,24 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		//  type: integer
 		//  defaultdesc: `0660`
 		//  condition: container
-		//  shortdesc: Mode of the device in the container
+		//  shortdesc: Mode of the device in the instance
 		"mode": unixValidOctalFileMode,
+
 		// lxdmeta:generate(entities=device-unix-char; group=device-conf; key=required)
 		// See {ref}`devices-unix-char-hotplugging` for more information.
 		// ---
 		//  type: bool
 		//  defaultdesc: `true`
-		//  shortdesc: Whether this device is required to start the instance
+		//  shortdesc: Whether this device is required to start the container
 
 		// lxdmeta:generate(entities=device-unix-block; group=device-conf; key=required)
 		// See {ref}`devices-unix-block-hotplugging` for more information.
 		// ---
 		//  type: bool
 		//  defaultdesc: `true`
-		//  shortdesc: Whether this device is required to start the instance
+		//  shortdesc: Whether this device is required to start the container
 
-		// lxdmeta:generate(entities=device-unix-{hotplug+usb}; group=device-conf; key=required)
+		// lxdmeta:generate(entities=device-unix-usb; group=device-conf; key=required)
 		// The default is `false`, which means that all devices can be hotplugged.
 		// ---
 		//  type: bool
