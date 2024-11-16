@@ -2553,3 +2553,10 @@ disk devices.
 
 Introduces per-project uplink IP limits for each available uplink network, adding `limits.networks.uplink_ips.ipv4.NETWORK_NAME` and `limits.networks.uplink_ips.ipv6.NETWORK_NAME` configuration keys for projects with `features.networks` enabled.
 These keys define the maximum value of IPs made available on a network named NETWORK_NAME to be assigned as uplink IPs for entities inside a certain project. These entities can be other networks, network forwards or load balancers.
+
+## `entities_with_entitlements`
+
+Adds `fine_grained` field to `GET /1.0/auth/identities/current` to indicate if the current identity
+interacting with the LXD API is fine-grained (that is, associated permissions are managed via group membership).
+Allows LXD entities to be returned with an `access_entitlements` field if the current identity is fine-grained and the
+GET request to fetch the LXD entities has the `with-access-entitlements=<comma_separated_list_of_candidate_entitlements>` query parameter.
