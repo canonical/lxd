@@ -352,7 +352,7 @@ type cmdWarningDelete struct {
 
 func (c *cmdWarningDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("delete", i18n.G("[<remote>:]<warning-uuid>"))
+	cmd.Use = usage("delete", i18n.G("[<remote>:][<warning-uuid>]"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete warning")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
