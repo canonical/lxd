@@ -398,5 +398,22 @@ func (c *cmdWarningDelete) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if c.flagAll {
+		// Delete all warnings
+		warnings, err := remoteServer.GetWarnings()
+		if err != nil {
+			return err
+		}
+
+		for _, warning := range warnings {
+			err = remoteServer.DeleteWarning(warning.UUID)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
 	return remoteServer.DeleteWarning(UUID)
 }
