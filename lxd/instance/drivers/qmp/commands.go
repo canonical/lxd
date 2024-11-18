@@ -225,6 +225,8 @@ func (m *Monitor) RemoveFDFromFDSet(name string) error {
 		return fmt.Errorf("Failed to query fd sets: %w", err)
 	}
 
+	found := false
+
 	for _, fdSet := range resp.Return {
 		for _, fd := range fdSet.FDs {
 			fields := strings.SplitN(fd.Opaque, ":", 2)
@@ -237,6 +239,8 @@ func (m *Monitor) RemoveFDFromFDSet(name string) error {
 			}
 
 			if opaque == name {
+				found = true
+
 				args := map[string]any{
 					"fdset-id": fdSet.ID,
 				}
@@ -247,6 +251,11 @@ func (m *Monitor) RemoveFDFromFDSet(name string) error {
 				}
 			}
 		}
+	}
+
+	// Return an error if no fd matched the provided name.
+	if !found {
+		return api.StatusErrorf(http.StatusNotFound, "No fd with name %q", name)
 	}
 
 	return nil
