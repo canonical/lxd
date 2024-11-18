@@ -1782,6 +1782,14 @@
 						}
 					},
 					{
+						"ownership.inherit": {
+							"defaultdesc": "`false`",
+							"longdesc": "",
+							"shortdesc": "Whether this device inherits ownership (GID and/or UID) from the host",
+							"type": "bool"
+						}
+					},
+					{
 						"productid": {
 							"longdesc": "",
 							"shortdesc": "Product ID of the Unix device",

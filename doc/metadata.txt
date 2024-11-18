@@ -1543,6 +1543,13 @@ See {ref}`devices-unix-char-hotplugging` for more information.
 
 ```
 
+```{config:option} ownership.inherit device-unix-hotplug-device-conf
+:defaultdesc: "`false`"
+:shortdesc: "Whether this device inherits ownership (GID and/or UID) from the host"
+:type: "bool"
+
+```
+
 ```{config:option} productid device-unix-hotplug-device-conf
 :shortdesc: "Product ID of the Unix device"
 :type: "string"
