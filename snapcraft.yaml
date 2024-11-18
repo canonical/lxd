@@ -263,7 +263,7 @@ parts:
 
   criu:
     source: https://github.com/checkpoint-restore/criu
-    source-commit: f8b14286b092853a4485813e1efd564109df9123 # v3.19
+    source-commit: c2b48ff423aa663b3534a5ba96907366e4c1b408 # v4.0
     source-depth: 1
     source-type: git
     plugin: nil
@@ -290,7 +290,10 @@ parts:
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && [ "$(uname -m)" != "armv7l" ] && exit 0
       set -ex
 
-      make USERCFLAGS=-Wno-error=format-truncation criu
+      git config user.email "noreply@lists.canonical.com"
+      git config user.name "LXD snap builder"
+
+      make criu
       mkdir -p "${CRAFT_PART_INSTALL}/criu/"
       cp criu/criu "${CRAFT_PART_INSTALL}/criu/"
     organize:
