@@ -829,6 +829,12 @@ definitions:
                     $ref: '#/definitions/Permission'
                 type: array
                 x-go-name: EffectivePermissions
+            fine_grained:
+                description: |-
+                    FineGrained is a boolean indicating whether the identity is fine-grained,
+                    meaning that permissions are managed via group membership.
+                type: boolean
+                x-go-name: FineGrained
             groups:
                 description: Groups is the list of groups for which the identity is a member.
                 example:
