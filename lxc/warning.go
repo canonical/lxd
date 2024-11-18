@@ -367,15 +367,30 @@ func (c *cmdWarningDelete) command() *cobra.Command {
 
 func (c *cmdWarningDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err
 	}
 
-	// Parse remote
-	remoteName, UUID, err := c.global.conf.ParseRemote(args[0])
-	if err != nil {
-		return err
+	if !c.flagAll && len(args) < 1 {
+		return errors.New(i18n.G("Specify a warning UUID or use --all"))
+	}
+
+	var remoteName string
+	var UUID string
+
+	if len(args) > 0 {
+		// Parse remote
+		remoteName, UUID, err = c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return err
+		}
+	} else {
+		remoteName = c.global.conf.DefaultRemote
+	}
+
+	if UUID != "" && c.flagAll {
+		return errors.New(i18n.G("No need to specify a warning UUID when using --all"))
 	}
 
 	remoteServer, err := c.global.conf.GetInstanceServer(remoteName)
