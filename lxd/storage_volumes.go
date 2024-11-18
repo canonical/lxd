@@ -623,6 +623,12 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Detect if we want to also returns entitlements for each volume.
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStorageVolume)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Check if current route is in /1.0/storage-volumes
 	allPools := poolName == ""
 
@@ -814,7 +820,8 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 	if util.IsRecursionRequest(r) {
 		volumes := make([]*api.StorageVolume, 0, len(dbVolumes))
-		for _, dbVol := range dbVolumes {
+		entities := make([]*entity.EntityWithEntitlementsAndURL, len(dbVolumes))
+		for i, dbVol := range dbVolumes {
 			vol := &dbVol.StorageVolume
 
 			volumeName, _, _ := api.GetParentAndSnapshotName(vol.Name)
@@ -833,6 +840,14 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			volumes = append(volumes, vol)
+			entities[i] = &entity.EntityWithEntitlementsAndURL{Entity: vol, EntityType: entity.TypeStorageVolume, EntityURL: entity.StorageVolumeURL(vol.Project, vol.Location, vol.Pool, vol.Type, vol.Name)}
+		}
+
+		if len(withEntitlements) > 0 {
+			err = d.authorizer.AddEntitlementsToEntities(r.Context(), entities, withEntitlements)
+			if err != nil {
+				return response.SmartError(err)
+			}
 		}
 
 		return response.SyncResponse(true, volumes)
@@ -2011,6 +2026,12 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Detect if we want to also returns entitlements for each volume.
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStorageVolume)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
@@ -2038,6 +2059,13 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	dbVolume.UsedBy = project.FilterUsedBy(s.Authorizer, r, volumeUsedBy)
+
+	if len(withEntitlements) > 0 {
+		err = d.authorizer.AddEntitlements(r.Context(), &entity.EntityWithEntitlementsAndURL{Entity: &dbVolume.StorageVolume, EntityType: entity.TypeStorageVolume, EntityURL: entity.StorageVolumeURL(dbVolume.Project, dbVolume.Location, dbVolume.Pool, dbVolume.Type, dbVolume.Name)}, withEntitlements)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
 
 	etag := []any{details.volumeName, dbVolume.Type, dbVolume.Config}
 
