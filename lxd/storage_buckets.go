@@ -196,6 +196,11 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStorageBucket, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
@@ -259,6 +264,7 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 
 	if util.IsRecursionRequest(r) {
 		buckets := make([]*api.StorageBucket, 0, len(filteredDBBuckets))
+		urlToStorageBucket := make(map[*api.URL]auth.EntitlementReporter, len(filteredDBBuckets))
 		for _, dbBucket := range filteredDBBuckets {
 			u := pool.GetBucketURL(dbBucket.Name)
 			if u != nil {
@@ -266,6 +272,14 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			buckets = append(buckets, &dbBucket.StorageBucket)
+			urlToStorageBucket[entity.StorageBucketURL(dbBucket.Project, dbBucket.Location, dbBucket.PoolName, dbBucket.Name)] = &dbBucket.StorageBucket
+		}
+
+		if len(withEntitlements) > 0 {
+			err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStorageBucket, withEntitlements, urlToStorageBucket)
+			if err != nil {
+				return response.SmartError(err)
+			}
 		}
 
 		return response.SyncResponse(true, buckets)
@@ -337,6 +351,11 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStorageBucket, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	if !details.pool.Driver().Info().Buckets {
 		return response.BadRequest(fmt.Errorf("Storage pool does not support buckets"))
 	}
@@ -356,6 +375,13 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 	u := details.pool.GetBucketURL(bucket.Name)
 	if u != nil {
 		bucket.S3URL = u.String()
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStorageBucket, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.StorageBucketURL(effectiveProjectName, bucket.Location, details.pool.Name(), bucket.Name): &bucket.StorageBucket})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponseETag(true, bucket, bucket.Etag())
