@@ -67,6 +67,9 @@ echo "==> Using storage backend ${LXD_BACKEND}"
 import_storage_backends
 
 cleanup() {
+  # Before setting +e, run the panic checker for any running LXD daemons.
+  panic_checker "${TEST_DIR}"
+
   # Allow for failures and stop tracing everything
   set +ex
   DEBUG=
