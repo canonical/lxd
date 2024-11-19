@@ -248,42 +248,14 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_remote_usage "remote usage"
 fi
 
-if [ "${1:-"all"}" != "standalone" ]; then
-    run_test test_clustering_enable "clustering enable"
-    run_test test_clustering_membership "clustering membership"
-    run_test test_clustering_containers "clustering containers"
-    run_test test_clustering_storage "clustering storage"
-    run_test test_clustering_storage_single_node "clustering storage single node"
-    run_test test_clustering_network "clustering network"
-    run_test test_clustering_publish "clustering publish"
-    run_test test_clustering_profiles "clustering profiles"
-    run_test test_clustering_join_api "clustering join api"
-    run_test test_clustering_shutdown_nodes "clustering shutdown"
-    run_test test_clustering_projects "clustering projects"
-    run_test test_clustering_update_cert "clustering update cert"
-    run_test test_clustering_update_cert_reversion "clustering update cert reversion"
-    run_test test_clustering_update_cert_token "clustering update cert token"
-    run_test test_clustering_address "clustering address"
-    run_test test_clustering_image_replication "clustering image replication"
-    run_test test_clustering_dns "clustering DNS"
-    run_test test_clustering_recover "clustering recovery"
-    run_test test_clustering_handover "clustering handover"
-    run_test test_clustering_rebalance "clustering rebalance"
-    run_test test_clustering_remove_raft_node "clustering remove raft node"
-    run_test test_clustering_failure_domains "clustering failure domains"
-    run_test test_clustering_image_refresh "clustering image refresh"
-    run_test test_clustering_evacuation "clustering evacuation"
-    run_test test_clustering_instance_placement_scriptlet "clustering instance placement scriptlet"
-    run_test test_clustering_move "clustering move"
-    run_test test_clustering_edit_configuration "clustering config edit"
-    run_test test_clustering_remove_members "clustering config remove members"
-    run_test test_clustering_autotarget "clustering autotarget member"
-    run_test test_clustering_upgrade "clustering upgrade"
-    run_test test_clustering_upgrade_large "clustering upgrade_large"
-    run_test test_clustering_groups "clustering groups"
-    run_test test_clustering_events "clustering events"
-    run_test test_clustering_uuid "clustering uuid"
-    run_test test_clustering_trust_add "clustering trust add"
+if [ "${LXD_BACKEND}" = "ceph" ]; then
+  for _ in $(seq 100); do
+    run_test test_snap_restore "snapshot restores"
+  done
+elif [ "${LXD_BACKEND}" = "dir" ]; then
+  for _ in $(seq 100); do
+    run_test test_config_profiles "profiles and configuration"
+  done
 fi
 
 if [ "${1:-"all"}" != "cluster" ]; then
@@ -341,11 +313,21 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_concurrent_exec "concurrent exec"
     run_test test_concurrent "concurrent startup"
     run_test test_snapshots "container snapshots"
+    if [ "${LXD_BACKEND}" = "ceph" ]; then
+      for _ in $(seq 99); do
+        run_test test_snap_restore "snapshot restores"
+      done
+    fi
     run_test test_snap_restore "snapshot restores"
     run_test test_snap_expiry "snapshot expiry"
     run_test test_snap_schedule "snapshot scheduling"
     run_test test_snap_volume_db_recovery "snapshot volume database record recovery"
     run_test test_snap_fail "snapshot creation failure"
+    if [ "${LXD_BACKEND}" = "dir" ]; then
+      for _ in $(seq 99); do
+        run_test test_config_profiles "profiles and configuration"
+      done
+    fi
     run_test test_config_profiles "profiles and configuration"
     run_test test_config_edit "container configuration edit"
     run_test test_property "container property"

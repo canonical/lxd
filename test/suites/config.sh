@@ -270,6 +270,12 @@ test_config_profiles() {
 
   lxc stop foo --force
   lxc delete foo
+  lxc profile delete one
+  lxc profile delete two
+  lxc profile delete onenic
+  lxc profile delete unconfined
+  rm -rf "${TEST_DIR}/mnt2"
+  rm -rf "${TEST_DIR}/mnt1"
 }
 
 
