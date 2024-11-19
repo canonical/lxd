@@ -89,8 +89,7 @@ func (d *unixHotplug) validateConfig(instConf instance.ConfigReader) error {
 
 // Register is run after the device is started or when LXD starts.
 func (d *unixHotplug) Register() error {
-	// Extract variables needed to run the event hook so that the reference to this device
-	// struct is not needed to be kept in memory.
+	// Extract variables needed to run the event hook so that the reference to this device struct is not required to be stored in memory.
 	devicesPath := d.inst.DevicesPath()
 	devConfig := d.config
 	deviceName := d.name
@@ -212,8 +211,7 @@ func (d *unixHotplug) postStop() error {
 	return nil
 }
 
-// loadUnixDevices scans the host machine for unix devices with matching product/vendor ids
-// and returns the matching devices with subsystem types of char or block.
+// loadUnixDevices scans the host machine for unix devices with matching product/vendor ids and returns the matching devices with subsystem types of char or block.
 func (d *unixHotplug) loadUnixDevices() []udev.Device {
 	// Find device if exists
 	u := udev.Udev{}
