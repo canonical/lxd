@@ -2,6 +2,8 @@ package entity
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/shared/api"
 )
 
 // Type represents a resource type in LXD that is addressable via the API.
@@ -428,4 +430,18 @@ func (identityProviderGroup) requiresProject() bool {
 
 func (identityProviderGroup) path() []string {
 	return []string{"auth", "identity-provider-groups", pathPlaceholder}
+}
+
+// EntityWithEntitlements is an interface that entities
+// can implement to allow entitlements to be attached to them.
+type EntityWithEntitlements interface {
+	AddEntitlement(entitlement string)
+}
+
+// EntityWithEntitlementsAndURL is a helper struct that combines an entity with entitlements
+// the Entity type and the URL of this entity.
+type EntityWithEntitlementsAndURL struct {
+	Entity     EntityWithEntitlements
+	EntityType Type
+	EntityURL  *api.URL
 }
