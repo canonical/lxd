@@ -298,9 +298,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          # A non-shallow clone is needed for the Differential ShellCheck
-          fetch-depth: 0
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
