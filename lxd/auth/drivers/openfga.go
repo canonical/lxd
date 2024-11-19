@@ -477,6 +477,71 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 	}, nil
 }
 
+// AddEntitlements adds entitlements to an entity using the embedded OpenFGA server.
+func (e *embeddedOpenFGA) AddEntitlements(ctx context.Context, entity *entity.EntityWithEntitlementsAndURL, queriedEntitlements []auth.Entitlement) error {
+	id, err := auth.GetIdentityFromCtx(ctx, e.identityCache)
+	if err != nil {
+		return fmt.Errorf("Failed to get caller identity: %w", err)
+	}
+
+	entityURL := entity.EntityURL
+	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
+		return e.tlsAuthorizer.AddEntitlements(ctx, entity, queriedEntitlements)
+	}
+
+	for _, entitlement := range queriedEntitlements {
+		err = e.CheckPermission(ctx, entityURL, entitlement)
+		if err != nil {
+			if err == api.NewGenericStatusError(http.StatusNotFound) || err == api.NewGenericStatusError(http.StatusForbidden) {
+				continue
+			}
+
+			return fmt.Errorf("Failed to add entitlements %q for entity %q: %w", entitlement, entity, err)
+		}
+
+		entity.Entity.AddEntitlement(string(entitlement))
+	}
+
+	return nil
+}
+
+// AddEntitlementsToEntities adds entitlements to multiple entities using the embedded OpenFGA server.
+func (e *embeddedOpenFGA) AddEntitlementsToEntities(ctx context.Context, entities []*entity.EntityWithEntitlementsAndURL, queriedEntitlements []auth.Entitlement) error {
+	if len(entities) == 0 {
+		return nil
+	}
+
+	id, err := auth.GetIdentityFromCtx(ctx, e.identityCache)
+	if err != nil {
+		return fmt.Errorf("Failed to get caller identity: %w", err)
+	}
+
+	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
+		return e.tlsAuthorizer.AddEntitlementsToEntities(ctx, entities, queriedEntitlements)
+	}
+
+	entityType := entities[0].EntityType
+	checkersByEntitlement := make(map[auth.Entitlement]auth.PermissionChecker)
+	for _, entitlement := range queriedEntitlements {
+		checker, err := e.GetPermissionChecker(ctx, entitlement, entityType)
+		if err != nil {
+			return fmt.Errorf("Failed to get a permission checker for entitlement %q and for entity type %q: %w", entitlement, entityType, err)
+		}
+
+		checkersByEntitlement[entitlement] = checker
+	}
+
+	for entitlement, checker := range checkersByEntitlement {
+		for i, entity := range entities {
+			if checker(entity.EntityURL) {
+				entities[i].Entity.AddEntitlement(string(entitlement))
+			}
+		}
+	}
+
+	return nil
+}
+
 // openfgaLogger implements OpenFGAs logger.Logger interface but delegates to our logger.
 type openfgaLogger struct {
 	l logger.Logger

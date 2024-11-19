@@ -160,6 +160,16 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 	}, nil
 }
 
+// AddEntitlements is not supported by the TLS authorization driver.
+func (t *tls) AddEntitlements(ctx context.Context, entity *entity.EntityWithEntitlementsAndURL, queriedEntitlements []auth.Entitlement) error {
+	return api.StatusErrorf(http.StatusNotImplemented, "Adding entitlements to an entity is not supported by the TLS authorization driver")
+}
+
+// AddEntitlementsToEntities is not supported by the TLS authorization driver.
+func (t *tls) AddEntitlementsToEntities(ctx context.Context, entities []*entity.EntityWithEntitlementsAndURL, queriedEntitlements []auth.Entitlement) error {
+	return api.StatusErrorf(http.StatusNotImplemented, "Adding entitlements to a list of entities is not supported by the TLS authorization driver")
+}
+
 func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, entityType entity.Type, id *identity.CacheEntry, projectName string, pathArguments []string) bool {
 	switch entityType {
 	case entity.TypeServer:
