@@ -18,17 +18,7 @@ runs:
         sudo apt-get install --no-install-recommends -y \
           curl \
           git \
-          libacl1-dev \
-          libcap-dev \
-          libdbus-1-dev \
-          liblxc-dev \
-          libseccomp-dev \
-          libselinux-dev \
-          libsqlite3-dev \
-          libtool \
-          libudev-dev \
           make \
-          pkg-config\
           acl \
           attr \
           bind9-dnsutils \
