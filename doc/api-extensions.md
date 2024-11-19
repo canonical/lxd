@@ -2520,3 +2520,8 @@ contains the total available logical CPUs available when LXD started.
 ## `vm_limits_cpu_pin_strategy`
 
 Adds a new {config:option}`instance-resource-limits:limits.cpu.pin_strategy` configuration option for virtual machines. This option controls the CPU pinning strategy. When set to `none`, CPU auto pinning is disabled. When set to `auto`, CPU auto pinning is enabled.
+
+## `projects_force_delete`
+
+This extends `DELETE /1.0/projects` to allow `?force=true` which will
+delete everything inside of the project along with the project itself.
