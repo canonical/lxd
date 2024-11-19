@@ -244,56 +244,8 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Install dependencies
-        run: |
-          set -eux
-          sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
-          sudo apt-get update
-
-          sudo systemctl mask lxc.service lxc-net.service
-
-          sudo apt-get install --no-install-recommends -y \
-            curl \
-            git \
-            libacl1-dev \
-            libcap-dev \
-            libdbus-1-dev \
-            liblxc-dev \
-            libseccomp-dev \
-            libselinux-dev \
-            libsqlite3-dev \
-            libtool \
-            libudev-dev \
-            make \
-            pkg-config\
-            acl \
-            attr \
-            bind9-dnsutils \
-            btrfs-progs \
-            busybox-static \
-            dnsmasq-base \
-            easy-rsa \
-            gettext \
-            jq \
-            lxc-utils \
-            lvm2 \
-            nftables \
-            quota \
-            rsync \
-            s3cmd \
-            socat \
-            sqlite3 \
-            squashfs-tools \
-            tar \
-            tcl \
-            thin-provisioning-tools \
-            uuid-runtime \
-            xfsprogs \
-            xz-utils \
-            zfsutils-linux
-
-          # reclaim some space
-          sudo apt-get clean
+      - name: Install runtime dependencies
+        uses: ./.github/actions/install-lxd-runtimedeps
 
       - name: Download system test dependencies
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
