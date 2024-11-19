@@ -585,6 +585,11 @@ if [ "${openvswitch_builtin:-"false"}" = "true" ]; then
         export OVS_SBINDIR="${SNAP}/bin/"
 
         mkdir -p "${OVS_SYSCONFDIR}/openvswitch"
+        OVS_SYSTEM_ID_FILE="${OVS_SYSCONFDIR}/openvswitch/system-id.conf"
+        if ! [ -s "${OVS_SYSTEM_ID_FILE}" ]; then
+            systemd-id128 new --uuid > "${OVS_SYSTEM_ID_FILE}"
+        fi
+
         (
             # Close socket activation fd
             exec 3<&- || true
