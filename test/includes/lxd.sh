@@ -193,6 +193,11 @@ kill_lxd() {
         check_leftovers="true"
     fi
 
+    # If DEBUG is set, check for panics in the daemon logs
+    if [ -n "${DEBUG:-}" ]; then
+      deps/panic-checker "${daemon_dir}/lxd.log"
+    fi
+
     if [ -n "${LXD_LOGS:-}" ]; then
         echo "==> Copying the logs"
         mkdir -p "${LXD_LOGS}/${daemon_pid}"
@@ -300,6 +305,21 @@ wipe() {
     fi
 
     rm -Rf "${1}"
+}
+
+panic_checker() {
+  # Only run if DEBUG is set (e.g. LXD_VERBOSE or LXD_DEBUG is set)
+  # Panics are logged at info level, which won't be outputted unless this is set.
+  if [ -z "${DEBUG:-}" ]; then
+    return
+  fi
+
+  local test_dir daemon_dir
+  test_dir="${1}"
+
+  while read -r daemon_dir; do
+    deps/panic-checker "${daemon_dir}/lxd.log"
+  done < "${test_dir}/daemons"
 }
 
 # Kill and cleanup LXD instances and related resources
