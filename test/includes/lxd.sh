@@ -192,6 +192,11 @@ kill_lxd() {
         check_leftovers="true"
     fi
 
+    # If DEBUG is set, check for panics in the daemon logs
+    if [ -n "${DEBUG:-}" ]; then
+      deps/panic-checker "${daemon_dir}/lxd.log"
+    fi
+
     if [ -n "${LXD_LOGS:-}" ]; then
         echo "==> Copying the logs"
         mkdir -p "${LXD_LOGS}/${daemon_pid}"
