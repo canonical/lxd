@@ -313,3 +313,8 @@ type AttachedEntitlements struct {
 	// Example: ["can_view", "can_edit"]
 	Entitlements []string `json:"entitlements" yaml:"entitlements"`
 }
+
+// AddEntitlement adds an entitlement to the entity.
+func (e *AttachedEntitlements) AddEntitlement(entitlement string) {
+	e.Entitlements = append(e.Entitlements, entitlement)
+}
