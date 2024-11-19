@@ -125,9 +125,9 @@ func (s *Client) getGuestAttachSetting(instanceSetting string) string {
 		return guestAttachSettingOff
 	}
 
-	// The `ubuntu_pro.guest_attach` setting is optional. If it is not set, return the host's guest attach setting.
+	// The `ubuntu_pro.guest_attach` setting is optional.
 	if instanceSetting == "" {
-		return s.guestAttachSetting
+		return guestAttachSettingOff
 	}
 
 	// If the setting is not empty, check it is valid. This should have been validated already when setting the value so
