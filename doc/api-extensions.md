@@ -2520,3 +2520,11 @@ contains the total available logical CPUs available when LXD started.
 ## `vm_limits_cpu_pin_strategy`
 
 Adds a new {config:option}`instance-resource-limits:limits.cpu.pin_strategy` configuration option for virtual machines. This option controls the CPU pinning strategy. When set to `none`, CPU auto pinning is disabled. When set to `auto`, CPU auto pinning is enabled.
+
+## `vm_zfs_storage_disk_live_resize`
+
+This enables resizing of virtual machine `zfs` disks without requiring a restart for the changes to take effect.
+
+## `vm_lvm_storage_disk_live_resize`
+
+This enables resizing of virtual machine `lvm` disks without requiring a restart for the changes to take effect.
