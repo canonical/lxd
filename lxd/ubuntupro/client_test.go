@@ -91,35 +91,12 @@ func TestClient(t *testing.T) {
 		},
 	}
 
-	assertionsWhenHostHasGuestAttachmentAvailable := []assertion{
+	assertionsWhenHostHasGuestAttachmentOnOrAvailable := []assertion{
 		{
-			instanceSetting: "",
-			expectedSetting: guestAttachSettingAvailable,
-			expectedToken:   &mockTokenResponse,
-		},
-		{
-			instanceSetting:   guestAttachSettingOff,
+			instanceSetting:   "",
 			expectedSetting:   guestAttachSettingOff,
 			expectErr:         true,
 			expectedErrorCode: http.StatusForbidden,
-		},
-		{
-			instanceSetting: guestAttachSettingAvailable,
-			expectedSetting: guestAttachSettingAvailable,
-			expectedToken:   &mockTokenResponse,
-		},
-		{
-			instanceSetting: guestAttachSettingOn,
-			expectedSetting: guestAttachSettingOn,
-			expectedToken:   &mockTokenResponse,
-		},
-	}
-
-	assertionsWhenHostHasGuestAttachmentOn := []assertion{
-		{
-			instanceSetting: "",
-			expectedSetting: guestAttachSettingOn,
-			expectedToken:   &mockTokenResponse,
 		},
 		{
 			instanceSetting:   guestAttachSettingOff,
@@ -192,7 +169,7 @@ func TestClient(t *testing.T) {
 	// Write '{"guest_attach":"available"}' to the settings file.
 	writeSettingsFile(lxdConfigFilepath, "", guestAttachSettingAvailable)
 	assert.Equal(t, guestAttachSettingAvailable, s.guestAttachSetting)
-	runAssertions(assertionsWhenHostHasGuestAttachmentAvailable)
+	runAssertions(assertionsWhenHostHasGuestAttachmentOnOrAvailable)
 
 	// Write '{"guest_attach":"off"}' to the settings file.
 	writeSettingsFile(lxdConfigFilepath, "", guestAttachSettingOff)
@@ -202,7 +179,7 @@ func TestClient(t *testing.T) {
 	// Write '{"guest_attach":"on"}' to the settings file.
 	writeSettingsFile(lxdConfigFilepath, "", guestAttachSettingOn)
 	assert.Equal(t, guestAttachSettingOn, s.guestAttachSetting)
-	runAssertions(assertionsWhenHostHasGuestAttachmentOn)
+	runAssertions(assertionsWhenHostHasGuestAttachmentOnOrAvailable)
 
 	// Write invalid JSON to the settings file.
 	writeSettingsFile(lxdConfigFilepath, "{{}\\foo", "")
@@ -212,7 +189,7 @@ func TestClient(t *testing.T) {
 	// Write '{"guest_attach":"on"}' to the settings file.
 	writeSettingsFile(lxdConfigFilepath, "", guestAttachSettingOn)
 	assert.Equal(t, guestAttachSettingOn, s.guestAttachSetting)
-	runAssertions(assertionsWhenHostHasGuestAttachmentOn)
+	runAssertions(assertionsWhenHostHasGuestAttachmentOnOrAvailable)
 
 	// Write an invalid setting to the settings file.
 	writeSettingsFile(lxdConfigFilepath, "", "foo")
@@ -222,7 +199,7 @@ func TestClient(t *testing.T) {
 	// Write '{"guest_attach":"on"}' to the settings file.
 	writeSettingsFile(lxdConfigFilepath, "", guestAttachSettingOn)
 	assert.Equal(t, guestAttachSettingOn, s.guestAttachSetting)
-	runAssertions(assertionsWhenHostHasGuestAttachmentOn)
+	runAssertions(assertionsWhenHostHasGuestAttachmentOnOrAvailable)
 
 	// Remove the config file.
 	err = os.Remove(lxdConfigFilepath)
@@ -243,7 +220,7 @@ func TestClient(t *testing.T) {
 	require.NoError(t, err)
 	sleep()
 	assert.Equal(t, guestAttachSettingOn, s.guestAttachSetting)
-	runAssertions(assertionsWhenHostHasGuestAttachmentOn)
+	runAssertions(assertionsWhenHostHasGuestAttachmentOnOrAvailable)
 
 	// Cancel the context.
 	cancel()
