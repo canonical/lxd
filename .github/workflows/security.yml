@@ -35,7 +35,7 @@ jobs:
         run: trivy fs --download-db-only --cache-dir /home/runner/vuln-cache
         continue-on-error: true
 
-      - name: Use previous downloaded database
+      - name: Use previously downloaded database
         if: ${{ steps.db_download.outcome == 'failure' }}
         uses: actions/cache/restore@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
         with:
