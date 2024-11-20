@@ -3,6 +3,8 @@ package drivers
 import (
 	"fmt"
 	"io"
+	"net/http"
+	"os"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -13,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
@@ -186,14 +189,83 @@ func (d *pure) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots
 	return err
 }
 
-// DeleteVolume deletes a volume of the storage device.
-// If any snapshots of the volume remain then this function will return an error.
+// DeleteVolume deletes the volume and all associated snapshots.
 func (d *pure) DeleteVolume(vol Volume, op *operations.Operation) error {
+	volExists, err := d.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if !volExists {
+		return nil
+	}
+
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return err
+	}
+
+	host, err := d.client().getCurrentHost()
+	if err != nil {
+		if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return err
+		}
+	} else {
+		// Dicsconnect the volume from the host.
+		err = d.client().disconnectHostFromVolume(vol.pool, volName, host.Name)
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return err
+		}
+	}
+
+	err = d.client().deleteVolume(vol.pool, volName)
+	if err != nil {
+		return err
+	}
+
+	// For VMs, also delete the filesystem volume.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+
+		err := d.DeleteVolume(fsVol, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	mountPath := vol.MountPath()
+
+	if vol.contentType == ContentTypeFS && shared.PathExists(mountPath) {
+		err := wipeDirectory(mountPath)
+		if err != nil {
+			return err
+		}
+
+		err = os.Remove(mountPath)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Failed to remove %q: %w", mountPath, err)
+		}
+	}
+
 	return nil
 }
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
 func (d *pure) HasVolume(vol Volume) (bool, error) {
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = d.client().getVolume(vol.pool, volName)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
 	return true, nil
 }
 
