@@ -2,21 +2,31 @@ package drivers
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/lxd/locking"
+	"github.com/canonical/lxd/lxd/resources"
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 // pureVolTypePrefixes maps volume type to storage volume name prefix.
@@ -117,10 +127,25 @@ type pureStoragePool struct {
 	IsDestroyed bool   `json:"destroyed"`
 }
 
+// pureVolume represents a volume in Pure Storage.
+type pureVolume struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	IsDestroyed bool   `json:"destroyed"`
+}
+
 // pureHost represents a host in Pure Storage.
 type pureHost struct {
-	Name            string `json:"name"`
-	ConnectionCount int    `json:"connection_count"`
+	Name            string   `json:"name"`
+	IQNs            []string `json:"iqns"`
+	ConnectionCount int      `json:"connection_count"`
+}
+
+// pureTarget represents a target in Pure Storage.
+// Note: Expand this struct if more fields, such as NQN, are needed in the future.
+type pureTarget struct {
+	IQN    *string `json:"iqn"`
+	Portal *string `json:"portal"`
 }
 
 // pureClient holds the Pure Storage HTTP client and an access token.
@@ -456,9 +481,43 @@ func (p *pureClient) getHosts() ([]pureHost, error) {
 	return resp.Items, nil
 }
 
-// createHost creates a new host that can be associated with specific volumes.
-func (p *pureClient) createHost(hostName string) error {
-	req, err := p.createBodyReader(map[string]any{})
+// getCurrentHost retrieves the Pure Storage host linked to the current LXD host.
+// The Pure Storage host is considered a match if it includes the fully qualified
+// name of the LXD host that is determined by the configured mode.
+func (p *pureClient) getCurrentHost() (*pureHost, error) {
+	qn, err := p.driver.hostQN()
+	if err != nil {
+		return nil, err
+	}
+
+	hosts, err := p.getHosts()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, host := range hosts {
+		if slices.Contains(host.IQNs, qn) {
+			return &host, nil
+		}
+	}
+
+	return nil, api.StatusErrorf(http.StatusNotFound, "Host with qualified name %q not found", qn)
+}
+
+// createHost creates a new host with provided initiator qualified names that can be associated
+// with specific volumes.
+func (p *pureClient) createHost(hostName string, qns []string) error {
+	body := make(map[string]any, 1)
+	mode := p.driver.config["pure.mode"]
+
+	switch mode {
+	case pureModeISCSI:
+		body["iqns"] = qns
+	default:
+		return fmt.Errorf("Unsupported Pure Storage mode %q", mode)
+	}
+
+	req, err := p.createBodyReader(body)
 	if err != nil {
 		return err
 	}
@@ -476,8 +535,18 @@ func (p *pureClient) createHost(hostName string) error {
 }
 
 // updateHost updates an existing host.
-func (p *pureClient) updateHost(hostName string) error {
-	req, err := p.createBodyReader(map[string]any{})
+func (p *pureClient) updateHost(hostName string, qns []string) error {
+	body := make(map[string]any, 1)
+	mode := p.driver.config["pure.mode"]
+
+	switch mode {
+	case pureModeISCSI:
+		body["iqns"] = qns
+	default:
+		return fmt.Errorf("Unsupported Pure Storage mode %q", mode)
+	}
+
+	req, err := p.createBodyReader(body)
 	if err != nil {
 		return err
 	}
@@ -531,6 +600,476 @@ func (p *pureClient) disconnectHostFromVolume(poolName string, volName string, h
 	return nil
 }
 
+// getTarget retrieves the Pure Storage address and the its qualified name for the configured mode.
+func (p *pureClient) getTarget() (targetAddr string, targetQN string, err error) {
+	var resp pureResponse[pureTarget]
+
+	err = p.requestAuthenticated(http.MethodGet, "/ports", nil, &resp)
+	if err != nil {
+		return "", "", fmt.Errorf("Failed to retrieve Pure Storage targets: %w", err)
+	}
+
+	mode := p.driver.config["pure.mode"]
+
+	// Find and return the target that has address (portal) and qualified name configured.
+	for _, target := range resp.Items {
+		if target.Portal == nil {
+			continue
+		}
+
+		// Strip the port from the portal address.
+		portal := strings.Split(*target.Portal, ":")[0]
+
+		if mode == pureModeISCSI && target.IQN != nil {
+			return portal, *target.IQN, nil
+		}
+	}
+
+	return "", "", api.StatusErrorf(http.StatusNotFound, "No Pure Storage target found")
+}
+
+// ensureHost returns a name of the host that is configured with a given IQN. If such host
+// does not exist, a new one is created, where host's name equals to the server name with a
+// mode included as a suffix because Pure Storage does not allow mixing IQNs, NQNs, and WWNs
+// on a single host.
+func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
+	var hostname string
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Get the qualified name of the host.
+	qn, err := d.hostQN()
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Fetch an existing Pure Storage host.
+	host, err := d.client().getCurrentHost()
+	if err != nil {
+		if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return "", nil, err
+		}
+
+		// The Pure Storage host with a qualified name of the current LXD host does not exist.
+		// Therefore, create a new one and name it after the server name.
+		serverName, err := d.serverName()
+		if err != nil {
+			return "", nil, err
+		}
+
+		// Append the mode to the server name because Pure Storage does not allow mixing
+		// NQNs, IQNs, and WWNs for a single host.
+		hostname = serverName + "-" + d.config["pure.mode"]
+
+		err = d.client().createHost(hostname, []string{qn})
+		if err != nil {
+			if !api.StatusErrorCheck(err, http.StatusConflict) {
+				return "", nil, err
+			}
+
+			// The host with the given name already exists, update it instead.
+			err = d.client().updateHost(hostname, []string{qn})
+			if err != nil {
+				return "", nil, err
+			}
+		} else {
+			revert.Add(func() { _ = d.client().deleteHost(hostname) })
+		}
+	} else {
+		// Hostname already exists with the given IQN.
+		hostname = host.Name
+	}
+
+	cleanup = revert.Clone().Fail
+	revert.Success()
+	return hostname, cleanup, nil
+}
+
+// connect connects this host with the PureStorge array. Note that the connection can only
+// be established when at least one volume is mapped with the corresponding Pure Storage host.
+// The operation is idempotent and returns nil if already connected to the subsystem.
+func (d *pure) connect() (revert.Hook, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Find the array's qualified name for the configured mode.
+	targetAddr, targetQN, err := d.client().getTarget()
+	if err != nil {
+		return nil, err
+	}
+
+	switch d.config["pure.mode"] {
+	case pureModeISCSI:
+		// Try to find an existing iSCSI session.
+		sessionID, err := iscsiFindSession(targetQN)
+		if err != nil {
+			return nil, err
+		}
+
+		if sessionID != "" {
+			// Already connected to the Pure Storage array via iSCSI.
+			// Rescan the session to ensure new volumes are detected.
+			_, err := shared.RunCommand("iscsiadm", "--mode", "session", "--sid", sessionID, "--rescan")
+			if err != nil {
+				return nil, err
+			}
+
+			cleanup := revert.Clone().Fail
+			revert.Success()
+			return cleanup, nil
+		}
+
+		// Discover iSCSI targets.
+		_, _, err = shared.RunCommandSplit(d.state.ShutdownCtx, nil, nil, "iscsiadm", "--mode", "discovery", "--type", "sendtargets", "--portal", targetAddr)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to discover Pure Storage targets on %q via iSCSI: %w", targetAddr, err)
+		}
+
+		// Attempt to login into discovered iSCSI targets.
+		_, _, err = shared.RunCommandSplit(d.state.ShutdownCtx, nil, nil, "iscsiadm", "--mode", "node", "--targetname", targetQN, "--portal", targetAddr, "--login")
+		if err != nil {
+			return nil, fmt.Errorf("Failed to connect to Pure Storage array %q via iSCSI: %w", targetAddr, err)
+		}
+
+	default:
+		return nil, fmt.Errorf("Unsupported Pure Storage mode %q", d.config["pure.mode"])
+	}
+
+	revert.Add(func() { _ = d.disconnect(targetQN) })
+
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return cleanup, nil
+}
+
+// disconnect disconnects this host from the given target with a given qualified name.
+func (d *pure) disconnect(targetQN string) error {
+	switch d.config["pure.mode"] {
+	case pureModeISCSI:
+		sessionID, err := iscsiFindSession(targetQN)
+		if err != nil {
+			return err
+		}
+
+		if sessionID != "" {
+			// Disconnect from the iSCSI target.
+			_, err := shared.RunCommand("iscsiadm", "--mode", "node", "--targetname", targetQN, "--logout")
+			if err != nil {
+				return fmt.Errorf("Failed disconnecting from Pure Storage iSCSI target %q: %w", targetQN, err)
+			}
+		}
+	default:
+		return fmt.Errorf("Unsupported Pure Storage mode %q", d.config["pure.mode"])
+	}
+
+	return nil
+}
+
+// mapVolume maps the given volume onto this host.
+func (d *pure) mapVolume(vol Volume) error {
+	revert := revert.New()
+	defer revert.Fail()
+
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return err
+	}
+
+	unlock, err := locking.Lock(d.state.ShutdownCtx, d.config["pure.mode"])
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	// Ensure the host exists and is configured with the correct QN.
+	hostname, cleanup, err := d.ensureHost()
+	if err != nil {
+		return err
+	}
+
+	revert.Add(cleanup)
+
+	// Ensure the volume is connected to the host.
+	connCreated, err := d.client().connectHostToVolume(vol.pool, volName, hostname)
+	if err != nil {
+		return err
+	}
+
+	if connCreated {
+		revert.Add(func() { _ = d.client().disconnectHostFromVolume(vol.pool, volName, hostname) })
+	}
+
+	// Connect to the array.
+	cleanup, err = d.connect()
+	if err != nil {
+		return err
+	}
+
+	revert.Add(cleanup)
+
+	revert.Success()
+	return nil
+}
+
+// unmapVolume unmaps the given volume from this host.
+func (d *pure) unmapVolume(vol Volume) error {
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return err
+	}
+
+	unlock, err := locking.Lock(d.state.ShutdownCtx, d.config["pure.mode"])
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	host, err := d.client().getCurrentHost()
+	if err != nil {
+		return err
+	}
+
+	// Disconnect the volume from the host and ignore error if connection does not exist.
+	err = d.client().disconnectHostFromVolume(vol.pool, volName, host.Name)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return err
+	}
+
+	volumePath, _, _ := d.getMappedDevPath(vol, false)
+	if volumePath != "" {
+		if d.config["pure.mode"] == pureModeISCSI {
+			// When volume is disconnected from the host, the device will remain on the system.
+			//
+			// To remove the device, we need to either logout from the session or remove the
+			// device manually. Logging out of the session is not desired as it would disconnect
+			// from all connected volumes. Therefore, we need to manually remove the device.
+			split := strings.Split(filepath.Base(volumePath), "/")
+			devName := split[len(split)-1]
+
+			path := fmt.Sprintf("/sys/block/%s/device/delete", devName)
+			if shared.PathExists(path) {
+				err := os.WriteFile(path, []byte("1"), 0400)
+				if err != nil {
+					return fmt.Errorf("Failed to unmap volume %q: Failed to remove device %q: %w", vol.name, devName, err)
+				}
+			}
+		}
+
+		// Wait until the volume has disappeared.
+		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 10*time.Second)
+		defer cancel()
+
+		if !waitGone(ctx, volumePath) {
+			return fmt.Errorf("Timeout exceeded waiting for Pure Storage volume %q to disappear on path %q", vol.name, volumePath)
+		}
+	}
+
+	// If this was the last volume being unmapped from this system, terminate iSCSI session
+	// and remove the host from Pure Storage.
+	if host.ConnectionCount == 1 {
+		_, targetQN, err := d.client().getTarget()
+		if err != nil {
+			return err
+		}
+
+		// Disconnect from the target.
+		err = d.disconnect(targetQN)
+		if err != nil {
+			return err
+		}
+
+		// Remove the host from Pure Storage.
+		err = d.client().deleteHost(host.Name)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// getMappedDevPath returns the local device path for the given volume.
+// Indicate with mapVolume if the volume should get mapped to the system if it isn't present.
+func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
+	if mapVolume {
+		err := d.mapVolume(vol)
+		if err != nil {
+			return "", nil, err
+		}
+
+		revert.Add(func() { _ = d.unmapVolume(vol) })
+	}
+
+	// findDevPathFunc has to be called in a loop with a set timeout to ensure
+	// all the necessary directories and devices can be discovered.
+	findDevPathFunc := func(diskPrefix string, diskSuffix string) (string, error) {
+		var diskPaths []string
+
+		// If there are no other disks on the system by id, the directory might not even be there.
+		// Returns ENOENT in case the by-id/ directory does not exist.
+		diskPaths, err := resources.GetDisksByID(diskPrefix)
+		if err != nil {
+			return "", err
+		}
+
+		for _, diskPath := range diskPaths {
+			// Skip the disk if it is only a partition of the actual volume.
+			if strings.Contains(diskPath, "-part") {
+				continue
+			}
+
+			// Skip volumes that do not have volume's pool and name suffix.
+			if !strings.HasSuffix(diskPath, diskSuffix) {
+				continue
+			}
+
+			// The actual device might not already be created.
+			// Returns ENOENT in case the device does not exist.
+			devPath, err := filepath.EvalSymlinks(diskPath)
+			if err != nil {
+				return "", err
+			}
+
+			return devPath, nil
+		}
+
+		return "", nil
+	}
+
+	var volumeDevPath string
+	var diskPrefix string
+	var diskSuffix string
+
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return "", nil, err
+	}
+
+	switch d.config["pure.mode"] {
+	case pureModeISCSI:
+		diskPrefix = "scsi-"
+		diskSuffix = fmt.Sprintf("%s::%s", vol.pool, volName)
+	default:
+		return "", nil, fmt.Errorf("Unsupported Pure Storage mode %q", d.config["pure.mode"])
+	}
+
+	ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
+	defer cancel()
+
+	// It might take a while to create the local disk.
+	// Retry until it can be found.
+	for {
+		if ctx.Err() != nil {
+			return "", nil, fmt.Errorf("Failed to locate device for volume %q: %v", vol.name, ctx.Err())
+		}
+
+		devPath, err := findDevPathFunc(diskPrefix, diskSuffix)
+		if err != nil {
+			// Try again if one of the directories cannot be found.
+			if errors.Is(err, unix.ENOENT) {
+				continue
+			}
+
+			return "", nil, err
+		}
+
+		if devPath != "" {
+			volumeDevPath = devPath
+			break
+		}
+
+		// Exit if the volume wasn't explicitly mapped.
+		// Doing a retry would run into the timeout when the device isn't mapped.
+		if !mapVolume {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	if volumeDevPath == "" {
+		return "", nil, fmt.Errorf("Failed to locate device for volume %q", vol.name)
+	}
+
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return volumeDevPath, cleanup, nil
+}
+
+// iscsiFindSession returns the iSCSI session ID corresponding to the given IQN.
+// If the session is not found, an empty string is returned.
+func iscsiFindSession(iqn string) (string, error) {
+	// Base path for iSCSI sessions.
+	basePath := "/sys/class/iscsi_session"
+
+	// Retrieve list of existing iSCSI sessions.
+	sessions, err := os.ReadDir(basePath)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			// No active sessions.
+			return "", nil
+		}
+
+		return "", fmt.Errorf("Failed getting a list of existing iSCSI sessions: %w", err)
+	}
+
+	for _, session := range sessions {
+		// Get the target IQN of the iSCSI session.
+		iqnBytes, err := os.ReadFile(filepath.Join(basePath, session.Name(), "targetname"))
+		if err != nil {
+			return "", fmt.Errorf("Failed getting the target IQN for session %q: %w", session, err)
+		}
+
+		sessionIQN := strings.TrimSpace(string(iqnBytes))
+		sessionID := strings.TrimPrefix(session.Name(), "session")
+
+		if iqn == sessionIQN {
+			// Already connected to the Pure Storage array via iSCSI.
+			return sessionID, nil
+		}
+	}
+
+	return "", nil
+}
+
+// hostQN returns the qualified name for the current host based on the configured mode.
+func (d *pure) hostQN() (string, error) {
+	switch d.config["pure.mode"] {
+	case pureModeISCSI:
+		// Get the unique iSCSI Qualified Name (IQN) of the host. The iscsiadm
+		// does not allow providing the IQN directly, so we need to extract it
+		// from the /etc/iscsi/initiatorname.iscsi file on the host.
+		filename := shared.HostPath("/etc/iscsi/initiatorname.iscsi")
+		if !shared.PathExists(filename) {
+			return "", fmt.Errorf("Failed to extract host IQN: File %q does not exist", filename)
+		}
+
+		content, err := os.ReadFile(filename)
+		if err != nil {
+			return "", err
+		}
+
+		// Find the IQN line in the file.
+		lines := strings.Split(string(content), "\n")
+		for _, line := range lines {
+			iqn, ok := strings.CutPrefix(line, "InitiatorName=")
+			if ok {
+				return iqn, nil
+			}
+		}
+
+		return "", fmt.Errorf(`Failed to extract host IQN: File %q does not contain "InitiatorName"`, filename)
+	default:
+		return "", fmt.Errorf("Unsupported Pure Storage mode %q", d.config["pure.mode"])
+	}
+}
+
 // serverName returns the hostname of this host. It prefers the value from the daemons state
 // in case LXD is clustered.
 func (d *pure) serverName() (string, error) {
@@ -574,4 +1113,10 @@ func (d *pure) getVolumeName(vol Volume) (string, error) {
 	}
 
 	return volName, nil
+}
+
+// loadISCSIModules loads the iSCSI kernel modules.
+// Returns true if the modules can be loaded.
+func (d *pure) loadISCSIModules() bool {
+	return util.LoadModule("iscsi_tcp") == nil
 }
