@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -9,20 +10,32 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/canonical/lxd/lxd/storage/block"
+	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 // pureAPIVersion is the Pure Storage API version used by LXD.
 // The 2.21 version is the first version that supports NVMe/TCP.
 const pureAPIVersion = "2.21"
+
+// pureServiceNameMapping maps Pure Storage mode in LXD to the corresponding Pure Storage
+// service name.
+var pureServiceNameMapping = map[string]string{
+	connectors.TypeISCSI: "iscsi",
+}
 
 // pureVolTypePrefixes maps volume type to storage volume name prefix.
 // Use smallest possible prefixes since Pure Storage volume names are limited to 63 characters.
@@ -130,10 +143,25 @@ type pureStoragePool struct {
 	IsDestroyed bool   `json:"destroyed"`
 }
 
+// pureVolume represents a volume in Pure Storage.
+type pureVolume struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	IsDestroyed bool   `json:"destroyed"`
+}
+
 // pureHost represents a host in Pure Storage.
 type pureHost struct {
-	Name            string `json:"name"`
-	ConnectionCount int    `json:"connection_count"`
+	Name            string   `json:"name"`
+	IQNs            []string `json:"iqns"`
+	ConnectionCount int      `json:"connection_count"`
+}
+
+// purePort represents a port in Pure Storage.
+type purePort struct {
+	Name string `json:"name"`
+	IQN  string `json:"iqn,omitempty"`
+	NQN  string `json:"nqn,omitempty"`
 }
 
 // pureClient holds the Pure Storage HTTP client and an access token.
@@ -505,9 +533,52 @@ func (p *pureClient) getHosts() ([]pureHost, error) {
 	return resp.Items, nil
 }
 
-// createHost creates a new host that can be associated with specific volumes.
-func (p *pureClient) createHost(hostName string) error {
-	req, err := p.createBodyReader(map[string]any{})
+// getCurrentHost retrieves the Pure Storage host linked to the current LXD host.
+// The Pure Storage host is considered a match if it includes the fully qualified
+// name of the LXD host that is determined by the configured mode.
+func (p *pureClient) getCurrentHost() (*pureHost, error) {
+	connector, err := p.driver.connector()
+	if err != nil {
+		return nil, err
+	}
+
+	qn, err := connector.QualifiedName()
+	if err != nil {
+		return nil, err
+	}
+
+	hosts, err := p.getHosts()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, host := range hosts {
+		if slices.Contains(host.IQNs, qn) {
+			return &host, nil
+		}
+	}
+
+	return nil, api.StatusErrorf(http.StatusNotFound, "Host with qualified name %q not found", qn)
+}
+
+// createHost creates a new host with provided initiator qualified names that can be associated
+// with specific volumes.
+func (p *pureClient) createHost(hostName string, qns []string) error {
+	body := make(map[string]any, 1)
+
+	connector, err := p.driver.connector()
+	if err != nil {
+		return err
+	}
+
+	switch connector.Type() {
+	case connectors.TypeISCSI:
+		body["iqns"] = qns
+	default:
+		return fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
+	}
+
+	req, err := p.createBodyReader(body)
 	if err != nil {
 		return err
 	}
@@ -526,8 +597,22 @@ func (p *pureClient) createHost(hostName string) error {
 }
 
 // updateHost updates an existing host.
-func (p *pureClient) updateHost(hostName string) error {
-	req, err := p.createBodyReader(map[string]any{})
+func (p *pureClient) updateHost(hostName string, qns []string) error {
+	body := make(map[string]any, 1)
+
+	connector, err := p.driver.connector()
+	if err != nil {
+		return err
+	}
+
+	switch connector.Type() {
+	case connectors.TypeISCSI:
+		body["iqns"] = qns
+	default:
+		return fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
+	}
+
+	req, err := p.createBodyReader(body)
 	if err != nil {
 		return err
 	}
@@ -585,6 +670,366 @@ func (p *pureClient) disconnectHostFromVolume(poolName string, volName string, h
 	}
 
 	return nil
+}
+
+// getTarget retrieves the qualified name and addresses of Pure Storage target for the configured mode.
+func (p *pureClient) getTarget() (targetQN string, targetAddrs []string, err error) {
+	connector, err := p.driver.connector()
+	if err != nil {
+		return "", nil, err
+	}
+
+	mode := connector.Type()
+
+	// Get Pure Storage service name based on the configured mode.
+	service, ok := pureServiceNameMapping[mode]
+	if !ok {
+		return "", nil, fmt.Errorf("Failed to determine service name for Pure Storage mode %q", mode)
+	}
+
+	// Retrieve the list of Pure Storage network interfaces.
+	interfaces, err := p.getNetworkInterfaces(service)
+	if err != nil {
+		return "", nil, err
+	}
+
+	if len(interfaces) == 0 {
+		return "", nil, api.StatusErrorf(http.StatusNotFound, "Enabled network interface with %q service not found", service)
+	}
+
+	targetAddrs = make([]string, 0, len(interfaces))
+	for _, iface := range interfaces {
+		targetAddrs = append(targetAddrs, iface.Ethernet.Address)
+	}
+
+	// Get the qualified name of the target by iterating over the available
+	// ports until the one with the qualified name is found. All ports have
+	// the same IQN, but it may happen that IQN is not reported for a
+	// specific port, for example, if the port is misconfigured.
+	var nq string
+	for _, iface := range interfaces {
+		var resp pureResponse[purePort]
+
+		url := api.NewURL().Path("ports").WithQuery("filter", "name='"+iface.Name+"'")
+		err = p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+		if err != nil {
+			return "", nil, fmt.Errorf("Failed to retrieve Pure Storage targets: %w", err)
+		}
+
+		if len(resp.Items) == 0 {
+			continue
+		}
+
+		port := resp.Items[0]
+
+		if mode == connectors.TypeISCSI {
+			nq = port.IQN
+		}
+
+		if nq != "" {
+			break
+		}
+	}
+
+	if nq == "" {
+		return "", nil, api.StatusErrorf(http.StatusNotFound, "Qualified name for %q target not found", mode)
+	}
+
+	return nq, targetAddrs, nil
+}
+
+// ensureHost returns a name of the host that is configured with a given IQN. If such host
+// does not exist, a new one is created, where host's name equals to the server name with a
+// mode included as a suffix because Pure Storage does not allow mixing IQNs, NQNs, and WWNs
+// on a single host.
+func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
+	var hostname string
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	connector, err := d.connector()
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Get the qualified name of the host.
+	qn, err := connector.QualifiedName()
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Fetch an existing Pure Storage host.
+	host, err := d.client().getCurrentHost()
+	if err != nil {
+		if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return "", nil, err
+		}
+
+		// The Pure Storage host with a qualified name of the current LXD host does not exist.
+		// Therefore, create a new one and name it after the server name.
+		serverName, err := ResolveServerName(d.state.ServerName)
+		if err != nil {
+			return "", nil, err
+		}
+
+		// Append the mode to the server name because Pure Storage does not allow mixing
+		// NQNs, IQNs, and WWNs for a single host.
+		hostname = serverName + "-" + connector.Type()
+
+		err = d.client().createHost(hostname, []string{qn})
+		if err != nil {
+			if !api.StatusErrorCheck(err, http.StatusConflict) {
+				return "", nil, err
+			}
+
+			// The host with the given name already exists, update it instead.
+			err = d.client().updateHost(hostname, []string{qn})
+			if err != nil {
+				return "", nil, err
+			}
+		} else {
+			revert.Add(func() { _ = d.client().deleteHost(hostname) })
+		}
+	} else {
+		// Hostname already exists with the given IQN.
+		hostname = host.Name
+	}
+
+	cleanup = revert.Clone().Fail
+	revert.Success()
+	return hostname, cleanup, nil
+}
+
+// mapVolume maps the given volume onto this host.
+func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	connector, err := d.connector()
+	if err != nil {
+		return nil, err
+	}
+
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return nil, err
+	}
+
+	unlock, err := remoteVolumeMapLock(connector.Type(), "pure")
+	if err != nil {
+		return nil, err
+	}
+
+	defer unlock()
+
+	// Ensure the host exists and is configured with the correct QN.
+	hostname, cleanup, err := d.ensureHost()
+	if err != nil {
+		return nil, err
+	}
+
+	reverter.Add(cleanup)
+
+	// Ensure the volume is connected to the host.
+	connCreated, err := d.client().connectHostToVolume(vol.pool, volName, hostname)
+	if err != nil {
+		return nil, err
+	}
+
+	if connCreated {
+		reverter.Add(func() { _ = d.client().disconnectHostFromVolume(vol.pool, volName, hostname) })
+	}
+
+	// Find the array's qualified name for the configured mode.
+	targetQN, targetAddrs, err := d.client().getTarget()
+	if err != nil {
+		return nil, err
+	}
+
+	// Connect to the array.
+	connReverter, err := connector.Connect(d.state.ShutdownCtx, targetQN, targetAddrs...)
+	if err != nil {
+		return nil, err
+	}
+
+	reverter.Add(connReverter)
+
+	// If connect succeeded it means we have at least one established connection.
+	// However, it's reverter does not cleanup the establised connections or a newly
+	// created session. Therefore, if we created a mapping, add unmapVolume to the
+	// returned (outer) reverter. Unmap ensures the target is disconnected only when
+	// no other device is using it.
+	outerReverter := revert.New()
+	if !connCreated {
+		outerReverter.Add(func() { _ = d.unmapVolume(vol) })
+	}
+
+	// Add connReverter to the outer reverter, as it will immediately stop
+	// any ongoing connection attempts. Note that it must be added after
+	// unmapVolume to ensure it is called first.
+	outerReverter.Add(connReverter)
+
+	reverter.Success()
+	return outerReverter.Fail, nil
+}
+
+// unmapVolume unmaps the given volume from this host.
+func (d *pure) unmapVolume(vol Volume) error {
+	connector, err := d.connector()
+	if err != nil {
+		return err
+	}
+
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return err
+	}
+
+	unlock, err := remoteVolumeMapLock(connector.Type(), "pure")
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	host, err := d.client().getCurrentHost()
+	if err != nil {
+		return err
+	}
+
+	// Disconnect the volume from the host and ignore error if connection does not exist.
+	err = d.client().disconnectHostFromVolume(vol.pool, volName, host.Name)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return err
+	}
+
+	volumePath, _, _ := d.getMappedDevPath(vol, false)
+	if volumePath != "" {
+		// When iSCSI volume is disconnected from the host, the device will remain on the system.
+		//
+		// To remove the device, we need to either logout from the session or remove the
+		// device manually. Logging out of the session is not desired as it would disconnect
+		// from all connected volumes. Therefore, we need to manually remove the device.
+		if connector.Type() == connectors.TypeISCSI {
+			// removeDevice removes device from the system if the device is removable.
+			removeDevice := func(devName string) error {
+				path := fmt.Sprintf("/sys/block/%s/device/delete", devName)
+				if shared.PathExists(path) {
+					// Delete device.
+					err := os.WriteFile(path, []byte("1"), 0400)
+					if err != nil {
+						return err
+					}
+				}
+
+				return nil
+			}
+
+			devName := filepath.Base(volumePath)
+			err := removeDevice(devName)
+			if err != nil {
+				return fmt.Errorf("Failed to unmap volume %q: Failed to remove device %q: %w", vol.name, devName, err)
+			}
+		}
+
+		// Wait until the volume has disappeared.
+		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
+		defer cancel()
+
+		if !block.WaitDiskDeviceGone(ctx, volumePath) {
+			return fmt.Errorf("Timeout exceeded waiting for Pure Storage volume %q to disappear on path %q", vol.name, volumePath)
+		}
+	}
+
+	// If this was the last volume being unmapped from this system, terminate iSCSI session
+	// and remove the host from Pure Storage.
+	if host.ConnectionCount <= 1 {
+		targetQN, _, err := d.client().getTarget()
+		if err != nil {
+			return err
+		}
+
+		// Disconnect from the target.
+		err = connector.Disconnect(targetQN)
+		if err != nil {
+			return err
+		}
+
+		// Remove the host from Pure Storage.
+		err = d.client().deleteHost(host.Name)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// getMappedDevPath returns the local device path for the given volume.
+// Indicate with mapVolume if the volume should get mapped to the system if it isn't present.
+func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
+	connector, err := d.connector()
+	if err != nil {
+		return "", nil, err
+	}
+
+	if mapVolume {
+		cleanup, err := d.mapVolume(vol)
+		if err != nil {
+			return "", nil, err
+		}
+
+		revert.Add(cleanup)
+	}
+
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return "", nil, err
+	}
+
+	pureVol, err := d.client().getVolume(vol.pool, volName)
+	if err != nil {
+		return "", nil, err
+	}
+
+	var diskPrefix string
+	var diskSuffix string
+
+	switch connector.Type() {
+	case connectors.TypeISCSI:
+		diskPrefix = "scsi-"
+		diskSuffix = pureVol.Serial
+	default:
+		return "", nil, fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
+	}
+
+	// Filters devices by matching the device path with the lowercase disk suffix.
+	// Pure Storage reports serial numbers in uppercase, so the suffix is converted
+	// to lowercase.
+	diskPathFilter := func(devPath string) bool {
+		return strings.HasSuffix(devPath, strings.ToLower(diskSuffix))
+	}
+
+	var devicePath string
+	if mapVolume {
+		// Wait until the disk device is mapped to the host.
+		devicePath, err = block.WaitDiskDevicePath(d.state.ShutdownCtx, diskPrefix, diskPathFilter)
+	} else {
+		// Expect device to be already mapped.
+		devicePath, err = block.GetDiskDevicePath(diskPrefix, diskPathFilter)
+	}
+
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed to locate device for volume %q: %w", vol.name, err)
+	}
+
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return devicePath, cleanup, nil
 }
 
 // getVolumeName returns the fully qualified name derived from the volume's UUID.
