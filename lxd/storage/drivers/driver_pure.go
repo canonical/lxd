@@ -1,9 +1,15 @@
 package drivers
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/revert"
+	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
 )
 
@@ -121,6 +127,24 @@ func (d *pure) Create() error {
 		return err
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
+	poolSizeBytes, err := units.ParseByteSizeString(d.config["size"])
+	if err != nil {
+		return fmt.Errorf("Failed to parse storage size (quota limit): %w", err)
+	}
+
+	// Create the storage pool.
+	err = d.client().createStoragePool(d.name, poolSizeBytes)
+	if err != nil {
+		return fmt.Errorf("Failed to create storage pool: %w", err)
+	}
+
+	revert.Add(func() { _ = d.client().deleteStoragePool(d.name) })
+
+	revert.Success()
+
 	return nil
 }
 
@@ -131,7 +155,19 @@ func (d *pure) Update(changedConfig map[string]string) error {
 
 // Delete removes the storage pool (PureStorage Pod).
 func (d *pure) Delete(op *operations.Operation) error {
-	return nil
+	// First delete the storage pool on PureStorage.
+	err := d.client().deleteStoragePool(d.name)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return err
+	}
+
+	// If the user completely destroyed it, call it done.
+	if !shared.PathExists(GetPoolMountPath(d.name)) {
+		return nil
+	}
+
+	// On delete, wipe everything in the directory.
+	return wipeDirectory(GetPoolMountPath(d.name))
 }
 
 // Mount mounts the storage pool.
