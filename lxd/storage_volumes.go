@@ -2686,8 +2686,18 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 	// Defer function to set the details in the request context. This is because we can return early in certain
 	// optimisations and ensures the details are always set.
 	defer func() {
+		// Check if the pool is remote or not.
+		// Check for nil in case there was an error.
+		var remote bool
+		if details.pool != nil {
+			driver := details.pool.Driver()
+			if driver != nil {
+				remote = driver.Info().Remote
+			}
+		}
+
 		// Only set the location if the pool is not remote.
-		if details.pool.Driver() != nil && !details.pool.Driver().Info().Remote {
+		if !remote {
 			details.location = location
 		}
 
