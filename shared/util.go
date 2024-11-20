@@ -216,12 +216,12 @@ func HostPath(path string) string {
 
 	// Check if the path is already snap-aware
 	for _, prefix := range []string{"/dev", "/snap", "/var/snap", "/var/lib/snapd"} {
-		if path == prefix || strings.HasPrefix(path, fmt.Sprintf("%s/", prefix)) {
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
 			return path
 		}
 	}
 
-	return fmt.Sprintf("/var/lib/snapd/hostfs%s", path)
+	return "/var/lib/snapd/hostfs" + path
 }
 
 // VarPath returns the provided path elements joined by a slash and
@@ -924,7 +924,7 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 			return []byte{}, err
 		}
 
-		path = fmt.Sprintf("%s.yaml", f.Name())
+		path = f.Name() + ".yaml"
 		err = os.Rename(f.Name(), path)
 		if err != nil {
 			return []byte{}, err
@@ -1193,9 +1193,9 @@ func SetProgressMetadata(metadata map[string]any, stage, displayPrefix string, p
 			metadata[stage+"_progress"] = fmt.Sprintf("%s: %d%%", displayPrefix, percent)
 		}
 	} else if processed > 0 {
-		metadata[stage+"_progress"] = fmt.Sprintf("%s: %s (%s/s)", displayPrefix, units.GetByteSizeString(processed, 2), units.GetByteSizeString(speed, 2))
+		metadata[stage+"_progress"] = displayPrefix + ": " + units.GetByteSizeString(processed, 2) + " (" + units.GetByteSizeString(speed, 2) + "/s)"
 	} else {
-		metadata[stage+"_progress"] = fmt.Sprintf("%s: %s/s", displayPrefix, units.GetByteSizeString(speed, 2))
+		metadata[stage+"_progress"] = displayPrefix + ": " + units.GetByteSizeString(speed, 2) + "/s"
 	}
 }
 
