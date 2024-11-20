@@ -3,9 +3,11 @@ package drivers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/revert"
@@ -19,8 +21,17 @@ var pureLoaded = false
 // pureVersion indicates Pure Storage version.
 var pureVersion = ""
 
+// pureSupportedConnectors represents a list of storage connectors that can be used with Pure Storage.
+var pureSupportedConnectors = []string{
+	connectors.TypeISCSI,
+}
+
 type pure struct {
 	common
+
+	// Holds the low level connector for the Pure Storage driver.
+	// Use pure.connector() to retrieve the initialized connector.
+	storageConnector connectors.Connector
 
 	// Holds the low level HTTP client for the Pure Storage API.
 	// Use pure.client() to retrieve the client struct.
@@ -37,8 +48,34 @@ func (d *pure) load() error {
 		return nil
 	}
 
+	versions := connectors.GetSupportedVersions(pureSupportedConnectors)
+	pureVersion = strings.Join(versions, " / ")
 	pureLoaded = true
+
+	// Load the kernel modules of the respective connector, ignoring those that cannot be loaded.
+	// Support for a specific connector is checked during pool creation. However, this
+	// ensures that the kernel modules are loaded, even if the host has been rebooted.
+	connector, err := d.connector()
+	if err == nil {
+		_ = connector.LoadModules()
+	}
+
 	return nil
+}
+
+// connector retrieves an initialized storage connector based on the configured
+// Pure Storage mode. The connector is cached in the driver struct.
+func (d *pure) connector() (connectors.Connector, error) {
+	if d.storageConnector == nil {
+		connector, err := connectors.NewConnector(d.config["pure.mode"], d.state.ServerUUID)
+		if err != nil {
+			return nil, err
+		}
+
+		d.storageConnector = connector
+	}
+
+	return d.storageConnector, nil
 }
 
 // client returns the drivers Pure Storage client. A new client is created only if it does not already exist.
@@ -103,6 +140,13 @@ func (d *pure) Validate(config map[string]string) error {
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to verify the Pure Storage gateway's certificate
 		"pure.gateway.verify": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.mode)
+		// The mode to use to map Pure Storage volumes to the local server.
+		// ---
+		//  type: string
+		//  defaultdesc: the discovered mode
+		//  shortdesc: How volumes are mapped to the local server
+		"pure.mode": validate.Optional(validate.IsOneOf(pureSupportedConnectors...)),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=volume.size)
 		// Default Pure Storage volume size rounded to 512B. The minimum size is 1MiB.
 		// ---
@@ -115,6 +159,33 @@ func (d *pure) Validate(config map[string]string) error {
 	err := d.validatePool(config, rules, d.commonVolumeRules())
 	if err != nil {
 		return err
+	}
+
+	newMode := config["pure.mode"]
+	oldMode := d.config["pure.mode"]
+
+	// Ensure pure.mode cannot be changed to avoid leaving volume mappings
+	// and prevent disturbing running instances.
+	if oldMode != "" && oldMode != newMode {
+		return fmt.Errorf("Pure Storage mode cannot be changed")
+	}
+
+	// Check if the selected Pure Storage mode is supported on this node.
+	// Also when forming the storage pool on a LXD cluster, the mode
+	// that got discovered on the creating machine needs to be validated
+	// on the other cluster members too. This can be done here since Validate
+	// gets executed on every cluster member when receiving the cluster
+	// notification to finally create the pool.
+	if newMode != "" {
+		connector, err := connectors.NewConnector(newMode, "")
+		if err != nil {
+			return fmt.Errorf("Pure Storage mode %q is not supported: %w", newMode, err)
+		}
+
+		err = connector.LoadModules()
+		if err != nil {
+			return fmt.Errorf("Pure Storage mode %q is not supported due to missing kernel modules: %w", newMode, err)
+		}
 	}
 
 	return nil
