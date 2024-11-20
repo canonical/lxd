@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-10-18 15:21-0500\n"
+"POT-Creation-Date: 2024-11-18 20:34-0300\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -1042,7 +1042,7 @@ msgstr "Architektur: %s\n"
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
 
-#: lxc/console.go:392
+#: lxc/console.go:402
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -1083,12 +1083,12 @@ msgstr "Netzwerkschnittstellen an Container anbinden"
 msgid "Attach new storage volumes to profiles"
 msgstr ""
 
-#: lxc/console.go:36
+#: lxc/console.go:39
 #, fuzzy
 msgid "Attach to instance consoles"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/console.go:37
+#: lxc/console.go:40
 msgid ""
 "Attach to instance consoles\n"
 "\n"
@@ -2032,7 +2032,7 @@ msgstr ""
 #: lxc/config_template.go:273 lxc/config_template.go:341 lxc/config_trust.go:34
 #: lxc/config_trust.go:87 lxc/config_trust.go:236 lxc/config_trust.go:350
 #: lxc/config_trust.go:432 lxc/config_trust.go:534 lxc/config_trust.go:580
-#: lxc/config_trust.go:651 lxc/console.go:37 lxc/copy.go:42 lxc/delete.go:32
+#: lxc/config_trust.go:651 lxc/console.go:40 lxc/copy.go:42 lxc/delete.go:32
 #: lxc/exec.go:41 lxc/export.go:32 lxc/file.go:88 lxc/file.go:135
 #: lxc/file.go:321 lxc/file.go:378 lxc/file.go:456 lxc/file.go:689
 #: lxc/file.go:1208 lxc/image.go:38 lxc/image.go:159 lxc/image.go:337
@@ -2669,7 +2669,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Failed parsing SSH host key: %w"
 msgstr "Akzeptiere Zertifikat"
 
-#: lxc/console.go:370
+#: lxc/console.go:380
 #, fuzzy, c-format
 msgid "Failed starting command: %w"
 msgstr "Akzeptiere Zertifikat"
@@ -3494,7 +3494,7 @@ msgstr ""
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/console.go:391
+#: lxc/console.go:401
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
@@ -4791,6 +4791,11 @@ msgstr ""
 msgid "No matching rule(s) found"
 msgstr ""
 
+#: lxc/warning.go:393
+#, fuzzy
+msgid "No need to specify a warning UUID when using --all"
+msgstr "der Name des Ursprung Containers muss angegeben werden"
+
 #: lxc/storage_volume.go:452 lxc/storage_volume.go:1905
 msgid "No storage pool for source volume specified"
 msgstr ""
@@ -5562,7 +5567,7 @@ msgstr "der Name des Ursprung Containers muss angegeben werden"
 msgid "Restrict the certificate to one or more projects"
 msgstr ""
 
-#: lxc/console.go:44
+#: lxc/console.go:47
 #, fuzzy
 msgid "Retrieve the container's console log"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -6264,12 +6269,16 @@ msgstr "Anhalten des Containers fehlgeschlagen!"
 msgid "Source:"
 msgstr ""
 
+#: lxc/warning.go:376
+msgid "Specify a warning UUID or use --all"
+msgstr ""
+
 #: lxc/action.go:32 lxc/action.go:33
 #, fuzzy
 msgid "Start instances"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/launch.go:95
+#: lxc/launch.go:92
 #, c-format
 msgid "Starting %s"
 msgstr ""
@@ -6469,7 +6478,7 @@ msgstr "--refresh kann nur mit Containern verwendet werden"
 msgid "The --mode flag can't be used with --target"
 msgstr ""
 
-#: lxc/console.go:130
+#: lxc/console.go:133
 msgid "The --show-log flag is only supported for by 'console' output type"
 msgstr ""
 
@@ -6690,7 +6699,7 @@ msgstr ""
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
-#: lxc/console.go:219
+#: lxc/console.go:222
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
@@ -6768,7 +6777,7 @@ msgstr "--refresh kann nur mit Containern verwendet werden"
 msgid "Trust token for %s: "
 msgstr ""
 
-#: lxc/action.go:304 lxc/launch.go:127
+#: lxc/action.go:304 lxc/launch.go:124
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -6782,7 +6791,7 @@ msgstr ""
 msgid "Type of certificate"
 msgstr "Akzeptiere Zertifikat"
 
-#: lxc/console.go:45
+#: lxc/console.go:48
 msgid ""
 "Type of connection to establish: 'console' for serial console, 'vga' for "
 "SPICE graphical output"
@@ -6856,7 +6865,7 @@ msgstr "Unbekannter Befehl %s für Abbild"
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/console.go:168
+#: lxc/console.go:171
 #, fuzzy, c-format
 msgid "Unknown console type %q"
 msgstr "Unbekannter Befehl %s für Abbild"
@@ -6871,7 +6880,7 @@ msgstr "Unbekannter Befehl %s für Abbild"
 msgid "Unknown key: %s"
 msgstr "Unbekannter Befehl %s für Abbild"
 
-#: lxc/console.go:113
+#: lxc/console.go:116
 #, fuzzy, c-format
 msgid "Unknown output type %q"
 msgstr "Unbekannter Befehl %s für Abbild"
@@ -7576,7 +7585,7 @@ msgstr ""
 
 #: lxc/config.go:1170 lxc/config.go:1224 lxc/config_device.go:329
 #: lxc/config_device.go:761 lxc/config_metadata.go:54
-#: lxc/config_metadata.go:187 lxc/config_template.go:271 lxc/console.go:35
+#: lxc/config_metadata.go:187 lxc/config_template.go:271 lxc/console.go:38
 #, fuzzy
 msgid "[<remote>:]<instance>"
 msgstr ""
@@ -8368,7 +8377,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/warning.go:260 lxc/warning.go:302 lxc/warning.go:355
+#: lxc/warning.go:260 lxc/warning.go:302
 #, fuzzy
 msgid "[<remote>:]<warning-uuid>"
 msgstr ""
@@ -8466,6 +8475,15 @@ msgstr ""
 "Ändert den Laufzustand eines Containers in %s.\n"
 "\n"
 "lxd %s <Name>\n"
+
+#: lxc/warning.go:355
+#, fuzzy
+msgid "[<remote>:][<warning-uuid>]"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
 #: lxc/remote.go:89
 #, fuzzy
