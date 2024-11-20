@@ -970,6 +970,45 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 	return contentType
 }
 
+// volumeIsUsedByDevice; true when vol is referred to by dev
+// inst is the instance dev belongs to, or nil if dev is part of a profile.
+func volumeIsUsedByDevice(vol api.StorageVolume, inst *db.InstanceArgs, dev map[string]string) (bool, error) {
+	if dev["type"] != cluster.TypeDisk.String() {
+		return false, nil
+	}
+
+	if dev["pool"] != vol.Pool {
+		return false, nil
+	}
+
+	if inst != nil && instancetype.IsRootDiskDevice(dev) {
+		rootVolumeType, err := InstanceTypeToVolumeType(inst.Type)
+		if err != nil {
+			return false, err
+		}
+
+		rootVolumeDBType, err := VolumeTypeToDBType(rootVolumeType)
+		if err != nil {
+			return false, err
+		}
+
+		if inst.Name == vol.Name && cluster.StoragePoolVolumeTypeNames[rootVolumeDBType] == vol.Type {
+			return true, nil
+		}
+	}
+
+	_, _, volumeTypeName, volumeName, err := DiskVolumeSourceParse(dev["source"])
+	if err != nil {
+		return false, err
+	}
+
+	if volumeTypeName == vol.Type && volumeName == vol.Name {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 // VolumeUsedByProfileDevices finds profiles using a volume and passes them to profileFunc for evaluation.
 // The profileFunc is provided with a profile config, project config and a list of device names that are using
 // the volume.
@@ -1054,20 +1093,12 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 		// Iterate through each of the profiles's devices, looking for disks in the same pool as volume.
 		// Then try and match the volume name against the profile device's "source" property.
 		for name, dev := range profile.Devices {
-			if dev["type"] != cluster.TypeDisk.String() {
-				continue
-			}
-
-			if dev["pool"] != poolName {
-				continue
-			}
-
-			_, _, _, volumeName, err := DiskVolumeSourceParse(dev["source"])
+			usesVol, err := volumeIsUsedByDevice(*vol, nil, dev)
 			if err != nil {
 				return err
 			}
 
-			if volumeName == vol.Name {
+			if usesVol {
 				usedByDevices = append(usedByDevices, name)
 			}
 		}
@@ -1125,20 +1156,12 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 			// Iterate through each of the instance's devices, looking for disks in the same pool as volume.
 			// Then try and match the volume name against the instance device's "source" property.
 			for devName, dev := range devices {
-				if dev["type"] != "disk" {
-					continue
-				}
-
-				if dev["pool"] != poolName {
-					continue
-				}
-
-				_, _, _, volumeName, err := DiskVolumeSourceParse(dev["source"])
+				usesVol, err := volumeIsUsedByDevice(*vol, &inst, dev)
 				if err != nil {
 					return err
 				}
 
-				if volumeName == vol.Name {
+				if usesVol {
 					usedByDevices = append(usedByDevices, devName)
 				}
 			}
