@@ -1047,7 +1047,12 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 				continue
 			}
 
-			if dev["source"] == vol.Name {
+			_, _, _, volumeName, err := DiskVolumeSourceParse(dev["source"])
+			if err != nil {
+				return err
+			}
+
+			if volumeName == vol.Name {
 				usedByDevices = append(usedByDevices, name)
 			}
 		}
@@ -1116,7 +1121,12 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 					continue
 				}
 
-				if dev["source"] == vol.Name {
+				_, _, _, volumeName, err := DiskVolumeSourceParse(dev["source"])
+				if err != nil {
+					return err
+				}
+
+				if volumeName == vol.Name {
 					usedByDevices = append(usedByDevices, devName)
 				}
 			}
