@@ -50,6 +50,29 @@ test_authorization() {
   ! lxc auth group permission remove test-group instance c1 can_exec project=default || false # Already removed
   ! lxc auth group permission add test-group instance c1 not_an_instance_entitlement project=default || false # Invalid entitlement
 
+  # Instance snapshot permissions, these are not valid because permissions can only be granted on the parent instance.
+  lxc snapshot c1 c1-snap
+  ! lxc auth group permission add test-group instance_snapshot c1-snap can_view || false
+  ! lxc auth group permission add test-group instance_snapshot c1-snap can_edit || false
+  ! lxc auth group permission add test-group instance_snapshot c1-snap can_delete || false
+
+  # Storage volume permissions.
+  pool_name="$(lxc storage list -f csv | cut -d, -f1)"
+  lxc storage volume create "${pool_name}" vol1
+  ! lxc auth group permission add test-group storage_volume vol1 can_manage_backups || false # No project, pool, or volume type
+  lxc auth group permission add test-group storage_volume vol1 can_manage_backups project=default pool="${pool_name}" type=custom # Valid
+  lxc auth group permission remove test-group storage_volume vol1 can_manage_backups project=default pool="${pool_name}" type=custom # Valid
+  ! lxc auth group permission remove test-group storage_volume vol1 can_manage_backups project=default pool="${pool_name}" type=custom || false # Already removed
+  ! lxc auth group permission remove test-group storage_volume vol1 not_a_storage_volume_entitlement project=default pool="${pool_name}" type=custom || false # Invalid entitlement
+
+  # Storage volume snapshot permissions, these are not valid because permissions can only be granted on the parent volume.
+  lxc storage volume snapshot "${pool_name}" vol1 vol1-snap
+  ! lxc auth group permission add test-group storage_volume_snapshot vol1-snap can_view project=default pool="${pool_name}" type=custom || false
+  ! lxc auth group permission add test-group storage_volume_snapshot vol1-snap can_edit project=default pool="${pool_name}" type=custom || false
+  ! lxc auth group permission add test-group storage_volume_snapshot vol1-snap can_delete project=default pool="${pool_name}" type=custom || false
+
+  lxc storage volume delete "${pool_name}" vol1
+
   # Test permission is removed automatically when instance is removed.
   lxc auth group permission add test-group instance c1 can_exec project=default # Valid
   lxc rm c1 --force
