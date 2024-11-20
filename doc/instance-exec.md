@@ -87,7 +87,7 @@ Non-interactive mode
 
       lxc query --request DELETE /1.0/instances/<instance_name>/logs/exec-output/<record-output-file>
 
-  See [`GET /1.0/instances/{name}/logs/exec-output`](swagger:/instances/instance_exec-outputs_get), [`GET /1.0/instances/{name}/logs/exec-output/{filename}`](swagger:/instances/instance_exec-output_get), and [`DELETE /1.0/instances/{name}/logs/exec-output/{filename}`](swagger:/instances/instance_exec-output_delete) for more information.
+  See [`GET /1.0/instances/{name}/logs/exec-output`](swagger:/instances/instance_exec-output_get), [`GET /1.0/instances/{name}/logs/exec-output/{filename}`](swagger:/instances/instance_exec-output_get), and [`DELETE /1.0/instances/{name}/logs/exec-output/{filename}`](swagger:/instances/instance_exec-output_delete) for more information.
 ```
 ````
 
