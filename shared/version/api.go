@@ -422,6 +422,7 @@ var APIExtensions = []string{
 	"access_management_tls",
 	"state_logical_cpus",
 	"vm_limits_cpu_pin_strategy",
+	"gpu_cdi",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
