@@ -428,7 +428,7 @@ func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol Volume, snapVol 
 
 	_, err = shared.TryRunCommand("lvcreate", args...)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("Error creating LV snapshot named %q: %w", snapLvName, err)
 	}
 
 	d.logger.Debug("Logical volume snapshot created", logCtx)
