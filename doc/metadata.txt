@@ -1644,7 +1644,7 @@ If set to `false`, restore the last state.
 ```
 
 ```{config:option} boot.autostart.delay instance-boot
-:defaultdesc: "0"
+:defaultdesc: "`0`"
 :liveupdate: "no"
 :shortdesc: "Delay after starting the instance"
 :type: "integer"
@@ -1652,7 +1652,7 @@ The number of seconds to wait after the instance started before starting the nex
 ```
 
 ```{config:option} boot.autostart.priority instance-boot
-:defaultdesc: "0"
+:defaultdesc: "`0`"
 :liveupdate: "no"
 :shortdesc: "What order to start the instances in"
 :type: "integer"
@@ -1667,7 +1667,7 @@ A log file can be found in `$LXD_DIR/logs/<instance_name>/edk2.log`.
 ```
 
 ```{config:option} boot.host_shutdown_timeout instance-boot
-:defaultdesc: "30"
+:defaultdesc: "`30`"
 :liveupdate: "yes"
 :shortdesc: "How long to wait for the instance to shut down"
 :type: "integer"
@@ -1675,7 +1675,7 @@ Number of seconds to wait for the instance to shut down before it is force-stopp
 ```
 
 ```{config:option} boot.stop.priority instance-boot
-:defaultdesc: "0"
+:defaultdesc: "`0`"
 :liveupdate: "no"
 :shortdesc: "What order to shut down the instances in"
 :type: "integer"

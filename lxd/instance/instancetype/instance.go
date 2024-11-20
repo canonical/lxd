@@ -121,7 +121,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// The number of seconds to wait after the instance started before starting the next one.
 	// ---
 	//  type: integer
-	//  defaultdesc: "0"
+	//  defaultdesc: `0`
 	//  liveupdate: no
 	//  shortdesc: Delay after starting the instance
 	"boot.autostart.delay": validate.Optional(validate.IsInt64),
@@ -130,7 +130,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// The instance with the highest value is started first.
 	// ---
 	//  type: integer
-	//  defaultdesc: "0"
+	//  defaultdesc: `0`
 	//  liveupdate: no
 	//  shortdesc: What order to start the instances in
 	"boot.autostart.priority": validate.Optional(validate.IsInt64),
@@ -139,7 +139,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// The instance with the highest value is shut down first.
 	// ---
 	//  type: integer
-	//  defaultdesc: "0"
+	//  defaultdesc: `0`
 	//  liveupdate: no
 	//  shortdesc: What order to shut down the instances in
 	"boot.stop.priority": validate.Optional(validate.IsInt64),
@@ -148,7 +148,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// Number of seconds to wait for the instance to shut down before it is force-stopped.
 	// ---
 	//  type: integer
-	//  defaultdesc: "30"
+	//  defaultdesc: `30`
 	//  liveupdate: yes
 	//  shortdesc: How long to wait for the instance to shut down
 	"boot.host_shutdown_timeout": validate.Optional(validate.IsInt64),
