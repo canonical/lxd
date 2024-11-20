@@ -15,6 +15,7 @@ import (
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // pureAPIVersion is the Pure Storage API version used by LXD.
@@ -42,6 +43,59 @@ func (p *pureError) Error() string {
 
 	// Return the first error message without the trailing dot.
 	return strings.TrimSuffix(p.Errors[0].Message, ".")
+}
+
+// isPureErrorOf checks if the given error is of type pureError, has the specified status code,
+// and its error messages contain any of the provided substrings. Note that the error message
+// comparison is case-insensitive.
+func isPureErrorOf(err error, statusCode int, substrings ...string) bool {
+	perr, ok := err.(*pureError)
+	if !ok {
+		return false
+	}
+
+	if perr.StatusCode != statusCode {
+		return false
+	}
+
+	if len(substrings) == 0 {
+		// Error matches the given status code and no substrings are provided.
+		return true
+	}
+
+	// Check if any error message contains a provided substring.
+	// Perform case-insensitive matching by converting both the
+	// error message and the substring to lowercase.
+	for _, err := range perr.Errors {
+		errMsg := strings.ToLower(err.Message)
+
+		for _, substring := range substrings {
+			if strings.Contains(errMsg, strings.ToLower(substring)) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// pureIsNotFoundError returns true if the error is of type pureError, its status code is 400 (bad request),
+// and the error message contains a substring indicating the resource was not found.
+func isPureErrorNotFound(err error) bool {
+	return isPureErrorOf(err, http.StatusBadRequest, "Not found", "Does not exist", "No such volume or snapshot")
+}
+
+// pureResponse wraps the response from the Pure Storage API. In most cases, the response
+// contains a list of items, even if only one item is returned.
+type pureResponse[T any] struct {
+	Items []T `json:"items"`
+}
+
+// pureStoragePool represents a storage pool (pod) in Pure Storage.
+type pureStoragePool struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	IsDestroyed bool   `json:"destroyed"`
 }
 
 // pureClient holds the Pure Storage HTTP client and an access token.
@@ -255,6 +309,125 @@ func (p *pureClient) login() error {
 	p.accessToken = respHeaders["X-Auth-Token"]
 	if p.accessToken == "" {
 		return errors.New("Failed to obtain access token")
+	}
+
+	return nil
+}
+
+// getStoragePool returns the storage pool with the given name.
+func (p *pureClient) getStoragePool(poolName string) (*pureStoragePool, error) {
+	var resp pureResponse[pureStoragePool]
+
+	url := api.NewURL().Path("pods").WithQuery("names", poolName)
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		if isPureErrorNotFound(err) {
+			return nil, api.StatusErrorf(http.StatusNotFound, "Storage pool %q not found", poolName)
+		}
+
+		return nil, fmt.Errorf("Failed to get storage pool %q: %w", poolName, err)
+	}
+
+	if len(resp.Items) == 0 {
+		return nil, api.StatusErrorf(http.StatusNotFound, "Storage pool %q not found", poolName)
+	}
+
+	return &resp.Items[0], nil
+}
+
+// createStoragePool creates a storage pool (Pure Storage pod).
+func (p *pureClient) createStoragePool(poolName string, size int64) error {
+	reqBody := make(map[string]any)
+	if size > 0 {
+		reqBody["quota_limit"] = size
+	}
+
+	pool, err := p.getStoragePool(poolName)
+	if err == nil && pool.IsDestroyed {
+		// Storage pool exists in destroyed state, therefore, restore it.
+		reqBody["destroyed"] = false
+
+		req, err := p.createBodyReader(reqBody)
+		if err != nil {
+			return err
+		}
+
+		url := api.NewURL().Path("pods").WithQuery("names", poolName)
+		err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
+		if err != nil {
+			return fmt.Errorf("Failed to restore storage pool %q: %w", poolName, err)
+		}
+
+		logger.Info("Storage pool has been restored", logger.Ctx{"pool": poolName})
+		return nil
+	}
+
+	req, err := p.createBodyReader(reqBody)
+	if err != nil {
+		return err
+	}
+
+	// Storage pool does not exist in destroyed state, therefore, try to create a new one.
+	url := api.NewURL().Path("pods").WithQuery("names", poolName)
+	err = p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to create storage pool %q: %w", poolName, err)
+	}
+
+	return nil
+}
+
+// deleteStoragePool deletes a storage pool (Pure Storage pod).
+func (p *pureClient) deleteStoragePool(poolName string) error {
+	pool, err := p.getStoragePool(poolName)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			// Storage pool has been already removed.
+			return nil
+		}
+
+		return err
+	}
+
+	// To delete the storage pool, we need to destroy it first by setting the destroyed property to true.
+	// In addition, we want to destroy all of its contents to allow the pool to be deleted.
+	// If the pool is already destroyed, we can skip this step.
+	if !pool.IsDestroyed {
+		req, err := p.createBodyReader(map[string]any{
+			"destroyed": true,
+		})
+		if err != nil {
+			return err
+		}
+
+		url := api.NewURL().Path("pods").WithQuery("names", poolName).WithQuery("destroy_contents", "true")
+		err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
+		if err != nil {
+			if isPureErrorNotFound(err) {
+				return nil
+			}
+
+			return fmt.Errorf("Failed to destroy storage pool %q: %w", poolName, err)
+		}
+	}
+
+	// Eradicate the storage pool by permanently deleting it along all of its contents.
+	url := api.NewURL().Path("pods").WithQuery("names", poolName).WithQuery("eradicate_contents", "true")
+	err = p.requestAuthenticated(http.MethodDelete, url.URL, nil, nil)
+	if err != nil {
+		if isPureErrorNotFound(err) {
+			return nil
+		}
+
+		if isPureErrorOf(err, http.StatusBadRequest, "Cannot eradicate pod") {
+			// Eradication failed, therefore the pool remains in the destroyed state.
+			// However, we still consider it as deleted because Pure Storage SafeMode
+			// may be enabled, which prevents immediate eradication of the pool.
+			logger.Warn("Storage pool is left in destroyed state", logger.Ctx{"pool": poolName, "err": err})
+			return nil
+		}
+
+		return fmt.Errorf("Failed to delete storage pool %q: %w", poolName, err)
 	}
 
 	return nil
