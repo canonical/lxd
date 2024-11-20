@@ -206,7 +206,6 @@ func DiskVolumeSourceParse(source string) (volType drivers.VolumeType, dbVolType
 	case cluster.StoragePoolVolumeTypeNameContainer:
 		err = errors.New("Using container storage volumes is not supported")
 	case cluster.StoragePoolVolumeTypeNameVM:
-		err = errors.New("Using virtual-machine storage volumes is not supported")
 	case "":
 		// We simply received the name of a custom storage volume.
 		volTypeName = cluster.StoragePoolVolumeTypeNameCustom
