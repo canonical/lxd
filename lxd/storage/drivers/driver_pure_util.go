@@ -92,6 +92,12 @@ type pureStoragePool struct {
 	IsDestroyed bool   `json:"destroyed"`
 }
 
+// pureHost represents a host in Pure Storage.
+type pureHost struct {
+	Name            string `json:"name"`
+	ConnectionCount int    `json:"connection_count"`
+}
+
 // pureClient holds the Pure Storage HTTP client and an access token.
 type pureClient struct {
 	driver      *pure
@@ -408,6 +414,93 @@ func (p *pureClient) deleteStoragePool(poolName string) error {
 		}
 
 		return fmt.Errorf("Failed to delete storage pool %q: %w", poolName, err)
+	}
+
+	return nil
+}
+
+// getHosts retrieves an existing Pure Storage host.
+func (p *pureClient) getHosts() ([]pureHost, error) {
+	var resp pureResponse[pureHost]
+
+	err := p.requestAuthenticated(http.MethodGet, "/hosts", nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get hosts: %w", err)
+	}
+
+	return resp.Items, nil
+}
+
+// createHost creates a new host that can be associated with specific volumes.
+func (p *pureClient) createHost(hostName string) error {
+	req, err := p.createBodyReader(map[string]any{})
+	if err != nil {
+		return err
+	}
+
+	err = p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/hosts?names=%s", hostName), req, nil)
+	if err != nil {
+		if isPureErrorOf(err, http.StatusBadRequest, "Host already exists.") {
+			return api.StatusErrorf(http.StatusConflict, "Host %q already exists", hostName)
+		}
+
+		return fmt.Errorf("Failed to create host %q: %w", hostName, err)
+	}
+
+	return nil
+}
+
+// updateHost updates an existing host.
+func (p *pureClient) updateHost(hostName string) error {
+	req, err := p.createBodyReader(map[string]any{})
+	if err != nil {
+		return err
+	}
+
+	// To destroy the volume, we need to patch it by setting the destroyed to true.
+	err = p.requestAuthenticated(http.MethodPatch, fmt.Sprintf("/hosts?names=%s", hostName), req, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to update host %q: %w", hostName, err)
+	}
+
+	return nil
+}
+
+// deleteHost deletes an existing host.
+func (p *pureClient) deleteHost(hostName string) error {
+	err := p.requestAuthenticated(http.MethodDelete, fmt.Sprintf("/hosts?names=%s", hostName), nil, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to delete host %q: %w", hostName, err)
+	}
+
+	return nil
+}
+
+// connectHostToVolume creates a connection between a host and volume. It returns true if the connection
+// was created, and false if it already existed.
+func (p *pureClient) connectHostToVolume(poolName string, volName string, hostName string) (bool, error) {
+	err := p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/connections?host_names=%s&volume_names=%s::%s", hostName, poolName, volName), nil, nil)
+	if err != nil {
+		if isPureErrorOf(err, http.StatusBadRequest, "Connection already exists.") {
+			// Do not error out if connection already exists.
+			return false, nil
+		}
+
+		return false, fmt.Errorf("Failed to connect volume %q with host %q: %w", volName, hostName, err)
+	}
+
+	return true, nil
+}
+
+// disconnectHostFromVolume deletes a connection between a host and volume.
+func (p *pureClient) disconnectHostFromVolume(poolName string, volName string, hostName string) error {
+	err := p.requestAuthenticated(http.MethodDelete, fmt.Sprintf("/connections?host_names=%s&volume_names=%s::%s", hostName, poolName, volName), nil, nil)
+	if err != nil {
+		if isPureErrorNotFound(err) {
+			return api.StatusErrorf(http.StatusNotFound, "Connection between host %q and volume %q not found", volName, hostName)
+		}
+
+		return fmt.Errorf("Failed to disconnect volume %q from host %q: %w", volName, hostName, err)
 	}
 
 	return nil
