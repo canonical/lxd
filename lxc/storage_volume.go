@@ -164,10 +164,12 @@ type cmdStorageVolumeAttach struct {
 
 func (c *cmdStorageVolumeAttach) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("attach", i18n.G("[<remote>:]<pool> <volume> <instance> [<device name>] [<path>]"))
+	cmd.Use = usage("attach", i18n.G("[<remote>:]<pool> [<type>/]<volume> <instance> [<device name>] [<path>]"))
 	cmd.Short = i18n.G("Attach new storage volumes to instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Attach new storage volumes to instances`))
+		`Attach new storage volumes to instances
+
+<type> must be one of "custom" or "virtual-machine"`))
 
 	cmd.RunE = c.run
 
@@ -210,8 +212,8 @@ func (c *cmdStorageVolumeAttach) run(cmd *cobra.Command, args []string) error {
 	}
 
 	volName, volType := parseVolume("custom", args[1])
-	if volType != "custom" {
-		return errors.New(i18n.G("Only \"custom\" volumes can be attached to instances"))
+	if volType != "custom" && volType != "virtual-machine" {
+		return errors.New(i18n.G(`Only "custom" and "virtual-machine" volumes can be attached to instances`))
 	}
 
 	// Attach the volume
@@ -257,7 +259,7 @@ func (c *cmdStorageVolumeAttach) run(cmd *cobra.Command, args []string) error {
 	device := map[string]string{
 		"type":   "disk",
 		"pool":   resource.name,
-		"source": volName,
+		"source": args[1],
 		"path":   devPath,
 	}
 
@@ -279,10 +281,12 @@ type cmdStorageVolumeAttachProfile struct {
 
 func (c *cmdStorageVolumeAttachProfile) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("attach-profile", i18n.G("[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"))
+	cmd.Use = usage("attach-profile", i18n.G("[<remote:>]<pool> [<type>/]<volume> <profile> [<device name>] [<path>]"))
 	cmd.Short = i18n.G("Attach new storage volumes to profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Attach new storage volumes to profiles`))
+		`Attach new storage volumes to profiles
+
+<type> must be one of "custom" or "virtual-machine"`))
 
 	cmd.RunE = c.run
 
@@ -340,8 +344,8 @@ func (c *cmdStorageVolumeAttachProfile) run(cmd *cobra.Command, args []string) e
 	}
 
 	volName, volType := parseVolume("custom", args[1])
-	if volType != "custom" {
-		return errors.New(i18n.G("Only \"custom\" volumes can be attached to instances"))
+	if volType != "custom" && volType != "virtual-machine" {
+		return errors.New(i18n.G(`Only "custom" and "virtual-machine" volumes can be attached to profiles`))
 	}
 
 	// Check if the requested storage volume actually exists
@@ -354,7 +358,7 @@ func (c *cmdStorageVolumeAttachProfile) run(cmd *cobra.Command, args []string) e
 	device := map[string]string{
 		"type":   "disk",
 		"pool":   resource.name,
-		"source": vol.Name,
+		"source": args[1],
 	}
 
 	// Ignore path for block volumes
