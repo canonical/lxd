@@ -201,16 +201,14 @@ func DiskVolumeSourceParse(source string) (volType drivers.VolumeType, dbVolType
 		volName = source
 	}
 
-	// Check volume type name is custom.
+	// Check volume type can be attached as a disk device.
 	switch volTypeName {
 	case cluster.StoragePoolVolumeTypeNameContainer:
 		err = errors.New("Using container storage volumes is not supported")
-	case cluster.StoragePoolVolumeTypeNameVM:
-		err = errors.New("Using virtual-machine storage volumes is not supported")
+	case cluster.StoragePoolVolumeTypeNameVM, cluster.StoragePoolVolumeTypeNameCustom:
 	case "":
 		// We simply received the name of a custom storage volume.
 		volTypeName = cluster.StoragePoolVolumeTypeNameCustom
-	case cluster.StoragePoolVolumeTypeNameCustom:
 	case cluster.StoragePoolVolumeTypeNameImage:
 		err = errors.New("Using image storage volumes is not supported")
 	default:
