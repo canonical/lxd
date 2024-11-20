@@ -13,6 +13,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -21,6 +23,28 @@ import (
 // pureAPIVersion is the Pure Storage API version used by LXD.
 // The 2.21 version is the first version that supports NVMe/TCP.
 const pureAPIVersion = "2.21"
+
+// pureVolTypePrefixes maps volume type to storage volume name prefix.
+// Use smallest possible prefixes since Pure Storage volume names are limited to 63 characters.
+var pureVolTypePrefixes = map[VolumeType]string{
+	VolumeTypeContainer: "c",
+	VolumeTypeVM:        "v",
+	VolumeTypeImage:     "i",
+	VolumeTypeCustom:    "u",
+}
+
+// pureContentTypeSuffixes maps volume's content type to storage volume name suffix.
+var pureContentTypeSuffixes = map[ContentType]string{
+	// Suffix used for block content type volumes.
+	ContentTypeBlock: "b",
+
+	// Suffix used for ISO content type volumes.
+	ContentTypeISO: "i",
+}
+
+// pureSnapshotPrefix is a prefix used for Pure Storage snapshots to avoid name conflicts
+// when creating temporary volume from the snapshot.
+var pureSnapshotPrefix = "s"
 
 // pureError represents an error responses from Pure Storage API.
 type pureError struct {
@@ -532,4 +556,34 @@ func (p *pureClient) disconnectHostFromVolume(poolName string, volName string, h
 	}
 
 	return nil
+}
+
+// getVolumeName returns the fully qualified name derived from the volume's UUID.
+func (d *pure) getVolumeName(vol Volume) (string, error) {
+	volUUID, err := uuid.Parse(vol.config["volatile.uuid"])
+	if err != nil {
+		return "", fmt.Errorf(`Failed parsing "volatile.uuid" from volume %q: %w`, vol.name, err)
+	}
+
+	// Remove hypens from the UUID to create a volume name.
+	volName := strings.ReplaceAll(volUUID.String(), "-", "")
+
+	// Search for the volume type prefix, and if found, prepend it to the volume name.
+	volumeTypePrefix, ok := pureVolTypePrefixes[vol.volType]
+	if ok {
+		volName = fmt.Sprintf("%s-%s", volumeTypePrefix, volName)
+	}
+
+	// Search for the content type suffix, and if found, append it to the volume name.
+	contentTypeSuffix, ok := pureContentTypeSuffixes[vol.contentType]
+	if ok {
+		volName = fmt.Sprintf("%s-%s", volName, contentTypeSuffix)
+	}
+
+	// If volume is snapshot, prepend snapshot prefix to its name.
+	if vol.IsSnapshot() {
+		volName = fmt.Sprintf("%s%s", pureSnapshotPrefix, volName)
+	}
+
+	return volName, nil
 }
