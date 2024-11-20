@@ -375,7 +375,17 @@ func (d *pure) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 
 // GetVolumeUsage returns the disk space used by the volume.
 func (d *pure) GetVolumeUsage(vol Volume) (int64, error) {
-	return 0, ErrNotSupported
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return -1, err
+	}
+
+	pureVol, err := d.client().getVolume(vol.pool, volName)
+	if err != nil {
+		return -1, err
+	}
+
+	return pureVol.Space.UsedBytes, nil
 }
 
 // SetVolumeQuota applies a size limit on volume.
