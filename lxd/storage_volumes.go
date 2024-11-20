@@ -80,15 +80,15 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}",
 	MetricsType: entity.TypeStoragePool,
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanDelete)},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumePatch, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanEdit)},
-	Post:   APIEndpointAction{Handler: storagePoolVolumePost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanEdit)},
-	Put:    APIEndpointAction{Handler: storagePoolVolumePut, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanEdit)},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanDelete)},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanView)},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumePatch, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanEdit)},
+	Post:   APIEndpointAction{Handler: storagePoolVolumePost, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanEdit)},
+	Put:    APIEndpointAction{Handler: storagePoolVolumePut, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanEdit)},
 }
 
 // storagePoolVolumeTypeAccessHandler returns an access handler which checks the given entitlement on a storage volume.
-func storagePoolVolumeTypeAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
+func storagePoolVolumeTypeAccessHandler(entityType entity.Type, entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		s := d.State()
 		err := addStoragePoolVolumeDetailsToRequestContext(s, r)
@@ -101,31 +101,29 @@ func storagePoolVolumeTypeAccessHandler(entitlement auth.Entitlement) func(d *Da
 			return response.SmartError(err)
 		}
 
-		var target string
-
-		// Regardless of whether the caller specified a target parameter, we do not add it to the authorization check if
-		// the storage pool is remote. This is because the volume in the database has a NULL `node_id`, so the URL uniquely
-		// identifies the volume without the target parameter.
-		if !details.pool.Driver().Info().Remote {
-			// If the storage pool is local, we need to add a target parameter to the authorization check URL for the
-			// auth subsystem to consider it unique.
-
-			// If the target parameter was specified, use that.
-			target = request.QueryParam(r, "target")
-
-			if target == "" {
-				// Otherwise, check if the volume is located on another member.
-				if details.forwardingNodeInfo != nil {
-					// Use the name of the forwarding member as the location of the volume.
-					target = details.forwardingNodeInfo.Name
-				} else {
-					// If we're not forwarding the request, use the name of this member as the location of the volume.
-					target = s.ServerName
-				}
+		var u *api.URL
+		switch entityType {
+		case entity.TypeStorageVolume:
+			u = entity.StorageVolumeURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName)
+		case entity.TypeStorageVolumeBackup:
+			backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
+			if err != nil {
+				return response.SmartError(err)
 			}
+
+			u = entity.StorageVolumeBackupURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, backupName)
+		case entity.TypeStorageVolumeSnapshot:
+			snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			u = entity.StorageVolumeSnapshotURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, snapshotName)
+		default:
+			return response.InternalError(fmt.Errorf("Cannot use storage volume access handler with entities of type %q", entityType))
 		}
 
-		err = s.Authorizer.CheckPermission(r.Context(), entity.StorageVolumeURL(request.ProjectParam(r), target, details.pool.Name(), details.volumeTypeName, details.volumeName), entitlement)
+		err = s.Authorizer.CheckPermission(r.Context(), u, entitlement)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -2673,6 +2671,7 @@ type storageVolumeDetails struct {
 	volumeName         string
 	volumeTypeName     string
 	volumeType         int
+	location           string
 	pool               storagePools.Pool
 	forwardingNodeInfo *db.NodeInfo
 }
@@ -2682,7 +2681,16 @@ type storageVolumeDetails struct {
 // bucket is added to the request context under request.CtxEffectiveProjectName.
 func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request) error {
 	var details storageVolumeDetails
+	var location string
+
+	// Defer function to set the details in the request context. This is because we can return early in certain
+	// optimisations and ensures the details are always set.
 	defer func() {
+		// Only set the location if the pool is not remote.
+		if details.pool.Driver() != nil && !details.pool.Driver().Info().Remote {
+			details.location = location
+		}
+
 		request.SetCtxValue(r, ctxStorageVolumeDetails, details)
 	}()
 
@@ -2736,15 +2744,18 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 
 	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProject)
 
-	// If the target is set, we have all the information we need to perform the access check.
-	if request.QueryParam(r, "target") != "" {
+	// If the target is set, the location of the volume is user specified, so we don't need to perform further logic.
+	target := request.QueryParam(r, "target")
+	if target != "" {
+		location = target
 		return nil
 	}
 
-	// If the request has already been forwarded, no reason to perform further logic to determine the location of the
-	// volume.
+	// If the request has already been forwarded, the other member already performed the logic to determine the volume
+	// location, so we can set the location in the volume details as ourselves.
 	_, err = request.GetCtxValue[string](r.Context(), request.CtxForwardedProtocol)
 	if err == nil {
+		location = s.ServerName
 		return nil
 	}
 
@@ -2755,6 +2766,11 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 	}
 
 	details.forwardingNodeInfo = remoteNodeInfo
+	if remoteNodeInfo != nil {
+		location = remoteNodeInfo.Name
+	} else {
+		location = s.ServerName
+	}
 
 	return nil
 }
