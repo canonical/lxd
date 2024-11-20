@@ -13,6 +13,7 @@ var drivers = map[string]func() driver{
 	"dir":        func() driver { return &dir{} },
 	"lvm":        func() driver { return &lvm{} },
 	"powerflex":  func() driver { return &powerflex{} },
+	"pure":       func() driver { return &pure{} },
 	"zfs":        func() driver { return &zfs{} },
 }
 
