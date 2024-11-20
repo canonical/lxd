@@ -188,14 +188,6 @@ jobs:
       - name: Download minio/mc to add to system test dependencies
         uses: ./.github/actions/download-minio
 
-      - name: Strip binaries/libs
-        run: |
-          set -eux
-
-          strip --strip-all -v /home/runner/go/bin/dqlite/libs/*.so*
-          strip --strip-all -v /home/runner/go/bin/lxc*
-          strip --strip-all -v /home/runner/go/bin/lxd*
-
       - name: Upload system test dependencies
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
