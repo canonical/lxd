@@ -513,6 +513,27 @@ func (p *pureClient) createStoragePool(poolName string, size int64) error {
 	return nil
 }
 
+// updateStoragePool updates an existing storage pool (Pure Storage pod).
+func (p *pureClient) updateStoragePool(poolName string, size int64) error {
+	reqBody := make(map[string]any)
+	if size > 0 {
+		reqBody["quota_limit"] = size
+	}
+
+	req, err := p.createBodyReader(reqBody)
+	if err != nil {
+		return err
+	}
+
+	url := api.NewURL().Path("pods").WithQuery("names", poolName)
+	err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to update storage pool %q: %w", poolName, err)
+	}
+
+	return nil
+}
+
 // deleteStoragePool deletes a storage pool (Pure Storage pod).
 func (p *pureClient) deleteStoragePool(poolName string) error {
 	pool, err := p.getStoragePool(poolName)
