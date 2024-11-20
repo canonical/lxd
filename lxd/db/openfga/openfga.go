@@ -208,8 +208,9 @@ func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, tk *open
 // ReadUsersetTuples is called on check requests. It is used to read all the "users" that have a given relation to
 // a given object. In this context, the "user" may not be the identity making requests to LXD. In OpenFGA, a "user"
 // is any entity that can be related to an object (https://openfga.dev/docs/concepts#what-is-a-user). For example, in
-// our model, `project` can be related to `instance` via a `project` relation, so `project:/1.0/projects/default` could
-// be considered a user. The opposite is not true, so an `instance` cannot be a user.
+// our model, `project` can be related to `profile` via a `project` relation, so `project:/1.0/projects/default` could
+// be considered a user. The opposite is not true, so an `profile` cannot be a user. An `instance` can be related to an
+// `instance_snapshot` via the `instance` relation, so an instance can be considered a `user`.
 //
 // Observations:
 //   - The input filter always has an object and a relation.
