@@ -116,10 +116,26 @@ type pureEntity struct {
 	Name string `json:"name"`
 }
 
+// pureSpace represents the usage data of PureStorage resource.
+type pureSpace struct {
+	// Total reserved space.
+	// For volumes, this is the available space or quota.
+	// For storage pools, this is the total reserved space (not the quota).
+	TotalBytes int64 `json:"total_provisioned"`
+
+	// Amount of logically written data that a volume or a snapshot references.
+	// This value is compared against the quota, therefore, it should be used for
+	// showing the actual used space. Although, the actual used space is most likely
+	// less than this value due to the data reduction that is done by PureStorage.
+	UsedBytes int64 `json:"virtual"`
+}
+
 // pureStorageArray represents a storage array in PureStorage.
 type pureStorageArray struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID       string    `json:"id"`
+	Name     string    `json:"name"`
+	Capacity int64     `json:"capacity"`
+	Space    pureSpace `json:"space"`
 }
 
 // pureStoragePool represents a storage pool (Pod) in PureStorage.
@@ -127,15 +143,18 @@ type pureStoragePool struct {
 	ID          string       `json:"id"`
 	Name        string       `json:"name"`
 	IsDestroyed bool         `json:"destroyed"`
+	Quota       int64        `json:"quota_limit"`
+	Space       pureSpace    `json:"space"`
 	Arrays      []pureEntity `json:"arrays"`
 }
 
 // pureVolume represents a volume in PureStorage.
 type pureVolume struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Serial      string `json:"serial"`
-	IsDestroyed bool   `json:"destroyed"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Serial      string    `json:"serial"`
+	IsDestroyed bool      `json:"destroyed"`
+	Space       pureSpace `json:"space"`
 }
 
 // pureHost represents a host in PureStorage.
