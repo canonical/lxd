@@ -34,24 +34,24 @@ var storagePoolVolumeTypeCustomBackupsCmd = APIEndpoint{
 	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups",
 	MetricsType: entity.TypeStoragePool,
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
-	Post: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsPost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageBackups)},
+	Get:  APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsGet, AccessHandler: allowProjectResourceList},
+	Post: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsPost, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanManageBackups)},
 }
 
 var storagePoolVolumeTypeCustomBackupCmd = APIEndpoint{
 	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName}",
 	MetricsType: entity.TypeStoragePool,
 
-	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupPost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageBackups)},
-	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageBackups)},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupGet, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeBackup, auth.EntitlementCanView)},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupPost, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeBackup, auth.EntitlementCanEdit)},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeBackup, auth.EntitlementCanDelete)},
 }
 
 var storagePoolVolumeTypeCustomBackupExportCmd = APIEndpoint{
 	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName}/export",
 	MetricsType: entity.TypeStoragePool,
 
-	Get: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupExportGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
+	Get: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupExportGet, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeBackup, auth.EntitlementCanView)},
 }
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups storage storage_pool_volumes_type_backups_get
@@ -159,6 +159,11 @@ var storagePoolVolumeTypeCustomBackupExportCmd = APIEndpoint{
 func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
+	err := addStoragePoolVolumeDetailsToRequestContext(s, r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
@@ -201,9 +206,24 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 	resultString := []string{}
 	resultMap := []*api.StoragePoolVolumeBackup{}
 
+	canView, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeStorageVolumeBackup)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	for _, backup := range backups {
+		_, backupName, ok := strings.Cut(backup.Name(), "/")
+		if !ok {
+			// Not adding the name to the error response here because we were unable to check if the caller is allowed to view it.
+			return response.InternalError(fmt.Errorf("Storage volume backup has invalid name"))
+		}
+
+		if !canView(entity.StorageVolumeBackupURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, backupName)) {
+			continue
+		}
+
 		if !recursion {
-			url := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", "custom", details.volumeName, "backups", strings.Split(backup.Name(), "/")[1]).String()
+			url := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", "custom", details.volumeName, "backups", backupName).String()
 			resultString = append(resultString, url)
 		} else {
 			render := backup.Render()
@@ -340,8 +360,9 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 
 		base := details.volumeName + shared.SnapshotDelimiter + "backup"
 		length := len(base)
-		max := 0
+		backupNo := 0
 
+		// Iterate over previous backups to autoincrement the backup number.
 		for _, backup := range backups {
 			// Ignore backups not containing base.
 			if !strings.HasPrefix(backup, base) {
@@ -355,12 +376,12 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 				continue
 			}
 
-			if num >= max {
-				max = num + 1
+			if num >= backupNo {
+				backupNo = num + 1
 			}
 		}
 
-		req.Name = fmt.Sprintf("backup%d", max)
+		req.Name = fmt.Sprintf("backup%d", backupNo)
 	}
 
 	// Validate the name.

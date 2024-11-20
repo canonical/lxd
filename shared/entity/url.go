@@ -174,6 +174,16 @@ func InstanceURL(projectName string, instanceName string) *api.URL {
 	return TypeInstance.urlMust(projectName, "", instanceName)
 }
 
+// InstanceBackupURL returns an *api.URL to an instance backup.
+func InstanceBackupURL(projectName string, instanceName string, backupName string) *api.URL {
+	return TypeInstanceBackup.urlMust(projectName, "", instanceName, backupName)
+}
+
+// InstanceSnapshotURL returns an *api.URL to an instance snapshot.
+func InstanceSnapshotURL(projectName string, instanceName string, snapshotName string) *api.URL {
+	return TypeInstanceSnapshot.urlMust(projectName, "", instanceName, snapshotName)
+}
+
 // ServerURL returns an *api.URL to the server.
 func ServerURL() *api.URL {
 	return TypeServer.urlMust("", "")
@@ -222,6 +232,16 @@ func StoragePoolURL(storagePoolName string) *api.URL {
 // StorageVolumeURL returns an *api.URL to a storage volume.
 func StorageVolumeURL(projectName string, location string, storagePoolName string, storageVolumeType string, storageVolumeName string) *api.URL {
 	return TypeStorageVolume.urlMust(projectName, location, storagePoolName, storageVolumeType, storageVolumeName)
+}
+
+// StorageVolumeBackupURL returns an *api.URL to a storage volume backup.
+func StorageVolumeBackupURL(projectName string, location string, poolName string, volumeTypeName string, volumeName, backupName string) *api.URL {
+	return TypeStorageVolumeBackup.urlMust(projectName, location, poolName, volumeTypeName, volumeName, backupName)
+}
+
+// StorageVolumeSnapshotURL returns an *api.URL to a storage volume snapshot.
+func StorageVolumeSnapshotURL(projectName string, location string, poolName string, volumeTypeName string, volumeName, backupName string) *api.URL {
+	return TypeStorageVolumeSnapshot.urlMust(projectName, location, poolName, volumeTypeName, volumeName, backupName)
 }
 
 // StorageBucketURL returns an *api.URL to a storage bucket.

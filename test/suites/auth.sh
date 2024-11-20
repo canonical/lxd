@@ -181,6 +181,9 @@ effective_permissions: []"
   lxc auth group permission remove test-group server viewer
   lxc auth group permission remove test-group server project_manager
 
+  storage_pool_used_by "oidc"
+  LXD_CONF="${LXD_CONF2}" storage_pool_used_by "tls"
+
   # Perform access checks
   fine_grained_authorization "oidc"
   LXD_CONF="${LXD_CONF2}" fine_grained_authorization "tls"
@@ -263,6 +266,72 @@ effective_permissions: []"
   lxc config unset oidc.client.id
 }
 
+
+storage_pool_used_by() {
+  remote="${1}"
+
+  # test-group must have no permissions to start the test.
+  [ "$(lxc query /1.0/auth/groups/test-group | jq '.permissions | length')" -eq 0 ]
+
+  # Test storage pool used-by filtering
+  pool_name="$(lxc storage list -f csv | cut -d, -f1)"
+
+  # Used-by list should have only the default profile, but in case of any leftover entries from previous tests get a
+  # start size for the list and work against that.
+  start_length=$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')
+
+  # Members of test-group have no permissions, so they should get an empty list.
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 0 ]
+
+  # Launch instance. Should appear in pool used-by list. Members of test-group still can't see anything.
+  lxc launch testimage c1
+  [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length+1)) ]
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 0 ]
+
+  # Allow members of test-group to view the instance. They should see it in the used-by list.
+  lxc auth group permission add test-group instance c1 can_view project=default
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 1 ]
+
+  # Take a snapshot. Used-by length should increase. Members of test-group should see the snapshot.
+  lxc snapshot c1
+  [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length+2)) ]
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 2 ]
+
+  # Take another snapshot and check again. This is done because filtering used-by lists takes a slightly different code
+  # path when it receives multiple URLs of the same entity type.
+  lxc snapshot c1
+  [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length+3)) ]
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 3 ]
+
+  # Perform the same checks with storage volume snapshots.
+  lxc storage volume create "${pool_name}" vol1
+  [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length+4)) ]
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 3 ]
+
+  lxc auth group permission add test-group storage_volume vol1 can_view project=default pool="${pool_name}" type=custom
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 4 ]
+
+  lxc storage volume snapshot "${pool_name}" vol1
+  [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length+5)) ]
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 5 ]
+
+  lxc storage volume snapshot "${pool_name}" vol1
+  [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length+6)) ]
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 6 ]
+
+  # Remove can_view on the volume and check the volume and snapshots are no longer in the used-by list.
+  lxc auth group permission remove test-group storage_volume vol1 can_view project=default pool="${pool_name}" type=custom
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 3 ]
+
+  # Remove can_view on the instance and check the volume and snapshots are no longer in the used-by list.
+  lxc auth group permission remove test-group instance c1 can_view project=default
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 0 ]
+
+  # Clean up storage volume used-by tests.
+  lxc delete c1 -f
+  lxc storage volume delete "${pool_name}" vol1
+  [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length)) ]
+}
 
 fine_grained_authorization() {
   remote="${1}"
