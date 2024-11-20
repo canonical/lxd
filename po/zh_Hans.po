@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-10-18 15:21-0500\n"
+"POT-Creation-Date: 2024-11-18 20:34-0300\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: 0x0916 <w@laoqinren.net>\n"
 "Language-Team: Chinese (Simplified) <https://hosted.weblate.org/projects/"
@@ -926,7 +926,7 @@ msgstr ""
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
 
-#: lxc/console.go:392
+#: lxc/console.go:402
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -962,11 +962,11 @@ msgstr ""
 msgid "Attach new storage volumes to profiles"
 msgstr ""
 
-#: lxc/console.go:36
+#: lxc/console.go:39
 msgid "Attach to instance consoles"
 msgstr ""
 
-#: lxc/console.go:37
+#: lxc/console.go:40
 msgid ""
 "Attach to instance consoles\n"
 "\n"
@@ -1849,7 +1849,7 @@ msgstr ""
 #: lxc/config_template.go:273 lxc/config_template.go:341 lxc/config_trust.go:34
 #: lxc/config_trust.go:87 lxc/config_trust.go:236 lxc/config_trust.go:350
 #: lxc/config_trust.go:432 lxc/config_trust.go:534 lxc/config_trust.go:580
-#: lxc/config_trust.go:651 lxc/console.go:37 lxc/copy.go:42 lxc/delete.go:32
+#: lxc/config_trust.go:651 lxc/console.go:40 lxc/copy.go:42 lxc/delete.go:32
 #: lxc/exec.go:41 lxc/export.go:32 lxc/file.go:88 lxc/file.go:135
 #: lxc/file.go:321 lxc/file.go:378 lxc/file.go:456 lxc/file.go:689
 #: lxc/file.go:1208 lxc/image.go:38 lxc/image.go:159 lxc/image.go:337
@@ -2441,7 +2441,7 @@ msgstr ""
 msgid "Failed parsing SSH host key: %w"
 msgstr ""
 
-#: lxc/console.go:370
+#: lxc/console.go:380
 #, c-format
 msgid "Failed starting command: %w"
 msgstr ""
@@ -3225,7 +3225,7 @@ msgstr ""
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/console.go:391
+#: lxc/console.go:401
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
@@ -4416,6 +4416,10 @@ msgstr ""
 msgid "No matching rule(s) found"
 msgstr ""
 
+#: lxc/warning.go:393
+msgid "No need to specify a warning UUID when using --all"
+msgstr ""
+
 #: lxc/storage_volume.go:452 lxc/storage_volume.go:1905
 msgid "No storage pool for source volume specified"
 msgstr ""
@@ -5144,7 +5148,7 @@ msgstr ""
 msgid "Restrict the certificate to one or more projects"
 msgstr ""
 
-#: lxc/console.go:44
+#: lxc/console.go:47
 msgid "Retrieve the container's console log"
 msgstr ""
 
@@ -5791,11 +5795,15 @@ msgstr ""
 msgid "Source:"
 msgstr ""
 
+#: lxc/warning.go:376
+msgid "Specify a warning UUID or use --all"
+msgstr ""
+
 #: lxc/action.go:32 lxc/action.go:33
 msgid "Start instances"
 msgstr ""
 
-#: lxc/launch.go:95
+#: lxc/launch.go:92
 #, c-format
 msgid "Starting %s"
 msgstr ""
@@ -5986,7 +5994,7 @@ msgstr ""
 msgid "The --mode flag can't be used with --target"
 msgstr ""
 
-#: lxc/console.go:130
+#: lxc/console.go:133
 msgid "The --show-log flag is only supported for by 'console' output type"
 msgstr ""
 
@@ -6198,7 +6206,7 @@ msgstr ""
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
-#: lxc/console.go:219
+#: lxc/console.go:222
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
@@ -6275,7 +6283,7 @@ msgstr ""
 msgid "Trust token for %s: "
 msgstr ""
 
-#: lxc/action.go:304 lxc/launch.go:127
+#: lxc/action.go:304 lxc/launch.go:124
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -6288,7 +6296,7 @@ msgstr ""
 msgid "Type of certificate"
 msgstr ""
 
-#: lxc/console.go:45
+#: lxc/console.go:48
 msgid ""
 "Type of connection to establish: 'console' for serial console, 'vga' for "
 "SPICE graphical output"
@@ -6361,7 +6369,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/console.go:168
+#: lxc/console.go:171
 #, c-format
 msgid "Unknown console type %q"
 msgstr ""
@@ -6376,7 +6384,7 @@ msgstr ""
 msgid "Unknown key: %s"
 msgstr ""
 
-#: lxc/console.go:113
+#: lxc/console.go:116
 #, c-format
 msgid "Unknown output type %q"
 msgstr ""
@@ -6874,7 +6882,7 @@ msgstr ""
 
 #: lxc/config.go:1170 lxc/config.go:1224 lxc/config_device.go:329
 #: lxc/config_device.go:761 lxc/config_metadata.go:54
-#: lxc/config_metadata.go:187 lxc/config_template.go:271 lxc/console.go:35
+#: lxc/config_metadata.go:187 lxc/config_template.go:271 lxc/console.go:38
 msgid "[<remote>:]<instance>"
 msgstr ""
 
@@ -7271,7 +7279,7 @@ msgstr ""
 msgid "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 msgstr ""
 
-#: lxc/warning.go:260 lxc/warning.go:302 lxc/warning.go:355
+#: lxc/warning.go:260 lxc/warning.go:302
 msgid "[<remote>:]<warning-uuid>"
 msgstr ""
 
@@ -7317,6 +7325,10 @@ msgstr ""
 
 #: lxc/storage_volume.go:1590
 msgid "[<remote>:][<pool>] [<filter>...]"
+msgstr ""
+
+#: lxc/warning.go:355
+msgid "[<remote>:][<warning-uuid>]"
 msgstr ""
 
 #: lxc/remote.go:89

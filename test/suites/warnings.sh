@@ -1,6 +1,6 @@
 test_warnings() {
     # Delete previous warnings
-    lxc query --wait /1.0/warnings\?recursion=1 | jq -r '.[].uuid' | xargs -n1 lxc warning delete
+    lxc warning delete --all
 
     # Create a global warning (no node and no project)
     lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"global warning\"}' /internal/testing/warnings
@@ -64,4 +64,8 @@ test_warnings() {
     lxc warning rm "${uuid}"
     ! lxc warning list | grep -q "${uuid}" || false
     ! lxc warning show "${uuid}" || false
+
+    # Delete all warnings
+    lxc warning delete --all
+    [ -z "$(lxc warning ls --format csv)" ]
 }

@@ -352,7 +352,7 @@ type cmdWarningDelete struct {
 
 func (c *cmdWarningDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("delete", i18n.G("[<remote>:]<warning-uuid>"))
+	cmd.Use = usage("delete", i18n.G("[<remote>:][<warning-uuid>]"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete warning")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -367,20 +367,52 @@ func (c *cmdWarningDelete) command() *cobra.Command {
 
 func (c *cmdWarningDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err
 	}
 
-	// Parse remote
-	remoteName, UUID, err := c.global.conf.ParseRemote(args[0])
-	if err != nil {
-		return err
+	if !c.flagAll && len(args) < 1 {
+		return errors.New(i18n.G("Specify a warning UUID or use --all"))
+	}
+
+	var remoteName string
+	var UUID string
+
+	if len(args) > 0 {
+		// Parse remote
+		remoteName, UUID, err = c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return err
+		}
+	} else {
+		remoteName = c.global.conf.DefaultRemote
+	}
+
+	if UUID != "" && c.flagAll {
+		return errors.New(i18n.G("No need to specify a warning UUID when using --all"))
 	}
 
 	remoteServer, err := c.global.conf.GetInstanceServer(remoteName)
 	if err != nil {
 		return err
+	}
+
+	if c.flagAll {
+		// Delete all warnings
+		warnings, err := remoteServer.GetWarnings()
+		if err != nil {
+			return err
+		}
+
+		for _, warning := range warnings {
+			err = remoteServer.DeleteWarning(warning.UUID)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}
 
 	return remoteServer.DeleteWarning(UUID)

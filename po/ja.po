@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-10-18 15:21-0500\n"
+"POT-Creation-Date: 2024-11-18 20:34-0300\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1023,7 +1023,7 @@ msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
 "本当に %s しますか? （対象: クラスターメンバー %q） (yes/no) [default=no]: "
 
-#: lxc/console.go:392
+#: lxc/console.go:402
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr "どちらもみつかりませんでした。raw SPICE ソケットはこちらにあります:"
 
@@ -1059,11 +1059,11 @@ msgstr "新たにストレージボリュームをインスタンスに追加し
 msgid "Attach new storage volumes to profiles"
 msgstr "新しいストレージボリュームをプロファイルに追加します"
 
-#: lxc/console.go:36
+#: lxc/console.go:39
 msgid "Attach to instance consoles"
 msgstr "インスタンスのコンソールに接続します"
 
-#: lxc/console.go:37
+#: lxc/console.go:40
 msgid ""
 "Attach to instance consoles\n"
 "\n"
@@ -1989,7 +1989,7 @@ msgstr "警告を削除します"
 #: lxc/config_template.go:273 lxc/config_template.go:341 lxc/config_trust.go:34
 #: lxc/config_trust.go:87 lxc/config_trust.go:236 lxc/config_trust.go:350
 #: lxc/config_trust.go:432 lxc/config_trust.go:534 lxc/config_trust.go:580
-#: lxc/config_trust.go:651 lxc/console.go:37 lxc/copy.go:42 lxc/delete.go:32
+#: lxc/config_trust.go:651 lxc/console.go:40 lxc/copy.go:42 lxc/delete.go:32
 #: lxc/exec.go:41 lxc/export.go:32 lxc/file.go:88 lxc/file.go:135
 #: lxc/file.go:321 lxc/file.go:378 lxc/file.go:456 lxc/file.go:689
 #: lxc/file.go:1208 lxc/image.go:38 lxc/image.go:159 lxc/image.go:337
@@ -2619,7 +2619,7 @@ msgstr "デバイス上書きのためのプロファイル %q のロードに�
 msgid "Failed parsing SSH host key: %w"
 msgstr "SSH ホスト鍵の読み取りに失敗しました: %w"
 
-#: lxc/console.go:370
+#: lxc/console.go:380
 #, c-format
 msgid "Failed starting command: %w"
 msgstr "コマンドの実行に失敗しました: %w"
@@ -3452,7 +3452,7 @@ msgstr "LOCATION"
 msgid "LXD - Command line client"
 msgstr "LXD - コマンドラインクライアント"
 
-#: lxc/console.go:391
+#: lxc/console.go:401
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 "LXD は spicy か remote-viewer がインストールされている場合は自動的にどちらか"
@@ -4838,6 +4838,12 @@ msgstr "マッチするポートが見つかりません"
 msgid "No matching rule(s) found"
 msgstr "マッチするルールが見つかりません"
 
+#: lxc/warning.go:393
+#, fuzzy
+msgid "No need to specify a warning UUID when using --all"
+msgstr ""
+"--target オプションを使うときはコピー先のインスタンス名を指定してください"
+
 #: lxc/storage_volume.go:452 lxc/storage_volume.go:1905
 msgid "No storage pool for source volume specified"
 msgstr "コピー元のボリュームに対するストレージプールが指定されていません"
@@ -5587,7 +5593,7 @@ msgstr "クラスターメンバーをリストアしています: %s"
 msgid "Restrict the certificate to one or more projects"
 msgstr "証明書の使用を1つ以上のプロジェクトに制限します"
 
-#: lxc/console.go:44
+#: lxc/console.go:47
 #, fuzzy
 msgid "Retrieve the container's console log"
 msgstr "インスタンスのコンソールログを取得します"
@@ -6310,11 +6316,15 @@ msgstr "一部のインスタンスで %s が失敗しました"
 msgid "Source:"
 msgstr "取得元:"
 
+#: lxc/warning.go:376
+msgid "Specify a warning UUID or use --all"
+msgstr ""
+
 #: lxc/action.go:32 lxc/action.go:33
 msgid "Start instances"
 msgstr "インスタンスを起動します"
 
-#: lxc/launch.go:95
+#: lxc/launch.go:92
 #, c-format
 msgid "Starting %s"
 msgstr "%s を起動中"
@@ -6506,7 +6516,7 @@ msgstr "--mode と --target-project は同時に指定できません"
 msgid "The --mode flag can't be used with --target"
 msgstr "--mode と --target は同時に指定できません"
 
-#: lxc/console.go:130
+#: lxc/console.go:133
 msgid "The --show-log flag is only supported for by 'console' output type"
 msgstr "--show-log フラグは 'console' アウトプットタイプの時だけ使えます"
 
@@ -6740,7 +6750,7 @@ msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
 
-#: lxc/console.go:219
+#: lxc/console.go:222
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
@@ -6824,7 +6834,7 @@ msgstr "--project は query コマンドでは使えません"
 msgid "Trust token for %s: "
 msgstr "%s:%s のクラスターに join するためのトークンが削除されました"
 
-#: lxc/action.go:304 lxc/launch.go:127
+#: lxc/action.go:304 lxc/launch.go:124
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "更に情報を得るために `lxc info --show-log %s` を実行してみてください"
@@ -6837,7 +6847,7 @@ msgstr "タイプ"
 msgid "Type of certificate"
 msgstr "証明書の形式"
 
-#: lxc/console.go:45
+#: lxc/console.go:48
 msgid ""
 "Type of connection to establish: 'console' for serial console, 'vga' for "
 "SPICE graphical output"
@@ -6912,7 +6922,7 @@ msgstr "クライアント %q の未知のチャンネルタイプ: %s"
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
 
-#: lxc/console.go:168
+#: lxc/console.go:171
 #, c-format
 msgid "Unknown console type %q"
 msgstr "未知のコンソールタイプ %q"
@@ -6927,7 +6937,7 @@ msgstr "未知のファイルタイプ '%s'"
 msgid "Unknown key: %s"
 msgstr "未知の設定: %s"
 
-#: lxc/console.go:113
+#: lxc/console.go:116
 #, c-format
 msgid "Unknown output type %q"
 msgstr "未知の出力タイプ: %q"
@@ -7453,7 +7463,7 @@ msgstr "[<remote>:]<image> [[<remote>:]<image>...]"
 
 #: lxc/config.go:1170 lxc/config.go:1224 lxc/config_device.go:329
 #: lxc/config_device.go:761 lxc/config_metadata.go:54
-#: lxc/config_metadata.go:187 lxc/config_template.go:271 lxc/console.go:35
+#: lxc/config_metadata.go:187 lxc/config_template.go:271 lxc/console.go:38
 msgid "[<remote>:]<instance>"
 msgstr "[<remote>:]<instance>"
 
@@ -7874,7 +7884,7 @@ msgstr "[<remote>:]<project> <new-name>"
 msgid "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 msgstr "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 
-#: lxc/warning.go:260 lxc/warning.go:302 lxc/warning.go:355
+#: lxc/warning.go:260 lxc/warning.go:302
 msgid "[<remote>:]<warning-uuid>"
 msgstr "[<remote>:]<warning-uuid>"
 
@@ -7922,6 +7932,11 @@ msgstr "[<remote>:][<instance>] <key>=<value>..."
 #, fuzzy
 msgid "[<remote>:][<pool>] [<filter>...]"
 msgstr "[<remote>:]<pool> [<filter>...]"
+
+#: lxc/warning.go:355
+#, fuzzy
+msgid "[<remote>:][<warning-uuid>]"
+msgstr "[<remote>:]<warning-uuid>"
 
 #: lxc/remote.go:89
 msgid "[<remote>] <IP|FQDN|URL|token>"
