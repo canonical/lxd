@@ -2515,3 +2515,7 @@ contains the total available logical CPUs available when LXD started.
 ## `vm_limits_cpu_pin_strategy`
 
 Adds a new {config:option}`instance-resource-limits:limits.cpu.pin_strategy` configuration option for virtual machines. This option controls the CPU pinning strategy. When set to `none`, CPU auto pinning is disabled. When set to `auto`, CPU auto pinning is enabled.
+
+## `disk_state_created`
+
+This API extension provides the ability to check if a target directory was created within the instance file system at mount time. If a host directory is mounted to an existing container directory (e.g., `/opt`), the target directory won't be removed upon unmounting. However, if LXD creates a target directory during the mount, like `/new_dir`, it will be deleted when the device is unmounted.
