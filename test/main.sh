@@ -258,6 +258,7 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_join_api "clustering join api"
     run_test test_clustering_shutdown_nodes "clustering shutdown"
     run_test test_clustering_projects "clustering projects"
+    run_test test_clustering_metrics "clustering metrics"
     run_test test_clustering_update_cert "clustering update cert"
     run_test test_clustering_update_cert_reversion "clustering update cert reversion"
     run_test test_clustering_update_cert_token "clustering update cert token"

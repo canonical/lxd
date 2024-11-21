@@ -18,6 +18,7 @@ import (
 //go:generate mapper stmt -e warning objects-by-UUID
 //go:generate mapper stmt -e warning objects-by-Project
 //go:generate mapper stmt -e warning objects-by-Status
+//go:generate mapper stmt -e warning objects-by-Node-and-Status
 //go:generate mapper stmt -e warning objects-by-Node-and-TypeCode
 //go:generate mapper stmt -e warning objects-by-Node-and-TypeCode-and-Project
 //go:generate mapper stmt -e warning objects-by-Node-and-TypeCode-and-Project-and-EntityType-and-EntityID
