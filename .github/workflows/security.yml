@@ -35,12 +35,14 @@ jobs:
         run: trivy fs --download-db-only --cache-dir /home/runner/vuln-cache
         continue-on-error: true
 
-      - name: Use previous downloaded database
+      - name: Use previously downloaded database
         if: ${{ steps.db_download.outcome == 'failure' }}
         uses: actions/cache/restore@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
         with:
           path: /home/runner/vuln-cache
-          key: trivy-latest-cache
+          key: download-failed # Use a non existing key to fallback to restore-keys
+          restore-keys: |
+            trivy-cache-
 
       - name: Run Trivy vulnerability scanner
         run: |
@@ -52,12 +54,10 @@ jobs:
           --output trivy-lxd-repo-scan-results.sarif .
 
       - name: Cache Trivy vulnerability database
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache/save@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
         with:
           path: /home/runner/vuln-cache
-          key: trivy-latest-cache-${{ github.run_id }}
-          restore-keys: |
-            trivy-latest-cache
+          key: trivy-cache-${{ github.run_id }}
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@ea9e4e37992a54ee68a9622e985e60c8e8f12d9f # v3.27.4
@@ -89,7 +89,9 @@ jobs:
         uses: actions/cache/restore@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
         with:
           path: /home/runner/vuln-cache
-          key: trivy-latest-cache
+          key: download-failed # Use a non existing key to fallback to restore-keys
+          restore-keys: |
+            trivy-cache-
 
       - name: Download snap for scan
         run: |
