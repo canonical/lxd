@@ -9,8 +9,9 @@ runs:
       run: |
         set -eux
 
-        # Purge snaps, if any
-        for s in $(snap list | awk '!/^(Name|core|snapd)/ {print $1}'); do
+        # Purge snaps, if any.
+        # The Canonical runners use aproxy for connectivity.
+        for s in $(snap list | awk '!/^(Name|core|snapd|aproxy)/ {print $1}'); do
           sudo snap remove --purge "${s}" || true
         done
 
