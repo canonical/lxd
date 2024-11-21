@@ -178,6 +178,7 @@ OVS
 Pbit
 PCI
 PCIe
+passthrough
 peerings
 PFs
 PiB
