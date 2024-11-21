@@ -155,7 +155,7 @@ func (d *disk) checkBlockVolSharing(instanceType instancetype.Type, projectName 
 	}
 
 	if instanceType == instancetype.Any {
-		return fmt.Errorf("Cannot add custom storage block volume to profiles if security.shared is false or unset")
+		return fmt.Errorf("Cannot add block volume to profiles if security.shared is false or unset")
 	}
 
 	err := storagePools.VolumeUsedByInstanceDevices(d.state, d.pool.Name(), projectName, volume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
@@ -164,13 +164,23 @@ func (d *disk) checkBlockVolSharing(instanceType instancetype.Type, projectName 
 			return nil
 		}
 
-		return db.ErrListStop
-	})
-	if err != nil {
-		if err == db.ErrListStop {
-			return fmt.Errorf("Cannot add custom storage block volume to more than one instance if security.shared is false or unset")
+		// Don't count a VM volume's instance if security.protection.start is preventing that instance from starting
+		if volume.Type == cluster.StoragePoolVolumeTypeNameVM && volume.Project == inst.Project && volume.Name == inst.Name {
+			apiInst, err := inst.ToAPI()
+			if err != nil {
+				return err
+			}
+
+			apiInst.ExpandedConfig = instancetype.ExpandInstanceConfig(d.state.GlobalConfig.Dump(), apiInst.Config, inst.Profiles)
+
+			if shared.IsTrue(apiInst.ExpandedConfig["security.protection.start"]) {
+				return nil
+			}
 		}
 
+		return fmt.Errorf("Cannot add block volume to more than one instance if security.shared is false or unset")
+	})
+	if err != nil {
 		return err
 	}
 
