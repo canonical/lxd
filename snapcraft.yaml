@@ -1576,8 +1576,8 @@ parts:
       mkdir -p "${CRAFT_PART_INSTALL}/etc/bash_completion.d/"
       # Snapd requires the unaliased command `lxd.lxc` to be supplied as the first command for completion to be detected
       set_cmds='s/^\s*complete.*__start_lxc /&lxd.lxc /'
-      # When executed by Snapd, the COLUMNS shell value is unset, so use $(tput cols) instead
-      set_cols='s/COLUMNS/$(tput cols)/'
+      # When executed by snapd, the COLUMNS shell value is unset, so use $(tput cols) instead
+      set_cols='s/# $COLUMNS.*/COLUMN="$(tput cols)"  \# store the current shell width./'
       # When executed by snapd, the `compopt` support detection doesn't work so fake that it is always `builtin`
       set_compopt='s|$(type -t compopt)|"builtin"|'
       # Modify requestComp variable to use lxc based on context ($SNAP/bin/lxc in Snap environment)
