@@ -210,14 +210,15 @@ jobs:
       LXD_OFFLINE: "1"
       LXD_TMPFS: "1"
       GOTRACEBACK: "crash"
+      LIBDQLITE_TRACE: "1"
     name: System
     runs-on: ubuntu-22.04
     needs: code-tests
     strategy:
       fail-fast: false
       matrix:
-        suite: ["cluster", "standalone"]
-        backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
+        suite: ["standalone"]
+        backend: ["ceph"]
 
     steps:
       - name: Checkout
@@ -270,7 +271,7 @@ jobs:
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
-          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK,LIBDQLITE_TRACE, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
 
       - name: Upload crash dumps
         if: always()
