@@ -3261,12 +3261,14 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (*VolumeUsage, err
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 	vol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
 
-	// Get the usage.
+	// Get the usage
+	// If storage driver does not support getting the volume usage, proceed getting the total.
 	size, err := b.driver.GetVolumeUsage(vol)
-	if err != nil {
+	if err != nil && !errors.Is(err, drivers.ErrNotSupported) {
 		return nil, err
 	}
 
+	// If driver does not support getting volume usage, this value would be -1.
 	val.Used = size
 
 	// Get the total size.
