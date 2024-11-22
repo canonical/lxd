@@ -5347,6 +5347,47 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	return nil
 }
 
+// allowRemoveSecurityProtectionStart: security.protection.start can be removed
+// from a VM when the root disk device has security.shared=true OR it is not
+// attached to any other VMs.
+func allowRemoveSecurityProtectionStart(state *state.State, poolName string, volumeName string, proj *api.Project) error {
+	pool, err := storagePools.LoadByName(state, poolName)
+	if err != nil {
+		return err
+	}
+
+	volumeType := dbCluster.StoragePoolVolumeTypeVM
+	volumeProject := project.StorageVolumeProjectFromRecord(proj, volumeType)
+
+	var dbVolume *db.StorageVolume
+	err = state.DB.Cluster.Transaction(state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), volumeProject, volumeType, volumeName, true)
+		return err
+	})
+	if err != nil {
+		volumeTypeName := dbCluster.StoragePoolVolumeTypeNames[volumeType]
+		return fmt.Errorf(`Failed loading "%s/%s" from project %q: %w`, volumeTypeName, volumeName, volumeProject, err)
+	}
+
+	if shared.IsFalseOrEmpty(dbVolume.Config["security.shared"]) {
+		// Only check instances here, as a VM root volume cannot be part of a profile
+		// when not using security.shared
+		err := storagePools.VolumeUsedByInstanceDevices(state, pool.Name(), volumeProject, &dbVolume.StorageVolume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+			// The volume is always attached to its instance
+			if proj.Name == inst.Project && volumeName == inst.Name {
+				return nil
+			}
+
+			return fmt.Errorf("Cannot unset security.protection.start while the root device is attached to another instance")
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Update the instance config.
 func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
@@ -5597,6 +5638,15 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		// Ensure the instance has a root disk.
 		if newErr != nil {
 			return fmt.Errorf("Invalid root disk device: %w", newErr)
+		}
+
+		// If security.protection.start is being removed, we need to make sure that
+		// our root disk device is not attached to another instance.
+		if shared.IsTrue(oldExpandedConfig["security.protection.start"]) && shared.IsFalseOrEmpty(d.expandedConfig["security.protection.start"]) {
+			err := allowRemoveSecurityProtectionStart(d.state, newRootDev["pool"], d.common.name, &d.common.project)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
