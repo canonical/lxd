@@ -694,6 +694,7 @@ user_is_not_project_operator() {
 
   # Image list will still work but none will be shown because none are public.
   [ "$(lxc_remote image list "${remote}:" -f csv | wc -l)" = 0 ]
+  [ "$(lxc_remote image list "${remote}:" -f csv --all-projects | wc -l)" = 0 ]
 
   # Image edit will fail. Note that this fails with "not found" because we fail to resolve the alias (image is not public
   # so it is not returned from the DB).
@@ -772,11 +773,14 @@ auth_project_features() {
 
   # We can always list images, but there are no public images in the default project now, so the list should be empty.
   [ "$(lxc_remote image list "${remote}:" --project default --format csv)" = "" ]
+  # The list should also be empty when the --all-projects flag is set to true.
+  [ "$(lxc_remote image list "${remote}:" --all-projects --format csv)" = "" ]
   ! lxc_remote image show "${remote}:testimage" --project default || false
 
   # Set the image to public and ensure we can view it.
   lxc image show testimage --project default | sed -e "s/public: false/public: true/" | lxc image edit testimage --project default
-  [ "$(lxc_remote image list "${remote}:" --project default --format csv | wc -l)" = 1 ]
+  [ "$(lxc_remote image list "${remote}:" --project default --format csv | wc -l)" = 1 ] # --project flag set to default.
+  [ "$(lxc_remote image list "${remote}:" --all-projects --format csv | wc -l)" = 1 ] # --all-projects flag set to true.
   lxc_remote image show "${remote}:testimage" --project default
 
   # Check we can export the public image:
