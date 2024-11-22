@@ -2920,6 +2920,13 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 			return fmt.Errorf(`Instance volume "volatile.uuid" property cannot be changed`)
 		}
 
+		if shared.IsFalseOrEmpty(changedConfig["security.shared"]) && volDBType == cluster.StoragePoolVolumeTypeVM {
+			err = allowRemoveSecurityShared(b.state, inst.Project().Name, &curVol.StorageVolume)
+			if err != nil {
+				return err
+			}
+		}
+
 		// Load storage volume from database.
 		dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
 		if err != nil {
