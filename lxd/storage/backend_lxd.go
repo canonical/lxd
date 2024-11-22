@@ -2920,6 +2920,13 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 			return fmt.Errorf(`Instance volume "volatile.uuid" property cannot be changed`)
 		}
 
+		if shared.IsFalseOrEmpty(changedConfig["security.shared"]) && volDBType == cluster.StoragePoolVolumeTypeVM {
+			err = allowRemoveSecurityShared(b.state, inst.Project().Name, &curVol.StorageVolume)
+			if err != nil {
+				return err
+			}
+		}
+
 		// Load storage volume from database.
 		dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
 		if err != nil {
@@ -5953,7 +5960,7 @@ func (b *lxdBackend) detectChangedConfig(curConfig, newConfig map[string]string)
 
 func allowRemoveSecurityShared(s *state.State, projectName string, volume *api.StorageVolume) error {
 	err := VolumeUsedByProfileDevices(s, volume.Pool, projectName, volume, func(profileID int64, profile api.Profile, project api.Project, usedByDevices []string) error {
-		return fmt.Errorf("Cannot disable security.shared on custom storage block volume as it is attached to profile(s)")
+		return errors.New("Cannot disable security.shared on block storage volume as it is attached to profile(s)")
 	})
 	if err != nil {
 		return err
@@ -5962,10 +5969,24 @@ func allowRemoveSecurityShared(s *state.State, projectName string, volume *api.S
 	usedByInstances := 0
 
 	err = VolumeUsedByInstanceDevices(s, volume.Pool, projectName, volume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+		// Don't consider a virtual-machine to be using its root volume if security.protection.start=true
+		if volume.Type == cluster.StoragePoolVolumeTypeNameVM && inst.Type == instancetype.VM && volume.Project == inst.Project && volume.Name == inst.Name {
+			apiInst, err := inst.ToAPI()
+			if err != nil {
+				return err
+			}
+
+			apiInst.ExpandedConfig = instancetype.ExpandInstanceConfig(s.GlobalConfig.Dump(), apiInst.Config, inst.Profiles)
+
+			if shared.IsTrue(apiInst.ExpandedConfig["security.protection.start"]) {
+				return nil
+			}
+		}
+
 		usedByInstances += 1
 
 		if usedByInstances > 1 {
-			return fmt.Errorf("Cannot disable security.shared on custom storage block volume as it is attached to more than one instance")
+			return errors.New("Cannot disable security.shared on block storage volume as it is attached to more than one instance")
 		}
 
 		return nil
