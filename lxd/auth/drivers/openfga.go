@@ -84,10 +84,6 @@ func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cach
 		server.WithDatastore(opts.openfgaDatastore),
 		// Use our logger.
 		server.WithLogger(openfgaLogger{l: e.logger}),
-		// Set the max concurrency to 1 for both read and check requests.
-		// Our driver cannot perform concurrent reads.
-		server.WithMaxConcurrentReadsForListObjects(1),
-		server.WithMaxConcurrentReadsForCheck(1),
 		// This is required so that the OpenFGA cache can be set in the request context and passed down to the datastore.
 		server.WithContextPropagationToDatastore(true),
 	}
