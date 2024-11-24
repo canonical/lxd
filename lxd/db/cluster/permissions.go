@@ -149,3 +149,31 @@ WHERE auth_groups.name IN %s`, query.Params(len(groupNames)))
 
 	return permissions, nil
 }
+
+// GetGroupPermissions returns a map of group name to slice of permissions. This is used by the OpenFGADatastore
+// implementation. It is pre-loaded into an openfga.RequestCache to reduce the total number of queries.
+func GetGroupPermissions(ctx context.Context, tx *sql.Tx) (map[string][]Permission, error) {
+	q := `
+SELECT auth_groups.name, auth_groups_permissions.entity_id, auth_groups_permissions.entity_type, auth_groups_permissions.entitlement
+FROM auth_groups
+JOIN auth_groups_permissions ON auth_groups_permissions.auth_group_id = auth_groups.id
+`
+	rows, err := tx.QueryContext(ctx, q)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to query group permissions: %w", err)
+	}
+
+	groupPermissions := make(map[string][]Permission)
+	for rows.Next() {
+		var permission Permission
+		var groupName string
+		err := rows.Scan(&groupName, &permission.EntityID, &permission.EntityType, &permission.Entitlement)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to scan effective permissions: %w", err)
+		}
+
+		groupPermissions[groupName] = append(groupPermissions[groupName], permission)
+	}
+
+	return groupPermissions, nil
+}
