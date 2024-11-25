@@ -2527,3 +2527,7 @@ This adds scope metadata to `GET /1.0/metadata/configuration`. Options marked wi
 ## `unix_device_hotplug_ownership_inherit`
 
 Adds a new {config:option}`device-unix-hotplug-device-conf:ownership.inherit` configuration option for `unix-hotplug` devices. This option controls whether the device inherits ownership (GID and/or UID) from the host. When set to `true` and GID and/or UID are unset, host ownership is inherited. When set to `false`, host ownership is not inherited and ownership can be configured by setting {config:option}`device-unix-hotplug-device-conf:gid` and {config:option}`device-unix-hotplug-device-conf:uid`.
+
+## `unix_device_hotplug_subsystem_device_option`
+
+Adds a new {config:option}`device-unix-hotplug-device-conf:subsystem` configuration option for `unix-hotplug` devices. This adds support for detecting `unix-hotplug` devices by subsystem, and can be used in conjunction with {config:option}`device-unix-hotplug-device-conf:productid` and {config:option}`device-unix-hotplug-device-conf:vendorid`.
