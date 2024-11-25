@@ -2886,6 +2886,11 @@ definitions:
                 example: On device creation.
                 type: string
                 x-go-name: Required
+            scope:
+                description: Scope describes the cluster member specificity of a configuration key. Options marked with a `global` scope are applied to all cluster members. Options marked with a `local` scope are set on a per-member basis.
+                example: global
+                type: string
+                x-go-name: Scope
             shortdesc:
                 description: ShortDescription contains a short-form description of the configuration key.
                 example: A key for doing X.
