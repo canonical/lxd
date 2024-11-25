@@ -2,6 +2,7 @@ package cdi
 
 import (
 	"fmt"
+	"strconv"
 
 	"tags.cncf.io/container-device-interface/pkg/parser"
 )
@@ -90,7 +91,12 @@ func ToCDI(id string) (ID, error) {
 	vendor, class, name, err := parser.ParseQualifiedName(id)
 	if err != nil {
 		// The ID is not a valid CDI qualified name but it could be a valid DRM device ID.
-		return ID{}, nil
+		_, err := strconv.Atoi(id)
+		if err == nil {
+			return ID{}, nil
+		}
+
+		return ID{}, err
 	}
 
 	vendorType, err := ToVendor(vendor)
