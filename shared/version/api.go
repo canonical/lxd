@@ -423,6 +423,7 @@ var APIExtensions = []string{
 	"state_logical_cpus",
 	"vm_limits_cpu_pin_strategy",
 	"gpu_cdi",
+	"metadata_configuration_scope",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

@@ -2519,3 +2519,7 @@ Adds a new {config:option}`instance-resource-limits:limits.cpu.pin_strategy` con
 ## `gpu_cdi`
 
 Adds support for using the Container Device Interface (CDI) specification to configure GPU passthrough in LXD containers. The `id` field of GPU devices now accepts CDI identifiers (for example, `{VENDOR_DOMAIN_NAME}/gpu=gpu{INDEX}`) for containers, in addition to DRM card IDs. This enables GPU passthrough for devices that don't use PCI addressing (like NVIDIA Tegra iGPUs) and provides a more flexible way to identify and configure GPU devices.
+
+## `metadata_configuration_scope`
+
+This adds scope metadata to `GET /1.0/metadata/configuration`. Options marked with a `global` scope are applied to all cluster members. Options with a `local` scope must be set on a per-member basis.
