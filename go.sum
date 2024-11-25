@@ -83,8 +83,8 @@ github.com/fsnotify/fsnotify v1.7.0 h1:8JEhPFa5W2WU7YfeZzPNqzMP6Lwt7L2715Ggo0nos
 github.com/fsnotify/fsnotify v1.7.0/go.mod h1:40Bi/Hjc2AVfZrqy+aj+yEI+/bRxZnMJyTJwOpGvigM=
 github.com/fvbommel/sortorder v1.1.0 h1:fUmoe+HLsBTctBDoaBwpQo5N+nrCp8g/BjKb/6ZQmYw=
 github.com/fvbommel/sortorder v1.1.0/go.mod h1:uk88iVf1ovNn1iLfgUVU2F9o5eO30ui720w+kxuqRs0=
-github.com/go-acme/lego/v4 v4.19.2 h1:Y8hrmMvWETdqzzkRly7m98xtPJJivWFsgWi8fcvZo+Y=
-github.com/go-acme/lego/v4 v4.19.2/go.mod h1:wtDe3dDkmV4/oI2nydpNXSJpvV10J9RCyZ6MbYxNtlQ=
+github.com/go-acme/lego/v4 v4.20.4 h1:yCQGBX9jOfMbriEQUocdYm7EBapdTp8nLXYG8k6SqSU=
+github.com/go-acme/lego/v4 v4.20.4/go.mod h1:foauPlhnhoq8WUphaWx5U04uDc+JGhk4ZZtPz/Vqsjg=
 github.com/go-chi/chi/v5 v5.1.0 h1:acVI1TYaD+hhedDJ3r54HyA6sExp3HfXq7QWEEY/xMw=
 github.com/go-chi/chi/v5 v5.1.0/go.mod h1:DslCQbL2OYiznFReuXYUmQ2hGd1aDpCnlMNITLSKoi8=
 github.com/go-ini/ini v1.67.0 h1:z6ZrTEZqSWOTyH2FlglNbNgARyHG8oLW9gMELqKr06A=
