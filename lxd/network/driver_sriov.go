@@ -29,18 +29,21 @@ func (n *sriov) Validate(config map[string]string) error {
 		// ---
 		//  type: string
 		//  shortdesc: Parent interface to create `sriov` NICs on
+		//  scope: local
 		"parent": validate.Required(validate.IsNotEmpty, validate.IsInterfaceName),
 		// lxdmeta:generate(entities=network-sriov; group=network-conf; key=mtu)
 		//
 		// ---
 		//  type: integer
 		//  shortdesc: MTU of the new interface
+		//  scope: global
 		"mtu": validate.Optional(validate.IsNetworkMTU),
 		// lxdmeta:generate(entities=network-sriov; group=network-conf; key=vlan)
 		//
 		// ---
 		//  type: integer
 		//  shortdesc: VLAN ID to attach to
+		//  scope: global
 		"vlan": validate.Optional(validate.IsNetworkVLAN),
 		// lxdmeta:generate(entities=network-sriov; group=network-conf; key=maas.subnet.ipv4)
 		//
@@ -48,6 +51,7 @@ func (n *sriov) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: IPv4 address; using the `network` property on the NIC
 		//  shortdesc: MAAS IPv4 subnet to register instances in
+		//  scope: global
 		"maas.subnet.ipv4": validate.IsAny,
 		// lxdmeta:generate(entities=network-sriov; group=network-conf; key=maas.subnet.ipv6)
 		//
@@ -55,6 +59,7 @@ func (n *sriov) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: IPv6 address; using the `network` property on the NIC
 		//  shortdesc: MAAS IPv6 subnet to register instances in
+		//  scope: global
 		"maas.subnet.ipv6": validate.IsAny,
 
 		// lxdmeta:generate(entities=network-sriov; group=network-conf; key=user.*)
@@ -62,6 +67,7 @@ func (n *sriov) Validate(config map[string]string) error {
 		// ---
 		//  type: string
 		//  shortdesc: User-provided free-form key/value pairs
+		//  scope: global
 	}
 
 	err := n.validate(config, rules)
