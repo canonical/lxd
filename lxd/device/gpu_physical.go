@@ -645,28 +645,30 @@ func (d *gpuPhysical) Stop() (*deviceConfig.RunConfig, error) {
 	}
 
 	if d.inst.Type() == instancetype.Container {
-		cdiID, err := cdi.ToCDI(d.config["id"])
-		if err != nil {
-			return nil, err
-		}
-
-		if !cdiID.Empty() {
-			// This is more efficient than GenerateFromCDI as we don't need to re-generate a CDI specification to parse it again.
-			configDevices, err := cdi.ReloadConfigDevicesFromDisk(d.generateCDIConfigDevicesFilePath())
+		if d.config["id"] != "" {
+			cdiID, err := cdi.ToCDI(d.config["id"])
 			if err != nil {
 				return nil, err
 			}
 
-			err = d.stopCDIDevices(configDevices, &runConf)
-			if err != nil {
-				return nil, err
-			}
+			if !cdiID.Empty() {
+				// This is more efficient than GenerateFromCDI as we don't need to re-generate a CDI specification to parse it again.
+				configDevices, err := cdi.ReloadConfigDevicesFromDisk(d.generateCDIConfigDevicesFilePath())
+				if err != nil {
+					return nil, err
+				}
 
-			return &runConf, nil
+				err = d.stopCDIDevices(configDevices, &runConf)
+				if err != nil {
+					return nil, err
+				}
+
+				return &runConf, nil
+			}
 		}
 
 		// In case of an 'id' not being CDI-compliant (e.g, a legacy DRM card id), we remove unix devices only as usual.
-		err = unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
+		err := unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
 		if err != nil {
 			return nil, err
 		}
@@ -688,35 +690,39 @@ func (d *gpuPhysical) postStop() error {
 	v := d.volatileGet()
 
 	if d.inst.Type() == instancetype.Container {
-		cdiID, err := cdi.ToCDI(d.config["id"])
-		if err != nil {
+		if d.config["id"] != "" {
+			cdiID, err := cdi.ToCDI(d.config["id"])
+			if err != nil {
+				return err
+			}
+
+			if !cdiID.Empty() {
+				err = unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), cdi.CDIUnixPrefix, d.name, "")
+				if err != nil {
+					return fmt.Errorf("Failed to delete files for CDI device '%s': %w", d.name, err)
+				}
+
+				// Also remove the JSON files that were used to store the CDI related information.
+				err = os.Remove(d.generateCDIHooksFilePath())
+				if err != nil {
+					return fmt.Errorf("Failed to delete CDI hooks file for device %q: %w", d.name, err)
+				}
+
+				err = os.Remove(d.generateCDIConfigDevicesFilePath())
+				if err != nil {
+					return fmt.Errorf("Failed to delete CDI paths to conf file for device %q: %w", d.name, err)
+				}
+			} else {
+				err = unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), "unix", d.name, "")
+				if err != nil {
+					return fmt.Errorf("Failed to delete files for device %q: %w", d.name, err)
+				}
+			}
+
 			return err
 		}
 
-		if !cdiID.Empty() {
-			err = unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), cdi.CDIUnixPrefix, d.name, "")
-			if err != nil {
-				return fmt.Errorf("Failed to delete files for CDI device '%s': %w", d.name, err)
-			}
-
-			// Also remove the JSON files that were used to store the CDI related information.
-			err = os.Remove(d.generateCDIHooksFilePath())
-			if err != nil {
-				return fmt.Errorf("Failed to delete CDI hooks file for device %q: %w", d.name, err)
-			}
-
-			err = os.Remove(d.generateCDIConfigDevicesFilePath())
-			if err != nil {
-				return fmt.Errorf("Failed to delete CDI paths to conf file for device %q: %w", d.name, err)
-			}
-		} else {
-			err = unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), "unix", d.name, "")
-			if err != nil {
-				return fmt.Errorf("Failed to delete files for device %q: %w", d.name, err)
-			}
-		}
-
-		return err
+		return unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), "unix", d.name, "")
 	}
 
 	// If VM physical pass through, unbind from vfio-pci and bind back to host driver.
