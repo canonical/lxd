@@ -74,6 +74,7 @@ require (
 	cel.dev/expr v0.18.0 // indirect
 	github.com/NVIDIA/go-nvlib v0.7.0 // indirect
 	github.com/NVIDIA/go-nvml v0.12.4-0 // indirect
+	github.com/alphadose/haxmap v1.4.1 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.7.1 // indirect
