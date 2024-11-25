@@ -27,8 +27,8 @@ The implementation depends on `systemd-udev` to be run on the host.
 
 ## Configuration examples
 
-Add a `unix-hotplug` device to a container by specifying its vendor ID and product ID:
+Add a `unix-hotplug` device to an instance by specifying its vendor ID, product ID, and/or subsystem:
 
-    lxc config device add <instance_name> <device_name> unix-hotplug vendorid=<vendor_ID> productid=<product_ID>
+    lxc config device add <instance_name> <device_name> unix-hotplug vendorid=<vendor_ID> productid=<product_ID> subsystem=<subsystem>
 
 See {ref}`instances-configure-devices` for more information.
