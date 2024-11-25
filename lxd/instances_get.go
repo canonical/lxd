@@ -25,6 +25,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/filter"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -304,6 +305,8 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resultErrListAppend := func(inst db.Instance, err error) {
+		logger.Error("Failed getting instance info", logger.Ctx{"err": err, "project": inst.Project, "instance": inst.Name})
+
 		instFull := &api.InstanceFull{
 			Instance: api.Instance{
 				Name:       inst.Name,
