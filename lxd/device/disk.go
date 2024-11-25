@@ -1579,9 +1579,6 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		return nil, "", nil, err
 	}
 
-	volStorageName := project.StorageVolume(storageProjectName, volumeName)
-	srcPath := storageDrivers.GetVolumeMountPath(d.config["pool"], volumeType, volStorageName)
-
 	mountInfo, err = d.pool.MountVolume(storageProjectName, volumeName, volumeType, nil)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf(`Failed mounting storage volume "%s/%s" from storage pool %q: %w`, volumeTypeName, volumeName, d.pool.Name(), err)
@@ -1600,6 +1597,15 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		return nil, "", nil, fmt.Errorf("Failed to fetch local storage volume record: %w", err)
 	}
 
+	var volStorageName string
+	if dbVolume.Type == cluster.StoragePoolVolumeTypeNameCustom {
+		volStorageName = project.StorageVolume(storageProjectName, volumeName)
+	} else {
+		volStorageName = project.Instance(storageProjectName, volumeName)
+	}
+
+	srcPath := storageDrivers.GetVolumeMountPath(d.config["pool"], volumeType, volStorageName)
+
 	if d.inst.Type() == instancetype.Container {
 		if dbVolume.ContentType != cluster.StoragePoolVolumeContentTypeNameFS {
 			return nil, "", nil, fmt.Errorf("Only filesystem volumes are supported for containers")
@@ -1612,8 +1618,6 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	}
 
 	if dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock || dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameISO {
-		volStorageName := project.StorageVolume(storageProjectName, volumeName)
-
 		volume := d.pool.GetVolume(volumeType, storageDrivers.ContentType(dbVolume.ContentType), volStorageName, dbVolume.Config)
 
 		srcPath, err = d.pool.Driver().GetVolumeDiskPath(volume)
