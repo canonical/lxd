@@ -937,14 +937,24 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		return nil, err
 	}
 
+	// Instruct liblxc to use the lxd-stophook wrapper in the bin directory of the snap instead of lxd in sbin.
+	// This is the historical path where the lxd binary used to be, but it was replaced with a small wrapper
+	// script which redirects the stop hook requests to lxd-user (which is statically compiled) so that stop
+	// hook notifications to LXD work when the snap base version is changed.
+	lxdStopHookPath := d.state.OS.ExecPath
+	if shared.InSnap() && strings.HasSuffix(lxdStopHookPath, "sbin/lxd") {
+		// Convert /snap/lxd/current/sbin/lxd into /snap/lxd/current/bin/lxd.
+		lxdStopHookPath = strings.TrimSuffix(lxdStopHookPath, "sbin/lxd") + "bin/lxd"
+	}
+
 	// Call the onstopns hook on stop but before namespaces are unmounted.
-	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", lxdStopHookPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
 	if err != nil {
 		return nil, err
 	}
 
 	// Call the onstop hook on stop.
-	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", lxdStopHookPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
 	if err != nil {
 		return nil, err
 	}
