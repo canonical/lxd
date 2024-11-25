@@ -416,6 +416,33 @@ func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, identit
 	return nil
 }
 
+// extractEntitlementsFromQuery extracts the entitlements from the query string of the request.
+func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allowRecursion bool) ([]auth.Entitlement, error) {
+	rawEntitlements := request.QueryParam(r, "with-access-entitlements")
+	if rawEntitlements == "" {
+		return nil, nil
+	}
+
+	allowedEntitlements := auth.EntityTypeToEntitlements[entityType]
+	entitlements := strings.Split(rawEntitlements, ",")
+	validEntitlements := make([]auth.Entitlement, 0, len(entitlements))
+	for _, e := range entitlements {
+		if !shared.ValueInSlice(auth.Entitlement(e), allowedEntitlements) {
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Requested entitlement %q is not valid for entity type %q", e, entityType)
+		}
+
+		validEntitlements = append(validEntitlements, auth.Entitlement(e))
+	}
+
+	// Entitlements can only be requested when recursion is enabled for a request returning multiple entities (this function call uses `allowRecursion=true`).
+	// If the request is meant to return a single entity, the entitlements can be requested regardless of the recursion setting (in this case, the function is called with `allowRecursion=false`).
+	if len(validEntitlements) > 0 && (!util.IsRecursionRequest(r) && allowRecursion) {
+		return nil, fmt.Errorf("Entitlements can only be requested when recursion is enabled")
+	}
+
+	return validEntitlements, nil
+}
+
 // Authenticate validates an incoming http Request
 // It will check over what protocol it came, what type of request it is and
 // will validate the TLS certificate or OIDC token.
