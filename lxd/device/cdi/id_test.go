@@ -98,7 +98,7 @@ func TestToCDI(t *testing.T) {
 		{"Invalid vendor", "amd.com/gpu=0", ID{}, true},
 		{"Invalid class", "nvidia.com/cpu=0", ID{}, true},
 		{"Valid MIG format (all MIG indexes in device)", "nvidia.com/mig=0", ID{Vendor: NVIDIA, Class: MIG, Name: "0"}, false},
-		{"Non-CDI format", "not-a-cdi-format", ID{}, false},
+		{"Non-CDI format", "not-a-cdi-format", ID{}, true},
 	}
 
 	for _, tt := range tests {
