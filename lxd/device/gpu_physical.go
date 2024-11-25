@@ -77,10 +77,14 @@ func (d *gpuPhysical) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		// If user requests CDI in conjunction with any nvidia.<options>=true we should forbid that.
+		cdiID, err := cdi.ToCDI(d.config["id"])
+		if err != nil {
+			return fmt.Errorf("Failed to parse GPU 'id': %w", err)
+		}
+
 		for k, v := range instConf.ExpandedConfig() {
 			if strings.HasPrefix(k, "nvidia.") && shared.IsTrue(v) {
-				_, err := cdi.ToCDI(d.config["id"])
-				if err == nil {
+				if cdiID.Vendor != "" && cdiID.Class != "" && cdiID.Name != "" {
 					return fmt.Errorf("CDI mode is incompatible with any NVIDIA instance configuration option (%q)", k)
 				}
 			}
