@@ -3,6 +3,7 @@ package device
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -21,7 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/api"
 )
 
 const gpuDRIDevPath = "/dev/dri"
@@ -285,21 +286,17 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
 	if d.config["id"] != "" {
 		// Check if the id of the device match a CDI format.
-		cdiID, err := cdi.ToCDI(d.config["id"])
-		if err != nil {
-			return nil, err
-		}
-
-		// The cdiID can be empty if the provided ID doesn't conform to the CDI (Container Device Interface) format,
-		// and this will not be treated as an error, as we allow the program to continue processing.
+		// The cdiID can be nil if the provided ID doesn't conform to the CDI (Container Device Interface)
+		// format and this will not be treated as an error, as we allow the program to continue processing.
 		// The ID might still be valid in other contexts, such as a DRM card ID.
-		// This flexibility allows for both CDI-compliant device specifications and legacy device identifiers.
-		if !cdiID.Empty() {
+		// This flexibility allows for both CDI-compliant device specifications and legacy device IDs.
+		cdiID, _ := cdi.ToCDI(d.config["id"])
+		if cdiID != nil {
 			if cdiID.Class == cdi.MIG {
 				return nil, fmt.Errorf(`MIG GPU notation detected for a "physical" gputype device. Choose a "mig" gputype device instead.`)
 			}
 
-			configDevices, hooks, err := cdi.GenerateFromCDI(d.state, d.inst, cdiID, d.logger)
+			configDevices, hooks, err := cdi.GenerateFromCDI(d.state, d.inst, *cdiID, d.logger)
 			if err != nil {
 				return nil, err
 			}
@@ -615,15 +612,11 @@ func (d *gpuPhysical) stopCDIDevices(configDevices cdi.ConfigDevices, runConf *d
 func (d *gpuPhysical) CanHotPlug() bool {
 	if d.inst.Type() == instancetype.Container {
 		if d.config["id"] != "" {
-			// Check if the id of the device match a CDI format.
-			cdiID, err := cdi.ToCDI(d.config["id"])
-			if err != nil {
-				d.logger.Error("Failed to parse CDI ID when hotplugging", logger.Ctx{"err": err})
-				return false
-			}
-
-			if !cdiID.Empty() {
-				d.logger.Warn("Hotplugging CDI devices is not supported", logger.Ctx{"id": d.config["id"]})
+			// Check if the id of the device matches a CDI format.
+			cdiID, _ := cdi.ToCDI(d.config["id"])
+			if cdiID != nil {
+				// CDI devices cannot be hot-plugged because they rely on a start hook for setting
+				// up files inside the container.
 				return false
 			}
 		}
@@ -641,13 +634,10 @@ func (d *gpuPhysical) Stop() (*deviceConfig.RunConfig, error) {
 	}
 
 	if d.inst.Type() == instancetype.Container {
-		cdiID, err := cdi.ToCDI(d.config["id"])
-		if err != nil {
-			return nil, err
-		}
-
-		if !cdiID.Empty() {
-			// This is more efficient than GenerateFromCDI as we don't need to re-generate a CDI specification to parse it again.
+		cdiID, _ := cdi.ToCDI(d.config["id"])
+		if cdiID != nil {
+			// This is more efficient than GenerateFromCDI as we don't need to re-generate a CDI
+			// specification to parse it again.
 			configDevices, err := cdi.ReloadConfigDevicesFromDisk(d.generateCDIConfigDevicesFilePath())
 			if err != nil {
 				return nil, err
@@ -661,8 +651,9 @@ func (d *gpuPhysical) Stop() (*deviceConfig.RunConfig, error) {
 			return &runConf, nil
 		}
 
-		// In case of an 'id' not being CDI-compliant (e.g, a legacy DRM card id), we remove unix devices only as usual.
-		err = unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
+		// In case of an 'id' not being CDI-compliant (e.g, a legacy DRM card id),
+		// we remove unix devices only as usual.
+		err := unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
 		if err != nil {
 			return nil, err
 		}
@@ -684,13 +675,9 @@ func (d *gpuPhysical) postStop() error {
 	v := d.volatileGet()
 
 	if d.inst.Type() == instancetype.Container {
-		cdiID, err := cdi.ToCDI(d.config["id"])
-		if err != nil {
-			return err
-		}
-
-		if !cdiID.Empty() {
-			err = unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), cdi.CDIUnixPrefix, d.name, "")
+		cdiID, _ := cdi.ToCDI(d.config["id"])
+		if cdiID != nil {
+			err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), cdi.CDIUnixPrefix, d.name, "")
 			if err != nil {
 				return fmt.Errorf("Failed to delete files for CDI device '%s': %w", d.name, err)
 			}
@@ -706,13 +693,13 @@ func (d *gpuPhysical) postStop() error {
 				return fmt.Errorf("Failed to delete CDI paths to conf file for device %q: %w", d.name, err)
 			}
 		} else {
-			err = unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), "unix", d.name, "")
+			err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), "unix", d.name, "")
 			if err != nil {
 				return fmt.Errorf("Failed to delete files for device %q: %w", d.name, err)
 			}
 		}
 
-		return err
+		return nil
 	}
 
 	// If VM physical pass through, unbind from vfio-pci and bind back to host driver.
