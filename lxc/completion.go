@@ -333,6 +333,54 @@ func (g *cmdGlobal) cmpInstanceAllKeys(profileName string) ([]string, cobra.Shel
 	return configKeys, cmpDirectives | cobra.ShellCompDirectiveNoSpace
 }
 
+// cmpInstanceSetKeys provides shell completion for instance configuration keys which are currently set.
+// It takes an instance name to determine instance type and returns a list of instance configuration keys along with a shell completion directive.
+func (g *cmdGlobal) cmpInstanceSetKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
+
+	// Early return when completing server keys.
+	_, instanceNameOnly, found := strings.Cut(instanceName, ":")
+	if instanceNameOnly == "" && found {
+		return g.cmpServerAllKeys(instanceName)
+	}
+
+	resources, err := g.ParseServers(instanceName)
+	if err != nil || len(resources) == 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	instance, _, err := client.GetInstance(instanceName)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	// Fetch all config keys that can be set by a user.
+	allInstanceConfigKeys, _ := g.cmpInstanceAllKeys(instanceName)
+
+	// Convert slice to map[string]struct{} for O(1) lookups.
+	keySet := make(map[string]struct{}, len(allInstanceConfigKeys))
+	for _, key := range allInstanceConfigKeys {
+		keySet[key] = struct{}{}
+	}
+
+	// Pre-allocate configKeys slice capacity.
+	keyCount := len(instance.Config)
+	configKeys := make([]string, 0, keyCount)
+
+	for configKey := range instance.Config {
+		// We only want to return the intersection between allInstanceConfigKeys and configKeys to avoid returning the full instance config.
+		_, exists := keySet[configKey]
+		if exists {
+			configKeys = append(configKeys, configKey)
+		}
+	}
+
+	return configKeys, cmpDirectives | cobra.ShellCompDirectiveNoSpace
+}
+
 // cmpServerAllKeys provides shell completion for all server configuration keys.
 // It takes an instance name and returns a list of all server configuration keys along with a shell completion directive.
 func (g *cmdGlobal) cmpServerAllKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
