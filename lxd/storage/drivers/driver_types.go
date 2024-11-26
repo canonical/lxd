@@ -5,6 +5,7 @@ type Info struct {
 	Name                         string
 	Version                      string
 	VolumeTypes                  []VolumeType // Supported volume types.
+	DefaultBlockSize             string       // Default block volume size.
 	DefaultVMBlockFilesystemSize string       // Default volume size for VM block filesystems.
 	Buckets                      bool         // Buckets supported.
 	Remote                       bool         // Whether the driver uses a remote backing store.
