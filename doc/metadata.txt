@@ -5097,15 +5097,6 @@ when creating a missing OSD pool.
 
 <!-- config group storage-cephfs-pool-conf end -->
 <!-- config group storage-cephfs-volume-conf start -->
-```{config:option} security.shared storage-cephfs-volume-conf
-:condition: "custom block volume"
-:defaultdesc: "same as `volume.security.shared` or `false`"
-:shortdesc: "Enable volume sharing"
-:type: "bool"
-Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
-
-```
-
 ```{config:option} security.shifted storage-cephfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
