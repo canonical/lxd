@@ -1548,19 +1548,8 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, leases)
 }
 
-func networkStartup(s *state.State) error {
+func networkStartup(stateFunc func() *state.State) error {
 	var err error
-
-	// Get a list of projects.
-	var projectNames []string
-
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		projectNames, err = dbCluster.GetProjectNames(ctx, tx.Tx())
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to load projects: %w", err)
-	}
 
 	// Build a list of networks to initialise, keyed by project and network name.
 	const networkPriorityStandalone = 0 // Start networks not dependent on any other network first.
@@ -1572,38 +1561,14 @@ func networkStartup(s *state.State) error {
 		networkPriorityLogical:    make(map[network.ProjectNetwork]struct{}),
 	}
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		for _, projectName := range projectNames {
-			networkNames, err := tx.GetCreatedNetworkNamesByProject(ctx, projectName)
-			if err != nil {
-				return fmt.Errorf("Failed to load networks for project %q: %w", projectName, err)
-			}
-
-			for _, networkName := range networkNames {
-				pn := network.ProjectNetwork{
-					ProjectName: projectName,
-					NetworkName: networkName,
-				}
-
-				// Assume all networks are networkPriorityStandalone initially.
-				initNetworks[networkPriorityStandalone][pn] = struct{}{}
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
 	loadedNetworks := make(map[network.ProjectNetwork]network.Network)
 
-	initNetwork := func(n network.Network, priority int) error {
+	initNetwork := func(s *state.State, n network.Network, priority int) error {
 		err = n.Start()
 		if err != nil {
 			err = fmt.Errorf("Failed starting: %w", err)
 
-			_ = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			_ = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.UpsertWarningLocalNode(ctx, n.Project(), entity.TypeNetwork, int(n.ID()), warningtype.NetworkUnvailable, err.Error())
 			})
 
@@ -1625,7 +1590,7 @@ func networkStartup(s *state.State) error {
 		return nil
 	}
 
-	loadAndInitNetwork := func(pn network.ProjectNetwork, priority int, firstPass bool) error {
+	loadAndInitNetwork := func(s *state.State, pn network.ProjectNetwork, priority int, firstPass bool) error {
 		var err error
 		var n network.Network
 
@@ -1670,7 +1635,7 @@ func networkStartup(s *state.State) error {
 			return nil
 		}
 
-		err = initNetwork(n, priority)
+		err = initNetwork(s, n, priority)
 		if err != nil {
 			return err
 		}
@@ -1678,31 +1643,70 @@ func networkStartup(s *state.State) error {
 		return nil
 	}
 
-	// Try initializing networks in priority order.
-	for priority := range initNetworks {
-		for pn := range initNetworks[priority] {
-			err := loadAndInitNetwork(pn, priority, true)
-			if err != nil {
-				logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
-
-				continue
-			}
+	remainingNetworksCount := func() int {
+		remainingNetworks := 0
+		for _, projectNetworks := range initNetworks {
+			remainingNetworks += len(projectNetworks)
 		}
+
+		return remainingNetworks
 	}
 
-	loadedNetworks = nil // Don't store loaded networks after first pass.
+	{
+		// Peform first pass to start networks.
+		// Local scope for state variable during initial pass of setting up networks.
+		s := stateFunc()
+		err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			projectNames, err := dbCluster.GetProjectNames(ctx, tx.Tx())
+			if err != nil {
+				return fmt.Errorf("Failed to load projects: %w", err)
+			}
 
-	remainingNetworks := 0
-	for _, networks := range initNetworks {
-		remainingNetworks += len(networks)
+			for _, projectName := range projectNames {
+				networkNames, err := tx.GetCreatedNetworkNamesByProject(ctx, projectName)
+				if err != nil {
+					return fmt.Errorf("Failed to load networks for project %q: %w", projectName, err)
+				}
+
+				for _, networkName := range networkNames {
+					pn := network.ProjectNetwork{
+						ProjectName: projectName,
+						NetworkName: networkName,
+					}
+
+					// Assume all networks are networkPriorityStandalone initially.
+					initNetworks[networkPriorityStandalone][pn] = struct{}{}
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		// Try initializing networks in priority order.
+		for priority := range initNetworks {
+			for pn := range initNetworks[priority] {
+				err := loadAndInitNetwork(s, pn, priority, true)
+				if err != nil {
+					logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
+
+					continue
+				}
+			}
+		}
+
+		loadedNetworks = nil // Don't store loaded networks after first pass.
 	}
 
 	// For any remaining networks that were not successfully initialised, we now start a go routine to
 	// periodically try to initialize them again in the background.
-	if remainingNetworks > 0 {
+	if remainingNetworksCount() > 0 {
 		go func() {
 			for {
 				t := time.NewTimer(time.Duration(time.Minute))
+				s := stateFunc() // Get fresh state in case global config has been updated.
 
 				select {
 				case <-s.ShutdownCtx.Done():
@@ -1716,7 +1720,7 @@ func networkStartup(s *state.State) error {
 					// Try initializing networks in priority order.
 					for priority := range initNetworks {
 						for pn := range initNetworks[priority] {
-							err := loadAndInitNetwork(pn, priority, false)
+							err := loadAndInitNetwork(s, pn, priority, false)
 							if err != nil {
 								logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
 
@@ -1727,11 +1731,7 @@ func networkStartup(s *state.State) error {
 						}
 					}
 
-					remainingNetworks := 0
-					for _, networks := range initNetworks {
-						remainingNetworks += len(networks)
-					}
-
+					remainingNetworks := remainingNetworksCount()
 					if remainingNetworks <= 0 {
 						logger.Info("All networks initialized")
 					}
