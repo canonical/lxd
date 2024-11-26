@@ -25,6 +25,7 @@ func (d *mock) Info() Info {
 	return Info{
 		Name:                         "mock",
 		Version:                      "1",
+		DefaultBlockSize:             d.defaultBlockVolumeSize(),
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              false,
 		PreservesInodes:              false,
