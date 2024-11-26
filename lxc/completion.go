@@ -6,7 +6,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
@@ -292,23 +291,46 @@ func (g *cmdGlobal) cmpInstanceKeys(instanceName string) ([]string, cobra.ShellC
 
 // cmpInstanceAllKeys provides shell completion for all possible instance configuration keys.
 // It returns a list of all possible instance configuration keys along with a shell completion directive.
-func (g *cmdGlobal) cmpInstanceAllKeys() ([]string, cobra.ShellCompDirective) {
-	keys := make([]string, 0, len(instancetype.InstanceConfigKeysContainer)+len(instancetype.InstanceConfigKeysVM)+len(instancetype.InstanceConfigKeysAny))
+func (g *cmdGlobal) cmpInstanceAllKeys(profileName string) ([]string, cobra.ShellCompDirective) {
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
-	for k := range instancetype.InstanceConfigKeysContainer {
-		keys = append(keys, k)
+	// Parse remote
+	resources, err := g.ParseServers(profileName)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
 	}
 
-	for k := range instancetype.InstanceConfigKeysVM {
-		keys = append(keys, k)
+	resource := resources[0]
+	client := resource.server
+
+	metadataConfiguration, err := client.GetMetadataConfiguration()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
 	}
 
-	for k := range instancetype.InstanceConfigKeysAny {
-		keys = append(keys, k)
+	instanceConfig, ok := metadataConfiguration.Configs["instance"]
+	if !ok {
+		return nil, cobra.ShellCompDirectiveError
 	}
 
-	return keys, cmpDirectives
+	// Pre-allocate configKeys slice capacity.
+	keyCount := 0
+	for _, field := range instanceConfig {
+		keyCount += len(field.Keys)
+	}
+
+	configKeys := make([]string, 0, keyCount)
+
+	for _, field := range instanceConfig {
+		for _, key := range field.Keys {
+			for configKey := range key {
+				configKey = strings.TrimSuffix(configKey, "*")
+				configKeys = append(configKeys, configKey)
+			}
+		}
+	}
+
+	return configKeys, cmpDirectives | cobra.ShellCompDirectiveNoSpace
 }
 
 // cmpServerAllKeys provides shell completion for all server configuration keys.
