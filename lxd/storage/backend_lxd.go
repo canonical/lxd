@@ -6257,7 +6257,20 @@ func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (*VolumeU
 	return &val, nil
 }
 
-// MountVolume mounts a custom volume.
+// volumeStorageName returns storage-facing name of a storage volume based on its type.
+func volumeStorageName(projectName string, volName string, volType drivers.VolumeType) (string, error) {
+	if volType == drivers.VolumeTypeCustom {
+		return project.StorageVolume(projectName, volName), nil
+	}
+
+	if volType == drivers.VolumeTypeVM || volType == drivers.VolumeTypeContainer {
+		return project.Instance(projectName, volName), nil
+	}
+
+	return "", fmt.Errorf("Cannot mount %s volumes", volType)
+}
+
+// MountVolume mounts custom, virtual-machine, and container volumes for attachment to instances.
 func (b *lxdBackend) MountVolume(projectName string, volName string, volType drivers.VolumeType, op *operations.Operation) (*MountInfo, error) {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volName": volName})
 	l.Debug("MountVolume started")
@@ -6274,7 +6287,11 @@ func (b *lxdBackend) MountVolume(projectName string, volName string, volType dri
 	}
 
 	// Get the volume name on storage.
-	volStorageName := project.StorageVolume(projectName, volName)
+	volStorageName, err := volumeStorageName(projectName, volName, volType)
+	if err != nil {
+		return nil, err
+	}
+
 	vol := b.GetVolume(volType, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
 	// Perform the mount.
