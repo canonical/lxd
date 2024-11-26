@@ -537,6 +537,12 @@ test_clustering_containers() {
   sleep 12
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q ERROR
 
+  # For an instance on an offline member, we can get its config but not use recursion nor get instance state.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config show foo
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo" | jq '.status == "Error"')" = "true" ]
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo?recursion=1" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo/state" || false
+
   # Start a container without specifying any target. It will be placed
   # on node1 since node2 is offline and both node1 and node3 have zero
   # containers, but node1 has a lower node ID.
