@@ -92,6 +92,7 @@ func (d *btrfs) Info() Info {
 	return Info{
 		Name:                         "btrfs",
 		Version:                      btrfsVersion,
+		DefaultBlockSize:             d.defaultBlockVolumeSize(),
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              true,
 		OptimizedBackups:             true,

@@ -78,6 +78,7 @@ func (d *cephfs) Info() Info {
 	return Info{
 		Name:                         "cephfs",
 		Version:                      cephfsVersion,
+		DefaultBlockSize:             d.defaultBlockVolumeSize(),
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              false,
 		PreservesInodes:              false,
