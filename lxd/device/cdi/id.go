@@ -2,8 +2,11 @@ package cdi
 
 import (
 	"fmt"
+	"net/http"
 
 	"tags.cncf.io/container-device-interface/pkg/parser"
+
+	"github.com/canonical/lxd/shared/api"
 )
 
 // All represents a selection of all devices generated out of a CDI specification.
@@ -80,28 +83,23 @@ func (id ID) String() string {
 	return fmt.Sprintf("%s/%s=%s", id.Vendor, id.Class, id.Name)
 }
 
-// Empty returns true if the ID is empty.
-func (id ID) Empty() bool {
-	return id.Vendor == "" && id.Class == "" && id.Name == ""
-}
-
 // ToCDI converts a string identifier to a CDI ID.
-func ToCDI(id string) (ID, error) {
+// Returns api.StatusError with status code set to http.StatusBadRequest if unable to parse CDI ID.
+func ToCDI(id string) (*ID, error) {
 	vendor, class, name, err := parser.ParseQualifiedName(id)
 	if err != nil {
-		// The ID is not a valid CDI qualified name but it could be a valid DRM device ID.
-		return ID{}, nil
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Invalid CDI ID: %w", err)
 	}
 
 	vendorType, err := ToVendor(vendor)
 	if err != nil {
-		return ID{}, err
+		return nil, err
 	}
 
 	classType, err := ToClass(class)
 	if err != nil {
-		return ID{}, err
+		return nil, err
 	}
 
-	return ID{Vendor: vendorType, Class: classType, Name: name}, nil
+	return &ID{Vendor: vendorType, Class: classType, Name: name}, nil
 }
