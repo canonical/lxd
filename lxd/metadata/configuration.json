@@ -5744,15 +5744,6 @@
 			"volume-conf": {
 				"keys": [
 					{
-						"security.shared": {
-							"condition": "custom block volume",
-							"defaultdesc": "same as `volume.security.shared` or `false`",
-							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
-							"shortdesc": "Enable volume sharing",
-							"type": "bool"
-						}
-					},
-					{
 						"security.shifted": {
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.security.shifted` or `false`",
