@@ -124,7 +124,7 @@ func (c *ClusterTx) UpdateStoragePoolAfterNodeJoin(poolID, nodeID int64) error {
 	values := []any{poolID, nodeID, StoragePoolCreated}
 	_, err := query.UpsertObject(c.tx, "storage_pools_nodes", columns, values)
 	if err != nil {
-		return fmt.Errorf("failed to add storage pools node entry: %w", err)
+		return fmt.Errorf("failed to add storage pools cluster member entry: %w", err)
 	}
 
 	return nil
@@ -138,11 +138,11 @@ func (c *ClusterTx) UpdateCephStoragePoolAfterNodeJoin(ctx context.Context, pool
 	stmt := "SELECT node_id FROM storage_pools_nodes WHERE storage_pool_id=?"
 	nodeIDs, err := query.SelectIntegers(ctx, c.tx, stmt, poolID)
 	if err != nil {
-		return fmt.Errorf("failed to fetch IDs of nodes with ceph pool: %w", err)
+		return fmt.Errorf("failed to fetch IDs of cluster members with ceph pool: %w", err)
 	}
 
 	if len(nodeIDs) == 0 {
-		return fmt.Errorf("ceph pool is not linked to any node")
+		return fmt.Errorf("ceph pool is not linked to any cluster member")
 	}
 
 	otherNodeID := nodeIDs[0]
@@ -154,7 +154,7 @@ INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, description, p
     FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
 `, nodeID, poolID, otherNodeID)
 	if err != nil {
-		return fmt.Errorf("failed to create node ceph volumes: %w", err)
+		return fmt.Errorf("failed to create cluster member ceph volumes: %w", err)
 	}
 
 	// Create entries of all the ceph volumes configs for the new node.
@@ -164,12 +164,12 @@ SELECT id FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
 `
 	volumeIDs, err := query.SelectIntegers(ctx, c.tx, stmt, poolID, nodeID)
 	if err != nil {
-		return fmt.Errorf("failed to get joining node's ceph volume IDs: %w", err)
+		return fmt.Errorf("failed to get joining cluster member's ceph volume IDs: %w", err)
 	}
 
 	otherVolumeIDs, err := query.SelectIntegers(ctx, c.tx, stmt, poolID, otherNodeID)
 	if err != nil {
-		return fmt.Errorf("failed to get other node's ceph volume IDs: %w", err)
+		return fmt.Errorf("failed to get other cluster member's ceph volume IDs: %w", err)
 	}
 
 	if len(volumeIDs) != len(otherVolumeIDs) { // Quick check.
@@ -532,7 +532,7 @@ WHERE storage_pools.id = ? AND storage_pools.state = ?
 	}
 
 	if len(missing) > 0 {
-		return nil, fmt.Errorf("Pool not defined on nodes: %s", strings.Join(missing, ", "))
+		return nil, fmt.Errorf("Pool not defined on cluster members: %s", strings.Join(missing, ", "))
 	}
 
 	configs := map[string]map[string]string{}
