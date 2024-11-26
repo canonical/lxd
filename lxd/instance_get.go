@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // swagger:operation GET /1.0/instances/{name} instances instance_get
@@ -121,7 +122,13 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
-	if err != nil {
+
+	// If the instance's node is not reachable and the request is not recursive, proceed getting
+	// the instance info from the database.
+	// The instance state will show as Error since we can't determine the state of an instance on another node.
+	// If request is recursive, the additional information on instance state will be out of reach since
+	// we can't reach the node that is running the instance.
+	if err != nil && !(api.StatusErrorCheck(err, http.StatusServiceUnavailable) && !recursive) {
 		return response.SmartError(err)
 	}
 
