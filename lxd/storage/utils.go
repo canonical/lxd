@@ -539,7 +539,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 
 	// security.shared is only relevant for custom block volumes.
 	if vol == nil || (vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeBlock) {
-		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=security.shared)
+		// lxdmeta:generate(entities=storage-btrfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=security.shared)
 		// Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
 		//
 		// ---
