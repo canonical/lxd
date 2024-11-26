@@ -61,44 +61,24 @@ func TestToClass(t *testing.T) {
 	}
 }
 
-func TestIDEmpty(t *testing.T) {
-	tests := []struct {
-		name string
-		id   ID
-		want bool
-	}{
-		{"Empty ID", ID{}, true},
-		{"Non-empty ID", ID{Vendor: NVIDIA, Class: GPU, Name: "0"}, false},
-		{"Partial ID", ID{Vendor: NVIDIA}, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.id.Empty()
-			if got != tt.want {
-				t.Errorf("ID.Empty() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestToCDI(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
-		want    ID
+		want    *ID
 		wantErr bool
 	}{
-		{"Valid GPU", "nvidia.com/gpu=0", ID{Vendor: NVIDIA, Class: GPU, Name: "0"}, false},
-		{"Valid GPU all", "nvidia.com/gpu=all", ID{Vendor: NVIDIA, Class: GPU, Name: "all"}, false},
-		{"Valid MIG", "nvidia.com/mig=0:1", ID{Vendor: NVIDIA, Class: MIG, Name: "0:1"}, false},
-		{"Valid IGPU", "nvidia.com/igpu=0", ID{Vendor: NVIDIA, Class: IGPU, Name: "0"}, false},
-		{"Valid GPU with UUID", "nvidia.com/gpu=GPU-8da9a1ee-3495-a369-a73a-b9d8ffbc1220", ID{Vendor: NVIDIA, Class: GPU, Name: "GPU-8da9a1ee-3495-a369-a73a-b9d8ffbc1220"}, false},
-		{"Valid MIG with UUID", "nvidia.com/mig=MIG-8da9a1ee-3495-a369-a73a-b9d8ffbc1220", ID{Vendor: NVIDIA, Class: MIG, Name: "MIG-8da9a1ee-3495-a369-a73a-b9d8ffbc1220"}, false},
-		{"Invalid vendor", "amd.com/gpu=0", ID{}, true},
-		{"Invalid class", "nvidia.com/cpu=0", ID{}, true},
-		{"Valid MIG format (all MIG indexes in device)", "nvidia.com/mig=0", ID{Vendor: NVIDIA, Class: MIG, Name: "0"}, false},
-		{"Non-CDI format", "not-a-cdi-format", ID{}, false},
+		{"Valid GPU", "nvidia.com/gpu=0", &ID{Vendor: NVIDIA, Class: GPU, Name: "0"}, false},
+		{"Valid GPU all", "nvidia.com/gpu=all", &ID{Vendor: NVIDIA, Class: GPU, Name: "all"}, false},
+		{"Valid MIG", "nvidia.com/mig=0:1", &ID{Vendor: NVIDIA, Class: MIG, Name: "0:1"}, false},
+		{"Valid IGPU", "nvidia.com/igpu=0", &ID{Vendor: NVIDIA, Class: IGPU, Name: "0"}, false},
+		{"Valid GPU with UUID", "nvidia.com/gpu=GPU-8da9a1ee-3495-a369-a73a-b9d8ffbc1220", &ID{Vendor: NVIDIA, Class: GPU, Name: "GPU-8da9a1ee-3495-a369-a73a-b9d8ffbc1220"}, false},
+		{"Valid MIG with UUID", "nvidia.com/mig=MIG-8da9a1ee-3495-a369-a73a-b9d8ffbc1220", &ID{Vendor: NVIDIA, Class: MIG, Name: "MIG-8da9a1ee-3495-a369-a73a-b9d8ffbc1220"}, false},
+		{"Invalid vendor", "amd.com/gpu=0", nil, true},
+		{"Invalid class", "nvidia.com/cpu=0", nil, true},
+		{"Valid MIG format (all MIG indexes in device)", "nvidia.com/mig=0", &ID{Vendor: NVIDIA, Class: MIG, Name: "0"}, false},
+		{"Non-CDI format", "not-a-cdi-format", nil, true},
+		{"DRM ID", "1", nil, true},
 	}
 
 	for _, tt := range tests {
