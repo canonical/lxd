@@ -5,13 +5,13 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"strconv"
 
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 )
 
@@ -117,12 +117,7 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Parse the recursion field
-	recursionStr := r.FormValue("recursion")
-
-	recursion, err := strconv.Atoi(recursionStr)
-	if err != nil {
-		recursion = 0
-	}
+	recursive := util.IsRecursionRequest(r)
 
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
@@ -141,7 +136,7 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 
 	var state any
 	var etag any
-	if recursion == 0 {
+	if !recursive {
 		state, etag, err = c.Render()
 	} else {
 		hostInterfaces, _ := net.Interfaces()

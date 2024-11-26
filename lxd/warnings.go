@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -23,6 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/task"
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/filter"
@@ -156,12 +156,7 @@ func filterWarnings(warnings []api.Warning, clauses *filter.ClauseSet) ([]api.Wa
 //	    $ref: "#/responses/InternalServerError"
 func warningsGet(d *Daemon, r *http.Request) response.Response {
 	// Parse the recursion field
-	recursionStr := r.FormValue("recursion")
-
-	recursion, err := strconv.Atoi(recursionStr)
-	if err != nil {
-		recursion = 0
-	}
+	recursive := util.IsRecursionRequest(r)
 
 	// Parse filter value
 	filterStr := r.FormValue("filter")
@@ -204,7 +199,7 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var filters []api.Warning
-	if recursion == 0 {
+	if !recursive {
 		var resultList []string
 
 		filters, err = filterWarnings(warnings, clauses)
