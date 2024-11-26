@@ -921,7 +921,8 @@ func (c *cmdConfigUnset) command() *cobra.Command {
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpInstanceKeys(args[0])
+			// Only complete config keys which are currently set.
+			return c.global.cmpInstanceSetKeys(args[0])
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
