@@ -80,6 +80,7 @@ func (d *ceph) Info() Info {
 	return Info{
 		Name:                         "ceph",
 		Version:                      cephVersion,
+		DefaultBlockSize:             d.defaultBlockVolumeSize(),
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              true,
 		PreservesInodes:              false,

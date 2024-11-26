@@ -86,6 +86,7 @@ func (d *lvm) Info() Info {
 	return Info{
 		Name:                         "lvm",
 		Version:                      lvmVersion,
+		DefaultBlockSize:             d.defaultBlockVolumeSize(),
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              d.usesThinpool(), // Only thinpool pools support optimized images.
 		PreservesInodes:              false,
