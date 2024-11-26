@@ -512,9 +512,8 @@ func (g *cmdGlobal) cmpInstances(toComplete string) ([]string, cobra.ShellCompDi
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(false)
+		remotes, _ := g.cmpRemotes(false)
 		results = append(results, remotes...)
-		cmpDirectives |= directives
 	}
 
 	return results, cmpDirectives
