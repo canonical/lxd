@@ -225,16 +225,12 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 // cmpInstanceKeys provides shell completion for all instance configuration keys.
 // It takes an instance name to determine instance type and returns a list of all instance configuration keys along with a shell completion directive.
 func (g *cmdGlobal) cmpInstanceKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
-	var keys []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
+	// Early return when completing server keys.
 	_, instanceNameOnly, found := strings.Cut(instanceName, ":")
 	if instanceNameOnly == "" && found {
-		serverKeys, directives := g.cmpServerAllKeys(instanceName)
-		keys = append(keys, serverKeys...)
-		cmpDirectives = directives
-
-		return keys, cmpDirectives
+		return g.cmpServerAllKeys(instanceName)
 	}
 
 	resources, err := g.ParseServers(instanceName)
@@ -250,23 +246,48 @@ func (g *cmdGlobal) cmpInstanceKeys(instanceName string) ([]string, cobra.ShellC
 		return nil, cobra.ShellCompDirectiveError
 	}
 
+	// Complete keys based on instance type.
 	instanceType := instance.Type
 
-	if instanceType == "container" {
-		for k := range instancetype.InstanceConfigKeysContainer {
-			keys = append(keys, k)
-		}
-	} else if instanceType == "virtual-machine" {
-		for k := range instancetype.InstanceConfigKeysVM {
-			keys = append(keys, k)
+	metadataConfiguration, err := client.GetMetadataConfiguration()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	instanceConfig, ok := metadataConfiguration.Configs["instance"]
+	if !ok {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	// Pre-allocate configKeys slice capacity.
+	keyCount := 0
+	for _, field := range instanceConfig {
+		keyCount += len(field.Keys)
+	}
+
+	configKeys := make([]string, 0, keyCount)
+
+	for _, field := range instanceConfig {
+		for _, key := range field.Keys {
+			for configKey, configKeyField := range key {
+				configKey = strings.TrimSuffix(configKey, "*")
+
+				// InstanceTypeAny config keys.
+				if configKeyField.Condition == "" {
+					configKeys = append(configKeys, configKey)
+					continue
+				}
+
+				if instanceType == string(api.InstanceTypeContainer) && configKeyField.Condition == "container" {
+					configKeys = append(configKeys, configKey)
+				} else if instanceType == string(api.InstanceTypeVM) && configKeyField.Condition == "virtual machine" {
+					configKeys = append(configKeys, configKey)
+				}
+			}
 		}
 	}
 
-	for k := range instancetype.InstanceConfigKeysAny {
-		keys = append(keys, k)
-	}
-
-	return keys, cmpDirectives
+	return configKeys, cmpDirectives | cobra.ShellCompDirectiveNoSpace
 }
 
 // cmpInstanceAllKeys provides shell completion for all possible instance configuration keys.
