@@ -26,7 +26,7 @@ import (
 	liblxc "github.com/lxc/go-lxc"
 	"golang.org/x/sys/unix"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/acme"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/auth"
@@ -780,7 +780,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Generate an OpenFGA request ID
-		request.SetCtxValue(r, request.CtxOpenFGARequestCache, openfga.NewOpenFGACache())
+		request.SetCtxValue(r, request.CtxOpenFGARequestCache, &openfga.RequestCache{})
 
 		// Dump full request JSON when in debug mode
 		if daemon.Debug && r.Method != "GET" && util.IsJSONRequest(r) {
