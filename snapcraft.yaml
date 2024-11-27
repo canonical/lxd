@@ -1587,6 +1587,7 @@ parts:
       usr/share/misc/: share/misc/
       var/lib/usbutils/usb.ids: share/misc/
       usr/sbin/: bin/
+      sbin/iw: bin/ # core22 installs iw in sbin (not needed for core24 which installs to usr/sbin)
       sbin/sgdisk: bin/
     prime:
       - bin/dnsmasq
