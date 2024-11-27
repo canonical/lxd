@@ -431,6 +431,7 @@ func (d *powerflex) commonVolumeRules() map[string]func(value string) error {
 		//  condition: block-based volume with content type `filesystem`
 		//  defaultdesc: same as `volume.block.filesystem`
 		//  shortdesc: File system of the storage volume
+		//  scope: global
 		"block.filesystem": validate.Optional(validate.IsOneOf(blockBackedAllowedFilesystems...)),
 		// lxdmeta:generate(entities=storage-powerflex; group=volume-conf; key=block.mount_options)
 		//
@@ -439,6 +440,7 @@ func (d *powerflex) commonVolumeRules() map[string]func(value string) error {
 		//  condition: block-based volume with content type `filesystem`
 		//  defaultdesc: same as `volume.block.mount_options`
 		//  shortdesc: Mount options for block-backed file system volumes
+		//  scope: global
 		"block.mount_options": validate.IsAny,
 		// lxdmeta:generate(entities=storage-powerflex; group=volume-conf; key=block.type)
 		//
@@ -446,6 +448,7 @@ func (d *powerflex) commonVolumeRules() map[string]func(value string) error {
 		//  type: string
 		//  defaultdesc: same as `volume.block.type` or `thick`
 		//  shortdesc: Whether to create a `thin` or `thick` provisioned volume
+		//  scope: global
 		"block.type": validate.Optional(validate.IsOneOf("thin", "thick")),
 		// lxdmeta:generate(entities=storage-powerflex; group=volume-conf; key=size)
 		// The size must be in multiples of 8 GiB.
@@ -454,6 +457,7 @@ func (d *powerflex) commonVolumeRules() map[string]func(value string) error {
 		//  type: string
 		//  defaultdesc: same as `volume.size`
 		//  shortdesc: Size/quota of the storage volume
+		//  scope: global
 		"size": validate.Optional(validate.IsMultipleOfUnit("8GiB")),
 	}
 }
