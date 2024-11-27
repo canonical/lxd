@@ -101,6 +101,7 @@ func (d *cephobject) Validate(config map[string]string) error {
 		// ---
 		//  type: string
 		//  shortdesc: The Ceph cluster to use
+		//  scope: global
 		"cephobject.cluster_name": validate.IsAny,
 		// lxdmeta:generate(entities=storage-cephobject; group=pool-conf; key=cephobject.user.name)
 		//
@@ -108,24 +109,28 @@ func (d *cephobject) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `admin`
 		//  shortdesc: The Ceph user to use
+		//  scope: global
 		"cephobject.user.name": validate.IsAny,
 		// lxdmeta:generate(entities=storage-cephobject; group=pool-conf; key=cephobject.radosgw.endpoint)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: URL of the `radosgw` gateway process
+		//  scope: global
 		"cephobject.radosgw.endpoint": validate.Optional(validate.IsRequestURL),
 		// lxdmeta:generate(entities=storage-cephobject; group=pool-conf; key=cephobject.radosgw.endpoint_cert_file)
 		// Specify the path to the file that contains the TLS client certificate.
 		// ---
 		//  type: string
 		//  shortdesc: TLS client certificate to use for endpoint communication
+		//  scope: global
 		"cephobject.radosgw.endpoint_cert_file": validate.Optional(validate.IsAbsFilePath),
 		// lxdmeta:generate(entities=storage-cephobject; group=pool-conf; key=cephobject.bucket.name_prefix)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: Prefix to add to bucket names in Ceph
+		//  scope: global
 		"cephobject.bucket.name_prefix": validate.IsAny,
 		// lxdmeta:generate(entities=storage-cephobject; group=pool-conf; key=volatile.pool.pristine)
 		//
@@ -133,6 +138,7 @@ func (d *cephobject) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `true`
 		//  shortdesc: Whether the `radosgw` `lxd-admin` user existed at creation time
+		//  scope: global
 		"volatile.pool.pristine": validate.Optional(validate.IsBool),
 	}
 

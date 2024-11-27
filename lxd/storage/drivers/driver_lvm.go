@@ -513,6 +513,7 @@ func (d *lvm) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: name of the pool
 		//  shortdesc: Name of the volume group to create
+		//  scope: local
 		"lvm.vg_name": validate.IsAny,
 		// lxdmeta:generate(entities=storage-lvm; group=pool-conf; key=lvm.thinpool_name)
 		//
@@ -520,6 +521,7 @@ func (d *lvm) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `LXDThinPool`
 		//  shortdesc: Thin pool where volumes are created
+		//  scope: local
 		"lvm.thinpool_name": validate.IsAny,
 		// lxdmeta:generate(entities=storage-lvm; group=pool-conf; key=lvm.thinpool_metadata_size)
 		// By default, LVM calculates an appropriate size.
@@ -527,6 +529,7 @@ func (d *lvm) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `0` (auto)
 		//  shortdesc: The size of the thin pool metadata volume
+		//  scope: global
 		"lvm.thinpool_metadata_size": validate.Optional(validate.IsSize),
 		// lxdmeta:generate(entities=storage-lvm; group=pool-conf; key=lvm.use_thinpool)
 		//
@@ -534,6 +537,7 @@ func (d *lvm) Validate(config map[string]string) error {
 		//  type: bool
 		//  defaultdesc: `true`
 		//  shortdesc: Whether the storage pool uses a thin pool for logical volumes
+		//  scope: global
 		"lvm.use_thinpool": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-lvm; group=pool-conf; key=lvm.vg.force_reuse)
 		//
@@ -541,6 +545,7 @@ func (d *lvm) Validate(config map[string]string) error {
 		//  type: bool
 		//  defaultdesc: `false`
 		//  shortdesc: Force using an existing non-empty volume group
+		//  scope: global
 		"lvm.vg.force_reuse": validate.Optional(validate.IsBool),
 	}
 
