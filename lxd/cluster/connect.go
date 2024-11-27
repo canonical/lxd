@@ -34,7 +34,7 @@ func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.Ce
 		defer cancel()
 		err := EventListenerWait(ctx, address)
 		if err != nil {
-			return nil, fmt.Errorf("Missing event connection with target cluster member")
+			return nil, api.StatusErrorf(http.StatusServiceUnavailable, "Missing event connection with target cluster member")
 		}
 	}
 
