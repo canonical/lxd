@@ -1653,7 +1653,7 @@ func networkStartup(stateFunc func() *state.State) error {
 	}
 
 	{
-		// Peform first pass to start networks.
+		// Perform first pass to start networks.
 		// Local scope for state variable during initial pass of setting up networks.
 		s := stateFunc()
 		err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
