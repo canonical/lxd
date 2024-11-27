@@ -370,6 +370,7 @@ func (d *cephfs) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `ceph`
 		//  shortdesc: Name of the Ceph cluster that contains the CephFS file system
+		//  scope: global
 		"cephfs.cluster_name": validate.IsAny,
 		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.fscache)
 		//
@@ -377,6 +378,7 @@ func (d *cephfs) Validate(config map[string]string) error {
 		//  type: bool
 		//  defaultdesc: `false`
 		//  shortdesc: Enable use of kernel `fscache` and `cachefilesd`
+		//  scope: global
 		"cephfs.fscache": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.path)
 		//
@@ -384,6 +386,7 @@ func (d *cephfs) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `/`
 		//  shortdesc: The base path for the CephFS mount
+		//  scope: global
 		"cephfs.path": validate.IsAny,
 		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.user.name)
 		//
@@ -391,6 +394,7 @@ func (d *cephfs) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `admin`
 		//  shortdesc: The Ceph user to use
+		//  scope: global
 		"cephfs.user.name": validate.IsAny,
 		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.create_missing)
 		// Use this option if the CephFS file system does not exist yet.
@@ -399,6 +403,7 @@ func (d *cephfs) Validate(config map[string]string) error {
 		//  type: bool
 		//  defaultdesc: `false`
 		//  shortdesc: Automatically create the CephFS file system
+		//  scope: global
 		"cephfs.create_missing": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.osd_pg_num)
 		// This option specifies the number of OSD pool placement groups (`pg_num`) to use
@@ -406,6 +411,7 @@ func (d *cephfs) Validate(config map[string]string) error {
 		// ---
 		//  type: string
 		//  shortdesc: Number of placement groups when creating missing OSD pools
+		//  scope: global
 		"cephfs.osd_pg_num": validate.Optional(validate.IsInt64),
 		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.meta_pool)
 		// This option specifies the name for the file metadata OSD pool that should be used when
@@ -413,6 +419,7 @@ func (d *cephfs) Validate(config map[string]string) error {
 		// ---
 		//  type: string
 		//  shortdesc: Metadata OSD pool name
+		//  scope: global
 		"cephfs.meta_pool": validate.IsAny,
 		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.data_pool)
 		// This option specifies the name for the data OSD pool that should be used when creating
@@ -420,6 +427,7 @@ func (d *cephfs) Validate(config map[string]string) error {
 		// ---
 		//  type: string
 		//  shortdesc: Data OSD pool name
+		//  scope: global
 		"cephfs.data_pool": validate.IsAny,
 		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=volatile.pool.pristine)
 		//
@@ -427,6 +435,7 @@ func (d *cephfs) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `true`
 		//  shortdesc: Whether the CephFS file system was empty on creation time
+		//  scope: global
 		"volatile.pool.pristine": validate.IsAny,
 	}
 

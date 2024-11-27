@@ -1562,6 +1562,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  condition: block-based volume with content type `filesystem` (`zfs.block_mode` enabled)
 		//  defaultdesc: same as `volume.block.filesystem`
 		//  shortdesc: File system of the storage volume
+		//  scope: global
 		"block.filesystem": validate.Optional(validate.IsOneOf(blockBackedAllowedFilesystems...)),
 		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=block.mount_options)
 		//
@@ -1570,6 +1571,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  condition: block-based volume with content type `filesystem` (`zfs.block_mode` enabled)
 		//  defaultdesc: same as `volume.block.mount_options`
 		//  shortdesc: Mount options for block-backed file system volumes
+		//  scope: global
 		"block.mount_options": validate.IsAny,
 		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.block_mode)
 		// `zfs.block_mode` can be set only for custom storage volumes.
@@ -1579,6 +1581,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  type: bool
 		//  defaultdesc: same as `volume.zfs.block_mode`
 		//  shortdesc: Whether to use a formatted `zvol` rather than a dataset
+		//  scope: global
 		"zfs.block_mode": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.blocksize)
 		// The size must be between 512 bytes and 16 MiB and must be a power of 2.
@@ -1590,6 +1593,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  type: string
 		//  defaultdesc: same as `volume.zfs.blocksize`
 		//  shortdesc: Size of the ZFS block
+		//  scope: global
 		"zfs.blocksize": validate.Optional(ValidateZfsBlocksize),
 		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.remove_snapshots)
 		//
@@ -1597,6 +1601,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  type: bool
 		//  defaultdesc: same as `volume.zfs.remove_snapshots` or `false`
 		//  shortdesc: Remove snapshots as needed
+		//  scope: global
 		"zfs.remove_snapshots": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.reserve_space)
 		//
@@ -1604,6 +1609,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  type: bool
 		//  defaultdesc: same as `volume.zfs.reserve_space` or `false`
 		//  shortdesc: Use `reservation`/`refreservation` along with `quota`/`refquota`
+		//  scope: global
 		"zfs.reserve_space": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.use_refquota)
 		//
@@ -1611,6 +1617,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  type: bool
 		//  defaultdesc: same as `volume.zfs.use_refquota` or `false`
 		//  shortdesc: Use `refquota` instead of `quota` for space
+		//  scope: global
 		"zfs.use_refquota": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.delegate)
 		// This option controls whether to delegate the ZFS dataset and anything underneath it to the
@@ -1622,6 +1629,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  condition: ZFS 2.2 or higher
 		//  defaultdesc: same as `volume.zfs.delegate`
 		//  shortdesc: Whether to delegate the ZFS dataset
+		//  scope: global
 		"zfs.delegate": validate.Optional(validate.IsBool),
 	}
 }

@@ -346,6 +346,7 @@ func (d *btrfs) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `user_subvol_rm_allowed`
 		//  shortdesc: Mount options for block devices
+		//  scope: global
 		"btrfs.mount_options": validate.IsAny,
 	}
 
