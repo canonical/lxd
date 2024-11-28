@@ -421,6 +421,9 @@ func LoadFromBackup(s *state.State, projectName string, instancePath string) (In
 	instDBArgs.Config = backupConf.Container.ExpandedConfig
 	instDBArgs.Devices = deviceConfig.NewDevices(backupConf.Container.ExpandedDevices)
 
+	// Set Node field to local node.
+	instDBArgs.Node = s.ServerName
+
 	p := api.Project{
 		Name: backupConf.Container.Project,
 	}
