@@ -294,7 +294,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the configuration.
-	err = projectValidateConfig(s, project.Config)
+	err = projectValidateConfig(s, project.Config, project.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -682,7 +682,7 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 	}
 
 	// Validate the configuration.
-	err := projectValidateConfig(s, req.Config)
+	err := projectValidateConfig(s, req.Config, project.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -1024,7 +1024,7 @@ func isEitherAllowOrBlockOrManaged(value string) error {
 	return validate.Optional(validate.IsOneOf("block", "allow", "managed"))(value)
 }
 
-func projectValidateConfig(s *state.State, config map[string]string) error {
+func projectValidateConfig(s *state.State, config map[string]string, projectName string) error {
 	// Validate the project configuration.
 	projectConfigKeys := map[string]func(value string) error{
 		// lxdmeta:generate(entities=project; group=specific; key=backups.compression_algorithm)
