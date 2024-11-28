@@ -433,6 +433,7 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 					Type:    instanceType,
 					Project: projectName,
 					Name:    instanceName,
+					Node:    s.ServerName, // Set Node field to local node.
 					Config:  make(map[string]string),
 				}
 
