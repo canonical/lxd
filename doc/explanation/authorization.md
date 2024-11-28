@@ -3,7 +3,7 @@ discourse: ubuntu:[Identity&#32;and&#32;Access&#32;Management&#32;for&#32;LXD](4
 ---
 
 (authorization)=
-# Remote API authorization
+# API authorization
 
 When LXD is {ref}`exposed over the network <server-expose>` it is possible to restrict API access via two mechanisms:
 
