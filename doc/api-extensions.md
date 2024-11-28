@@ -2548,3 +2548,8 @@ This adds support for listing network zones across all projects using the `all-p
 Adds support for instance root volumes to be attached to other instances as disk
 devices. Introduces the `<type>/<volume>` syntax for the `source` property of
 disk devices.
+
+## `projects_limits_uplink_ips`
+
+Introduces per-project uplink IP limits for each available uplink network, adding `limits.networks.uplink_ips.ipv4.NETWORK_NAME` and `limits.networks.uplink_ips.ipv6.NETWORK_NAME` configuration keys for projects with `features.networks` enabled.
+These keys define the maximum value of IPs made available on a network named NETWORK_NAME to be assigned as uplink IPs for entities inside a certain project. These entities can be other networks, network forwards or load balancers.
