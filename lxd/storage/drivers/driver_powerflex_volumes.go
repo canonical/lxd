@@ -532,7 +532,7 @@ func (d *powerflex) GetVolumeUsage(vol Volume) (int64, error) {
 
 	// Getting the usage of an unmounted volume is not supported.
 	// PowerFlex reports the usage on pool level only.
-	return 0, ErrNotSupported
+	return -1, ErrNotSupported
 }
 
 // SetVolumeQuota applies a size limit on volume.
