@@ -15,7 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/resources"
 	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
 	"github.com/canonical/lxd/lxd/state"
-	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
+	"github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared/api"
 	apiScriptlet "github.com/canonical/lxd/shared/api/scriptlet"
 	"github.com/canonical/lxd/shared/logger"
@@ -221,7 +221,10 @@ func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, 
 
 			// Apply VM root disk size defaults if not specified.
 			if req.Type == api.InstanceTypeVM && rootDiskSizeStr == "" {
-				rootDiskSizeStr = storageDrivers.DefaultBlockSize
+				rootDiskSizeStr, err = storage.GetPoolDefaultBlockSize(s, rootDiskConfig["pool"])
+				if err != nil {
+					return nil, fmt.Errorf("Failed loading pool default size: %w", err)
+				}
 			}
 
 			if rootDiskSizeStr != "" {
