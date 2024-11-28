@@ -453,9 +453,9 @@ jobs:
     env:
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       LXD_DIR: "/var/lib/lxd"
-      LXD_OIDC_CLIENT_ID: ${{ secrets.LXD_UI_OIDC_CLIENT_ID }}
-      LXD_OIDC_ISSUER: ${{ secrets.LXD_UI_OIDC_ISSUER }}
-      LXD_OIDC_AUDIENCE: ${{ secrets.LXD_UI_OIDC_AUDIENCE }}
+      LXD_OIDC_CLIENT_ID: ${{ secrets.LXD_UI_OIDC_TEST_CLIENT_ID }}
+      LXD_OIDC_ISSUER: ${{ secrets.LXD_UI_OIDC_TEST_ISSUER }}
+      LXD_OIDC_AUDIENCE: ${{ secrets.LXD_UI_OIDC_TEST_AUDIENCE }}
       LXD_OIDC_USER: ${{ secrets.LXD_UI_OIDC_TEST_USER }}
       LXD_OIDC_PASSWORD: ${{ secrets.LXD_UI_OIDC_TEST_PASSWORD }}
       LXD_OIDC_GROUPS_CLAIM: "lxd-idp-groups"
@@ -564,12 +564,19 @@ jobs:
           sudo -E LXD_DIR=/var/lib/lxd PATH=/home/runner/go/bin:$PATH ./lxd-ui/tests/scripts/setup_test
 
       - name: Run Playwright tests
+        env:
+          TARGET: >-
+            ${{ fromJson('{
+              "main": "latest-edge",
+              "stable-5.0": "5.0-edge",
+              "stable-5.21": "5.21-edge",
+            }')[github.ref_name] }}
         run: |
           set -eux
           cd lxd-ui
           sudo chown $USER -R /home/runner/.config
           sudo chown $USER /var/lib/lxd/unix.socket
-          CI=true DISABLE_VM_TESTS=true LXD_DIR=/var/lib/lxd PATH=/home/runner/go/bin:$PATH npx playwright test --project chromium:lxd-latest-edge
+          CI=true DISABLE_VM_TESTS=true LXD_DIR=/var/lib/lxd PATH=/home/runner/go/bin:$PATH npx playwright test --project chromium:lxd-$TARGET
 
       - name: Upload lxd-ui test artifacts
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -651,7 +658,7 @@ jobs:
   snap:
     name: Trigger snap edge build
     runs-on: ubuntu-22.04
-    needs: [code-tests, system-tests, client, documentation]
+    needs: [code-tests, system-tests, client, documentation, ui-e2e-tests]
     if: ${{ github.repository == 'canonical/lxd' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
     steps:
       - name: Checkout code
