@@ -28,7 +28,7 @@ When installing a snap, specify the channel as follows:
 
 For example:
 
-    sudo snap install lxd --channel=latest/stable
+    sudo snap install lxd --channel=5.21/stable
 
 If you do not specify a channel, snap will choose the default channel (the latest LTS release).
 
