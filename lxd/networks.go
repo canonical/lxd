@@ -200,6 +200,11 @@ func networkAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.
 //	    description: Project name
 //	    type: string
 //	    example: default
+//	  - in: query
+//	    name: target
+//	    description: Cluster member name
+//	    type: string
+//	    example: lxd01
 //	responses:
 //	  "200":
 //	    description: API endpoints
@@ -230,6 +235,12 @@ func networkAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.
 //	    $ref: "#/responses/InternalServerError"
 func networksGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
+
+	// If a target was specified, forward the request to the relevant node.
+	resp := forwardedResponseIfTargetIsRemote(s, r)
+	if resp != nil {
+		return resp
+	}
 
 	requestProjectName := request.ProjectParam(r)
 	effectiveProjectName, reqProject, err := project.NetworkProject(s.DB.Cluster, requestProjectName)

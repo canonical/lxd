@@ -2523,3 +2523,7 @@ Adds support for using the Container Device Interface (CDI) specification to con
 ## `images_all_projects`
 
 This adds support for listing images across all projects using the `all-projects` parameter in `GET /1.0/images` requests.
+
+## `network_get_target`
+
+Adds optional `target` parameter to `GET /1.0/network`. When target is set, forward the request to the specified cluster member and return the non-managed interfaces from that member.
