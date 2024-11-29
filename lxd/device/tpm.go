@@ -57,8 +57,8 @@ func (d *tpm) validateConfig(instConf instance.ConfigReader) error {
 		rules["path"] = validate.IsNotEmpty
 		rules["pathrm"] = validate.IsNotEmpty
 	} else {
-		rules["path"] = validate.Optional(validate.IsNotEmpty)
-		rules["pathrm"] = validate.Optional(validate.IsNotEmpty)
+		rules["path"] = validate.IsAny
+		rules["pathrm"] = validate.IsAny
 	}
 
 	err := d.config.Validate(rules)
