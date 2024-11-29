@@ -1444,6 +1444,28 @@ func projectValidateConfig(s *state.State, config map[string]string, projectName
 		return fmt.Errorf("Failed loading storage pool names: %w", err)
 	}
 
+	// Per-network project limits for uplink IPs only make sense for projects with their own networks.
+	if shared.IsTrue(config["features.networks"]) {
+		// Get networks that are allowed to be used as uplinks by this project.
+		allowedUplinkNetworks, err := network.AllowedUplinkNetworks(s, config)
+		if err != nil {
+			return nil
+		}
+
+		// Add network-specific config keys.
+		for _, networkName := range allowedUplinkNetworks {
+			// lxdmeta:generate(entities=project; group=limits; key=limits.networks.uplink_ips.NETWORK_NAME)
+			// This represents the maximum value for IPs made available on a network
+			// named NETWORK_NAME to be assigned as uplink addresses for entities inside
+			// a specific project.
+			//
+			// ---
+			//  type: string
+			//  shortdesc: Quota of IPs on a certain network used by entities on this project
+			projectConfigKeys[fmt.Sprintf("limits.networks.uplink_ips.%s", networkName)] = uplinkIPLimitValidator(s, projectName, networkName)
+		}
+	}
+
 	for k, v := range config {
 		key := k
 
