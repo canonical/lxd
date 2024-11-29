@@ -18,8 +18,6 @@ When running LXD in a production environment, you must make sure to have a suita
 Snaps come with different channels that define which release of a snap is installed and tracked for updates.
 See [Channels and tracks](https://snapcraft.io/docs/channels) in the snap documentation for detailed information.
 
-Feature releases of LXD are available on the `latest` track.
-In addition, LXD provides tracks for the supported feature releases.
 See {ref}`installing-release` for more information.
 
 On all tracks, the `stable` risk level contains all fixes and features for the respective track, but it is only updated when the LXD team decides that a feature is ready and no issues have been revealed by users running the same revision on higher risk levels (`edge` and `candidate`).
