@@ -25,9 +25,9 @@ The `lxd.lxc-to-lxd` command was last included in the 5.0 snap which should be i
         sudo install lxd --channel=5.0/stable
         sudo lxd.lxc-to-lxd --all
 
-After successfully running the `lxd.lxc-to-lxd` command, you can then switch to a newer snap channel if desired, like the latest one:
+After successfully running the `lxd.lxc-to-lxd` command, you can then switch to a newer snap channel if desired, like the 5.21 one:
 
-        sudo refresh lxd --channel=latest/stable
+        sudo refresh lxd --channel=5.21/stable
 ```
 
 Otherwise, make sure that you have `go` ({ref}`requirements-go`) installed and get the tool with the following command:
