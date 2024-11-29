@@ -377,23 +377,18 @@ func (b *mockBackend) CreateCustomVolumeFromMigration(projectName string, conn i
 	return nil
 }
 
-// GetCustomVolumeDisk ...
-func (b *mockBackend) GetCustomVolumeDisk(projectName string, volName string) (string, error) {
-	return "", nil
-}
-
 // GetCustomVolumeUsage ...
 func (b *mockBackend) GetCustomVolumeUsage(projectName string, volName string) (*VolumeUsage, error) {
 	return nil, nil
 }
 
-// MountCustomVolume ...
-func (b *mockBackend) MountCustomVolume(projectName string, volName string, op *operations.Operation) (*MountInfo, error) {
+// MountVolume ...
+func (b *mockBackend) MountVolume(projectName string, volName string, volType drivers.VolumeType, op *operations.Operation) (*MountInfo, error) {
 	return nil, nil
 }
 
-// UnmountCustomVolume ...
-func (b *mockBackend) UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error) {
+// UnmountVolume ...
+func (b *mockBackend) UnmountVolume(projectName string, volName string, volType drivers.VolumeType, op *operations.Operation) (bool, error) {
 	return true, nil
 }
 

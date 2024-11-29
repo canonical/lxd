@@ -61,6 +61,8 @@ type Pool interface {
 	ApplyPatch(name string) error
 
 	GetVolume(volumeType drivers.VolumeType, contentType drivers.ContentType, name string, config map[string]string) drivers.Volume
+	MountVolume(projectName string, volName string, volType drivers.VolumeType, op *operations.Operation) (*MountInfo, error)
+	UnmountVolume(projectName string, volName string, volType drivers.VolumeType, op *operations.Operation) (bool, error)
 
 	// Instances.
 	CreateInstance(inst instance.Instance, op *operations.Operation) error
@@ -119,10 +121,7 @@ type Pool interface {
 	UpdateCustomVolume(projectName string, volName string, newDesc string, newConfig map[string]string, op *operations.Operation) error
 	RenameCustomVolume(projectName string, volName string, newVolName string, op *operations.Operation) error
 	DeleteCustomVolume(projectName string, volName string, op *operations.Operation) error
-	GetCustomVolumeDisk(projectName string, volName string) (string, error)
 	GetCustomVolumeUsage(projectName string, volName string) (*VolumeUsage, error)
-	MountCustomVolume(projectName string, volName string, op *operations.Operation) (*MountInfo, error)
-	UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error)
 	ImportCustomVolume(projectName string, poolVol *backupConfig.Config, op *operations.Operation) (revert.Hook, error)
 	RefreshCustomVolume(projectName string, srcProjectName string, volName, desc string, config map[string]string, srcPoolName, srcVolName string, snapshots bool, op *operations.Operation) error
 	GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, op *operations.Operation) (*backupConfig.Config, error)
