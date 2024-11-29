@@ -950,16 +950,16 @@ func (d *ceph) parseParent(parent string) (Volume, string, error) {
 // <osd-pool-name>/<lxd-specific-prefix>_<rbd-storage-volume>
 // will be split into
 // <osd-pool-name>, <lxd-specific-prefix>, <rbd-storage-volume>.
-func (d *ceph) parseClone(clone string) (string, string, string, error) {
+func (d *ceph) parseClone(clone string) (poolName string, volumeType string, volumeName string, err error) {
 	idx := strings.Index(clone, "/")
 	if idx == -1 {
 		return "", "", "", fmt.Errorf("Unexpected parsing error")
 	}
 
 	slider := clone[(idx + 1):]
-	poolName := clone[:idx]
+	poolName = clone[:idx]
 
-	volumeType := slider
+	volumeType = slider
 	idx = strings.Index(slider, "zombie_")
 	if idx == 0 {
 		idx += len("zombie_")
@@ -983,7 +983,7 @@ func (d *ceph) parseClone(clone string) (string, string, string, error) {
 		return "", "", "", fmt.Errorf("Unexpected parsing error")
 	}
 
-	volumeName := slider
+	volumeName = slider
 	idx = strings.Index(volumeName, "_")
 	if idx == -1 {
 		return "", "", "", fmt.Errorf("Unexpected parsing error")
