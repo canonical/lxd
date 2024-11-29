@@ -1224,11 +1224,41 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	// Copy EDK2 settings firmware to nvram file if needed.
 	// This firmware file can be modified by the VM so it must be copied from the defaults.
-	if d.architectureSupportsUEFI(d.architecture) && (!shared.PathExists(d.nvramPath()) || shared.IsTrue(d.localConfig["volatile.apply_nvram"])) {
-		err = d.setupNvram()
-		if err != nil {
+	if d.architectureSupportsUEFI(d.architecture) {
+		// ovmfNeedsUpdate checks if nvram file needs to be regenerated using new template.
+		ovmfNeedsUpdate := func(nvramTarget string) bool {
+			if shared.InSnap() && strings.Contains(nvramTarget, "OVMF") {
+				// The 2MB firmware was deprecated in the LXD snap.
+				// Detect this by the absence of "4MB" in the nvram file target.
+				if !strings.Contains(nvramTarget, "4MB") {
+					return true
+				}
+
+				// The EDK2-based CSM firmwares were replaced with Seabios in the LXD snap.
+				// Detect this by the presence of "CSM" in the nvram file target.
+				if strings.Contains(nvramTarget, "CSM") {
+					return true
+				}
+			}
+
+			return false
+		}
+
+		// Check if nvram path and its target exist.
+		nvramPath := d.nvramPath()
+		nvramTarget, err := filepath.EvalSymlinks(nvramPath)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			op.Done(err)
 			return err
+		}
+
+		// Decide if nvram file needs to be setup/refreshed.
+		if errors.Is(err, fs.ErrNotExist) || shared.IsTrue(d.localConfig["volatile.apply_nvram"]) || ovmfNeedsUpdate(nvramTarget) {
+			err = d.setupNvram()
+			if err != nil {
+				op.Done(err)
+				return err
+			}
 		}
 	}
 
@@ -3159,20 +3189,6 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		if efiCode == "" {
 			return "", nil, fmt.Errorf("Unable to locate matching VM firmware: %+v", firmwares)
-		}
-
-		// As 2MB firmware was deprecated in the LXD snap we have to regenerate NVRAM for VMs which used the 2MB one.
-		// As EDK2-based CSM firmwares were deprecated in the LXD snap we want to force VMs to start using SeaBIOS directly.
-		isOVMF2MB := (strings.Contains(efiCode, "OVMF") && !strings.Contains(efiCode, "4MB"))
-		isOVMFCSM := (strings.Contains(efiCode, "OVMF") && strings.Contains(efiCode, "CSM"))
-		if shared.InSnap() && (isOVMF2MB || isOVMFCSM) {
-			err = d.setupNvram()
-			if err != nil {
-				return "", nil, err
-			}
-
-			// force to use a top-priority firmware
-			efiCode = firmwares[0].Code
 		}
 
 		// Use debug version of firmware. (Only works for "preferred" (OVMF 4MB, no CSM) firmware flavor)
