@@ -62,7 +62,7 @@ func (d *usb) validateConfig(instConf instance.ConfigReader) error {
 		// ---
 		//  type: string
 		//  shortdesc: The serial number of the USB device
-		"serial": validate.Optional(validate.IsAny),
+		"serial": validate.IsAny,
 
 		// lxdmeta:generate(entities=device-unix-usb; group=device-conf; key=busnum)
 		//

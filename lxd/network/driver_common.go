@@ -610,7 +610,7 @@ func (n *common) bgpValidationRules(config map[string]string) (map[string]func(v
 		case "asn":
 			rules[k] = validate.Optional(validate.IsInRange(1, 4294967294))
 		case "password":
-			rules[k] = validate.Optional(validate.IsAny)
+			rules[k] = validate.IsAny
 		case "holdtime":
 			rules[k] = validate.Optional(validate.IsInRange(9, 65535))
 		}
