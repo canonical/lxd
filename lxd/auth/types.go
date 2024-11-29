@@ -52,6 +52,12 @@ type Authorizer interface {
 	// the entity. The effective project for the entity must be set in the request context as request.CtxEffectiveProjectName
 	// *before* the call to GetPermissionChecker.
 	GetPermissionChecker(ctx context.Context, entitlement Entitlement, entityType entity.Type) (PermissionChecker, error)
+
+	// AddEntitlements attaches entitlements to an entity.
+	AddEntitlements(ctx context.Context, entity *entity.EntityWithEntitlementsAndURL, queriedEntitlements []Entitlement) error
+
+	// AddEntitlementsToEntities attaches entitlements to multiple entities.
+	AddEntitlementsToEntities(ctx context.Context, entities []*entity.EntityWithEntitlementsAndURL, queriedEntitlements []Entitlement) error
 }
 
 // IsDeniedError returns true if the error is not found or forbidden. This is because the CheckPermission method on

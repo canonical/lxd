@@ -138,7 +138,8 @@ test_authorization() {
   lxc auth identity list --format csv | grep -Fq "tls,Client certificate,test-user,${tls_identity_fingerprint},test-group"
 
   # Test `lxc auth identity info`
-  expectedOIDCInfo='authentication_method: oidc
+  expectedOIDCInfo='entitlements: []
+authentication_method: oidc
 type: OIDC client
 id: test-user@example.com
 name: '"'"' '"'"'
@@ -147,10 +148,13 @@ groups:
 tls_certificate: ""
 effective_groups:
 - test-group
-effective_permissions: []'
+effective_permissions: []
+is_fine_grained: true'
+
   [ "$(lxc auth identity info oidc:)" = "${expectedOIDCInfo}" ]
 
-  expectedTLSInfo="authentication_method: tls
+  expectedTLSInfo="entitlements: []
+authentication_method: tls
 type: Client certificate
 id: ${tls_identity_fingerprint}
 name: test-user
@@ -160,7 +164,9 @@ tls_certificate: |
 $(awk '{printf "  %s\n", $0}' "${LXD_CONF2}/client.crt")
 effective_groups:
 - test-group
-effective_permissions: []"
+effective_permissions: []
+is_fine_grained: true"
+
   [ "$(LXD_CONF="${LXD_CONF2}" lxc auth identity info tls:)" = "${expectedTLSInfo}" ]
 
 

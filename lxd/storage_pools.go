@@ -150,11 +150,15 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	recursion := util.IsRecursionRequest(r)
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStoragePool)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	var poolNames []string
 	var hiddenPoolNames []string
 
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Load the pool names.
@@ -182,7 +186,8 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 
 	resultString := []string{}
 	resultMap := []api.StoragePool{}
-	for _, poolName := range poolNames {
+	entities := make([]*entity.EntityWithEntitlementsAndURL, len(poolNames))
+	for i, poolName := range poolNames {
 		// Hide storage pools with a 0 project limit.
 		if slices.Contains(hiddenPoolNames, poolName) {
 			continue
@@ -220,12 +225,20 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 				poolAPI.Status = pool.LocalStatus()
 			}
 
+			entities[i] = &entity.EntityWithEntitlementsAndURL{Entity: &poolAPI, EntityType: entity.TypeStoragePool, EntityURL: entity.StoragePoolURL(poolName)}
 			resultMap = append(resultMap, poolAPI)
 		}
 	}
 
 	if !recursion {
 		return response.SyncResponse(true, resultString)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = d.authorizer.AddEntitlementsToEntities(r.Context(), entities, withEntitlements)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponse(true, resultMap)
@@ -626,6 +639,11 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStoragePool)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	memberSpecific := false
 	if request.QueryParam(r, "target") != "" {
 		memberSpecific = true
@@ -683,6 +701,13 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	} else {
 		// Use local status if not clustered or memberSpecific. To allow seeing unavailable pools.
 		poolAPI.Status = pool.LocalStatus()
+	}
+
+	if len(withEntitlements) > 0 {
+		err = d.authorizer.AddEntitlements(r.Context(), &entity.EntityWithEntitlementsAndURL{Entity: &poolAPI, EntityType: entity.TypeStoragePool, EntityURL: entity.StoragePoolURL(poolName)}, withEntitlements)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	etag := []any{pool.Name(), pool.Driver().Info().Name, pool.Description(), poolAPI.Config}

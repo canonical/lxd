@@ -41,6 +41,8 @@ type ProfilePut struct {
 //
 // swagger:model
 type Profile struct {
+	AttachedEntitlements `yaml:",inline"`
+
 	// The profile name
 	// Read only: true
 	// Example: foo

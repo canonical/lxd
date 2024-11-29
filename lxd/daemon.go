@@ -350,6 +350,31 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// extractEntitlementsFromQuery extracts the entitlements from the query string of the request.
+func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type) ([]auth.Entitlement, error) {
+	rawEntitlements := request.QueryParam(r, "with-entitlements")
+	if rawEntitlements == "" {
+		return nil, nil
+	}
+
+	allowedEntitlements := auth.EntityTypeToEntitlements[entityType]
+	if rawEntitlements == "all" {
+		return allowedEntitlements, nil
+	}
+
+	entitlements := strings.Split(rawEntitlements, ",")
+	validEntitlements := make([]auth.Entitlement, len(entitlements))
+	for i, e := range entitlements {
+		if !shared.ValueInSlice(auth.Entitlement(e), allowedEntitlements) {
+			return nil, fmt.Errorf("entitlement %q part of the URL query is not compatible with the entity type %q", e, entityType)
+		}
+
+		validEntitlements[i] = auth.Entitlement(e)
+	}
+
+	return validEntitlements, nil
+}
+
 // Authenticate validates an incoming http Request
 // It will check over what protocol it came, what type of request it is and
 // will validate the TLS certificate or OIDC token.

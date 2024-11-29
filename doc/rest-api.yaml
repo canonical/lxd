@@ -1,4 +1,18 @@
 definitions:
+    AttachedEntitlements:
+        properties:
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
+        title: AttachedEntitlements is part of any LXD entity that may have entitlements attached to it.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     AuthGroup:
         properties:
             description:
@@ -6,6 +20,15 @@ definitions:
                 example: Viewers of instance c1 in the default project.
                 type: string
                 x-go-name: Description
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             identities:
                 additionalProperties:
                     items:
@@ -94,6 +117,15 @@ definitions:
                 example: X509 PEM certificate
                 type: string
                 x-go-name: Certificate
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             fingerprint:
                 description: SHA256 fingerprint of the certificate
                 example: fd200419b271f1dc2a5591b693cc5774b7f234e1ff8c6b78ad703b6888fe2b69
@@ -764,6 +796,15 @@ definitions:
                 example: tls
                 type: string
                 x-go-name: AuthenticationMethod
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             groups:
                 description: Groups is the list of groups for which the identity is a member.
                 example:
@@ -829,6 +870,15 @@ definitions:
                     $ref: '#/definitions/Permission'
                 type: array
                 x-go-name: EffectivePermissions
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             groups:
                 description: Groups is the list of groups for which the identity is a member.
                 example:
@@ -843,6 +893,12 @@ definitions:
                 example: jane.doe@example.com
                 type: string
                 x-go-name: Identifier
+            is_fine_grained:
+                description: |-
+                    IsFineGrained is a boolean indicating whether the identity is fine-grained,
+                    meaning that permissions are managed via group membership.
+                type: boolean
+                x-go-name: IsFineGrained
             name:
                 description: |-
                     Name is the Name claim of the identity if authenticated via OIDC, or the name
@@ -867,6 +923,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     IdentityProviderGroup:
         properties:
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             groups:
                 description: Groups are the groups the IdP group resolves to.
                 example:
@@ -957,6 +1022,15 @@ definitions:
                 format: date-time
                 type: string
                 x-go-name: CreatedAt
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             expires_at:
                 description: When the image becomes obsolete
                 example: "2025-03-23T20:00:00-04:00"
@@ -1046,6 +1120,15 @@ definitions:
                 example: Our preferred Ubuntu image
                 type: string
                 x-go-name: Description
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             name:
                 description: Alias name
                 example: ubuntu-24.04
@@ -1096,6 +1179,15 @@ definitions:
                 example: Our preferred Ubuntu image
                 type: string
                 x-go-name: Description
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             name:
                 description: Alias name
                 example: ubuntu-24.04
@@ -1644,6 +1736,15 @@ definitions:
                         type: disk
                 type: object
                 x-go-name: Devices
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             ephemeral:
                 description: Whether the instance is ephemeral (deleted on shutdown)
                 example: false
@@ -1933,6 +2034,15 @@ definitions:
                         type: disk
                 type: object
                 x-go-name: Devices
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             ephemeral:
                 description: Whether the instance is ephemeral (deleted on shutdown)
                 example: false
@@ -2960,6 +3070,15 @@ definitions:
                 example: My new LXD bridge
                 type: string
                 x-go-name: Description
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             locations:
                 description: Cluster members on which the network has been defined
                 example:
@@ -3028,6 +3147,15 @@ definitions:
                     $ref: '#/definitions/NetworkACLRule'
                 type: array
                 x-go-name: Egress
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             ingress:
                 description: List of ingress rules (order independent)
                 items:
@@ -3884,6 +4012,15 @@ definitions:
                 example: Internal domain
                 type: string
                 x-go-name: Description
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             name:
                 description: The name of the zone (DNS domain name)
                 example: example.net
@@ -4244,6 +4381,15 @@ definitions:
                         type: disk
                 type: object
                 x-go-name: Devices
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             name:
                 description: The profile name
                 example: foo
@@ -4366,6 +4512,15 @@ definitions:
                 example: My new project
                 type: string
                 x-go-name: Description
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             name:
                 description: The project name
                 example: foo
@@ -6047,6 +6202,15 @@ definitions:
                 example: My custom bucket
                 type: string
                 x-go-name: Description
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             location:
                 description: What cluster member this record was found on
                 example: lxd01
@@ -6211,6 +6375,15 @@ definitions:
                 example: zfs
                 type: string
                 x-go-name: Driver
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             locations:
                 description: Cluster members on which the storage pool has been defined
                 example:
@@ -6402,6 +6575,15 @@ definitions:
                 example: My custom volume
                 type: string
                 x-go-name: Description
+            entitlements:
+                description: Entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: Entitlements
             location:
                 description: What cluster member this record was found on
                 example: lxd01
