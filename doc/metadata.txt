@@ -1398,7 +1398,6 @@ This option specifies whether to use the HAProxy PROXY protocol to transmit send
 <!-- config group device-proxy-device-conf end -->
 <!-- config group device-tpm-device-conf start -->
 ```{config:option} path device-tpm-device-conf
-:condition: "containers"
 :required: "for containers"
 :shortdesc: "Path inside the container"
 :type: "string"
@@ -1406,7 +1405,6 @@ For example: `/dev/tpm0`
 ```
 
 ```{config:option} pathrm device-tpm-device-conf
-:condition: "containers"
 :required: "for containers"
 :shortdesc: "Resource manager path inside the container"
 :type: "string"
