@@ -51,9 +51,10 @@ Complete the following steps to install the snap:
    See the [installation instructions](https://snapcraft.io/docs/installing-snapd) in the Snapcraft documentation.
 
 1. Install the snap package.
-   For the latest feature release, use:
 
-        sudo snap install lxd --channel=latest/stable
+   For the current LTS release (**recommended** option), use:
+
+        sudo snap install lxd
 
    For the LXD 5.21 LTS release, use:
 
