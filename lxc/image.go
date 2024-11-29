@@ -1353,11 +1353,6 @@ func (c *cmdImageList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	d, err := c.global.conf.GetInstanceServer(remoteName)
-	if err != nil {
-		return err
-	}
-
 	// Process the filters
 	filters := []string{}
 	if name != "" {
@@ -1378,9 +1373,9 @@ func (c *cmdImageList) run(cmd *cobra.Command, args []string) error {
 
 	var allImages, images []api.Image
 	if c.flagAllProjects {
-		allImages, err = d.GetImagesAllProjectsWithFilter(serverFilters)
+		allImages, err = remoteServer.GetImagesAllProjectsWithFilter(serverFilters)
 		if err != nil {
-			allImages, err = d.GetImagesAllProjects()
+			allImages, err = remoteServer.GetImagesAllProjects()
 			if err != nil {
 				return err
 			}
