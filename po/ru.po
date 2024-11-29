@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-11-18 20:34-0300\n"
+"POT-Creation-Date: 2024-11-21 15:57-0700\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -680,7 +680,7 @@ msgstr ""
 msgid "%d (id: %d, online: %v, NUMA node: %v)"
 msgstr ""
 
-#: lxc/image.go:1168
+#: lxc/image.go:1180
 #, c-format
 msgid "%s (%d more)"
 msgstr ""
@@ -806,11 +806,11 @@ msgstr ""
 msgid "ADDRESS"
 msgstr ""
 
-#: lxc/alias.go:139 lxc/image.go:1132 lxc/image_alias.go:234
+#: lxc/alias.go:139 lxc/image.go:1143 lxc/image_alias.go:234
 msgid "ALIAS"
 msgstr "ПСЕВДОНИМ"
 
-#: lxc/image.go:1133
+#: lxc/image.go:1144
 #, fuzzy
 msgid "ALIASES"
 msgstr "ПСЕВДОНИМ"
@@ -1039,7 +1039,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:342 lxc/rebuild.go:131
+#: lxc/init.go:343 lxc/rebuild.go:131
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -1147,7 +1147,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:152 lxc/init.go:241 lxc/move.go:393 lxc/project.go:161
+#: lxc/copy.go:152 lxc/init.go:237 lxc/move.go:393 lxc/project.go:161
 #, fuzzy, c-format
 msgid "Bad key=value pair: %q"
 msgstr "Имя контейнера: %s"
@@ -1452,7 +1452,7 @@ msgstr ""
 msgid "Clustering enabled"
 msgstr ""
 
-#: lxc/image.go:1115 lxc/list.go:132 lxc/storage_volume.go:1595
+#: lxc/image.go:1117 lxc/list.go:132 lxc/storage_volume.go:1595
 #: lxc/warning.go:93
 msgid "Columns"
 msgstr "Столбцы"
@@ -1803,7 +1803,7 @@ msgstr "Невозможно добавить имя контейнера в с�
 msgid "Created: %s"
 msgstr ""
 
-#: lxc/init.go:186
+#: lxc/init.go:182
 #, c-format
 msgid "Creating %s"
 msgstr ""
@@ -1813,7 +1813,7 @@ msgstr ""
 msgid "Creating %s: %%s"
 msgstr ""
 
-#: lxc/init.go:184
+#: lxc/init.go:180
 #, fuzzy
 msgid "Creating the instance"
 msgstr "Невозможно добавить имя контейнера в список"
@@ -1828,7 +1828,7 @@ msgid "DEFAULT TARGET ADDRESS"
 msgstr ""
 
 #: lxc/auth.go:382 lxc/cluster.go:197 lxc/cluster_group.go:504
-#: lxc/image.go:1137 lxc/image_alias.go:237 lxc/list.go:565 lxc/network.go:1086
+#: lxc/image.go:1139 lxc/image_alias.go:237 lxc/list.go:565 lxc/network.go:1086
 #: lxc/network_acl.go:157 lxc/network_forward.go:157
 #: lxc/network_load_balancer.go:160 lxc/network_peer.go:149
 #: lxc/network_zone.go:148 lxc/network_zone.go:828 lxc/operation.go:173
@@ -2005,8 +2005,8 @@ msgstr ""
 #: lxc/file.go:321 lxc/file.go:378 lxc/file.go:456 lxc/file.go:689
 #: lxc/file.go:1208 lxc/image.go:38 lxc/image.go:159 lxc/image.go:337
 #: lxc/image.go:396 lxc/image.go:525 lxc/image.go:697 lxc/image.go:948
-#: lxc/image.go:1090 lxc/image.go:1417 lxc/image.go:1508 lxc/image.go:1574
-#: lxc/image.go:1638 lxc/image.go:1701 lxc/image_alias.go:24
+#: lxc/image.go:1091 lxc/image.go:1450 lxc/image.go:1541 lxc/image.go:1607
+#: lxc/image.go:1671 lxc/image.go:1734 lxc/image_alias.go:24
 #: lxc/image_alias.go:60 lxc/image_alias.go:107 lxc/image_alias.go:152
 #: lxc/image_alias.go:255 lxc/import.go:29 lxc/info.go:33 lxc/init.go:44
 #: lxc/launch.go:24 lxc/list.go:49 lxc/main.go:83 lxc/manpage.go:22
@@ -2153,7 +2153,7 @@ msgstr ""
 msgid "Device: %s"
 msgstr ""
 
-#: lxc/init.go:402
+#: lxc/init.go:403
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
 
@@ -2197,6 +2197,11 @@ msgstr " Использование диска:"
 msgid "Disks:"
 msgstr " Использование диска:"
 
+#: lxc/image.go:1119
+#, fuzzy
+msgid "Display images from all projects"
+msgstr "Копирование образа: %s"
+
 #: lxc/list.go:135
 #, fuzzy
 msgid "Display instances from all projects"
@@ -2206,7 +2211,7 @@ msgstr "Копирование образа: %s"
 msgid "Don't require user confirmation for using --force"
 msgstr ""
 
-#: lxc/main.go:100
+#: lxc/main.go:99
 msgid "Don't show progress information"
 msgstr ""
 
@@ -2350,7 +2355,7 @@ msgstr ""
 msgid "Edit trust configurations as YAML"
 msgstr ""
 
-#: lxc/image.go:1149 lxc/list.go:622 lxc/storage_volume.go:1772
+#: lxc/image.go:1161 lxc/list.go:622 lxc/storage_volume.go:1772
 #: lxc/warning.go:236
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
@@ -2532,7 +2537,7 @@ msgstr ""
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:411 lxc/image.go:1134 lxc/image.go:1135
+#: lxc/config_trust.go:411 lxc/image.go:1141 lxc/image.go:1142
 #: lxc/image_alias.go:235
 msgid "FINGERPRINT"
 msgstr ""
@@ -2737,7 +2742,7 @@ msgstr "Невозможно добавить имя контейнера в с�
 msgid "Force the removal of running instances"
 msgstr ""
 
-#: lxc/main.go:96
+#: lxc/main.go:95
 msgid "Force using the local unix socket"
 msgstr ""
 
@@ -2768,7 +2773,7 @@ msgstr ""
 #: lxc/alias.go:112 lxc/auth.go:342 lxc/auth.go:922 lxc/auth.go:1904
 #: lxc/cluster.go:125 lxc/cluster.go:978 lxc/cluster_group.go:442
 #: lxc/config_template.go:275 lxc/config_trust.go:352 lxc/config_trust.go:434
-#: lxc/image.go:1116 lxc/image_alias.go:157 lxc/list.go:133 lxc/network.go:1009
+#: lxc/image.go:1118 lxc/image_alias.go:157 lxc/list.go:133 lxc/network.go:1009
 #: lxc/network.go:1108 lxc/network_acl.go:98 lxc/network_allocations.go:59
 #: lxc/network_forward.go:93 lxc/network_load_balancer.go:97
 #: lxc/network_peer.go:85 lxc/network_zone.go:89 lxc/network_zone.go:770
@@ -2844,7 +2849,7 @@ msgstr "Невозможно добавить имя контейнера в с�
 msgid "Get a summary of resource allocations"
 msgstr ""
 
-#: lxc/image.go:1573 lxc/image.go:1574
+#: lxc/image.go:1606 lxc/image.go:1607
 msgid "Get image properties"
 msgstr ""
 
@@ -3116,7 +3121,7 @@ msgstr ""
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/main.go:405
+#: lxc/main.go:404
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -3139,7 +3144,7 @@ msgstr ""
 msgid "Ignore the instance state"
 msgstr "Невозможно добавить имя контейнера в список"
 
-#: lxc/image.go:1489
+#: lxc/image.go:1522
 msgid "Image already up to date."
 msgstr ""
 
@@ -3155,11 +3160,11 @@ msgstr ""
 msgid "Image exported successfully!"
 msgstr ""
 
-#: lxc/image.go:364 lxc/image.go:1444
+#: lxc/image.go:364 lxc/image.go:1477
 msgid "Image identifier missing"
 msgstr ""
 
-#: lxc/image.go:444 lxc/image.go:1670
+#: lxc/image.go:444 lxc/image.go:1703
 #, c-format
 msgid "Image identifier missing: %s"
 msgstr ""
@@ -3169,7 +3174,7 @@ msgstr ""
 msgid "Image imported with fingerprint: %s"
 msgstr ""
 
-#: lxc/image.go:1487
+#: lxc/image.go:1520
 msgid "Image refreshed successfully!"
 msgstr ""
 
@@ -3255,7 +3260,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr "Имя контейнера является обязательным"
 
-#: lxc/init.go:413
+#: lxc/init.go:414
 #, fuzzy, c-format
 msgid "Instance name is: %s"
 msgstr "Имя контейнера: %s"
@@ -3356,7 +3361,7 @@ msgstr ""
 msgid "Invalid new snapshot name, parent volume must be the same as source"
 msgstr ""
 
-#: lxc/main.go:507
+#: lxc/main.go:506
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -3450,12 +3455,12 @@ msgstr ""
 msgid "Last used: never"
 msgstr ""
 
-#: lxc/init.go:180
+#: lxc/init.go:176
 #, c-format
 msgid "Launching %s"
 msgstr ""
 
-#: lxc/init.go:178
+#: lxc/init.go:174
 #, fuzzy
 msgid "Launching the instance"
 msgstr "Невозможно добавить имя контейнера в список"
@@ -3573,11 +3578,11 @@ msgid ""
 "Filters may be part of the image hash or part of the image alias name.\n"
 msgstr ""
 
-#: lxc/image.go:1089
+#: lxc/image.go:1090
 msgid "List images"
 msgstr ""
 
-#: lxc/image.go:1090
+#: lxc/image.go:1091
 msgid ""
 "List images\n"
 "\n"
@@ -3598,6 +3603,7 @@ msgid ""
 "    F - Fingerprint (long)\n"
 "    p - Whether image is public\n"
 "    d - Description\n"
+"    e - Project\n"
 "    a - Architecture\n"
 "    s - Size\n"
 "    u - Upload date\n"
@@ -4758,7 +4764,7 @@ msgstr ""
 msgid "Optimized Storage"
 msgstr ""
 
-#: lxc/main.go:97
+#: lxc/main.go:96
 msgid "Override the source project"
 msgstr ""
 
@@ -4800,7 +4806,8 @@ msgstr ""
 msgid "PROFILES"
 msgstr ""
 
-#: lxc/list.go:567 lxc/storage_volume.go:1762 lxc/warning.go:213
+#: lxc/image.go:1140 lxc/list.go:567 lxc/storage_volume.go:1762
+#: lxc/warning.go:213
 msgid "PROJECT"
 msgstr ""
 
@@ -4808,7 +4815,7 @@ msgstr ""
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:1136 lxc/remote.go:853
+#: lxc/image.go:1145 lxc/remote.go:853
 msgid "PUBLIC"
 msgstr ""
 
@@ -4824,7 +4831,7 @@ msgstr ""
 msgid "Partitions:"
 msgstr ""
 
-#: lxc/main.go:368
+#: lxc/main.go:367
 #, fuzzy, c-format
 msgid "Password for %s: "
 msgstr "Пароль администратора для %s: "
@@ -4884,7 +4891,7 @@ msgstr ""
 msgid "Pretty rendering (short for --format=pretty)"
 msgstr ""
 
-#: lxc/main.go:95
+#: lxc/main.go:94
 msgid "Print help"
 msgstr ""
 
@@ -4892,7 +4899,7 @@ msgstr ""
 msgid "Print the raw response"
 msgstr ""
 
-#: lxc/main.go:94
+#: lxc/main.go:93
 msgid "Print version number"
 msgstr ""
 
@@ -4989,7 +4996,7 @@ msgstr ""
 msgid "Properties:"
 msgstr ""
 
-#: lxc/image.go:1621
+#: lxc/image.go:1654
 msgid "Property not found"
 msgstr ""
 
@@ -5119,7 +5126,7 @@ msgstr ""
 msgid "Query path must start with /"
 msgstr ""
 
-#: lxc/image.go:530 lxc/image.go:951 lxc/image.go:1511
+#: lxc/image.go:530 lxc/image.go:951 lxc/image.go:1544
 msgid "Query virtual machine images"
 msgstr ""
 
@@ -5159,7 +5166,7 @@ msgstr ""
 msgid "Refresh and update the existing storage volume copies"
 msgstr "Копирование образа: %s"
 
-#: lxc/image.go:1416 lxc/image.go:1417
+#: lxc/image.go:1449 lxc/image.go:1450
 #, fuzzy
 msgid "Refresh images"
 msgstr "Копирование образа: %s"
@@ -5169,7 +5176,7 @@ msgstr "Копирование образа: %s"
 msgid "Refreshing instance: %s"
 msgstr "Невозможно добавить имя контейнера в список"
 
-#: lxc/image.go:1453
+#: lxc/image.go:1486
 #, fuzzy, c-format
 msgid "Refreshing the image: %s"
 msgstr "Копирование образа: %s"
@@ -5449,7 +5456,7 @@ msgstr ""
 msgid "Retrieve the container's console log"
 msgstr ""
 
-#: lxc/init.go:356
+#: lxc/init.go:357
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -5485,7 +5492,7 @@ msgstr "Доступные команды:"
 msgid "SEVERITY"
 msgstr ""
 
-#: lxc/image.go:1139
+#: lxc/image.go:1146
 msgid "SIZE"
 msgstr ""
 
@@ -5610,7 +5617,7 @@ msgid ""
 "    lxc profile device set [<remote>:]<profile> <device> <key> <value>"
 msgstr ""
 
-#: lxc/image.go:1637 lxc/image.go:1638
+#: lxc/image.go:1670 lxc/image.go:1671
 msgid "Set image properties"
 msgstr ""
 
@@ -5876,11 +5883,11 @@ msgstr ""
 msgid "Setup SSH SFTP listener on address:port instead of mounting"
 msgstr ""
 
-#: lxc/main.go:98
+#: lxc/main.go:97
 msgid "Show all debug messages"
 msgstr ""
 
-#: lxc/main.go:99
+#: lxc/main.go:98
 msgid "Show all information messages"
 msgstr ""
 
@@ -5932,7 +5939,7 @@ msgid ""
 "method. Use the identifier instead if this occurs.\n"
 msgstr ""
 
-#: lxc/image.go:1507 lxc/image.go:1508
+#: lxc/image.go:1540 lxc/image.go:1541
 msgid "Show image properties"
 msgstr ""
 
@@ -5954,7 +5961,7 @@ msgstr ""
 msgid "Show instance or server information"
 msgstr ""
 
-#: lxc/main.go:272 lxc/main.go:273
+#: lxc/main.go:271 lxc/main.go:272
 msgid "Show less common commands"
 msgstr ""
 
@@ -6295,7 +6302,7 @@ msgstr ""
 msgid "TOKEN"
 msgstr ""
 
-#: lxc/auth.go:967 lxc/config_trust.go:408 lxc/image.go:1141
+#: lxc/auth.go:967 lxc/config_trust.go:408 lxc/image.go:1147
 #: lxc/image_alias.go:236 lxc/list.go:579 lxc/network.go:1082
 #: lxc/network.go:1164 lxc/network_allocations.go:27 lxc/operation.go:172
 #: lxc/storage_volume.go:1736 lxc/warning.go:216
@@ -6366,7 +6373,7 @@ msgid ""
 "restarted"
 msgstr ""
 
-#: lxc/init.go:434
+#: lxc/init.go:435
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 
@@ -6513,7 +6520,7 @@ msgstr ""
 msgid "This LXD server is not available on the network"
 msgstr ""
 
-#: lxc/main.go:299
+#: lxc/main.go:298
 msgid ""
 "This client hasn't been configured to use a remote LXD server yet.\n"
 "As your platform can't run native Linux instances, you must connect to a "
@@ -6537,11 +6544,11 @@ msgstr ""
 msgid "Timestamps:"
 msgstr ""
 
-#: lxc/init.go:436
+#: lxc/init.go:437
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:435
+#: lxc/init.go:436
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
@@ -6549,7 +6556,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:411
+#: lxc/main.go:410
 msgid ""
 "To start your first container, try: lxc launch ubuntu:24.04\n"
 "Or for a virtual machine: lxc launch ubuntu:24.04 --vm"
@@ -6657,7 +6664,7 @@ msgstr ""
 msgid "UNLIMITED"
 msgstr ""
 
-#: lxc/image.go:1140
+#: lxc/image.go:1148
 msgid "UPLOAD DATE"
 msgstr ""
 
@@ -6703,7 +6710,7 @@ msgstr ""
 msgid "Unknown channel type for client %q: %s"
 msgstr ""
 
-#: lxc/image.go:1155 lxc/list.go:631 lxc/storage_volume.go:1778
+#: lxc/image.go:1167 lxc/list.go:631 lxc/storage_volume.go:1778
 #: lxc/warning.go:242
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
@@ -6747,7 +6754,7 @@ msgstr ""
 msgid "Unset device configuration keys"
 msgstr ""
 
-#: lxc/image.go:1700 lxc/image.go:1701
+#: lxc/image.go:1733 lxc/image.go:1734
 msgid "Unset image properties"
 msgstr ""
 
@@ -6937,7 +6944,7 @@ msgid ""
 "Use storage driver optimized format (can only be restored on a similar pool)"
 msgstr ""
 
-#: lxc/main.go:101
+#: lxc/main.go:100
 msgid "Use with help or --help to view sub-commands"
 msgstr ""
 
@@ -7119,7 +7126,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/image.go:1087 lxc/list.go:46
+#: lxc/image.go:1088 lxc/list.go:46
 #, fuzzy
 msgid "[<remote>:] [<filter>...]"
 msgstr ""
@@ -7334,7 +7341,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/image.go:394 lxc/image.go:946 lxc/image.go:1506
+#: lxc/image.go:394 lxc/image.go:946 lxc/image.go:1539
 #, fuzzy
 msgid "[<remote>:]<image>"
 msgstr ""
@@ -7342,7 +7349,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/image.go:1572 lxc/image.go:1699
+#: lxc/image.go:1605 lxc/image.go:1732
 #, fuzzy
 msgid "[<remote>:]<image> <key>"
 msgstr ""
@@ -7350,7 +7357,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/image.go:1636
+#: lxc/image.go:1669
 #, fuzzy
 msgid "[<remote>:]<image> <key> <value>"
 msgstr ""
@@ -7390,7 +7397,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/image.go:334 lxc/image.go:1415
+#: lxc/image.go:334 lxc/image.go:1448
 #, fuzzy
 msgid "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr ""
@@ -8777,7 +8784,7 @@ msgstr ""
 msgid "name"
 msgstr ""
 
-#: lxc/image.go:994 lxc/image.go:999 lxc/image.go:1197
+#: lxc/image.go:994 lxc/image.go:999 lxc/image.go:1209
 msgid "no"
 msgstr ""
 
@@ -8823,7 +8830,7 @@ msgid "y"
 msgstr ""
 
 #: lxc/cluster.go:624 lxc/delete.go:52 lxc/image.go:996 lxc/image.go:1001
-#: lxc/image.go:1194
+#: lxc/image.go:1206
 msgid "yes"
 msgstr "да"
 
