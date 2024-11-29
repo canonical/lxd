@@ -126,7 +126,7 @@ func (d *cephobject) Validate(config map[string]string) error {
 		// ---
 		//  type: string
 		//  shortdesc: Prefix to add to bucket names in Ceph
-		"cephobject.bucket.name_prefix": validate.Optional(validate.IsAny),
+		"cephobject.bucket.name_prefix": validate.IsAny,
 		// lxdmeta:generate(entities=storage-cephobject; group=pool-conf; key=volatile.pool.pristine)
 		//
 		// ---
