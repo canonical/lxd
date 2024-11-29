@@ -43,7 +43,6 @@ func (d *tpm) validateConfig(instConf instance.ConfigReader) error {
 	// ---
 	//  type: string
 	//  required: for containers
-	//  condition: containers
 	//  shortdesc: Path inside the container
 
 	// lxdmeta:generate(entities=device-tpm; group=device-conf; key=pathrm)
@@ -51,7 +50,6 @@ func (d *tpm) validateConfig(instConf instance.ConfigReader) error {
 	// ---
 	//  type: string
 	//  required: for containers
-	//  condition: containers
 	//  shortdesc: Resource manager path inside the container
 	if instConf.Type() == instancetype.Container {
 		rules["path"] = validate.IsNotEmpty
