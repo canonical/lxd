@@ -310,6 +310,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_security_protection "container protection"
     run_test test_image_expiry "image expiry"
     run_test test_image_list_all_aliases "image list all aliases"
+    run_test test_image_list_remotes "image list of simplestream remotes"
     run_test test_image_auto_update "image auto-update"
     run_test test_image_prefer_cached "image prefer cached"
     run_test test_image_import_dir "import image from directory"
