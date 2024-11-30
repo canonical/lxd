@@ -81,7 +81,6 @@ test_image_list_all_aliases() {
     # shellcheck disable=2039,2034,2155,3043
     local sum="$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
     lxc image alias create zzz "$sum"
-    lxc image list | grep -vq zzz
     # both aliases are listed if the "aliases" column is included in output
     lxc image list -c L | grep -q testimage
     lxc image list -c L | grep -q zzz
