@@ -68,6 +68,21 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 				if err != nil {
 					return err
 				}
+
+				// Check the block size for image volumes.
+				if vol.volType == VolumeTypeImage {
+					blockSize, err := block.DiskBlockSize(devPath)
+					if err != nil {
+						return err
+					}
+
+					// Our images are all built using 512 bytes physical block sizes.
+					// When those are written to a 4k physical block size device,
+					// the partition table makes no sense and leads to an unbootable VM.
+					if blockSize != 512 {
+						return fmt.Errorf("Underlying storage uses %d bytes sector size when virtual machine images require 512 bytes", blockSize)
+					}
+				}
 			}
 
 			allowUnsafeResize := false
