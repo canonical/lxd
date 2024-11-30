@@ -440,6 +440,7 @@ jobs:
 
       - name: Upload lxc client artifacts
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        if: ${{ github.event_name == 'push' }}
         continue-on-error: true
         with:
           name: lxd-clients-${{ runner.os }}
