@@ -71,7 +71,7 @@ The pull transfer mode is the default as it is compatible with all LXD versions.
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpRemotes(false)
+			return c.global.cmpRemotes(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
