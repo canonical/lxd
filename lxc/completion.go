@@ -74,7 +74,7 @@ func (g *cmdGlobal) cmpClusterGroups(toComplete string) ([]string, cobra.ShellCo
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(false)
+		remotes, directives := g.cmpRemotes(toComplete, false)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
@@ -174,7 +174,7 @@ func (g *cmdGlobal) cmpClusterMembers(toComplete string) ([]string, cobra.ShellC
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(false)
+		remotes, directives := g.cmpRemotes(toComplete, false)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
@@ -214,7 +214,7 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(true)
+		remotes, directives := g.cmpRemotes(toComplete, true)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
@@ -586,12 +586,16 @@ func (g *cmdGlobal) cmpInstances(toComplete string) ([]string, cobra.ShellCompDi
 				name = resource.remote + ":" + instance
 			}
 
+			if !strings.HasPrefix(name, toComplete) {
+				continue
+			}
+
 			results = append(results, name)
 		}
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, _ := g.cmpRemotes(false)
+		remotes, _ := g.cmpRemotes(toComplete, false)
 		results = append(results, remotes...)
 	}
 
@@ -652,7 +656,7 @@ func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagFor
 		}
 
 		if !strings.Contains(toComplete, ":") {
-			remotes, directives := g.cmpRemotes(false)
+			remotes, directives := g.cmpRemotes(toComplete, false)
 			results = append(results, remotes...)
 			cmpDirectives |= directives
 		}
@@ -695,7 +699,7 @@ func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(false)
+		remotes, directives := g.cmpRemotes(toComplete, false)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
@@ -778,7 +782,7 @@ func (g *cmdGlobal) cmpNetworkACLs(toComplete string) ([]string, cobra.ShellComp
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(false)
+		remotes, directives := g.cmpRemotes(toComplete, false)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
@@ -943,7 +947,7 @@ func (g *cmdGlobal) cmpNetworks(toComplete string) ([]string, cobra.ShellCompDir
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(false)
+		remotes, directives := g.cmpRemotes(toComplete, false)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
@@ -1139,7 +1143,7 @@ func (g *cmdGlobal) cmpNetworkZones(toComplete string) ([]string, cobra.ShellCom
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(false)
+		remotes, directives := g.cmpRemotes(toComplete, false)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
@@ -1240,7 +1244,7 @@ func (g *cmdGlobal) cmpProfiles(toComplete string, includeRemotes bool) ([]strin
 	}
 
 	if includeRemotes && !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(false)
+		remotes, directives := g.cmpRemotes(toComplete, false)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
@@ -1303,7 +1307,7 @@ func (g *cmdGlobal) cmpProjects(toComplete string) ([]string, cobra.ShellCompDir
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(false)
+		remotes, directives := g.cmpRemotes(toComplete, false)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
@@ -1313,18 +1317,26 @@ func (g *cmdGlobal) cmpProjects(toComplete string) ([]string, cobra.ShellCompDir
 
 // cmpRemotes provides shell completion for remotes.
 // It takes a boolean specifying whether to include all remotes or not and returns a list of remotes along with a shell completion directive.
-func (g *cmdGlobal) cmpRemotes(includeAll bool) ([]string, cobra.ShellCompDirective) {
-	results := make([]string, 0, len(g.conf.Remotes))
+func (g *cmdGlobal) cmpRemotes(toComplete string, includeAll bool) ([]string, cobra.ShellCompDirective) {
+	results := []string{}
 
 	for remoteName, rc := range g.conf.Remotes {
 		if remoteName == "local" && g.conf.DefaultRemote == "local" || remoteName == g.conf.DefaultRemote || (!includeAll && rc.Protocol != "lxd" && rc.Protocol != "") {
 			continue
 		}
 
+		if !strings.HasPrefix(remoteName, toComplete) {
+			continue
+		}
+
 		results = append(results, remoteName+":")
 	}
 
-	return results, cobra.ShellCompDirectiveNoSpace
+	if len(results) > 0 {
+		return results, cobra.ShellCompDirectiveNoSpace
+	}
+
+	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
 // cmpRemoteNames provides shell completion for remote names.
@@ -1434,7 +1446,7 @@ func (g *cmdGlobal) cmpStoragePools(toComplete string, noSpace bool) ([]string, 
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, _ := g.cmpRemotes(false)
+		remotes, _ := g.cmpRemotes(toComplete, false)
 		results = append(results, remotes...)
 	}
 
