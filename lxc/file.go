@@ -1240,7 +1240,11 @@ func (c *cmdFileMount) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpFiles(toComplete, false)
+		}
+
+		if len(args) == 1 {
+			return nil, cobra.ShellCompDirectiveDefault
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
