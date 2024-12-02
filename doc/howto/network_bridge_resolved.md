@@ -64,6 +64,55 @@ You must repeat the commands after each reboot and after LXD is restarted, or ma
 
 ## Make the `resolved` configuration persistent
 
+### Solution "A"
+
+You can automate the `systemd-resolved` DNS configuration, so that it is applied on system start and takes effect when LXD creates the network interface.
+
+To do so, create a `systemd` network file named `/etc/systemd/network/<network_bridge>.network` with the following content:
+
+```
+[Match]
+Name=lxdbr0
+
+[Network]
+DNS=<dns_address>
+Domains=~<dns_domain>
+```
+
+So, for example:
+
+```
+[Match]
+Name=lxdbr0
+
+[Network]
+DNS=10.167.146.1
+Domains=~lxd
+```
+
+You can test the setup by restarting `systemd-resolved`:
+
+    sudo systemctl restart systemd-resolved.service
+
+You can test that the configuration got applied by running:
+
+    sudo resolvectl status
+
+The output should contain a part similar to this (you can see the DNS server and the `.lxd` domain mentioned):
+
+```
+Link 4 (lxdbr0)
+    Current Scopes: DNS
+         Protocols: -DefaultRoute +LLMNR -mDNS -DNSOverTLS DNSSEC=no/unsupported
+Current DNS Server: 10.167.146.1
+       DNS Servers: 10.167.146.1
+        DNS Domain: ~lxd
+```
+
+This solution "A" is better than solution "B" in the sense that it is more resilient, and gets reapplied if the `lxdbr0` network is re-created for some reason (LXD update+restart occasionally apparently does this).
+
+### Solution "B"
+
 You can automate the `systemd-resolved` DNS configuration, so that it is applied on system start and takes effect when LXD creates the network interface.
 
 To do so, create a `systemd` unit file named `/etc/systemd/system/lxd-dns-<network_bridge>.service` with the following content:
