@@ -451,6 +451,7 @@ func (d *zfs) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: name of the pool
 		//  shortdesc: Name of the zpool
+		//  scope: local
 		"zfs.pool_name": validate.IsAny,
 		// lxdmeta:generate(entities=storage-zfs; group=pool-conf; key=zfs.clone_copy)
 		// Set this option to `true` or `false` to enable or disable using ZFS lightweight clones rather
@@ -460,6 +461,7 @@ func (d *zfs) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to use ZFS lightweight clones
+		//  scope: global
 		"zfs.clone_copy": validate.Optional(func(value string) error {
 			if value == "rebase" {
 				return nil
@@ -473,6 +475,7 @@ func (d *zfs) Validate(config map[string]string) error {
 		//  type: bool
 		//  defaultdesc: `true`
 		//  shortdesc: Disable zpool export while an unmount is being performed
+		//  scope: global
 		"zfs.export": validate.Optional(validate.IsBool),
 	}
 
