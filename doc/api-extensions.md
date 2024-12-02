@@ -2535,3 +2535,9 @@ Adds a new {config:option}`device-unix-hotplug-device-conf:ownership.inherit` co
 ## `unix_device_hotplug_subsystem_device_option`
 
 Adds a new {config:option}`device-unix-hotplug-device-conf:subsystem` configuration option for `unix-hotplug` devices. This adds support for detecting `unix-hotplug` devices by subsystem, and can be used in conjunction with {config:option}`device-unix-hotplug-device-conf:productid` and {config:option}`device-unix-hotplug-device-conf:vendorid`.
+
+## `instance_root_volume_attachment`
+
+Adds support for instance root volumes to be attached to other instances as disk
+devices. Introduces the `<type>/<volume>` syntax for the `source` property of
+disk devices.
