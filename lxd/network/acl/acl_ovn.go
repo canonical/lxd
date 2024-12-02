@@ -1,9 +1,11 @@
 package acl
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"strconv"
 	"strings"
@@ -1154,4 +1156,58 @@ func ovnParseLogEntry(logline string, syslogTimestamp string, prefix string) str
 	}
 
 	return string(out)
+}
+
+// ovnParseLogEntriesFromJournald reads the OVN log entries from the systemd journal and returns them as a list of string entries.
+// Also, we chose to output the last 1000 entries to avoid overloading the system with too many log entries.
+func ovnParseLogEntriesFromJournald(ctx context.Context, systemdUnitName string, filter string) ([]string, error) {
+	var logEntries []string
+	cmd := []string{
+		"/usr/bin/journalctl",
+		"--unit", systemdUnitName,
+		"--directory", shared.HostPath("/var/log/journal"),
+		"--no-pager",
+		"--boot", "0",
+		"--case-sensitive",
+		"--grep", filter,
+		"--output-fields", "MESSAGE",
+		"-n", "1000",
+		"-o", "json",
+	}
+
+	stdout := bytes.Buffer{}
+	err := shared.RunCommandWithFds(ctx, nil, &stdout, cmd[0], cmd[1:]...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to run journalctl to fetch OVN ACL logs: %w", err)
+	}
+
+	decoder := json.NewDecoder(&stdout)
+	for {
+		var sdLogEntry map[string]any
+		err = decoder.Decode(&sdLogEntry)
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, fmt.Errorf("Failed to parse log entry: %w", err)
+		}
+
+		message, ok := sdLogEntry["MESSAGE"].(string)
+		if !ok {
+			continue
+		}
+
+		timestamp, ok := sdLogEntry["__REALTIME_TIMESTAMP"].(string)
+		if !ok {
+			continue
+		}
+
+		logEntry := ovnParseLogEntry(message, timestamp, filter)
+		if logEntry == "" {
+			continue
+		}
+
+		logEntries = append(logEntries, logEntry)
+	}
+
+	return logEntries, nil
 }
