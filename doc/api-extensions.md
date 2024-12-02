@@ -2542,3 +2542,9 @@ Adds optional `target` parameter to `GET /1.0/network`. When target is set, forw
 ## `network_zones_all_projects`
 
 This adds support for listing network zones across all projects using the `all-projects` parameter in `GET /1.0/network-zones` requests.
+
+## `instance_root_volume_attachment`
+
+Adds support for instance root volumes to be attached to other instances as disk
+devices. Introduces the `<type>/<volume>` syntax for the `source` property of
+disk devices.

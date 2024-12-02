@@ -429,6 +429,7 @@ var APIExtensions = []string{
 	"storage_ceph_osd_pool_size",
 	"network_get_target",
 	"network_zones_all_projects",
+	"instance_root_volume_attachment",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
