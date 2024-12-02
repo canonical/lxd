@@ -1170,6 +1170,7 @@ func (d *ceph) commonVolumeRules() map[string]func(value string) error {
 		//  condition: block-based volume with content type `filesystem`
 		//  defaultdesc: same as `volume.block.filesystem`
 		//  shortdesc: File system of the storage volume
+		//  scope: global
 		"block.filesystem": validate.Optional(validate.IsOneOf(blockBackedAllowedFilesystems...)),
 		// lxdmeta:generate(entities=storage-ceph,storage-lvm; group=volume-conf; key=block.mount_options)
 		//
@@ -1178,6 +1179,7 @@ func (d *ceph) commonVolumeRules() map[string]func(value string) error {
 		//  condition: block-based volume with content type `filesystem`
 		//  defaultdesc: same as `volume.block.mount_options`
 		//  shortdesc: Mount options for block-backed file system volumes
+		//  scope: global
 		"block.mount_options": validate.IsAny,
 	}
 }

@@ -199,18 +199,21 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `admin`
 		//  shortdesc: User for PowerFlex Gateway authentication
+		//  scope: global
 		"powerflex.user.name": validate.IsAny,
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.user.password)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: Password for PowerFlex Gateway authentication
+		//  scope: global
 		"powerflex.user.password": validate.IsAny,
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.gateway)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: Address of the PowerFlex Gateway
+		//  scope: global
 		"powerflex.gateway": validate.Optional(validate.IsRequestURL),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.gateway.verify)
 		//
@@ -218,18 +221,21 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  type: bool
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to verify the PowerFlex Gateway's certificate
+		//  scope: global
 		"powerflex.gateway.verify": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.pool)
 		// If you want to specify the storage pool via its name, also set {config:option}`storage-powerflex-pool-conf:powerflex.domain`.
 		// ---
 		//  type: string
 		//  shortdesc: ID of the PowerFlex storage pool
+		//  scope: global
 		"powerflex.pool": validate.IsAny,
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.domain)
 		// This option is required only if {config:option}`storage-powerflex-pool-conf:powerflex.pool` is specified using its name.
 		// ---
 		//  type: string
 		//  shortdesc: Name of the PowerFlex protection domain
+		//  scope: global
 		"powerflex.domain": validate.IsAny,
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.mode)
 		// The mode gets discovered automatically if the system provides the necessary kernel modules.
@@ -238,6 +244,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: the discovered mode
 		//  shortdesc: How volumes are mapped to the local server
+		//  scope: global
 		"powerflex.mode": validate.Optional(validate.IsOneOf("nvme", "sdc")),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.sdt)
 		//
@@ -245,6 +252,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: one of the SDT
 		//  shortdesc: PowerFlex NVMe/TCP SDT
+		//  scope: global
 		"powerflex.sdt": validate.Optional(validate.IsNetworkAddress),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.clone_copy)
 		// If this option is set to `true`, PowerFlex makes a non-sparse copy when creating a snapshot of an instance or custom volume.
@@ -253,6 +261,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  type: bool
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to use non-sparse copies for snapshots
+		//  scope: global
 		"powerflex.clone_copy": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=volume.size)
 		// The size must be in multiples of 8 GiB.
@@ -261,6 +270,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `8GiB`
 		//  shortdesc: Size/quota of the storage volume
+		//  scope: global
 		"volume.size": validate.Optional(validate.IsMultipleOfUnit("8GiB")),
 	}
 

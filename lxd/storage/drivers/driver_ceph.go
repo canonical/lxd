@@ -294,6 +294,7 @@ func (d *ceph) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `ceph`
 		//  shortdesc: Name of the Ceph cluster in which to create new storage pools
+		//  scope: global
 		"ceph.cluster_name":    validate.IsAny,
 		"ceph.osd.force_reuse": validate.Optional(validate.IsBool), // Deprecated, should not be used.
 		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.osd.pg_num)
@@ -302,6 +303,7 @@ func (d *ceph) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `32`
 		//  shortdesc: Number of placement groups for the OSD storage pool
+		//  scope: global
 		"ceph.osd.pg_num": validate.IsAny,
 		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.osd.pool_name)
 		//
@@ -309,12 +311,14 @@ func (d *ceph) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: name of the pool
 		//  shortdesc: Name of the OSD storage pool
+		//  scope: global
 		"ceph.osd.pool_name": validate.IsAny,
 		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.osd.data_pool_name)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: Name of the OSD data pool
+		//  scope: global
 		"ceph.osd.data_pool_name": validate.IsAny,
 		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.rbd.clone_copy)
 		// Enable this option to use RBD lightweight clones rather than full dataset copies.
@@ -322,6 +326,7 @@ func (d *ceph) Validate(config map[string]string) error {
 		//  type: bool
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to use RBD lightweight clones
+		//  scope: global
 		"ceph.rbd.clone_copy": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.rbd.du)
 		// This option specifies whether to use RBD `du` to obtain disk usage data for stopped instances.
@@ -329,6 +334,7 @@ func (d *ceph) Validate(config map[string]string) error {
 		//  type: bool
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to use RBD `du`
+		//  scope: global
 		"ceph.rbd.du": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.rbd.features)
 		//
@@ -336,6 +342,7 @@ func (d *ceph) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `layering`
 		//  shortdesc: Comma-separated list of RBD features to enable on the volumes
+		//  scope: global
 		"ceph.rbd.features": validate.IsAny,
 		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.user.name)
 		//
@@ -343,6 +350,7 @@ func (d *ceph) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `admin`
 		//  shortdesc: The Ceph user to use when creating storage pools and volumes
+		//  scope: global
 		"ceph.user.name": validate.IsAny,
 		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=volatile.pool.pristine)
 		//
@@ -350,6 +358,7 @@ func (d *ceph) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `true`
 		//  shortdesc: Whether the pool was empty on creation time
+		//  scope: global
 		"volatile.pool.pristine": validate.IsAny,
 	}
 
