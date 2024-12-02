@@ -12,6 +12,10 @@
 name: "CodeQL"
 
 on:
+  push:
+    branches:
+      - main
+      - stable-*
   pull_request:
     paths-ignore:
       - '.github/**'
