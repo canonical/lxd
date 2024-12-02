@@ -392,6 +392,14 @@ func (c *cmdFileEdit) command() *cobra.Command {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpFiles(toComplete, false)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
