@@ -806,7 +806,7 @@ type cmdStorageVolumeDetach struct {
 
 func (c *cmdStorageVolumeDetach) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("detach", i18n.G("[<remote>:]<pool> <volume> <instance> [<device name>]"))
+	cmd.Use = usage("detach", i18n.G("[<remote>:]<pool> [<type>/]<volume> <instance> [<device name>]"))
 	cmd.Short = i18n.G("Detach storage volumes from instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Detach storage volumes from instances`))
@@ -866,7 +866,10 @@ func (c *cmdStorageVolumeDetach) run(cmd *cobra.Command, args []string) error {
 	// Find the device
 	if devName == "" {
 		for n, d := range inst.Devices {
-			if d["type"] == "disk" && d["pool"] == resource.name && d["source"] == args[1] {
+			volType, volName := parseVolume("custom", args[1])
+			sourceType, sourceName := parseVolume("custom", d["source"])
+
+			if d["type"] == "disk" && d["pool"] == resource.name && volType == sourceType && volName == sourceName {
 				if devName != "" {
 					return errors.New(i18n.G("More than one device matches, specify the device name"))
 				}
@@ -904,7 +907,7 @@ type cmdStorageVolumeDetachProfile struct {
 
 func (c *cmdStorageVolumeDetachProfile) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("detach-profile", i18n.G("[<remote:>]<pool> <volume> <profile> [<device name>]"))
+	cmd.Use = usage("detach-profile", i18n.G("[<remote:>]<pool> [<type>/]<volume> <profile> [<device name>]"))
 	cmd.Short = i18n.G("Detach storage volumes from profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Detach storage volumes from profiles`))
@@ -963,7 +966,10 @@ func (c *cmdStorageVolumeDetachProfile) run(cmd *cobra.Command, args []string) e
 	// Find the device
 	if devName == "" {
 		for n, d := range profile.Devices {
-			if d["type"] == "disk" && d["pool"] == resource.name && d["source"] == args[1] {
+			volType, volName := parseVolume("custom", args[1])
+			sourceType, sourceName := parseVolume("custom", d["source"])
+
+			if d["type"] == "disk" && d["pool"] == resource.name && volType == sourceType && volName == sourceName {
 				if devName != "" {
 					return errors.New(i18n.G("More than one device matches, specify the device name"))
 				}
