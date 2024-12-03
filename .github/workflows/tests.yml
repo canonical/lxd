@@ -660,7 +660,7 @@ jobs:
 
   snap:
     name: Trigger snap edge build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [code-tests, system-tests, client, documentation, ui-e2e-tests]
     if: ${{ github.repository == 'canonical/lxd' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
     steps:
