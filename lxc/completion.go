@@ -188,9 +188,8 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 	var remote string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
-	if strings.Contains(toComplete, ":") {
-		remote = strings.Split(toComplete, ":")[0]
-	} else {
+	remote, _, found := strings.Cut(toComplete, ":")
+	if !found {
 		remote = g.conf.DefaultRemote
 	}
 
@@ -462,9 +461,9 @@ func (g *cmdGlobal) cmpInstanceConfigTemplates(instanceName string) ([]string, c
 	resource := resources[0]
 	client := resource.server
 
-	var instanceNameOnly = instanceName
-	if strings.Contains(instanceName, ":") {
-		instanceNameOnly = strings.Split(instanceName, ":")[1]
+	_, instanceNameOnly, _ := strings.Cut(instanceName, ":")
+	if instanceNameOnly == "" {
+		instanceNameOnly = instanceName
 	}
 
 	results, err := client.GetInstanceTemplateFiles(instanceNameOnly)
@@ -1591,9 +1590,9 @@ func (g *cmdGlobal) cmpStoragePoolVolumes(poolName string, volumeTypes ...string
 	resource := resources[0]
 	client := resource.server
 
-	var pool = poolName
-	if strings.Contains(poolName, ":") {
-		pool = strings.Split(poolName, ":")[1]
+	_, pool, _ := strings.Cut(poolName, ":")
+	if pool == "" {
+		pool = poolName
 	}
 
 	volumes, err := client.GetStoragePoolVolumeNames(pool)
