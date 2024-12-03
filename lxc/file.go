@@ -912,9 +912,6 @@ func (c *cmdFilePush) run(cmd *cobra.Command, args []string) error {
 				}
 
 				fMode, fUID, fGID := shared.GetOwnerMode(finfo)
-				if err != nil {
-					return err
-				}
 
 				if c.file.flagMode == "" {
 					mode = fMode
