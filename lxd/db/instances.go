@@ -117,26 +117,24 @@ func (c *ClusterTx) GetNodeAddressOfInstance(ctx context.Context, project string
 		filters.WriteString(" AND instances_snapshots.name = ?")
 		args = append(args, snapshotName)
 
-		stmt = fmt.Sprintf(`
+		stmt = `
 SELECT nodes.id, nodes.address
   FROM nodes
   JOIN instances ON instances.node_id = nodes.id
   JOIN projects ON projects.id = instances.project_id
   JOIN instances_snapshots ON instances_snapshots.instance_id = instances.id
- WHERE %s
-`, filters.String())
+ WHERE ` + filters.String()
 	} else {
 		// Instance name filter.
 		filters.WriteString(" AND instances.name = ?")
 		args = append(args, instanceName)
 
-		stmt = fmt.Sprintf(`
+		stmt = `
 SELECT nodes.id, nodes.address
   FROM nodes
   JOIN instances ON instances.node_id = nodes.id
   JOIN projects ON projects.id = instances.project_id
- WHERE %s
-`, filters.String())
+ WHERE ` + filters.String()
 	}
 
 	var address string
@@ -199,7 +197,7 @@ func (c *ClusterTx) GetInstancesByMemberAddress(ctx context.Context, offlineThre
 	`)
 
 	// Project filter.
-	q.WriteString(fmt.Sprintf("WHERE projects.name IN %s", query.Params(len(projects))))
+	q.WriteString("WHERE projects.name IN " + query.Params(len(projects)))
 	for _, project := range projects {
 		args = append(args, project)
 	}
@@ -899,7 +897,7 @@ func (c *ClusterTx) GetInstancePool(ctx context.Context, projectName string, ins
 	// unique, and their storage volumes carry the same name, their storage
 	// volumes are unique too.
 	poolName := ""
-	query := fmt.Sprintf(`
+	query := `
 SELECT storage_pools.name FROM storage_pools
   JOIN storage_volumes_all ON storage_pools.id=storage_volumes_all.storage_pool_id
   JOIN instances ON instances.name=storage_volumes_all.name
@@ -908,7 +906,7 @@ SELECT storage_pools.name FROM storage_pools
    AND storage_volumes_all.name=?
    AND storage_volumes_all.type IN (?,?)
    AND storage_volumes_all.project_id = instances.project_id
-   AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN %s)`, query.Params(len(remoteDrivers)))
+   AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN ` + query.Params(len(remoteDrivers)) + `)`
 	inargs := []any{projectName, instanceName, cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM, c.nodeID}
 	outargs := []any{&poolName}
 
