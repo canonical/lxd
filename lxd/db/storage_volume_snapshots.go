@@ -57,7 +57,7 @@ func (c *ClusterTx) CreateStorageVolumeSnapshot(ctx context.Context, projectName
 func (c *ClusterTx) UpdateStorageVolumeSnapshot(ctx context.Context, projectName string, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string, expiryDate time.Time) error {
 	var err error
 
-	if !strings.Contains(volumeName, shared.SnapshotDelimiter) {
+	if !shared.IsSnapshot(volumeName) {
 		return fmt.Errorf("Volume is not a snapshot")
 	}
 
@@ -117,7 +117,7 @@ WHERE volumes.id=?
 		return args, err
 	}
 
-	if !strings.Contains(args.Name, shared.SnapshotDelimiter) {
+	if !shared.IsSnapshot(args.Name) {
 		return args, fmt.Errorf("Volume is not a snapshot")
 	}
 
