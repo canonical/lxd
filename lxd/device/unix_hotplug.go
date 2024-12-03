@@ -91,6 +91,14 @@ func (d *unixHotplug) validateConfig(instConf instance.ConfigReader) error {
 		//  defaultdesc: `false`
 		//  shortdesc: Whether this device is required to start the container
 		"required": validate.Optional(validate.IsBool),
+
+		// lxdmeta:generate(entities=device-unix-hotplug; group=device-conf; key=ownership.inherit)
+		//
+		// ---
+		// type: bool
+		// defaultdesc: `false`
+		// shortdesc: Whether this device inherits ownership (GID and/or UID) from the host
+		"ownership.inherit": validate.Optional(validate.IsBool),
 	}
 
 	err := d.config.Validate(rules)
@@ -100,6 +108,10 @@ func (d *unixHotplug) validateConfig(instConf instance.ConfigReader) error {
 
 	if d.config["vendorid"] == "" && d.config["productid"] == "" {
 		return fmt.Errorf("Unix hotplug devices require a vendorid or a productid")
+	}
+
+	if d.config["gid"] != "" && d.config["uid"] != "" && shared.IsTrue(d.config["ownership.inherit"]) {
+		return fmt.Errorf("Unix hotplug device ownership cannot be inherited from host while GID and UID are set")
 	}
 
 	return nil

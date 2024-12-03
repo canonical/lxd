@@ -425,6 +425,7 @@ var APIExtensions = []string{
 	"gpu_cdi",
 	"images_all_projects",
 	"metadata_configuration_scope",
+	"unix_device_hotplug_ownership_inherit",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
