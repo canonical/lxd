@@ -107,15 +107,15 @@ func (c *ClusterTx) GetNodeAddressOfInstance(ctx context.Context, project string
 	}
 
 	if shared.IsSnapshot(name) {
-		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
+		instanceName, snapshotName, _ := strings.Cut(name, shared.SnapshotDelimiter)
 
 		// Instance name filter.
 		filters.WriteString(" AND instances.name = ?")
-		args = append(args, parts[0])
+		args = append(args, instanceName)
 
 		// Snapshot name filter.
 		filters.WriteString(" AND instances_snapshots.name = ?")
-		args = append(args, parts[1])
+		args = append(args, snapshotName)
 
 		stmt = fmt.Sprintf(`
 SELECT nodes.id, nodes.address
