@@ -749,7 +749,7 @@ func (d *common) Delete() error {
 }
 
 // GetLog gets the ACL log.
-func (d *common) GetLog(clientType request.ClientType) (string, error) {
+func (d *common) GetLog(ctx context.Context, clientType request.ClientType) (string, error) {
 	// ACLs aren't specific to a particular network type but the log only works with OVN.
 	var logEntries []string
 	var err error
@@ -759,7 +759,7 @@ func (d *common) GetLog(clientType request.ClientType) (string, error) {
 	targetPath, err := os.Readlink("/run/openvswitch")
 	if err == nil && strings.HasSuffix(targetPath, "/microovn/chassis/switch") {
 		prefix := fmt.Sprintf("lxd_acl%d-", d.id)
-		logEntries, err = ovnParseLogEntriesFromJournald(context.TODO(), "snap.microovn.chassis.service", prefix)
+		logEntries, err = ovnParseLogEntriesFromJournald(ctx, "snap.microovn.chassis.service", prefix)
 		if err != nil {
 			return "", fmt.Errorf("Failed to get OVN log entries from syslog: %v\n", err)
 		}
