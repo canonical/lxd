@@ -644,7 +644,7 @@ func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra
 			instName, _, _ := strings.Cut(resource.name, shared.SnapshotDelimiter)
 			snapshots, _ := resource.server.GetInstanceSnapshotNames(instName)
 			for _, snapshot := range snapshots {
-				results = append(results, instName+"/"+snapshot)
+				results = append(results, instName+shared.SnapshotDelimiter+snapshot)
 			}
 		} else {
 			instances, _ := resource.server.GetInstanceNames("")
