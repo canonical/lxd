@@ -1058,7 +1058,7 @@ ORDER BY instances_snapshots.creation_date, instances_snapshots.id
 		return 0
 	}
 
-	max := 0
+	highestNumber := 0
 
 	for _, r := range results {
 		snapOnlyName, ok := r[0].(string)
@@ -1072,12 +1072,12 @@ ORDER BY instances_snapshots.creation_date, instances_snapshots.id
 			continue
 		}
 
-		if num >= max {
-			max = num + 1
+		if num >= highestNumber {
+			highestNumber = num + 1
 		}
 	}
 
-	return max
+	return highestNumber
 }
 
 // DeleteReadyStateFromLocalInstances deletes the volatile.last_state.ready config key
