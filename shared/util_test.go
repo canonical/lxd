@@ -245,9 +245,9 @@ func TestReaderToChannel(t *testing.T) {
 			if !finished {
 				t.Error("connection closed too early")
 				return
-			} else {
-				break
 			}
+
+			break
 		}
 	}
 }
