@@ -169,6 +169,7 @@ OpenID
 OpenMetrics
 OpenSSL
 OpenSUSE
+OpenVSwitch
 OSD
 overcommitting
 OverlayFS
@@ -219,6 +220,7 @@ scriptlet
 SDC
 SDK
 SDN
+SDNs
 SDS
 SDT
 SeaBIOS
