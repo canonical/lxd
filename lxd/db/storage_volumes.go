@@ -687,6 +687,10 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 		inargs = append(inargs, driver)
 	}
 
+	if !strings.Contains(pattern, "%d") {
+		return 0
+	}
+
 	results, err := queryScan(ctx, c, q, inargs, outfmt)
 	if err != nil {
 		return 0
@@ -698,10 +702,8 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 			continue
 		}
 
-		fields := strings.SplitN(pattern, "%d", 2)
-
 		var num int
-		count, err := fmt.Sscanf(substr, fmt.Sprintf("%s%%d%s", fields[0], fields[1]), &num)
+		count, err := fmt.Sscanf(substr, pattern, &num)
 		if err != nil || count != 1 {
 			continue
 		}
