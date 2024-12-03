@@ -21,10 +21,7 @@ import (
 func (c *ClusterTx) CreateStorageVolumeSnapshot(ctx context.Context, projectName string, volumeName string, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, creationDate time.Time, expiryDate time.Time) (int64, error) {
 	var volumeID int64
 
-	var snapshotName string
-	parts := strings.Split(volumeName, shared.SnapshotDelimiter)
-	volumeName = parts[0]
-	snapshotName = parts[1]
+	volumeName, snapshotName, _ := strings.Cut(volumeName, shared.SnapshotDelimiter)
 
 	// Figure out the volume ID of the parent.
 	parentID, err := c.storagePoolVolumeGetTypeID(ctx, projectName, volumeName, volumeType, poolID, c.nodeID)
