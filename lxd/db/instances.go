@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -363,7 +364,7 @@ func (c *ClusterTx) instanceConfigFill(ctx context.Context, snapshotsMode bool, 
 
 		first = false
 
-		q.WriteString(fmt.Sprintf("%d", instanceID))
+		q.WriteString(strconv.Itoa(instanceID))
 	}
 
 	q.WriteString(`)`)
@@ -443,7 +444,7 @@ func (c *ClusterTx) instanceDevicesFill(ctx context.Context, snapshotsMode bool,
 
 		first = false
 
-		q.WriteString(fmt.Sprintf("%d", instanceID))
+		q.WriteString(strconv.Itoa(instanceID))
 	}
 
 	q.WriteString(`)`)
@@ -527,7 +528,7 @@ func (c *ClusterTx) instanceProfilesFill(ctx context.Context, snapshotsMode bool
 
 		first = false
 
-		q.WriteString(fmt.Sprintf("%d", instanceID))
+		q.WriteString(strconv.Itoa(instanceID))
 	}
 
 	q.WriteString(`)
