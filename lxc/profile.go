@@ -277,11 +277,11 @@ func (c *cmdProfileCopy) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpProfiles(toComplete, true)
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpProfiles(toComplete, true)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
