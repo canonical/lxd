@@ -364,7 +364,7 @@ func (c *ClusterTx) instanceConfigFill(ctx context.Context, snapshotsMode bool, 
 
 		first = false
 
-		q.WriteString(fmt.Sprintf("%d", instanceID))
+		q.WriteString(fmt.Sprint(instanceID))
 	}
 
 	q.WriteString(`)`)
@@ -444,7 +444,7 @@ func (c *ClusterTx) instanceDevicesFill(ctx context.Context, snapshotsMode bool,
 
 		first = false
 
-		q.WriteString(fmt.Sprintf("%d", instanceID))
+		q.WriteString(fmt.Sprint(instanceID))
 	}
 
 	q.WriteString(`)`)
@@ -528,7 +528,7 @@ func (c *ClusterTx) instanceProfilesFill(ctx context.Context, snapshotsMode bool
 
 		first = false
 
-		q.WriteString(fmt.Sprintf("%d", instanceID))
+		q.WriteString(fmt.Sprint(instanceID))
 	}
 
 	q.WriteString(`)
