@@ -26,8 +26,7 @@ Long term support (LTS) releases
     Currently in extended support phase.
 
 Feature releases
-: After LXD 5.21 is released, the next feature release will be LXD 6.x (starting with 6.1).
-  It is available through the snap channels `latest/stable`, `latest/candidate`, and `latest/edge`, in addition to channels for the most recent specific releases (for example, `6.1/stable`).
+: After LXD 5.21 is released, the next feature release will be LXD 6.x (starting with 6.1), available from the `6/stable` channel.
   See `snap info lxd` for a full list of available channels.
 
   Feature releases are pushed out about every month and contain new features as well as bugfixes.
