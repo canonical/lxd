@@ -374,7 +374,7 @@ func storageVolumeSnapshotConfig(ctx context.Context, tx *ClusterTx, volumeSnaps
 
 // UpdateStoragePoolVolume updates the storage volume attached to a given storage pool.
 func (c *ClusterTx) UpdateStoragePoolVolume(ctx context.Context, projectName string, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
-	isSnapshot := strings.Contains(volumeName, shared.SnapshotDelimiter)
+	isSnapshot := shared.IsSnapshot(volumeName)
 
 	volume, err := c.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, volumeName, true)
 	if err != nil {
@@ -402,7 +402,7 @@ func (c *ClusterTx) UpdateStoragePoolVolume(ctx context.Context, projectName str
 // RemoveStoragePoolVolume deletes the storage volume attached to a given storage
 // pool.
 func (c *ClusterTx) RemoveStoragePoolVolume(ctx context.Context, projectName string, volumeName string, volumeType int, poolID int64) error {
-	isSnapshot := strings.Contains(volumeName, shared.SnapshotDelimiter)
+	isSnapshot := shared.IsSnapshot(volumeName)
 	var stmt string
 	if isSnapshot {
 		stmt = "DELETE FROM storage_volumes_snapshots WHERE id=?"
