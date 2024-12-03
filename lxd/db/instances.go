@@ -931,8 +931,8 @@ SELECT storage_pools.name FROM storage_pools
 // DeleteInstance removes the instance with the given name from the database.
 func (c *ClusterTx) DeleteInstance(ctx context.Context, project, name string) error {
 	if shared.IsSnapshot(name) {
-		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-		return cluster.DeleteInstanceSnapshot(ctx, c.tx, project, parts[0], parts[1])
+		instance, snapshot, _ := strings.Cut(name, shared.SnapshotDelimiter)
+		return cluster.DeleteInstanceSnapshot(ctx, c.tx, project, instance, snapshot)
 	}
 
 	return cluster.DeleteInstance(ctx, c.tx, project, name)
