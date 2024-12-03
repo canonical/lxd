@@ -1563,6 +1563,12 @@ See {ref}`devices-unix-char-hotplugging` for more information.
 The default is `false`, which means that all devices can be hotplugged.
 ```
 
+```{config:option} subsystem device-unix-hotplug-device-conf
+:shortdesc: "Subsystem of the Unix device"
+:type: "string"
+
+```
+
 ```{config:option} uid device-unix-hotplug-device-conf
 :defaultdesc: "`0`"
 :shortdesc: "UID of the device owner in the container"
