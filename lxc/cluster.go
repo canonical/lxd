@@ -1293,7 +1293,7 @@ func (c *cmdClusterEvacuate) command() *cobra.Command {
 	cmdAction := cmdClusterEvacuateAction{global: c.global}
 	c.action = &cmdAction
 
-	cmd := c.action.command("evacuate")
+	cmd := c.action.command()
 	cmd.Aliases = []string{"evac"}
 	cmd.Use = usage("evacuate", i18n.G("[<remote>:]<member>"))
 	cmd.Short = i18n.G("Evacuate cluster member")
@@ -1324,7 +1324,7 @@ func (c *cmdClusterRestore) command() *cobra.Command {
 	cmdAction := cmdClusterEvacuateAction{global: c.global}
 	c.action = &cmdAction
 
-	cmd := c.action.command("restore")
+	cmd := c.action.command()
 	cmd.Use = usage("restore", i18n.G("[<remote>:]<member>"))
 	cmd.Short = i18n.G("Restore cluster member")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Restore cluster member`))
@@ -1342,7 +1342,7 @@ func (c *cmdClusterRestore) command() *cobra.Command {
 	return cmd
 }
 
-func (c *cmdClusterEvacuateAction) command(action string) *cobra.Command {
+func (c *cmdClusterEvacuateAction) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.RunE = c.run
 
