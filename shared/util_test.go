@@ -278,6 +278,26 @@ func TestGetExpiry(t *testing.T) {
 	require.Equal(t, time.Time{}, expiryDate)
 }
 
+func TestIsSnapshot(t *testing.T) {
+	tests := []struct {
+		name     string
+		expected bool
+	}{
+		{"foo", false},
+		{"foo/", false},
+		{"/", false},
+		{"//", false},
+		{"/bar", false},
+		{"foo/bar", true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, IsSnapshot(test.name))
+		})
+	}
+}
+
 func TestHasKey(t *testing.T) {
 	m1 := map[string]string{
 		"foo":   "bar",
