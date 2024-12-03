@@ -302,10 +302,8 @@ func LoadInstanceDatabaseObject(ctx context.Context, tx *db.ClusterTx, project, 
 	var container *cluster.Instance
 	var err error
 
-	if strings.Contains(name, shared.SnapshotDelimiter) {
-		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-		instanceName := parts[0]
-		snapshotName := parts[1]
+	if shared.IsSnapshot(name) {
+		instanceName, snapshotName, _ := strings.Cut(name, shared.SnapshotDelimiter)
 
 		instance, err := cluster.GetInstance(ctx, tx.Tx(), project, instanceName)
 		if err != nil {
@@ -813,9 +811,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 		}
 
 		if args.Snapshot {
-			parts := strings.SplitN(args.Name, shared.SnapshotDelimiter, 2)
-			instanceName := parts[0]
-			snapshotName := parts[1]
+			instanceName, snapshotName, _ := strings.Cut(args.Name, shared.SnapshotDelimiter)
 			instance, err := cluster.GetInstance(ctx, tx.Tx(), args.Project, instanceName)
 			if err != nil {
 				return fmt.Errorf("Get instance %q in project %q", instanceName, args.Project)
