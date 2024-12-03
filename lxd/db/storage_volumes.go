@@ -428,8 +428,7 @@ func (c *ClusterTx) RenameStoragePoolVolume(ctx context.Context, projectName str
 	isSnapshot := strings.Contains(oldVolumeName, shared.SnapshotDelimiter)
 	var stmt string
 	if isSnapshot {
-		parts := strings.Split(newVolumeName, shared.SnapshotDelimiter)
-		newVolumeName = parts[1]
+		_, newVolumeName, _ = strings.Cut(newVolumeName, shared.SnapshotDelimiter)
 		stmt = "UPDATE storage_volumes_snapshots SET name=? WHERE id=?"
 	} else {
 		stmt = "UPDATE storage_volumes SET name=? WHERE id=?"
