@@ -64,6 +64,20 @@ Complete the following steps to install the snap:
 
         sudo snap install lxd --channel=5.0/stable
 
+```{note}
+LXD cluster members all need to use the exact same version of LXD and this requires special consideration due to how snaps are deployed as explained in {ref}`Keep cluster members in sync<howto-snap-cohort>`. To ensure all the cluster members are offered the same snap revision, it is possible to specify a cohort parameter which will bypass the progressive deployment:
+
+        snap install lxd --cohort="+"
+
+This can also be specified during refreshes (not required if done at install time):
+
+        snap refresh lxd --cohort="+"
+
+If for some reason, the cohort mechanism did not work as expected, it is also possible to install a specific snap revision that matches that used on all the cluster members:
+
+        snap install lxd --revision=<revision_number>
+```
+
 For more information about LXD snap packages (regarding more versions, update management etc.), see [Managing the LXD snap](https://discourse.ubuntu.com/t/managing-the-lxd-snap-package/37214).
 
 ```{note}
