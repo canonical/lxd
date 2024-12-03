@@ -42,6 +42,7 @@ description: |-
    - daemon.preseed: Pass a YAML configuration to `lxd init` on initial start
    - daemon.syslog: Send LXD log events to syslog [default=false]
    - daemon.verbose: Increase logging to verbose level [default=false]
+   - db.trace: Enable dqlite trace logging (very verbose) [default=false]
    - lvm.external: Use the system's LVM tools [default=false]
    - lxcfs.pidfd: Start per-container process tracking [default=false]
    - lxcfs.loadavg: Start tracking per-container load average [default=false]

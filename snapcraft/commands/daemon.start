@@ -716,6 +716,10 @@ if [ "${daemon_verbose:-"false"}" = "true" ]; then
     CMD="${CMD} --verbose"
 fi
 
+if [ "${db_trace:-"false"}" = "true" ]; then
+    export LIBDQLITE_TRACE=1
+fi
+
 # Check if this is the first time LXD is started.
 FIRSTRUN="false"
 if [ ! -d "${SNAP_COMMON}/lxd/database" ]; then
