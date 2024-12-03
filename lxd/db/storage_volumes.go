@@ -696,7 +696,7 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 		return 0
 	}
 
-	max := 0
+	highestNumber := 0
 
 	for _, r := range results {
 		substr, ok := r[0].(string)
@@ -710,12 +710,12 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 			continue
 		}
 
-		if num >= max {
-			max = num + 1
+		if num >= highestNumber {
+			highestNumber = num + 1
 		}
 	}
 
-	return max
+	return highestNumber
 }
 
 // Updates the description of a storage volume.
