@@ -43,8 +43,15 @@ The tool can also inject the required VIRTIO drivers into the image:
   ```
 
 * For converting Windows images from a foreign hypervisor (not from QEMU/KVM with Q35/`virtio-scsi`), you must install additional drivers on the host:
-   * Install the `virtio-win` package or download the [`virtio-win.iso`](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso) file and place it in the `/usr/share/virtio-win` directory.
-   * Download [`rhsrvany.exe` and `pnp_wait.exe`](https://github.com/rwmjones/rhsrvany?tab=readme-ov-file#binary-releases), and place them in the `/usr/share/virt-tools/` directory.
+   * `/usr/share/virtio-win/virtio-win.iso`
+
+     Download [`virtio-win.iso`](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso).
+   * `/usr/share/virt-tools/rhsrvany.exe`
+   * `/usr/share/virt-tools/pnp_wait.exe`
+
+     `rhsrvany.exe` and `pnp_wait.exe` are provided in Ubuntu 24.04 and later in
+     the [`rhsrvany`](https://launchpad.net/ubuntu/+source/rhsrvany) package.
+     For other OS versions, download [`rhsrvany.exe` and `pnp_wait.exe`](https://github.com/rwmjones/rhsrvany?tab=readme-ov-file#binary-releases).
 
    ````{tip}
    The `lxd-migrate` command with the `--conversion=format,virtio` option automatically converts the image and injects the VIRTIO drivers during the conversion.
