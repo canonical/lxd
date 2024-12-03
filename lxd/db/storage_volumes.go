@@ -425,7 +425,7 @@ func (c *ClusterTx) RemoveStoragePoolVolume(ctx context.Context, projectName str
 
 // RenameStoragePoolVolume renames the storage volume attached to a given storage pool.
 func (c *ClusterTx) RenameStoragePoolVolume(ctx context.Context, projectName string, oldVolumeName string, newVolumeName string, volumeType int, poolID int64) error {
-	isSnapshot := strings.Contains(oldVolumeName, shared.SnapshotDelimiter)
+	isSnapshot := shared.IsSnapshot(oldVolumeName)
 	var stmt string
 	if isSnapshot {
 		parts := strings.Split(newVolumeName, shared.SnapshotDelimiter)
