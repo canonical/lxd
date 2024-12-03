@@ -1048,6 +1048,11 @@ ORDER BY instances_snapshots.creation_date, instances_snapshots.id
 	inargs := []any{project, name}
 	outfmt := []any{numstr}
 
+	// Check if pattern is valid.
+	if !strings.Contains(pattern, "%d") {
+		return 0
+	}
+
 	results, err := queryScan(ctx, c, q, inargs, outfmt)
 	if err != nil {
 		return 0
@@ -1059,10 +1064,8 @@ ORDER BY instances_snapshots.creation_date, instances_snapshots.id
 			continue
 		}
 
-		fields := strings.SplitN(pattern, "%d", 2)
-
 		var num int
-		count, err := fmt.Sscanf(snapOnlyName, fmt.Sprintf("%s%%d%s", fields[0], fields[1]), &num)
+		count, err := fmt.Sscanf(snapOnlyName, pattern, &num)
 		if err != nil || count != 1 {
 			continue
 		}
