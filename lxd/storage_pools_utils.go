@@ -147,6 +147,9 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 		return nil, err
 	}
 
+	// Update the storage drivers cache in api_1.0.go.
+	storagePoolDriversCacheUpdate(state)
+
 	logger.Debug("Marked storage pool local status as created", logger.Ctx{"pool": req.Name})
 
 	revert.Success()
