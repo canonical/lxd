@@ -3271,14 +3271,27 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (*VolumeUsage, err
 	// If driver does not support getting volume usage, this value would be -1.
 	val.Used = size
 
-	// Get the total size.
-	_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
-	if err != nil {
-		return nil, err
+	// The instance volume 'volatile.rootfs.size' config key is the most accurate representation of the instance root disk size.
+	// The device's own 'volatile.rootfs.size' is not influenced by 'volume.size' on the pool level and may be inaccurate when
+	// the instance does not support online resizing.
+	sizeStr := dbVol.Config["volatile.rootfs.size"]
+
+	// If the instance isn't running, return the value its volume will assume when it starts even if the
+	// volume quota hasn't been set yet.
+	if !inst.IsRunning() {
+		// Get the total size.
+		_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+		if err != nil {
+			return nil, err
+		}
+
+		rootDiskSize, ok := rootDiskConf["size"]
+		if ok {
+			sizeStr = rootDiskSize
+		}
 	}
 
-	sizeStr, ok := rootDiskConf["size"]
-	if ok {
+	if sizeStr != "" {
 		total, err := units.ParseByteSizeString(sizeStr)
 		if err != nil {
 			return nil, err
