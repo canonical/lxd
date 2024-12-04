@@ -9,6 +9,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -329,6 +332,39 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating project %q: %w", project.Name, err))
+	}
+
+	// Create images and backups directories, and symlink to the daemon path by default.
+	imageDaemonPath := shared.VarPath("images", "daemon", fmt.Sprintf("project_%s", project.Name))
+	imageSymPath := shared.VarPath("images", fmt.Sprintf("project_%s", project.Name))
+	err = os.MkdirAll(imageDaemonPath, 0700)
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to create directory %q: %w", imageDaemonPath, err))
+	}
+	err = os.Symlink(imageDaemonPath, imageSymPath)
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to create directory %q: %w", imageSymPath, err))
+	}
+
+	backupsDaemonPath := shared.VarPath("backups", "daemon", fmt.Sprintf("project_%s", project.Name))
+	backupsSymPath := shared.VarPath("backups", fmt.Sprintf("project_%s", project.Name))
+	backupsCustomPath := filepath.Join(backupsSymPath, "custom")
+	backupsInstancesPath := filepath.Join(backupsSymPath, "instances")
+	err = os.MkdirAll(backupsDaemonPath, 0700)
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to create directory %q: %w", backupsDaemonPath, err))
+	}
+	err = os.Symlink(backupsDaemonPath, backupsSymPath)
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to create directory %q: %w", backupsSymPath, err))
+	}
+	err = os.MkdirAll(backupsCustomPath, 0700)
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to create directory %q: %w", backupsCustomPath, err))
+	}
+	err = os.MkdirAll(backupsInstancesPath, 0700)
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to create directory %q: %w", backupsInstancesPath, err))
 	}
 
 	requestor := request.CreateRequestor(r)
@@ -685,6 +721,30 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 	err := projectValidateConfig(s, req.Config)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	// Validate the storage volumes.
+	if req.Config["storage.backups_volume"] != "" && req.Config["storage.backups_volume"] != project.Config["storage.backups_volume"] {
+		err := daemonStorageValidate(s, project.Name, req.Config["storage.backups_volume"])
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed validation of %q: %w", "storage.backups_volume", err))
+		}
+	}
+
+	if req.Config["storage.images_volume"] != "" && req.Config["storage.images_volume"] != project.Config["storage.images_volume"] {
+		err := daemonStorageValidate(s, project.Name, req.Config["storage.images_volume"])
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed validation of %q: %w", "storage.images_volume", err))
+		}
+	}
+
+	// Move storage if necessary.
+	if slices.Contains(configChanged, "storage.backups_volume") {
+		daemonStorageMove(s, "backups", project.Name, req.Config["storage.backups_volume"], false)
+	}
+
+	if slices.Contains(configChanged, "storage.images_volume") {
+		daemonStorageMove(s, "images", project.Name, req.Config["storage.images_volume"], false)
 	}
 
 	// Update the database entry.
@@ -1381,6 +1441,20 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		//  defaultdesc: `block`
 		//  shortdesc: Whether to prevent creating instance or volume snapshots
 		"restricted.snapshots": isEitherAllowOrBlock,
+		// lxdmeta:generate(entities=server; group=miscellaneous; key=storage.backups_volume)
+		// Specify the volume using the syntax `POOL/VOLUME`.
+		// ---
+		//  type: string
+		//  scope: local
+		//  shortdesc: Volume to use to store backup tarballs
+		"storage.backups_volume": validate.Optional(),
+		// lxdmeta:generate(entities=server; group=miscellaneous; key=storage.images_volume)
+		// Specify the volume using the syntax `POOL/VOLUME`.
+		// ---
+		//  type: string
+		//  scope: local
+		//  shortdesc: Volume to use to store the image tarballs
+		"storage.images_volume": validate.Optional(),
 	}
 
 	// Add the storage pool keys.
