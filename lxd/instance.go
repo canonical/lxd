@@ -77,7 +77,7 @@ func instanceImageTransfer(s *state.State, r *http.Request, projectName string, 
 
 	client = client.UseProject(projectName)
 
-	err = imageImportFromNode(filepath.Join(s.OS.VarDir, "images"), client, hash)
+	err = imageImportFromNode(filepath.Join(s.OS.VarDir, "images", fmt.Sprintf("project_%s", projectName)), client, hash)
 	if err != nil {
 		return err
 	}

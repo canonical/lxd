@@ -101,7 +101,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	}
 
 	// Create the target path if needed.
-	backupsPath := shared.VarPath("backups", "instances", project.Instance(sourceInst.Project().Name, sourceInst.Name()))
+	backupsPath := shared.VarPath("backups", fmt.Sprintf("project_%s", op.Project()), "instances", project.Instance(sourceInst.Project().Name, sourceInst.Name()))
 	if !shared.PathExists(backupsPath) {
 		err := os.MkdirAll(backupsPath, 0700)
 		if err != nil {
@@ -111,7 +111,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		revert.Add(func() { _ = os.Remove(backupsPath) })
 	}
 
-	target := shared.VarPath("backups", "instances", project.Instance(sourceInst.Project().Name, b.Name()))
+	target := shared.VarPath("backups", fmt.Sprintf("project_%s", op.Project()), "instances", project.Instance(sourceInst.Project().Name, b.Name()))
 
 	// Setup the tarball writer.
 	l.Debug("Opening backup tarball for writing", logger.Ctx{"path": target})
@@ -373,7 +373,7 @@ func pruneExpiredInstanceBackups(ctx context.Context, s *state.State) error {
 		}
 
 		instBackup := backup.NewInstanceBackup(s, inst, b.ID, b.Name, b.CreationDate, b.ExpiryDate, b.InstanceOnly, b.OptimizedStorage)
-		err = instBackup.Delete()
+		err = instBackup.Delete(inst.Project().Name)
 		if err != nil {
 			return fmt.Errorf("Error deleting instance backup %q: %w", b.Name, err)
 		}
@@ -437,7 +437,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	}
 
 	// Create the target path if needed.
-	backupsPath := shared.VarPath("backups", "custom", pool.Name(), project.StorageVolume(projectName, volumeName))
+	backupsPath := shared.VarPath("backups", fmt.Sprintf("project_%s", projectName), "custom", pool.Name(), project.StorageVolume(projectName, volumeName))
 	if !shared.PathExists(backupsPath) {
 		err := os.MkdirAll(backupsPath, 0700)
 		if err != nil {
@@ -447,7 +447,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 		revert.Add(func() { _ = os.Remove(backupsPath) })
 	}
 
-	target := shared.VarPath("backups", "custom", pool.Name(), project.StorageVolume(projectName, backupRow.Name))
+	target := shared.VarPath("backups", fmt.Sprintf("project_%s", projectName), "custom", pool.Name(), project.StorageVolume(projectName, backupRow.Name))
 
 	// Setup the tarball writer.
 	l.Debug("Opening backup tarball for writing", logger.Ctx{"path": target})

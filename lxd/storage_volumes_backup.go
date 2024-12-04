@@ -795,7 +795,7 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 	}
 
 	ent := response.FileResponseEntry{
-		Path: shared.VarPath("backups", "custom", details.pool.Name(), project.StorageVolume(effectiveProjectName, fullName)),
+		Path: shared.VarPath("backups", fmt.Sprintf("project_%s", effectiveProjectName), "custom", details.pool.Name(), project.StorageVolume(effectiveProjectName, fullName)),
 	}
 
 	s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupRetrieved.Event(details.pool.Name(), details.volumeTypeName, fullName, effectiveProjectName, request.CreateRequestor(r), nil))

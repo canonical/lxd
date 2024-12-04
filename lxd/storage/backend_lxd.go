@@ -1795,7 +1795,7 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 				}}
 		}
 
-		imageFile := shared.VarPath("images", fingerprint)
+		imageFile := shared.VarPath("images", fmt.Sprintf("project_%s", op.Project()), fingerprint)
 		return ImageUnpack(imageFile, vol, rootBlockPath, b.state.OS, allowUnsafeResize, tracker)
 	}
 }
@@ -2323,7 +2323,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 				}
 
 				// Make sure that the image is available locally too (not guaranteed in clusters).
-				imageExists = err == nil && shared.PathExists(shared.VarPath("images", fingerprint))
+				imageExists = err == nil && shared.PathExists(shared.VarPath("images", fmt.Sprintf("project_%s", projectName), fingerprint))
 			}
 
 			if imageExists {
@@ -6195,7 +6195,7 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	}
 
 	// Remove backups directory for volume.
-	backupsPath := shared.VarPath("backups", "custom", b.name, project.StorageVolume(projectName, volName))
+	backupsPath := shared.VarPath("backups", fmt.Sprintf("project_%s", projectName), "custom", b.name, project.StorageVolume(projectName, volName))
 	if shared.PathExists(backupsPath) {
 		err := os.RemoveAll(backupsPath)
 		if err != nil {

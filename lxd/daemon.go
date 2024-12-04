@@ -1506,7 +1506,7 @@ func (d *Daemon) init() error {
 
 	// Mount any daemon storage volumes.
 	logger.Infof("Initializing daemon storage mounts")
-	err = daemonStorageMount(d.State())
+	err = daemonStorageMount(d.State(), api.ProjectDefaultName)
 	if err != nil {
 		return err
 	}
@@ -1974,7 +1974,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		logger.Info("Stopping daemon storage volumes")
 		done := make(chan struct{})
 		go func() {
-			err := daemonStorageVolumesUnmount(s)
+			err := daemonStorageVolumesUnmount(s, api.ProjectDefaultName)
 			if err != nil {
 				logger.Error("Failed to unmount image and backup volumes", logger.Ctx{"err": err})
 			}

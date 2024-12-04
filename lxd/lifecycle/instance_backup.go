@@ -1,6 +1,8 @@
 package lifecycle
 
 import (
+	"fmt"
+
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -20,7 +22,7 @@ const (
 func (a InstanceBackupAction) Event(fullBackupName string, inst instance, ctx map[string]any) api.EventLifecycle {
 	_, backupName, _ := api.GetParentAndSnapshotName(fullBackupName)
 
-	u := api.NewURL().Path(version.APIVersion, "instances", inst.Name(), "backups", backupName).Project(inst.Project().Name)
+	u := api.NewURL().Path(version.APIVersion, fmt.Sprintf("project_%s", inst.Project().Name), "instances", inst.Name(), "backups", backupName).Project(inst.Project().Name)
 
 	var requestor *api.EventLifecycleRequestor
 	if inst.Operation() != nil {

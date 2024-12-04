@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -58,17 +59,17 @@ func (b *InstanceBackup) Instance() Instance {
 }
 
 // Rename renames an instance backup.
-func (b *InstanceBackup) Rename(newName string) error {
-	oldBackupPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project().Name, b.name))
-	newBackupPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project().Name, newName))
+func (b *InstanceBackup) Rename(newName string, projectName string) error {
+	oldBackupPath := shared.VarPath("backups", fmt.Sprintf("project_%s", projectName), "instances", project.Instance(b.instance.Project().Name, b.name))
+	newBackupPath := shared.VarPath("backups", fmt.Sprintf("project_%s", projectName), "instances", project.Instance(b.instance.Project().Name, newName))
 
 	// Extract the old and new parent backup paths from the old and new backup names rather than use
 	// instance.Name() as this may be in flux if the instance itself is being renamed, whereas the relevant
 	// instance name is encoded into the backup names.
 	oldParentName, _, _ := api.GetParentAndSnapshotName(b.name)
-	oldParentBackupsPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project().Name, oldParentName))
+	oldParentBackupsPath := shared.VarPath("backups", fmt.Sprintf("project_%s", projectName), "instances", project.Instance(b.instance.Project().Name, oldParentName))
 	newParentName, _, _ := api.GetParentAndSnapshotName(newName)
-	newParentBackupsPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project().Name, newParentName))
+	newParentBackupsPath := shared.VarPath("backups", fmt.Sprintf("project_%s", projectName), "instances", project.Instance(b.instance.Project().Name, newParentName))
 
 	// Create the new backup path if doesn't exist.
 	if !shared.PathExists(newParentBackupsPath) {
@@ -108,8 +109,8 @@ func (b *InstanceBackup) Rename(newName string) error {
 }
 
 // Delete removes an instance backup.
-func (b *InstanceBackup) Delete() error {
-	backupPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project().Name, b.name))
+func (b *InstanceBackup) Delete(projectName string) error {
+	backupPath := shared.VarPath("backups", fmt.Sprintf("project_%s", projectName), "instances", project.Instance(b.instance.Project().Name, b.name))
 
 	// Delete the on-disk data.
 	if shared.PathExists(backupPath) {
@@ -120,7 +121,7 @@ func (b *InstanceBackup) Delete() error {
 	}
 
 	// Check if we can remove the instance directory.
-	backupsPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project().Name, b.instance.Name()))
+	backupsPath := shared.VarPath("backups", fmt.Sprintf("project_%s", projectName), "instances", project.Instance(b.instance.Project().Name, b.instance.Name()))
 	empty, _ := shared.PathIsEmpty(backupsPath)
 	if empty {
 		err := os.Remove(backupsPath)
