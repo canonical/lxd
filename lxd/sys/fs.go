@@ -32,6 +32,7 @@ func (s *OS) initDirs() error {
 	}{
 		{s.VarDir, 0711},
 		{filepath.Join(s.VarDir, "backups"), 0700},
+		{filepath.Join(s.VarDir, "backups", "daemon"), 0700},
 		{s.CacheDir, 0700},
 		// containers is 0711 because liblxc needs to traverse dir to get to each container.
 		{filepath.Join(s.VarDir, "containers"), 0711},
@@ -78,8 +79,8 @@ func (s *OS) initStorageDirs() error {
 		path string
 		mode os.FileMode
 	}{
-		{filepath.Join(s.VarDir, "backups", "custom"), 0700},
-		{filepath.Join(s.VarDir, "backups", "instances"), 0700},
+		{filepath.Join(s.VarDir, "backups", "daemon", "custom"), 0700},
+		{filepath.Join(s.VarDir, "backups", "daemon", "instances"), 0700},
 	}
 
 	for _, dir := range dirs {
