@@ -83,6 +83,7 @@ Specify a refresh window
 
   See [Control updates with system options](https://snapcraft.io/docs/managing-updates#heading--refresh-hold) in the snap documentation for detailed information.
 
+(howto-snap-cohort)=
 #### Keep cluster members in sync
 
 The cluster members that are part of the LXD deployment must always run the same version of the LXD snap.
