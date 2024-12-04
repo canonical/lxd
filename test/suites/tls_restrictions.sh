@@ -27,6 +27,12 @@ test_tls_restrictions() {
   # Apply restrictions
   lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: false/restricted: true/" | lxc config trust edit "${FINGERPRINT}"
 
+  # Confirm client with restricted certificate cannot see server configuration.
+  lxc config set user.foo bar
+  [ "$(lxc_remote query localhost:/1.0 | jq '.config | length')" = 0 ]
+  [ "$(lxc_remote query localhost:/1.0 | jq -r '.config."user.foo"')" = "null" ]
+  lxc config unset user.foo
+
   # Confirm no project visible when none listed
   [ "$(lxc_remote project list localhost: --format csv | wc -l)" = 0 ]
 
