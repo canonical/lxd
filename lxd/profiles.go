@@ -35,14 +35,16 @@ import (
 )
 
 var profilesCmd = APIEndpoint{
-	Path: "profiles",
+	Path:        "profiles",
+	MetricsType: entity.TypeProfile,
 
 	Get:  APIEndpointAction{Handler: profilesGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: profilesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateProfiles)},
 }
 
 var profileCmd = APIEndpoint{
-	Path: "profiles/{name}",
+	Path:        "profiles/{name}",
+	MetricsType: entity.TypeProfile,
 
 	Delete: APIEndpointAction{Handler: profileDelete, AccessHandler: profileAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: profileGet, AccessHandler: profileAccessHandler(auth.EntitlementCanView)},
@@ -230,13 +232,23 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if recursion {
+			profileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
+			if err != nil {
+				return err
+			}
+
+			profileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
+			if err != nil {
+				return err
+			}
+
 			apiProfiles = make([]*api.Profile, 0, len(profiles))
 			for _, profile := range profiles {
 				if !userHasPermission(entity.ProfileURL(requestProjectName, profile.Name)) {
 					continue
 				}
 
-				apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+				apiProfile, err := profile.ToAPI(ctx, tx.Tx(), profileConfigs, profileDevices)
 				if err != nil {
 					return err
 				}
@@ -463,7 +475,17 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Fetch profile: %w", err)
 		}
 
-		resp, err = profile.ToAPI(ctx, tx.Tx())
+		profileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
+		if err != nil {
+			return err
+		}
+
+		profileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
+		if err != nil {
+			return err
+		}
+
+		resp, err = profile.ToAPI(ctx, tx.Tx(), profileConfigs, profileDevices)
 		if err != nil {
 			return err
 		}
@@ -549,7 +571,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed to retrieve profile %q: %w", details.profileName, err)
 		}
 
-		profile, err = current.ToAPI(ctx, tx.Tx())
+		profile, err = current.ToAPI(ctx, tx.Tx(), nil, nil)
 		if err != nil {
 			return err
 		}
@@ -584,7 +606,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		err = notifier(func(client lxd.InstanceServer) error {
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			return client.UseProject(details.effectiveProject.Name).UpdateProfile(details.profileName, profile.Writable(), "")
 		})
 		if err != nil {
@@ -649,7 +671,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed to retrieve profile=%q: %w", details.profileName, err)
 		}
 
-		profile, err = current.ToAPI(ctx, tx.Tx())
+		profile, err = current.ToAPI(ctx, tx.Tx(), nil, nil)
 		if err != nil {
 			return err
 		}

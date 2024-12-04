@@ -26,6 +26,12 @@ type instance interface {
 	DevicesPath() string
 }
 
+type instanceVM interface {
+	instance
+
+	FirmwarePath() string
+}
+
 // InstanceProfileName returns the instance's AppArmor profile name.
 func InstanceProfileName(inst instance) string {
 	path := shared.VarPath("")
@@ -195,9 +201,18 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			return "", err
 		}
 
-		qemuFwPathsArr, err := util.GetQemuFwPaths()
-		if err != nil {
-			return "", err
+		vmInst, ok := inst.(instanceVM)
+		if !ok {
+			return "", fmt.Errorf("Instance is not VM type")
+		}
+
+		// Get start time firmware path to allow access to it.
+		firmwarePath := vmInst.FirmwarePath()
+		if firmwarePath != "" {
+			firmwarePath, err = filepath.EvalSymlinks(firmwarePath)
+			if err != nil {
+				return "", fmt.Errorf("Failed finding firmware: %w", err)
+			}
 		}
 
 		execPath := util.GetExecPath()
@@ -217,7 +232,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			"rootPath":          rootPath,
 			"snap":              shared.InSnap(),
 			"userns":            sysOS.RunningInUserNS,
-			"qemuFwPaths":       qemuFwPathsArr,
+			"firmwarePath":      firmwarePath,
 			"snapExtQemuPrefix": os.Getenv("SNAP_QEMU_PREFIX"),
 		})
 		if err != nil {

@@ -67,24 +67,19 @@ In addition, this method allows users to work with LXD without being a member of
 Members of the `lxd` group have full access to LXD, including permission to attach file system paths and tweak the security features of an instance, which makes it possible to gain root access to the host system.
 Using confined projects limits what users can do in LXD, but it also prevents users from gaining root access.
 
-### Authentication methods for projects
+When LXD is accessible over the HTTPS API, both {ref}`authentication-tls-certs` and {ref}`OIDC clients <authentication-openid>` can be restricted to allow access to specific projects only.
+This is managed via {ref}`fine-grained-authorization`.
+See {ref}`projects-confine-https` for instructions.
 
-There are different ways of authentication that you can use to confine projects to specific users:
+### Multi-user LXD daemon
+The LXD snap contains a multi-user LXD daemon that allows dynamic project creation on a per-user basis.
+You can configure a specific user group other than the `lxd` group to give restricted LXD access to every user in the group.
 
-Client certificates
-: You can restrict the {ref}`authentication-tls-certs` to allow access to specific projects only.
-  The projects must exist before you can restrict access to them.
-  A client that connects using a restricted certificate can see only the project or projects that the client has been granted access to.
+When a user that is a member of this group starts using LXD, the multi-user daemon automatically creates a confined project for this user.
 
-Multi-user LXD daemon
-: The LXD snap contains a multi-user LXD daemon that allows dynamic project creation on a per-user basis.
-  You can configure a specific user group other than the `lxd` group to give restricted LXD access to every user in the group.
+If you're not using the snap, you can still use this feature if your distribution supports it.
 
-  When a user that is a member of this group starts using LXD, LXD automatically creates a confined project for this user.
-
-  If you're not using the snap, you can still use this feature if your distribution supports it.
-
-See {ref}`projects-confine` for instructions on how to enable and configure the different authentication methods.
+See {ref}`projects-confine-users` for instructions on configuring the multi-user daemon.
 
 ## Related topics
 

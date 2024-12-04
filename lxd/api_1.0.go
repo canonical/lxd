@@ -35,6 +35,8 @@ import (
 )
 
 var api10Cmd = APIEndpoint{
+	MetricsType: entity.TypeServer,
+
 	Get:   APIEndpointAction{Handler: api10Get, AllowUntrusted: true},
 	Patch: APIEndpointAction{Handler: api10Patch, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 	Put:   APIEndpointAction{Handler: api10Put, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
@@ -128,8 +130,11 @@ var api10 = []APIEndpoint{
 	warningCmd,
 	metricsCmd,
 	identitiesCmd,
-	identitiesByAuthenticationMethodCmd,
-	identityCmd,
+	currentIdentityCmd,
+	tlsIdentityCmd,
+	oidcIdentityCmd,
+	tlsIdentitiesCmd,
+	oidcIdentitiesCmd,
 	authGroupsCmd,
 	authGroupCmd,
 	identityProviderGroupsCmd,
@@ -696,7 +701,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	// Then deal with cluster wide configuration
 	var clusterChanged map[string]string
 	var newClusterConfig *clusterConfig.Config
-	oldClusterConfig := make(map[string]any)
+	var oldClusterConfig map[string]any
 
 	err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
@@ -706,9 +711,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 
 		// Keep old config around in case something goes wrong. In that case the config will be reverted.
-		for k, v := range newClusterConfig.Dump() {
-			oldClusterConfig[k] = v
-		}
+		oldClusterConfig = newClusterConfig.Dump()
 
 		if patch {
 			clusterChanged, err = newClusterConfig.Patch(req.Config)
@@ -762,7 +765,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		return response.SmartError(err)
 	}
 
-	err = notifier(func(client lxd.InstanceServer) error {
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		server, etag, err := client.GetServer()
 		if err != nil {
 			return err

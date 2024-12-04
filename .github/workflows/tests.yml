@@ -76,27 +76,16 @@ jobs:
       - name: Install build dependencies
         uses: ./.github/actions/install-lxd-builddeps
 
-      - name: Download minio/mc
-        run: |
-          # Download minio ready to include in dependencies for system tests.
-          mkdir -p "$(go env GOPATH)/bin"
-          curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
-          chmod +x "$(go env GOPATH)/bin/minio"
-
-          # Also grab the latest minio client to maintain compatibility with the server.
-          curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc --output "$(go env GOPATH)/bin/mc"
-          chmod +x "$(go env GOPATH)/bin/mc"
-
       - name: Download go dependencies
         run: |
           set -eux
+          sudo chmod o+w {go.mod,go.sum}
           go mod download
 
       - name: Check compatibility with min Go version
         run: |
           set -eux
           GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
-          sudo chmod o+w {go.mod,go.sum}
           go mod tidy -go="${GOMIN}"
 
           DOC_GOMIN="$(sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md)"
@@ -131,8 +120,6 @@ jobs:
           # Build from unpacked dist tarball.
           cd /home/runner/work/lxd/lxd-test
           make
-
-          strip --strip-all /home/runner/go/bin/{lxc*,lxd*} -v
 
       - name: Check lxc/lxd-agent binary sizes
         run: |
@@ -198,6 +185,17 @@ jobs:
           path: ${{env.GOCOVERDIR}}
         if: env.GOCOVERDIR != ''
 
+      - name: Download minio/mc to add to system test dependencies
+        uses: ./.github/actions/download-minio
+
+      - name: Strip binaries/libs
+        run: |
+          set -eux
+
+          strip --strip-all -v /home/runner/go/bin/dqlite/libs/*.so*
+          strip --strip-all -v /home/runner/go/bin/lxc*
+          strip --strip-all -v /home/runner/go/bin/lxd*
+
       - name: Upload system test dependencies
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
         with:
@@ -246,56 +244,8 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Install dependencies
-        run: |
-          set -eux
-          sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
-          sudo apt-get update
-
-          sudo systemctl mask lxc.service lxc-net.service
-
-          sudo apt-get install --no-install-recommends -y \
-            curl \
-            git \
-            libacl1-dev \
-            libcap-dev \
-            libdbus-1-dev \
-            liblxc-dev \
-            libseccomp-dev \
-            libselinux-dev \
-            libsqlite3-dev \
-            libtool \
-            libudev-dev \
-            make \
-            pkg-config\
-            acl \
-            attr \
-            bind9-dnsutils \
-            btrfs-progs \
-            busybox-static \
-            dnsmasq-base \
-            easy-rsa \
-            gettext \
-            jq \
-            lxc-utils \
-            lvm2 \
-            nftables \
-            quota \
-            rsync \
-            s3cmd \
-            socat \
-            sqlite3 \
-            squashfs-tools \
-            tar \
-            tcl \
-            thin-provisioning-tools \
-            uuid-runtime \
-            xfsprogs \
-            xz-utils \
-            zfsutils-linux
-
-          # reclaim some space
-          sudo apt-get clean
+      - name: Install runtime dependencies
+        uses: ./.github/actions/install-lxd-runtimedeps
 
       - name: Download system test dependencies
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4.1.8
@@ -322,7 +272,7 @@ jobs:
           mkdir -p "${GOCOVERDIR}"
         if: env.GOCOVERDIR != ''
 
-      - name: "Run system tests (${{ matrix.go }}, ${{ matrix.suite }}, ${{ matrix.backend }})"
+      - name: "Run system tests (${{ matrix.suite }}, ${{ matrix.backend }})"
         run: |
           set -eux
           chmod +x ~
@@ -333,7 +283,7 @@ jobs:
       - name: Upload coverage data
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
         with:
-          name: coverage-${{ matrix.go }}-${{ matrix.suite }}-${{ matrix.backend }}
+          name: coverage-${{ matrix.suite }}-${{ matrix.backend }}
           path: ${{env.GOCOVERDIR}}
         if: env.GOCOVERDIR != ''
 

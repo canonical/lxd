@@ -1171,6 +1171,16 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
+			dbProfileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
+			if err != nil {
+				return err
+			}
+
+			dbProfileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
+			if err != nil {
+				return err
+			}
+
 			profilesByName := make(map[string]dbCluster.Profile, len(dbProfiles))
 			for _, dbProfile := range dbProfiles {
 				profilesByName[dbProfile.Name] = dbProfile
@@ -1182,7 +1192,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 					return fmt.Errorf("Requested profile %q doesn't exist", profileName)
 				}
 
-				apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+				apiProfile, err := profile.ToAPI(ctx, tx.Tx(), dbProfileConfigs, dbProfileDevices)
 				if err != nil {
 					return err
 				}
@@ -1271,7 +1281,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	if s.ServerClustered && !clusterNotification && targetMemberInfo == nil {
 		// Run instance placement scriptlet if enabled and no cluster member selected yet.
 		if s.GlobalConfig.InstancesPlacementScriptlet() != "" {
-			leaderAddress, err := d.gateway.LeaderAddress()
+			leaderInfo, err := s.LeaderInfo()
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -1291,7 +1301,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			reqExpanded.Config = instancetype.ExpandInstanceConfig(globalConfigDump, reqExpanded.Config, profiles)
 			reqExpanded.Devices = instancetype.ExpandInstanceDevices(deviceConfig.NewDevices(reqExpanded.Devices), profiles).CloneNative()
 
-			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, &reqExpanded, candidateMembers, leaderAddress)
+			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, &reqExpanded, candidateMembers, leaderInfo.Address)
 			if err != nil {
 				return response.SmartError(fmt.Errorf("Failed instance placement scriptlet: %w", err))
 			}

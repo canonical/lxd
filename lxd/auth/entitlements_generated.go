@@ -109,6 +109,9 @@ const (
 	// EntitlementCanViewWarnings is the "can_view_warnings" entitlement. It applies to the following entities: entity.TypeServer.
 	EntitlementCanViewWarnings Entitlement = "can_view_warnings"
 
+	// EntitlementCanViewUnmanagedNetworks is the "can_view_unmanaged_networks" entitlement. It applies to the following entities: entity.TypeServer.
+	EntitlementCanViewUnmanagedNetworks Entitlement = "can_view_unmanaged_networks"
+
 	// EntitlementOperator is the "operator" entitlement. It applies to the following entities: entity.TypeInstance, entity.TypeProject.
 	EntitlementOperator Entitlement = "operator"
 
@@ -339,7 +342,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanEdit,
 		// Grants permission to delete the instance.
 		EntitlementCanDelete,
-		// Grants permission to view the instance.
+		// Grants permission to view the instance and any snapshots or backups it might have.
 		EntitlementCanView,
 		// Grants permission to change the instance state.
 		EntitlementCanUpdateState,
@@ -561,6 +564,8 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanViewMetrics,
 		// Grants permission to view warnings.
 		EntitlementCanViewWarnings,
+		// Grants permission to view unmanaged networks on the LXD host machines.
+		EntitlementCanViewUnmanagedNetworks,
 	},
 	entity.TypeStorageBucket: {
 		// Grants permission to edit the storage bucket.
@@ -581,7 +586,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanEdit,
 		// Grants permission to delete the storage volume.
 		EntitlementCanDelete,
-		// Grants permission to view the storage volume.
+		// Grants permission to view the storage volume and any snapshots or backups it might have.
 		EntitlementCanView,
 		// Grants permission to create and delete snapshots of the storage volume.
 		EntitlementCanManageSnapshots,

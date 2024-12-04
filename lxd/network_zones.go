@@ -25,14 +25,16 @@ import (
 )
 
 var networkZonesCmd = APIEndpoint{
-	Path: "network-zones",
+	Path:        "network-zones",
+	MetricsType: entity.TypeNetwork,
 
 	Get:  APIEndpointAction{Handler: networkZonesGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: networkZonesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateNetworkZones)},
 }
 
 var networkZoneCmd = APIEndpoint{
-	Path: "network-zones/{zone}",
+	Path:        "network-zones/{zone}",
+	MetricsType: entity.TypeNetwork,
 
 	Delete: APIEndpointAction{Handler: networkZoneDelete, AccessHandler: networkZoneAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: networkZoneGet, AccessHandler: networkZoneAccessHandler(auth.EntitlementCanView)},

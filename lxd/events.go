@@ -10,6 +10,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/events"
+	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -24,19 +25,26 @@ var eventTypes = []string{api.EventTypeLogging, api.EventTypeOperation, api.Even
 var privilegedEventTypes = []string{api.EventTypeLogging}
 
 var eventsCmd = APIEndpoint{
-	Path: "events",
+	Path:        "events",
+	MetricsType: entity.TypeServer,
 
 	Get: APIEndpointAction{Handler: eventsGet, AccessHandler: allowProjectResourceList},
 }
 
 type eventsServe struct {
-	req *http.Request
-	s   *state.State
+	s *state.State
 }
 
 // Render starts event socket.
 func (r *eventsServe) Render(w http.ResponseWriter, req *http.Request) error {
-	return eventsSocket(r.s, r.req, w)
+	err := eventsSocket(r.s, req, w)
+
+	if err == nil {
+		// If there was an error on Render, the callback function will be called during the error handling.
+		metrics.UseMetricsCallback(req, metrics.Success)
+	}
+
+	return err
 }
 
 func (r *eventsServe) String() string {
@@ -209,5 +217,5 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func eventsGet(d *Daemon, r *http.Request) response.Response {
-	return &eventsServe{req: r, s: d.State()}
+	return &eventsServe{s: d.State()}
 }

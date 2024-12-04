@@ -1,0 +1,57 @@
+name: Install LXD runtime dependencies
+description: Installs LXD runtime dependencies
+
+runs:
+  using: composite
+  steps:
+    - name: Installs LXD runtime dependencies
+      shell: bash
+      run: |
+        set -eux
+        sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
+        sudo apt-get update
+
+        sudo systemctl mask lxc.service lxc-net.service
+
+        sudo apt-get install --no-install-recommends -y \
+          curl \
+          git \
+          libacl1-dev \
+          libcap-dev \
+          libdbus-1-dev \
+          liblxc-dev \
+          libseccomp-dev \
+          libselinux-dev \
+          libsqlite3-dev \
+          libtool \
+          libudev-dev \
+          make \
+          pkg-config\
+          acl \
+          attr \
+          bind9-dnsutils \
+          btrfs-progs \
+          busybox-static \
+          dnsmasq-base \
+          easy-rsa \
+          gettext \
+          jq \
+          lxc-utils \
+          lvm2 \
+          nftables \
+          quota \
+          rsync \
+          s3cmd \
+          socat \
+          sqlite3 \
+          squashfs-tools \
+          tar \
+          tcl \
+          thin-provisioning-tools \
+          uuid-runtime \
+          xfsprogs \
+          xz-utils \
+          zfsutils-linux
+
+        # reclaim some space
+        sudo apt-get clean

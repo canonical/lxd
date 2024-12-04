@@ -134,11 +134,6 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 		return fmt.Errorf("Failed to parse entity URL: %w", err)
 	}
 
-	err = auth.ValidateEntitlement(entityType, entitlement)
-	if err != nil {
-		return fmt.Errorf("Cannot check permissions for entity type %q and entitlement %q: %w", entityType, entitlement, err)
-	}
-
 	logCtx := logger.Ctx{"entity_url": entityURL.String(), "entitlement": entitlement}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -167,8 +162,8 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 	logCtx["protocol"] = id.AuthenticationMethod
 	l := e.logger.AddContext(logCtx)
 
-	// If the authentication method was TLS, use the TLS driver instead.
-	if id.AuthenticationMethod == api.AuthenticationMethodTLS {
+	// If the identity type does not use fine-grained auth use the TLS driver instead.
+	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
 		return e.tlsAuthorizer.CheckPermission(ctx, entityURL, entitlement)
 	}
 
@@ -220,11 +215,17 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 			Object:   entityObject,
 		},
 		ContextualTuples: &openfgav1.ContextualTupleKeys{
-			// Users can always view (but not edit) themselves.
 			TupleKeys: []*openfgav1.TupleKey{
 				{
+					// Users can always view (but not edit) themselves.
 					User:     userObject,
 					Relation: string(auth.EntitlementCanView),
+					Object:   userObject,
+				},
+				{
+					// Users can always delete (but not edit) themselves.
+					User:     userObject,
+					Relation: string(auth.EntitlementCanDelete),
 					Object:   userObject,
 				},
 			},
@@ -244,6 +245,12 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 	l.Debug("Checking OpenFGA relation")
 	resp, err := e.server.Check(ctx, req)
 	if err != nil {
+		// If we have a not found error from the underlying OpenFGADatastore we should mask it to make requests consistent.
+		// (all not found errors returned before an access control decision is made are masked to prevent discovery).
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return api.NewGenericStatusError(http.StatusNotFound)
+		}
+
 		// Attempt to extract the internal error. This allows bubbling errors up from the OpenFGA datastore implementation.
 		// (Otherwise we just get "rpc error (4000): Internal Server Error" or similar which isn't useful).
 		var openFGAInternalError openFGAErrors.InternalError
@@ -269,6 +276,12 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 			l.Debug("Checking OpenFGA relation")
 			resp, err := e.server.Check(ctx, req)
 			if err != nil {
+				// If we have a not found error from the underlying OpenFGADatastore we should mask it to make requests consistent.
+				// (all not found errors returned before an access control decision is made are masked to prevent discovery).
+				if api.StatusErrorCheck(err, http.StatusNotFound) {
+					return api.NewGenericStatusError(http.StatusNotFound)
+				}
+
 				// Attempt to extract the internal error. This allows bubbling errors up from the OpenFGA datastore implementation.
 				// (Otherwise we just get "rpc error (4000): Internal Server Error" or similar which isn't useful).
 				var openFGAInternalError openFGAErrors.InternalError
@@ -306,11 +319,6 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 // this function is called. The returned auth.PermissionChecker will expect entity URLs to contain the request URL. These
 // will be re-written to contain the effective project if set, so that they correspond to the list returned by OpenFGA.
 func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
-	err := auth.ValidateEntitlement(entityType, entitlement)
-	if err != nil {
-		return nil, fmt.Errorf("Cannot get a permission checker for entity type %q and entitlement %q: %w", entityType, entitlement, err)
-	}
-
 	logCtx := logger.Ctx{"entity_type": entityType, "entitlement": entitlement}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -359,8 +367,8 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 	logCtx["protocol"] = id.AuthenticationMethod
 	l := e.logger.AddContext(logCtx)
 
-	// If the authentication method was TLS, use the TLS driver instead.
-	if id.AuthenticationMethod == api.AuthenticationMethodTLS {
+	// If the identity type does not use fine-grained auth, use the TLS driver instead.
+	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
 		return e.tlsAuthorizer.GetPermissionChecker(ctx, entitlement, entityType)
 	}
 
@@ -394,11 +402,17 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 		Relation: string(entitlement),
 		User:     userObject,
 		ContextualTuples: &openfgav1.ContextualTupleKeys{
-			// Users can always view (but not edit) themselves.
 			TupleKeys: []*openfgav1.TupleKey{
 				{
+					// Users can always view (but not edit) themselves.
 					User:     userObject,
 					Relation: string(auth.EntitlementCanView),
+					Object:   userObject,
+				},
+				{
+					// Users can always delete (but not edit) themselves.
+					User:     userObject,
+					Relation: string(auth.EntitlementCanDelete),
 					Object:   userObject,
 				},
 			},

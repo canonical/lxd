@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -30,26 +29,30 @@ import (
 )
 
 var operationCmd = APIEndpoint{
-	Path: "operations/{id}",
+	Path:        "operations/{id}",
+	MetricsType: entity.TypeOperation,
 
 	Delete: APIEndpointAction{Handler: operationDelete, AccessHandler: allowAuthenticated},
 	Get:    APIEndpointAction{Handler: operationGet, AccessHandler: allowAuthenticated},
 }
 
 var operationsCmd = APIEndpoint{
-	Path: "operations",
+	Path:        "operations",
+	MetricsType: entity.TypeOperation,
 
 	Get: APIEndpointAction{Handler: operationsGet, AccessHandler: allowProjectResourceList},
 }
 
 var operationWait = APIEndpoint{
-	Path: "operations/{id}/wait",
+	Path:        "operations/{id}/wait",
+	MetricsType: entity.TypeOperation,
 
 	Get: APIEndpointAction{Handler: operationWaitGet, AllowUntrusted: true},
 }
 
 var operationWebsocket = APIEndpoint{
-	Path: "operations/{id}/websocket",
+	Path:        "operations/{id}/websocket",
+	MetricsType: entity.TypeOperation,
 
 	Get: APIEndpointAction{Handler: operationWebsocketGet, AllowUntrusted: true},
 }
@@ -1099,7 +1102,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)
 	if err == nil {
-		return operations.OperationWebSocket(r, op)
+		return operations.OperationWebSocket(op)
 	}
 
 	// Then check if the query is from an operation on another node, and, if so, forward it
@@ -1143,26 +1146,24 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return operations.ForwardedOperationWebSocket(r, id, source)
+	return operations.ForwardedOperationWebSocket(id, source)
 }
 
 func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
 
-		localClusterAddress := s.LocalConfig.ClusterAddress()
-
-		leader, err := d.gateway.LeaderAddress()
+		leaderInfo, err := s.LeaderInfo()
 		if err != nil {
-			if errors.Is(err, cluster.ErrNodeIsNotClustered) {
-				return // No error if not clustered.
-			}
-
 			logger.Error("Failed to get leader cluster member address", logger.Ctx{"err": err})
 			return
 		}
 
-		if localClusterAddress != leader {
+		if !leaderInfo.Clustered {
+			return
+		}
+
+		if !leaderInfo.Leader {
 			logger.Debug("Skipping remove orphaned operations task since we're not leader")
 			return
 		}

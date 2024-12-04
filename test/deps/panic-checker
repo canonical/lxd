@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+
+import sys
+import re
+
+# Looks for a panic by grepping for stacktraces in a log file.
+# If a panic is found, print the last log message plus the stacktrace, exit 1
+# If no panics are found, exit 0
+#
+# Only the first panic is returned.
+#
+# NOTE: When a panic occurs in LXD at runtime via a mux handler, it is logged
+# at info level because the net/http library has a built-in recover. We are not
+# handling panic recovery manually. Because it is logged at info level, this
+# checker will only find panics if the test suite is run with LXD_VERBOSE=1 or
+# LXD_DEBUG=1.
+with open(sys.argv[1]) as file:
+    found = False
+    lastline = ""
+    stacktrace_regex = re.compile(r'^goroutine\s+\d+\s+\[running\]:')
+    standard_log_regex = re.compile(r'(INFO|DEBUG|TRACE|WARNING|ERROR)')
+
+    for line in file:
+        if not found and not stacktrace_regex.search(line):
+            # Nothing found yet but lets retain the last log line
+            lastline = line
+            continue
+
+        # Stacktrace detected, print the last log line that preceeded it
+        if not found:
+            sys.stderr.write(lastline)
+            found = True
+
+        # The first standard log message indicates the end of the stacktrace
+        if standard_log_regex.search(line):
+            break
+
+        # Print the line as it is part of the stacktrace
+        sys.stderr.write(line)
+
+    if found:
+        # Panic found, failure
+        exit(1)
+
+# No panic found, success
+exit(0)

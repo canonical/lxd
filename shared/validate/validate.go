@@ -89,7 +89,7 @@ func IsUint32(value string) error {
 
 // ParseUint32Range parses a uint32 range in the form "number" or "start-end".
 // Returns the start number and the size of the range.
-func ParseUint32Range(value string) (uint32, uint32, error) {
+func ParseUint32Range(value string) (start uint32, rangeSize uint32, err error) {
 	rangeParts := strings.SplitN(value, "-", 2)
 	rangeLen := len(rangeParts)
 	if rangeLen != 1 && rangeLen != 2 {
@@ -101,7 +101,7 @@ func ParseUint32Range(value string) (uint32, uint32, error) {
 		return 0, 0, fmt.Errorf("Invalid number %q", value)
 	}
 
-	var rangeSize uint32 = 1
+	rangeSize = 1
 
 	if rangeLen == 2 {
 		endNum, err := strconv.ParseUint(rangeParts[1], 10, 32)
@@ -116,7 +116,9 @@ func ParseUint32Range(value string) (uint32, uint32, error) {
 		rangeSize += uint32(endNum) - uint32(startNum)
 	}
 
-	return uint32(startNum), rangeSize, nil
+	start = uint32(startNum)
+
+	return start, rangeSize, nil
 }
 
 // IsUint32Range validates whether the string is a uint32 range in the form "number" or "start-end".
@@ -674,8 +676,8 @@ func IsAbsFilePath(value string) error {
 
 // ParseNetworkVLANRange parses a VLAN range in the form "number" or "start-end".
 // Returns the start number and the number of items in the range.
-func ParseNetworkVLANRange(vlan string) (int, int, error) {
-	err := IsNetworkVLAN(vlan)
+func ParseNetworkVLANRange(vlan string) (vlanRangeStart int, rangeSize int, err error) {
+	err = IsNetworkVLAN(vlan)
 	if err == nil {
 		vlanRangeStart, err := strconv.Atoi(vlan)
 		if err != nil {
@@ -694,7 +696,7 @@ func ParseNetworkVLANRange(vlan string) (int, int, error) {
 		return -1, -1, fmt.Errorf("Invalid VLAN range boundary. start:%s, end:%s", vlanRange[0], vlanRange[1])
 	}
 
-	vlanRangeStart, err := strconv.Atoi(vlanRange[0])
+	vlanRangeStart, err = strconv.Atoi(vlanRange[0])
 	if err != nil {
 		return -1, -1, err
 	}
@@ -708,7 +710,9 @@ func ParseNetworkVLANRange(vlan string) (int, int, error) {
 		return -1, -1, fmt.Errorf("Invalid VLAN range boundary. start:%d is higher than end:%d", vlanRangeStart, vlanRangeEnd)
 	}
 
-	return vlanRangeStart, vlanRangeEnd - vlanRangeStart + 1, nil
+	rangeSize = vlanRangeEnd - vlanRangeStart + 1
+
+	return vlanRangeStart, rangeSize, nil
 }
 
 // IsHostname checks the string is valid DNS hostname.
@@ -883,4 +887,13 @@ func IsMultipleOfUnit(unit string) func(value string) error {
 
 		return nil
 	}
+}
+
+// IsStaticCPUPinning validates a static CPU pinning strategy.
+func IsStaticCPUPinning(value string) error {
+	if strings.ContainsAny(value, ",-") {
+		return nil
+	}
+
+	return fmt.Errorf("Invalid static CPU pinning strategy: %s", value)
 }

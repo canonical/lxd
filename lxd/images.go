@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -58,14 +57,16 @@ import (
 )
 
 var imagesCmd = APIEndpoint{
-	Path: "images",
+	Path:        "images",
+	MetricsType: entity.TypeImage,
 
 	Get:  APIEndpointAction{Handler: imagesGet, AllowUntrusted: true},
 	Post: APIEndpointAction{Handler: imagesPost, AllowUntrusted: true},
 }
 
 var imageCmd = APIEndpoint{
-	Path: "images/{fingerprint}",
+	Path:        "images/{fingerprint}",
+	MetricsType: entity.TypeImage,
 
 	Delete: APIEndpointAction{Handler: imageDelete, AccessHandler: imageAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: imageGet, AllowUntrusted: true},
@@ -74,33 +75,38 @@ var imageCmd = APIEndpoint{
 }
 
 var imageExportCmd = APIEndpoint{
-	Path: "images/{fingerprint}/export",
+	Path:        "images/{fingerprint}/export",
+	MetricsType: entity.TypeImage,
 
 	Get:  APIEndpointAction{Handler: imageExport, AllowUntrusted: true},
 	Post: APIEndpointAction{Handler: imageExportPost, AccessHandler: imageAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var imageSecretCmd = APIEndpoint{
-	Path: "images/{fingerprint}/secret",
+	Path:        "images/{fingerprint}/secret",
+	MetricsType: entity.TypeImage,
 
 	Post: APIEndpointAction{Handler: imageSecret, AccessHandler: imageAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var imageRefreshCmd = APIEndpoint{
-	Path: "images/{fingerprint}/refresh",
+	Path:        "images/{fingerprint}/refresh",
+	MetricsType: entity.TypeImage,
 
 	Post: APIEndpointAction{Handler: imageRefresh, AccessHandler: imageAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var imageAliasesCmd = APIEndpoint{
-	Path: "images/aliases",
+	Path:        "images/aliases",
+	MetricsType: entity.TypeImage,
 
 	Get:  APIEndpointAction{Handler: imageAliasesGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: imageAliasesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateImageAliases)},
 }
 
 var imageAliasCmd = APIEndpoint{
-	Path: "images/aliases/{name:.*}",
+	Path:        "images/aliases/{name:.*}",
+	MetricsType: entity.TypeImage,
 
 	Delete: APIEndpointAction{Handler: imageAliasDelete, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: imageAliasGet, AllowUntrusted: true},
@@ -2698,17 +2704,9 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 		}
 
 		// Remove main image file.
-		fname := filepath.Join(s.OS.VarDir, "images", fingerprint)
-		err = os.Remove(fname)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Error deleting image file %q: %w", fname, err)
-		}
-
-		// Remove the rootfs file for the image.
-		fname = filepath.Join(s.OS.VarDir, "images", fingerprint) + ".rootfs"
-		err = os.Remove(fname)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Error deleting image file %q: %w", fname, err)
+		err := imageDeleteFromDisk(fingerprint)
+		if err != nil {
+			return err
 		}
 
 		logger.Info("Deleted expired cached image files and volumes", logger.Ctx{"fingerprint": fingerprint})
@@ -2814,7 +2812,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			err = notifier(func(client lxd.InstanceServer) error {
+			err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 				op, err := client.UseProject(projectName).DeleteImage(details.image.Fingerprint)
 				if err != nil {
 					return fmt.Errorf("Failed to request to delete image from peer node: %w", err)
@@ -2868,6 +2866,12 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
+		// Remove main image file from disk.
+		err = imageDeleteFromDisk(details.image.Fingerprint)
+		if err != nil {
+			return err
+		}
+
 		// Remove the database entry.
 		if !isClusterNotification(r) {
 			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -2877,9 +2881,6 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Error deleting image info from the database: %w", err)
 			}
 		}
-
-		// Remove main image file from disk.
-		imageDeleteFromDisk(details.image.Fingerprint)
 
 		s.Events.SendLifecycle(projectName, lifecycle.ImageDeleted.Event(details.image.Fingerprint, projectName, op.Requestor(), nil))
 
@@ -2897,14 +2898,14 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-// Helper to delete an image file from the local images directory.
-func imageDeleteFromDisk(fingerprint string) {
+// imageDeleteFromDisk removes the main image file and rootfs file of an image.
+func imageDeleteFromDisk(fingerprint string) error {
 	// Remove main image file.
 	fname := shared.VarPath("images", fingerprint)
 	if shared.PathExists(fname) {
 		err := os.Remove(fname)
 		if err != nil && !os.IsNotExist(err) {
-			logger.Errorf("Error deleting image file %s: %s", fname, err)
+			return fmt.Errorf("Error deleting image file %s: %s", fname, err)
 		}
 	}
 
@@ -2913,9 +2914,11 @@ func imageDeleteFromDisk(fingerprint string) {
 	if shared.PathExists(fname) {
 		err := os.Remove(fname)
 		if err != nil && !os.IsNotExist(err) {
-			logger.Errorf("Error deleting image file %s: %s", fname, err)
+			return fmt.Errorf("Error deleting image file %s: %s", fname, err)
 		}
 	}
+
+	return nil
 }
 
 func doImageGet(ctx context.Context, tx *db.ClusterTx, project, fingerprint string, public bool) (*api.Image, error) {
@@ -4251,7 +4254,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		requestor := request.CreateRequestor(r)
 		s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, projectName, requestor, nil))
 
-		return response.FileResponse(r, files, nil)
+		return response.FileResponse(files, nil)
 	}
 
 	files := make([]response.FileResponseEntry, 1)
@@ -4262,7 +4265,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r)
 	s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, projectName, requestor, nil))
 
-	return response.FileResponse(r, files, nil)
+	return response.FileResponse(files, nil)
 }
 
 // swagger:operation POST /1.0/images/{fingerprint}/export images images_export_post
@@ -4599,21 +4602,19 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
 
-		// In order to only have one task operation executed per image when syncing the images
-		// across the cluster, only leader node can launch the task, no others.
-		localClusterAddress := s.LocalConfig.ClusterAddress()
-
-		leader, err := d.gateway.LeaderAddress()
+		leaderInfo, err := s.LeaderInfo()
 		if err != nil {
-			if errors.Is(err, cluster.ErrNodeIsNotClustered) {
-				return // No error if not clustered.
-			}
-
 			logger.Error("Failed to get leader cluster member address", logger.Ctx{"err": err})
 			return
 		}
 
-		if localClusterAddress != leader {
+		if !leaderInfo.Clustered {
+			return
+		}
+
+		// In order to only have one task operation executed per image when syncing the images
+		// across the cluster, only leader node can launch the task, no others.
+		if !leaderInfo.Leader {
 			logger.Debug("Skipping image synchronization task since we're not leader")
 			return
 		}

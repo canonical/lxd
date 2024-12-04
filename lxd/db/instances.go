@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/osarch"
 )
 
 // InstanceArgs is a value object holding all db-related details about an instance.
@@ -42,6 +43,37 @@ type InstanceArgs struct {
 	Profiles     []api.Profile
 	Stateful     bool
 	ExpiryDate   time.Time
+}
+
+// ToAPI converts InstanceArgs to api.Instance.
+// The returned Instance has ExpandedConfig and ExpandedDevices set.
+func (i *InstanceArgs) ToAPI() (*api.Instance, error) {
+	var err error
+
+	rslt := &api.Instance{
+		Name:        i.Name,
+		Description: i.Description,
+
+		CreatedAt:  i.CreationDate,
+		LastUsedAt: i.LastUsedDate,
+		Location:   i.Node,
+		Type:       i.Type.String(),
+		Project:    i.Project,
+		Ephemeral:  i.Ephemeral,
+		Stateful:   i.Stateful,
+
+		Config:  i.Config,
+		Devices: i.Devices.CloneNative(),
+	}
+
+	rslt.Architecture, err = osarch.ArchitectureName(i.Architecture)
+
+	rslt.Profiles = make([]string, 0, len(i.Profiles))
+	for _, profile := range i.Profiles {
+		rslt.Profiles = append(rslt.Profiles, profile.Name)
+	}
+
+	return rslt, err
 }
 
 // GetInstanceNames returns the names of all containers the given project.
@@ -534,6 +566,18 @@ func (c *ClusterTx) instanceProfilesFill(ctx context.Context, snapshotsMode bool
 		return fmt.Errorf("Failed loading profiles: %w", err)
 	}
 
+	// Get all the profile configs.
+	profileConfigs, err := cluster.GetConfig(context.TODO(), c.Tx(), "profile")
+	if err != nil {
+		return fmt.Errorf("Failed loading profile configs: %w", err)
+	}
+
+	// Get all the profile devices.
+	profileDevices, err := cluster.GetDevices(context.TODO(), c.Tx(), "profile")
+	if err != nil {
+		return fmt.Errorf("Failed loading profile devices: %w", err)
+	}
+
 	// Populate profilesByID map entry for referenced profiles.
 	// This way we only call ToAPI() on the profiles actually referenced by the instances in
 	// the list, which can reduce the number of queries run.
@@ -543,7 +587,7 @@ func (c *ClusterTx) instanceProfilesFill(ctx context.Context, snapshotsMode bool
 			continue
 		}
 
-		profilesByID[profile.ID], err = profile.ToAPI(context.TODO(), c.tx)
+		profilesByID[profile.ID], err = profile.ToAPI(context.TODO(), c.tx, profileConfigs, profileDevices)
 		if err != nil {
 			return err
 		}

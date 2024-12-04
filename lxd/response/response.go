@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/ucred"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
@@ -212,6 +214,15 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		}
 	}
 
+	// defer calling the callback function after possibly considering the response a SmartError.
+	defer func() {
+		if r.success {
+			metrics.UseMetricsCallback(req, metrics.Success)
+		} else {
+			metrics.UseMetricsCallback(req, metrics.ErrorServer)
+		}
+	}()
+
 	// Handle plain text responses.
 	if r.plaintext {
 		if r.metadata != nil {
@@ -357,6 +368,17 @@ func (r *errorResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		Code:  r.code, // Set the error code in the Code field of the response body.
 	}
 
+	defer func() {
+		// Use the callback function to count the request for the API metrics.
+		if r.code >= 400 && r.code < 500 {
+			// 4* codes are considered client errors on HTTP.
+			metrics.UseMetricsCallback(req, metrics.ErrorClient)
+		} else {
+			// Any other status code here shoud be higher than or equal to 500 and is considered a server error.
+			metrics.UseMetricsCallback(req, metrics.ErrorServer)
+		}
+	}()
+
 	err := json.NewEncoder(output).Encode(resp)
 
 	if err != nil {
@@ -399,14 +421,13 @@ type FileResponseEntry struct {
 }
 
 type fileResponse struct {
-	req     *http.Request
 	files   []FileResponseEntry
 	headers map[string]string
 }
 
 // FileResponse returns a new file response.
-func FileResponse(r *http.Request, files []FileResponseEntry, headers map[string]string) Response {
-	return &fileResponse{r, files, headers}
+func FileResponse(files []FileResponseEntry, headers map[string]string) Response {
+	return &fileResponse{files, headers}
 }
 
 // Render renders a file response.
@@ -417,6 +438,14 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		}
 	}
 
+	var err error
+	defer func() {
+		if err == nil {
+			// If there was an error on Render, the callback function will be called during the error handling.
+			metrics.UseMetricsCallback(req, metrics.Success)
+		}
+	}()
+
 	// No file, well, it's easy then
 	if len(r.files) == 0 {
 		return nil
@@ -424,11 +453,11 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 
 	// For a single file, return it inline
 	if len(r.files) == 1 {
-		remoteConn := ucred.GetConnFromContext(r.req.Context())
+		remoteConn := ucred.GetConnFromContext(req.Context())
 		remoteTCP, _ := tcp.ExtractConn(remoteConn)
 		if remoteTCP != nil {
 			// Apply TCP timeouts if remote connection is TCP (rather than Unix).
-			err := tcp.SetTimeouts(remoteTCP, 10*time.Second)
+			err = tcp.SetTimeouts(remoteTCP, 10*time.Second)
 			if err != nil {
 				return api.StatusErrorf(http.StatusInternalServerError, "Failed setting TCP timeouts on remote connection: %w", err)
 			}
@@ -447,14 +476,16 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 			mt = r.files[0].FileModified
 			sz = r.files[0].FileSize
 		} else {
-			f, err := os.Open(r.files[0].Path)
+			var f *os.File
+			f, err = os.Open(r.files[0].Path)
 			if err != nil {
 				return err
 			}
 
 			defer func() { _ = f.Close() }()
 
-			fi, err := f.Stat()
+			var fi fs.FileInfo
+			fi, err = f.Stat()
 			if err != nil {
 				return err
 			}
@@ -468,7 +499,7 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", sz))
 		w.Header().Set("Content-Disposition", fmt.Sprintf("inline;filename=%s", r.files[0].Filename))
 
-		http.ServeContent(w, r.req, r.files[0].Filename, mt, rs)
+		http.ServeContent(w, req, r.files[0].Filename, mt, rs)
 
 		return nil
 	}
@@ -485,7 +516,8 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		if entry.File != nil {
 			rd = entry.File
 		} else {
-			fd, err := os.Open(entry.Path)
+			var fd *os.File
+			fd, err = os.Open(entry.Path)
 			if err != nil {
 				return err
 			}
@@ -495,12 +527,13 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 			rd = fd
 		}
 
-		fw, err := mw.CreateFormFile(entry.Identifier, entry.Filename)
+		var fw io.Writer
+		fw, err = mw.CreateFormFile(entry.Identifier, entry.Filename)
 		if err != nil {
 			return err
 		}
 
-		_, err = io.Copy(fw, rd)
+		_, err := io.Copy(fw, rd)
 		if err != nil {
 			return err
 		}
@@ -510,7 +543,9 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		}
 	}
 
-	return mw.Close()
+	err = mw.Close()
+
+	return err
 }
 
 func (r *fileResponse) String() string {
@@ -518,16 +553,14 @@ func (r *fileResponse) String() string {
 }
 
 type forwardedResponse struct {
-	client  lxd.InstanceServer
-	request *http.Request
+	client lxd.InstanceServer
 }
 
 // ForwardedResponse takes a request directed to a node and forwards it to
 // another node, writing back the response it gegs.
 func ForwardedResponse(client lxd.InstanceServer, request *http.Request) Response {
 	return &forwardedResponse{
-		client:  client,
-		request: request,
+		client: client,
 	}
 }
 
@@ -538,14 +571,14 @@ func (r *forwardedResponse) Render(w http.ResponseWriter, req *http.Request) err
 		return err
 	}
 
-	url := fmt.Sprintf("%s%s", info.Addresses[0], r.request.URL.RequestURI())
-	forwarded, err := http.NewRequest(r.request.Method, url, r.request.Body)
+	url := fmt.Sprintf("%s%s", info.Addresses[0], req.URL.RequestURI())
+	forwarded, err := http.NewRequest(req.Method, url, req.Body)
 	if err != nil {
 		return err
 	}
 
-	for key := range r.request.Header {
-		forwarded.Header.Set(key, r.request.Header.Get(key))
+	for key := range req.Header {
+		forwarded.Header.Set(key, req.Header.Get(key))
 	}
 
 	httpClient, err := r.client.GetHTTPClient()
@@ -571,7 +604,7 @@ func (r *forwardedResponse) Render(w http.ResponseWriter, req *http.Request) err
 }
 
 func (r *forwardedResponse) String() string {
-	return fmt.Sprintf("request to %s", r.request.URL)
+	return "forwarded response"
 }
 
 type manualResponse struct {
@@ -585,7 +618,14 @@ func ManualResponse(hook func(w http.ResponseWriter) error) Response {
 
 // Render renders a manual response.
 func (r *manualResponse) Render(w http.ResponseWriter, req *http.Request) error {
-	return r.hook(w)
+	err := r.hook(w)
+
+	if err == nil {
+		// If there was an error on Render, the callback function will be called during the error handling.
+		metrics.UseMetricsCallback(req, metrics.Success)
+	}
+
+	return err
 }
 
 func (r *manualResponse) String() string {

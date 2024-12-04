@@ -21,7 +21,6 @@ import (
 	"github.com/canonical/lxd/lxd/maas"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/sys"
-	"github.com/canonical/lxd/lxd/ubuntupro"
 	"github.com/canonical/lxd/shared"
 )
 
@@ -84,6 +83,9 @@ type State struct {
 	// Whether the server is clustered.
 	ServerClustered bool
 
+	// Whether we are the leader and the leader address if not.
+	LeaderInfo func() (*LeaderInfo, error)
+
 	// Local server UUID.
 	ServerUUID string
 
@@ -92,7 +94,16 @@ type State struct {
 
 	// Authorizer.
 	Authorizer auth.Authorizer
+}
 
-	// Ubuntu pro settings.
-	UbuntuPro *ubuntupro.Client
+// LeaderInfo represents information regarding cluster member leadership.
+type LeaderInfo struct {
+	// Clustered is true if the server is clustered and false otherwise.
+	Clustered bool
+
+	// Leader is true if the server is the raft leader or if the server is not clustered, and false otherwise.
+	Leader bool
+
+	// Address is the address of the leader. It is not set if the server is not clustered.
+	Address string
 }

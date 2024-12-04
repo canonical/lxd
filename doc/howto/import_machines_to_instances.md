@@ -54,12 +54,17 @@ The tool can also inject the required VIRTIO drivers into the image:
    <summary>Expand to see how to convert your Windows VM using <code>virt-v2v</code></summary>
 
    Use `virt-v2v` to convert Windows image into `raw` format and include the required drivers.
+   The resulting image is suitable for use with `lxd-migrate`.
 
    ```
-   # Example 1. Convert a vmdk disk image to a raw image suitable for lxd-migrate
+   # Example 1. Convert a VMDK image to a raw image
+   sudo virt-v2v --block-driver virtio-scsi -o local -of raw -os ./os -i disk -if vmdk test-vm-disk.vmdk
+
+   # Example 2. Convert a QEMU/KVM qcow2 image to a raw image
+   sudo virt-v2v --block-driver virtio-scsi -o local -of raw -os ./os -i disk -if qcow2 test-vm-disk.qcow2
+
+   # Example 3. Convert a VMX image to a raw image
    sudo virt-v2v --block-driver virtio-scsi -o local -of raw -os ./os -i vmx ./test-vm.vmx
-   # Example 2. Convert a QEMU/KVM qcow2 image and integrate virtio-scsi driver
-   sudo virt-v2v --block-driver virtio-scsi -o local -of raw -os ./os -if qcow2 -i disk test-vm-disk.qcow2
    ```
 
    You can find the resulting image in the `os` directory and use it with `lxd-migrate` on the next steps.

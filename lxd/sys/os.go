@@ -234,3 +234,16 @@ func (s *OS) Init() ([]cluster.Warning, error) {
 func (s *OS) InitStorage() error {
 	return s.initStorageDirs()
 }
+
+// InUbuntuCore returns true if we're running on Ubuntu Core.
+func (s *OS) InUbuntuCore() bool {
+	if !shared.InSnap() {
+		return false
+	}
+
+	if s.ReleaseInfo["NAME"] == "Ubuntu Core" {
+		return true
+	}
+
+	return false
+}

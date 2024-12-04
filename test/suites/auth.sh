@@ -79,23 +79,67 @@ test_authorization() {
   ! lxc auth identity group add oidc/test-user@example.com not-found || false # Group not found
   lxc auth identity group add oidc/test-user@example.com test-group # Valid
 
-  # Check user has been added to the group.
+  # Test fine-grained TLS identity creation
+  tls_identity_token="$(lxc auth identity create tls/test-user --quiet --group test-group)"
+  LXD_CONF2=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF2}" gen_cert_and_key "client"
+
+  # Cannot use the token with the certificates API and the correct error is returned.
+  [ "$(LXD_CONF="${LXD_CONF2}" my_curl -X POST "https://${LXD_ADDR}/1.0/certificates" --data "{\"trust_token\": \"${tls_identity_token}\"}" | jq -er '.error')" = "Failed during search for certificate add token operation: TLS Identity token detected (you must update your client)" ]
+
+  # Can use the token with remote add command.
+  LXD_CONF="${LXD_CONF2}" lxc remote add tls "${tls_identity_token}"
+  [ "$(LXD_CONF="${LXD_CONF2}" lxc_remote query tls:/1.0 | jq -r '.auth')" = 'trusted' ]
+
+  # Check a token cannot be used when expired
+  lxc config set core.remote_token_expiry=1S
+  tls_identity_token2="$(lxc auth identity create tls/test-user2 --quiet)"
+  sleep 2
+  LXD_CONF3=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF3}" gen_cert_and_key "client"
+  ! LXD_CONF="${LXD_CONF3}" lxc remote add tls "${tls_identity_token2}" || false
+
+  # The token was used, so the pending identity should be deleted.
+  [ "$(lxc auth identity list --format csv | grep -cF 'pending')" = 0 ]
+
+  # Check token prune task works
+  lxc auth identity create tls/test-user2 --quiet
+  [ "$(lxc auth identity list --format csv | grep -cF 'pending')" = 1 ]
+  sleep 2 # Wait for token to expire (expiry is still set to 1 second)
+  lxc query --request POST /internal/testing/prune-tokens
+  [ "$(lxc auth identity list --format csv | grep -cF 'pending')" = 0 ]
+
+  # Check users have been added to the group.
+  tls_identity_fingerprint="$(cert_fingerprint "${LXD_CONF2}/client.crt")"
   lxc auth identity list --format csv | grep -Fq 'oidc,OIDC client," ",test-user@example.com,test-group'
+  lxc auth identity list --format csv | grep -Fq "tls,Client certificate,test-user,${tls_identity_fingerprint},test-group"
 
   # Test `lxc auth identity info`
-  expected=$(cat << EOF
-groups:
-- test-group
-authentication_method: oidc
+  expectedOIDCInfo='authentication_method: oidc
 type: OIDC client
 id: test-user@example.com
-name: ' '
+name: '"'"' '"'"'
+groups:
+- test-group
+tls_certificate: ""
 effective_groups:
 - test-group
-effective_permissions: []
-EOF
-)
-  lxc auth identity info oidc: | grep -Fz "${expected}"
+effective_permissions: []'
+  [ "$(lxc auth identity info oidc:)" = "${expectedOIDCInfo}" ]
+
+  expectedTLSInfo="authentication_method: tls
+type: Client certificate
+id: ${tls_identity_fingerprint}
+name: test-user
+groups:
+- test-group
+tls_certificate: |
+$(awk '{printf "  %s\n", $0}' "${LXD_CONF2}/client.crt")
+effective_groups:
+- test-group
+effective_permissions: []"
+  [ "$(LXD_CONF="${LXD_CONF2}" lxc auth identity info tls:)" = "${expectedTLSInfo}" ]
+
 
   # Identity permissions.
   ! lxc auth group permission add test-group identity test-user@example.com can_view || false # Missing authentication method
@@ -122,7 +166,7 @@ EOF
   echo "${list_output}" | grep -Fq 'project,/1.0/projects/default,"can_create_image_aliases,can_create_images,can_create_instances,..."'
 
   list_output="$(lxc auth permission list entity_type=server --format csv --max-entitlements 0)"
-  echo "${list_output}" | grep -Fq 'server,/1.0,"admin,can_create_groups,can_create_identities,can_create_identity_provider_groups,can_create_projects,can_create_storage_pools,can_delete_groups,can_delete_identities,can_delete_identity_provider_groups,can_delete_projects,can_delete_storage_pools,can_edit,can_edit_groups,can_edit_identities,can_edit_identity_provider_groups,can_edit_projects,can_edit_storage_pools,can_override_cluster_target_restriction,can_view_groups,can_view_identities,can_view_identity_provider_groups,can_view_metrics,can_view_permissions,can_view_privileged_events,can_view_projects,can_view_resources,can_view_warnings,permission_manager,project_manager,storage_pool_manager,viewer"'
+  echo "${list_output}" | grep -Fq 'server,/1.0,"admin,can_create_groups,can_create_identities,can_create_identity_provider_groups,can_create_projects,can_create_storage_pools,can_delete_groups,can_delete_identities,can_delete_identity_provider_groups,can_delete_projects,can_delete_storage_pools,can_edit,can_edit_groups,can_edit_identities,can_edit_identity_provider_groups,can_edit_projects,can_edit_storage_pools,can_override_cluster_target_restriction,can_view_groups,can_view_identities,can_view_identity_provider_groups,can_view_metrics,can_view_permissions,can_view_privileged_events,can_view_projects,can_view_resources,can_view_unmanaged_networks,can_view_warnings,permission_manager,project_manager,storage_pool_manager,viewer"'
 
   list_output="$(lxc auth permission list entity_type=project --format csv --max-entitlements 0)"
   echo "${list_output}" | grep -Fq 'project,/1.0/projects/default,"can_create_image_aliases,can_create_images,can_create_instances,can_create_network_acls,can_create_network_zones,can_create_networks,can_create_profiles,can_create_storage_buckets,can_create_storage_volumes,can_delete,can_delete_image_aliases,can_delete_images,can_delete_instances,can_delete_network_acls,can_delete_network_zones,can_delete_networks,can_delete_profiles,can_delete_storage_buckets,can_delete_storage_volumes,can_edit,can_edit_image_aliases,can_edit_images,can_edit_instances,can_edit_network_acls,can_edit_network_zones,can_edit_networks,can_edit_profiles,can_edit_storage_buckets,can_edit_storage_volumes,can_operate_instances,can_view,can_view_events,can_view_image_aliases,can_view_images,can_view_instances,can_view_metrics,can_view_network_acls,can_view_network_zones,can_view_networks,can_view_operations,can_view_profiles,can_view_storage_buckets,can_view_storage_volumes,image_alias_manager,image_manager,instance_manager,network_acl_manager,network_manager,network_zone_manager,operator,profile_manager,storage_bucket_manager,storage_volume_manager,viewer"'
@@ -137,11 +181,73 @@ EOF
   lxc auth group permission remove test-group server viewer
   lxc auth group permission remove test-group server project_manager
 
+  storage_pool_used_by "oidc"
+  LXD_CONF="${LXD_CONF2}" storage_pool_used_by "tls"
+
   # Perform access checks
   fine_grained_authorization
 
   # Perform access check compatibility with project feature flags
   auth_project_features
+
+  # The OIDC identity should be able to delete themselves without any permissions.
+  lxc auth identity group remove oidc/test-user@example.com test-group
+  lxc_remote auth identity info oidc: | grep -Fq 'effective_permissions: []'
+  lxc_remote auth identity delete oidc:oidc/test-user@example.com
+  ! lxc auth identity list --format csv | grep -Fq 'test-user@example.com' || false
+
+  # When the OIDC identity re-authenticates they should reappear in the database
+  [ "$(lxc_remote query oidc:/1.0 | jq -r '.auth')" = "trusted" ]
+  lxc auth identity list --format csv | grep -Fq 'test-user@example.com'
+  lxc_remote auth identity info oidc: | grep -Fq 'effective_permissions: []'
+
+  # The OIDC identity cannot see or delete the TLS identity.
+  ! lxc_remote auth identity show "oidc:tls/${tls_identity_fingerprint}" || false
+  ! lxc_remote auth identity delete "oidc:tls/${tls_identity_fingerprint}" || false
+
+  # But the TLS identity can see and delete itself
+  LXD_CONF="${LXD_CONF2}" lxc_remote auth identity list tls: --format csv | grep -Fq "${tls_identity_fingerprint}"
+  LXD_CONF="${LXD_CONF2}" lxc_remote auth identity delete "tls:tls/${tls_identity_fingerprint}"
+  ! lxc auth identity list --format csv | grep -Fq "${tls_identity_fingerprint}" || false
+
+  # The TLS identity is not trusted after deletion.
+  [ "$(LXD_CONF="${LXD_CONF2}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "untrusted" ]
+
+  # Check a TLS identity can update their own certificate.
+  # First create a new TLS identity and add it to test-group
+  LXD_CONF4=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF4}" gen_cert_and_key "client"
+  token="$(lxc auth identity create tls/test-user4 --quiet)"
+  LXD_CONF="${LXD_CONF4}" lxc_remote remote add tls "${token}"
+  lxc auth identity group add tls/test-user4 test-group
+
+  # Create another certificate to update to
+  LXD_CONF5=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF5}" gen_cert_and_key "client"
+
+  # We're using my_curl because the lxc wrapper function splits the --data argument on the spaces between "BEGIN CERTIFICATE" and lxc query returns a usage error.
+  # We could use lxc edit as it accepts stdin input, but replacing the certificate in the yaml was quite complicated.
+
+  # This asserts that test-user4 cannot change their own group membership
+  [ "$(LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")\"}" | jq -r '.error_code')" -eq 403 ]
+
+  # This asserts that test-user4 can change their own certificate as long as the groups are unchanged
+  [ "$(LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")\", \"groups\":[\"test-group\"]}" | jq -r '.status_code')" -eq 200 ]
+
+  # The original certificate is untrusted after the update
+  [ "$(LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "untrusted" ]
+
+  # Add the remote for the lxc config directory with the other certificates. No token needed as we're already trusted.
+  LXD_CONF="${LXD_CONF5}" lxc remote add tls "${LXD_ADDR}" --accept-certificate --auth-type tls
+  [ "$(LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "trusted" ]
+
+  # Do the same tests with patch. test-user4 cannot change their group membership
+  [ "$(LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")\", \"groups\":[\"new-group\"]}" | jq -r '.error_code')" -eq 403 ]
+
+  # Change the certificate back to the original, using patch. Here no groups are in the request, only the certificate.
+  [ "$(LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")\"}" | jq -r '.status_code')" -eq 200 ]
+  [ "$(LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "trusted" ]
+  [ "$(LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "untrusted" ]
 
   # Cleanup
   lxc auth group delete test-group
@@ -149,10 +255,81 @@ EOF
   lxc remote remove oidc
   kill_oidc
   rm "${TEST_DIR}/oidc.user"
+  rm -r "${LXD_CONF2}"
+  rm -r "${LXD_CONF3}"
+  rm -r "${LXD_CONF4}"
+  rm -r "${LXD_CONF5}"
+  lxc config unset core.remote_token_expiry
   lxc config unset oidc.issuer
   lxc config unset oidc.client.id
 }
 
+
+storage_pool_used_by() {
+  remote="${1}"
+
+  # test-group must have no permissions to start the test.
+  [ "$(lxc query /1.0/auth/groups/test-group | jq '.permissions | length')" -eq 0 ]
+
+  # Test storage pool used-by filtering
+  pool_name="$(lxc storage list -f csv | cut -d, -f1)"
+
+  # Used-by list should have only the default profile, but in case of any leftover entries from previous tests get a
+  # start size for the list and work against that.
+  start_length=$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')
+
+  # Members of test-group have no permissions, so they should get an empty list.
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 0 ]
+
+  # Launch instance. Should appear in pool used-by list. Members of test-group still can't see anything.
+  lxc launch testimage c1
+  [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length+1)) ]
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 0 ]
+
+  # Allow members of test-group to view the instance. They should see it in the used-by list.
+  lxc auth group permission add test-group instance c1 can_view project=default
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 1 ]
+
+  # Take a snapshot. Used-by length should increase. Members of test-group should see the snapshot.
+  lxc snapshot c1
+  [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length+2)) ]
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 2 ]
+
+  # Take another snapshot and check again. This is done because filtering used-by lists takes a slightly different code
+  # path when it receives multiple URLs of the same entity type.
+  lxc snapshot c1
+  [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length+3)) ]
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 3 ]
+
+  # Perform the same checks with storage volume snapshots.
+  lxc storage volume create "${pool_name}" vol1
+  [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length+4)) ]
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 3 ]
+
+  lxc auth group permission add test-group storage_volume vol1 can_view project=default pool="${pool_name}" type=custom
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 4 ]
+
+  lxc storage volume snapshot "${pool_name}" vol1
+  [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length+5)) ]
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 5 ]
+
+  lxc storage volume snapshot "${pool_name}" vol1
+  [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length+6)) ]
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 6 ]
+
+  # Remove can_view on the volume and check the volume and snapshots are no longer in the used-by list.
+  lxc auth group permission remove test-group storage_volume vol1 can_view project=default pool="${pool_name}" type=custom
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 3 ]
+
+  # Remove can_view on the instance and check the volume and snapshots are no longer in the used-by list.
+  lxc auth group permission remove test-group instance c1 can_view project=default
+  [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 0 ]
+
+  # Clean up storage volume used-by tests.
+  lxc delete c1 -f
+  lxc storage volume delete "${pool_name}" vol1
+  [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length)) ]
+}
 
 fine_grained_authorization() {
   echo "==> Checking permissions for member of group with no permissions..."
