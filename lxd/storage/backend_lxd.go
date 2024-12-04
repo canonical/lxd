@@ -3302,7 +3302,7 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (*VolumeUsage, err
 
 // SetInstanceQuota sets the quota on the instance's root volume.
 // Returns ErrInUse if the instance is running and the storage driver doesn't support online resizing.
-func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmStateSize string, op *operations.Operation) error {
+func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmStateSize string, op *operations.Operation) (err error) {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "size": size, "vm_state_size": vmStateSize})
 	l.Debug("SetInstanceQuota started")
 	defer l.Debug("SetInstanceQuota finished")
@@ -3321,6 +3321,18 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmSta
 	if err != nil {
 		return err
 	}
+
+	// If the volume resize succeeds, update the instance volume's 'size' config on the database.
+	defer func() {
+		if err == nil {
+			newConfig := dbVol.Config
+			newConfig["volatile.rootfs.size"] = size
+
+			err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.UpdateStoragePoolVolumeConfig(dbVol.Name, dbVol.ID, newConfig)
+			})
+		}
+	}()
 
 	// Apply the main volume quota.
 	vol := b.GetVolume(volType, contentVolume, volStorageName, dbVol.Config)
