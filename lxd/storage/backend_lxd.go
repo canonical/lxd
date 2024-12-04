@@ -3331,14 +3331,24 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (*VolumeUsage, err
 		val.Used = usedBytes
 	}
 
-	// Get the total size.
-	_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
-	if err != nil {
-		return nil, err
+	// The instance volume 'volatile.rootfs.size' config key is the most accurate representation
+	// of the instance root disk size. The device's own 'size' may not reflect block volume
+	// default sizes and may be inaccurate when the instance does not support live resizing.
+	sizeStr := dbVol.Config["volatile.rootfs.size"]
+
+	// If we only rely on volatile.rootfs.size, instances that precede the usage of volatile.rootfs.size
+	// on instances should use the old method, even if it isn't always correct to avoid breaking the API
+	// when the old method worked.
+	if sizeStr == "" {
+		_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+		if err != nil {
+			return nil, err
+		}
+
+		sizeStr = rootDiskConf["size"]
 	}
 
-	sizeStr, ok := rootDiskConf["size"]
-	if ok {
+	if sizeStr != "" {
 		total, err := units.ParseByteSizeString(sizeStr)
 		if err != nil {
 			return nil, err
