@@ -151,6 +151,34 @@ For example, to set a default volume size for a storage pool, use the following 
 
     lxc storage set [<remote>:]<pool_name> volume.size <value>
 
+## Attach instance root volumes to other instances
+Virtual-machine root volumes can be attached as disk devices to other virtual machines.
+In order to prevent concurrent access, `security.protection.start` must be set on
+an instance before its root volume can be attached to another virtual-machine.
+
+```{caution}
+Because instances created from the same image share the same partition and file system
+UUIDs and labels, booting an instance with two root file systems mounted may result
+in the wrong root file system being used. This may result in unexpected behavior
+or data loss. **It is strongly recommended to only attach virtual-machine root
+volumes to other virtual machines when the target virtual-machine is running.**
+```
+
+Assuming `vm1` is stopped and `vm2` is running, attach the `virtual-machine/vm1` storage
+volume to `vm2`:
+
+    lxc config set vm1 security.protection.start=true
+    lxc storage volume attach my-pool virtual-machine/vm1 vm2
+
+`virtual-machine/vm1` must be detached from `vm2` before `security.protection.start`
+can be unset from `vm1`:
+
+    lxc storage volume detach my-pool virtual-machine/vm1 vm2
+    lxc config unset vm1 security.protection.start
+
+`security.shared` can also be used on `virtual-machine` volumes to enable concurrent
+access. Note that concurrent access to block volumes may result in data loss.
+
 ## View storage volumes
 
 You can display a list of all available storage volumes and check their configuration.
