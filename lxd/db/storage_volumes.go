@@ -398,12 +398,7 @@ func (c *ClusterTx) UpdateStoragePoolVolume(ctx context.Context, projectName str
 		return err
 	}
 
-	err = storageVolumeConfigClear(c.tx, volume.ID, isSnapshot)
-	if err != nil {
-		return err
-	}
-
-	err = storageVolumeConfigAdd(c.tx, volume.ID, volumeConfig, isSnapshot)
+	err = c.UpdateStoragePoolVolumeConfig(volume.Name, volume.ID, volumeConfig)
 	if err != nil {
 		return err
 	}
