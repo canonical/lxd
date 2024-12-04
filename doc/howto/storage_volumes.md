@@ -6,6 +6,37 @@
 
 See the following sections for instructions on how to create, configure, view and resize {ref}`storage-volumes`.
 
+## View storage volumes
+
+You can display a list of all available storage volumes and check their configuration.
+
+To list all available storage volumes, use the following command:
+
+    lxc storage volume list
+
+To display the storage volumes for all projects (not only the default project), add the `--all-projects` flag.
+
+You can also display the storage volumes in a specific storage pool:
+
+    lxc storage volume list my-pool
+
+The resulting table contains, among other information, the {ref}`storage volume type <storage-volume-types>` and the {ref}`content type <storage-content-types>` for each storage volume.
+
+```{note}
+Custom storage volumes can use the same name as instance volumes. For example, you might have a container named `c1` with a container storage volume named `c1` and a custom storage volume named `c1`.
+Therefore, to distinguish between instance storage volumes and custom storage volumes, all instance storage volumes must be referred to as `<volume_type>/<volume_name>` (for example, `container/c1` or `virtual-machine/vm`) in commands.
+```
+
+To show detailed configuration information about a specific volume, use the following command:
+
+    lxc storage volume show my-pool custom/my-volume
+
+To show state information about a specific volume, use the following command:
+
+    lxc storage volume info my-pool virtual-machine/my-vm
+
+In both commands, the default {ref}`storage volume type <storage-volume-types>` is `custom`, so you can leave out the `custom/` when displaying information about a custom storage volume.
+
 ## Create a custom storage volume
 
 When you create an instance, LXD automatically creates a storage volume that is used as the root disk for the instance.
@@ -147,37 +178,6 @@ For storage volumes of {ref}`type <storage-volume-types>` `container` or `virtua
 For example, to set the default volume size for `my-pool`, use the following command:
 
     lxc storage set my-pool volume.size=15GiB
-
-## View storage volumes
-
-You can display a list of all available storage volumes and check their configuration.
-
-To list all available storage volumes, use the following command:
-
-    lxc storage volume list
-
-To display the storage volumes for all projects (not only the default project), add the `--all-projects` flag.
-
-You can also display the storage volumes in a specific storage pool:
-
-    lxc storage volume list my-pool
-
-The resulting table contains, among other information, the {ref}`storage volume type <storage-volume-types>` and the {ref}`content type <storage-content-types>` for each storage volume.
-
-```{note}
-Custom storage volumes might use the same name as instance volumes (for example, you might have a container named `c1` with a container storage volume named `c1` and a custom storage volume named `c1`).
-Therefore, to distinguish between instance storage volumes and custom storage volumes, all instance storage volumes must be referred to as `<volume_type>/<volume_name>` (for example, `container/c1` or `virtual-machine/vm`) in commands.
-```
-
-To show detailed configuration information about a specific volume, use the following command:
-
-    lxc storage volume show my-pool custom/my-volume
-
-To show state information about a specific volume, use the following command:
-
-    lxc storage volume info my-pool virtual-machine/my-vm
-
-In both commands, the default {ref}`storage volume type <storage-volume-types>` is `custom`, so you can leave out the `custom/` when displaying information about a custom storage volume.
 
 ## Resize a storage volume
 
