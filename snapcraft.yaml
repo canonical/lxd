@@ -831,7 +831,7 @@ parts:
       - spice-protocol
       - spice-server
     source: https://git.launchpad.net/ubuntu/+source/qemu
-    source-commit: dace9112e7b63e52016227e4291db59383b2a2c5 # import/1%8.2.1+ds-1ubuntu5
+    source-commit: 00b8bba93d55baefdc68d06e6ab78934825a32b7 # import/1%8.2.2+ds-0ubuntu1.4
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -924,6 +924,9 @@ parts:
 
       sed -i "s/^unset target_list$/target_list=\"${QEMUARCH}-softmmu\"/" configure
       sed -i 's#libseccomp_minver=".*#libseccomp_minver="0.0"#g' configure
+
+      # Restore vendored copies of meson and tomli Python wheels
+      git restore --source=4769f7051b0753455b775ab10c9226e149ed6237~ -- python/wheels/
 
       # Extract efi-virtio.rom from ipxe-qemu.
       # This doesn't work in the organize section below.
