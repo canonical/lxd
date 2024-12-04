@@ -3374,6 +3374,33 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmSta
 		return err
 	}
 
+	// Update the instance volume's 'volatile.rootfs.size' config on the database first as it is easily revertable.
+	newConfig := dbVol.Config
+	oldSize := newConfig["volatile.rootfs.size"] // Keep old size for reverting
+	newConfig["volatile.rootfs.size"] = size
+
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.UpdateStoragePoolVolumeConfig(dbVol.Name, dbVol.ID, newConfig)
+	})
+	if err != nil {
+		return err
+	}
+
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	// Revert database changes in case setting the quota fails.
+	reverter.Add(func() {
+		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			newConfig["volatile.rootfs.size"] = oldSize
+			return tx.UpdateStoragePoolVolumeConfig(dbVol.Name, dbVol.ID, newConfig)
+		})
+
+		if err != nil {
+			logger.Warn("Failed reverting volume config", logger.Ctx{"pool": b.name, "volume": dbVol.Name, "err": err})
+		}
+	})
+
 	// Apply the main volume quota.
 	vol := b.GetVolume(volType, contentVolume, volStorageName, dbVol.Config)
 	err = b.driver.SetVolumeQuota(vol, size, false, op)
@@ -3397,6 +3424,8 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmSta
 			return err
 		}
 	}
+
+	reverter.Success()
 
 	return nil
 }
