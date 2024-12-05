@@ -492,7 +492,7 @@ func (r *ProtocolLXD) getUnderlyingHTTPTransport() (*http.Transport, error) {
 // is also updated with the minimal source fields.
 func (r *ProtocolLXD) getSourceImageConnectionInfo(source ImageServer, image api.Image, instSrc *api.InstanceSource) (info *ConnectionInfo, err error) {
 	// Set the minimal source fields
-	instSrc.Type = "image"
+	instSrc.Type = api.SourceTypeImage
 
 	// Optimization for the local image case
 	if r.isSameServer(source) {

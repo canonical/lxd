@@ -609,7 +609,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 		Type: volume.Type,
 		Source: api.StorageVolumeSource{
 			Name:       volume.Name,
-			Type:       "copy",
+			Type:       api.SourceTypeCopy,
 			Pool:       sourcePool,
 			VolumeOnly: args.VolumeOnly,
 			Refresh:    args.Refresh,
@@ -692,7 +692,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 		}
 
 		// Create the container
-		req.Source.Type = "migration"
+		req.Source.Type = api.SourceTypeMigration
 		req.Source.Mode = "push"
 
 		// Send the request
@@ -744,7 +744,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 	// Relay mode migration
 	if args != nil && args.Mode == "relay" {
 		// Push copy source fields
-		req.Source.Type = "migration"
+		req.Source.Type = api.SourceTypeMigration
 		req.Source.Mode = "push"
 
 		// Send the request
@@ -786,7 +786,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 	}
 
 	// Pull mode migration
-	req.Source.Type = "migration"
+	req.Source.Type = api.SourceTypeMigration
 	req.Source.Mode = "pull"
 	req.Source.Operation = opAPI.ID
 	req.Source.Websockets = sourceSecrets
