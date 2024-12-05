@@ -44,6 +44,7 @@ __attribute__((constructor)) void init(void) {
 import "C"
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -83,6 +84,7 @@ func main() {
 	// Run the main command and handle errors
 	err := app.Execute()
 	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
