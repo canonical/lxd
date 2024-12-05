@@ -35,6 +35,7 @@ const pureAPIVersion = "2.21"
 // service name.
 var pureServiceNameMapping = map[string]string{
 	connectors.TypeISCSI: "iscsi",
+	connectors.TypeNVME:  "nvme-tcp",
 }
 
 // pureVolTypePrefixes maps volume type to storage volume name prefix.
@@ -155,6 +156,7 @@ type pureVolume struct {
 type pureHost struct {
 	Name            string   `json:"name"`
 	IQNs            []string `json:"iqns"`
+	NQNs            []string `json:"nqns"`
 	ConnectionCount int      `json:"connection_count"`
 }
 
@@ -622,8 +624,14 @@ func (p *pureClient) getCurrentHost() (*pureHost, error) {
 		return nil, err
 	}
 
+	mode := connector.Type()
+
 	for _, host := range hosts {
-		if slices.Contains(host.IQNs, qn) {
+		if mode == connectors.TypeISCSI && slices.Contains(host.IQNs, qn) {
+			return &host, nil
+		}
+
+		if mode == connectors.TypeNVME && slices.Contains(host.NQNs, qn) {
 			return &host, nil
 		}
 	}
@@ -644,6 +652,8 @@ func (p *pureClient) createHost(hostName string, qns []string) error {
 	switch connector.Type() {
 	case connectors.TypeISCSI:
 		body["iqns"] = qns
+	case connectors.TypeNVME:
+		body["nqns"] = qns
 	default:
 		return fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
 	}
@@ -678,6 +688,8 @@ func (p *pureClient) updateHost(hostName string, qns []string) error {
 	switch connector.Type() {
 	case connectors.TypeISCSI:
 		body["iqns"] = qns
+	case connectors.TypeNVME:
+		body["nqns"] = qns
 	default:
 		return fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
 	}
@@ -794,6 +806,10 @@ func (p *pureClient) getTarget() (targetQN string, targetAddrs []string, err err
 
 		if mode == connectors.TypeISCSI {
 			nq = port.IQN
+		}
+
+		if mode == connectors.TypeNVME {
+			nq = port.NQN
 		}
 
 		if nq != "" {
@@ -1093,6 +1109,19 @@ func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook
 	case connectors.TypeISCSI:
 		diskPrefix = "scsi-"
 		diskSuffix = pureVol.Serial
+	case connectors.TypeNVME:
+		diskPrefix = "nvme-eui."
+
+		// The serial number is used to identify the device. The last 10 characters
+		// of the serial number appear as a disk device suffix. This check ensures
+		// we do not panic if the reported serial number is too short for parsing.
+		if len(pureVol.Serial) <= 10 {
+			// Serial number is too short.
+			return "", nil, fmt.Errorf("Failed to locate device for volume %q: Invalid serial number %q", vol.name, pureVol.Serial)
+		}
+
+		// Extract the last 10 characters of the serial number.
+		diskSuffix = pureVol.Serial[len(pureVol.Serial)-10:]
 	default:
 		return "", nil, fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
 	}
