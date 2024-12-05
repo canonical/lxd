@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/gorilla/mux"
 
@@ -145,6 +146,27 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 		usage, err = pool.GetInstanceUsage(inst)
 		if err != nil && err != storageDrivers.ErrNotSupported {
 			return response.SmartError(err)
+		}
+
+		// If the instance is stopped and its size was recently changed, the volume may not have been resized yet
+		// as this only happens on instance start.
+		// When this is the case, fallback to getting the total size from the volume's config.
+		if !inst.IsRunning() {
+			volType, err := storagePools.InstanceTypeToVolumeType(inst.Type())
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			// Load storage volume from database.
+			dbVol, err := storagePools.VolumeDBGet(pool, inst.Project().Name, inst.Name(), volType)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			// If size is not set, move on with total 0.
+			volumeSize, _ := strconv.ParseInt(dbVol.Config["volatile.rootfs.size"], 10, 64)
+
+			usage.Total = volumeSize
 		}
 	}
 
