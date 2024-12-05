@@ -418,7 +418,7 @@ func getAggregateLimits(info *projectInfo, aggregateKeys []string) (map[string]a
 	}
 
 	for _, key := range aggregateKeys {
-		max := int64(-1)
+		maxValue := int64(-1)
 		limit := info.Project.Config[key]
 		if limit != "" {
 			keyName := key
@@ -429,7 +429,7 @@ func getAggregateLimits(info *projectInfo, aggregateKeys []string) (map[string]a
 			}
 
 			parser := aggregateLimitConfigValueParsers[keyName]
-			max, err = parser(info.Project.Config[key])
+			maxValue, err = parser(info.Project.Config[key])
 			if err != nil {
 				return nil, err
 			}
@@ -437,7 +437,7 @@ func getAggregateLimits(info *projectInfo, aggregateKeys []string) (map[string]a
 
 		resource := api.ProjectStateResource{
 			Usage: totals[key],
-			Limit: max,
+			Limit: maxValue,
 		}
 
 		result[key] = resource
@@ -465,12 +465,12 @@ func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 		}
 
 		parser := aggregateLimitConfigValueParsers[keyName]
-		max, err := parser(info.Project.Config[key])
+		maxValue, err := parser(info.Project.Config[key])
 		if err != nil {
 			return err
 		}
 
-		if totals[key] > max {
+		if totals[key] > maxValue {
 			return fmt.Errorf("Reached maximum aggregate value %q for %q in project %q", info.Project.Config[key], key, info.Project.Name)
 		}
 	}
