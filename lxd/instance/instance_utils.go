@@ -128,6 +128,46 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 }
 
 func validConfigKey(os *sys.OS, key string, value string, instanceType instancetype.Type) error {
+	if instanceType != instancetype.Any &&
+		!shared.StringHasPrefix(key, instancetype.ConfigKeyPrefixesAny...) &&
+		!strings.HasPrefix(key, instancetype.ConfigVolatilePrefix) {
+		// Determine valid keys for instance type.
+		var validKeys map[string]func(string) error
+		containerPrefix := false
+
+		switch instanceType {
+		case instancetype.VM:
+			if shared.StringHasPrefix(key, instancetype.ConfigKeyPrefixesContainer...) {
+				return fmt.Errorf("%s isn't supported for VMs", key)
+			}
+
+			validKeys = instancetype.InstanceConfigKeysVM
+		case instancetype.Container:
+			if shared.StringHasPrefix(key, instancetype.ConfigKeyPrefixesContainer...) {
+				containerPrefix = true
+			}
+
+			validKeys = instancetype.InstanceConfigKeysContainer
+		}
+
+		// Check if the key is valid.
+		if !containerPrefix && validKeys != nil {
+			_, exists := validKeys[key]
+			_, existsAny := instancetype.InstanceConfigKeysAny[key]
+			if !(exists || existsAny) {
+				return fmt.Errorf("%s isn't supported for %ss", key, instanceType)
+			}
+		}
+	}
+
+	// Check if the key requires a subkey.
+	if strings.HasSuffix(key, ".") {
+		knownPrefixes := append(instancetype.ConfigKeyPrefixesAny, instancetype.ConfigKeyPrefixesContainer...)
+		if key == instancetype.ConfigVolatilePrefix || shared.ValueInSlice(key, knownPrefixes) {
+			return fmt.Errorf("%s requires a subkey", key)
+		}
+	}
+
 	f, err := instancetype.ConfigKeyChecker(key, instanceType)
 	if err != nil {
 		return err
@@ -135,10 +175,6 @@ func validConfigKey(os *sys.OS, key string, value string, instanceType instancet
 
 	if err = f(value); err != nil {
 		return err
-	}
-
-	if strings.HasPrefix(key, "limits.kernel.") && instanceType == instancetype.VM {
-		return fmt.Errorf("%s isn't supported for VMs", key)
 	}
 
 	if key == "raw.lxc" {
