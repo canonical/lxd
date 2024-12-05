@@ -128,6 +128,22 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 }
 
 func validConfigKey(os *sys.OS, key string, value string, instanceType instancetype.Type) error {
+	// Check if the key is a valid prefix and whether or not it requires a subkey.
+	knownPrefixes := append(instancetype.ConfigKeyPrefixesAny, instancetype.ConfigKeyPrefixesContainer...)
+	if strings.HasSuffix(key, ".") {
+		// Disallow keys with container-specific prefixes such as "linux.sysctl." and "limits.kernel." for VMs.
+		if instanceType == instancetype.VM && shared.StringHasPrefix(key, instancetype.ConfigKeyPrefixesContainer...) {
+			return fmt.Errorf("%q isn't supported for %q", key, instanceType)
+		}
+
+		if !(key == instancetype.ConfigVolatilePrefix || shared.ValueInSlice(key, knownPrefixes)) {
+			// Not a known prefix.
+			return fmt.Errorf("Unknown configuration key: %q", key)
+		}
+
+		return fmt.Errorf("%q requires a subkey", key)
+	}
+
 	f, err := instancetype.ConfigKeyChecker(key, instanceType)
 	if err != nil {
 		return err
