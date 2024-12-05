@@ -860,10 +860,15 @@ func (c *cmdStorageVolumeDetach) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	volName, volType := parseVolume("custom", args[1])
+	if volType != "custom" {
+		return errors.New(i18n.G(`Only "custom" volumes can be attached to instances`))
+	}
+
 	// Find the device
 	if devName == "" {
 		for n, d := range inst.Devices {
-			if d["type"] == "disk" && d["pool"] == resource.name && d["source"] == args[1] {
+			if d["type"] == "disk" && d["pool"] == resource.name && d["source"] == volName {
 				if devName != "" {
 					return errors.New(i18n.G("More than one device matches, specify the device name"))
 				}
@@ -957,10 +962,15 @@ func (c *cmdStorageVolumeDetachProfile) run(cmd *cobra.Command, args []string) e
 		return err
 	}
 
+	volName, volType := parseVolume("custom", args[1])
+	if volType != "custom" {
+		return errors.New(i18n.G(`Only "custom" volumes can be attached to instances`))
+	}
+
 	// Find the device
 	if devName == "" {
 		for n, d := range profile.Devices {
-			if d["type"] == "disk" && d["pool"] == resource.name && d["source"] == args[1] {
+			if d["type"] == "disk" && d["pool"] == resource.name && d["source"] == volName {
 				if devName != "" {
 					return errors.New(i18n.G("More than one device matches, specify the device name"))
 				}
