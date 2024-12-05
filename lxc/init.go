@@ -380,7 +380,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 
 		opInfo = *info
 	} else {
-		req.Source.Type = "none"
+		req.Source.Type = api.SourceTypeNone
 
 		op, err := d.CreateInstance(req)
 		if err != nil {
