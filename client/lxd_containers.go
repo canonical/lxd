@@ -424,7 +424,10 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 
 		targetSecrets := map[string]string{}
 		for k, v := range opAPI.Metadata {
-			targetSecrets[k] = v.(string)
+			value, ok := v.(string)
+			if ok {
+				targetSecrets[k] = value
+			}
 		}
 
 		// Prepare the source request
@@ -452,7 +455,10 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 
 	sourceSecrets := map[string]string{}
 	for k, v := range opAPI.Metadata {
-		sourceSecrets[k] = v.(string)
+		value, ok := v.(string)
+		if ok {
+			sourceSecrets[k] = value
+		}
 	}
 
 	// Relay mode migration
@@ -472,7 +478,10 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 		// Extract the websockets
 		targetSecrets := map[string]string{}
 		for k, v := range targetOpAPI.Metadata {
-			targetSecrets[k] = v.(string)
+			value, ok := v.(string)
+			if ok {
+				targetSecrets[k] = value
+			}
 		}
 
 		// Launch the relay
@@ -651,11 +660,13 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 		// Parse the fds
 		fds := map[string]string{}
 
-		value, ok := opAPI.Metadata["fds"]
+		values, ok := opAPI.Metadata["fds"].(map[string]any)
 		if ok {
-			values := value.(map[string]any)
 			for k, v := range values {
-				fds[k] = v.(string)
+				fd, ok := v.(string)
+				if ok {
+					fds[k] = fd
+				}
 			}
 		}
 
@@ -1129,7 +1140,10 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 
 		targetSecrets := map[string]string{}
 		for k, v := range opAPI.Metadata {
-			targetSecrets[k] = v.(string)
+			value, ok := v.(string)
+			if ok {
+				targetSecrets[k] = value
+			}
 		}
 
 		// Prepare the source request
@@ -1157,7 +1171,10 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 
 	sourceSecrets := map[string]string{}
 	for k, v := range opAPI.Metadata {
-		sourceSecrets[k] = v.(string)
+		value, ok := v.(string)
+		if ok {
+			sourceSecrets[k] = value
+		}
 	}
 
 	// Relay mode migration
@@ -1177,7 +1194,10 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 		// Extract the websockets
 		targetSecrets := map[string]string{}
 		for k, v := range targetOpAPI.Metadata {
-			targetSecrets[k] = v.(string)
+			value, ok := v.(string)
+			if ok {
+				targetSecrets[k] = value
+			}
 		}
 
 		// Launch the relay
@@ -1574,11 +1594,13 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 	// Parse the fds
 	fds := map[string]string{}
 
-	value, ok := opAPI.Metadata["fds"]
+	values, ok := opAPI.Metadata["fds"].(map[string]any)
 	if ok {
-		values := value.(map[string]any)
 		for k, v := range values {
-			fds[k] = v.(string)
+			fd, ok := v.(string)
+			if ok {
+				fds[k] = fd
+			}
 		}
 	}
 
