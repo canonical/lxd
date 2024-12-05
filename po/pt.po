@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-11-21 15:57-0700\n"
+"POT-Creation-Date: 2024-12-05 16:02+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -60,7 +60,7 @@ msgid ""
 "###   size: \"61203283968\""
 msgstr ""
 
-#: lxc/config.go:1239
+#: lxc/config.go:1240
 msgid ""
 "### This is a YAML representation of the UEFI variables configuration.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -1012,7 +1012,7 @@ msgstr ""
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
-#: lxc/config.go:702 lxc/config.go:1096
+#: lxc/config.go:702 lxc/config.go:1097
 #, c-format
 msgid "Can't unset key '%s', it's not currently set"
 msgstr ""
@@ -1207,7 +1207,7 @@ msgid "Config key/value to apply to the target instance"
 msgstr ""
 
 #: lxc/cluster.go:859 lxc/cluster_group.go:397 lxc/config.go:281
-#: lxc/config.go:356 lxc/config.go:1339 lxc/config_metadata.go:156
+#: lxc/config.go:356 lxc/config.go:1340 lxc/config_metadata.go:156
 #: lxc/config_trust.go:314 lxc/image.go:491 lxc/network.go:759
 #: lxc/network_acl.go:698 lxc/network_forward.go:767
 #: lxc/network_load_balancer.go:738 lxc/network_peer.go:698
@@ -1673,9 +1673,9 @@ msgstr ""
 #: lxc/cluster_group.go:522 lxc/cluster_group.go:607 lxc/cluster_group.go:663
 #: lxc/cluster_group.go:725 lxc/cluster_role.go:24 lxc/cluster_role.go:51
 #: lxc/cluster_role.go:115 lxc/config.go:33 lxc/config.go:100 lxc/config.go:393
-#: lxc/config.go:542 lxc/config.go:772 lxc/config.go:904 lxc/config.go:955
-#: lxc/config.go:995 lxc/config.go:1050 lxc/config.go:1141 lxc/config.go:1172
-#: lxc/config.go:1226 lxc/config_device.go:25 lxc/config_device.go:79
+#: lxc/config.go:542 lxc/config.go:772 lxc/config.go:904 lxc/config.go:956
+#: lxc/config.go:996 lxc/config.go:1051 lxc/config.go:1142 lxc/config.go:1173
+#: lxc/config.go:1227 lxc/config_device.go:25 lxc/config_device.go:79
 #: lxc/config_device.go:229 lxc/config_device.go:326 lxc/config_device.go:409
 #: lxc/config_device.go:511 lxc/config_device.go:627 lxc/config_device.go:634
 #: lxc/config_device.go:767 lxc/config_device.go:852 lxc/config_metadata.go:28
@@ -1690,8 +1690,8 @@ msgstr ""
 #: lxc/file.go:321 lxc/file.go:378 lxc/file.go:456 lxc/file.go:689
 #: lxc/file.go:1208 lxc/image.go:38 lxc/image.go:159 lxc/image.go:337
 #: lxc/image.go:396 lxc/image.go:525 lxc/image.go:697 lxc/image.go:948
-#: lxc/image.go:1091 lxc/image.go:1450 lxc/image.go:1541 lxc/image.go:1607
-#: lxc/image.go:1671 lxc/image.go:1734 lxc/image_alias.go:24
+#: lxc/image.go:1091 lxc/image.go:1445 lxc/image.go:1536 lxc/image.go:1602
+#: lxc/image.go:1666 lxc/image.go:1729 lxc/image_alias.go:24
 #: lxc/image_alias.go:60 lxc/image_alias.go:107 lxc/image_alias.go:152
 #: lxc/image_alias.go:255 lxc/import.go:29 lxc/info.go:33 lxc/init.go:44
 #: lxc/launch.go:24 lxc/list.go:49 lxc/main.go:83 lxc/manpage.go:22
@@ -1952,7 +1952,7 @@ msgstr ""
 msgid "Edit image properties"
 msgstr ""
 
-#: lxc/config.go:1225 lxc/config.go:1226
+#: lxc/config.go:1226 lxc/config.go:1227
 msgid "Edit instance UEFI variables"
 msgstr ""
 
@@ -2499,7 +2499,7 @@ msgstr ""
 msgid "Generating a client certificate. This may take a minute..."
 msgstr ""
 
-#: lxc/config.go:994 lxc/config.go:995
+#: lxc/config.go:995 lxc/config.go:996
 msgid "Get UEFI variables for instance"
 msgstr ""
 
@@ -2507,7 +2507,7 @@ msgstr ""
 msgid "Get a summary of resource allocations"
 msgstr ""
 
-#: lxc/image.go:1606 lxc/image.go:1607
+#: lxc/image.go:1601 lxc/image.go:1602
 msgid "Get image properties"
 msgstr ""
 
@@ -2763,7 +2763,7 @@ msgstr ""
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/main.go:404
+#: lxc/main.go:406
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -2785,7 +2785,7 @@ msgstr ""
 msgid "Ignore the instance state"
 msgstr ""
 
-#: lxc/image.go:1522
+#: lxc/image.go:1517
 msgid "Image already up to date."
 msgstr ""
 
@@ -2801,11 +2801,11 @@ msgstr ""
 msgid "Image exported successfully!"
 msgstr ""
 
-#: lxc/image.go:364 lxc/image.go:1477
+#: lxc/image.go:364 lxc/image.go:1472
 msgid "Image identifier missing"
 msgstr ""
 
-#: lxc/image.go:444 lxc/image.go:1703
+#: lxc/image.go:444 lxc/image.go:1698
 #, c-format
 msgid "Image identifier missing: %s"
 msgstr ""
@@ -2815,7 +2815,7 @@ msgstr ""
 msgid "Image imported with fingerprint: %s"
 msgstr ""
 
-#: lxc/image.go:1520
+#: lxc/image.go:1515
 msgid "Image refreshed successfully!"
 msgstr ""
 
@@ -2901,7 +2901,7 @@ msgstr ""
 msgid "Instance name is: %s"
 msgstr ""
 
-#: lxc/config.go:1020 lxc/config.go:1078 lxc/config.go:1197 lxc/config.go:1289
+#: lxc/config.go:1021 lxc/config.go:1079 lxc/config.go:1198 lxc/config.go:1290
 msgid "Instance name must be specified"
 msgstr ""
 
@@ -2995,7 +2995,7 @@ msgstr ""
 msgid "Invalid new snapshot name, parent volume must be the same as source"
 msgstr ""
 
-#: lxc/main.go:506
+#: lxc/main.go:509
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -3586,7 +3586,7 @@ msgid ""
 "hash or alias name (if one is set)."
 msgstr ""
 
-#: lxc/config.go:954 lxc/config.go:955
+#: lxc/config.go:955 lxc/config.go:956
 msgid "Manage instance UEFI variables"
 msgstr ""
 
@@ -4435,7 +4435,7 @@ msgstr ""
 
 #: lxc/auth.go:307 lxc/auth.go:1208 lxc/auth.go:1869 lxc/cluster.go:860
 #: lxc/cluster_group.go:398 lxc/config.go:282 lxc/config.go:357
-#: lxc/config.go:1340 lxc/config_metadata.go:157 lxc/config_template.go:239
+#: lxc/config.go:1341 lxc/config_metadata.go:157 lxc/config_template.go:239
 #: lxc/config_trust.go:315 lxc/image.go:492 lxc/network.go:760
 #: lxc/network_acl.go:699 lxc/network_forward.go:768
 #: lxc/network_load_balancer.go:739 lxc/network_peer.go:699
@@ -4555,7 +4555,7 @@ msgstr ""
 msgid "Properties:"
 msgstr ""
 
-#: lxc/image.go:1654
+#: lxc/image.go:1649
 msgid "Property not found"
 msgstr ""
 
@@ -4685,7 +4685,7 @@ msgstr ""
 msgid "Query path must start with /"
 msgstr ""
 
-#: lxc/image.go:530 lxc/image.go:951 lxc/image.go:1544
+#: lxc/image.go:530 lxc/image.go:951 lxc/image.go:1539
 msgid "Query virtual machine images"
 msgstr ""
 
@@ -4722,7 +4722,7 @@ msgstr ""
 msgid "Refresh and update the existing storage volume copies"
 msgstr ""
 
-#: lxc/image.go:1449 lxc/image.go:1450
+#: lxc/image.go:1444 lxc/image.go:1445
 msgid "Refresh images"
 msgstr ""
 
@@ -4731,7 +4731,7 @@ msgstr ""
 msgid "Refreshing instance: %s"
 msgstr ""
 
-#: lxc/image.go:1486
+#: lxc/image.go:1481
 #, c-format
 msgid "Refreshing the image: %s"
 msgstr ""
@@ -4939,7 +4939,7 @@ msgstr ""
 msgid "Request a join token for adding a cluster member"
 msgstr ""
 
-#: lxc/config.go:1031
+#: lxc/config.go:1032
 msgid "Requested UEFI variable does not exist"
 msgstr ""
 
@@ -5116,7 +5116,7 @@ msgstr ""
 msgid "Server version: %s\n"
 msgstr ""
 
-#: lxc/config.go:1049 lxc/config.go:1050
+#: lxc/config.go:1050 lxc/config.go:1051
 msgid "Set UEFI variables for instance"
 msgstr ""
 
@@ -5150,7 +5150,7 @@ msgid ""
 "    lxc profile device set [<remote>:]<profile> <device> <key> <value>"
 msgstr ""
 
-#: lxc/image.go:1670 lxc/image.go:1671
+#: lxc/image.go:1665 lxc/image.go:1666
 msgid "Set image properties"
 msgstr ""
 
@@ -5455,11 +5455,11 @@ msgid ""
 "method. Use the identifier instead if this occurs.\n"
 msgstr ""
 
-#: lxc/image.go:1540 lxc/image.go:1541
+#: lxc/image.go:1535 lxc/image.go:1536
 msgid "Show image properties"
 msgstr ""
 
-#: lxc/config.go:1171 lxc/config.go:1172
+#: lxc/config.go:1172 lxc/config.go:1173
 msgid "Show instance UEFI variables"
 msgstr ""
 
@@ -6052,7 +6052,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:410
+#: lxc/main.go:412
 msgid ""
 "To start your first container, try: lxc launch ubuntu:24.04\n"
 "Or for a virtual machine: lxc launch ubuntu:24.04 --vm"
@@ -6231,7 +6231,7 @@ msgstr ""
 msgid "Unknown output type %q"
 msgstr ""
 
-#: lxc/config.go:1140 lxc/config.go:1141
+#: lxc/config.go:1141 lxc/config.go:1142
 msgid "Unset UEFI variables for instance"
 msgstr ""
 
@@ -6247,7 +6247,7 @@ msgstr ""
 msgid "Unset device configuration keys"
 msgstr ""
 
-#: lxc/image.go:1733 lxc/image.go:1734
+#: lxc/image.go:1728 lxc/image.go:1729
 msgid "Unset image properties"
 msgstr ""
 
@@ -6690,15 +6690,15 @@ msgstr ""
 msgid "[<remote>:]<identity_provider_group> <new_name>"
 msgstr ""
 
-#: lxc/image.go:394 lxc/image.go:946 lxc/image.go:1539
+#: lxc/image.go:394 lxc/image.go:946 lxc/image.go:1534
 msgid "[<remote>:]<image>"
 msgstr ""
 
-#: lxc/image.go:1605 lxc/image.go:1732
+#: lxc/image.go:1600 lxc/image.go:1727
 msgid "[<remote>:]<image> <key>"
 msgstr ""
 
-#: lxc/image.go:1669
+#: lxc/image.go:1664
 msgid "[<remote>:]<image> <key> <value>"
 msgstr ""
 
@@ -6718,11 +6718,11 @@ msgstr ""
 msgid "[<remote>:]<image> [<target>]"
 msgstr ""
 
-#: lxc/image.go:334 lxc/image.go:1448
+#: lxc/image.go:334 lxc/image.go:1443
 msgid "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr ""
 
-#: lxc/config.go:1170 lxc/config.go:1224 lxc/config_device.go:329
+#: lxc/config.go:1171 lxc/config.go:1225 lxc/config_device.go:329
 #: lxc/config_device.go:761 lxc/config_metadata.go:54
 #: lxc/config_metadata.go:187 lxc/config_template.go:271 lxc/console.go:38
 msgid "[<remote>:]<instance>"
@@ -6744,11 +6744,11 @@ msgstr ""
 msgid "[<remote>:]<instance> <device> [key=value...]"
 msgstr ""
 
-#: lxc/config.go:993 lxc/config.go:1139
+#: lxc/config.go:994 lxc/config.go:1140
 msgid "[<remote>:]<instance> <key>"
 msgstr ""
 
-#: lxc/config.go:1048
+#: lxc/config.go:1049
 msgid "[<remote>:]<instance> <key>=<value>..."
 msgstr ""
 
@@ -7298,13 +7298,13 @@ msgid ""
 "    Will have LXD listen on IPv4 and IPv6 port 8443."
 msgstr ""
 
-#: lxc/config.go:1228
+#: lxc/config.go:1229
 msgid ""
 "lxc config uefi edit <instance> < instance_uefi_vars.yaml\n"
 "    Set the instance UEFI variables from instance_uefi_vars.yaml."
 msgstr ""
 
-#: lxc/config.go:1052
+#: lxc/config.go:1053
 msgid ""
 "lxc config uefi set [<remote>:]<instance> "
 "testvar-9073e4e0-60ec-4b6e-9903-4c223c260f3c=aabb\n"
