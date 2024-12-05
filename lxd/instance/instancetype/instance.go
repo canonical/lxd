@@ -28,6 +28,12 @@ const (
 // ConfigVolatilePrefix indicates the prefix used for volatile config keys.
 const ConfigVolatilePrefix = "volatile."
 
+// ConfigKeyPrefixesAny indicates valid prefixes for configuration options.
+var ConfigKeyPrefixesAny = []string{"environment.", "user.", "image."}
+
+// ConfigKeyPrefixesContainer indicates valid prefixes for container configuration options.
+var ConfigKeyPrefixesContainer = []string{"linux.sysctl.", "limits.kernel."}
+
 // ValidName validates an instance name. There are different validation rules for instance snapshot names
 // so it takes an argument indicating whether the name is to be used for a snapshot or not.
 func ValidName(instanceName string, isSnapshot bool) error {
