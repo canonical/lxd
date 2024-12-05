@@ -121,6 +121,7 @@ type pureStoragePool struct {
 type pureVolume struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
+	Serial      string `json:"serial"`
 	IsDestroyed bool   `json:"destroyed"`
 }
 
@@ -128,13 +129,14 @@ type pureVolume struct {
 type pureHost struct {
 	Name            string   `json:"name"`
 	IQNs            []string `json:"iqns"`
+	NQNs            []string `json:"nqns"`
 	ConnectionCount int      `json:"connection_count"`
 }
 
 // pureTarget represents a target in PureStorage.
-// Note: Expand this struct if more fields, such as NQN, are needed in the future.
 type pureTarget struct {
 	IQN    *string `json:"iqn"`
+	NQN    *string `json:"nqn"`
 	Portal *string `json:"portal"`
 }
 
@@ -545,6 +547,22 @@ func (p *pureClient) getHostByIQN(iqn string) (*pureHost, error) {
 	return nil, api.StatusErrorf(http.StatusNotFound, "Host with IQN %q not found", iqn)
 }
 
+// getHostByNQN retrieves an existing host that is configured with the given NQN.
+func (p *pureClient) getHostByNQN(nqn string) (*pureHost, error) {
+	hosts, err := p.getHosts()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, host := range hosts {
+		if slices.Contains(host.NQNs, nqn) {
+			return &host, nil
+		}
+	}
+
+	return nil, api.StatusErrorf(http.StatusNotFound, "Host with NQN %q not found", nqn)
+}
+
 // createHost creates a new host with provided initiator qualified names that can be associated
 // with specific volumes.
 func (p *pureClient) createHost(hostName string, qns []string) error {
@@ -553,6 +571,8 @@ func (p *pureClient) createHost(hostName string, qns []string) error {
 	switch p.driver.config["pure.mode"] {
 	case pureModeISCSI:
 		body["iqns"] = qns
+	case pureModeNVMe:
+		body["nqns"] = qns
 	}
 
 	req, err := p.createBodyReader(body)
@@ -580,6 +600,8 @@ func (p *pureClient) updateHost(hostName string, qns []string) error {
 	switch p.driver.config["pure.mode"] {
 	case pureModeISCSI:
 		body["iqns"] = qns
+	case pureModeNVMe:
+		body["nqns"] = qns
 	}
 
 	req, err := p.createBodyReader(body)
@@ -718,6 +740,41 @@ func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
 			// Hostname already exists with the given IQN.
 			hostname = host.Name
 		}
+
+	case pureModeNVMe:
+		nqn := d.hostNQN()
+
+		// Fetch the host by NQN.
+		host, err := d.client().getHostByNQN(nqn)
+		if err != nil {
+			if !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return "", nil, err
+			}
+
+			// The host with a given NQN does not exist, therefore, create a new one.
+			hostname, err = d.serverName()
+			if err != nil {
+				return "", nil, err
+			}
+
+			err = d.client().createHost(hostname, []string{nqn})
+			if err != nil {
+				if !api.StatusErrorCheck(err, http.StatusConflict) {
+					return "", nil, err
+				}
+
+				// The host with the given name already exists, update it instead.
+				err = d.client().updateHost(hostname, []string{nqn})
+				if err != nil {
+					return "", nil, err
+				}
+			} else {
+				revert.Add(func() { _ = d.client().deleteHost(hostname) })
+			}
+		} else {
+			// Hostname already exists with the given NQN.
+			hostname = host.Name
+		}
 	}
 
 	cleanup = revert.Clone().Fail
@@ -767,6 +824,31 @@ func (d *pure) connect() (revert.Hook, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Failed to connect to PureStorage array %q via iSCSI: %s\n%v", targetAddr, stderr, err)
 		}
+
+	case pureModeNVMe:
+		targetNQN := *target.NQN
+		targetAddr := d.config["pure.array.address"]
+
+		// Try to find an existing NVMe session.
+		activeTargetNQN, err := nvmeFindSession(targetNQN)
+		if err != nil {
+			return nil, err
+		}
+
+		if activeTargetNQN != "" {
+			// Already connected to the PureStorage array via NVMe.
+			cleanup := revert.Clone().Fail
+			revert.Success()
+			return cleanup, nil
+		}
+
+		hostNQN := d.hostNQN()
+
+		serverUUID := d.state.ServerUUID
+		_, stderr, err := shared.RunCommandSplit(d.state.ShutdownCtx, nil, nil, "nvme", "connect", "--transport", "tcp", "--traddr", targetAddr, "--nqn", targetNQN, "--hostnqn", hostNQN, "--hostid", serverUUID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to connect to PureStorage array %q via NVMe: %s\n%w", targetAddr, stderr, err)
+		}
 	}
 
 	revert.Add(func() { _ = d.disconnect(*target) })
@@ -792,6 +874,20 @@ func (d *pure) disconnect(target pureTarget) error {
 			_, err := shared.RunCommand("iscsiadm", "--mode", "node", "--targetname", targetIQN, "--logout")
 			if err != nil {
 				return fmt.Errorf("Failed disconnecting from PureStorage iSCSI target %q: %w", targetIQN, err)
+			}
+		}
+
+	case pureModeNVMe:
+		targetNQN, err := nvmeFindSession(*target.NQN)
+		if err != nil {
+			return err
+		}
+
+		if targetNQN != "" {
+			// Disconnect from the NVMe target.
+			_, err := shared.RunCommand("nvme", "disconnect", "--nqn", targetNQN)
+			if err != nil {
+				return fmt.Errorf("Failed disconnecting from PureStorage NVMe target %q: %w", targetNQN, err)
 			}
 		}
 	}
@@ -873,6 +969,12 @@ func (d *pure) unmapVolume(vol Volume) error {
 		}
 
 		host, err = d.client().getHostByIQN(iqn)
+		if err != nil {
+			return err
+		}
+
+	case pureModeNVMe:
+		host, err = d.client().getHostByNQN(d.hostNQN())
 		if err != nil {
 			return err
 		}
@@ -1001,6 +1103,22 @@ func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook
 	case pureModeISCSI:
 		diskPrefix = "scsi-"
 		diskSuffix = fmt.Sprintf("%s::%s", vol.pool, volName)
+	case pureModeNVMe:
+		diskPrefix = "nvme-eui."
+
+		pureVol, err := d.client().getVolume(vol.pool, volName)
+		if err != nil {
+			return "", nil, err
+		}
+
+		if len(pureVol.Serial) <= 10 {
+			// Invalid serial number.
+			return "", nil, fmt.Errorf("Failed to locate device for volume %q: Invalid serial number %q", vol.name, pureVol.Serial)
+		}
+
+		// Extract the last 10 characters of the serial number. Also convert
+		// to lower case, as on host the device ID is completely lower case.
+		diskSuffix = strings.ToLower(pureVol.Serial[len(pureVol.Serial)-10:])
 	}
 
 	timeout := time.Now().Add(15 * time.Second)
@@ -1081,6 +1199,41 @@ func iscsiFindSession(iqn string) (string, error) {
 	return "", nil
 }
 
+// nvmeFindSession returns the given NQN if it corresponds to an existing session.
+// If the session is not found, an empty string is returned.
+func nvmeFindSession(nqn string) (string, error) {
+	// Base path for NVMe sessions/subsystems.
+	basePath := "/sys/devices/virtual/nvme-subsystem"
+
+	// Retrieve list of existing NVMe sessions on this host.
+	directories, err := os.ReadDir(basePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// No active sessions because NVMe subsystems directory does not exist.
+			return "", nil
+		}
+
+		return "", fmt.Errorf("Failed getting a list of existing NVMe subsystems: %w", err)
+	}
+
+	for _, directory := range directories {
+		subsystemName := directory.Name()
+
+		// Get the target NQN.
+		nqnBytes, err := os.ReadFile(filepath.Join(basePath, subsystemName, "subsysnqn"))
+		if err != nil {
+			return "", fmt.Errorf("Failed getting the target NQN for subystem %q: %w", subsystemName, err)
+		}
+
+		if strings.Contains(string(nqnBytes), nqn) {
+			// Already connected to the PureStorage array via NVMe.
+			return nqn, nil
+		}
+	}
+
+	return "", nil
+}
+
 // hostIQN returns the unique iSCSI Qualified Name (IQN) of the host. A custom one is generated
 // from the servers UUID since getting the IQN from /etc/iscsi/initiatorname.iscsi would require
 // the iscsiadm to be installed on the host.
@@ -1105,6 +1258,13 @@ func (d *pure) hostIQN() (string, error) {
 	}
 
 	return "", fmt.Errorf(`Failed to extract host IQN: File %q does not contain "InitiatorName"`, filename)
+}
+
+// getHostNQN returns the unique NVMe qualified name (NQN) for the current host.
+// A custom one is generated from the servers UUID because getting the nqn from
+// /etc/nvme/hostnqn requires the nvme-cli package to be installed on the host.
+func (d *pure) hostNQN() string {
+	return fmt.Sprintf("nqn.2014-08.org.nvmexpress:uuid:%s", d.state.ServerUUID)
 }
 
 // serverName returns the hostname of this host. It prefers the value from the daemons state
@@ -1150,6 +1310,18 @@ func (d *pure) getVolumeName(vol Volume) (string, error) {
 	}
 
 	return volName, nil
+}
+
+// loadNVMeModules loads the NVMe/TCP kernel modules.
+// Returns true if the modules can be loaded.
+func (d *pure) loadNVMeModules() bool {
+	err := util.LoadModule("nvme_fabrics")
+	if err != nil {
+		return false
+	}
+
+	err = util.LoadModule("nvme_tcp")
+	return err == nil
 }
 
 // loadISCSIModules loads the iSCSI kernel modules.

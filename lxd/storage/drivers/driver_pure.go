@@ -23,6 +23,7 @@ var pureVersion = ""
 // PureStorage modes.
 const (
 	pureModeISCSI = "iscsi"
+	pureModeNVMe  = "nvme-tcp"
 )
 
 type pure struct {
@@ -61,6 +62,23 @@ func (d *pure) load() error {
 		// Support for the PureStorage mode is checked during pool creation. However, this
 		// ensures that the kernel modules are loaded, even if the host has been rebooted.
 		_ = d.loadISCSIModules()
+	case pureModeNVMe:
+		// Detect and record the version of the NVMe CLI.
+		// The NVMe CLI is shipped with the snap.
+		out, err := shared.RunCommand("nvme", "version")
+		if err != nil {
+			return fmt.Errorf("Failed to get nvme-cli version: %w", err)
+		}
+
+		fields := strings.Split(strings.TrimSpace(out), " ")
+		if strings.HasPrefix(out, "nvme version ") && len(fields) > 2 {
+			powerFlexVersion = fmt.Sprintf("%s (nvme-cli)", fields[2])
+		}
+
+		// Load the NVMe and kernel modules, ignoring those that cannot be loaded.
+		// Support for the PureStorage mode is checked during pool creation. However, this
+		// ensures that the kernel modules are loaded, even if the host has been rebooted.
+		_ = d.loadNVMeModules()
 	}
 
 	pureLoaded = true
@@ -102,9 +120,9 @@ func (d *pure) Info() Info {
 
 // FillConfig populates the storage pool's configuration file with the default values.
 func (d *pure) FillConfig() error {
-	// Use iSCSI by default.
+	// Use NVMe by default.
 	if d.config["pure.mode"] == "" {
-		d.config["pure.mode"] = pureModeISCSI
+		d.config["pure.mode"] = pureModeNVMe
 	}
 
 	return nil
@@ -140,7 +158,7 @@ func (d *pure) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: the discovered mode
 		//  shortdesc: How volumes are mapped to the local server
-		"pure.mode": validate.Optional(validate.IsOneOf(pureModeISCSI)),
+		"pure.mode": validate.Optional(validate.IsOneOf(pureModeISCSI, pureModeNVMe)),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.array.address)
 		//
 		// ---
@@ -168,13 +186,23 @@ func (d *pure) Validate(config map[string]string) error {
 	// on the other cluster members too. This can be done here since Validate
 	// gets executed on every cluster member when receiving the cluster
 	// notification to finally create the pool.
-	if config["pure.mode"] == pureModeISCSI {
+	switch config["pure.mode"] {
+	case pureModeISCSI:
 		if !d.loadISCSIModules() {
 			return fmt.Errorf("iSCSI is not supported")
 		}
 
 		if config["pure.array.address"] == "" {
 			return fmt.Errorf("The pure.array.address must be set when mode is set to iSCSI")
+		}
+
+	case pureModeNVMe:
+		if !d.loadNVMeModules() {
+			return fmt.Errorf("NVMe is not supported")
+		}
+
+		if config["pure.array.address"] == "" {
+			return fmt.Errorf("The pure.array.address must be set when mode is set to NVMe")
 		}
 	}
 
@@ -194,6 +222,8 @@ func (d *pure) Create() error {
 
 	switch d.config["pure.mode"] {
 	case pureModeISCSI:
+		// Nothing to do here (yet).
+	case pureModeNVMe:
 		// Nothing to do here (yet).
 	default:
 		return fmt.Errorf("Unsupported PureStorage mode %q", d.config["pure.mode"])
