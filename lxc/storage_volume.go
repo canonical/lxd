@@ -218,7 +218,7 @@ func (c *cmdStorageVolumeAttach) run(cmd *cobra.Command, args []string) error {
 	devPath := ""
 	devName := ""
 	if len(args) == 3 {
-		devName = args[1]
+		devName = volName
 	} else if len(args) == 4 {
 		client := resource.server
 
@@ -242,7 +242,7 @@ func (c *cmdStorageVolumeAttach) run(cmd *cobra.Command, args []string) error {
 				devPath = args[3]
 			}
 
-			devName = args[1]
+			devName = volName
 		default:
 			return errors.New(i18n.G("Unsupported content type for attaching to instances"))
 		}
@@ -323,24 +323,24 @@ func (c *cmdStorageVolumeAttachProfile) run(cmd *cobra.Command, args []string) e
 		return errors.New(i18n.G("Missing pool name"))
 	}
 
+	volName, volType := parseVolume("custom", args[1])
+	if volType != "custom" {
+		return errors.New(i18n.G(`Only "custom" volumes can be attached to instances`))
+	}
+
 	// Attach the volume
 	devPath := ""
 	devName := ""
 	if len(args) == 3 {
-		devName = args[1]
+		devName = volName
 	} else if len(args) == 4 {
 		// Only the path has been given to us.
 		devPath = args[3]
-		devName = args[1]
+		devName = volName
 	} else if len(args) == 5 {
 		// Path and device name have been given to us.
 		devName = args[3]
 		devPath = args[4]
-	}
-
-	volName, volType := parseVolume("custom", args[1])
-	if volType != "custom" {
-		return errors.New(i18n.G("Only \"custom\" volumes can be attached to instances"))
 	}
 
 	// Check if the requested storage volume actually exists
