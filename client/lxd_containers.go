@@ -228,7 +228,7 @@ func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) 
 // CreateContainerFromImage is a convenience function to make it easier to create a container from an existing image.
 func (r *ProtocolLXD) CreateContainerFromImage(source ImageServer, image api.Image, req api.ContainersPost) (RemoteOperation, error) {
 	// Set the minimal source fields
-	req.Source.Type = "image"
+	req.Source.Type = api.SourceTypeImage
 
 	// Optimization for the local image case
 	if r.isSameServer(source) {
@@ -372,7 +372,7 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 		}
 
 		// Local copy source fields
-		req.Source.Type = "copy"
+		req.Source.Type = api.SourceTypeCopy
 		req.Source.Source = container.Name
 
 		// Copy the container
@@ -411,7 +411,7 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 		}
 
 		// Create the container
-		req.Source.Type = "migration"
+		req.Source.Type = api.SourceTypeMigration
 		req.Source.Mode = "push"
 		req.Source.Refresh = args.Refresh
 
@@ -458,7 +458,7 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 	// Relay mode migration
 	if args != nil && args.Mode == "relay" {
 		// Push copy source fields
-		req.Source.Type = "migration"
+		req.Source.Type = api.SourceTypeMigration
 		req.Source.Mode = "push"
 
 		// Start the process
@@ -497,7 +497,7 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 	}
 
 	// Pull mode migration
-	req.Source.Type = "migration"
+	req.Source.Type = api.SourceTypeMigration
 	req.Source.Mode = "pull"
 	req.Source.Operation = opAPI.ID
 	req.Source.Websockets = sourceSecrets
@@ -1075,7 +1075,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 		}
 
 		// Local copy source fields
-		req.Source.Type = "copy"
+		req.Source.Type = api.SourceTypeCopy
 		req.Source.Source = fmt.Sprintf("%s/%s", cName, sName)
 
 		// Copy the container
@@ -1117,7 +1117,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 		}
 
 		// Create the container
-		req.Source.Type = "migration"
+		req.Source.Type = api.SourceTypeMigration
 		req.Source.Mode = "push"
 
 		op, err := r.CreateContainer(req)
@@ -1163,7 +1163,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 	// Relay mode migration
 	if args != nil && args.Mode == "relay" {
 		// Push copy source fields
-		req.Source.Type = "migration"
+		req.Source.Type = api.SourceTypeMigration
 		req.Source.Mode = "push"
 
 		// Start the process
@@ -1202,7 +1202,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 	}
 
 	// Pull mode migration
-	req.Source.Type = "migration"
+	req.Source.Type = api.SourceTypeMigration
 	req.Source.Mode = "pull"
 	req.Source.Operation = opAPI.ID
 	req.Source.Websockets = sourceSecrets

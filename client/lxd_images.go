@@ -911,7 +911,7 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 			},
 			Fingerprint: image.Fingerprint,
 			Mode:        "pull",
-			Type:        "image",
+			Type:        api.SourceTypeImage,
 			Project:     info.Project,
 		},
 		ImagePut: api.ImagePut{

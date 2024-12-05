@@ -924,7 +924,7 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 		}
 
 		// Local copy source fields
-		req.Source.Type = "copy"
+		req.Source.Type = api.SourceTypeCopy
 		req.Source.Source = instance.Name
 
 		// Copy the instance
@@ -965,7 +965,7 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 		}
 
 		// Create the instance
-		req.Source.Type = "migration"
+		req.Source.Type = api.SourceTypeMigration
 		req.Source.Mode = "push"
 		req.Source.Refresh = args.Refresh
 
@@ -1022,7 +1022,7 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 	// Relay mode migration
 	if args != nil && args.Mode == "relay" {
 		// Push copy source fields
-		req.Source.Type = "migration"
+		req.Source.Type = api.SourceTypeMigration
 		req.Source.Mode = "push"
 
 		// Start the process
@@ -1066,7 +1066,7 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 	}
 
 	// Pull mode migration
-	req.Source.Type = "migration"
+	req.Source.Type = api.SourceTypeMigration
 	req.Source.Mode = "pull"
 	req.Source.Operation = opAPI.ID
 	req.Source.Websockets = sourceSecrets
@@ -2008,7 +2008,7 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 		}
 
 		// Local copy source fields
-		req.Source.Type = "copy"
+		req.Source.Type = api.SourceTypeCopy
 		req.Source.Source = fmt.Sprintf("%s/%s", cName, sName)
 
 		// Copy the instance
@@ -2060,7 +2060,7 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 		}
 
 		// Create the instance
-		req.Source.Type = "migration"
+		req.Source.Type = api.SourceTypeMigration
 		req.Source.Mode = "push"
 
 		op, err := r.CreateInstance(req)
@@ -2116,7 +2116,7 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 	// Relay mode migration
 	if args != nil && args.Mode == "relay" {
 		// Push copy source fields
-		req.Source.Type = "migration"
+		req.Source.Type = api.SourceTypeMigration
 		req.Source.Mode = "push"
 
 		// Start the process
@@ -2160,7 +2160,7 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 	}
 
 	// Pull mode migration
-	req.Source.Type = "migration"
+	req.Source.Type = api.SourceTypeMigration
 	req.Source.Mode = "pull"
 	req.Source.Operation = opAPI.ID
 	req.Source.Websockets = sourceSecrets
