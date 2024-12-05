@@ -381,7 +381,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 	req := api.ContainersPost{
 		Name: container.Name(),
 		Source: api.ContainerSource{
-			Type: "migration",
+			Type: api.SourceTypeMigration,
 			Mode: "push",
 		},
 	}
