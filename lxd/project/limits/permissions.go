@@ -107,7 +107,7 @@ func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx,
 	// Special case restriction checks on volatile.* keys.
 	strip := false
 
-	if shared.ValueInSlice(req.Source.Type, []string{"copy", "migration"}) {
+	if shared.ValueInSlice(req.Source.Type, []string{api.SourceTypeCopy, api.SourceTypeMigration}) {
 		// Allow stripping volatile keys if dealing with a copy or migration.
 		strip = true
 	}

@@ -1101,7 +1101,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		profileProject := project.ProfileProjectFromRecord(targetProject)
 
 		switch req.Source.Type {
-		case "copy":
+		case api.SourceTypeCopy:
 			if req.Source.Source == "" {
 				return api.StatusErrorf(http.StatusBadRequest, "Must specify a source instance")
 			}
@@ -1130,7 +1130,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-		case "image":
+		case api.SourceTypeImage:
 			// Check if the image has an entry in the database but fail only if the error
 			// is different than the image not being found.
 			sourceImage, err = getSourceImageFromInstanceSource(ctx, s, tx, targetProject.Name, req.Source, &sourceImageRef, string(req.Type))
@@ -1339,15 +1339,15 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	switch req.Source.Type {
-	case "image":
+	case api.SourceTypeImage:
 		return createFromImage(s, r, *targetProject, profiles, sourceImage, sourceImageRef, &req)
-	case "none":
+	case api.SourceTypeNone:
 		return createFromNone(s, r, targetProjectName, profiles, &req)
-	case "migration":
+	case api.SourceTypeMigration:
 		return createFromMigration(s, r, targetProjectName, profiles, &req)
-	case "conversion":
+	case api.SourceTypeConversion:
 		return createFromConversion(s, r, targetProjectName, profiles, &req)
-	case "copy":
+	case api.SourceTypeCopy:
 		return createFromCopy(s, r, targetProjectName, profiles, &req)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %s", req.Source.Type))
@@ -1507,7 +1507,7 @@ func clusterCopyContainerInternal(s *state.State, r *http.Request, source instan
 	}
 
 	// Reset the source for a migration
-	req.Source.Type = "migration"
+	req.Source.Type = api.SourceTypeMigration
 	req.Source.Certificate = string(s.Endpoints.NetworkCert().PublicKey())
 	req.Source.Mode = "pull"
 	req.Source.Operation = fmt.Sprintf("https://%s/%s/operations/%s", nodeAddress, version.APIVersion, opAPI.ID)
