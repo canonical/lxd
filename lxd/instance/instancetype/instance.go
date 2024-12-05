@@ -1280,25 +1280,11 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		}
 	}
 
-	if strings.HasPrefix(key, "environment.") {
+	if shared.StringHasPrefix(key, ConfigKeyPrefixesContainer...) {
 		return validate.IsAny, nil
 	}
 
-	if strings.HasPrefix(key, "user.") {
-		return validate.IsAny, nil
-	}
-
-	if strings.HasPrefix(key, "image.") {
-		return validate.IsAny, nil
-	}
-
-	if strings.HasPrefix(key, "limits.kernel.") &&
-		(len(key) > len("limits.kernel.")) {
-		return validate.IsAny, nil
-	}
-
-	if (instanceType == Any || instanceType == Container) &&
-		strings.HasPrefix(key, "linux.sysctl.") {
+	if shared.StringHasPrefix(key, ConfigKeyPrefixesAny...) {
 		return validate.IsAny, nil
 	}
 
