@@ -8,6 +8,7 @@
 :diataxis:/daemon-behavior
 :diataxis:/syscall-interception
 :diataxis:User namespace setup </userns-idmap>
+:diataxis:OVN implementation details </reference/ovn-internals>
 ```
 
 ## Related topics
