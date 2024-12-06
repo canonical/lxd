@@ -1,5 +1,5 @@
 ---
-discourse: 11296
+discourse: lxc:11296
 ---
 
 (disaster-recovery)=

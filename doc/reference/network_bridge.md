@@ -1,5 +1,5 @@
 ---
-discourse: 7322
+discourse: lxc:7322
 ---
 
 (network-bridge)=

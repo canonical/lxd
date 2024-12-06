@@ -1,5 +1,5 @@
 ---
-discourse: 7735
+discourse: lxc:7735
 ---
 
 (storage)=
