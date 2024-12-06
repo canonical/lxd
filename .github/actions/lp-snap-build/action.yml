@@ -22,7 +22,7 @@ runs:
         # In ephemeral environments like GitHub Action runners, relying on TOFU isn't providing any security
         # so require the key obtained by `ssh-keyscan` to match the expected hash from https://help.launchpad.net/SSHFingerprints
         ssh-keyscan git.launchpad.net >> ~/.ssh/known_hosts
-        ssh-keygen -qlF git.launchpad.net | grep -xF 'git.launchpad.net RSA SHA256:UNOzlP66WpDuEo34Wgs8mewypV0UzqHLsIFoqwe8dYo'
+        [ "$(ssh-keygen -qlF git.launchpad.net)" = 'git.launchpad.net RSA SHA256:UNOzlP66WpDuEo34Wgs8mewypV0UzqHLsIFoqwe8dYo' ]
 
     - name: Configure Git
       shell: bash
