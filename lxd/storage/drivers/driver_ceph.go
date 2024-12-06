@@ -92,6 +92,7 @@ func (d *ceph) Info() Info {
 		DirectIO:                     true,
 		IOUring:                      true,
 		MountedRoot:                  false,
+		PopulateParentVolumeUUID:     false,
 	}
 }
 
