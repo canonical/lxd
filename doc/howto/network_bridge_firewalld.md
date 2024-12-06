@@ -1,5 +1,5 @@
 ---
-discourse: 10034,9953
+discourse: lxc:10034,lxc:9953
 ---
 
 (network-bridge-firewall)=
