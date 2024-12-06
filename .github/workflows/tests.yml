@@ -667,11 +667,26 @@ jobs:
 
       - uses: ./.github/actions/lp-snap-build
         with:
-          package-name: "lxd"
-          target-repo: "git+ssh://lxdbot@git.launchpad.net/~canonical-lxd/lxd"
-          target-branch: >-
+          ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}"
+
+      - name: Trigger Launchpad snap build
+        env:
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+          PACKAGE: "lxd"
+          REPO: "git+ssh://lxdbot@git.launchpad.net/~canonical-lxd/lxd"
+          BRANCH: >-
             ${{ fromJson('{
               "main": "latest-edge",
               "stable-5.21": "5.21-edge",
               "stable-5.0": "5.0-edge",
             }')[github.ref_name] }}
+        run: |
+          set -eux
+          localRev="$(git rev-parse HEAD)"
+          git clone --depth 1 -b "${BRANCH}" "${REPO}" ~/"${PACKAGE}-pkg-snap-lp"
+          cd ~/"${PACKAGE}-pkg-snap-lp"
+          lxd-snapcraft -package "${PACKAGE}" -set-version "git-${localRev:0:7}" -set-source-commit "${localRev}"
+          git add --all
+          git commit --all --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
+          git show
+          git push --quiet
