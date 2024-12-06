@@ -1,5 +1,5 @@
 ---
-discourse: 13114,15142
+discourse: lxc:13114,lxc:15142
 relatedlinks: https://www.youtube.com/watch?v=6O0q3rSWr8A
 ---
 

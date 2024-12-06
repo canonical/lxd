@@ -1,5 +1,5 @@
 ---
-discourse: 12165
+discourse: lxc:12165
 ---
 
 (network-ovn-peers)=

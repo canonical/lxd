@@ -1,5 +1,5 @@
 ---
-discourse: 11801
+discourse: lxc:11801
 ---
 
 (network-forwards)=

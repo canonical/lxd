@@ -1,5 +1,5 @@
 ---
-discourse: 1333
+discourse: lxc:1333
 ---
 
 (howto-storage-pools)=

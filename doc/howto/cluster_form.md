@@ -1,5 +1,5 @@
 ---
-discourse: 15871
+discourse: lxc:15871
 ---
 
 (cluster-form)=

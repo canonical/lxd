@@ -1,5 +1,5 @@
 ---
-discourse: 11330
+discourse: lxc:11330
 ---
 
 (cluster-manage)=

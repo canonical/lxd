@@ -1,5 +1,5 @@
 ---
-discourse: 12716
+discourse: lxc:12716
 ---
 
 (howto-cluster-groups)=
