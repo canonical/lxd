@@ -1446,6 +1446,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 
 	meta := map[string]any{
 		"serverName":  req.ServerName, // Add server name to allow validation of name during join process.
+		"server_name":  req.ServerName, // Add server_name so the metadata returned can be base64 encode and then used
 		"secret":      joinSecret,
 		"fingerprint": fingerprint,
 		"addresses":   onlineNodeAddresses,
