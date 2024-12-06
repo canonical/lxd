@@ -27,6 +27,23 @@ const InstanceTypeContainer = InstanceType("container")
 // InstanceTypeVM defines the instance type value for a virtual-machine.
 const InstanceTypeVM = InstanceType("virtual-machine")
 
+const (
+	// SourceTypeMigration represents instance creation from migration.
+	SourceTypeMigration = "migration"
+
+	// SourceTypeConversion represents instance creation from conversion.
+	SourceTypeConversion = "conversion"
+
+	// SourceTypeImage represents instance creation from an image.
+	SourceTypeImage = "image"
+
+	// SourceTypeCopy represents instance creation from a copy operation.
+	SourceTypeCopy = "copy"
+
+	// SourceTypeNone represents an unknown source type for instance creation.
+	SourceTypeNone = "none"
+)
+
 // InstancesPost represents the fields available for a new LXD instance.
 //
 // swagger:model

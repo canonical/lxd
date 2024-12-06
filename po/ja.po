@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-11-21 15:57-0700\n"
+"POT-Creation-Date: 2024-12-05 16:02+0000\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -95,7 +95,7 @@ msgstr ""
 "### config:\n"
 "###   size: \"61203283968\""
 
-#: lxc/config.go:1239
+#: lxc/config.go:1240
 msgid ""
 "### This is a YAML representation of the UEFI variables configuration.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -1280,7 +1280,7 @@ msgstr "クラスタでない場合はカラムとして L は指定できませ
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
 
-#: lxc/config.go:702 lxc/config.go:1096
+#: lxc/config.go:702 lxc/config.go:1097
 #, c-format
 msgid "Can't unset key '%s', it's not currently set"
 msgstr "キー '%s' が設定されていないので削除できません"
@@ -1484,7 +1484,7 @@ msgid "Config key/value to apply to the target instance"
 msgstr "移動先のインスタンスに適用するキー/値の設定"
 
 #: lxc/cluster.go:859 lxc/cluster_group.go:397 lxc/config.go:281
-#: lxc/config.go:356 lxc/config.go:1339 lxc/config_metadata.go:156
+#: lxc/config.go:356 lxc/config.go:1340 lxc/config_metadata.go:156
 #: lxc/config_trust.go:314 lxc/image.go:491 lxc/network.go:759
 #: lxc/network_acl.go:698 lxc/network_forward.go:767
 #: lxc/network_load_balancer.go:738 lxc/network_peer.go:698
@@ -1977,9 +1977,9 @@ msgstr "警告を削除します"
 #: lxc/cluster_group.go:522 lxc/cluster_group.go:607 lxc/cluster_group.go:663
 #: lxc/cluster_group.go:725 lxc/cluster_role.go:24 lxc/cluster_role.go:51
 #: lxc/cluster_role.go:115 lxc/config.go:33 lxc/config.go:100 lxc/config.go:393
-#: lxc/config.go:542 lxc/config.go:772 lxc/config.go:904 lxc/config.go:955
-#: lxc/config.go:995 lxc/config.go:1050 lxc/config.go:1141 lxc/config.go:1172
-#: lxc/config.go:1226 lxc/config_device.go:25 lxc/config_device.go:79
+#: lxc/config.go:542 lxc/config.go:772 lxc/config.go:904 lxc/config.go:956
+#: lxc/config.go:996 lxc/config.go:1051 lxc/config.go:1142 lxc/config.go:1173
+#: lxc/config.go:1227 lxc/config_device.go:25 lxc/config_device.go:79
 #: lxc/config_device.go:229 lxc/config_device.go:326 lxc/config_device.go:409
 #: lxc/config_device.go:511 lxc/config_device.go:627 lxc/config_device.go:634
 #: lxc/config_device.go:767 lxc/config_device.go:852 lxc/config_metadata.go:28
@@ -1994,8 +1994,8 @@ msgstr "警告を削除します"
 #: lxc/file.go:321 lxc/file.go:378 lxc/file.go:456 lxc/file.go:689
 #: lxc/file.go:1208 lxc/image.go:38 lxc/image.go:159 lxc/image.go:337
 #: lxc/image.go:396 lxc/image.go:525 lxc/image.go:697 lxc/image.go:948
-#: lxc/image.go:1091 lxc/image.go:1450 lxc/image.go:1541 lxc/image.go:1607
-#: lxc/image.go:1671 lxc/image.go:1734 lxc/image_alias.go:24
+#: lxc/image.go:1091 lxc/image.go:1445 lxc/image.go:1536 lxc/image.go:1602
+#: lxc/image.go:1666 lxc/image.go:1729 lxc/image_alias.go:24
 #: lxc/image_alias.go:60 lxc/image_alias.go:107 lxc/image_alias.go:152
 #: lxc/image_alias.go:255 lxc/import.go:29 lxc/info.go:33 lxc/init.go:44
 #: lxc/launch.go:24 lxc/list.go:49 lxc/main.go:83 lxc/manpage.go:22
@@ -2268,7 +2268,7 @@ msgstr "プロファイル設定をYAMLで編集します"
 msgid "Edit image properties"
 msgstr "イメージのプロパティを編集します"
 
-#: lxc/config.go:1225 lxc/config.go:1226
+#: lxc/config.go:1226 lxc/config.go:1227
 #, fuzzy
 msgid "Edit instance UEFI variables"
 msgstr "インスタンスのメタデータファイルを編集します"
@@ -2858,7 +2858,7 @@ msgstr "すべてのコマンドに対する man ページを作成します"
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "クライアント証明書を生成します。1分ぐらいかかります..."
 
-#: lxc/config.go:994 lxc/config.go:995
+#: lxc/config.go:995 lxc/config.go:996
 #, fuzzy
 msgid "Get UEFI variables for instance"
 msgstr "インスタンスからファイルをマウントします"
@@ -2867,7 +2867,7 @@ msgstr "インスタンスからファイルをマウントします"
 msgid "Get a summary of resource allocations"
 msgstr "リソース割当の状況を表示します"
 
-#: lxc/image.go:1606 lxc/image.go:1607
+#: lxc/image.go:1601 lxc/image.go:1602
 msgid "Get image properties"
 msgstr "イメージのプロパティを取得します"
 
@@ -3138,7 +3138,7 @@ msgstr ""
 "存在するスナップショット名の場合は既存のスナップショットを削除したあとに新し"
 "いスナップショットを作成します"
 
-#: lxc/main.go:404
+#: lxc/main.go:406
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -3160,7 +3160,7 @@ msgstr "コピー中にファイルが更新された場合のエラーを無視
 msgid "Ignore the instance state"
 msgstr "インスタンスの状態を無視します"
 
-#: lxc/image.go:1522
+#: lxc/image.go:1517
 msgid "Image already up to date."
 msgstr "イメージは更新済みです。"
 
@@ -3176,11 +3176,11 @@ msgstr "イメージの失効日（フォーマット: rfc3339）"
 msgid "Image exported successfully!"
 msgstr "イメージのエクスポートが成功しました!"
 
-#: lxc/image.go:364 lxc/image.go:1477
+#: lxc/image.go:364 lxc/image.go:1472
 msgid "Image identifier missing"
 msgstr "イメージ名を指定してください"
 
-#: lxc/image.go:444 lxc/image.go:1703
+#: lxc/image.go:444 lxc/image.go:1698
 #, c-format
 msgid "Image identifier missing: %s"
 msgstr "イメージ名を指定してください: %s"
@@ -3190,7 +3190,7 @@ msgstr "イメージ名を指定してください: %s"
 msgid "Image imported with fingerprint: %s"
 msgstr "イメージは以下のフィンガープリントでインポートされました: %s"
 
-#: lxc/image.go:1520
+#: lxc/image.go:1515
 msgid "Image refreshed successfully!"
 msgstr "イメージの更新が成功しました!"
 
@@ -3284,7 +3284,7 @@ msgstr "インスタンス名を指定する必要があります"
 msgid "Instance name is: %s"
 msgstr "インスタンス名: %s"
 
-#: lxc/config.go:1020 lxc/config.go:1078 lxc/config.go:1197 lxc/config.go:1289
+#: lxc/config.go:1021 lxc/config.go:1079 lxc/config.go:1198 lxc/config.go:1290
 #, fuzzy
 msgid "Instance name must be specified"
 msgstr "インスタンス名: %s"
@@ -3387,7 +3387,7 @@ msgstr ""
 "新しいスナップショット名が不正です。親のボリュームはソースと同じでなければな"
 "りません"
 
-#: lxc/main.go:506
+#: lxc/main.go:509
 msgid "Invalid number of arguments"
 msgstr "引数の数が不正です"
 
@@ -4141,7 +4141,7 @@ msgstr ""
 "イメージは全ハッシュ文字列、一意に定まるハッシュの短縮表現、(設定され\n"
 "ている場合は) エイリアスで参照できます。"
 
-#: lxc/config.go:954 lxc/config.go:955
+#: lxc/config.go:955 lxc/config.go:956
 #, fuzzy
 msgid "Manage instance UEFI variables"
 msgstr "インスタンスのメタデータファイルを管理します"
@@ -5026,7 +5026,7 @@ msgstr "終了するには ctrl+c を押してください"
 
 #: lxc/auth.go:307 lxc/auth.go:1208 lxc/auth.go:1869 lxc/cluster.go:860
 #: lxc/cluster_group.go:398 lxc/config.go:282 lxc/config.go:357
-#: lxc/config.go:1340 lxc/config_metadata.go:157 lxc/config_template.go:239
+#: lxc/config.go:1341 lxc/config_metadata.go:157 lxc/config_template.go:239
 #: lxc/config_trust.go:315 lxc/image.go:492 lxc/network.go:760
 #: lxc/network_acl.go:699 lxc/network_forward.go:768
 #: lxc/network_load_balancer.go:739 lxc/network_peer.go:699
@@ -5148,7 +5148,7 @@ msgstr "リモートで使用するプロジェクト"
 msgid "Properties:"
 msgstr "プロパティ:"
 
-#: lxc/image.go:1654
+#: lxc/image.go:1649
 msgid "Property not found"
 msgstr "プロパティが見つかりません"
 
@@ -5281,7 +5281,7 @@ msgstr "ファイル %s をコンテナ %s 内にコピーします: %%s"
 msgid "Query path must start with /"
 msgstr "query のパスは / で始める必要があります"
 
-#: lxc/image.go:530 lxc/image.go:951 lxc/image.go:1544
+#: lxc/image.go:530 lxc/image.go:951 lxc/image.go:1539
 msgid "Query virtual machine images"
 msgstr "仮想マシンイメージを対象にします"
 
@@ -5320,7 +5320,7 @@ msgstr "再帰的にファイルを転送します"
 msgid "Refresh and update the existing storage volume copies"
 msgstr "既存のストレージボリュームのコピーの再読込と更新"
 
-#: lxc/image.go:1449 lxc/image.go:1450
+#: lxc/image.go:1444 lxc/image.go:1445
 msgid "Refresh images"
 msgstr "イメージを更新します"
 
@@ -5329,7 +5329,7 @@ msgstr "イメージを更新します"
 msgid "Refreshing instance: %s"
 msgstr "インスタンスの更新中: %s"
 
-#: lxc/image.go:1486
+#: lxc/image.go:1481
 #, c-format
 msgid "Refreshing the image: %s"
 msgstr "イメージの更新中: %s"
@@ -5544,7 +5544,7 @@ msgstr "レンダー: %s (%s)"
 msgid "Request a join token for adding a cluster member"
 msgstr "クラスターメンバーに join するためのトークンを要求します"
 
-#: lxc/config.go:1031
+#: lxc/config.go:1032
 msgid "Requested UEFI variable does not exist"
 msgstr ""
 
@@ -5730,7 +5730,7 @@ msgstr "サーバのプロトコル (lxd or simplestreams)"
 msgid "Server version: %s\n"
 msgstr "サーバのバージョン: %s\n"
 
-#: lxc/config.go:1049 lxc/config.go:1050
+#: lxc/config.go:1050 lxc/config.go:1051
 #, fuzzy
 msgid "Set UEFI variables for instance"
 msgstr "インスタンスからファイルをマウントします"
@@ -5773,7 +5773,7 @@ msgstr ""
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
 "    lxc profile device set [<remote>:]<profile> <device> <key> <value>"
 
-#: lxc/image.go:1670 lxc/image.go:1671
+#: lxc/image.go:1665 lxc/image.go:1666
 msgid "Set image properties"
 msgstr "イメージのプロパティを設定します"
 
@@ -6141,11 +6141,11 @@ msgid ""
 "method. Use the identifier instead if this occurs.\n"
 msgstr ""
 
-#: lxc/image.go:1540 lxc/image.go:1541
+#: lxc/image.go:1535 lxc/image.go:1536
 msgid "Show image properties"
 msgstr "イメージのプロパティを表示します"
 
-#: lxc/config.go:1171 lxc/config.go:1172
+#: lxc/config.go:1172 lxc/config.go:1173
 #, fuzzy
 msgid "Show instance UEFI variables"
 msgstr "インスタンスのメタデータファイルを表示します"
@@ -6762,7 +6762,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
-#: lxc/main.go:410
+#: lxc/main.go:412
 #, fuzzy
 msgid ""
 "To start your first container, try: lxc launch ubuntu:24.04\n"
@@ -6950,7 +6950,7 @@ msgstr "未知の設定: %s"
 msgid "Unknown output type %q"
 msgstr "未知の出力タイプ: %q"
 
-#: lxc/config.go:1140 lxc/config.go:1141
+#: lxc/config.go:1141 lxc/config.go:1142
 #, fuzzy
 msgid "Unset UEFI variables for instance"
 msgstr "移動先のインスタンスのすべてのプロファイルを削除します"
@@ -6967,7 +6967,7 @@ msgstr "移動先のインスタンスのすべてのプロファイルを削除
 msgid "Unset device configuration keys"
 msgstr "デバイスの設定を削除します"
 
-#: lxc/image.go:1733 lxc/image.go:1734
+#: lxc/image.go:1728 lxc/image.go:1729
 msgid "Unset image properties"
 msgstr "イメージのプロパティを削除します"
 
@@ -7436,15 +7436,15 @@ msgstr "[<remote>:]<member> <group>"
 msgid "[<remote>:]<identity_provider_group> <new_name>"
 msgstr "[<remote>:]<group> <new-name>"
 
-#: lxc/image.go:394 lxc/image.go:946 lxc/image.go:1539
+#: lxc/image.go:394 lxc/image.go:946 lxc/image.go:1534
 msgid "[<remote>:]<image>"
 msgstr "[<remote>:]<image>"
 
-#: lxc/image.go:1605 lxc/image.go:1732
+#: lxc/image.go:1600 lxc/image.go:1727
 msgid "[<remote>:]<image> <key>"
 msgstr "[<remote>:]<image> <key>"
 
-#: lxc/image.go:1669
+#: lxc/image.go:1664
 msgid "[<remote>:]<image> <key> <value>"
 msgstr "[<remote>:]<image> <key> <value>"
 
@@ -7465,11 +7465,11 @@ msgstr "[<remote>:]<image> [<remote>:][<name>]"
 msgid "[<remote>:]<image> [<target>]"
 msgstr "[<remote>:]<image> [<target>]"
 
-#: lxc/image.go:334 lxc/image.go:1448
+#: lxc/image.go:334 lxc/image.go:1443
 msgid "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr "[<remote>:]<image> [[<remote>:]<image>...]"
 
-#: lxc/config.go:1170 lxc/config.go:1224 lxc/config_device.go:329
+#: lxc/config.go:1171 lxc/config.go:1225 lxc/config_device.go:329
 #: lxc/config_device.go:761 lxc/config_metadata.go:54
 #: lxc/config_metadata.go:187 lxc/config_template.go:271 lxc/console.go:38
 msgid "[<remote>:]<instance>"
@@ -7491,12 +7491,12 @@ msgstr "[<remote>:]<instance> <device> <type> [key=value...]"
 msgid "[<remote>:]<instance> <device> [key=value...]"
 msgstr "[<remote>:]<instance> <device> [key=value...]"
 
-#: lxc/config.go:993 lxc/config.go:1139
+#: lxc/config.go:994 lxc/config.go:1140
 #, fuzzy
 msgid "[<remote>:]<instance> <key>"
 msgstr "[<remote>:][<instance>] <key>"
 
-#: lxc/config.go:1048
+#: lxc/config.go:1049
 #, fuzzy
 msgid "[<remote>:]<instance> <key>=<value>..."
 msgstr "[<remote>:][<instance>] <key>=<value>..."
@@ -8117,7 +8117,7 @@ msgstr ""
 "lxc config set core.trust_password=blah\n"
 "    サーバの認証パスワードを blah に設定します。"
 
-#: lxc/config.go:1228
+#: lxc/config.go:1229
 #, fuzzy
 msgid ""
 "lxc config uefi edit <instance> < instance_uefi_vars.yaml\n"
@@ -8126,7 +8126,7 @@ msgstr ""
 "lxc config edit <instance> < instance.yaml\n"
 "    インスタンスの設定を config.yaml を使って更新します。"
 
-#: lxc/config.go:1052
+#: lxc/config.go:1053
 msgid ""
 "lxc config uefi set [<remote>:]<instance> "
 "testvar-9073e4e0-60ec-4b6e-9903-4c223c260f3c=aabb\n"

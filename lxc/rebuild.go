@@ -161,7 +161,7 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 			return errors.New(i18n.G("Can't use an image with --empty"))
 		}
 
-		req.Source.Type = "none"
+		req.Source.Type = api.SourceTypeNone
 		op, err := d.RebuildInstance(name, req)
 		if err != nil {
 			return err
