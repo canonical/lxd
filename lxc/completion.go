@@ -1549,7 +1549,8 @@ func (g *cmdGlobal) cmpStoragePoolVolumeSnapshots(poolName string, volumeName st
 
 // cmpStoragePoolVolumes provides shell completion for storage pool volumes.
 // It takes a storage pool name and returns a list of storage pool volumes along with a shell completion directive.
-func (g *cmdGlobal) cmpStoragePoolVolumes(poolName string) ([]string, cobra.ShellCompDirective) {
+// Parameter volumeTypes determines which types of volumes are valid as completion options, none being provided means all types are valid.
+func (g *cmdGlobal) cmpStoragePoolVolumes(poolName string, volumeTypes ...string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(poolName)
 	if err != nil || len(resources) == 0 {
@@ -1569,5 +1570,29 @@ func (g *cmdGlobal) cmpStoragePoolVolumes(poolName string) ([]string, cobra.Shel
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	return volumes, cobra.ShellCompDirectiveNoFileComp
+	// If no volume type is provided, don't filter on type.
+	if len(volumeTypes) == 0 {
+		return volumes, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	// Pre-allocate slice capacity.
+	customKeyCount := 0
+	for _, volume := range volumes {
+		_, volType := parseVolume("custom", volume)
+		if shared.ValueInSlice(volType, volumeTypes) {
+			customKeyCount++
+		}
+	}
+
+	customVolumeNames := make([]string, 0, customKeyCount)
+
+	// Only include custom volumes
+	for _, volume := range volumes {
+		_, volType := parseVolume("custom", volume)
+		if shared.ValueInSlice(volType, volumeTypes) {
+			customVolumeNames = append(customVolumeNames, volume)
+		}
+	}
+
+	return customVolumeNames, cobra.ShellCompDirectiveNoFileComp
 }
