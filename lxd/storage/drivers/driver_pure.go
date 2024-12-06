@@ -60,6 +60,7 @@ func (d *pure) Info() Info {
 		DirectIO:                     true,
 		IOUring:                      true,
 		MountedRoot:                  false,
+		PopulateSnapshotParentUUID:   true,
 	}
 }
 

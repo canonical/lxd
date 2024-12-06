@@ -97,6 +97,7 @@ func (d *lvm) Info() Info {
 		IOUring:                      true,
 		MountedRoot:                  false,
 		Buckets:                      true,
+		PopulateSnapshotParentUUID:   false,
 	}
 }
 
