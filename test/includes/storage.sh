@@ -39,6 +39,10 @@ available_storage_backends() {
 
     backends="dir" # always available
 
+    if [ -n "${PURESTORAGE_GATEWAY:-}" ]; then
+        backends="$backends pure"
+    fi
+
     storage_backends="btrfs lvm zfs"
     if [ -n "${LXD_CEPH_CLUSTER:-}" ]; then
         storage_backends="${storage_backends} ceph"
