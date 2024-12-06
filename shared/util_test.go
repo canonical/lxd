@@ -245,9 +245,9 @@ func TestReaderToChannel(t *testing.T) {
 			if !finished {
 				t.Error("connection closed too early")
 				return
-			} else {
-				break
 			}
+
+			break
 		}
 	}
 }
@@ -276,6 +276,26 @@ func TestGetExpiry(t *testing.T) {
 	expiryDate, err = GetExpiry(refDate, "1z")
 	require.Error(t, err)
 	require.Equal(t, time.Time{}, expiryDate)
+}
+
+func TestIsSnapshot(t *testing.T) {
+	tests := []struct {
+		name     string
+		expected bool
+	}{
+		{"foo", false},
+		{"foo/", false},
+		{"/", false},
+		{"//", false},
+		{"/bar", false},
+		{"foo/bar", true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, IsSnapshot(test.name))
+		})
+	}
 }
 
 func TestHasKey(t *testing.T) {

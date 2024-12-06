@@ -651,9 +651,10 @@ func (r BytesReadCloser) Close() error {
 	return nil
 }
 
-// IsSnapshot returns true if a given name contains the snapshot delimiter.
+// IsSnapshot returns true if a given name contains a snapshot delimiter not at the end.
 func IsSnapshot(name string) bool {
-	return strings.Contains(name, SnapshotDelimiter)
+	idx := strings.Index(name, SnapshotDelimiter)
+	return (idx > 0) && (idx < len(name)-1)
 }
 
 // MkdirAllOwner creates a directory named path, along with any necessary parents, and with specified

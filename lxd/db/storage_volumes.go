@@ -374,7 +374,7 @@ func storageVolumeSnapshotConfig(ctx context.Context, tx *ClusterTx, volumeSnaps
 
 // UpdateStoragePoolVolume updates the storage volume attached to a given storage pool.
 func (c *ClusterTx) UpdateStoragePoolVolume(ctx context.Context, projectName string, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
-	isSnapshot := strings.Contains(volumeName, shared.SnapshotDelimiter)
+	isSnapshot := shared.IsSnapshot(volumeName)
 
 	volume, err := c.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, volumeName, true)
 	if err != nil {
@@ -402,7 +402,7 @@ func (c *ClusterTx) UpdateStoragePoolVolume(ctx context.Context, projectName str
 // RemoveStoragePoolVolume deletes the storage volume attached to a given storage
 // pool.
 func (c *ClusterTx) RemoveStoragePoolVolume(ctx context.Context, projectName string, volumeName string, volumeType int, poolID int64) error {
-	isSnapshot := strings.Contains(volumeName, shared.SnapshotDelimiter)
+	isSnapshot := shared.IsSnapshot(volumeName)
 	var stmt string
 	if isSnapshot {
 		stmt = "DELETE FROM storage_volumes_snapshots WHERE id=?"
@@ -425,11 +425,10 @@ func (c *ClusterTx) RemoveStoragePoolVolume(ctx context.Context, projectName str
 
 // RenameStoragePoolVolume renames the storage volume attached to a given storage pool.
 func (c *ClusterTx) RenameStoragePoolVolume(ctx context.Context, projectName string, oldVolumeName string, newVolumeName string, volumeType int, poolID int64) error {
-	isSnapshot := strings.Contains(oldVolumeName, shared.SnapshotDelimiter)
+	isSnapshot := shared.IsSnapshot(oldVolumeName)
 	var stmt string
 	if isSnapshot {
-		parts := strings.Split(newVolumeName, shared.SnapshotDelimiter)
-		newVolumeName = parts[1]
+		_, newVolumeName, _ = strings.Cut(newVolumeName, shared.SnapshotDelimiter)
 		stmt = "UPDATE storage_volumes_snapshots SET name=? WHERE id=?"
 	} else {
 		stmt = "UPDATE storage_volumes SET name=? WHERE id=?"
@@ -688,12 +687,16 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 		inargs = append(inargs, driver)
 	}
 
+	if !strings.Contains(pattern, "%d") {
+		return 0
+	}
+
 	results, err := queryScan(ctx, c, q, inargs, outfmt)
 	if err != nil {
 		return 0
 	}
 
-	max := 0
+	highestNumber := 0
 
 	for _, r := range results {
 		substr, ok := r[0].(string)
@@ -701,20 +704,18 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 			continue
 		}
 
-		fields := strings.SplitN(pattern, "%d", 2)
-
 		var num int
-		count, err := fmt.Sscanf(substr, fmt.Sprintf("%s%%d%s", fields[0], fields[1]), &num)
+		count, err := fmt.Sscanf(substr, pattern, &num)
 		if err != nil || count != 1 {
 			continue
 		}
 
-		if num >= max {
-			max = num + 1
+		if num >= highestNumber {
+			highestNumber = num + 1
 		}
 	}
 
-	return max
+	return highestNumber
 }
 
 // Updates the description of a storage volume.

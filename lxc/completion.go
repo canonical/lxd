@@ -189,7 +189,7 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	if strings.Contains(toComplete, ":") {
-		remote = strings.Split(toComplete, ":")[0]
+		remote, _, _ = strings.Cut(toComplete, ":")
 	} else {
 		remote = g.conf.DefaultRemote
 	}
@@ -432,9 +432,9 @@ func (g *cmdGlobal) cmpInstanceConfigTemplates(instanceName string) ([]string, c
 	resource := resources[0]
 	client := resource.server
 
-	var instanceNameOnly = instanceName
-	if strings.Contains(instanceName, ":") {
-		instanceNameOnly = strings.Split(instanceName, ":")[1]
+	_, instanceNameOnly, _ := strings.Cut(instanceName, ":")
+	if instanceNameOnly == "" {
+		instanceNameOnly = instanceName
 	}
 
 	results, err := client.GetInstanceTemplateFiles(instanceNameOnly)
@@ -640,11 +640,11 @@ func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra
 	if len(resources) > 0 {
 		resource := resources[0]
 
-		if strings.Contains(resource.name, shared.SnapshotDelimiter) {
+		if shared.IsSnapshot(resource.name) {
 			instName, _, _ := strings.Cut(resource.name, shared.SnapshotDelimiter)
 			snapshots, _ := resource.server.GetInstanceSnapshotNames(instName)
 			for _, snapshot := range snapshots {
-				results = append(results, instName+"/"+snapshot)
+				results = append(results, instName+shared.SnapshotDelimiter+snapshot)
 			}
 		} else {
 			instances, _ := resource.server.GetInstanceNames("")

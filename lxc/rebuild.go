@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -71,7 +70,7 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 	}
 
 	// We are not rebuilding just a snapshot but an instance
-	if strings.Contains(name, shared.SnapshotDelimiter) {
+	if shared.IsSnapshot(name) {
 		return fmt.Errorf(i18n.G("Instance snapshots cannot be rebuilt: %s"), name)
 	}
 

@@ -21,10 +21,7 @@ import (
 func (c *ClusterTx) CreateStorageVolumeSnapshot(ctx context.Context, projectName string, volumeName string, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, creationDate time.Time, expiryDate time.Time) (int64, error) {
 	var volumeID int64
 
-	var snapshotName string
-	parts := strings.Split(volumeName, shared.SnapshotDelimiter)
-	volumeName = parts[0]
-	snapshotName = parts[1]
+	volumeName, snapshotName, _ := strings.Cut(volumeName, shared.SnapshotDelimiter)
 
 	// Figure out the volume ID of the parent.
 	parentID, err := c.storagePoolVolumeGetTypeID(ctx, projectName, volumeName, volumeType, poolID, c.nodeID)
@@ -60,7 +57,7 @@ func (c *ClusterTx) CreateStorageVolumeSnapshot(ctx context.Context, projectName
 func (c *ClusterTx) UpdateStorageVolumeSnapshot(ctx context.Context, projectName string, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string, expiryDate time.Time) error {
 	var err error
 
-	if !strings.Contains(volumeName, shared.SnapshotDelimiter) {
+	if !shared.IsSnapshot(volumeName) {
 		return fmt.Errorf("Volume is not a snapshot")
 	}
 
@@ -120,7 +117,7 @@ WHERE volumes.id=?
 		return args, err
 	}
 
-	if !strings.Contains(args.Name, shared.SnapshotDelimiter) {
+	if !shared.IsSnapshot(args.Name) {
 		return args, fmt.Errorf("Volume is not a snapshot")
 	}
 
