@@ -1,5 +1,5 @@
 ---
-discourse: 15872
+discourse: lxc:15872
 ---
 
 (storage-zfs)=

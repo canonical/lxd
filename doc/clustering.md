@@ -1,5 +1,5 @@
 ---
-discourse: 9076,15871
+discourse: lxc:9076,lxc:15871
 ---
 
 (clustering)=
