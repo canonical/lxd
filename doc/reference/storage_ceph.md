@@ -1,5 +1,5 @@
 ---
-discourse: 15457
+discourse: lxc:15457
 ---
 
 (storage-ceph)=

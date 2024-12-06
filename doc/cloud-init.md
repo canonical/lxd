@@ -1,5 +1,5 @@
 ---
-discourse: 12559
+discourse: lxc:12559
 relatedlinks: https://cloudinit.readthedocs.org/
 ---
 

@@ -1,5 +1,5 @@
 ---
-discourse: 14705
+discourse: lxc:14705
 ---
 
 # Frequently asked questions

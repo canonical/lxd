@@ -1,5 +1,5 @@
 ---
-discourse: 14579,15457
+discourse: lxc:14579,lxc:15457
 relatedlinks: https://youtube.com/watch?v=kVLGbvRU98A
 ---
 
