@@ -239,7 +239,7 @@ func lxdParseResponse(resp *http.Response) (*api.Response, string, error) {
 
 	// Handle errors
 	if response.Type == api.ErrorResponse {
-		return nil, "", api.StatusErrorf(resp.StatusCode, "%s", response.Error)
+		return nil, "", api.NewStatusError(resp.StatusCode, response.Error)
 	}
 
 	return &response, etag, nil
