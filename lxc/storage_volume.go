@@ -236,6 +236,7 @@ func (c *cmdStorageVolumeAttach) run(cmd *cobra.Command, args []string) error {
 		case "block", "iso":
 			devName = args[3]
 		case "filesystem":
+			// If using a filesystem volume, the path must also be provided as the fourth argument.
 			if !strings.HasPrefix(args[3], "/") {
 				devPath = path.Join("/", args[3])
 			} else {
