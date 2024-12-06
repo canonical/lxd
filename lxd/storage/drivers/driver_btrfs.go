@@ -105,6 +105,7 @@ func (d *btrfs) Info() Info {
 		IOUring:                      true,
 		MountedRoot:                  true,
 		Buckets:                      true,
+		PopulateSnapshotParentUUID:   false,
 	}
 }
 
