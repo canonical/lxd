@@ -221,7 +221,12 @@ func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, 
 
 			// Apply VM root disk size defaults if not specified.
 			if req.Type == api.InstanceTypeVM && rootDiskSizeStr == "" {
-				rootDiskSizeStr = storageDrivers.DefaultBlockSize
+				driver, err := storageDrivers.Load(s, rootDiskConfig["pool"], "", nil, nil, nil, nil)
+				if err != nil {
+					return nil, fmt.Errorf("Failed loading storage driver: %w", err)
+				}
+
+				rootDiskSizeStr = driver.Info().DefaultBlockSize
 			}
 
 			if rootDiskSizeStr != "" {
