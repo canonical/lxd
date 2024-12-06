@@ -768,7 +768,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 			InstancePut: srcInstInfo.Writable(),
 			Type:        api.InstanceType(srcInstInfo.Type),
 			Source: api.InstanceSource{
-				Type:        "migration",
+				Type:        api.SourceTypeMigration,
 				Mode:        "pull",
 				Operation:   fmt.Sprintf("https://%s%s", srcMember.Address, srcOp.URL()),
 				Websockets:  sourceSecrets,

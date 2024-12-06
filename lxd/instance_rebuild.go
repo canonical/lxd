@@ -113,7 +113,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed loading instance: %w", err)
 		}
 
-		if req.Source.Type != "none" {
+		if req.Source.Type != api.SourceTypeNone {
 			sourceImage, err = getSourceImageFromInstanceSource(ctx, s, tx, targetProject.Name, req.Source, &sourceImageRef, dbInst.Type.String())
 			if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 				return err
@@ -136,7 +136,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	run := func(op *operations.Operation) error {
-		if req.Source.Type == "none" {
+		if req.Source.Type == api.SourceTypeNone {
 			return instanceRebuildFromEmpty(inst, op)
 		}
 

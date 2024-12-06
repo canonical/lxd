@@ -1229,7 +1229,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			/* Processing image upload */
 			info, err = getImgPostInfo(s, r, builddir, projectName, post, imageMetadata)
 		} else {
-			if req.Source.Type == "image" {
+			if req.Source.Type == api.SourceTypeImage {
 				/* Processing image copy from remote */
 				info, err = imgPostRemoteInfo(s, r, req, op, projectName, budget)
 			} else if req.Source.Type == "url" {

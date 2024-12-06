@@ -362,7 +362,7 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 	config.InstanceArgs.Config = map[string]string{}
 	config.InstanceArgs.Devices = map[string]map[string]string{}
 	config.InstanceArgs.Source = api.InstanceSource{
-		Type:              "conversion",
+		Type:              api.SourceTypeConversion,
 		Mode:              "push",
 		ConversionOptions: c.flagConversionOpts,
 	}
@@ -372,7 +372,7 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 	// LXD instance. This means that images of different formats,
 	// such as VMDK and QCow2, will not work.
 	if !server.HasExtension("instance_import_conversion") {
-		config.InstanceArgs.Source.Type = "migration"
+		config.InstanceArgs.Source.Type = api.SourceTypeMigration
 	}
 
 	// Parse instance type from a flag.
@@ -911,7 +911,7 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		}
 
 		// In conversion mode, server expects the volume size hint in the request.
-		if config.InstanceArgs.Source.Type == "conversion" {
+		if config.InstanceArgs.Source.Type == api.SourceTypeConversion {
 			size, err := block.DiskSizeBytes(target)
 			if err != nil {
 				return err
@@ -943,7 +943,7 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 	})
 
 	progressPrefix := "Transferring instance: %s"
-	if config.InstanceArgs.Source.Type == "conversion" {
+	if config.InstanceArgs.Source.Type == api.SourceTypeConversion {
 		// In conversion mode, progress prefix is determined on the server side.
 		progressPrefix = "%s"
 	}
@@ -955,7 +955,7 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if config.InstanceArgs.Source.Type == "conversion" {
+	if config.InstanceArgs.Source.Type == api.SourceTypeConversion {
 		err = transferRootDiskForConversion(ctx, op, fullPath, c.flagRsyncArgs, config.InstanceArgs.Type)
 	} else {
 		err = transferRootDiskForMigration(ctx, op, fullPath, c.flagRsyncArgs, config.InstanceArgs.Type)
@@ -1098,7 +1098,7 @@ func (c *cmdMigrate) checkSource(path string, instanceType api.InstanceType, mig
 		return errors.New("Path does not exist")
 	}
 
-	if instanceType == api.InstanceTypeVM && migrationMode == "migration" {
+	if instanceType == api.InstanceTypeVM && migrationMode == api.SourceTypeMigration {
 		isImageTypeRaw, err := isImageTypeRaw(path)
 		if err != nil {
 			return err

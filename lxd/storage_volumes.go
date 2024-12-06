@@ -1095,13 +1095,13 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	switch req.Source.Type {
 	case "":
 		return doVolumeCreateOrCopy(s, r, requestProjectName, projectName, poolName, &req)
-	case "copy":
+	case api.SourceTypeCopy:
 		if dbVolume != nil {
 			return doCustomVolumeRefresh(s, r, requestProjectName, projectName, poolName, &req)
 		}
 
 		return doVolumeCreateOrCopy(s, r, requestProjectName, projectName, poolName, &req)
-	case "migration":
+	case api.SourceTypeMigration:
 		return doVolumeMigration(s, r, requestProjectName, projectName, poolName, &req)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %q", req.Source.Type))
@@ -1146,7 +1146,7 @@ func clusterCopyCustomVolumeInternal(s *state.State, r *http.Request, sourceAddr
 	}
 
 	// Reset the source for a migration
-	req.Source.Type = "migration"
+	req.Source.Type = api.SourceTypeMigration
 	req.Source.Certificate = string(s.Endpoints.NetworkCert().PublicKey())
 	req.Source.Mode = "pull"
 	req.Source.Operation = fmt.Sprintf("https://%s/%s/operations/%s", sourceAddress, version.APIVersion, opAPI.ID)
@@ -1801,7 +1801,7 @@ func storageVolumePostClusteringMigrate(s *state.State, r *http.Request, srcPool
 			Name: newVolumeName,
 			Type: "custom",
 			Source: api.StorageVolumeSource{
-				Type:        "migration",
+				Type:        api.SourceTypeMigration,
 				Mode:        "pull",
 				Operation:   fmt.Sprintf("https://%s%s", srcMember.Address, srcOp.URL()),
 				Websockets:  sourceSecrets,

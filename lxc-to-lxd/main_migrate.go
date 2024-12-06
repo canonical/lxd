@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -63,9 +63,9 @@ func (c *cmdMigrate) Command() *cobra.Command {
 // RunE executes the migrate command.
 func (c *cmdMigrate) RunE(cmd *cobra.Command, args []string) error {
 	if (len(c.flagContainers) == 0 && !c.flagAll) || (len(c.flagContainers) > 0 && c.flagAll) {
-		fmt.Fprintln(os.Stderr, "You must either pass container names or --all")
-		os.Exit(1)
+		return errors.New("You must either pass container names or --all")
 	}
+
 	// Connect to LXD
 	d, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
@@ -381,7 +381,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 	req := api.ContainersPost{
 		Name: container.Name(),
 		Source: api.ContainerSource{
-			Type: "migration",
+			Type: api.SourceTypeMigration,
 			Mode: "push",
 		},
 	}

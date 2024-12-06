@@ -16,7 +16,7 @@ func createContainer(c lxd.ContainerServer, fingerprint string, name string, pri
 	req := api.ContainersPost{
 		Name: name,
 		Source: api.ContainerSource{
-			Type:        "image",
+			Type:        api.SourceTypeImage,
 			Fingerprint: fingerprint,
 		},
 	}
