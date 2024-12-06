@@ -177,7 +177,7 @@ func (c *cmdStorageVolumeAttach) command() *cobra.Command {
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], "custom")
 		}
 
 		if len(args) == 2 {
@@ -292,7 +292,7 @@ func (c *cmdStorageVolumeAttachProfile) command() *cobra.Command {
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], "custom")
 		}
 
 		if len(args) == 2 {
@@ -816,7 +816,7 @@ func (c *cmdStorageVolumeDetach) command() *cobra.Command {
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], "custom")
 		}
 
 		if len(args) == 2 {
@@ -919,7 +919,7 @@ func (c *cmdStorageVolumeDetachProfile) command() *cobra.Command {
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], "custom")
 		}
 
 		if len(args) == 2 {
