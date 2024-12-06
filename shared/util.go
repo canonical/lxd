@@ -234,21 +234,35 @@ func VarPath(path ...string) string {
 
 	items := []string{varDir}
 	items = append(items, path...)
-	return filepath.Join(items...)
+
+	// Verify if the parent dir is still the expected one
+	fullPath, err := filepath.Abs(filepath.Join(items...))
+	if err != nil || !strings.HasPrefix(fullPath, varDir) {
+		return ""
+	}
+
+	return fullPath
 }
 
 // CachePath returns the directory that LXD should its cache under. If LXD_DIR is
 // set, this path is $LXD_DIR/cache, otherwise it is /var/cache/lxd.
 func CachePath(path ...string) string {
 	varDir := os.Getenv("LXD_DIR")
-	logDir := "/var/cache/lxd"
+	cacheDir := "/var/cache/lxd"
 	if varDir != "" {
-		logDir = filepath.Join(varDir, "cache")
+		cacheDir = filepath.Join(varDir, "cache")
 	}
 
-	items := []string{logDir}
+	items := []string{cacheDir}
 	items = append(items, path...)
-	return filepath.Join(items...)
+
+	// Verify if the parent dir is still the expected one
+	fullPath, err := filepath.Abs(filepath.Join(items...))
+	if err != nil || !strings.HasPrefix(fullPath, cacheDir) {
+		return ""
+	}
+
+	return fullPath
 }
 
 // LogPath returns the directory that LXD should put logs under. If LXD_DIR is
@@ -262,7 +276,14 @@ func LogPath(path ...string) string {
 
 	items := []string{logDir}
 	items = append(items, path...)
-	return filepath.Join(items...)
+
+	// Verify if the parent dir is still the expected one
+	fullPath, err := filepath.Abs(filepath.Join(items...))
+	if err != nil || !strings.HasPrefix(fullPath, logDir) {
+		return ""
+	}
+
+	return fullPath
 }
 
 // LXDFileHeaders is extracted from the `X-LXD-*` family of file permissions
