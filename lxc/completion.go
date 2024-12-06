@@ -1361,17 +1361,15 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 	}
 
 	pool := strings.Split(toComplete, "/")[0]
-	volumes, compdir := g.cmpStoragePoolVolumes(pool)
+	volumes, compdir := g.cmpStoragePoolVolumes(pool, true)
 	if compdir == cobra.ShellCompDirectiveError {
 		return nil, compdir
 	}
 
 	var results []string
 	for _, volume := range volumes {
-		volName, volType := parseVolume("custom", volume)
-		if volType == "custom" {
-			results = append(results, pool+"/"+volName)
-		}
+		volName, _ := parseVolume("custom", volume)
+		results = append(results, pool+"/"+volName)
 	}
 
 	return results, cobra.ShellCompDirectiveNoFileComp
