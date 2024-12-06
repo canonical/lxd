@@ -540,7 +540,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	newName := name + shared.SnapshotDelimiter + req.Name
 
 	rename := func(op *operations.Operation) error {
-		err := backup.Rename(newName)
+		err := backup.Rename(newName, projectName)
 		if err != nil {
 			return err
 		}
@@ -629,7 +629,7 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	remove := func(op *operations.Operation) error {
-		err := backup.Delete()
+		err := backup.Delete(projectName)
 		if err != nil {
 			return err
 		}
@@ -714,7 +714,7 @@ func instanceBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	ent := response.FileResponseEntry{
-		Path: shared.VarPath("backups", "instances", project.Instance(projectName, backup.Name())),
+		Path: shared.VarPath("backups", fmt.Sprintf("project_%s", projectName), "instances", project.Instance(projectName, backup.Name())),
 	}
 
 	s.Events.SendLifecycle(projectName, lifecycle.InstanceBackupRetrieved.Event(fullName, backup.Instance(), nil))

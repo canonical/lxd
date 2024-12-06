@@ -636,14 +636,14 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 		// Validate the storage volumes
 		if nodeValues["storage.backups_volume"] != nil && nodeValues["storage.backups_volume"] != newNodeConfig.StorageBackupsVolume() {
-			err := daemonStorageValidate(s, nodeValues["storage.backups_volume"].(string))
+			err := daemonStorageValidate(s, api.ProjectDefaultName, nodeValues["storage.backups_volume"].(string))
 			if err != nil {
 				return fmt.Errorf("Failed validation of %q: %w", "storage.backups_volume", err)
 			}
 		}
 
 		if nodeValues["storage.images_volume"] != nil && nodeValues["storage.images_volume"] != newNodeConfig.StorageImagesVolume() {
-			err := daemonStorageValidate(s, nodeValues["storage.images_volume"].(string))
+			err := daemonStorageValidate(s, api.ProjectDefaultName, nodeValues["storage.images_volume"].(string))
 			if err != nil {
 				return fmt.Errorf("Failed validation of %q: %w", "storage.images_volume", err)
 			}
@@ -939,7 +939,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 	value, ok = nodeChanged["storage.backups_volume"]
 	if ok {
-		err := daemonStorageMove(s, "backups", value)
+		err := daemonStorageMove(s, "backups", api.ProjectDefaultName, value, true)
 		if err != nil {
 			return err
 		}
@@ -947,7 +947,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 	value, ok = nodeChanged["storage.images_volume"]
 	if ok {
-		err := daemonStorageMove(s, "images", value)
+		err := daemonStorageMove(s, "images", api.ProjectDefaultName, value, true)
 		if err != nil {
 			return err
 		}
