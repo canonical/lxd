@@ -337,10 +337,12 @@ EOF
       lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 zfs.use_refquota true
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 c1pool1 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 c1pool1 testDevice2 /opt || false
+      lxc config show c1pool1 | grep -Pz "  testDevice:\n    path: /opt\n    pool: lxdtest-$(basename "${LXD_DIR}")-pool1\n    source: c1pool1\n    type: disk\n"
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 c1pool1
+      ! lxc config show c1pool1 | grep "testDevice" || false
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" custom/c1pool1 c1pool1 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" custom/c1pool1 c1pool1 testDevice2 /opt || false
-      lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 c1pool1
+      lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool1" custom/c1pool1 c1pool1
 
       lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool1" c2pool2
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" c2pool2 c2pool2 testDevice /opt
