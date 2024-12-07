@@ -66,7 +66,7 @@ The loop files reside in `/var/snap/lxd/common/lxd/disks/` if you are using the 
 
 Loop files usually cannot be shrunk.
 They will grow up to the configured limit, but deleting instances or images will not cause the file to shrink.
-You can increase their size though; see {ref}`storage-resize-pool`.
+You can increase their size (quota) though; see {ref}`storage-resize-pool`.
 
 #### Remote storage
 
