@@ -173,7 +173,7 @@ Specify a value in bytes (various suffixes supported, see {ref}`instances-limit-
 ```{config:option} size.state device-disk-device-conf
 :condition: "virtual machine"
 :required: "no"
-:shortdesc: "Size of the file-system volume used for saving runtime state"
+:shortdesc: "Size/quota of the file-system volume used for saving runtime state"
 :type: "string"
 This option is similar to {config:option}`device-disk-device-conf:size`, but applies to the file-system volume used for saving the runtime state in VMs.
 ```
@@ -4860,7 +4860,7 @@ for automatic access control.
 ```{config:option} size storage-btrfs-pool-conf
 :defaultdesc: "auto (20% of free disk space, >= 5 GiB and <= 30 GiB)"
 :scope: "local"
-:shortdesc: "Size of the storage pool (for loop-based pools)"
+:shortdesc: "Size/quota of the storage pool (for loop-based pools)"
 :type: "string"
 When creating loop-based pools, specify the size in bytes ({ref}`suffixes <instances-limit-units>` are supported).
 You can increase the size to grow the storage pool.
@@ -5315,7 +5315,7 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 <!-- config group storage-cephobject-bucket-conf start -->
 ```{config:option} size storage-cephobject-bucket-conf
 :scope: "local"
-:shortdesc: "Quota of the storage bucket"
+:shortdesc: "Size/quota of the storage bucket"
 :type: "string"
 
 ```
@@ -5493,7 +5493,7 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 ```{config:option} lvm.thinpool_metadata_size storage-lvm-pool-conf
 :defaultdesc: "`0` (auto)"
 :scope: "global"
-:shortdesc: "The size of the thin pool metadata volume"
+:shortdesc: "Size/quota of the thin pool metadata volume"
 :type: "string"
 By default, LVM calculates an appropriate size.
 ```
@@ -5550,7 +5550,7 @@ to be placed on the socket I/O.
 ```{config:option} size storage-lvm-pool-conf
 :defaultdesc: "auto (20% of free disk space, >= 5 GiB and <= 30 GiB)"
 :scope: "local"
-:shortdesc: "Size of the storage pool (for loop-based pools)"
+:shortdesc: "Size/quota of the storage pool (for loop-based pools)"
 :type: "string"
 When creating loop-based pools, specify the size in bytes ({ref}`suffixes <instances-limit-units>` are supported).
 You can increase the size to grow the storage pool.
@@ -5921,7 +5921,7 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 ```{config:option} size storage-zfs-pool-conf
 :defaultdesc: "auto (20% of free disk space, >= 5 GiB and <= 30 GiB)"
 :scope: "local"
-:shortdesc: "Size of the storage pool (for loop-based pools)"
+:shortdesc: "Size/quota of the storage pool (for loop-based pools)"
 :type: "string"
 When creating loop-based pools, specify the size in bytes ({ref}`suffixes <instances-limit-units>` are supported).
 You can increase the size to grow the storage pool.
