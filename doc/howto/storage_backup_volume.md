@@ -138,7 +138,7 @@ You can add any of the following flags to the command:
   In this case, the export file can only be used with pools that use the same storage driver.
 
   Exporting a volume in optimized mode is usually quicker than exporting the individual files.
-  Snapshots are exported as differences from the main volume, which decreases their size and makes them easily accessible.
+  Snapshots are exported as differences from the main volume, which decreases their size (quota) and makes them easily accessible.
 <!-- Include end export info -->
 
 `--volume-only`
