@@ -87,7 +87,7 @@ Copying volumes
   This implicates an increased use of bandwidth due to the volume's contents being transferred over the network twice.
 
 Volume size constraints
-: In PowerFlex, the size of a volume must be in multiples of 8 GiB.
+: In PowerFlex, the size (quota) of a volume must be in multiples of 8 GiB.
   This results in the smallest possible volume size of 8 GiB.
   However, if not specified otherwise, volumes are getting thin-provisioned by LXD.
   PowerFlex volumes can only be increased in size.
