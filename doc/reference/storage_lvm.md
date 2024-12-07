@@ -16,7 +16,7 @@ To use LVM, make sure you have `lvm2` installed on your machine.
 LVM can combine several physical storage devices into a *volume group*.
 You can then allocate *logical volumes* of different types from this volume group.
 
-One supported volume type is a *thin pool*, which allows over-committing the resources by creating  thinly provisioned volumes whose total allowed maximum size is larger than the available physical storage.
+One supported volume type is a *thin pool*, which allows over-committing the resources by creating thinly provisioned volumes whose total allowed maximum size (quota) is larger than the available physical storage.
 Another type is a *volume snapshot*, which captures a specific state of a logical volume.
 
 ## `lvm` driver in LXD
@@ -32,7 +32,7 @@ This behavior can be changed by setting {config:option}`storage-lvm-pool-conf:lv
 In this case, LXD uses "normal" logical volumes for all storage entities that are not snapshots.
 Note that this entails serious performance and space reductions for the `lvm` driver (close to the `dir` driver both in speed and storage usage).
 The reason for this is that most storage operations must fall back to using `rsync`, because logical volumes that are not thin pools do not support snapshots of snapshots.
-In addition, non-thin snapshots take up much more storage space than thin snapshots, because they must reserve space for their maximum size at creation time.
+In addition, non-thin snapshots take up much more storage space than thin snapshots, because they must reserve space for their maximum size (quota) at creation time.
 Therefore, this option should only be chosen if the use case requires it.
 
 For environments with a high instance turnover (for example, continuous integration) you should tweak the backup `retain_min` and `retain_days` settings in `/etc/lvm/lvm.conf` to avoid slowdowns when interacting with LXD.
