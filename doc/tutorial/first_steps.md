@@ -213,7 +213,7 @@ Let's create another container with some resource limits:
       Note that the number has changed.
 
 1. Depending on the instance type and the storage drivers that you use, there are more configuration options that you can specify.
-   For example, you can configure the size of the root disk device for a VM:
+   For example, you can configure the size (quota) of the root disk device for a VM:
 
    1. Check the current size of the root disk device of the Ubuntu VM:
 
