@@ -19,7 +19,7 @@ Possible actions include, for example:
 * Adding users
 * Enabling services
 * Running commands or scripts
-* Automatically growing the file system of a VM to the size of the disk
+* Automatically growing the file system of a VM to the size (quota) of the disk
 
 See the {ref}`cloud-init:index` for detailed information.
 
