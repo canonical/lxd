@@ -103,7 +103,7 @@ Most often, this is done through the interactive `lxd init` command, which asks 
 
 Those settings typically include:
 
-- The source device and size for a storage pool
+- The source device and size (quota) for a storage pool
 - The name for a ZFS zpool, LVM thin pool or LVM volume group
 - External interfaces and BGP next-hop for a bridged network
 - The name of the parent network device for managed `physical` or `macvlan` networks
