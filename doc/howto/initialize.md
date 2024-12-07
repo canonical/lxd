@@ -43,7 +43,7 @@ Storage pools (see {ref}`exp-storage` and  {ref}`storage-drivers`)
 : Instances (and other data) are stored in storage pools.
 
   For testing purposes, you can create a loop-backed storage pool.
-  For production use, however, you should use an empty partition (or full disk) instead of loop-backed storage (because loop-backed pools are slower and their size can't be reduced).
+  For production use, however, you should use an empty partition (or full disk) instead of loop-backed storage (because loop-backed pools are slower and their size/quota can't be reduced).
 
   The recommended backends are `zfs` and `btrfs`.
 
