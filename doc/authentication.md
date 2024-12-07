@@ -4,7 +4,7 @@ relatedlinks: https://www.youtube.com/watch?v=6O0q3rSWr8A
 ---
 
 (authentication)=
-# Remote API authentication
+# API authentication
 
 Remote communications with the LXD daemon happen using JSON over HTTPS.
 This requires the LXD API to be exposed over the network; see {ref}`server-expose` for instructions.

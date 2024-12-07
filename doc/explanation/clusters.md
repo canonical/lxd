@@ -2,8 +2,8 @@
 discourse: 15728
 ---
 
-(exp-clustering)=
-# About clustering
+(exp-clusters)=
+# Clusters
 
 ```{youtube} https://www.youtube.com/watch?v=nrOR6yaO_MY
 ```
