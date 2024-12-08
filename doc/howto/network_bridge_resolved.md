@@ -96,15 +96,16 @@ Domains=~lxd
 
 If you have NOT freshly installed `lxd` (you've rebooted since install), then you only need to reload `systemd-resolved`:
 
-    sudo systemctl restart systemd-resolved.service
+    systemctl restart systemd-resolved.service
 
-In case you **haven't rebooted yet since first initializing `lxd`**, then you need to restart `lxd` first or just reboot (see https://github.com/canonical/lxd/issues/14588):
+In case you **haven't rebooted yet since first initializing `lxd`**, then you need to either A) reboot the system, or B) reload `systemd-networkd` (to reload the `.network` files) and restart `lxd` (to add the routing).
 
+    networkctl reload
     snap restart lxd
 
 You can test that the configuration got applied by running:
 
-    sudo resolvectl status
+    resolvectl status
 
 The output should contain a part similar to this (you can see the DNS server and the `.lxd` domain mentioned):
 
