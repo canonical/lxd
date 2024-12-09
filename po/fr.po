@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-12-05 16:02+0000\n"
+"POT-Creation-Date: 2024-12-09 03:18-0300\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -1146,7 +1146,7 @@ msgstr "Copie de l'image : %s"
 msgid "Backup exported successfully!"
 msgstr "Image copiée avec succès !"
 
-#: lxc/info.go:654 lxc/storage_volume.go:1527
+#: lxc/info.go:666 lxc/storage_volume.go:1527
 msgid "Backups:"
 msgstr ""
 
@@ -1194,11 +1194,11 @@ msgstr "Créé : %s"
 msgid "Bridge:"
 msgstr ""
 
-#: lxc/info.go:577 lxc/network.go:944
+#: lxc/info.go:589 lxc/network.go:944
 msgid "Bytes received"
 msgstr "Octets reçus"
 
-#: lxc/info.go:578 lxc/network.go:945
+#: lxc/info.go:590 lxc/network.go:945
 msgid "Bytes sent"
 msgstr "Octets émis"
 
@@ -1227,11 +1227,11 @@ msgstr "CPU utilisé :"
 msgid "CPU USAGE"
 msgstr ""
 
-#: lxc/info.go:527
+#: lxc/info.go:539
 msgid "CPU usage (in seconds)"
 msgstr "CPU utilisé (en secondes)"
 
-#: lxc/info.go:531
+#: lxc/info.go:543
 msgid "CPU usage:"
 msgstr "CPU utilisé :"
 
@@ -2242,7 +2242,12 @@ msgstr "Désactiver stdin (lecture à partir de /dev/null)"
 msgid "Disk %d:"
 msgstr "  Disque utilisé :"
 
-#: lxc/info.go:520
+#: lxc/info.go:533
+#, fuzzy
+msgid "Disk total:"
+msgstr "  Disque utilisé :"
+
+#: lxc/info.go:529
 #, fuzzy
 msgid "Disk usage:"
 msgstr "  Disque utilisé :"
@@ -2557,7 +2562,7 @@ msgstr ""
 "sélectionné si à la fois stdin et stdout sont des terminaux (stderr\n"
 "est ignoré)."
 
-#: lxc/info.go:640 lxc/info.go:691 lxc/storage_volume.go:1514
+#: lxc/info.go:652 lxc/info.go:703 lxc/storage_volume.go:1514
 #: lxc/storage_volume.go:1564
 #, fuzzy
 msgid "Expires at"
@@ -3118,7 +3123,7 @@ msgstr ""
 msgid "HOSTNAME"
 msgstr "NOM"
 
-#: lxc/info.go:566
+#: lxc/info.go:578
 #, fuzzy
 msgid "Host interface"
 msgstr "L'arrêt du conteneur a échoué !"
@@ -3174,7 +3179,7 @@ msgstr ""
 msgid "IP ADDRESS"
 msgstr ""
 
-#: lxc/info.go:582
+#: lxc/info.go:594
 #, fuzzy
 msgid "IP addresses"
 msgstr "Expire : %s"
@@ -3348,7 +3353,7 @@ msgstr ""
 msgid "Inspect permissions"
 msgstr ""
 
-#: lxc/info.go:692
+#: lxc/info.go:704
 #, fuzzy
 msgid "Instance Only"
 msgstr "Le nom du conteneur est : %s"
@@ -3988,7 +3993,7 @@ msgstr ""
 msgid "Log level filtering can only be used with pretty formatting"
 msgstr ""
 
-#: lxc/info.go:720
+#: lxc/info.go:732
 msgid "Log:"
 msgstr "Journal : "
 
@@ -4006,7 +4011,7 @@ msgstr "Création du conteneur"
 msgid "MAC ADDRESS"
 msgstr ""
 
-#: lxc/info.go:570
+#: lxc/info.go:582
 #, fuzzy
 msgid "MAC address"
 msgstr "Expire : %s"
@@ -4050,7 +4055,7 @@ msgstr ""
 msgid "MII state"
 msgstr ""
 
-#: lxc/info.go:574
+#: lxc/info.go:586
 msgid "MTU"
 msgstr ""
 
@@ -4332,15 +4337,15 @@ msgstr "Profil %s supprimé de %s"
 msgid "Member %s renamed to %s"
 msgstr "Profil %s ajouté à %s"
 
-#: lxc/info.go:538
+#: lxc/info.go:550
 msgid "Memory (current)"
 msgstr "Mémoire (courante)"
 
-#: lxc/info.go:542
+#: lxc/info.go:554
 msgid "Memory (peak)"
 msgstr "Mémoire (pointe)"
 
-#: lxc/info.go:554
+#: lxc/info.go:566
 #, fuzzy
 msgid "Memory usage:"
 msgstr "  Mémoire utilisée :"
@@ -4713,7 +4718,7 @@ msgstr ""
 msgid "NVRM Version: %v"
 msgstr ""
 
-#: lxc/info.go:638 lxc/info.go:689 lxc/storage_volume.go:1512
+#: lxc/info.go:650 lxc/info.go:701 lxc/storage_volume.go:1512
 #: lxc/storage_volume.go:1562
 #, fuzzy
 msgid "Name"
@@ -4828,7 +4833,7 @@ msgstr ""
 msgid "Network type"
 msgstr "Nom du réseau"
 
-#: lxc/info.go:595 lxc/network.go:943
+#: lxc/info.go:607 lxc/network.go:943
 #, fuzzy
 msgid "Network usage:"
 msgstr "  Réseau utilisé :"
@@ -4963,7 +4968,7 @@ msgstr "Seuls les réseaux gérés par LXD peuvent être modifiés."
 msgid "Operation %s deleted"
 msgstr "Le réseau %s a été supprimé"
 
-#: lxc/info.go:693 lxc/storage_volume.go:1566
+#: lxc/info.go:705 lxc/storage_volume.go:1566
 msgid "Optimized Storage"
 msgstr ""
 
@@ -5023,11 +5028,11 @@ msgstr "PROTOCOLE"
 msgid "PUBLIC"
 msgstr "PUBLIC"
 
-#: lxc/info.go:579 lxc/network.go:946
+#: lxc/info.go:591 lxc/network.go:946
 msgid "Packets received"
 msgstr "Paquets reçus"
 
-#: lxc/info.go:580 lxc/network.go:947
+#: lxc/info.go:592 lxc/network.go:947
 msgid "Packets sent"
 msgstr "Paquets émis"
 
@@ -6393,7 +6398,7 @@ msgstr "Copie de l'image : %s"
 msgid "Snapshots are read-only and can't have their configuration changed"
 msgstr ""
 
-#: lxc/info.go:607 lxc/storage_volume.go:1491
+#: lxc/info.go:619 lxc/storage_volume.go:1491
 msgid "Snapshots:"
 msgstr "Instantanés :"
 
@@ -6425,7 +6430,7 @@ msgstr "Création du conteneur"
 msgid "Starting %s"
 msgstr "Démarrage de %s"
 
-#: lxc/info.go:564
+#: lxc/info.go:576
 #, fuzzy
 msgid "State"
 msgstr "État : %s"
@@ -6435,7 +6440,7 @@ msgstr "État : %s"
 msgid "State: %s"
 msgstr "État : %s"
 
-#: lxc/info.go:641
+#: lxc/info.go:653
 #, fuzzy
 msgid "Stateful"
 msgstr "à suivi d'état"
@@ -6544,11 +6549,11 @@ msgstr ""
 msgid "Supported ports: %s"
 msgstr ""
 
-#: lxc/info.go:546
+#: lxc/info.go:558
 msgid "Swap (current)"
 msgstr "Swap (courant)"
 
-#: lxc/info.go:550
+#: lxc/info.go:562
 msgid "Swap (peak)"
 msgstr "Swap (pointe)"
 
@@ -6591,7 +6596,7 @@ msgstr ""
 msgid "TYPE"
 msgstr "TYPE"
 
-#: lxc/info.go:639 lxc/info.go:690 lxc/storage_volume.go:1563
+#: lxc/info.go:651 lxc/info.go:702 lxc/storage_volume.go:1563
 #, fuzzy
 msgid "Taken at"
 msgstr "pris à %s"
@@ -6932,7 +6937,7 @@ msgstr ""
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "Essayer `lxc info --show-log %s` pour plus d'informations"
 
-#: lxc/info.go:563
+#: lxc/info.go:575
 #, fuzzy
 msgid "Type"
 msgstr "Expire : %s"
@@ -7209,7 +7214,7 @@ msgstr ""
 msgid "Unsupported content type for attaching to instances"
 msgstr ""
 
-#: lxc/info.go:712
+#: lxc/info.go:724
 #, c-format
 msgid "Unsupported instance type: %s"
 msgstr ""
