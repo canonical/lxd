@@ -2535,3 +2535,7 @@ Adds a new {config:option}`device-unix-hotplug-device-conf:ownership.inherit` co
 ## `unix_device_hotplug_subsystem_device_option`
 
 Adds a new {config:option}`device-unix-hotplug-device-conf:subsystem` configuration option for `unix-hotplug` devices. This adds support for detecting `unix-hotplug` devices by subsystem, and can be used in conjunction with {config:option}`device-unix-hotplug-device-conf:productid` and {config:option}`device-unix-hotplug-device-conf:vendorid`.
+
+## `project_daemon_storage`
+This introduces two new configuration keys `storage.images_volume` and `storage.backups_volume` to the project level to allow for a storage volume
+on an existing pool be used for storing the project-wide images and backups artifacts.

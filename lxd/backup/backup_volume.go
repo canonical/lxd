@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -54,16 +55,16 @@ func (b *VolumeBackup) OptimizedStorage() bool {
 
 // Rename renames a volume backup.
 func (b *VolumeBackup) Rename(newName string) error {
-	oldBackupPath := shared.VarPath("backups", "custom", b.poolName, project.StorageVolume(b.projectName, b.name))
-	newBackupPath := shared.VarPath("backups", "custom", b.poolName, project.StorageVolume(b.projectName, newName))
+	oldBackupPath := shared.VarPath("backups", fmt.Sprintf("project_%s", b.projectName), "custom", b.poolName, project.StorageVolume(b.projectName, b.name))
+	newBackupPath := shared.VarPath("backups", fmt.Sprintf("project_%s", b.projectName), "custom", b.poolName, project.StorageVolume(b.projectName, newName))
 
 	// Extract the old and new parent backup paths from the old and new backup names rather than use
 	// instance.Name() as this may be in flux if the instance itself is being renamed, whereas the relevant
 	// instance name is encoded into the backup names.
 	oldParentName, _, _ := api.GetParentAndSnapshotName(b.name)
-	oldParentBackupsPath := shared.VarPath("backups", "custom", b.poolName, project.StorageVolume(b.projectName, oldParentName))
+	oldParentBackupsPath := shared.VarPath("backups", fmt.Sprintf("project_%s", b.projectName), "custom", b.poolName, project.StorageVolume(b.projectName, oldParentName))
 	newParentName, _, _ := api.GetParentAndSnapshotName(newName)
-	newParentBackupsPath := shared.VarPath("backups", "custom", b.poolName, project.StorageVolume(b.projectName, newParentName))
+	newParentBackupsPath := shared.VarPath("backups", fmt.Sprintf("project_%s", b.projectName), "custom", b.poolName, project.StorageVolume(b.projectName, newParentName))
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -107,7 +108,7 @@ func (b *VolumeBackup) Rename(newName string) error {
 
 // Delete removes a volume backup.
 func (b *VolumeBackup) Delete() error {
-	backupPath := shared.VarPath("backups", "custom", b.poolName, project.StorageVolume(b.projectName, b.name))
+	backupPath := shared.VarPath("backups", fmt.Sprintf("project_%s", b.projectName), "custom", b.poolName, project.StorageVolume(b.projectName, b.name))
 	// Delete the on-disk data.
 	if shared.PathExists(backupPath) {
 		err := os.RemoveAll(backupPath)
@@ -117,7 +118,7 @@ func (b *VolumeBackup) Delete() error {
 	}
 
 	// Check if we can remove the volume directory.
-	backupsPath := shared.VarPath("backups", "custom", b.poolName, project.StorageVolume(b.projectName, b.volumeName))
+	backupsPath := shared.VarPath("backups", fmt.Sprintf("project_%s", b.projectName), "custom", b.poolName, project.StorageVolume(b.projectName, b.volumeName))
 	empty, _ := shared.PathIsEmpty(backupsPath)
 	if empty {
 		err := os.Remove(backupsPath)

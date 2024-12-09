@@ -5307,12 +5307,12 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 		backupName := strings.Split(oldName, "/")[1]
 		newName := fmt.Sprintf("%s/%s", newName, backupName)
 
-		err = b.Rename(newName)
+		err = b.Rename(newName, d.project.Name)
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() { _ = b.Rename(oldName) })
+		revert.Add(func() { _ = b.Rename(oldName, d.project.Name) })
 	}
 
 	// Update lease files.
@@ -6114,7 +6114,7 @@ func (d *qemu) delete(force bool) error {
 		}
 
 		for _, backup := range backups {
-			err = backup.Delete()
+			err = backup.Delete(d.project.Name)
 			if err != nil {
 				return err
 			}
