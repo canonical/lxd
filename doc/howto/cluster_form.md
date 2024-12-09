@@ -38,7 +38,7 @@ You can accept the default values for most questions, but make sure to answer th
   Select **no**.
 - `Setup password authentication on the cluster?`
 
-  Select **no** to use {ref}`authentication tokens <authentication-token>` (recommended) or **yes** to use a {ref}`trust password <authentication-trust-pw>`.
+  Select **no** to use authentication tokens (recommended) or **yes** to use a trust password.
 
 <details>
 <summary>Expand to see a full example for <code>lxd init</code> on the bootstrap server</summary>
@@ -99,7 +99,7 @@ Basically, the initialization process consists of the following steps:
      Select **yes**.
    - `Do you have a join token?`
 
-     Select **yes** if you configured the bootstrap server to use {ref}`authentication tokens <authentication-token>` (recommended) or **no** if you configured it to use a {ref}`trust password <authentication-trust-pw>`.
+     Select **yes** if you configured the bootstrap server to use authentication tokens (recommended) or **no** if you configured it to use a trust password.
 1. Authenticate with the cluster.
 
    There are two alternative methods, depending on which authentication method you choose when configuring the bootstrap server.
@@ -120,7 +120,7 @@ Basically, the initialization process consists of the following steps:
    This reduces the amount of questions that you must answer during `lxd init`, because the join token can be used to answer these questions automatically.
    ````
    ````{group-tab} Trust password
-   If you configured your cluster to use a {ref}`trust password <authentication-trust-pw>`, `lxd init` requires more information about the cluster before it can start the authorization process:
+   If you configured your cluster to use a trust password, `lxd init` requires more information about the cluster before it can start the authorization process:
 
    1. Specify a name for the new cluster member.
    1. Provide the address of an existing cluster member (the bootstrap server or any other server you have already added).
@@ -202,7 +202,7 @@ You need a different preseed file for every server.
 
 ### Initialize the bootstrap server
 
-The required contents of the preseed file depend on whether you want to use {ref}`authentication tokens <authentication-token>` (recommended) or a {ref}`trust password <authentication-trust-pw>` for authentication.
+The required contents of the preseed file depend on whether you want to use authentication tokens (recommended) or a trust password for authentication.
 
 `````{tabs}
 
@@ -300,7 +300,7 @@ See {ref}`preseed-yaml-file-fields` for the complete fields of the preseed YAML 
 
 ### Join additional servers
 
-The required contents of the preseed files depend on whether you configured the bootstrap server to use {ref}`authentication tokens <authentication-token>` (recommended) or a {ref}`trust password <authentication-trust-pw>` for authentication.
+The required contents of the preseed files depend on whether you configured the bootstrap server to use authentication tokens (recommended) or a trust password for authentication.
 
 The preseed files for new cluster members require only a `cluster` section with data and configuration values that are specific to the joining server.
 
