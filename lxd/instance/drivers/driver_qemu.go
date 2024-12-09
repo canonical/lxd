@@ -8250,6 +8250,11 @@ func (d *qemu) InitPID() int {
 }
 
 func (d *qemu) statusCode() api.StatusCode {
+	// If instance is running on a remote cluster member, we cannot determine instance state.
+	if d.state.ServerName != d.Location() {
+		return api.Error
+	}
+
 	// Shortcut to avoid spamming QMP during ongoing operations.
 	operationStatus := d.operationStatusCode()
 	if operationStatus != nil {
