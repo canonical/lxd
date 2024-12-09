@@ -1614,7 +1614,9 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		"zfs.use_refquota": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.delegate)
 		// This option controls whether to delegate the ZFS dataset and anything underneath it to the
-		// container or containers that use it. This allows using the `zfs` command in the container.
+		// container or containers that use it. When used in conjunction with
+		// {config:option}`instance-security:security.nesting`, this allows
+		// using the `zfs` command in the container.
 		// ---
 		//  type: bool
 		//  condition: ZFS 2.2 or higher
