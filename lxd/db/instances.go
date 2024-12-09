@@ -1035,7 +1035,7 @@ ORDER BY instances_snapshots.creation_date, instances_snapshots.id
 
 // GetNextInstanceSnapshotIndex returns the index that the next snapshot of the
 // instance with the given name and pattern should have.
-func (c *ClusterTx) GetNextInstanceSnapshotIndex(ctx context.Context, project string, name string, pattern string) int {
+func (c *ClusterTx) GetNextInstanceSnapshotIndex(ctx context.Context, project string, name string, pattern string) (nextIndex int) {
 	q := `
 SELECT instances_snapshots.name
   FROM instances_snapshots
@@ -1053,8 +1053,6 @@ ORDER BY instances_snapshots.creation_date, instances_snapshots.id
 		return 0
 	}
 
-	max := 0
-
 	for _, r := range results {
 		snapOnlyName, ok := r[0].(string)
 		if !ok {
@@ -1069,12 +1067,12 @@ ORDER BY instances_snapshots.creation_date, instances_snapshots.id
 			continue
 		}
 
-		if num >= max {
-			max = num + 1
+		if num >= nextIndex {
+			nextIndex = num + 1
 		}
 	}
 
-	return max
+	return nextIndex
 }
 
 // DeleteReadyStateFromLocalInstances deletes the volatile.last_state.ready config key
