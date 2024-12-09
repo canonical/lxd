@@ -656,6 +656,11 @@ func (d *powerflex) defaultVMBlockFilesystemSize() string {
 	return powerFlexDefaultSize
 }
 
+// defaultBlockVolumeSize returns the default size for block volumes in this pool.
+func (d *powerflex) defaultBlockVolumeSize() string {
+	return powerFlexDefaultSize
+}
+
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.
 func (d *powerflex) MountVolume(vol Volume, op *operations.Operation) error {
 	unlock, err := vol.MountLock()
