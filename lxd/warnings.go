@@ -31,13 +31,15 @@ import (
 )
 
 var warningsCmd = APIEndpoint{
-	Path: "warnings",
+	Path:        "warnings",
+	MetricsType: entity.TypeWarning,
 
 	Get: APIEndpointAction{Handler: warningsGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanViewWarnings)},
 }
 
 var warningCmd = APIEndpoint{
-	Path: "warnings/{id}",
+	Path:        "warnings/{id}",
+	MetricsType: entity.TypeWarning,
 
 	Get:    APIEndpointAction{Handler: warningGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanViewWarnings)},
 	Patch:  APIEndpointAction{Handler: warningPatch, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},

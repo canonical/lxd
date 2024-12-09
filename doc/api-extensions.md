@@ -2452,11 +2452,6 @@ from being started if set to `true`.
 Adds a new `virtio-blk` value for `io.bus` on `disk` devices which allows
 for the attached disk to be connected to the `virtio-blk` bus.
 
-## `ubuntu_pro_guest_attach`
-
-Adds a new {config:option}`instance-miscellaneous:ubuntu_pro.guest_attach` configuration option for instances.
-When set to `on`, if the host has guest attachment enabled, the guest can request a guest token for Ubuntu Pro via `devlxd`.
-
 ## `metadata_configuration_entity_types`
 
 This adds entity type metadata to `GET /1.0/metadata/configuration`.
@@ -2471,3 +2466,60 @@ And lastly, adds a `project` field on leases, leases can be retrieved via `/1.0/
 ## `network_ovn_uplink_vlan`
 
 Adds support for using a bridge network with a specified VLAN ID as an OVN uplink.
+
+## `shared_custom_block_volumes`
+
+This adds a configuration key `security.shared` to custom block volumes.
+If unset or `false`, the custom block volume cannot be attached to multiple instances.
+This feature was added to prevent data loss which can happen when custom block volumes are attached to multiple instances at once.
+
+## `metrics_api_requests`
+
+Adds the following internal metrics:
+
+* Total completed requests
+* Number of ongoing requests
+
+## `projects_limits_disk_pool`
+
+This introduces per-pool project disk limits, introducing a `limits.disk.pool.NAME`
+configuration option to the project limits. When `limits.disk.pool.POOLNAME: 0`
+for a project, the pool is excluded from `lxc storage list` in that project.
+
+## `access_management_tls`
+
+Expands APIs under `/1.0/auth` to include:
+
+1. Creation of fine-grained TLS identities, whose permissions are managed via group membership.
+  This is performed via `POST /1.0/auth/identities/tls`.
+  If the request body contains `{"token": true}`, a token will be returned that may be used by a non-authenticated caller to gain trust with the LXD server (the caller must send their certificate during the TLS handshake).
+  If the request body contains `{"certificate": "<base64 encoded x509 certificate>"}"`, the identity will be created directly.
+  The request body may also specify an array of group names.
+  The caller must have `can_create_identities` on `server`.
+1. Deletion of OIDC and fine-grained TLS identities.
+  This is performed via `DELETE /1.0/auth/identities/tls/{nameOrFingerprint}` or `DELETE /1.0/auth/identities/oidc/{nameOrEmailAddress}`.
+  The caller must have `can_delete` on the identity. All identities may delete their own identity.
+  For OIDC identities this revokes all access but does not revoke trust (authentication is performed by the identity provider).
+  For fine-grained TLS identities, this revokes all access and revokes trust.
+1. Functionality to update the certificate of a fine-grained TLS identity.
+  This is performed via `PUT /1.0/auth/identities/tls/{nameOrFingerprint}` or `PATCH /1.0/auth/identities/tls/{nameOrFingerprint}`.
+  The caller must provide a base64 encoded x509 certificate in the `certificate` field of the request body.
+  Fine-grained TLS identities may update their own certificate.
+  To update the certificate of another identity, the caller must have `can_edit` on the identity.
+
+## `state_logical_cpus`
+
+Adds `logical_cpus` field to `GET /1.0/cluster/members/{name}/state` which
+contains the total available logical CPUs available when LXD started.
+
+## `vm_limits_cpu_pin_strategy`
+
+Adds a new {config:option}`instance-resource-limits:limits.cpu.pin_strategy` configuration option for virtual machines. This option controls the CPU pinning strategy. When set to `none`, CPU auto pinning is disabled. When set to `auto`, CPU auto pinning is enabled.
+
+## `gpu_cdi`
+
+Adds support for using the Container Device Interface (CDI) specification to configure GPU passthrough in LXD containers. The `id` field of GPU devices now accepts CDI identifiers (for example, `{VENDOR_DOMAIN_NAME}/gpu=gpu{INDEX}`) for containers, in addition to DRM card IDs. This enables GPU passthrough for devices that don't use PCI addressing (like NVIDIA Tegra iGPUs) and provides a more flexible way to identify and configure GPU devices.
+
+## `images_all_projects`
+
+This adds support for listing images across all projects using the `all-projects` parameter in `GET /1.0/images` requests.

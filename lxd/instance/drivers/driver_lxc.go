@@ -41,6 +41,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/device"
+	"github.com/canonical/lxd/lxd/device/cdi"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/device/nictype"
 	"github.com/canonical/lxd/lxd/idmap"
@@ -936,14 +937,24 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		return nil, err
 	}
 
+	// Instruct liblxc to use the lxd-stophook wrapper in the bin directory of the snap instead of lxd in sbin.
+	// This is the historical path where the lxd binary used to be, but it was replaced with a small wrapper
+	// script which redirects the stop hook requests to lxd-user (which is statically compiled) so that stop
+	// hook notifications to LXD work when the snap base version is changed.
+	lxdStopHookPath := d.state.OS.ExecPath
+	if shared.InSnap() && strings.HasSuffix(lxdStopHookPath, "sbin/lxd") {
+		// Convert /snap/lxd/current/sbin/lxd into /snap/lxd/current/bin/lxd.
+		lxdStopHookPath = strings.TrimSuffix(lxdStopHookPath, "sbin/lxd") + "bin/lxd"
+	}
+
 	// Call the onstopns hook on stop but before namespaces are unmounted.
-	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", lxdStopHookPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
 	if err != nil {
 		return nil, err
 	}
 
 	// Call the onstop hook on stop.
-	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", lxdStopHookPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
 	if err != nil {
 		return nil, err
 	}
@@ -1356,7 +1367,7 @@ func (d *lxc) IdmappedStorage(path string, fstype string) idmap.IdmapStorageType
 	if bindMount {
 		err := unix.Statfs(path, buf)
 		if err != nil {
-			d.logger.Error("Failed to statfs", logger.Ctx{"path": path, "err": err})
+			d.logger.Warn("Failed to statfs", logger.Ctx{"path": path, "err": err})
 			return mode
 		}
 	}
@@ -2057,6 +2068,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Create the devices
 	nicID := -1
 	nvidiaDevices := []string{}
+	cdiConfigFiles := []string{}
 
 	sortedDevices := d.expandedDevices.Sorted()
 	startDevices := make([]device.Device, 0, len(sortedDevices))
@@ -2227,6 +2239,10 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 				if entry.Key == device.GPUNvidiaDeviceKey {
 					nvidiaDevices = append(nvidiaDevices, entry.Value)
 				}
+
+				if entry.Key == cdi.CDIHookDefinitionKey {
+					cdiConfigFiles = append(cdiConfigFiles, entry.Value)
+				}
 			}
 		}
 	}
@@ -2236,6 +2252,13 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_VISIBLE_DEVICES=%s", strings.Join(nvidiaDevices, ",")))
 		if err != nil {
 			return "", nil, fmt.Errorf("Unable to set NVIDIA_VISIBLE_DEVICES in LXC environment: %w", err)
+		}
+	}
+
+	if len(cdiConfigFiles) > 0 {
+		err = lxcSetConfigItem(cc, "lxc.hook.mount", fmt.Sprintf("%s callhook %s %s %s startmountns --devicesRootFolder %s %s", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name()), d.DevicesPath(), strings.Join(cdiConfigFiles, " ")))
+		if err != nil {
+			return "", nil, fmt.Errorf("Unable to set the startmountns callhook to process CDI hooks files (%q) for instance %q in project %q: %w", strings.Join(cdiConfigFiles, ","), d.Name(), d.Project().Name, err)
 		}
 	}
 
@@ -2563,7 +2586,7 @@ func (d *lxc) onStart(_ map[string]string) error {
 	}
 
 	// Trigger a rebalance
-	cgroup.TaskSchedulerTrigger("container", d.name, "started")
+	cgroup.TaskSchedulerTrigger(d.dbType, d.name, "started")
 
 	// Record last start state.
 	err = d.recordLastState()
@@ -3042,7 +3065,7 @@ func (d *lxc) onStop(args map[string]string) error {
 		}
 
 		// Trigger a rebalance
-		cgroup.TaskSchedulerTrigger("container", d.name, "stopped")
+		cgroup.TaskSchedulerTrigger(d.dbType, d.name, "stopped")
 
 		// Destroy ephemeral containers
 		if d.ephemeral {
@@ -4859,7 +4882,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	if cpuLimitWasChanged {
 		// Trigger a scheduler re-run
-		cgroup.TaskSchedulerTrigger("container", d.name, "changed")
+		cgroup.TaskSchedulerTrigger(d.dbType, d.name, "changed")
 	}
 
 	if userRequested {
@@ -6967,7 +6990,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		// Wait for completion.
 		err = forkfile.Wait()
 		if err != nil {
-			d.logger.Error("SFTP server stopped with error", logger.Ctx{"err": err, "stderr": strings.TrimSpace(stderr.String())})
+			d.logger.Warn("SFTP server stopped with error", logger.Ctx{"err": err, "stderr": strings.TrimSpace(stderr.String())})
 			return
 		}
 	}()
@@ -8129,24 +8152,25 @@ func (d *lxc) NextIdmap() (*idmap.IdmapSet, error) {
 // statusCode returns instance status code.
 func (d *lxc) statusCode() api.StatusCode {
 	// Shortcut to avoid spamming liblxc during ongoing operations.
-	op := operationlock.Get(d.Project().Name, d.Name())
-	if op != nil {
-		if op.Action() == operationlock.ActionStart {
-			return api.Stopped
-		}
-
-		if op.Action() == operationlock.ActionStop {
-			if shared.IsTrue(d.LocalConfig()["volatile.last_state.ready"]) {
-				return api.Ready
-			}
-
-			return api.Running
-		}
+	operationStatus := d.operationStatusCode()
+	if operationStatus != nil {
+		return *operationStatus
 	}
 
 	state, err := d.getLxcState()
 	if err != nil {
 		return api.Error
+	}
+
+	// The state that we get from LXC could be stale; if the container is self-stopping,
+	// the on-stop hook handler may be called while we are waiting for getLxcState. If
+	// that happens, we might return `STOPPED` even though a Stop operation is still
+	// running.
+	if state == liblxc.STOPPED {
+		operationStatus = d.operationStatusCode()
+		if operationStatus != nil {
+			return *operationStatus
+		}
 	}
 
 	statusCode := lxcStatusCode(state)

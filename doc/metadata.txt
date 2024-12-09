@@ -275,9 +275,15 @@ You can omit the `MIG-` prefix when specifying this option.
 ```
 
 ```{config:option} id device-gpu-physical-device-conf
-:shortdesc: "DRM card ID of the GPU device"
+:shortdesc: "ID of the GPU device"
 :type: "string"
+The ID can either be the DRM card ID of the GPU device (container or VM) or a fully-qualified Container Device Interface (CDI) name (container only).
+Here are some examples of fully-qualified CDI names:
 
+- `nvidia.com/gpu=0`: Instructs LXD to operate a discrete GPU (dGPU) pass-through of brand NVIDIA with the first discovered GPU on your system. You can use the `nvidia-smi` tool on your host to find out which identifier to use.
+- `nvidia.com/gpu=1833c8b5-9aa0-5382-b784-68b7e77eb185`: Instructs LXD to operate a discrete GPU (dGPU) pass-through of brand NVIDIA with a given GPU unique identifier. This identifier should also appear with `nvidia-smi -L`.
+- `nvidia.com/igpu=all`: Instructs LXD to pass all the host integrated GPUs (iGPU) of brand NVIDIA. The concept of an index does not currently map to iGPUs. It is possible to list them with the `nvidia-smi -L` command. A special `nvgpu` mention should appear in the generated list to indicate a device to be an iGPU.
+- `nvidia.com/gpu=all`: Instructs LXD to pass all the host GPUs of brand NVIDIA through to the container.
 ```
 
 ```{config:option} mode device-gpu-physical-device-conf
@@ -1411,7 +1417,7 @@ For example: `/dev/tpmrm0`
 <!-- config group device-unix-block-device-conf start -->
 ```{config:option} gid device-unix-block-device-conf
 :defaultdesc: "`0`"
-:shortdesc: "GID of the device owner in the instance"
+:shortdesc: "GID of the device owner in the container"
 :type: "integer"
 
 ```
@@ -1432,21 +1438,21 @@ For example: `/dev/tpmrm0`
 
 ```{config:option} mode device-unix-block-device-conf
 :defaultdesc: "`0660`"
-:shortdesc: "Mode of the device in the instance"
+:shortdesc: "Mode of the device in the container"
 :type: "integer"
 
 ```
 
 ```{config:option} path device-unix-block-device-conf
 :required: "either `source` or `path` must be set"
-:shortdesc: "Path inside the instance"
+:shortdesc: "Path inside the container"
 :type: "string"
 
 ```
 
 ```{config:option} required device-unix-block-device-conf
 :defaultdesc: "`true`"
-:shortdesc: "Whether this device is required to start the instance"
+:shortdesc: "Whether this device is required to start the container"
 :type: "bool"
 See {ref}`devices-unix-block-hotplugging` for more information.
 ```
@@ -1460,7 +1466,7 @@ See {ref}`devices-unix-block-hotplugging` for more information.
 
 ```{config:option} uid device-unix-block-device-conf
 :defaultdesc: "`0`"
-:shortdesc: "UID of the device owner in the instance"
+:shortdesc: "UID of the device owner in the container"
 :type: "integer"
 
 ```
@@ -1469,7 +1475,7 @@ See {ref}`devices-unix-block-hotplugging` for more information.
 <!-- config group device-unix-char-device-conf start -->
 ```{config:option} gid device-unix-char-device-conf
 :defaultdesc: "`0`"
-:shortdesc: "GID of the device owner in the instance"
+:shortdesc: "GID of the device owner in the container"
 :type: "integer"
 
 ```
@@ -1490,21 +1496,21 @@ See {ref}`devices-unix-block-hotplugging` for more information.
 
 ```{config:option} mode device-unix-char-device-conf
 :defaultdesc: "`0660`"
-:shortdesc: "Mode of the device in the instance"
+:shortdesc: "Mode of the device in the container"
 :type: "integer"
 
 ```
 
 ```{config:option} path device-unix-char-device-conf
 :required: "either `source` or `path` must be set"
-:shortdesc: "Path inside the instance"
+:shortdesc: "Path inside the container"
 :type: "string"
 
 ```
 
 ```{config:option} required device-unix-char-device-conf
 :defaultdesc: "`true`"
-:shortdesc: "Whether this device is required to start the instance"
+:shortdesc: "Whether this device is required to start the container"
 :type: "bool"
 See {ref}`devices-unix-char-hotplugging` for more information.
 ```
@@ -1518,7 +1524,7 @@ See {ref}`devices-unix-char-hotplugging` for more information.
 
 ```{config:option} uid device-unix-char-device-conf
 :defaultdesc: "`0`"
-:shortdesc: "UID of the device owner in the instance"
+:shortdesc: "UID of the device owner in the container"
 :type: "integer"
 
 ```
@@ -1527,14 +1533,14 @@ See {ref}`devices-unix-char-hotplugging` for more information.
 <!-- config group device-unix-hotplug-device-conf start -->
 ```{config:option} gid device-unix-hotplug-device-conf
 :defaultdesc: "`0`"
-:shortdesc: "GID of the device owner in the instance"
+:shortdesc: "GID of the device owner in the container"
 :type: "integer"
 
 ```
 
 ```{config:option} mode device-unix-hotplug-device-conf
 :defaultdesc: "`0660`"
-:shortdesc: "Mode of the device in the instance"
+:shortdesc: "Mode of the device in the container"
 :type: "integer"
 
 ```
@@ -1547,14 +1553,14 @@ See {ref}`devices-unix-char-hotplugging` for more information.
 
 ```{config:option} required device-unix-hotplug-device-conf
 :defaultdesc: "`false`"
-:shortdesc: "Whether this device is required to start the instance"
+:shortdesc: "Whether this device is required to start the container"
 :type: "bool"
 The default is `false`, which means that all devices can be hotplugged.
 ```
 
 ```{config:option} uid device-unix-hotplug-device-conf
 :defaultdesc: "`0`"
-:shortdesc: "UID of the device owner in the instance"
+:shortdesc: "UID of the device owner in the container"
 :type: "integer"
 
 ```
@@ -1582,7 +1588,7 @@ The default is `false`, which means that all devices can be hotplugged.
 ```{config:option} gid device-unix-usb-device-conf
 :condition: "container"
 :defaultdesc: "`0`"
-:shortdesc: "GID of the device owner in the container"
+:shortdesc: "GID of the device owner in the instance"
 :type: "integer"
 
 ```
@@ -1590,7 +1596,7 @@ The default is `false`, which means that all devices can be hotplugged.
 ```{config:option} mode device-unix-usb-device-conf
 :condition: "container"
 :defaultdesc: "`0660`"
-:shortdesc: "Mode of the device in the container"
+:shortdesc: "Mode of the device in the instance"
 :type: "integer"
 
 ```
@@ -1617,7 +1623,7 @@ The default is `false`, which means that all devices can be hotplugged.
 ```{config:option} uid device-unix-usb-device-conf
 :condition: "container"
 :defaultdesc: "`0`"
-:shortdesc: "UID of the device owner in the container"
+:shortdesc: "UID of the device owner in the instance"
 :type: "integer"
 
 ```
@@ -1638,7 +1644,7 @@ If set to `false`, restore the last state.
 ```
 
 ```{config:option} boot.autostart.delay instance-boot
-:defaultdesc: "0"
+:defaultdesc: "`0`"
 :liveupdate: "no"
 :shortdesc: "Delay after starting the instance"
 :type: "integer"
@@ -1646,7 +1652,7 @@ The number of seconds to wait after the instance started before starting the nex
 ```
 
 ```{config:option} boot.autostart.priority instance-boot
-:defaultdesc: "0"
+:defaultdesc: "`0`"
 :liveupdate: "no"
 :shortdesc: "What order to start the instances in"
 :type: "integer"
@@ -1661,7 +1667,7 @@ A log file can be found in `$LXD_DIR/logs/<instance_name>/edk2.log`.
 ```
 
 ```{config:option} boot.host_shutdown_timeout instance-boot
-:defaultdesc: "30"
+:defaultdesc: "`30`"
 :liveupdate: "yes"
 :shortdesc: "How long to wait for the instance to shut down"
 :type: "integer"
@@ -1669,7 +1675,7 @@ Number of seconds to wait for the instance to shut down before it is force-stopp
 ```
 
 ```{config:option} boot.stop.priority instance-boot
-:defaultdesc: "0"
+:defaultdesc: "`0`"
 :liveupdate: "no"
 :shortdesc: "What order to shut down the instances in"
 :type: "integer"
@@ -1834,19 +1840,6 @@ Possible values are `boot` (load the modules when booting the container) and `on
 
 ```
 
-```{config:option} ubuntu_pro.guest_attach instance-miscellaneous
-:liveupdate: "no"
-:shortdesc: "Whether to auto-attach Ubuntu Pro."
-:type: "string"
-Indicate whether the guest should auto-attach Ubuntu Pro at start up.
-The allowed values are `off`, `on`, and `available`.
-If set to `off`, it will not be possible for the Ubuntu Pro client in the guest to obtain guest token via `devlxd`.
-If set to `available`, attachment via guest token is possible but will not be performed automatically by the Ubuntu Pro client in the guest at startup.
-If set to `on`, attachment will be performed automatically by the Ubuntu Pro client in the guest at startup.
-To allow guest attachment, the host must be an Ubuntu machine that is Pro attached, and guest attachment must be enabled via the Pro client.
-To do this, run `pro config set lxd_guest_attach=on`.
-```
-
 ```{config:option} user.* instance-miscellaneous
 :liveupdate: "no"
 :shortdesc: "Free-form user key/value storage"
@@ -1970,6 +1963,18 @@ See {ref}`instance-options-limits-cpu-container` for more information.
 A comma-separated list of NUMA node IDs or ranges to place the instance CPUs on.
 
 See {ref}`instance-options-limits-cpu-container` for more information.
+```
+
+```{config:option} limits.cpu.pin_strategy instance-resource-limits
+:condition: "virtual machine"
+:defaultdesc: "`none`"
+:liveupdate: "no"
+:shortdesc: "VM CPU auto pinning strategy"
+:type: "string"
+Specify the strategy for VM CPU auto pinning.
+Possible values: `none` (disables CPU auto pinning) and `auto` (enables CPU auto pinning).
+
+See {ref}`instance-options-limits-cpu-vm` for more information.
 ```
 
 ```{config:option} limits.cpu.priority instance-resource-limits
@@ -2126,7 +2131,7 @@ See {ref}`dev-lxd` for more information.
 
 ```{config:option} security.devlxd.images instance-security
 :defaultdesc: "`false`"
-:liveupdate: "no"
+:liveupdate: "yes"
 :shortdesc: "Controls the availability of the `/1.0/images` API over `devlxd`"
 :type: "bool"
 
@@ -3411,7 +3416,7 @@ Specify a comma-separated list of DNS zone names.
 ```{config:option} ipv4.address network-ovn-network-conf
 :condition: "standard mode"
 :defaultdesc: "initial value on creation: `auto`"
-:shortdesc: "IPv4 address for the bridge"
+:shortdesc: "IPv4 address for the OVN network"
 :type: "string"
 Use CIDR notation.
 
@@ -3452,7 +3457,7 @@ You can set the option to `none` to turn off IPv4, or to `auto` to generate a ne
 ```{config:option} ipv6.address network-ovn-network-conf
 :condition: "standard mode"
 :defaultdesc: "initial value on creation: `auto`"
-:shortdesc: "IPv6 address for the bridge"
+:shortdesc: "IPv6 address for the OVN network"
 :type: "string"
 Use CIDR notation.
 
@@ -3919,6 +3924,17 @@ This value is the maximum value for the sum of the individual {config:option}`in
 :shortdesc: "Maximum disk space used by the project"
 :type: "string"
 This value is the maximum value of the aggregate disk space used by all instance volumes, custom volumes, and images of the project.
+```
+
+```{config:option} limits.disk.pool.POOL_NAME project-limits
+:shortdesc: "Maximum disk space used by the project on this pool"
+:type: "string"
+This value is the maximum value of the aggregate disk
+space used by all instance volumes, custom volumes, and images of the
+project on this specific storage pool.
+
+When set to 0, the pool is excluded from storage pool list for
+the project.
 ```
 
 ```{config:option} limits.instances project-limits
@@ -4768,6 +4784,15 @@ prior to creating the storage pool.
 
 <!-- config group storage-btrfs-pool-conf end -->
 <!-- config group storage-btrfs-volume-conf start -->
+```{config:option} security.shared storage-btrfs-volume-conf
+:condition: "custom block volume"
+:defaultdesc: "same as `volume.security.shared` or `false`"
+:shortdesc: "Enable volume sharing"
+:type: "bool"
+Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
+
+```
+
 ```{config:option} security.shifted storage-btrfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
@@ -4920,6 +4945,15 @@ If not set, `ext4` is assumed.
 :defaultdesc: "same as `volume.block.mount_options`"
 :shortdesc: "Mount options for block-backed file system volumes"
 :type: "string"
+
+```
+
+```{config:option} security.shared storage-ceph-volume-conf
+:condition: "custom block volume"
+:defaultdesc: "same as `volume.security.shared` or `false`"
+:shortdesc: "Enable volume sharing"
+:type: "bool"
+Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
 
 ```
 
@@ -5202,6 +5236,15 @@ to be placed on the socket I/O.
 
 <!-- config group storage-dir-pool-conf end -->
 <!-- config group storage-dir-volume-conf start -->
+```{config:option} security.shared storage-dir-volume-conf
+:condition: "custom block volume"
+:defaultdesc: "same as `volume.security.shared` or `false`"
+:shortdesc: "Enable volume sharing"
+:type: "bool"
+Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
+
+```
+
 ```{config:option} security.shifted storage-dir-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
@@ -5388,6 +5431,15 @@ If not set, `ext4` is assumed.
 The size must be at least 4096 bytes, and a multiple of 512 bytes.
 ```
 
+```{config:option} security.shared storage-lvm-volume-conf
+:condition: "custom block volume"
+:defaultdesc: "same as `volume.security.shared` or `false`"
+:shortdesc: "Enable volume sharing"
+:type: "bool"
+Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
+
+```
+
 ```{config:option} security.shifted storage-lvm-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
@@ -5566,6 +5618,15 @@ If not set, `ext4` is assumed.
 
 ```
 
+```{config:option} security.shared storage-powerflex-volume-conf
+:condition: "custom block volume"
+:defaultdesc: "same as `volume.security.shared` or `false`"
+:shortdesc: "Enable volume sharing"
+:type: "bool"
+Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
+
+```
+
 ```{config:option} security.shifted storage-powerflex-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
@@ -5708,6 +5769,15 @@ If not set, `ext4` is assumed.
 :defaultdesc: "same as `volume.block.mount_options`"
 :shortdesc: "Mount options for block-backed file system volumes"
 :type: "string"
+
+```
+
+```{config:option} security.shared storage-zfs-volume-conf
+:condition: "custom block volume"
+:defaultdesc: "same as `volume.security.shared` or `false`"
+:shortdesc: "Enable volume sharing"
+:type: "bool"
+Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
 
 ```
 
@@ -5914,7 +5984,7 @@ container or containers that use it. This allows using the `zfs` command in the 
 : Grants permission to delete the instance.
 
 `can_view`
-: Grants permission to view the instance.
+: Grants permission to view the instance and any snapshots or backups it might have.
 
 `can_update_state`
 : Grants permission to change the instance state.
@@ -6246,6 +6316,9 @@ container or containers that use it. This allows using the `zfs` command in the 
 `can_view_warnings`
 : Grants permission to view warnings.
 
+`can_view_unmanaged_networks`
+: Grants permission to view unmanaged networks on the LXD host machines.
+
 
 <!-- entity group server end -->
 <!-- entity group storage_bucket start -->
@@ -6277,7 +6350,7 @@ container or containers that use it. This allows using the `zfs` command in the 
 : Grants permission to delete the storage volume.
 
 `can_view`
-: Grants permission to view the storage volume.
+: Grants permission to view the storage volume and any snapshots or backups it might have.
 
 `can_manage_snapshots`
 : Grants permission to create and delete snapshots of the storage volume.

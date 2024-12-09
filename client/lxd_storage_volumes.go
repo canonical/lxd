@@ -609,7 +609,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 		Type: volume.Type,
 		Source: api.StorageVolumeSource{
 			Name:       volume.Name,
-			Type:       "copy",
+			Type:       api.SourceTypeCopy,
 			Pool:       sourcePool,
 			VolumeOnly: args.VolumeOnly,
 			Refresh:    args.Refresh,
@@ -692,7 +692,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 		}
 
 		// Create the container
-		req.Source.Type = "migration"
+		req.Source.Type = api.SourceTypeMigration
 		req.Source.Mode = "push"
 
 		// Send the request
@@ -708,7 +708,10 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 
 		targetSecrets := map[string]string{}
 		for k, v := range opAPI.Metadata {
-			targetSecrets[k] = v.(string)
+			value, ok := v.(string)
+			if ok {
+				targetSecrets[k] = value
+			}
 		}
 
 		// Prepare the source request
@@ -738,13 +741,16 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 	// Prepare source server secrets for remote
 	sourceSecrets := map[string]string{}
 	for k, v := range opAPI.Metadata {
-		sourceSecrets[k] = v.(string)
+		value, ok := v.(string)
+		if ok {
+			sourceSecrets[k] = value
+		}
 	}
 
 	// Relay mode migration
 	if args != nil && args.Mode == "relay" {
 		// Push copy source fields
-		req.Source.Type = "migration"
+		req.Source.Type = api.SourceTypeMigration
 		req.Source.Mode = "push"
 
 		// Send the request
@@ -761,7 +767,10 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 		// Extract the websockets
 		targetSecrets := map[string]string{}
 		for k, v := range targetOpAPI.Metadata {
-			targetSecrets[k] = v.(string)
+			value, ok := v.(string)
+			if ok {
+				targetSecrets[k] = value
+			}
 		}
 
 		// Launch the relay
@@ -786,7 +795,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 	}
 
 	// Pull mode migration
-	req.Source.Type = "migration"
+	req.Source.Type = api.SourceTypeMigration
 	req.Source.Mode = "pull"
 	req.Source.Operation = opAPI.ID
 	req.Source.Websockets = sourceSecrets

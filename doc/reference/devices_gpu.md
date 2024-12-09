@@ -53,6 +53,26 @@ Add a specific GPU from the host system as a `physical` GPU device to an instanc
 
 See {ref}`instances-configure-devices` for more information.
 
+#### CDI mode
+
+```{note}
+The CDI mode is currently not supported on `armhf` architectures.
+```
+
+Add a specific GPU from the host system as a `physical` GPU device to an instance using the [Container Device Interface](https://github.com/cncf-tags/container-device-interface) (CDI) notation through a fully-qualified CDI name:
+
+    lxc config device add <instance_name> <device_name> gpu gputype=physical id=<fully_qualified_CDI_name>
+
+For example, add the first available NVIDIA discrete GPU on your system:
+
+    lxc config device add <instance_name> <device_name> gpu gputype=physical id=nvidia.com/gpu=0
+
+If your machine has an NVIDIA iGPU (integrated GPU) located at index 0, you can add it like this:
+
+    lxc config device add <instance_name> <device_name> gpu gputype=physical id=nvidia.com/igpu=0
+
+For a complete example on how to use a GPU CDI pass-through, see {ref}`container-gpu-passthrough-with-docker`.
+
 (gpu-mdev)=
 ## `gputype`: `mdev`
 

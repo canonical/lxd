@@ -668,7 +668,7 @@ func (c *ClusterTx) storageVolumeConfigGet(ctx context.Context, volumeID int64, 
 //
 // Note, the code below doesn't deal with snapshots of snapshots.
 // To do that, we'll need to weed out based on # slashes in names.
-func (c *ClusterTx) GetNextStorageVolumeSnapshotIndex(ctx context.Context, pool, name string, typ int, pattern string) int {
+func (c *ClusterTx) GetNextStorageVolumeSnapshotIndex(ctx context.Context, pool, name string, typ int, pattern string) (nextIndex int) {
 	remoteDrivers := StorageRemoteDriverNames()
 
 	q := fmt.Sprintf(`
@@ -693,8 +693,6 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 		return 0
 	}
 
-	max := 0
-
 	for _, r := range results {
 		substr, ok := r[0].(string)
 		if !ok {
@@ -709,12 +707,12 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 			continue
 		}
 
-		if num >= max {
-			max = num + 1
+		if num >= nextIndex {
+			nextIndex = num + 1
 		}
 	}
 
-	return max
+	return nextIndex
 }
 
 // Updates the description of a storage volume.

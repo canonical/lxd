@@ -134,7 +134,7 @@ Storage volumes can be of the following types:
 
 `custom`
 : You can add one or more custom storage volumes to hold data that you want to store separately from your instances.
-  Custom storage volumes can be shared between instances, and they are retained until you delete them.
+  Custom storage volumes of content type `filesystem` or `iso` can be shared between instances, and they are retained until you delete them.
 
   You can also use custom storage volumes to hold your backups or images.
 
@@ -156,7 +156,8 @@ Each storage volume uses one of the following content types:
   You can create a custom storage volume of type `block` by using the `--type=block` flag.
 
   Custom storage volumes of content type `block` can only be attached to virtual machines.
-  They should not be shared between instances, because simultaneous access can lead to data corruption.
+  By default, they can only be attached to one instance at a time, because simultaneous access can lead to data corruption.
+  Sharing a custom storage volumes of content type `block` is made possible through the usage of the `security.shared` configuration key.
 
 `iso`
 : This content type is used for custom ISO volumes.

@@ -27,14 +27,16 @@ import (
 )
 
 var networkACLsCmd = APIEndpoint{
-	Path: "network-acls",
+	Path:        "network-acls",
+	MetricsType: entity.TypeNetwork,
 
 	Get:  APIEndpointAction{Handler: networkACLsGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: networkACLsPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateNetworkACLs)},
 }
 
 var networkACLCmd = APIEndpoint{
-	Path: "network-acls/{name}",
+	Path:        "network-acls/{name}",
+	MetricsType: entity.TypeNetwork,
 
 	Delete: APIEndpointAction{Handler: networkACLDelete, AccessHandler: allowPermission(entity.TypeNetworkACL, auth.EntitlementCanDelete, "name")},
 	Get:    APIEndpointAction{Handler: networkACLGet, AccessHandler: allowPermission(entity.TypeNetworkACL, auth.EntitlementCanView, "name")},
@@ -44,7 +46,8 @@ var networkACLCmd = APIEndpoint{
 }
 
 var networkACLLogCmd = APIEndpoint{
-	Path: "network-acls/{name}/log",
+	Path:        "network-acls/{name}/log",
+	MetricsType: entity.TypeNetwork,
 
 	Get: APIEndpointAction{Handler: networkACLLogGet, AccessHandler: allowPermission(entity.TypeNetworkACL, auth.EntitlementCanView, "name")},
 }
@@ -644,5 +647,5 @@ func networkACLLogGet(d *Daemon, r *http.Request) response.Response {
 	ent.FileModified = time.Now()
 	ent.FileSize = int64(len(log))
 
-	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil)
+	return response.FileResponse([]response.FileResponseEntry{ent}, nil)
 }

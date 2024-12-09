@@ -87,7 +87,7 @@ func TestStoragePoolsCreatePending(t *testing.T) {
 
 	// The initial node (whose name is 'none' by default) is missing.
 	_, err = tx.GetStoragePoolNodeConfigs(context.Background(), poolID)
-	require.EqualError(t, err, "Pool not defined on nodes: none")
+	require.EqualError(t, err, "Pool not defined on cluster members: none")
 
 	config = map[string]string{"source": "/egg"}
 	err = tx.CreatePendingStoragePool(context.Background(), "none", "pool1", "dir", config)

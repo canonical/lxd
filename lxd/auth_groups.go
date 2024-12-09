@@ -27,8 +27,9 @@ import (
 )
 
 var authGroupsCmd = APIEndpoint{
-	Name: "auth_groups",
-	Path: "auth/groups",
+	Name:        "auth_groups",
+	Path:        "auth/groups",
+	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
 		Handler:       getAuthGroups,
 		AccessHandler: allowAuthenticated,
@@ -40,8 +41,9 @@ var authGroupsCmd = APIEndpoint{
 }
 
 var authGroupCmd = APIEndpoint{
-	Name: "auth_group",
-	Path: "auth/groups/{groupName}",
+	Name:        "auth_group",
+	Path:        "auth/groups/{groupName}",
+	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
 		Handler:       getAuthGroup,
 		AccessHandler: allowPermission(entity.TypeAuthGroup, auth.EntitlementCanView, "groupName"),
@@ -711,7 +713,7 @@ func renameAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = notifier(func(client lxd.InstanceServer) error {
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
 		return err
 	})
@@ -772,7 +774,7 @@ func deleteAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = notifier(func(client lxd.InstanceServer) error {
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
 		return err
 	})

@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
@@ -48,55 +48,44 @@ jobs:
         uses: ./.github/actions/tune-disk-performance
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019  # v4.5.0
+        uses: actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019 # v4.5.0
         if: github.event_name == 'pull_request'
 
       # XXX: `make static-analysis` also run shellcheck but this one provides
       #      useful feedback in the PR through github-code-scanning bot
       - id: ShellCheck
         name: Differential ShellCheck
-        uses: redhat-plumbers-in-action/differential-shellcheck@cc6721c45a8800cc666de45493545a07a638d121  # v5.4.0
+        uses: redhat-plumbers-in-action/differential-shellcheck@cc6721c45a8800cc666de45493545a07a638d121 # v5.4.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           strict-check-on-push: true
         if: github.event_name == 'pull_request'
 
       - name: Upload artifact with ShellCheck defects in SARIF format
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: Differential ShellCheck SARIF
           path: ${{ steps.ShellCheck.outputs.sarif }}
         if: github.event_name == 'pull_request'
 
       - name: Install Go
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed  # v5.1.0
+        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
         with:
           go-version-file: 'go.mod'
 
       - name: Install build dependencies
         uses: ./.github/actions/install-lxd-builddeps
 
-      - name: Download minio/mc
-        run: |
-          # Download minio ready to include in dependencies for system tests.
-          mkdir -p "$(go env GOPATH)/bin"
-          curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
-          chmod +x "$(go env GOPATH)/bin/minio"
-
-          # Also grab the latest minio client to maintain compatibility with the server.
-          curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc --output "$(go env GOPATH)/bin/mc"
-          chmod +x "$(go env GOPATH)/bin/mc"
-
       - name: Download go dependencies
         run: |
           set -eux
+          sudo chmod o+w {go.mod,go.sum}
           go mod download
 
       - name: Check compatibility with min Go version
         run: |
           set -eux
           GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
-          sudo chmod o+w {go.mod,go.sum}
           go mod tidy -go="${GOMIN}"
 
           DOC_GOMIN="$(sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md)"
@@ -131,8 +120,6 @@ jobs:
           # Build from unpacked dist tarball.
           cd /home/runner/work/lxd/lxd-test
           make
-
-          strip --strip-all /home/runner/go/bin/{lxc*,lxd*} -v
 
       - name: Check lxc/lxd-agent binary sizes
         run: |
@@ -192,14 +179,17 @@ jobs:
           sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,GOCOVERDIR,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" make check-unit
 
       - name: Upload coverage data
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: coverage-unit
           path: ${{env.GOCOVERDIR}}
         if: env.GOCOVERDIR != ''
 
+      - name: Download minio/mc to add to system test dependencies
+        uses: ./.github/actions/download-minio
+
       - name: Upload system test dependencies
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: system-test-deps
           path: |
@@ -219,6 +209,7 @@ jobs:
       LXD_VERBOSE: "1"
       LXD_OFFLINE: "1"
       LXD_TMPFS: "1"
+      GOTRACEBACK: "crash"
     name: System
     runs-on: ubuntu-22.04
     needs: code-tests
@@ -230,7 +221,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
@@ -242,63 +233,15 @@ jobs:
         uses: ./.github/actions/disable-docker
 
       - name: Install Go
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed  # v5.1.0
+        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
         with:
           go-version-file: 'go.mod'
 
-      - name: Install dependencies
-        run: |
-          set -eux
-          sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
-          sudo apt-get update
-
-          sudo systemctl mask lxc.service lxc-net.service
-
-          sudo apt-get install --no-install-recommends -y \
-            curl \
-            git \
-            libacl1-dev \
-            libcap-dev \
-            libdbus-1-dev \
-            liblxc-dev \
-            libseccomp-dev \
-            libselinux-dev \
-            libsqlite3-dev \
-            libtool \
-            libudev-dev \
-            make \
-            pkg-config\
-            acl \
-            attr \
-            bind9-dnsutils \
-            btrfs-progs \
-            busybox-static \
-            dnsmasq-base \
-            easy-rsa \
-            gettext \
-            jq \
-            lxc-utils \
-            lvm2 \
-            nftables \
-            quota \
-            rsync \
-            s3cmd \
-            socat \
-            sqlite3 \
-            squashfs-tools \
-            tar \
-            tcl \
-            thin-provisioning-tools \
-            uuid-runtime \
-            xfsprogs \
-            xz-utils \
-            zfsutils-linux
-
-          # reclaim some space
-          sudo apt-get clean
+      - name: Install runtime dependencies
+        uses: ./.github/actions/install-lxd-runtimedeps
 
       - name: Download system test dependencies
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4.1.8
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: system-test-deps
           merge-multiple: true
@@ -322,18 +265,29 @@ jobs:
           mkdir -p "${GOCOVERDIR}"
         if: env.GOCOVERDIR != ''
 
-      - name: "Run system tests (${{ matrix.go }}, ${{ matrix.suite }}, ${{ matrix.backend }})"
+      - name: "Run system tests (${{ matrix.suite }}, ${{ matrix.backend }})"
         run: |
+          echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/core-%e.%p.gz' | sudo tee /proc/sys/kernel/core_pattern
           set -eux
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
-          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+
+      - name: Upload crash dumps
+        if: always()
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: crash-dumps-${{ matrix.suite }}-${{ matrix.backend }}
+          path: |
+            /var/crash/core-*
+          retention-days: 5
+          if-no-files-found: ignore
 
       - name: Upload coverage data
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
-          name: coverage-${{ matrix.go }}-${{ matrix.suite }}-${{ matrix.backend }}
+          name: coverage-${{ matrix.suite }}-${{ matrix.backend }}
           path: ${{env.GOCOVERDIR}}
         if: env.GOCOVERDIR != ''
 
@@ -350,9 +304,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-        with:
-          # A non-shallow clone is needed for the Differential ShellCheck
-          fetch-depth: 0
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
@@ -364,19 +315,19 @@ jobs:
         uses: ./.github/actions/disable-docker
 
       - name: Install Go
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed  # v5.1.0
+        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
         with:
           go-version-file: 'go.mod'
 
       - name: Download coverage data
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4.1.8
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           pattern: coverage-*
           path: ${{env.GOCOVERDIR}}
           merge-multiple: true
 
       - name: Download system test dependencies
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4.1.8
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: system-test-deps
           merge-multiple: true
@@ -398,7 +349,7 @@ jobs:
           gocov-xml < "${GOCOVERDIR}"/coverage.json > "${GOCOVERDIR}"/coverage-go.xml
 
       - name: Run TICS
-        uses: tiobe/tics-github-action@03294702eb0a8e13c06ff1949c7bb6643b4c60fc  # v3.2.1
+        uses: tiobe/tics-github-action@03294702eb0a8e13c06ff1949c7bb6643b4c60fc # v3.2.1
         with:
           mode: qserver
           project: LXD
@@ -422,10 +373,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Install Go
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed  # v5.1.0
+        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
         with:
           go-version-file: 'go.mod'
 
@@ -490,7 +441,8 @@ jobs:
           go test -v ./shared/...
 
       - name: Upload lxc client artifacts
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        if: ${{ github.event_name == 'push' }}
         continue-on-error: true
         with:
           name: lxd-clients-${{ runner.os }}
@@ -498,13 +450,13 @@ jobs:
 
   documentation:
     name: Documentation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Install Go
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed  # v5.1.0
+        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
         with:
           go-version-file: 'go.mod'
 
@@ -532,7 +484,7 @@ jobs:
           make doc-spellcheck
 
       - name: Run inclusive naming checker
-        uses: get-woke/woke-action@b2ec032c4a2c912142b38a6a453ad62017813ed0  # v0
+        uses: get-woke/woke-action@b2ec032c4a2c912142b38a6a453ad62017813ed0 # v0
         with:
           fail-on-error: true
           woke-args: "*.md **/*.md -c https://github.com/canonical/Inclusive-naming/raw/main/config.yml"

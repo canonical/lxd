@@ -16,12 +16,14 @@ import (
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/metrics"
 	lxdRequest "github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/storage/s3"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -106,7 +108,8 @@ func restServer(d *Daemon) *http.Server {
 		uiHandlerErrorUINotEnabled := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
 			w.WriteHeader(http.StatusServiceUnavailable)
-			_, _ = fmt.Fprint(w, errorMessage)
+			_, err := fmt.Fprint(w, errorMessage)
+			logger.Warn("Failed sending error message to client", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr, "err": err})
 		})
 		mux.PathPrefix("/ui").Handler(uiHandlerErrorUINotEnabled)
 	}
@@ -182,6 +185,11 @@ func restServer(d *Daemon) *http.Server {
 	}
 
 	for _, c := range api10 {
+		// Every 1.0 endpoint should have a type for the API metrics.
+		if !shared.ValueInSlice(c.MetricsType, entity.APIMetricsEntityTypes()) {
+			panic(fmt.Sprintf(`Endpoint "/1.0/%s" has invalid MetricsType: %s`, c.Path, c.MetricsType))
+		}
+
 		d.createCmd(mux, "1.0", c)
 
 		// Create any alias endpoints using the same handlers as the parent endpoint but
@@ -204,10 +212,14 @@ func restServer(d *Daemon) *http.Server {
 	}
 
 	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		metrics.TrackStartedRequest(r, entity.TypeServer) // Use TypeServer for not found handler
 		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
 		w.Header().Set("Content-Type", "application/json")
 		_ = response.NotFound(nil).Render(w, r)
 	})
+
+	// Initialize API metrics with zero values.
+	metrics.InitAPIMetrics()
 
 	return &http.Server{
 		Handler:     &lxdHTTPServer{r: mux, d: d},
@@ -259,6 +271,7 @@ func metricsServer(d *Daemon) *http.Server {
 	d.createCmd(mux, "1.0", metricsCmd)
 
 	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		metrics.TrackStartedRequest(r, entity.TypeServer) // Use TypeServer for not found handler
 		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
 		w.Header().Set("Content-Type", "application/json")
 		_ = response.NotFound(nil).Render(w, r)

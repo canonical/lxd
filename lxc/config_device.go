@@ -98,6 +98,26 @@ lxc profile device add [<remote>:]profile1 <device-name> disk pool=some-pool sou
 
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			if c.config != nil {
+				return c.global.cmpInstances(toComplete)
+			} else if c.profile != nil {
+				return c.global.cmpProfiles(toComplete, true)
+			}
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpInstanceAllDevices(toComplete)
+		}
+
+		if len(args) == 2 {
+			return c.global.cmpInstanceAllDeviceOptions(args[0], args[1])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -211,6 +231,26 @@ func (c *cmdConfigDeviceGet) command() *cobra.Command {
 
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			if c.config != nil {
+				return c.global.cmpInstances(toComplete)
+			} else if c.profile != nil {
+				return c.global.cmpProfiles(toComplete, true)
+			}
+		}
+
+		if len(args) == 1 {
+			if c.config != nil {
+				return c.global.cmpInstanceDeviceNames(args[0])
+			} else if c.profile != nil {
+				return c.global.cmpProfileDeviceNames(args[0])
+			}
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -293,6 +333,18 @@ func (c *cmdConfigDeviceList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			if c.config != nil {
+				return c.global.cmpInstances(toComplete)
+			} else if c.profile != nil {
+				return c.global.cmpProfiles(toComplete, true)
+			}
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -358,6 +410,14 @@ func (c *cmdConfigDeviceOverride) command() *cobra.Command {
 		`Copy profile inherited devices and override configuration keys`))
 
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpInstances(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
@@ -452,6 +512,24 @@ func (c *cmdConfigDeviceRemove) command() *cobra.Command {
 		`Remove instance devices`))
 
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			if c.config != nil {
+				return c.global.cmpInstances(toComplete)
+			} else if c.profile != nil {
+				return c.global.cmpProfiles(toComplete, true)
+			}
+		}
+
+		if c.config != nil {
+			return c.global.cmpInstanceDeviceNames(args[0])
+		} else if c.profile != nil {
+			return c.global.cmpProfileDeviceNames(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
@@ -562,6 +640,26 @@ For backward compatibility, a single configuration key may still be set with:
 
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			if c.config != nil {
+				return c.global.cmpInstances(toComplete)
+			} else if c.profile != nil {
+				return c.global.cmpProfiles(toComplete, true)
+			}
+		}
+
+		if len(args) == 1 {
+			if c.config != nil {
+				return c.global.cmpInstanceDeviceNames(args[0])
+			} else if c.profile != nil {
+				return c.global.cmpProfileDeviceNames(args[0])
+			}
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -671,6 +769,18 @@ func (c *cmdConfigDeviceShow) command() *cobra.Command {
 
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			if c.config != nil {
+				return c.global.cmpInstances(toComplete)
+			} else if c.profile != nil {
+				return c.global.cmpProfiles(toComplete, true)
+			}
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -743,6 +853,26 @@ func (c *cmdConfigDeviceUnset) command() *cobra.Command {
 		`Unset device configuration keys`))
 
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			if c.config != nil {
+				return c.global.cmpInstances(toComplete)
+			} else if c.profile != nil {
+				return c.global.cmpProfiles(toComplete, true)
+			}
+		}
+
+		if len(args) == 1 {
+			if c.config != nil {
+				return c.global.cmpInstanceDeviceNames(args[0])
+			} else if c.profile != nil {
+				return c.global.cmpProfileDeviceNames(args[0])
+			}
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }

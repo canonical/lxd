@@ -11,7 +11,7 @@ GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
-GOMIN=1.22.7
+GOMIN=1.23.3
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
 DQLITE_BRANCH=lts-1.17.x
 
@@ -123,8 +123,10 @@ endif
 	go get github.com/gorilla/websocket@v1.5.1 # Due to riscv64 crashes in LP
 
 	# Enforce minimum go version
-	go get toolchain@none # Use the bundled toolchain that meets the minimum go version
 	go mod tidy -go=$(GOMIN)
+
+	# Use the bundled toolchain that meets the minimum go version
+	go get toolchain@none
 
 	@echo "Dependencies updated"
 
@@ -257,6 +259,9 @@ ifeq ($(shell command -v go-licenses),)
 endif
 ifeq ($(shell command -v golangci-lint),)
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin
+endif
+ifneq ($(shell command -v yamllint),)
+	yamllint .github/workflows/*.yml
 endif
 ifeq ($(shell command -v shellcheck),)
 	echo "Please install shellcheck"

@@ -537,6 +537,19 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		rules["security.unmapped"] = validate.Optional(validate.IsBool)
 	}
 
+	// security.shared is only relevant for custom block volumes.
+	if vol == nil || (vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeBlock) {
+		// lxdmeta:generate(entities=storage-btrfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=security.shared)
+		// Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
+		//
+		// ---
+		//  type: bool
+		//  condition: custom block volume
+		//  defaultdesc: same as `volume.security.shared` or `false`
+		//  shortdesc: Enable volume sharing
+		rules["security.shared"] = validate.Optional(validate.IsBool)
+	}
+
 	// Those keys are only valid for volumes.
 	if vol != nil {
 		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=volatile.uuid)
@@ -927,8 +940,20 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 			return fmt.Errorf("Failed loading profiles: %w", err)
 		}
 
+		// Get all the profile configs.
+		profileConfigs, err := cluster.GetConfig(ctx, tx.Tx(), "profile")
+		if err != nil {
+			return fmt.Errorf("Failed loading profile configs: %w", err)
+		}
+
+		// Get all the profile devices.
+		profileDevices, err := cluster.GetDevices(ctx, tx.Tx(), "profile")
+		if err != nil {
+			return fmt.Errorf("Failed loading profile devices: %w", err)
+		}
+
 		for _, profile := range dbProfiles {
-			apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+			apiProfile, err := profile.ToAPI(ctx, tx.Tx(), profileConfigs, profileDevices)
 			if err != nil {
 				return fmt.Errorf("Failed getting API Profile %q: %w", profile.Name, err)
 			}

@@ -37,24 +37,19 @@ func acmeProvideChallenge(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if s.ServerClustered {
-		leader, err := d.gateway.LeaderAddress()
+	leaderInfo, err := s.LeaderInfo()
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !leaderInfo.Leader {
+		// Forward the request to the leader
+		client, err := cluster.Connect(leaderInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), r, true)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		// This gives me the correct value
-		clusterAddress := s.LocalConfig.ClusterAddress()
-
-		if clusterAddress != "" && clusterAddress != leader {
-			// Forward the request to the leader
-			client, err := cluster.Connect(leader, s.Endpoints.NetworkCert(), s.ServerCert(), r, true)
-			if err != nil {
-				return response.SmartError(err)
-			}
-
-			return response.ForwardedResponse(client, r)
-		}
+		return response.ForwardedResponse(client, r)
 	}
 
 	if d.http01Provider == nil || d.http01Provider.Token() != token {
@@ -83,18 +78,13 @@ func autoRenewCertificate(ctx context.Context, d *Daemon, force bool) error {
 	}
 
 	// If we are clustered, let the leader handle the certificate renewal.
-	if s.ServerClustered {
-		leader, err := d.gateway.LeaderAddress()
-		if err != nil {
-			return err
-		}
+	leaderInfo, err := s.LeaderInfo()
+	if err != nil {
+		return err
+	}
 
-		// Figure out our own cluster address.
-		clusterAddress := s.LocalConfig.ClusterAddress()
-
-		if clusterAddress != leader {
-			return nil
-		}
+	if !leaderInfo.Leader {
+		return nil
 	}
 
 	opRun := func(op *operations.Operation) error {

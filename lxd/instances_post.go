@@ -1101,7 +1101,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		profileProject := project.ProfileProjectFromRecord(targetProject)
 
 		switch req.Source.Type {
-		case "copy":
+		case api.SourceTypeCopy:
 			if req.Source.Source == "" {
 				return api.StatusErrorf(http.StatusBadRequest, "Must specify a source instance")
 			}
@@ -1130,7 +1130,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-		case "image":
+		case api.SourceTypeImage:
 			// Check if the image has an entry in the database but fail only if the error
 			// is different than the image not being found.
 			sourceImage, err = getSourceImageFromInstanceSource(ctx, s, tx, targetProject.Name, req.Source, &sourceImageRef, string(req.Type))
@@ -1171,6 +1171,16 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
+			dbProfileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
+			if err != nil {
+				return err
+			}
+
+			dbProfileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
+			if err != nil {
+				return err
+			}
+
 			profilesByName := make(map[string]dbCluster.Profile, len(dbProfiles))
 			for _, dbProfile := range dbProfiles {
 				profilesByName[dbProfile.Name] = dbProfile
@@ -1182,7 +1192,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 					return fmt.Errorf("Requested profile %q doesn't exist", profileName)
 				}
 
-				apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+				apiProfile, err := profile.ToAPI(ctx, tx.Tx(), dbProfileConfigs, dbProfileDevices)
 				if err != nil {
 					return err
 				}
@@ -1271,7 +1281,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	if s.ServerClustered && !clusterNotification && targetMemberInfo == nil {
 		// Run instance placement scriptlet if enabled and no cluster member selected yet.
 		if s.GlobalConfig.InstancesPlacementScriptlet() != "" {
-			leaderAddress, err := d.gateway.LeaderAddress()
+			leaderInfo, err := s.LeaderInfo()
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -1291,7 +1301,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			reqExpanded.Config = instancetype.ExpandInstanceConfig(globalConfigDump, reqExpanded.Config, profiles)
 			reqExpanded.Devices = instancetype.ExpandInstanceDevices(deviceConfig.NewDevices(reqExpanded.Devices), profiles).CloneNative()
 
-			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, &reqExpanded, candidateMembers, leaderAddress)
+			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, &reqExpanded, candidateMembers, leaderInfo.Address)
 			if err != nil {
 				return response.SmartError(fmt.Errorf("Failed instance placement scriptlet: %w", err))
 			}
@@ -1329,15 +1339,15 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	switch req.Source.Type {
-	case "image":
+	case api.SourceTypeImage:
 		return createFromImage(s, r, *targetProject, profiles, sourceImage, sourceImageRef, &req)
-	case "none":
+	case api.SourceTypeNone:
 		return createFromNone(s, r, targetProjectName, profiles, &req)
-	case "migration":
+	case api.SourceTypeMigration:
 		return createFromMigration(s, r, targetProjectName, profiles, &req)
-	case "conversion":
+	case api.SourceTypeConversion:
 		return createFromConversion(s, r, targetProjectName, profiles, &req)
-	case "copy":
+	case api.SourceTypeCopy:
 		return createFromCopy(s, r, targetProjectName, profiles, &req)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %s", req.Source.Type))
@@ -1497,7 +1507,7 @@ func clusterCopyContainerInternal(s *state.State, r *http.Request, source instan
 	}
 
 	// Reset the source for a migration
-	req.Source.Type = "migration"
+	req.Source.Type = api.SourceTypeMigration
 	req.Source.Certificate = string(s.Endpoints.NetworkCert().PublicKey())
 	req.Source.Mode = "pull"
 	req.Source.Operation = fmt.Sprintf("https://%s/%s/operations/%s", nodeAddress, version.APIVersion, opAPI.ID)

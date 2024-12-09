@@ -15,6 +15,12 @@ const (
 	// IdentityTypeCertificateClientUnrestricted represents identities that authenticate using TLS and are privileged.
 	IdentityTypeCertificateClientUnrestricted = "Client certificate (unrestricted)"
 
+	// IdentityTypeCertificateClient represents identities that authenticate using TLS and whose permissions are managed via group membership.
+	IdentityTypeCertificateClient = "Client certificate"
+
+	// IdentityTypeCertificateClientPending represents identities for which a token has been issued but who have not yet authenticated with LXD.
+	IdentityTypeCertificateClientPending = "Client certificate (pending)"
+
 	// IdentityTypeCertificateServer represents cluster member authentication.
 	IdentityTypeCertificateServer = "Server certificate"
 
@@ -55,18 +61,25 @@ type Identity struct {
 	// Groups is the list of groups for which the identity is a member.
 	// Example: ["foo", "bar"]
 	Groups []string `json:"groups" yaml:"groups"`
+
+	// TLSCertificate is a PEM encoded x509 certificate. This is only set if the AuthenticationMethod is AuthenticationMethodTLS.
+	//
+	// API extension: access_management_tls.
+	TLSCertificate string `json:"tls_certificate" yaml:"tls_certificate"`
 }
 
 // Writable converts a Identity struct into a IdentityPut struct (filters read-only fields).
 func (i Identity) Writable() IdentityPut {
 	return IdentityPut{
-		Groups: i.Groups,
+		Groups:         i.Groups,
+		TLSCertificate: i.TLSCertificate,
 	}
 }
 
 // SetWritable sets applicable values from IdentityPut struct to Identity struct.
 func (i *Identity) SetWritable(put IdentityPut) {
 	i.Groups = put.Groups
+	i.TLSCertificate = put.TLSCertificate
 }
 
 // IdentityInfo expands an Identity to include effective group membership and effective permissions.
@@ -94,6 +107,37 @@ type IdentityInfo struct {
 //
 // API extension: access_management.
 type IdentityPut struct {
+	// Groups is the list of groups for which the identity is a member.
+	// Example: ["foo", "bar"]
+	Groups []string `json:"groups" yaml:"groups"`
+
+	// TLSCertificate is a base64 encoded x509 certificate. This can only be set if the authentication method of the identity is AuthenticationMethodTLS.
+	//
+	// API extension: access_management_tls.
+	TLSCertificate string `json:"tls_certificate" yaml:"tls_certificate"`
+}
+
+// IdentitiesTLSPost contains required information for the creation of a TLS identity.
+//
+// swagger:model
+//
+// API extension: access_management_tls.
+type IdentitiesTLSPost struct {
+	// Name associated with the identity
+	// Example: foo
+	Name string `json:"name" yaml:"name"`
+
+	// Trust token (used to add an untrusted client)
+	// Example: blah
+	TrustToken string `json:"trust_token" yaml:"trust_token"`
+
+	// Whether to create a certificate add token
+	// Example: true
+	Token bool `json:"token" yaml:"token"`
+
+	// The PEM encoded x509 certificate of the identity
+	Certificate string `json:"certificate" yaml:"certificate"`
+
 	// Groups is the list of groups for which the identity is a member.
 	// Example: ["foo", "bar"]
 	Groups []string `json:"groups" yaml:"groups"`

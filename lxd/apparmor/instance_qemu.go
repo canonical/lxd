@@ -73,6 +73,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   # The binary itself (for nesting)
   /var/snap/lxd/common/lxd.debug            mr,
   /snap/lxd/*/bin/lxd                       mr,
+  /snap/lxd/*/sbin/lxd                      mr,
   /snap/lxd/*/bin/qemu-system-*             mrix,
   /snap/lxd/*/share/qemu/**                 kr,
 
@@ -102,13 +103,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 {{- end }}
 {{- end }}
 
-{{if .qemuFwPaths -}}
-  # Entries from LXD_OVMF_PATH or LXD_QEMU_FW_PATH
-{{range $index, $element := .qemuFwPaths}}
-  {{$element}}/OVMF_CODE.fd   kr,
-  {{$element}}/OVMF_CODE.*.fd kr,
-  {{$element}}/*bios*.bin     kr,
-{{- end }}
+{{if .firmwarePath -}}
+  # Firmware path
+  {{ .firmwarePath }}                         kr,
 {{- end }}
 
 {{- if .raw }}

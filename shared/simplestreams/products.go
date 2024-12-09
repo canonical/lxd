@@ -2,10 +2,10 @@ package simplestreams
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/osarch"
 )
@@ -70,7 +70,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 	downloads := map[string][][]string{}
 
 	images := []api.Image{}
-	nameLayoutLong := "20060102_0304" // Date and time.
+	nameLayoutLong := "20060102_1504" // Date and time.
 	nameLayoutShort := "20060102"     // Date only.
 	eolLayout := "2006-01-02"
 
@@ -107,7 +107,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 			addImage := func(meta *ProductVersionItem, root *ProductVersionItem) error {
 				// Look for deltas
 				deltas := []ProductVersionItem{}
-				if root != nil && shared.ValueInSlice(root.FileType, []string{"squashfs", "disk-kvm.img"}) {
+				if root != nil && slices.Contains([]string{"squashfs", "disk-kvm.img"}, root.FileType) {
 					for _, item := range version.Items {
 						if item.FileType == fmt.Sprintf("%s.vcdiff", root.FileType) {
 							deltas = append(deltas, item)
@@ -251,7 +251,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 					// Locate source image fingerprint
 					var srcFingerprint string
 					for _, item := range srcImage.Items {
-						if !shared.ValueInSlice(item.FileType, lxdCompatItems) {
+						if !slices.Contains(lxdCompatItems, item.FileType) {
 							continue
 						}
 
@@ -288,15 +288,15 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 
 			// Locate a valid LXD image
 			for _, item := range version.Items {
-				if shared.ValueInSlice(item.FileType, lxdCompatCombinedItems) {
+				if slices.Contains(lxdCompatCombinedItems, item.FileType) {
 					err := addImage(&item, nil)
 					if err != nil {
 						continue
 					}
-				} else if shared.ValueInSlice(item.FileType, lxdCompatItems) {
+				} else if slices.Contains(lxdCompatItems, item.FileType) {
 					// Locate the root files
 					for _, subItem := range version.Items {
-						if shared.ValueInSlice(subItem.FileType, []string{"disk1.img", "disk-kvm.img", "uefi1.img", "root.tar.xz", "squashfs"}) {
+						if slices.Contains([]string{"disk1.img", "disk-kvm.img", "uefi1.img", "root.tar.xz", "squashfs"}, subItem.FileType) {
 							err := addImage(&item, &subItem)
 							if err != nil {
 								continue

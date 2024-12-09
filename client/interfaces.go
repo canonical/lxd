@@ -243,6 +243,8 @@ type InstanceServer interface {
 	UpdateImageAlias(name string, alias api.ImageAliasesEntryPut, ETag string) (err error)
 	RenameImageAlias(name string, alias api.ImageAliasesEntryPost) (err error)
 	DeleteImageAlias(name string) (err error)
+	GetImagesAllProjects() (images []api.Image, err error)
+	GetImagesAllProjectsWithFilter(filters []string) (images []api.Image, err error)
 
 	// Network functions ("network" API extension)
 	GetNetworkNames() (names []string, err error)
@@ -445,6 +447,9 @@ type InstanceServer interface {
 	GetIdentity(authenticationMethod string, nameOrIdentifier string) (identity *api.Identity, ETag string, err error)
 	GetCurrentIdentityInfo() (identityInfo *api.IdentityInfo, ETag string, err error)
 	UpdateIdentity(authenticationMethod string, nameOrIdentifier string, identityPut api.IdentityPut, ETag string) error
+	DeleteIdentity(authenticationMethod string, nameOrIdentifier string) error
+	CreateIdentityTLS(identitiesTLSPost api.IdentitiesTLSPost) error
+	CreateIdentityTLSToken(identitiesTLSPost api.IdentitiesTLSPost) (*api.CertificateAddToken, error)
 	GetIdentityProviderGroupNames() (identityProviderGroupNames []string, err error)
 	GetIdentityProviderGroups() (identityProviderGroups []api.IdentityProviderGroup, err error)
 	GetIdentityProviderGroup(identityProviderGroupName string) (identityProviderGroup *api.IdentityProviderGroup, ETag string, err error)

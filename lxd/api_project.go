@@ -34,14 +34,16 @@ import (
 )
 
 var projectsCmd = APIEndpoint{
-	Path: "projects",
+	Path:        "projects",
+	MetricsType: entity.TypeProject,
 
 	Get:  APIEndpointAction{Handler: projectsGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: projectsPost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanCreateProjects)},
 }
 
 var projectCmd = APIEndpoint{
-	Path: "projects/{name}",
+	Path:        "projects/{name}",
+	MetricsType: entity.TypeProject,
 
 	Delete: APIEndpointAction{Handler: projectDelete, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanDelete, "name")},
 	Get:    APIEndpointAction{Handler: projectGet, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanView, "name")},
@@ -51,7 +53,8 @@ var projectCmd = APIEndpoint{
 }
 
 var projectStateCmd = APIEndpoint{
-	Path: "projects/{name}/state",
+	Path:        "projects/{name}/state",
+	MetricsType: entity.TypeProject,
 
 	Get: APIEndpointAction{Handler: projectStateGet, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanView, "name")},
 }
@@ -1378,6 +1381,37 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		//  defaultdesc: `block`
 		//  shortdesc: Whether to prevent creating instance or volume snapshots
 		"restricted.snapshots": isEitherAllowOrBlock,
+	}
+
+	// Add the storage pool keys.
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Load all the pools.
+		pools, err := tx.GetStoragePoolNames(ctx)
+		if err != nil {
+			return err
+		}
+
+		// Add the storage-pool specific config keys.
+		for _, poolName := range pools {
+			// lxdmeta:generate(entities=project; group=limits; key=limits.disk.pool.POOL_NAME)
+			// This value is the maximum value of the aggregate disk
+			// space used by all instance volumes, custom volumes, and images of the
+			// project on this specific storage pool.
+			//
+			// When set to 0, the pool is excluded from storage pool list for
+			// the project.
+			// ---
+			//  type: string
+			//  shortdesc: Maximum disk space used by the project on this pool
+			projectConfigKeys[fmt.Sprintf("limits.disk.pool.%s", poolName)] = validate.Optional(validate.IsSize)
+		}
+
+		return nil
+	})
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return fmt.Errorf("Failed loading storage pool names: %w", err)
 	}
 
 	for k, v := range config {

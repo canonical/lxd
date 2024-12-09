@@ -1687,6 +1687,97 @@ test_clustering_update_cert_reversion() {
   kill_lxd "${LXD_TWO_DIR}"
 }
 
+test_clustering_update_cert_token() {
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  # Bootstrap a node to steal its certs
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  cert_path=$(mktemp -p "${TEST_DIR}" XXX)
+  key_path=$(mktemp -p "${TEST_DIR}" XXX)
+
+  # Save the certs
+  cp "${LXD_ONE_DIR}/cluster.crt" "${cert_path}"
+  cp "${LXD_ONE_DIR}/cluster.key" "${key_path}"
+
+  # Tear down the instance
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  teardown_clustering_netns
+  teardown_clustering_bridge
+  kill_lxd "${LXD_ONE_DIR}"
+
+  # Set up again
+  setup_clustering_bridge
+
+  # Bootstrap the first node
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # quick check
+  ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
+  ! cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
+
+  # Add a newline at the end of each line. YAML as weird rules..
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  # Get a token embedding the current cluster cert fingerprint
+  token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
+
+  # Change the cluster cert
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster update-cert "${cert_path}" "${key_path}" -q
+
+  cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
+  cmp -s "${LXD_TWO_DIR}/cluster.crt" "${cert_path}" || false
+
+  cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
+  cmp -s "${LXD_TWO_DIR}/cluster.key" "${key_path}" || false
+
+  # Verify the token with the wrong cert fingerprint is not usable due to the fingerprint mismatch
+  url="https://10.1.1.101:8443"
+  ! lxc remote add cluster "${token}" || false
+  [ "$(DEBUG="" lxc remote add cluster "${token}" 2>&1)" = "Error: Certificate fingerprint mismatch between certificate token and server \"${url}\"" ]
+  ! lxc remote add cluster --token "${token}" "${url}" || false
+  [ "$(DEBUG="" lxc remote add cluster --token "${token}" "${url}" 2>&1)" = "Error: Certificate fingerprint mismatch between certificate token and server \"${url}\"" ]
+
+  # Get a fresh token embedding the new cluster cert fingerprint
+  token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
+  lxc remote add cluster "${token}"
+  lxc cluster list cluster:
+  lxc remote remove cluster
+
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
+
 test_clustering_join_api() {
   # shellcheck disable=SC2034
   local LXD_DIR LXD_NETNS
@@ -1881,6 +1972,86 @@ test_clustering_projects() {
   LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project switch default
+
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
+
+test_clustering_metrics() {
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML as weird rules..
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  # Create one running container in each node and a stopped one on the leader.
+  LXD_DIR="${LXD_ONE_DIR}" deps/import-busybox --project default --alias testimage
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 testimage c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 testimage stopped
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 testimage c2
+
+  # Check that scraping metrics on each node only includes started instances on that node.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/metrics" | grep 'name="c1"'
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/metrics" | grep 'name="stopped"' || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/metrics" | grep 'name="c2"' || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/metrics" | grep 'name="c1"' || false
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/metrics" | grep 'name="c2"'
+
+  # Stopped container is counted on lxd_instances.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/metrics | grep -xF 'lxd_instances{project="default",type="container"} 2'
+  LXD_DIR="${LXD_TWO_DIR}" lxc query /1.0/metrics | grep -xF 'lxd_instances{project="default",type="container"} 1'
+
+  # Remove previously existing warnings so they don't interfere with tests.
+  LXD_DIR="${LXD_ONE_DIR}" lxc warning delete --all
+
+  # Populate database with dummy warnings and check that each node only counts their own warnings.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST -d '{\"location\": \"node1\", \"type_code\": 0, \"message\": \"node1 is in a bad mood\"}' /internal/testing/warnings
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST -d '{\"location\": \"node1\", \"type_code\": 1, \"message\": \"node1 is bored\"}' /internal/testing/warnings
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST -d '{\"location\": \"node2\", \"type_code\": 0, \"message\": \"node2 is too cool for this\"}' /internal/testing/warnings
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 1"
+
+  # Add a nodeless warning and check if count incremented only on the leader node.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"nodeless warning\"}' /internal/testing/warnings
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 3"
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 1"
+
+  # Acknowledge/resolve a warning and check if the count decremented on the node relative to the resolved warning.
+  uuid=$(LXD_DIR="${LXD_ONE_DIR}" lxc warning list --format json | jq -r '.[] | select(.last_message=="node1 is bored") | .uuid')
+  LXD_DIR="${LXD_ONE_DIR}" lxc warning ack "${uuid}"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 1"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1 stopped c2
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -3182,28 +3353,19 @@ test_clustering_edit_configuration() {
   config=$(mktemp -p "${TEST_DIR}" XXX)
   # Update the cluster configuration with new port numbers
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster show > "${config}"
+
+  # lxd cluster edit generates ${LXD_DIR}/database/lxd_recovery_db.tar.gz
   sed -e "s/:8443/:9393/" -i "${config}"
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster edit < "${config}"
 
-  LXD_DIR="${LXD_TWO_DIR}" lxd cluster show > "${config}"
-  sed -e "s/:8443/:9393/" -i "${config}"
-  LXD_DIR="${LXD_TWO_DIR}" lxd cluster edit < "${config}"
+  for other_dir in "${LXD_TWO_DIR}" "${LXD_THREE_DIR}" "${LXD_FOUR_DIR}" "${LXD_FIVE_DIR}" "${LXD_SIX_DIR}"; do
+    cp "${LXD_ONE_DIR}/database/lxd_recovery_db.tar.gz" "${other_dir}/database/"
+  done
 
-  LXD_DIR="${LXD_THREE_DIR}" lxd cluster show > "${config}"
-  sed -e "s/:8443/:9393/" -i "${config}"
-  LXD_DIR="${LXD_THREE_DIR}" lxd cluster edit < "${config}"
-
-  LXD_DIR="${LXD_FOUR_DIR}" lxd cluster show > "${config}"
-  sed -e "s/:8443/:9393/" -i "${config}"
-  LXD_DIR="${LXD_FOUR_DIR}" lxd cluster edit < "${config}"
-
-  LXD_DIR="${LXD_FIVE_DIR}" lxd cluster show > "${config}"
-  sed -e "s/:8443/:9393/" -i "${config}"
-  LXD_DIR="${LXD_FIVE_DIR}" lxd cluster edit < "${config}"
-
-  LXD_DIR="${LXD_SIX_DIR}" lxd cluster show > "${config}"
-  sed -e "s/:8443/:9393/" -i "${config}"
-  LXD_DIR="${LXD_SIX_DIR}" lxd cluster edit < "${config}"
+  # While it does work to load the recovery DB on the node which generated it,
+  # we should test to make sure that the recovery operation left the database
+  # ready to go.
+  rm "${LXD_ONE_DIR}/database/lxd_recovery_db.tar.gz"
 
   # Respawn the nodes
   LXD_NETNS="${ns1}" respawn_lxd "${LXD_ONE_DIR}" false
@@ -3216,6 +3378,21 @@ test_clustering_edit_configuration() {
 
   # Let the heartbeats catch up
   sleep 12
+
+  # Sanity check of the automated backup
+  # We can't check that the backup has the same files as even LXD_ONE_DIR, because
+  # the recovery process adds a segment to the global db dir, and may otherwise
+  # alter dqlite files. This makes sure that the backup at least looks like `database/`.
+  for dir in "${LXD_ONE_DIR}" "${LXD_TWO_DIR}" "${LXD_THREE_DIR}" "${LXD_FOUR_DIR}" "${LXD_FIVE_DIR}" "${LXD_SIX_DIR}"; do
+    backupFilename=$(find "${dir}" -name "db_backup.*.tar.gz")
+    files=$(tar --list -f "${backupFilename}")
+    # Check for dqlite segment files
+    echo "${files}" | grep -E '[0-9]{16}-[0-9]{16}' || echo "${files}" | grep -E 'open-[0-9]'
+    echo "${files}" | grep local.db
+
+    # Recovery tarballs shouldn't be included in backups
+    ! echo "${files}" | grep -q lxd_recovery_db.tar.gz || false
+  done
 
   # Ensure successful communication
   LXD_DIR="${LXD_ONE_DIR}"   lxc info --target node2 | grep -q "server_name: node2"
@@ -3549,6 +3726,19 @@ EOF
   # Delete the cluster group "yamlgroup"
   lxc cluster group delete cluster:yamlgroup
 
+  # Try to initialize a cluster group with multiple nodes
+  lxc query cluster:/1.0/cluster/groups -X POST -d '{\"name\":\"multi-node-group\",\"description\":\"\",\"members\":[\"node1\",\"node2\",\"node3\"]}'
+
+  # Ensure cluster group created with requested members
+  [ "$(lxc query cluster:/1.0/cluster/groups/multi-node-group | jq '.members | length')" -eq 3 ]
+
+  # Remove nodes and delete cluster group
+  lxc cluster group remove cluster:node1 multi-node-group
+  lxc cluster group remove cluster:node2 multi-node-group
+  lxc cluster group remove cluster:node3 multi-node-group
+
+  lxc cluster group delete cluster:multi-node-group
+
   # With these settings:
   # - node1 will receive instances unless a different node is directly targeted (not via group)
   # - node2 will receive instances if either targeted by group or directly
@@ -3570,12 +3760,12 @@ EOF
   lxc init testimage cluster:c1
   lxc info cluster:c1 | grep -q "Location: node1"
 
-  # c2 should go to node2
-  lxc init testimage cluster:c2 --target=@blah
+  # c2 should go to node2. Additionally it should be possible to specify the network.
+  lxc init testimage cluster:c2 --target=@blah --network "${bridge}"
   lxc info cluster:c2 | grep -q "Location: node2"
 
-  # c3 should go to node2 again
-  lxc init testimage cluster:c3 --target=@blah
+  # c3 should go to node2 again. Additionally it should be possible to specify the storage pool.
+  lxc init testimage cluster:c3 --target=@blah --storage data
   lxc info cluster:c3 | grep -q "Location: node2"
 
   # Direct targeting of node2 should work

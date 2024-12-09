@@ -16,10 +16,14 @@ type MetricSet struct {
 type MetricType int
 
 const (
-	// CPUSecondsTotal represents the total CPU seconds used.
-	CPUSecondsTotal MetricType = iota
+	// APICompletedRequests represents the total number completed requests.
+	APICompletedRequests MetricType = iota
+	// APIOngoingRequests represents the number of requests currently being handled.
+	APIOngoingRequests
 	// CPUs represents the total number of effective CPUs.
 	CPUs
+	// CPUSecondsTotal represents the total CPU seconds used.
+	CPUSecondsTotal
 	// DiskReadBytesTotal represents the read bytes for a disk.
 	DiskReadBytesTotal
 	// DiskReadsCompletedTotal represents the completed for a disk.
@@ -34,12 +38,60 @@ const (
 	FilesystemFreeBytes
 	// FilesystemSizeBytes represents the size in bytes of a filesystem.
 	FilesystemSizeBytes
+	// GoAllocBytes represents the number of bytes allocated and still in use.
+	GoAllocBytes
+	// GoAllocBytesTotal represents the total number of bytes allocated, even if freed.
+	GoAllocBytesTotal
+	// GoBuckHashSysBytes represents the number of bytes used by the profiling bucket hash table.
+	GoBuckHashSysBytes
+	// GoFreesTotal represents the total number of frees.
+	GoFreesTotal
+	// GoGCSysBytes represents the number of bytes used for garbage collection system metadata.
+	GoGCSysBytes
+	// GoGoroutines represents the number of goroutines that currently exist..
+	GoGoroutines
+	// GoHeapAllocBytes represents the number of heap bytes allocated and still in use.
+	GoHeapAllocBytes
+	// GoHeapIdleBytes represents the number of heap bytes waiting to be used.
+	GoHeapIdleBytes
+	// GoHeapInuseBytes represents the number of heap bytes that are in use.
+	GoHeapInuseBytes
+	// GoHeapObjects represents the number of allocated objects.
+	GoHeapObjects
+	// GoHeapReleasedBytes represents the number of heap bytes released to OS.
+	GoHeapReleasedBytes
+	// GoHeapSysBytes represents the number of heap bytes obtained from system.
+	GoHeapSysBytes
+	// GoLookupsTotal represents the total number of pointer lookups.
+	GoLookupsTotal
+	// GoMallocsTotal represents the total number of mallocs.
+	GoMallocsTotal
+	// GoMCacheInuseBytes represents the number of bytes in use by mcache structures.
+	GoMCacheInuseBytes
+	// GoMCacheSysBytes represents the number of bytes used for mcache structures obtained from system.
+	GoMCacheSysBytes
+	// GoMSpanInuseBytes represents the number of bytes in use by mspan structures.
+	GoMSpanInuseBytes
+	// GoMSpanSysBytes represents the number of bytes used for mspan structures obtained from system.
+	GoMSpanSysBytes
+	// GoNextGCBytes represents the number of heap bytes when next garbage collection will take place.
+	GoNextGCBytes
+	// GoOtherSysBytes represents the number of bytes used for other system allocations.
+	GoOtherSysBytes
+	// GoStackInuseBytes represents the number of bytes in use by the stack allocator.
+	GoStackInuseBytes
+	// GoStackSysBytes represents the number of bytes obtained from system for stack allocator.
+	GoStackSysBytes
+	// GoSysBytes represents the number of bytes obtained from system.
+	GoSysBytes
+	// Instances represents the instance count.
+	Instances
 	// MemoryActiveAnonBytes represents the amount of anonymous memory on active LRU list.
 	MemoryActiveAnonBytes
-	// MemoryActiveFileBytes represents the amount of file-backed memory on active LRU list.
-	MemoryActiveFileBytes
 	// MemoryActiveBytes represents the amount of memory on active LRU list.
 	MemoryActiveBytes
+	// MemoryActiveFileBytes represents the amount of file-backed memory on active LRU list.
+	MemoryActiveFileBytes
 	// MemoryCachedBytes represents the amount of cached memory.
 	MemoryCachedBytes
 	// MemoryDirtyBytes represents the amount of memory waiting to get written back to the disk.
@@ -50,18 +102,20 @@ const (
 	MemoryHugePagesTotalBytes
 	// MemoryInactiveAnonBytes represents the amount of anonymous memory on inactive LRU list.
 	MemoryInactiveAnonBytes
-	// MemoryInactiveFileBytes represents the amount of file-backed memory on inactive LRU list.
-	MemoryInactiveFileBytes
 	// MemoryInactiveBytes represents the amount of memory on inactive LRU list.
 	MemoryInactiveBytes
+	// MemoryInactiveFileBytes represents the amount of file-backed memory on inactive LRU list.
+	MemoryInactiveFileBytes
 	// MemoryMappedBytes represents the amount of mapped memory.
 	MemoryMappedBytes
-	//MemoryMemAvailableBytes represents the amount of available memory.
+	// MemoryMemAvailableBytes represents the amount of available memory.
 	MemoryMemAvailableBytes
 	// MemoryMemFreeBytes represents the amount of free memory.
 	MemoryMemFreeBytes
 	// MemoryMemTotalBytes represents the amount of used memory.
 	MemoryMemTotalBytes
+	// MemoryOOMKillsTotal represents the amount of oom kills.
+	MemoryOOMKillsTotal
 	// MemoryRSSBytes represents the amount of anonymous and swap cache memory.
 	MemoryRSSBytes
 	// MemoryShmemBytes represents the amount of cached filesystem data that is swap-backed.
@@ -72,8 +126,6 @@ const (
 	MemoryUnevictableBytes
 	// MemoryWritebackBytes represents the amount of memory queued for syncing to disk.
 	MemoryWritebackBytes
-	// MemoryOOMKillsTotal represents the amount of oom kills.
-	MemoryOOMKillsTotal
 	// NetworkReceiveBytesTotal represents the amount of received bytes on a given interface.
 	NetworkReceiveBytesTotal
 	// NetworkReceiveDropTotal represents the amount of received dropped bytes on a given interface.
@@ -90,66 +142,20 @@ const (
 	NetworkTransmitErrsTotal
 	// NetworkTransmitPacketsTotal represents the amount of transmitted packets on a given interface.
 	NetworkTransmitPacketsTotal
-	// ProcsTotal represents the number of running processes.
-	ProcsTotal
 	// OperationsTotal represents the number of running operations.
 	OperationsTotal
-	// WarningsTotal represents the number of active warnings.
-	WarningsTotal
+	// ProcsTotal represents the number of running processes.
+	ProcsTotal
 	// UptimeSeconds represents the daemon uptime in seconds.
 	UptimeSeconds
-	// GoGoroutines represents the number of goroutines that currently exist..
-	GoGoroutines
-	// GoAllocBytes represents the number of bytes allocated and still in use.
-	GoAllocBytes
-	// GoAllocBytesTotal represents the total number of bytes allocated, even if freed.
-	GoAllocBytesTotal
-	// GoSysBytes represents the number of bytes obtained from system.
-	GoSysBytes
-	// GoLookupsTotal represents the total number of pointer lookups.
-	GoLookupsTotal
-	// GoMallocsTotal represents the total number of mallocs.
-	GoMallocsTotal
-	// GoFreesTotal represents the total number of frees.
-	GoFreesTotal
-	// GoHeapAllocBytes represents the number of heap bytes allocated and still in use.
-	GoHeapAllocBytes
-	// GoHeapSysBytes represents the number of heap bytes obtained from system.
-	GoHeapSysBytes
-	// GoHeapIdleBytes represents the number of heap bytes waiting to be used.
-	GoHeapIdleBytes
-	// GoHeapInuseBytes represents the number of heap bytes that are in use.
-	GoHeapInuseBytes
-	// GoHeapReleasedBytes represents the number of heap bytes released to OS.
-	GoHeapReleasedBytes
-	// GoHeapObjects represents the number of allocated objects.
-	GoHeapObjects
-	// GoStackInuseBytes represents the number of bytes in use by the stack allocator.
-	GoStackInuseBytes
-	// GoStackSysBytes represents the number of bytes obtained from system for stack allocator.
-	GoStackSysBytes
-	// GoMSpanInuseBytes represents the number of bytes in use by mspan structures.
-	GoMSpanInuseBytes
-	// GoMSpanSysBytes represents the number of bytes used for mspan structures obtained from system.
-	GoMSpanSysBytes
-	// GoMCacheInuseBytes represents the number of bytes in use by mcache structures.
-	GoMCacheInuseBytes
-	// GoMCacheSysBytes represents the number of bytes used for mcache structures obtained from system.
-	GoMCacheSysBytes
-	// GoBuckHashSysBytes represents the number of bytes used by the profiling bucket hash table.
-	GoBuckHashSysBytes
-	// GoGCSysBytes represents the number of bytes used for garbage collection system metadata.
-	GoGCSysBytes
-	// GoOtherSysBytes represents the number of bytes used for other system allocations.
-	GoOtherSysBytes
-	// GoNextGCBytes represents the number of heap bytes when next garbage collection will take place.
-	GoNextGCBytes
-	// Instances represents the instance count.
-	Instances
+	// WarningsTotal represents the number of active warnings.
+	WarningsTotal
 )
 
 // MetricNames associates a metric type to its name.
 var MetricNames = map[MetricType]string{
+	APICompletedRequests:        "lxd_api_requests_completed_total",
+	APIOngoingRequests:          "lxd_api_requests_ongoing",
 	CPUSecondsTotal:             "lxd_cpu_seconds_total",
 	CPUs:                        "lxd_cpu_effective_total",
 	DiskReadBytesTotal:          "lxd_disk_read_bytes_total",
@@ -219,6 +225,8 @@ var MetricNames = map[MetricType]string{
 
 // MetricHeaders represents the metric headers which contain help messages as specified by OpenMetrics.
 var MetricHeaders = map[MetricType]string{
+	APICompletedRequests:        "# HELP lxd_api_requests_completed_total The total number of completed API requests.",
+	APIOngoingRequests:          "# HELP lxd_api_requests_ongoing The number of API requests currently being handled.",
 	CPUSecondsTotal:             "# HELP lxd_cpu_seconds_total The total number of CPU time used in seconds.",
 	CPUs:                        "# HELP lxd_cpu_effective_total The total number of effective CPUs.",
 	DiskReadBytesTotal:          "# HELP lxd_disk_read_bytes_total The total number of bytes read.",

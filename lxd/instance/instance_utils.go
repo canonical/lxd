@@ -36,6 +36,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
+	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -109,6 +110,18 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 
 	if shared.IsTrue(config["security.privileged"]) && shared.IsTrue(config["nvidia.runtime"]) {
 		return fmt.Errorf("nvidia.runtime is incompatible with privileged containers")
+	}
+
+	if sysOS.InUbuntuCore() && shared.IsTrue(config["nvidia.runtime"]) {
+		return fmt.Errorf("nvidia.runtime is incompatible with Ubuntu Core")
+	}
+
+	// Validate pinning strategy when limits.cpu specifies static pinning.
+	cpuPinStrategy := config["limits.cpu.pin_strategy"]
+	cpuLimit := config["limits.cpu"]
+	err = validate.IsStaticCPUPinning(cpuLimit)
+	if err == nil && !expanded && cpuPinStrategy == "auto" {
+		return fmt.Errorf(`CPU pinning specified, but pinning strategy is set to "auto"`)
 	}
 
 	return nil
@@ -534,7 +547,7 @@ func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, sou
 // A nil list indicates that we can't tell at this stage, typically for private images.
 func SuitableArchitectures(ctx context.Context, s *state.State, tx *db.ClusterTx, projectName string, sourceInst *cluster.Instance, sourceImageRef string, req api.InstancesPost) ([]int, error) {
 	// Handle cases where the architecture is already provided.
-	if shared.ValueInSlice(req.Source.Type, []string{"migration", "none"}) && req.Architecture != "" {
+	if shared.ValueInSlice(req.Source.Type, []string{api.SourceTypeConversion, api.SourceTypeMigration, api.SourceTypeNone}) && req.Architecture != "" {
 		id, err := osarch.ArchitectureId(req.Architecture)
 		if err != nil {
 			return nil, err
@@ -543,23 +556,23 @@ func SuitableArchitectures(ctx context.Context, s *state.State, tx *db.ClusterTx
 		return []int{id}, nil
 	}
 
-	// For migration, an architecture must be specified in the req.
-	if req.Source.Type == "migration" && req.Architecture == "" {
-		return nil, api.StatusErrorf(http.StatusBadRequest, "An architecture must be specified in migration requests")
+	// For migration and conversion, an architecture must be specified in the req.
+	if shared.ValueInSlice(req.Source.Type, []string{api.SourceTypeConversion, api.SourceTypeMigration}) && req.Architecture == "" {
+		return nil, api.StatusErrorf(http.StatusBadRequest, "An architecture must be specified in migration or conversion requests")
 	}
 
 	// For none, allow any architecture.
-	if req.Source.Type == "none" {
+	if req.Source.Type == api.SourceTypeNone {
 		return []int{}, nil
 	}
 
 	// For copy, always use the source architecture.
-	if req.Source.Type == "copy" {
+	if req.Source.Type == api.SourceTypeCopy {
 		return []int{sourceInst.Architecture}, nil
 	}
 
 	// For image, things get a bit more complicated.
-	if req.Source.Type == "image" {
+	if req.Source.Type == api.SourceTypeImage {
 		// Handle local images.
 		if req.Source.Server == "" {
 			_, img, err := tx.GetImageByFingerprintPrefix(ctx, sourceImageRef, cluster.ImageFilter{Project: &projectName})

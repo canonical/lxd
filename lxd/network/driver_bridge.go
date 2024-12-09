@@ -737,7 +737,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		return err
 	}
 
-	// Peform composite key checks after per-key validation.
+	// Perform composite key checks after per-key validation.
 
 	// Validate DNS zone names.
 	err = n.validateZoneNames(config)
@@ -3644,7 +3644,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 			wg.Done()
 		}()
 
-		err = notifier(func(client lxd.InstanceServer) error {
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			memberLeases, err := client.GetNetworkLeases(n.name)
 			if err != nil {
 				return err

@@ -12,9 +12,10 @@ type IdentityAction string
 const (
 	IdentityCreated = IdentityAction(api.EventLifecycleIdentityCreated)
 	IdentityUpdated = IdentityAction(api.EventLifecycleIdentityUpdated)
+	IdentityDeleted = IdentityAction(api.EventLifecycleIdentityDeleted)
 )
 
-// Event creates the lifecycle event for an action on a Certificate.
+// Event creates the lifecycle event for an action on an Identity.
 func (a IdentityAction) Event(authenticationMethod string, identifier string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
 	u := api.NewURL().Path(version.APIVersion, "auth", "identities", authenticationMethod, identifier)
 

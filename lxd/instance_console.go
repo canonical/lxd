@@ -611,7 +611,7 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 		consoleBufferLogPath := c.ConsoleBufferLogPath()
 		ent.Path = consoleBufferLogPath
 		ent.Filename = consoleBufferLogPath
-		return response.FileResponse(r, []response.FileResponseEntry{ent}, nil)
+		return response.FileResponse([]response.FileResponseEntry{ent}, nil)
 	}
 
 	// Query the container's console ringbuffer.
@@ -631,7 +631,7 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if errno == unix.ENODATA {
-			return response.FileResponse(r, []response.FileResponseEntry{}, nil)
+			return response.FileResponse([]response.FileResponseEntry{}, nil)
 		}
 
 		return response.SmartError(err)
@@ -641,7 +641,7 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	ent.FileModified = time.Now()
 	ent.FileSize = int64(len(logContents))
 
-	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil)
+	return response.FileResponse([]response.FileResponseEntry{ent}, nil)
 }
 
 // swagger:operation DELETE /1.0/instances/{name}/console instances instance_console_delete

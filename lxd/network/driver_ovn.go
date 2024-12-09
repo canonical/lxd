@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -407,7 +408,7 @@ func (n *ovn) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: standard mode
 		//  defaultdesc: initial value on creation: `auto`
-		//  shortdesc: IPv4 address for the bridge
+		//  shortdesc: IPv4 address for the OVN network
 		"ipv4.address": validate.Optional(func(value string) error {
 			if validate.IsOneOf("none", "auto")(value) == nil {
 				return nil
@@ -431,7 +432,7 @@ func (n *ovn) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: standard mode
 		//  defaultdesc: initial value on creation: `auto`
-		//  shortdesc: IPv6 address for the bridge
+		//  shortdesc: IPv6 address for the OVN network
 		"ipv6.address": validate.Optional(func(value string) error {
 			if validate.IsOneOf("none", "auto")(value) == nil {
 				return nil
@@ -588,7 +589,7 @@ func (n *ovn) Validate(config map[string]string) error {
 		return err
 	}
 
-	// Peform composite key checks after per-key validation.
+	// Perform composite key checks after per-key validation.
 
 	// Validate DNS zone names.
 	err = n.validateZoneNames(config)
@@ -1244,7 +1245,16 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 					return fmt.Errorf(`Missing required "ipv4.ovn.ranges" config key on uplink network`)
 				}
 
-				ipRanges, err := shared.ParseIPRanges(uplinkNetConf["ipv4.ovn.ranges"], uplinkNet.DHCPv4Subnet())
+				dhcpSubnet := uplinkNet.DHCPv4Subnet()
+				allowedNets := []*net.IPNet{}
+
+				if dhcpSubnet != nil {
+					allowedNets = append(allowedNets, dhcpSubnet)
+				} else {
+					allowedNets = append(allowedNets, uplinkIPv4Net)
+				}
+
+				ipRanges, err := shared.ParseIPRanges(uplinkNetConf["ipv4.ovn.ranges"], allowedNets...)
 				if err != nil {
 					return fmt.Errorf("Failed to parse uplink IPv4 OVN ranges: %w", err)
 				}
@@ -1260,7 +1270,16 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 			if uplinkIPv6Net != nil && routerExtPortIPv6 == nil {
 				// If IPv6 OVN ranges are specified by the uplink, allocate from them.
 				if uplinkNetConf["ipv6.ovn.ranges"] != "" {
-					ipRanges, err := shared.ParseIPRanges(uplinkNetConf["ipv6.ovn.ranges"], uplinkNet.DHCPv6Subnet())
+					dhcpSubnet := uplinkNet.DHCPv6Subnet()
+					allowedNets := []*net.IPNet{}
+
+					if dhcpSubnet != nil {
+						allowedNets = append(allowedNets, dhcpSubnet)
+					} else {
+						allowedNets = append(allowedNets, uplinkIPv6Net)
+					}
+
+					ipRanges, err := shared.ParseIPRanges(uplinkNetConf["ipv6.ovn.ranges"], allowedNets...)
 					if err != nil {
 						return fmt.Errorf("Failed to parse uplink IPv6 OVN ranges: %w", err)
 					}
@@ -4460,14 +4479,14 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 					})
 				}
 
+				subnetSize := 128
+				if keyPrefix == "ipv4" {
+					subnetSize = 32
+				}
+
 				// Find any external subnets used for network SNAT.
 				if netInfo.Config[fmt.Sprintf("%s.nat.address", keyPrefix)] != "" {
 					key := fmt.Sprintf("%s.nat.address", keyPrefix)
-
-					subnetSize := 128
-					if keyPrefix == "ipv4" {
-						subnetSize = 32
-					}
 
 					_, ipNet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", netInfo.Config[key], subnetSize))
 					if err != nil {
@@ -4479,6 +4498,23 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 						networkProject: netProject,
 						networkName:    netInfo.Name,
 						usageType:      subnetUsageNetworkSNAT,
+					})
+				}
+
+				// Find the volatile IP for the network.
+				if netInfo.Config[fmt.Sprintf("volatile.network.%s.address", keyPrefix)] != "" {
+					key := fmt.Sprintf("volatile.network.%s.address", keyPrefix)
+
+					_, ipNet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", netInfo.Config[key], subnetSize))
+					if err != nil {
+						return nil, fmt.Errorf("Failed parsing %q of %q in project %q: %w", key, netInfo.Name, netProject, err)
+					}
+
+					externalSubnets = append(externalSubnets, externalSubnetUsage{
+						subnet:         *ipNet,
+						networkProject: netProject,
+						networkName:    netInfo.Name,
+						usageType:      subnetUsageVolatileIP,
 					})
 				}
 			}
@@ -4775,31 +4811,6 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 			return nil, err
 		}
 
-		externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
-		if err != nil {
-			return nil, err
-		}
-
-		checkAddressNotInUse := func(netip *net.IPNet) (bool, error) {
-			// Check the listen address subnet doesn't fall within any existing OVN network external subnets.
-			for _, externalSubnetUser := range externalSubnetsInUse {
-				// Check if usage is from our own network.
-				if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
-					// Skip checking conflict with our own network's subnet or SNAT address.
-					// But do not allow other conflict with other usage types within our own network.
-					if externalSubnetUser.usageType == subnetUsageNetwork || externalSubnetUser.usageType == subnetUsageNetworkSNAT {
-						continue
-					}
-				}
-
-				if SubnetContains(&externalSubnetUser.subnet, netip) || SubnetContains(netip, &externalSubnetUser.subnet) {
-					return false, nil
-				}
-			}
-
-			return true, nil
-		}
-
 		// We're auto-allocating the external IP address if the given listen address is unspecified.
 		if listenAddressNet.IP.IsUnspecified() {
 			ipVersion := 4
@@ -4810,7 +4821,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
-			listenAddressNet, err = n.randomExternalAddress(ctx, ipVersion, uplinkRoutes, projectRestrictedSubnets, checkAddressNotInUse)
+			listenAddressNet, err = n.randomExternalAddress(ctx, ipVersion, uplinkRoutes, projectRestrictedSubnets, n.checkAddressNotInUse)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to allocate an IPv%d address: %w", ipVersion, err)
 			}
@@ -4824,7 +4835,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 				return nil, err
 			}
 
-			isValid, err := checkAddressNotInUse(listenAddressNet)
+			isValid, err := n.checkAddressNotInUse(listenAddressNet)
 			if err != nil {
 				return nil, err
 			} else if !isValid {
@@ -4878,7 +4889,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 			return nil, err
 		}
 
-		err = notifier(func(client lxd.InstanceServer) error {
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			return client.UseProject(n.project).CreateNetworkForward(n.name, forward)
 		})
 		if err != nil {
@@ -4983,7 +4994,7 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 			return err
 		}
 
-		err = notifier(func(client lxd.InstanceServer) error {
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			return client.UseProject(n.project).UpdateNetworkForward(n.name, curForward.ListenAddress, req, "")
 		})
 		if err != nil {
@@ -5043,7 +5054,7 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 			return err
 		}
 
-		err = notifier(func(client lxd.InstanceServer) error {
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			return client.UseProject(n.project).DeleteNetworkForward(n.name, forward.ListenAddress)
 		})
 		if err != nil {
@@ -5150,31 +5161,6 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 			return nil, err
 		}
 
-		externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
-		if err != nil {
-			return nil, err
-		}
-
-		checkAddressNotInUse := func(netip *net.IPNet) (bool, error) {
-			// Check the listen address subnet doesn't fall within any existing OVN network external subnets.
-			for _, externalSubnetUser := range externalSubnetsInUse {
-				// Check if usage is from our own network.
-				if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
-					// Skip checking conflict with our own network's subnet or SNAT address.
-					// But do not allow other conflict with other usage types within our own network.
-					if externalSubnetUser.usageType == subnetUsageNetwork || externalSubnetUser.usageType == subnetUsageNetworkSNAT {
-						continue
-					}
-				}
-
-				if SubnetContains(&externalSubnetUser.subnet, netip) || SubnetContains(netip, &externalSubnetUser.subnet) {
-					return false, nil
-				}
-			}
-
-			return true, nil
-		}
-
 		// We're auto-allocating the external IP address if the given listen address is unspecified.
 		if listenAddressNet.IP.IsUnspecified() {
 			ipVersion := 4
@@ -5185,7 +5171,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
-			listenAddressNet, err = n.randomExternalAddress(ctx, ipVersion, uplinkRoutes, projectRestrictedSubnets, checkAddressNotInUse)
+			listenAddressNet, err = n.randomExternalAddress(ctx, ipVersion, uplinkRoutes, projectRestrictedSubnets, n.checkAddressNotInUse)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to allocate an IPv%d address: %w", ipVersion, err)
 			}
@@ -5199,7 +5185,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 				return nil, err
 			}
 
-			isValid, err := checkAddressNotInUse(listenAddressNet)
+			isValid, err := n.checkAddressNotInUse(listenAddressNet)
 			if err != nil {
 				return nil, err
 			} else if !isValid {
@@ -5253,7 +5239,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 			return nil, err
 		}
 
-		err = notifier(func(client lxd.InstanceServer) error {
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			return client.UseProject(n.project).CreateNetworkLoadBalancer(n.name, loadBalancer)
 		})
 		if err != nil {
@@ -5359,7 +5345,7 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 			return err
 		}
 
-		err = notifier(func(client lxd.InstanceServer) error {
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			return client.UseProject(n.project).UpdateNetworkLoadBalancer(n.name, curLoadBalancer.ListenAddress, req, "")
 		})
 		if err != nil {
@@ -5419,7 +5405,7 @@ func (n *ovn) LoadBalancerDelete(listenAddress string, clientType request.Client
 			return err
 		}
 
-		err = notifier(func(client lxd.InstanceServer) error {
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			return client.UseProject(n.project).DeleteNetworkLoadBalancer(n.name, forward.ListenAddress)
 		})
 		if err != nil {
@@ -5953,4 +5939,30 @@ func (n *ovn) forPeers(f func(targetOVNNet *ovn) error) error {
 	}
 
 	return nil
+}
+
+// checkAddressNotInUse checks that a given network subnet does not fall within
+// any existing OVN network external subnets on the same uplink.
+func (n *ovn) checkAddressNotInUse(netip *net.IPNet) (bool, error) {
+	externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
+	if err != nil {
+		return false, err
+	}
+
+	for _, externalSubnetUser := range externalSubnetsInUse {
+		// Check if usage is from our own network.
+		if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
+			// Skip checking conflict with our own network's subnet, SNAT address, or volatile IP.
+			// But do not allow other conflict with other usage types within our own network.
+			if slices.Contains([]subnetUsageType{subnetUsageNetwork, subnetUsageNetworkSNAT, subnetUsageVolatileIP}, externalSubnetUser.usageType) {
+				continue
+			}
+		}
+
+		if SubnetContains(&externalSubnetUser.subnet, netip) || SubnetContains(netip, &externalSubnetUser.subnet) {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }

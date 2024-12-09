@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -37,7 +38,8 @@ var metricsCache map[string]metricsCacheEntry
 var metricsCacheLock sync.Mutex
 
 var metricsCmd = APIEndpoint{
-	Path: "metrics",
+	Path:        "metrics",
+	MetricsType: entity.TypeServer,
 
 	Get: APIEndpointAction{Handler: metricsGet, AccessHandler: allowMetrics, AllowUntrusted: true},
 }
@@ -128,7 +130,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Register internal metrics.
-		intMetrics = internalMetrics(ctx, s.StartTime, tx)
+		intMetrics = internalMetrics(ctx, s, tx)
 		return nil
 	})
 	if err != nil {
@@ -167,6 +169,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	// If all valid, return immediately.
 	if len(projectsToFetch) == 0 {
+		metricSet.Merge(intMetrics)
 		return getFilteredMetrics(s, r, compress, metricSet)
 	}
 
@@ -192,6 +195,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	// If all valid, return immediately.
 	if len(projectsToFetch) == 0 {
+		metricSet.Merge(intMetrics)
 		return getFilteredMetrics(s, r, compress, metricSet)
 	}
 
@@ -315,10 +319,6 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	updatedProjects := []string{}
 	for project, entries := range newMetrics {
-		if project == api.ProjectDefaultName {
-			entries.Merge(intMetrics) // internal metrics are always considered new. Add them to the default project.
-		}
-
 		counterMetric, ok := counterMetrics[project]
 		if ok {
 			entries.Merge(counterMetric)
@@ -344,6 +344,8 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	metricsCacheLock.Unlock()
+
+	metricSet.Merge(intMetrics) // Include the internal metrics after caching so they are not cached.
 
 	return getFilteredMetrics(s, r, compress, metricSet)
 }
@@ -377,10 +379,39 @@ func getFilteredMetrics(s *state.State, r *http.Request, compress bool, metricSe
 	return response.SyncResponsePlain(true, compress, metricSet.String())
 }
 
-func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.ClusterTx) *metrics.MetricSet {
+// clusterMemberWarnings returns the list of unresolved and unacknowledged warnings related to this cluster member.
+// If this member is the leader, also include nodeless warnings.
+// This way we include them while avoiding counting them redundantly across cluster members.
+func clusterMemberWarnings(ctx context.Context, s *state.State, tx *db.ClusterTx) ([]dbCluster.Warning, error) {
+	var filters []dbCluster.WarningFilter
+
+	leaderInfo, err := s.LeaderInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	// Use local variable to get pointer.
+	emptyNode := ""
+
+	for status := range warningtype.Statuses {
+		// Do not include resolved warnings that are resolved but not yet pruned neither those that were acknowledged.
+		if status != warningtype.StatusResolved && status != warningtype.StatusAcknowledged {
+			filters = append(filters, dbCluster.WarningFilter{Node: &s.ServerName, Status: &status})
+			if leaderInfo.Leader {
+				// Count the nodeless warnings as belonging to the leader node.
+				filters = append(filters, dbCluster.WarningFilter{Node: &emptyNode, Status: &status})
+			}
+		}
+	}
+
+	return dbCluster.GetWarnings(ctx, tx.Tx(), filters...)
+}
+
+func internalMetrics(ctx context.Context, s *state.State, tx *db.ClusterTx) *metrics.MetricSet {
 	out := metrics.NewMetricSet(nil)
 
-	warnings, err := dbCluster.GetWarnings(ctx, tx.Tx())
+	warnings, err := clusterMemberWarnings(ctx, s, tx)
+
 	if err != nil {
 		logger.Warn("Failed to get warnings", logger.Ctx{"err": err})
 	} else {
@@ -388,7 +419,9 @@ func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.Clus
 		out.AddSamples(metrics.WarningsTotal, metrics.Sample{Value: float64(len(warnings))})
 	}
 
-	operations, err := dbCluster.GetOperations(ctx, tx.Tx())
+	// Create local variable to get a pointer.
+	nodeID := tx.GetNodeID()
+	operations, err := dbCluster.GetOperations(ctx, tx.Tx(), dbCluster.OperationFilter{NodeID: &nodeID})
 	if err != nil {
 		logger.Warn("Failed to get operations", logger.Ctx{"err": err})
 	} else {
@@ -396,8 +429,29 @@ func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.Clus
 		out.AddSamples(metrics.OperationsTotal, metrics.Sample{Value: float64(len(operations))})
 	}
 
+	// API request metrics
+	for _, entityType := range entity.APIMetricsEntityTypes() {
+		out.AddSamples(
+			metrics.APIOngoingRequests,
+			metrics.Sample{
+				Labels: map[string]string{"entity_type": entityType.String()},
+				Value:  float64(metrics.GetOngoingRequests(entityType)),
+			},
+		)
+
+		for result, resultName := range metrics.GetRequestResultsNames() {
+			out.AddSamples(
+				metrics.APICompletedRequests,
+				metrics.Sample{
+					Labels: map[string]string{"entity_type": entityType.String(), "result": resultName},
+					Value:  float64(metrics.GetCompletedRequests(entityType, result)),
+				},
+			)
+		}
+	}
+
 	// Daemon uptime
-	out.AddSamples(metrics.UptimeSeconds, metrics.Sample{Value: time.Since(daemonStartTime).Seconds()})
+	out.AddSamples(metrics.UptimeSeconds, metrics.Sample{Value: time.Since(s.StartTime).Seconds()})
 
 	// Number of goroutines
 	out.AddSamples(metrics.GoGoroutines, metrics.Sample{Value: float64(runtime.NumGoroutine())})

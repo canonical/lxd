@@ -71,6 +71,9 @@ echo "==> Using storage backend ${LXD_BACKEND}"
 import_storage_backends
 
 cleanup() {
+  # Before setting +e, run the panic checker for any running LXD daemons.
+  panic_checker "${TEST_DIR}"
+
   # Allow for failures and stop tracing everything
   set +ex
   DEBUG=
@@ -172,6 +175,7 @@ run_test() {
   TEST_CURRENT=${1}
   TEST_CURRENT_DESCRIPTION=${2:-${1}}
   TEST_UNMET_REQUIREMENT=""
+  cwd="$(pwd)"
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
   START_TIME=$(date +%s)
@@ -211,6 +215,7 @@ run_test() {
   fi
 
   END_TIME=$(date +%s)
+  cd "${cwd}"
 
   echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} ($((END_TIME-START_TIME))s)"
 }
@@ -253,8 +258,10 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_join_api "clustering join api"
     run_test test_clustering_shutdown_nodes "clustering shutdown"
     run_test test_clustering_projects "clustering projects"
+    run_test test_clustering_metrics "clustering metrics"
     run_test test_clustering_update_cert "clustering update cert"
     run_test test_clustering_update_cert_reversion "clustering update cert reversion"
+    run_test test_clustering_update_cert_token "clustering update cert token"
     run_test test_clustering_address "clustering address"
     run_test test_clustering_image_replication "clustering image replication"
     run_test test_clustering_dns "clustering DNS"
@@ -294,6 +301,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_projects_limits "projects limits"
     run_test test_projects_usage "projects usage"
     run_test test_projects_yaml "projects with yaml initialization"
+    run_test test_projects_before_init "project operations before init"
     run_test test_projects_restrictions "projects restrictions"
     run_test test_container_devices_disk "container devices - disk"
     run_test test_container_devices_disk_restricted "container devices - disk - restricted"

@@ -126,6 +126,25 @@ test_storage_profiles() {
       ! lxc profile assign c"${i}" testDup,testNoDup || false
     done
 
+    # Create a new profile and volume for testing custom block volume sharing.
+    lxc profile create volumeSharingTest
+    lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool1" block-vol --type=block
+
+    # Test adding a non-shared block volume device to a profile. That operation must fail.
+    ! lxc profile device add volumeSharingTest test-disk disk pool="lxdtest-$(basename "${LXD_DIR}")-pool1" source=block-vol || false
+
+    # Then enabling sharing the block volume and trying again, must succeed this time.
+    lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-pool1" block-vol security.shared true
+    lxc profile device add volumeSharingTest test-disk disk pool="lxdtest-$(basename "${LXD_DIR}")-pool1" source=block-vol
+
+    # Try to disable security.shared for a volume already added to a profile. That operation must fail.
+    ! lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-pool1" block-vol security.shared false || false
+
+    # Cleaning everything added during the last tests
+    lxc profile device remove volumeSharingTest test-disk
+    lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool1" block-vol
+    lxc profile delete volumeSharingTest
+
     lxc delete -f cNonConflictingProfiles
     lxc delete -f cOnDefault
     for i in $(seq 1 3); do

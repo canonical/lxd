@@ -13,6 +13,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
@@ -66,7 +67,6 @@ func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resp := &sftpServeResponse{
-		req:         r,
 		projectName: projectName,
 		instName:    instName,
 	}
@@ -98,7 +98,6 @@ func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 }
 
 type sftpServeResponse struct {
-	req         *http.Request
 	projectName string
 	instName    string
 	instConn    net.Conn
@@ -138,7 +137,7 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter, req *http.Request) err
 		return api.StatusErrorf(http.StatusInternalServerError, "Failed to upgrade SFTP connection: %w", err)
 	}
 
-	ctx, cancel := context.WithCancel(r.req.Context())
+	ctx, cancel := context.WithCancel(req.Context())
 	l := logger.AddContext(logger.Ctx{
 		"project":  r.projectName,
 		"instance": r.instName,
@@ -175,6 +174,8 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter, req *http.Request) err
 	}
 
 	wg.Wait() // Wait for copy go routine to finish.
+
+	metrics.UseMetricsCallback(req, metrics.Success)
 
 	return nil
 }

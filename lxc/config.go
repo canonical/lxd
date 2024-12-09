@@ -106,6 +106,14 @@ func (c *cmdConfigEdit) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpInstances(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -390,6 +398,22 @@ func (c *cmdConfigGet) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			if strings.Contains(toComplete, ".") {
+				return c.global.cmpServerAllKeys(toComplete)
+			}
+
+			return c.global.cmpInstances(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpInstanceKeys(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -533,6 +557,22 @@ lxc config set core.trust_password=blah
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as an instance property"))
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			if strings.Contains(toComplete, ".") {
+				return c.global.cmpServerAllKeys(toComplete)
+			}
+
+			return c.global.cmpInstances(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpInstanceKeys(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
@@ -739,6 +779,14 @@ func (c *cmdConfigShow) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		return c.global.cmpInstances(toComplete)
+	}
+
 	return cmd
 }
 
@@ -862,6 +910,23 @@ func (c *cmdConfigUnset) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as an instance property"))
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			if strings.Contains(toComplete, ".") {
+				return c.global.cmpServerAllKeys(toComplete)
+			}
+
+			return c.global.cmpInstances(toComplete)
+		}
+
+		if len(args) == 1 {
+			// Only complete config keys which are currently set.
+			return c.global.cmpInstanceSetKeys(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }

@@ -23,7 +23,7 @@ If the list of projects is empty, the client will not be allowed access to any o
 (fine-grained-authorization)=
 ## Fine-grained authorization
 
-It is possible to restrict {ref}`OIDC clients <authentication-openid>` to granular actions on specific LXD resources.
+It is possible to restrict {ref}`OIDC clients <authentication-openid>` and fine-grained TLS identities to granular actions on specific LXD resources.
 For example, one could restrict a user to be able to view, but not edit, a single instance.
 
 There are four key concepts that LXD uses to manage these fine-grained permissions:

@@ -232,7 +232,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if targetMemberInfo == nil && s.GlobalConfig.InstancesPlacementScriptlet() != "" {
-			leaderAddress, err := d.gateway.LeaderAddress()
+			leaderInfo, err := s.LeaderInfo()
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -250,7 +250,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				Reason:  apiScriptlet.InstancePlacementReasonRelocation,
 			}
 
-			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, &req, candidateMembers, leaderAddress)
+			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, &req, candidateMembers, leaderInfo.Address)
 			if err != nil {
 				return response.BadRequest(fmt.Errorf("Failed instance placement scriptlet: %w", err))
 			}
@@ -509,9 +509,19 @@ func instancePostMigration(s *state.State, inst instance.Instance, newName strin
 				return err
 			}
 
+			profileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
+			if err != nil {
+				return err
+			}
+
+			profileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
+			if err != nil {
+				return err
+			}
+
 			apiProfiles = make([]api.Profile, 0, len(profiles))
 			for _, profile := range profiles {
-				apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+				apiProfile, err := profile.ToAPI(ctx, tx.Tx(), profileConfigs, profileDevices)
 				if err != nil {
 					return err
 				}
@@ -758,7 +768,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 			InstancePut: srcInstInfo.Writable(),
 			Type:        api.InstanceType(srcInstInfo.Type),
 			Source: api.InstanceSource{
-				Type:        "migration",
+				Type:        api.SourceTypeMigration,
 				Mode:        "pull",
 				Operation:   fmt.Sprintf("https://%s%s", srcMember.Address, srcOp.URL()),
 				Websockets:  sourceSecrets,

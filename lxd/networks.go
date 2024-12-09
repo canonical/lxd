@@ -45,14 +45,16 @@ import (
 var networkCreateLock sync.Mutex
 
 var networksCmd = APIEndpoint{
-	Path: "networks",
+	Path:        "networks",
+	MetricsType: entity.TypeNetwork,
 
 	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: networksPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateNetworks)},
 }
 
 var networkCmd = APIEndpoint{
-	Path: "networks/{networkName}",
+	Path:        "networks/{networkName}",
+	MetricsType: entity.TypeNetwork,
 
 	Delete: APIEndpointAction{Handler: networkDelete, AccessHandler: networkAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: networkGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
@@ -62,13 +64,15 @@ var networkCmd = APIEndpoint{
 }
 
 var networkLeasesCmd = APIEndpoint{
-	Path: "networks/{networkName}/leases",
+	Path:        "networks/{networkName}/leases",
+	MetricsType: entity.TypeNetwork,
 
 	Get: APIEndpointAction{Handler: networkLeasesGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
 }
 
 var networkStateCmd = APIEndpoint{
-	Path: "networks/{networkName}/state",
+	Path:        "networks/{networkName}/state",
+	MetricsType: entity.TypeNetwork,
 
 	Get: APIEndpointAction{Handler: networkStateGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
 }
@@ -237,11 +241,17 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
-	var networkNames []string
+	// networks holds the network names of the managed and unmanaged networks. They are in two different slices so that
+	// we can perform access control checks differently.
+	var networks [2][]string
+	const (
+		managed = iota
+		unmanaged
+	)
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get list of managed networks (that may or may not have network interfaces on the host).
-		networkNames, err = tx.GetNetworks(ctx, effectiveProjectName)
+		networks[managed], err = tx.GetNetworks(ctx, effectiveProjectName)
 
 		return err
 	})
@@ -249,8 +259,18 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	// Get list of actual network interfaces on the host as well if the effective project is Default.
+	// Get list of actual network interfaces on the host if the effective project is default and the caller has permission.
+	var getUnmanagedNetworks bool
 	if effectiveProjectName == api.ProjectDefaultName {
+		err := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewUnmanagedNetworks)
+		if err == nil {
+			getUnmanagedNetworks = true
+		} else if !auth.IsDeniedError(err) {
+			return response.SmartError(err)
+		}
+	}
+
+	if getUnmanagedNetworks {
 		ifaces, err := net.Interfaces()
 		if err != nil {
 			return response.InternalError(err)
@@ -263,12 +283,13 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Append to the list of networks if a managed network of same name doesn't exist.
-			if !shared.ValueInSlice(iface.Name, networkNames) {
-				networkNames = append(networkNames, iface.Name)
+			if !shared.ValueInSlice(iface.Name, networks[managed]) {
+				networks[unmanaged] = append(networks[unmanaged], iface.Name)
 			}
 		}
 	}
 
+	// Permission checker works for managed networks only, since they are present in the database.
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeNetwork)
 	if err != nil {
 		return response.InternalError(err)
@@ -276,20 +297,23 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 
 	resultString := []string{}
 	resultMap := []api.Network{}
-	for _, networkName := range networkNames {
-		if !userHasPermission(entity.NetworkURL(requestProjectName, networkName)) {
-			continue
-		}
-
-		if !recursion {
-			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName))
-		} else {
-			net, err := doNetworkGet(s, r, s.ServerClustered, requestProjectName, reqProject.Config, networkName)
-			if err != nil {
+	for kind, networkNames := range networks {
+		for _, networkName := range networkNames {
+			// Filter out managed networks that the caller doesn't have permission to view.
+			if kind == managed && !userHasPermission(entity.NetworkURL(requestProjectName, networkName)) {
 				continue
 			}
 
-			resultMap = append(resultMap, net)
+			if !recursion {
+				resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName))
+			} else {
+				net, err := doNetworkGet(s, r, s.ServerClustered, requestProjectName, reqProject.Config, networkName)
+				if err != nil {
+					continue
+				}
+
+				resultMap = append(resultMap, net)
+			}
 		}
 	}
 
@@ -514,6 +538,14 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return response.SmartError(err)
 			}
+
+			n, err := network.LoadByName(s, projectName, req.Name)
+			if err != nil {
+				return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+			}
+
+			requestor := request.CreateRequestor(r)
+			s.Events.SendLifecycle(projectName, lifecycle.NetworkCreated.Event(n, requestor, nil))
 		}
 
 		err = networksPostCluster(s, projectName, netInfo, req, clientType, netType)
@@ -692,12 +724,7 @@ func networksPostCluster(s *state.State, projectName string, netInfo *api.Networ
 	}
 
 	// Notify other nodes to create the network.
-	err = notifier(func(client lxd.InstanceServer) error {
-		server, _, err := client.GetServer()
-		if err != nil {
-			return err
-		}
-
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		// Clone the network config for this node so we don't modify it and potentially end up sending
 		// this node's config to another node.
 		nodeConfig := make(map[string]string, len(netConfig))
@@ -706,7 +733,7 @@ func networksPostCluster(s *state.State, projectName string, netInfo *api.Networ
 		}
 
 		// Merge node specific config items into global config.
-		for key, value := range nodeConfigs[server.Environment.ServerName] {
+		for key, value := range nodeConfigs[member.Name] {
 			nodeConfig[key] = value
 		}
 
@@ -725,7 +752,7 @@ func networksPostCluster(s *state.State, projectName string, netInfo *api.Networ
 			return err
 		}
 
-		logger.Debug("Created network on cluster member", logger.Ctx{"project": n.Project(), "network": n.Name(), "member": server.Environment.ServerName, "config": nodeReq.Config})
+		logger.Debug("Created network on cluster member", logger.Ctx{"project": n.Project(), "network": n.Name(), "member": member.Name, "config": nodeReq.Config})
 
 		return nil
 	})
@@ -1068,7 +1095,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		err = notifier(func(client lxd.InstanceServer) error {
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			return client.UseProject(n.Project()).DeleteNetwork(n.Name())
 		})
 		if err != nil {
@@ -1521,19 +1548,8 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, leases)
 }
 
-func networkStartup(s *state.State) error {
+func networkStartup(stateFunc func() *state.State) error {
 	var err error
-
-	// Get a list of projects.
-	var projectNames []string
-
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		projectNames, err = dbCluster.GetProjectNames(ctx, tx.Tx())
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to load projects: %w", err)
-	}
 
 	// Build a list of networks to initialise, keyed by project and network name.
 	const networkPriorityStandalone = 0 // Start networks not dependent on any other network first.
@@ -1545,38 +1561,14 @@ func networkStartup(s *state.State) error {
 		networkPriorityLogical:    make(map[network.ProjectNetwork]struct{}),
 	}
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		for _, projectName := range projectNames {
-			networkNames, err := tx.GetCreatedNetworkNamesByProject(ctx, projectName)
-			if err != nil {
-				return fmt.Errorf("Failed to load networks for project %q: %w", projectName, err)
-			}
-
-			for _, networkName := range networkNames {
-				pn := network.ProjectNetwork{
-					ProjectName: projectName,
-					NetworkName: networkName,
-				}
-
-				// Assume all networks are networkPriorityStandalone initially.
-				initNetworks[networkPriorityStandalone][pn] = struct{}{}
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
 	loadedNetworks := make(map[network.ProjectNetwork]network.Network)
 
-	initNetwork := func(n network.Network, priority int) error {
+	initNetwork := func(s *state.State, n network.Network, priority int) error {
 		err = n.Start()
 		if err != nil {
 			err = fmt.Errorf("Failed starting: %w", err)
 
-			_ = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			_ = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.UpsertWarningLocalNode(ctx, n.Project(), entity.TypeNetwork, int(n.ID()), warningtype.NetworkUnvailable, err.Error())
 			})
 
@@ -1598,7 +1590,7 @@ func networkStartup(s *state.State) error {
 		return nil
 	}
 
-	loadAndInitNetwork := func(pn network.ProjectNetwork, priority int, firstPass bool) error {
+	loadAndInitNetwork := func(s *state.State, pn network.ProjectNetwork, priority int, firstPass bool) error {
 		var err error
 		var n network.Network
 
@@ -1643,7 +1635,7 @@ func networkStartup(s *state.State) error {
 			return nil
 		}
 
-		err = initNetwork(n, priority)
+		err = initNetwork(s, n, priority)
 		if err != nil {
 			return err
 		}
@@ -1651,31 +1643,70 @@ func networkStartup(s *state.State) error {
 		return nil
 	}
 
-	// Try initializing networks in priority order.
-	for priority := range initNetworks {
-		for pn := range initNetworks[priority] {
-			err := loadAndInitNetwork(pn, priority, true)
-			if err != nil {
-				logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
-
-				continue
-			}
+	remainingNetworksCount := func() int {
+		remainingNetworks := 0
+		for _, projectNetworks := range initNetworks {
+			remainingNetworks += len(projectNetworks)
 		}
+
+		return remainingNetworks
 	}
 
-	loadedNetworks = nil // Don't store loaded networks after first pass.
+	{
+		// Perform first pass to start networks.
+		// Local scope for state variable during initial pass of setting up networks.
+		s := stateFunc()
+		err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			projectNames, err := dbCluster.GetProjectNames(ctx, tx.Tx())
+			if err != nil {
+				return fmt.Errorf("Failed to load projects: %w", err)
+			}
 
-	remainingNetworks := 0
-	for _, networks := range initNetworks {
-		remainingNetworks += len(networks)
+			for _, projectName := range projectNames {
+				networkNames, err := tx.GetCreatedNetworkNamesByProject(ctx, projectName)
+				if err != nil {
+					return fmt.Errorf("Failed to load networks for project %q: %w", projectName, err)
+				}
+
+				for _, networkName := range networkNames {
+					pn := network.ProjectNetwork{
+						ProjectName: projectName,
+						NetworkName: networkName,
+					}
+
+					// Assume all networks are networkPriorityStandalone initially.
+					initNetworks[networkPriorityStandalone][pn] = struct{}{}
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		// Try initializing networks in priority order.
+		for priority := range initNetworks {
+			for pn := range initNetworks[priority] {
+				err := loadAndInitNetwork(s, pn, priority, true)
+				if err != nil {
+					logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
+
+					continue
+				}
+			}
+		}
+
+		loadedNetworks = nil // Don't store loaded networks after first pass.
 	}
 
 	// For any remaining networks that were not successfully initialised, we now start a go routine to
 	// periodically try to initialize them again in the background.
-	if remainingNetworks > 0 {
+	if remainingNetworksCount() > 0 {
 		go func() {
 			for {
 				t := time.NewTimer(time.Duration(time.Minute))
+				s := stateFunc() // Get fresh state in case global config has been updated.
 
 				select {
 				case <-s.ShutdownCtx.Done():
@@ -1689,7 +1720,7 @@ func networkStartup(s *state.State) error {
 					// Try initializing networks in priority order.
 					for priority := range initNetworks {
 						for pn := range initNetworks[priority] {
-							err := loadAndInitNetwork(pn, priority, false)
+							err := loadAndInitNetwork(s, pn, priority, false)
 							if err != nil {
 								logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
 
@@ -1700,11 +1731,7 @@ func networkStartup(s *state.State) error {
 						}
 					}
 
-					remainingNetworks := 0
-					for _, networks := range initNetworks {
-						remainingNetworks += len(networks)
-					}
-
+					remainingNetworks := remainingNetworksCount()
 					if remainingNetworks <= 0 {
 						logger.Info("All networks initialized")
 					}

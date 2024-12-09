@@ -1,15 +1,18 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"runtime"
 	"strconv"
 	"sync"
+	"syscall"
 
 	"github.com/gorilla/websocket"
 	"github.com/spf13/cobra"
@@ -43,6 +46,10 @@ as well as retrieve past log entries from it.`))
 	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Retrieve the container's console log"))
 	cmd.Flags().StringVarP(&c.flagType, "type", "t", "console", i18n.G("Type of connection to establish: 'console' for serial console, 'vga' for SPICE graphical output")+"``")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return c.global.cmpInstances(toComplete)
+	}
 
 	return cmd
 }
@@ -233,6 +240,12 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 	var err error
 	conf := c.global.conf
 
+	// Create a context that is canceled on signal reception.
+	// This is used to enable the function to execute any cleanup defer statements
+	// before exiting.
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	defer stop()
+
 	// We currently use the control websocket just to abort in case of errors.
 	controlDone := make(chan struct{}, 1)
 	handler := func(control *websocket.Conn) {
@@ -280,7 +293,8 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 		}
 
 		// Listen on the socket.
-		listener, err = net.Listen("unix", path.Name())
+		lc := net.ListenConfig{}
+		listener, err = lc.Listen(ctx, "unix", path.Name())
 		if err != nil {
 			return err
 		}

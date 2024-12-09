@@ -31,6 +31,7 @@ test_remote_url() {
 
   # an invalid protocol returns an error
   ! lxc_remote remote add test "${url}" --accept-certificate --password foo --protocol foo || false
+  [ "$(DEBUG="" lxc_remote remote add test "${url}" --protocol foo 2>&1)" = "Error: Invalid protocol: foo" ]
 
   for url in ${urls}; do
     lxc_remote remote add test "${url}"
@@ -150,6 +151,14 @@ test_remote_url_with_token() {
   # Try adding remote. This should fail.
   ! lxc_remote remote add test "${token}" || false
 
+  # Check token prune task
+  lxc config trust add --name foo --quiet # Create a token
+  [ "$(lxc operation list --format csv | grep -cF 'TOKEN,Executing operation,RUNNING')" -eq 1 ] # Expect only one token operation to be running
+  running_token_operation_uuid="$(lxc operation list --format csv | grep -F 'TOKEN,Executing operation,RUNNING' | cut -d, -f1)" # Get the operation UUID
+  sleep 2 # Wait for token to expire (expiry still set to 2 seconds)
+  lxc query --request POST /internal/testing/prune-tokens # Prune tokens
+  [ "$(lxc query "/1.0/operations/${running_token_operation_uuid}" | jq -r '.status')" = "Cancelled" ] # Expect the operation to be cancelled
+
   # Unset token expiry
   lxc config unset core.remote_token_expiry
 
@@ -160,6 +169,10 @@ test_remote_url_with_token() {
 test_remote_admin() {
   ! lxc_remote remote add badpass "${LXD_ADDR}" --accept-certificate --password bad || false
   ! lxc_remote list badpass: || false
+
+  lxc_remote remote add badtoken "${LXD_ADDR}" --token badtoken 2>&1 | grep -F "Error: Failed to decode trust token:"
+  ! lxc_remote remote add badtoken "${LXD_ADDR}" --token badtoken || false
+  ! lxc_remote remote list | grep -wF badtoken || false
 
   lxc_remote remote add foo "${LXD_ADDR}" --accept-certificate --password foo
   lxc_remote remote list | grep 'foo'
@@ -183,7 +196,7 @@ test_remote_admin() {
 
   # we just re-add our cert under a different name to test the cert
   # manipulation mechanism.
-  gen_cert client2
+  gen_cert_and_key client2
 
   # Test for #623
   lxc_remote remote add test-623 "${LXD_ADDR}" --accept-certificate --password foo

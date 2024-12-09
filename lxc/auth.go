@@ -1,13 +1,17 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
@@ -18,6 +22,7 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/termios"
+	"github.com/canonical/lxd/shared/version"
 )
 
 type cmdAuth struct {
@@ -732,6 +737,9 @@ func (c *cmdIdentity) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage identities`))
 
+	identityCreateCmd := cmdIdentityCreate{global: c.global}
+	cmd.AddCommand(identityCreateCmd.command())
+
 	identityListCmd := cmdIdentityList{global: c.global}
 	cmd.AddCommand(identityListCmd.command())
 
@@ -744,6 +752,9 @@ func (c *cmdIdentity) command() *cobra.Command {
 	identityEditCmd := cmdIdentityEdit{global: c.global}
 	cmd.AddCommand(identityEditCmd.command())
 
+	identityDeleteCmd := cmdIdentityDelete{global: c.global}
+	cmd.AddCommand(identityDeleteCmd.command())
+
 	identityGroupCmd := cmdIdentityGroup{global: c.global}
 	cmd.AddCommand(identityGroupCmd.command())
 
@@ -751,6 +762,147 @@ func (c *cmdIdentity) command() *cobra.Command {
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
 	return cmd
+}
+
+type cmdIdentityCreate struct {
+	global     *cmdGlobal
+	flagGroups []string
+}
+
+func (c *cmdIdentityCreate) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("create", i18n.G("[<remote>:]<authentication_method>/<name> [<path to PEM encoded certificate>] [[--group <group_name>]]"))
+	cmd.Short = i18n.G("Create an identity")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Create a TLS identity`))
+
+	cmd.RunE = c.run
+	cmd.Flags().StringSliceVarP(&c.flagGroups, "group", "g", []string{}, "Groups to add to the identity")
+
+	return cmd
+}
+
+func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
+	var stdinData api.IdentitiesTLSPost
+
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	if exit {
+		return err
+	}
+
+	// If stdin isn't a terminal, read text from it
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		err = yaml.Unmarshal(contents, &stdinData)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Parse remote
+	remoteName, resourceName, err := c.global.conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
+	transporter, wrapper := newLocationHeaderTransportWrapper()
+	client, err := c.global.conf.GetInstanceServerWithTransportWrapper(remoteName, wrapper)
+	if err != nil {
+		return err
+	}
+
+	if resourceName == "" {
+		return errors.New(i18n.G("Missing identity argument"))
+	}
+
+	authMethod, name, ok := strings.Cut(resourceName, "/")
+	if !ok {
+		return errors.New(i18n.G("Malformed argument, expected `[<remote>:]<authentication_method>/<name>`, got ") + args[0])
+	}
+
+	if authMethod != api.AuthenticationMethodTLS {
+		return errors.New(i18n.G("Identity creation only supported for TLS identities"))
+	}
+
+	// Add name and groups to any stdin data
+	stdinData.Name = name
+	for _, group := range c.flagGroups {
+		if !shared.ValueInSlice(group, stdinData.Groups) {
+			stdinData.Groups = append(stdinData.Groups, group)
+		}
+	}
+
+	// If the certificate argument is provided, read it and add it to the stdin data.
+	if len(args) == 2 {
+		pemEncodedX509Cert, err := os.ReadFile(args[1])
+		if err != nil {
+			return err
+		}
+
+		stdinData.Certificate = string(pemEncodedX509Cert)
+	}
+
+	// Expect that if the caller did not provide a certificate then they want to get a token.
+	if stdinData.Certificate == "" {
+		stdinData.Token = true
+		token, err := client.CreateIdentityTLSToken(stdinData)
+		if err != nil {
+			return err
+		}
+
+		if !c.global.flagQuiet {
+			pendingIdentityURL, err := url.Parse(transporter.location)
+			if err != nil {
+				return fmt.Errorf("Received invalid location header %q: %w", transporter.location, err)
+			}
+
+			var pendingIdentityUUIDStr string
+			identityURLPrefix := api.NewURL().Path(version.APIVersion, "auth", "identities", authMethod).String()
+			_, err = fmt.Sscanf(pendingIdentityURL.Path, identityURLPrefix+"/%s", &pendingIdentityUUIDStr)
+			if err != nil {
+				return fmt.Errorf("Received unexpected location header %q: %w", transporter.location, err)
+			}
+
+			pendingIdentityUUID, err := uuid.Parse(pendingIdentityUUIDStr)
+			if err != nil {
+				return fmt.Errorf("Received invalid pending identity UUID %q: %w", pendingIdentityUUIDStr, err)
+			}
+
+			fmt.Printf(i18n.G("TLS identity %q (%s) pending identity token:")+"\n", resourceName, pendingIdentityUUID.String())
+		}
+
+		// Encode certificate add token to JSON.
+		tokenJSON, err := json.Marshal(token)
+		if err != nil {
+			return fmt.Errorf("Failed to encode identity token: %w", err)
+		}
+
+		// Print the base64 encoded token.
+		fmt.Println(base64.StdEncoding.EncodeToString(tokenJSON))
+		return nil
+	}
+
+	fingerprint, err := shared.CertFingerprintStr(stdinData.Certificate)
+	if err != nil {
+		return err
+	}
+
+	// Otherwise create the identity directly.
+	err = client.CreateIdentityTLS(stdinData)
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("TLS identity %q created with fingerprint %q")+"\n", resourceName, fingerprint)
+	}
+
+	return nil
 }
 
 type cmdIdentityList struct {
@@ -1072,6 +1224,61 @@ func (c *cmdIdentityEdit) run(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+type cmdIdentityDelete struct {
+	global *cmdGlobal
+}
+
+func (c *cmdIdentityDelete) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier>"))
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = i18n.G("Delete an identity")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Delete an identity`))
+	cmd.Example = cli.FormatSection("", `lxc auth identity delete oidc/jane.doe@example.com
+	Delete the OIDC identity with email address "jane.doe@example.com" in the default remote.
+
+lxc auth identity delete oidc/'Jane Doe'
+	Delete the OIDC identity with name "Jane Doe" in the default remote (there must be only one OIDC identity on the server with this name).
+
+lxc auth identity delete my-remote:tls/12beaccbf9e7b7445185581b70099a5962c927e85006d5883856d909fe79f976
+	Delete the TLS identity with certificate fingerprint "12beaccbf9e7b7445185581b70099a5962c927e85006d5883856d909fe79f976" in remote "my-remote".
+
+lxc auth identity delete my-remote:tls/jane-doe
+	Delete the TLS identity with name "jane-doe" in remote "my-remote" (there must be only one TLS identity on "my-remote" with this name).
+`)
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+func (c *cmdIdentityDelete) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New(i18n.G("Missing identity argument"))
+	}
+
+	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
+	if !ok {
+		return fmt.Errorf("Malformed argument, expected `[<remote>:]<authentication_method>/<name_or_identifier>`, got %q", args[0])
+	}
+
+	return resource.server.DeleteIdentity(authenticationMethod, nameOrID)
 }
 
 type cmdIdentityGroup struct {

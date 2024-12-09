@@ -20,8 +20,8 @@ import (
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 type deviceTaskCPU struct {
@@ -485,6 +485,14 @@ func deviceTaskBalance(s *state.State) {
 			}
 		}
 
+		// Determine CPU pinning strategy and static pinning settings.
+		// When pinning strategy does not equal auto (none or empty), don't auto pin CPUs.
+		cpuPinStrategy := conf["limits.cpu.pin_strategy"]
+		err = validate.IsStaticCPUPinning(cpulimit)
+		if err != nil && c.Type() == instancetype.VM && cpuPinStrategy != "auto" {
+			continue
+		}
+
 		// Check that the instance is running.
 		// We use InitPID here rather than IsRunning because this task can be triggered during the container's
 		// onStart hook, which is during the time that the start lock is held, which causes IsRunning to
@@ -642,11 +650,6 @@ func deviceEventListener(stateFunc func() *state.State) {
 			s := stateFunc()
 
 			if !s.OS.CGInfo.Supports(cgroup.CPUSet, nil) {
-				continue
-			}
-
-			// VMs are currently not auto CPU pinned.
-			if e[0] != string(api.InstanceTypeContainer) {
 				continue
 			}
 

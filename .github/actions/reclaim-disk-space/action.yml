@@ -9,11 +9,23 @@ runs:
       run: |
         set -eux
 
-        # Purge snaps.
-        sudo snap remove --purge $(snap list | awk '!/^Name|^core|^snapd/ {print $1}')
+        # Purge snaps, if any.
+        # The Canonical runners use aproxy for connectivity.
+        for s in $(snap list | awk '!/^(Name|core|snapd|aproxy)/ {print $1}'); do
+          sudo snap remove --purge "${s}" || true
+        done
 
         # This was inspired from https://github.com/easimon/maximize-build-space
         df -h /
+
+        # Remove leftover home directories
+        sudo rm -rf /home/linuxbrew /home/runneradmin
+
+        # Remove unneeded directories
+        sudo rm -rf /opt/google/chrome
+        sudo rm -rf /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/PyPy /opt/hostedtoolcache/Python
+        sudo rm -rf /opt/microsoft/msedge /opt/microsoft/msodbcsql* /opt/microsoft/powershell
+        sudo rm -rf /root/.sbt
 
         # dotnet
         sudo rm -rf /usr/share/dotnet

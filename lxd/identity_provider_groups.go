@@ -24,8 +24,9 @@ import (
 )
 
 var identityProviderGroupsCmd = APIEndpoint{
-	Name: "identity_provider_groups",
-	Path: "auth/identity-provider-groups",
+	Name:        "identity_provider_groups",
+	Path:        "auth/identity-provider-groups",
+	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
 		Handler:       getIdentityProviderGroups,
 		AccessHandler: allowAuthenticated,
@@ -37,8 +38,9 @@ var identityProviderGroupsCmd = APIEndpoint{
 }
 
 var identityProviderGroupCmd = APIEndpoint{
-	Name: "identity_provider_group",
-	Path: "auth/identity-provider-groups/{idpGroupName}",
+	Name:        "identity_provider_group",
+	Path:        "auth/identity-provider-groups/{idpGroupName}",
+	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
 		Handler:       getIdentityProviderGroup,
 		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanView, "idpGroupName"),
@@ -324,7 +326,7 @@ func createIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = notifier(func(client lxd.InstanceServer) error {
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
 		return err
 	})
@@ -393,7 +395,7 @@ func renameIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = notifier(func(client lxd.InstanceServer) error {
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
 		return err
 	})
@@ -482,7 +484,7 @@ func updateIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = notifier(func(client lxd.InstanceServer) error {
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
 		return err
 	})
@@ -578,7 +580,7 @@ func patchIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = notifier(func(client lxd.InstanceServer) error {
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
 		return err
 	})
@@ -633,7 +635,7 @@ func deleteIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = notifier(func(client lxd.InstanceServer) error {
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
 		return err
 	})

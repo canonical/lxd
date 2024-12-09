@@ -413,10 +413,17 @@ var APIExtensions = []string{
 	"devlxd_images_vm",
 	"instance_protection_start",
 	"disk_io_bus_virtio_blk",
-	"ubuntu_pro_guest_attach",
 	"metadata_configuration_entity_types",
 	"network_allocations_ovn_uplink",
 	"network_ovn_uplink_vlan",
+	"shared_custom_block_volumes",
+	"metrics_api_requests",
+	"projects_limits_disk_pool",
+	"access_management_tls",
+	"state_logical_cpus",
+	"vm_limits_cpu_pin_strategy",
+	"gpu_cdi",
+	"images_all_projects",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

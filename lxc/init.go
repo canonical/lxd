@@ -67,6 +67,14 @@ lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size
 	cmd.Flags().BoolVar(&c.flagEmpty, "empty", false, i18n.G("Create an empty instance"))
 	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Create a virtual machine"))
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		return c.global.cmpImages(toComplete)
+	}
+
 	return cmd
 }
 
@@ -151,10 +159,6 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 	d, err := conf.GetInstanceServer(remote)
 	if err != nil {
 		return nil, "", err
-	}
-
-	if c.flagTarget != "" {
-		d = d.UseTarget(c.flagTarget)
 	}
 
 	// Overwrite profiles.
@@ -254,6 +258,11 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 	instanceDBType := api.InstanceTypeContainer
 	if c.flagVM {
 		instanceDBType = api.InstanceTypeVM
+	}
+
+	// Set the target if provided.
+	if c.flagTarget != "" {
+		d = d.UseTarget(c.flagTarget)
 	}
 
 	// Setup instance creation request
@@ -371,7 +380,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 
 		opInfo = *info
 	} else {
-		req.Source.Type = "none"
+		req.Source.Type = api.SourceTypeNone
 
 		op, err := d.CreateInstance(req)
 		if err != nil {

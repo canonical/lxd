@@ -54,6 +54,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/loki"
 	"github.com/canonical/lxd/lxd/maas"
+	"github.com/canonical/lxd/lxd/metrics"
 	networkZone "github.com/canonical/lxd/lxd/network/zone"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/request"
@@ -68,7 +69,6 @@ import (
 	"github.com/canonical/lxd/lxd/storage/s3/miniod"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/lxd/task"
-	"github.com/canonical/lxd/lxd/ubuntupro"
 	"github.com/canonical/lxd/lxd/ucred"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/lxd/warnings"
@@ -164,9 +164,6 @@ type Daemon struct {
 
 	// Syslog listener cancel function.
 	syslogSocketCancel context.CancelFunc
-
-	// Ubuntu Pro settings
-	ubuntuPro *ubuntupro.Client
 }
 
 // DaemonConfig holds configuration values for Daemon.
@@ -222,15 +219,16 @@ func defaultDaemon() *Daemon {
 
 // APIEndpoint represents a URL in our API.
 type APIEndpoint struct {
-	Name    string             // Name for this endpoint.
-	Path    string             // Path pattern for this endpoint.
-	Aliases []APIEndpointAlias // Any aliases for this endpoint.
-	Get     APIEndpointAction
-	Head    APIEndpointAction
-	Put     APIEndpointAction
-	Post    APIEndpointAction
-	Delete  APIEndpointAction
-	Patch   APIEndpointAction
+	Name        string             // Name for this endpoint.
+	Path        string             // Path pattern for this endpoint.
+	MetricsType entity.Type        // Main entity type related to this endpoint. Used by the API metrics.
+	Aliases     []APIEndpointAlias // Any aliases for this endpoint.
+	Get         APIEndpointAction
+	Head        APIEndpointAction
+	Put         APIEndpointAction
+	Post        APIEndpointAction
+	Delete      APIEndpointAction
+	Patch       APIEndpointAction
 }
 
 // APIEndpointAlias represents an alias URL of and APIEndpoint in our API.
@@ -249,12 +247,7 @@ type APIEndpointAction struct {
 // allowAuthenticated is an AccessHandler which allows only authenticated requests. This should be used in conjunction
 // with further access control within the handler (e.g. to filter resources the user is able to view/edit).
 func allowAuthenticated(_ *Daemon, r *http.Request) response.Response {
-	trusted, err := request.GetCtxValue[bool](r.Context(), request.CtxTrusted)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if trusted {
+	if auth.IsTrusted(r.Context()) {
 		return response.EmptySyncResponse
 	}
 
@@ -333,6 +326,9 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 	switch id.IdentityType {
 	case api.IdentityTypeOIDCClient:
 		// OIDC authenticated clients are governed by fine-grained auth. They can call the endpoint but may see an empty list.
+		return response.EmptySyncResponse
+	case api.IdentityTypeCertificateClient:
+		// Fine-grained TLS identities can list resources in any project. They may see an empty list.
 		return response.EmptySyncResponse
 	case api.IdentityTypeCertificateClientRestricted:
 		// A restricted client may be able to call the endpoint, continue.
@@ -422,7 +418,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 
 	// List of candidate identity types for this request. We have already checked server certificates at the beginning of this method
 	// so we only need to consider client and metrics certificates. (OIDC auth was completed above).
-	candidateIdentityTypes := []string{api.IdentityTypeCertificateClientUnrestricted, api.IdentityTypeCertificateClientRestricted}
+	candidateIdentityTypes := []string{api.IdentityTypeCertificateClientUnrestricted, api.IdentityTypeCertificateClientRestricted, api.IdentityTypeCertificateClient}
 	if isMetricsRequest(*r.URL) {
 		// Metrics certificates can only authenticate when calling metrics related endpoints.
 		candidateIdentityTypes = append(candidateIdentityTypes, api.IdentityTypeCertificateMetricsUnrestricted, api.IdentityTypeCertificateMetricsRestricted)
@@ -544,7 +540,7 @@ func (d *Daemon) handleOIDCAuthenticationResult(r *http.Request, result *oidc.Au
 			return fmt.Errorf("Failed to notify cluster members of new or updated OIDC identity: %w", err)
 		}
 
-		err = notifier(func(client lxd.InstanceServer) error {
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
 			return err
 		})
@@ -579,7 +575,7 @@ func (d *Daemon) State() *state.State {
 	localConfig := d.localConfig
 	d.globalConfigMu.Unlock()
 
-	return &state.State{
+	s := &state.State{
 		ShutdownCtx:         d.shutdownCtx,
 		DB:                  d.db,
 		MAAS:                d.maas,
@@ -602,8 +598,31 @@ func (d *Daemon) State() *state.State {
 		ServerUUID:          d.serverUUID,
 		StartTime:           d.startTime,
 		Authorizer:          d.authorizer,
-		UbuntuPro:           d.ubuntuPro,
 	}
+
+	s.LeaderInfo = func() (*state.LeaderInfo, error) {
+		if !s.ServerClustered {
+			return &state.LeaderInfo{
+				Clustered: false,
+				Leader:    true,
+				Address:   "",
+			}, nil
+		}
+
+		localClusterAddress := s.LocalConfig.ClusterAddress()
+		leaderAddress, err := d.gateway.LeaderAddress()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get the address of the cluster leader: %w", err)
+		}
+
+		return &state.LeaderInfo{
+			Clustered: true,
+			Leader:    localClusterAddress == leaderAddress,
+			Address:   leaderAddress,
+		}, nil
+	}
+
+	return s
 }
 
 // UnixSocket returns the full path to the unix.socket file that this daemon is
@@ -617,6 +636,11 @@ func (d *Daemon) UnixSocket() string {
 	return filepath.Join(d.os.VarDir, "unix.socket")
 }
 
+// createCmd creates API handlers for the provided endpoint including some useful behavior,
+// such as appropriate authentication, authorization and checking server availability.
+//
+// The created handler also keeps track of handled requests for the API metrics
+// for the main API endpoints.
 func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 	var uri string
 	if c.Path == "" {
@@ -628,6 +652,12 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 	}
 
 	route := restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
+		// Only endpoints from the main API (version 1.0) should be counted for the metrics.
+		// This prevents internal endpoints from being included as well.
+		if version == "1.0" {
+			metrics.TrackStartedRequest(r, c.MetricsType)
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 
 		if !(r.RemoteAddr == "@" && version == "internal") {
@@ -1206,6 +1236,18 @@ func (d *Daemon) init() error {
 		d.serverCertInt = serverCert
 	}
 
+	// If we're clustered, check for an incoming recovery tarball
+	if d.serverClustered {
+		tarballPath := filepath.Join(d.db.Node.Dir(), cluster.RecoveryTarballName)
+
+		if shared.PathExists(tarballPath) {
+			err = cluster.DatabaseReplaceFromTarball(tarballPath, d.db.Node)
+			if err != nil {
+				return fmt.Errorf("Failed to load recovery tarball: %w", err)
+			}
+		}
+	}
+
 	/* Setup dqlite */
 	clusterLogLevel := "ERROR"
 	if shared.ValueInSlice("dqlite", trace) {
@@ -1611,7 +1653,7 @@ func (d *Daemon) init() error {
 	if !d.db.Cluster.LocalNodeIsEvacuated() {
 		logger.Infof("Initializing networks")
 
-		err = networkStartup(d.State())
+		err = networkStartup(d.State)
 		if err != nil {
 			return err
 		}
@@ -1818,9 +1860,6 @@ func (d *Daemon) init() error {
 
 	// Start all background tasks
 	d.tasks.Start(d.shutdownCtx)
-
-	// Load Ubuntu Pro configuration before starting any instances.
-	d.ubuntuPro = ubuntupro.New(d.os.ReleaseInfo["NAME"], d.shutdownCtx)
 
 	// Restore instances
 	instancesStart(d.State(), instances)

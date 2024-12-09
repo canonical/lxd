@@ -121,7 +121,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// The number of seconds to wait after the instance started before starting the next one.
 	// ---
 	//  type: integer
-	//  defaultdesc: "0"
+	//  defaultdesc: `0`
 	//  liveupdate: no
 	//  shortdesc: Delay after starting the instance
 	"boot.autostart.delay": validate.Optional(validate.IsInt64),
@@ -130,7 +130,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// The instance with the highest value is started first.
 	// ---
 	//  type: integer
-	//  defaultdesc: "0"
+	//  defaultdesc: `0`
 	//  liveupdate: no
 	//  shortdesc: What order to start the instances in
 	"boot.autostart.priority": validate.Optional(validate.IsInt64),
@@ -139,7 +139,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// The instance with the highest value is shut down first.
 	// ---
 	//  type: integer
-	//  defaultdesc: "0"
+	//  defaultdesc: `0`
 	//  liveupdate: no
 	//  shortdesc: What order to shut down the instances in
 	"boot.stop.priority": validate.Optional(validate.IsInt64),
@@ -148,7 +148,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// Number of seconds to wait for the instance to shut down before it is force-stopped.
 	// ---
 	//  type: integer
-	//  defaultdesc: "30"
+	//  defaultdesc: `30`
 	//  liveupdate: yes
 	//  shortdesc: How long to wait for the instance to shut down
 	"boot.host_shutdown_timeout": validate.Optional(validate.IsInt64),
@@ -340,7 +340,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// ---
 	//  type: bool
 	//  defaultdesc: `false`
-	//  liveupdate: no
+	//  liveupdate: yes
 	//  shortdesc: Controls the availability of the `/1.0/images` API over `devlxd`
 	"security.devlxd.images": validate.Optional(validate.IsBool),
 
@@ -404,20 +404,6 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 		_, err := shared.GetExpiry(time.Time{}, value)
 		return err
 	},
-
-	// lxdmeta:generate(entities=instance; group=miscellaneous; key=ubuntu_pro.guest_attach)
-	// Indicate whether the guest should auto-attach Ubuntu Pro at start up.
-	// The allowed values are `off`, `on`, and `available`.
-	// If set to `off`, it will not be possible for the Ubuntu Pro client in the guest to obtain guest token via `devlxd`.
-	// If set to `available`, attachment via guest token is possible but will not be performed automatically by the Ubuntu Pro client in the guest at startup.
-	// If set to `on`, attachment will be performed automatically by the Ubuntu Pro client in the guest at startup.
-	// To allow guest attachment, the host must be an Ubuntu machine that is Pro attached, and guest attachment must be enabled via the Pro client.
-	// To do this, run `pro config set lxd_guest_attach=on`.
-	// ---
-	// type: string
-	// liveupdate: no
-	// shortdesc: Whether to auto-attach Ubuntu Pro.
-	"ubuntu_pro.guest_attach": validate.Optional(validate.IsOneOf("off", "on", "available")),
 
 	// Volatile keys.
 
@@ -969,6 +955,19 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  condition: virtual machine
 	//  shortdesc: Whether to back the instance using huge pages
 	"limits.memory.hugepages": validate.Optional(validate.IsBool),
+
+	// lxdmeta:generate(entities=instance; group=resource-limits; key=limits.cpu.pin_strategy)
+	// Specify the strategy for VM CPU auto pinning.
+	// Possible values: `none` (disables CPU auto pinning) and `auto` (enables CPU auto pinning).
+	//
+	// See {ref}`instance-options-limits-cpu-vm` for more information.
+	// ---
+	//  type: string
+	//  defaultdesc: `none`
+	//  liveupdate: no
+	//	condition: virtual machine
+	//  shortdesc: VM CPU auto pinning strategy
+	"limits.cpu.pin_strategy": validate.Optional(validate.IsOneOf("none", "auto")),
 
 	// lxdmeta:generate(entities=instance; group=migration; key=migration.stateful)
 	// Enabling this option prevents the use of some features that are incompatible with it.

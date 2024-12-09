@@ -61,6 +61,7 @@ var apiInternal = []APIEndpoint{
 	internalSQLCmd,
 	internalWarningCreateCmd,
 	internalIdentityCacheRefreshCmd,
+	internalPruneTokenCmd,
 }
 
 var internalShutdownCmd = APIEndpoint{
@@ -134,6 +135,11 @@ var internalBGPStateCmd = APIEndpoint{
 	Path: "testing/bgp",
 
 	Get: APIEndpointAction{Handler: internalBGPState, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+}
+
+var internalPruneTokenCmd = APIEndpoint{
+	Path: "testing/prune-tokens",
+	Post: APIEndpointAction{Handler: removeTokenHandler, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalIdentityCacheRefreshCmd = APIEndpoint{

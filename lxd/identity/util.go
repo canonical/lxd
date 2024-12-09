@@ -10,7 +10,7 @@ import (
 
 // IsFineGrainedIdentityType returns true if permissions of the identity type are managed via group membership.
 func IsFineGrainedIdentityType(identityType string) bool {
-	return shared.ValueInSlice(identityType, []string{api.IdentityTypeOIDCClient})
+	return shared.ValueInSlice(identityType, []string{api.IdentityTypeOIDCClient, api.IdentityTypeCertificateClient, api.IdentityTypeCertificateClientPending})
 }
 
 // IsRestrictedIdentityType returns whether the given identity is restricted or not. Identity types that are not
@@ -28,7 +28,7 @@ func IsRestrictedIdentityType(identityType string) (bool, error) {
 // identity types must correspond to an authentication method. An error is returned if the identity type is not recognised.
 func AuthenticationMethodFromIdentityType(identityType string) (string, error) {
 	switch identityType {
-	case api.IdentityTypeCertificateClientRestricted, api.IdentityTypeCertificateClientUnrestricted, api.IdentityTypeCertificateServer, api.IdentityTypeCertificateMetricsRestricted, api.IdentityTypeCertificateMetricsUnrestricted:
+	case api.IdentityTypeCertificateClientRestricted, api.IdentityTypeCertificateClientUnrestricted, api.IdentityTypeCertificateServer, api.IdentityTypeCertificateMetricsRestricted, api.IdentityTypeCertificateMetricsUnrestricted, api.IdentityTypeCertificateClient:
 		return api.AuthenticationMethodTLS, nil
 	case api.IdentityTypeOIDCClient:
 		return api.AuthenticationMethodOIDC, nil
