@@ -22,7 +22,7 @@ const tmpVolSuffix = ".lxdtmp"
 const isoVolSuffix = ".iso"
 
 // DefaultBlockSize is the default size of block volumes.
-const DefaultBlockSize = "10GiB"
+const defaultBlockSize = "10GiB"
 
 // DefaultFilesystem filesytem to use for block devices by default.
 const DefaultFilesystem = "ext4"
