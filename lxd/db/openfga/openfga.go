@@ -8,13 +8,17 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/openfga/openfga/pkg/storage"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -33,6 +37,25 @@ func NewOpenFGAStore(clusterDB *db.Cluster) storage.OpenFGADatastore {
 type openfgaStore struct {
 	clusterDB *db.Cluster
 	model     *openfgav1.AuthorizationModel
+}
+
+// RequestCache should be set in the request context to allow the OpenFGADatastore implementation to reduce the number
+// of database calls that are made on a per-request basis.
+type RequestCache struct {
+	// initialised is used to load the cache only once per request.
+	// This is because the OpenFGA server will call methods on a datastore implementation concurrently.
+	initialised atomic.Bool
+
+	// permissionsByEntityType is a cache that allows us to know which groups have a given permission on a given entity.
+	// This is used by the ReadUsersetTuples method.
+	// The integer key is the entity ID.
+	permissionsByEntityType   map[entity.Type]map[auth.Entitlement]map[int][]string
+	permissionsByEntityTypeMu sync.RWMutex
+
+	// permissionsByGroup allows to return all the permissions that a group has.
+	// This is used by the ReadStartingWithUser method.
+	permissionsByGroup   map[string]map[entity.Type]map[auth.Entitlement][]int
+	permissionsByGroupMu sync.RWMutex
 }
 
 // Read reads multiple tuples from the store. Various predicates are applied based on the given key.
@@ -205,6 +228,80 @@ func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, tk *open
 	return nil, nil
 }
 
+// ensureCacheLoaded is called when we have a non-nil cache in the request context. If the cache is already loaded, it returns early.
+// Otherwise, it queries the database for all group permissions and populates the cache.
+func (o *openfgaStore) ensureCacheLoaded(ctx context.Context, cache *RequestCache) error {
+	// Check if already loaded.
+	if cache.initialised.Load() {
+		return nil
+	}
+
+	// If not loaded, lock the cache and set loaded to true. This should mean that concurrent callers may think the cache
+	// is loaded when it isn't yet - but it will be loaded when they are able to acquire a lock.
+	cache.permissionsByEntityTypeMu.Lock()
+	cache.permissionsByGroupMu.Lock()
+	defer cache.permissionsByEntityTypeMu.Unlock()
+	defer cache.permissionsByGroupMu.Unlock()
+	cache.initialised.Store(true)
+
+	// Get a map of group to slice of permissions.
+	var groupPermissions map[string][]cluster.Permission
+	err := o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		groupPermissions, err = cluster.GetGroupPermissions(ctx, tx.Tx())
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	permissionCacheByEntityType := make(map[entity.Type]map[auth.Entitlement]map[int][]string)
+	// function to add a permission to permissionCacheByEntityType
+	addToPermissionByEntityTypeCache := func(groupName string, permission cluster.Permission) {
+		entityType := entity.Type(permission.EntityType)
+		entityTypePermissions, ok := permissionCacheByEntityType[entityType]
+		if !ok {
+			permissionCacheByEntityType[entityType] = map[auth.Entitlement]map[int][]string{permission.Entitlement: {permission.EntityID: {groupName}}}
+			return
+		}
+
+		entityTypeEntitlementPermissions, ok := entityTypePermissions[permission.Entitlement]
+		if !ok {
+			entityTypePermissions[permission.Entitlement] = map[int][]string{permission.EntityID: {groupName}}
+			return
+		}
+
+		entityTypeEntitlementPermissions[permission.EntityID] = append(entityTypeEntitlementPermissions[permission.EntityID], groupName)
+	}
+
+	permissionCacheByGroup := make(map[string]map[entity.Type]map[auth.Entitlement][]int)
+	// function to add a permission permissionCacheByGroup
+	addToPermissionByGroup := func(group string, permission cluster.Permission) {
+		entityType := entity.Type(permission.EntityType)
+		groupPermissionsForEntityType, ok := permissionCacheByGroup[group][entityType]
+		if !ok {
+			permissionCacheByGroup[group][entityType] = map[auth.Entitlement][]int{permission.Entitlement: {permission.EntityID}}
+			return
+		}
+
+		groupPermissionsForEntityType[permission.Entitlement] = append(groupPermissionsForEntityType[permission.Entitlement], permission.EntityID)
+	}
+
+	// Iterate over the map of group to slice of permissions and
+	// populate our request cache to optimise for ReadUsersetTuples and ReadStartingWithUser.
+	for groupName, permissions := range groupPermissions {
+		permissionCacheByGroup[groupName] = map[entity.Type]map[auth.Entitlement][]int{}
+		for _, permission := range permissions {
+			addToPermissionByEntityTypeCache(groupName, permission)
+			addToPermissionByGroup(groupName, permission)
+		}
+	}
+
+	cache.permissionsByEntityType = permissionCacheByEntityType
+	cache.permissionsByGroup = permissionCacheByGroup
+	return nil
+}
+
 // ReadUsersetTuples is called on check requests. It is used to read all the "users" that have a given relation to
 // a given object. In this context, the "user" may not be the identity making requests to LXD. In OpenFGA, a "user"
 // is any entity that can be related to an object (https://openfga.dev/docs/concepts#what-is-a-user). For example, in
@@ -248,10 +345,93 @@ func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filt
 		return nil, fmt.Errorf("ReadUsersetTuples: Failed to parse entity URL %q: %w", entityURL, err)
 	}
 
-	var groupNames []string
+	// Get cache from context. If it is not present, we'll fall back to calling the database directly.
+	cache, err := request.GetCtxValue[*RequestCache](ctx, request.CtxOpenFGARequestCache)
+	if err != nil {
+		groups, err := o.getGroupsWithEntitlementOnEntityWithURL(ctx, auth.Entitlement(filter.Relation), entityType, u)
+		if err != nil {
+			return nil, fmt.Errorf("ReadUsersetTuples: Failed to get groups with entitlement on entity: %w", err)
+		}
+
+		return storage.NewStaticTupleIterator(usersetTuples(filter.Object, filter.Relation, groups)), nil
+	}
+
+	err = o.ensureCacheLoaded(ctx, cache)
+	if err != nil {
+		return nil, fmt.Errorf("ReadUsersetTuples: Failed to ensure that the request cache is loaded: %w", err)
+	}
+
+	cache.permissionsByEntityTypeMu.RLock()
+	defer cache.permissionsByEntityTypeMu.RUnlock()
+	entityTypePermissions, ok := cache.permissionsByEntityType[entityType]
+	if !ok {
+		// There are no permissions for this entity type.
+		return storage.NewStaticTupleIterator(nil), nil
+	}
+
+	entityTypeEntitlementPermissions, ok := entityTypePermissions[auth.Entitlement(filter.Relation)]
+	if !ok {
+		// There are no permissions for this entity type with this entitlement.
+		return storage.NewStaticTupleIterator(nil), nil
+	}
+
+	// If the entity type is 'Server' we don't need to get an entity reference because there is only one 'Server' entity.
+	if entityType == entity.TypeServer {
+		groups, ok := entityTypeEntitlementPermissions[0]
+		if !ok || len(groups) == 0 {
+			// No groups have the permission.
+			return storage.NewStaticTupleIterator(nil), nil
+		}
+
+		// Return the tuples that relate group members to the given entity with the given relations.
+		return storage.NewStaticTupleIterator(usersetTuples(filter.Object, filter.Relation, groups)), nil
+	}
+
+	// OpenFGA has given us a filter.Object with the entity type concatenated with the URL of the entity.
+	// Our cache has entity IDs. We need to get the ID of the entity from the URL so we can check the cache.
+	var entityID int
+	entityAPIURL := &api.URL{URL: *u}
 	err = o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		entityRef, err := cluster.GetEntityReferenceFromURL(ctx, tx.Tx(), entityAPIURL)
+		if err != nil {
+			return err
+		}
+
+		entityID = entityRef.EntityID
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("ReadUsersetTuples: Failed to get entity ID from URL: %w", err)
+	}
+
+	return storage.NewStaticTupleIterator(usersetTuples(filter.Object, filter.Relation, entityTypeEntitlementPermissions[entityID])), nil
+}
+
+// usersetTuples returns a slice of Tuple objects that relate the members of the given groups to an entity via an entitlement.
+func usersetTuples(object string, relation string, groupNames []string) []*openfgav1.Tuple {
+	tuples := make([]*openfgav1.Tuple, 0, len(groupNames))
+	for _, groupName := range groupNames {
+		tuples = append(tuples, &openfgav1.Tuple{
+			Key: &openfgav1.TupleKey{
+				// This is the entity.
+				Object: object,
+				// This is the entitlement.
+				Relation: relation,
+				// Members of the group have the permission ("#member"), not the group itself.
+				User: string(entity.TypeAuthGroup) + ":" + entity.AuthGroupURL(groupName).String() + "#member",
+			},
+		})
+	}
+
+	return tuples
+}
+
+// getGroupsWithEntitlementOnEntityWithURL returns a list of groups with the given permission.
+func (o *openfgaStore) getGroupsWithEntitlementOnEntityWithURL(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type, entityURL *url.URL) ([]string, error) {
+	var groupNames []string
+	err := o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the ID of the entity.
-		entityRef, err := cluster.GetEntityReferenceFromURL(ctx, tx.Tx(), &api.URL{URL: *u})
+		entityRef, err := cluster.GetEntityReferenceFromURL(ctx, tx.Tx(), &api.URL{URL: *entityURL})
 		if err != nil {
 			return err
 		}
@@ -263,7 +443,7 @@ FROM auth_groups_permissions
 JOIN auth_groups ON auth_groups_permissions.auth_group_id = auth_groups.id
 WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity_type = ? AND auth_groups_permissions.entity_id = ?
 `
-		groupNames, err = query.SelectStrings(ctx, tx.Tx(), q, filter.Relation, cluster.EntityType(entityType), entityRef.EntityID)
+		groupNames, err = query.SelectStrings(ctx, tx.Tx(), q, entitlement, cluster.EntityType(entityType), entityRef.EntityID)
 		if err != nil {
 			return err
 		}
@@ -273,26 +453,13 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 	if err != nil {
 		if !api.StatusErrorCheck(err, http.StatusNotFound) {
 			// If we have a not found error then there are no tuples to return, but the datastore shouldn't return an error.
-			return storage.NewStaticTupleIterator(nil), nil
+			return nil, nil
 		}
 
 		return nil, err
 	}
 
-	// Return the groups as tuples relating them to the object via the relation.
-	tuples := make([]*openfgav1.Tuple, 0, len(groupNames))
-	for _, groupName := range groupNames {
-		tuples = append(tuples, &openfgav1.Tuple{
-			Key: &openfgav1.TupleKey{
-				Object:   filter.Object,
-				Relation: filter.Relation,
-				// Members of the group have the permission ("#member"), not the group itself.
-				User: fmt.Sprintf("%s:%s#member", entity.TypeAuthGroup, entity.AuthGroupURL(groupName)),
-			},
-		})
-	}
-
-	return storage.NewStaticTupleIterator(tuples), nil
+	return groupNames, nil
 }
 
 // ReadStartingWithUser is used when listing user objects.
@@ -409,7 +576,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 			return nil
 		})
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("ReadStartingWithUser: Failed to get entity URLs: %w", err)
 		}
 
 		// Compose the expected tuples relating the server/project to the entities.
@@ -482,6 +649,99 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 		return nil, fmt.Errorf("ReadStartingWithUser: Unexpected user filter entity type %q", userEntityType)
 	}
 
+	groupName := userURLPathArguments[0]
+	entitlement := auth.Entitlement(filter.Relation)
+
+	// Get cache from context. If it is not present, we'll fall back to calling the database directly.
+	cache, err := request.GetCtxValue[*RequestCache](ctx, request.CtxOpenFGARequestCache)
+	if err != nil {
+		entityURLs, err := o.getEntitiesOfTypeWhereGroupHasEntitlement(ctx, entityType, groupName, entitlement)
+		if err != nil {
+			return nil, fmt.Errorf("ReadStartingWithUser: Failed to get entities of type %q where group %q has entitlement %q: %w", entityType, groupName, entitlement, err)
+		}
+
+		return storage.NewStaticTupleIterator(readStartingWithUserTuples(entityType, entityURLs, entitlement, groupName)), nil
+	}
+
+	err = o.ensureCacheLoaded(ctx, cache)
+	if err != nil {
+		return nil, fmt.Errorf("ReadStartingWithUser: Failed to ensure that the request cache is loaded: %w", err)
+	}
+
+	cache.permissionsByGroupMu.RLock()
+	defer cache.permissionsByGroupMu.RUnlock()
+
+	groupPermissions, ok := cache.permissionsByGroup[groupName]
+	if !ok {
+		// The group has no permissions.
+		return storage.NewStaticTupleIterator(nil), nil
+	}
+
+	groupPermissionsOnEntitiesOfType, ok := groupPermissions[entityType]
+	if !ok {
+		// The group has no permissions for the given entity type.
+		return storage.NewStaticTupleIterator(nil), nil
+	}
+
+	if len(groupPermissionsOnEntitiesOfType[entitlement]) == 0 {
+		// The group has no permissions for the given entity type and entitlement.
+		return storage.NewStaticTupleIterator(nil), nil
+	}
+
+	// At this point we have a list of entity IDs that the group has the given entitlement against.
+	// We need to get the URLs of these entities so that we can compose tuples to return to the OpenFGA server.
+	// We'll use the getPermissionEntityURLs function to do this (which is already optimised).
+	permissions := make([]cluster.Permission, 0, len(groupPermissionsOnEntitiesOfType[entitlement]))
+	for _, entityID := range groupPermissionsOnEntitiesOfType[entitlement] {
+		permissions = append(permissions, cluster.Permission{
+			Entitlement: entitlement,
+			EntityType:  cluster.EntityType(entityType),
+			EntityID:    entityID,
+		})
+	}
+
+	var validPermissions []cluster.Permission
+	var entityURLs map[entity.Type]map[int]*api.URL
+	err = o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		validPermissions, entityURLs, err = cluster.GetPermissionEntityURLs(ctx, tx.Tx(), permissions)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("ReadStartingWithUser: Failed to get entity URLs for permissions: %w", err)
+	}
+
+	entityURLsWithPermissions := make([]string, 0, len(validPermissions))
+	for _, p := range validPermissions {
+		entityURLsWithPermissions = append(entityURLsWithPermissions, entityURLs[entity.Type(p.EntityType)][p.EntityID].String())
+	}
+
+	return storage.NewStaticTupleIterator(readStartingWithUserTuples(entityType, entityURLsWithPermissions, entitlement, groupName)), nil
+}
+
+// readStartingWithUserTuples returns a slice of Tuple objects that relate the members of a given group to a list of entities of a given type via an entitlement.
+func readStartingWithUserTuples(entityType entity.Type, entityURLs []string, entitlement auth.Entitlement, groupName string) []*openfgav1.Tuple {
+	// Construct the tuples relating the group to the entities via the expected entitlement.
+	var tuples []*openfgav1.Tuple
+	for _, entityURL := range entityURLs {
+		tuples = append(tuples, &openfgav1.Tuple{
+			Key: &openfgav1.TupleKey{
+				Object:   string(entityType) + ":" + entityURL,
+				Relation: string(entitlement),
+				// Members of the group have the permission ("#member"), not the group itself.
+				User: string(entity.TypeAuthGroup) + ":" + entity.AuthGroupURL(groupName).String() + "#member",
+			},
+		})
+	}
+
+	return tuples
+}
+
+// getEntitiesOfTypeWhereGroupHasEntitlement returns a list of entity URLs of the given type where the given group has the given entitlement.
+func (o *openfgaStore) getEntitiesOfTypeWhereGroupHasEntitlement(ctx context.Context, entityType entity.Type, groupName string, entitlement auth.Entitlement) ([]string, error) {
 	// Construct a query to list permissions with the given entity type and entitlement for the given group.
 	q := `
 SELECT auth_groups_permissions.entity_type, auth_groups_permissions.entity_id, auth_groups_permissions.entitlement
@@ -489,12 +749,12 @@ FROM auth_groups_permissions
 JOIN auth_groups ON auth_groups_permissions.auth_group_id = auth_groups.id
 WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity_type = ? AND auth_groups.name = ?
 `
-	groupName := userURLPathArguments[0]
-	args := []any{filter.Relation, cluster.EntityType(filter.ObjectType), groupName}
+	relation := string(entitlement)
+	args := []any{relation, cluster.EntityType(entityType), groupName}
 
 	var entityURLs map[entity.Type]map[int]*api.URL
 	var permissions []cluster.Permission
-	err = o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err := o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		rows, err := tx.Tx().QueryContext(ctx, q, args...)
 		if err != nil {
 			return err
@@ -512,7 +772,7 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 
 		// Get the URLs of the permissions we've queried for and filter out any invalid ones.
 		// Ignore the dangling permissions to make as few queries as possible.
-		permissions, entityURLs, err = cluster.GetPermissionEntityURLs(ctx, tx.Tx(), permissions)
+		_, entityURLs, err = cluster.GetPermissionEntityURLs(ctx, tx.Tx(), permissions)
 		if err != nil {
 			return err
 		}
@@ -523,20 +783,12 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 		return nil, err
 	}
 
-	// Construct the tuples relating the group to the entities via the expected entitlement.
-	var tuples []*openfgav1.Tuple
+	entityURLStrs := make([]string, 0, len(permissions))
 	for _, permission := range permissions {
-		tuples = append(tuples, &openfgav1.Tuple{
-			Key: &openfgav1.TupleKey{
-				Object:   fmt.Sprintf("%s:%s", permission.EntityType, entityURLs[entity.Type(permission.EntityType)][permission.EntityID].String()),
-				Relation: string(permission.Entitlement),
-				// Members of the group have the permission ("#member"), not the group itself.
-				User: fmt.Sprintf("%s:%s#member", entity.TypeAuthGroup, entity.AuthGroupURL(groupName)),
-			},
-		})
+		entityURLStrs = append(entityURLStrs, entityURLs[entity.Type(permission.EntityType)][permission.EntityID].String())
 	}
 
-	return storage.NewStaticTupleIterator(tuples), nil
+	return entityURLStrs, nil
 }
 
 // ReadPage is not implemented. It is not required for the functionality we need.
