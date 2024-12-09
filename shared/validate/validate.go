@@ -128,15 +128,15 @@ func IsUint32Range(value string) error {
 }
 
 // IsInRange checks whether an integer is within a specific range.
-func IsInRange(min int64, max int64) func(value string) error {
+func IsInRange(minVal int64, maxVal int64) func(value string) error {
 	return func(value string) error {
 		valueInt, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return fmt.Errorf("Invalid value for an integer %q", value)
 		}
 
-		if valueInt < min || valueInt > max {
-			return fmt.Errorf("Value isn't within valid range. Must be between %d and %d", min, max)
+		if valueInt < minVal || valueInt > maxVal {
+			return fmt.Errorf("Value isn't within valid range. Must be between %d and %d", minVal, maxVal)
 		}
 
 		return nil
