@@ -233,7 +233,8 @@ update-po:
 	if [ -t 0 ] && ! git diff --quiet -- po/*.po; then \
 		read -rp "Would you like to commit i18n changes (Y/n)? " answer; \
 			if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-				git commit -sm "i18n: Update translations." -- po/*.po; fi; \
+				git commit -S -sm "i18n: Update translations." -- po/*.po; \
+			fi; \
 	fi
 
 .PHONY: update-pot
@@ -246,7 +247,8 @@ endif
 	if [ -t 0 ] && ! git diff --quiet --ignore-matching-lines='^\s*"POT-Creation-Date: .*\n"' -- po/*.pot; then \
 		read -rp "Would you like to commit i18n template changes (Y/n)? " answer; \
 			if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-				git commit -sm "i18n: Update translation templates." -- po/*.pot; fi; \
+				git commit -S -sm "i18n: Update translation templates." -- po/*.pot; \
+			fi; \
 	fi
 
 .PHONY: build-mo
