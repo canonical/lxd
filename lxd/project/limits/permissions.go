@@ -57,12 +57,7 @@ func HiddenStoragePools(ctx context.Context, tx *db.ClusterTx, projectName strin
 // AllowInstanceCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new instance.
 func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+	info, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -266,12 +261,7 @@ func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instanc
 // AllowVolumeCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new custom volume in a project.
 func AllowVolumeCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, poolName string, req api.StorageVolumesPost) error {
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+	info, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -310,7 +300,7 @@ func GetImageSpaceBudget(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 		globalConfigDump = globalConfig.Dump()
 	}
 
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+	info, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return -1, err
 	}
@@ -908,12 +898,7 @@ func isVMLowLevelOptionForbidden(key string) bool {
 func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut, currentConfig map[string]string) error {
 	var updatedInstance *api.Instance
 
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+	info, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -958,12 +943,7 @@ func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 // AllowVolumeUpdate returns an error if any project-specific limit or
 // restriction is violated when updating an existing custom volume.
 func AllowVolumeUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, volumeName string, req api.StorageVolumePut, currentConfig map[string]string) error {
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+	info, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -997,12 +977,7 @@ func AllowVolumeUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pro
 // AllowProfileUpdate checks that project limits and restrictions are not
 // violated when changing a profile.
 func AllowProfileUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, profileName string, req api.ProfilePut) error {
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+	info, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -1036,7 +1011,7 @@ func AllowProjectUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pr
 		globalConfigDump = globalConfig.Dump()
 	}
 
-	info, err := fetchProject(globalConfigDump, tx, projectName, false)
+	info, err := fetchProject(tx, projectName, false)
 	if err != nil {
 		return err
 	}
@@ -1235,7 +1210,7 @@ type projectInfo struct {
 // If the skipIfNoLimits flag is true, then profiles, instances and volumes
 // won't be loaded if the profile has no limits set on it, and nil will be
 // returned.
-func fetchProject(globalConfig map[string]any, tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
+func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
 	ctx := context.Background()
 	dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
 	if err != nil {
@@ -1251,66 +1226,17 @@ func fetchProject(globalConfig map[string]any, tx *db.ClusterTx, projectName str
 		return nil, nil
 	}
 
-	profilesFilter := cluster.ProfileFilter{}
-
-	// If the project has the profiles feature enabled, we use its own
-	// profiles to expand the instances configs, otherwise we use the
-	// profiles from the default project.
-	defaultProject := api.ProjectDefaultName
-	if projectName == api.ProjectDefaultName || shared.IsTrue(project.Config["features.profiles"]) {
-		profilesFilter.Project = &projectName
-	} else {
-		profilesFilter.Project = &defaultProject
-	}
-
-	dbProfiles, err := cluster.GetProfiles(ctx, tx.Tx(), profilesFilter)
+	projectArgs, err := tx.GetProjectInstancesAndProfiles(ctx, project)
 	if err != nil {
-		return nil, fmt.Errorf("Fetch profiles from database: %w", err)
+		return nil, fmt.Errorf("Failed to fetch instances from database: %w", err)
 	}
 
-	dbProfileConfigs, err := cluster.GetConfig(ctx, tx.Tx(), "profile")
-	if err != nil {
-		return nil, fmt.Errorf("Fetch profile configs from database: %w", err)
-	}
-
-	dbProfileDevices, err := cluster.GetDevices(ctx, tx.Tx(), "profile")
-	if err != nil {
-		return nil, fmt.Errorf("Fetch profile devices from database: %w", err)
-	}
-
-	profiles := make([]api.Profile, 0, len(dbProfiles))
-	for _, profile := range dbProfiles {
-		apiProfile, err := profile.ToAPI(ctx, tx.Tx(), dbProfileConfigs, dbProfileDevices)
-		if err != nil {
-			return nil, err
-		}
-
-		profiles = append(profiles, *apiProfile)
-	}
+	args := projectArgs[projectName]
 
 	info := &projectInfo{
-		Project:  *project,
-		Profiles: profiles,
-	}
-
-	instanceFilter := cluster.InstanceFilter{
-		Project: &projectName,
-	}
-
-	instanceFunc := func(inst db.InstanceArgs, project api.Project) error {
-		apiInstance, err := inst.ToAPI()
-		if err != nil {
-			return err
-		}
-
-		info.Instances = append(info.Instances, *apiInstance)
-
-		return nil
-	}
-
-	err = tx.InstanceList(ctx, instanceFunc, instanceFilter)
-	if err != nil {
-		return nil, fmt.Errorf("Fetch instances from database: %w", err)
+		Project:   *project,
+		Profiles:  args.Profiles,
+		Instances: args.Instances,
 	}
 
 	info.StoragePoolDrivers, err = tx.GetStoragePoolDrivers(ctx)
