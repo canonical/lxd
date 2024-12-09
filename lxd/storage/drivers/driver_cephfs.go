@@ -89,6 +89,7 @@ func (d *cephfs) Info() Info {
 		RunningCopyFreeze:            false,
 		DirectIO:                     true,
 		MountedRoot:                  true,
+		PopulateSnapshotParentUUID:   false,
 	}
 }
 
