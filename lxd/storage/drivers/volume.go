@@ -22,7 +22,7 @@ const tmpVolSuffix = ".lxdtmp"
 const isoVolSuffix = ".iso"
 
 // DefaultBlockSize is the default size of block volumes.
-const DefaultBlockSize = "10GiB"
+const defaultBlockSize = "10GiB"
 
 // DefaultFilesystem filesytem to use for block devices by default.
 const DefaultFilesystem = "ext4"
@@ -475,7 +475,7 @@ func (v Volume) ConfigSize() string {
 	// If volume size isn't defined in either volume or pool config, then for block volumes or block-backed
 	// volumes return the defaultBlockSize.
 	if (size == "" || size == "0") && (v.contentType == ContentTypeBlock || v.IsBlockBacked()) {
-		return DefaultBlockSize
+		return v.driver.Info().DefaultBlockSize
 	}
 
 	// Return defined size or empty string if not defined.

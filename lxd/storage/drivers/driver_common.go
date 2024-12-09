@@ -51,6 +51,11 @@ func (d *common) defaultVMBlockFilesystemSize() string {
 	return defaultVMBlockFilesystemSize
 }
 
+// defaultBlockVolumeSize returns the default size for block volumes in this pool.
+func (d *common) defaultBlockVolumeSize() string {
+	return defaultBlockSize
+}
+
 // validatePool validates a pool config against common rules and optional driver specific rules.
 func (d *common) validatePool(config map[string]string, driverRules map[string]func(value string) error, volumeRules map[string]func(value string) error) error {
 	checkedFields := map[string]struct{}{}

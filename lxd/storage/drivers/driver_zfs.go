@@ -118,6 +118,7 @@ func (d *zfs) Info() Info {
 	info := Info{
 		Name:                         "zfs",
 		Version:                      zfsVersion,
+		DefaultBlockSize:             d.defaultBlockVolumeSize(),
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              true,
 		OptimizedBackups:             true,

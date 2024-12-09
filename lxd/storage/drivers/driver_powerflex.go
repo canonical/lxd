@@ -78,6 +78,7 @@ func (d *powerflex) Info() Info {
 	return Info{
 		Name:                         "powerflex",
 		Version:                      powerFlexVersion,
+		DefaultBlockSize:             d.defaultBlockVolumeSize(),
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              false,
 		PreservesInodes:              false,
