@@ -122,7 +122,7 @@ Storage volumes can be of the following types:
 : LXD automatically creates one of these storage volumes when you launch an instance.
   It is used as the root disk for the instance, and it is destroyed when the instance is deleted.
 
-  This storage volume is created in the storage pool that is specified in the profile used when launching the instance (or the default profile, if no profile is specified).
+  This storage volume is created in the storage pool that is specified when launching the instance (or in the default profile, if no pool or profile is specified).
   The storage pool can be explicitly specified by providing the `--storage` flag to the launch command.
 
 `image`
@@ -157,7 +157,7 @@ Each storage volume uses one of the following content types:
 
   Custom storage volumes of content type `block` can only be attached to virtual machines.
   By default, they can only be attached to one instance at a time, because simultaneous access can lead to data corruption.
-  Sharing a custom storage volumes of content type `block` is made possible through the usage of the `security.shared` configuration key.
+  Sharing custom storage volumes of content type `block` is made possible through the usage of the `security.shared` configuration key.
 
 `iso`
 : This content type is used for custom ISO volumes.

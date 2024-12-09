@@ -1,18 +1,22 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
@@ -82,6 +86,45 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 
 	if inst.IsRunning() {
 		return response.BadRequest(fmt.Errorf("Instance is running"))
+	}
+
+	// Make sure that the instance's root volume is not attached to another instance
+	poolName, err := inst.StoragePool()
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	pool, err := storage.LoadByName(s, poolName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	rootVolumeType, err := storage.InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	rootVolumeDBType, err := storage.VolumeTypeToDBType(rootVolumeType)
+	if err != nil {
+		return nil
+	}
+
+	var dbVolume *db.StorageVolume
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, rootVolumeDBType, inst.Name(), true)
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	volumeUsedBy, err := storagePoolVolumeUsedByGet(s, projectName, dbVolume)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if len(volumeUsedBy) > 1 {
+		return response.BadRequest(errors.New("Instance's root volume is in use"))
 	}
 
 	rmct := func(op *operations.Operation) error {
