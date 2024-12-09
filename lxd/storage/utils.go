@@ -670,7 +670,7 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 
 	// volatile.rootfs.size is only used for image and instance volumes.
 	if vol.Type().IsInstance() || vol.Type() == drivers.VolumeTypeImage {
-		rules["volatile.rootfs.size"] = validate.Optional(validate.IsInt64)
+		rules["volatile.rootfs.size"] = validate.Optional(validate.IsSize)
 	}
 
 	return rules
