@@ -1371,3 +1371,13 @@ func ValidVolumeName(volumeName string) error {
 
 	return nil
 }
+
+// GetPoolDefaultBlockSize returns the default block size for the specified storage pool according to its driver.
+func GetPoolDefaultBlockSize(s *state.State, poolName string) (string, error) {
+	pool, err := LoadByName(s, poolName)
+	if err != nil {
+		return "", fmt.Errorf("Failed loading storage pool: %w", err)
+	}
+
+	return pool.Driver().Info().DefaultBlockSize, nil
+}
