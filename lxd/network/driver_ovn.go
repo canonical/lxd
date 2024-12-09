@@ -4759,6 +4759,32 @@ func (n *ovn) forwardFlattenVIPs(listenAddress net.IP, defaultTargetAddress net.
 	return vips
 }
 
+// projectUplinkIPQuotaAvailable checks if a project has quota available to assingn new uplink IPs in a certain network.
+func (n *ovn) projectUplinkIPQuotaAvailable(p *api.Project, uplinkName string) (bool, error) {
+	uplinkIPLimitKey := fmt.Sprintf("limits.networks.uplink_ips.%s", uplinkName)
+	uplinkLimitValue, ok := p.Config[uplinkIPLimitKey]
+
+	// If no quota is defined for that network return right away.
+	if !ok {
+		return true, nil
+	}
+
+	var uplinkIPLimit int
+	uplinkIPLimit, err := strconv.Atoi(uplinkLimitValue)
+	if err != nil {
+		return false, err
+	}
+
+	// If the current value of used uplink IPs surpasses the limit-1, that means there is not room for one more IP.
+	// Use network caching to avoid quetying for the same networks twice.
+	capped, err := ProjectUplinkAddressThresholdExceeded(n.state, p.Name, uplinkName, uplinkIPLimit-1)
+	if err != nil {
+		return false, err
+	}
+
+	return !capped, nil
+}
+
 // ForwardCreate creates a network forward.
 func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) (net.IP, error) {
 	revert := revert.New()
