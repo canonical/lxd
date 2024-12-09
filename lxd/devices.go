@@ -20,7 +20,6 @@ import (
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -651,11 +650,6 @@ func deviceEventListener(stateFunc func() *state.State) {
 			s := stateFunc()
 
 			if !s.OS.CGInfo.Supports(cgroup.CPUSet, nil) {
-				continue
-			}
-
-			// VMs are currently not auto CPU pinned.
-			if e[0] != string(api.InstanceTypeContainer) {
 				continue
 			}
 
