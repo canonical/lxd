@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-12-05 16:02+0000\n"
+"POT-Creation-Date: 2024-12-09 03:18-0300\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Renato dos Santos <renato.santos@wplex.com.br>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -1134,7 +1134,7 @@ msgstr "Editar arquivos no container"
 msgid "Backup exported successfully!"
 msgstr "Backup exportado com sucesso!"
 
-#: lxc/info.go:654 lxc/storage_volume.go:1527
+#: lxc/info.go:666 lxc/storage_volume.go:1527
 msgid "Backups:"
 msgstr ""
 
@@ -1182,11 +1182,11 @@ msgstr "Marca: %v"
 msgid "Bridge:"
 msgstr ""
 
-#: lxc/info.go:577 lxc/network.go:944
+#: lxc/info.go:589 lxc/network.go:944
 msgid "Bytes received"
 msgstr "Bytes recebido"
 
-#: lxc/info.go:578 lxc/network.go:945
+#: lxc/info.go:590 lxc/network.go:945
 msgid "Bytes sent"
 msgstr "Bytes enviado"
 
@@ -1215,11 +1215,11 @@ msgstr "Utilização do CPU:"
 msgid "CPU USAGE"
 msgstr ""
 
-#: lxc/info.go:527
+#: lxc/info.go:539
 msgid "CPU usage (in seconds)"
 msgstr "Utilização do CPU (em segundos)"
 
-#: lxc/info.go:531
+#: lxc/info.go:543
 msgid "CPU usage:"
 msgstr "Utilização do CPU:"
 
@@ -2197,7 +2197,12 @@ msgstr "Desabilitar stdin (ler de /dev/null)"
 msgid "Disk %d:"
 msgstr "Uso de disco:"
 
-#: lxc/info.go:520
+#: lxc/info.go:533
+#, fuzzy
+msgid "Disk total:"
+msgstr "Uso de disco:"
+
+#: lxc/info.go:529
 msgid "Disk usage:"
 msgstr "Uso de disco:"
 
@@ -2493,7 +2498,7 @@ msgid ""
 "AND stdout are terminals (stderr is ignored)."
 msgstr ""
 
-#: lxc/info.go:640 lxc/info.go:691 lxc/storage_volume.go:1514
+#: lxc/info.go:652 lxc/info.go:703 lxc/storage_volume.go:1514
 #: lxc/storage_volume.go:1564
 msgid "Expires at"
 msgstr ""
@@ -3039,7 +3044,7 @@ msgstr ""
 msgid "HOSTNAME"
 msgstr "HOSTNAME"
 
-#: lxc/info.go:566
+#: lxc/info.go:578
 msgid "Host interface"
 msgstr ""
 
@@ -3093,7 +3098,7 @@ msgstr ""
 msgid "IP ADDRESS"
 msgstr ""
 
-#: lxc/info.go:582
+#: lxc/info.go:594
 msgid "IP addresses"
 msgstr ""
 
@@ -3257,7 +3262,7 @@ msgstr ""
 msgid "Inspect permissions"
 msgstr ""
 
-#: lxc/info.go:692
+#: lxc/info.go:704
 msgid "Instance Only"
 msgstr ""
 
@@ -3822,7 +3827,7 @@ msgstr ""
 msgid "Log level filtering can only be used with pretty formatting"
 msgstr ""
 
-#: lxc/info.go:720
+#: lxc/info.go:732
 msgid "Log:"
 msgstr ""
 
@@ -3840,7 +3845,7 @@ msgstr "Editar arquivos no container"
 msgid "MAC ADDRESS"
 msgstr ""
 
-#: lxc/info.go:570
+#: lxc/info.go:582
 msgid "MAC address"
 msgstr ""
 
@@ -3883,7 +3888,7 @@ msgstr ""
 msgid "MII state"
 msgstr ""
 
-#: lxc/info.go:574
+#: lxc/info.go:586
 msgid "MTU"
 msgstr ""
 
@@ -4157,15 +4162,15 @@ msgstr ""
 msgid "Member %s renamed to %s"
 msgstr ""
 
-#: lxc/info.go:538
+#: lxc/info.go:550
 msgid "Memory (current)"
 msgstr ""
 
-#: lxc/info.go:542
+#: lxc/info.go:554
 msgid "Memory (peak)"
 msgstr ""
 
-#: lxc/info.go:554
+#: lxc/info.go:566
 msgid "Memory usage:"
 msgstr ""
 
@@ -4522,7 +4527,7 @@ msgstr ""
 msgid "NVRM Version: %v"
 msgstr ""
 
-#: lxc/info.go:638 lxc/info.go:689 lxc/storage_volume.go:1512
+#: lxc/info.go:650 lxc/info.go:701 lxc/storage_volume.go:1512
 #: lxc/storage_volume.go:1562
 msgid "Name"
 msgstr ""
@@ -4635,7 +4640,7 @@ msgstr ""
 msgid "Network type"
 msgstr ""
 
-#: lxc/info.go:595 lxc/network.go:943
+#: lxc/info.go:607 lxc/network.go:943
 msgid "Network usage:"
 msgstr ""
 
@@ -4754,7 +4759,7 @@ msgstr ""
 msgid "Operation %s deleted"
 msgstr ""
 
-#: lxc/info.go:693 lxc/storage_volume.go:1566
+#: lxc/info.go:705 lxc/storage_volume.go:1566
 msgid "Optimized Storage"
 msgstr ""
 
@@ -4813,11 +4818,11 @@ msgstr ""
 msgid "PUBLIC"
 msgstr ""
 
-#: lxc/info.go:579 lxc/network.go:946
+#: lxc/info.go:591 lxc/network.go:946
 msgid "Packets received"
 msgstr ""
 
-#: lxc/info.go:580 lxc/network.go:947
+#: lxc/info.go:592 lxc/network.go:947
 msgid "Packets sent"
 msgstr ""
 
@@ -6130,7 +6135,7 @@ msgstr ""
 msgid "Snapshots are read-only and can't have their configuration changed"
 msgstr ""
 
-#: lxc/info.go:607 lxc/storage_volume.go:1491
+#: lxc/info.go:619 lxc/storage_volume.go:1491
 msgid "Snapshots:"
 msgstr ""
 
@@ -6161,7 +6166,7 @@ msgstr ""
 msgid "Starting %s"
 msgstr ""
 
-#: lxc/info.go:564
+#: lxc/info.go:576
 msgid "State"
 msgstr ""
 
@@ -6170,7 +6175,7 @@ msgstr ""
 msgid "State: %s"
 msgstr ""
 
-#: lxc/info.go:641
+#: lxc/info.go:653
 msgid "Stateful"
 msgstr ""
 
@@ -6273,11 +6278,11 @@ msgstr ""
 msgid "Supported ports: %s"
 msgstr ""
 
-#: lxc/info.go:546
+#: lxc/info.go:558
 msgid "Swap (current)"
 msgstr ""
 
-#: lxc/info.go:550
+#: lxc/info.go:562
 msgid "Swap (peak)"
 msgstr ""
 
@@ -6318,7 +6323,7 @@ msgstr ""
 msgid "TYPE"
 msgstr ""
 
-#: lxc/info.go:639 lxc/info.go:690 lxc/storage_volume.go:1563
+#: lxc/info.go:651 lxc/info.go:702 lxc/storage_volume.go:1563
 msgid "Taken at"
 msgstr ""
 
@@ -6649,7 +6654,7 @@ msgstr ""
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
 
-#: lxc/info.go:563
+#: lxc/info.go:575
 msgid "Type"
 msgstr ""
 
@@ -6920,7 +6925,7 @@ msgstr ""
 msgid "Unsupported content type for attaching to instances"
 msgstr ""
 
-#: lxc/info.go:712
+#: lxc/info.go:724
 #, c-format
 msgid "Unsupported instance type: %s"
 msgstr ""
