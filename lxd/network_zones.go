@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -19,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/version"
@@ -116,6 +118,11 @@ func networkZoneAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *h
 //      description: Project name
 //      type: string
 //      example: default
+//    - in: query
+//      name: all-projects
+//      description: Retrieve network zones from all projects
+//      type: boolean
+//      example: true
 //  responses:
 //    "200":
 //      description: API endpoints
@@ -165,6 +172,11 @@ func networkZoneAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *h
 //	    description: Project name
 //	    type: string
 //	    example: default
+//	  - in: query
+//	    name: all-projects
+//	    description: Retrieve network zones from all projects
+//	    type: boolean
+//	    example: true
 //	responses:
 //	  "200":
 //	    description: API endpoints
@@ -204,11 +216,34 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
-	var zoneNames []string
+	var zoneNamesMap map[string]string
+	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
+
+	if allProjects && effectiveProjectName != api.ProjectDefaultName {
+		return response.BadRequest(errors.New("Cannot specify a project when requesting all projects"))
+	}
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Get list of Network zones.
-		zoneNames, err = tx.GetNetworkZonesByProject(ctx, effectiveProjectName)
+		if allProjects {
+			zoneNamesMap, err = tx.GetNetworkZones(ctx)
+
+			if err != nil {
+				return err
+			}
+		} else {
+			zoneNames, err := tx.GetNetworkZonesByProject(ctx, effectiveProjectName)
+			if err != nil {
+				return err
+			}
+
+			if len(zoneNames) == 0 {
+				return fmt.Errorf("No zones found for project: %s", effectiveProjectName)
+			}
+
+			zoneNamesMap = map[string]string{
+				zoneNames[0]: effectiveProjectName,
+			}
+		}
 
 		return err
 	})
@@ -224,8 +259,8 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 
 	resultString := []string{}
 	resultMap := []api.NetworkZone{}
-	for _, zoneName := range zoneNames {
-		if !userHasPermission(entity.NetworkZoneURL(requestProjectName, zoneName)) {
+	for zoneName, projectName := range zoneNamesMap {
+		if !userHasPermission(entity.NetworkZoneURL(projectName, zoneName)) {
 			continue
 		}
 
@@ -240,6 +275,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 			netzoneInfo := netzone.Info()
 			netzoneInfo.UsedBy, _ = netzone.UsedBy() // Ignore errors in UsedBy, will return nil.
 			netzoneInfo.UsedBy = project.FilterUsedBy(s.Authorizer, r, netzoneInfo.UsedBy)
+			netzoneInfo.Project = effectiveProjectName
 
 			resultMap = append(resultMap, *netzoneInfo)
 		}
