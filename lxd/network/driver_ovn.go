@@ -4724,6 +4724,8 @@ func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
 	// Load the project to get uplink network restrictions.
 	var p *api.Project
 	var uplink *api.Network
+	var ipv4QuotaAvailable bool
+	var ipv6QuotaAvailable bool
 
 	err := n.state.DB.Cluster.Transaction(n.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
@@ -4742,7 +4744,9 @@ func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
 			return fmt.Errorf("Failed to load uplink network %q: %w", n.config["network"], err)
 		}
 
-		return nil
+		// Check project quotas for uplink IPs in this uplink.
+		ipv4QuotaAvailable, ipv6QuotaAvailable, err = n.projectUplinkIPQuotaAvailable(ctx, tx, p, uplink.Name)
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -4757,6 +4761,13 @@ func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
 	projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, n.config["network"])
 	if err != nil {
 		return nil, err
+	}
+
+	usingIPV6 := listenIPAddress.To4() == nil
+
+	// If there is no quota available for the required protocol, return an error.
+	if usingIPV6 && !ipv6QuotaAvailable || !usingIPV6 && !ipv4QuotaAvailable {
+		return nil, fmt.Errorf("Project quota for uplink IPs on network %q is exhausted", uplink.Name)
 	}
 
 	// We're auto-allocating the external IP address if the given listen address is unspecified.
