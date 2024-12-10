@@ -1361,17 +1361,15 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 	}
 
 	pool := strings.Split(toComplete, "/")[0]
-	volumes, compdir := g.cmpStoragePoolVolumes(pool)
+	volumes, compdir := g.cmpStoragePoolVolumes(pool, true)
 	if compdir == cobra.ShellCompDirectiveError {
 		return nil, compdir
 	}
 
 	var results []string
 	for _, volume := range volumes {
-		volName, volType := parseVolume("custom", volume)
-		if volType == "custom" {
-			results = append(results, pool+"/"+volName)
-		}
+		volName, _ := parseVolume("custom", volume)
+		results = append(results, pool+"/"+volName)
 	}
 
 	return results, cobra.ShellCompDirectiveNoFileComp
@@ -1549,7 +1547,7 @@ func (g *cmdGlobal) cmpStoragePoolVolumeSnapshots(poolName string, volumeName st
 
 // cmpStoragePoolVolumes provides shell completion for storage pool volumes.
 // It takes a storage pool name and returns a list of storage pool volumes along with a shell completion directive.
-func (g *cmdGlobal) cmpStoragePoolVolumes(poolName string) ([]string, cobra.ShellCompDirective) {
+func (g *cmdGlobal) cmpStoragePoolVolumes(poolName string, customOnly bool) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(poolName)
 	if err != nil || len(resources) == 0 {
@@ -1569,5 +1567,27 @@ func (g *cmdGlobal) cmpStoragePoolVolumes(poolName string) ([]string, cobra.Shel
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	return volumes, cobra.ShellCompDirectiveNoFileComp
+	if !customOnly {
+		return volumes, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	// Pre-allocate slice capacity.
+	customKeyCount := 0
+	for _, volume := range volumes {
+		if strings.HasPrefix(volume, "custom/") {
+			customKeyCount++
+		}
+	}
+
+	customVolumeNames := make([]string, 0, customKeyCount)
+
+	// Only include custom volumes
+	for _, volume := range volumes {
+		_, volType := parseVolume("custom", volume)
+		if volType == "custom" {
+			customVolumeNames = append(customVolumeNames, volume)
+		}
+	}
+
+	return customVolumeNames, cobra.ShellCompDirectiveNoFileComp
 }

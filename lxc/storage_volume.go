@@ -177,7 +177,7 @@ func (c *cmdStorageVolumeAttach) command() *cobra.Command {
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], true)
 		}
 
 		if len(args) == 2 {
@@ -236,6 +236,7 @@ func (c *cmdStorageVolumeAttach) run(cmd *cobra.Command, args []string) error {
 		case "block", "iso":
 			devName = args[3]
 		case "filesystem":
+			// If using a filesystem volume, the path must also be provided as the fourth argument.
 			if !strings.HasPrefix(args[3], "/") {
 				devPath = path.Join("/", args[3])
 			} else {
@@ -291,7 +292,7 @@ func (c *cmdStorageVolumeAttachProfile) command() *cobra.Command {
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], true)
 		}
 
 		if len(args) == 2 {
@@ -729,7 +730,7 @@ func (c *cmdStorageVolumeDelete) command() *cobra.Command {
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -815,7 +816,7 @@ func (c *cmdStorageVolumeDetach) command() *cobra.Command {
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], true)
 		}
 
 		if len(args) == 2 {
@@ -859,10 +860,15 @@ func (c *cmdStorageVolumeDetach) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	volName, volType := parseVolume("custom", args[1])
+	if volType != "custom" {
+		return errors.New(i18n.G(`Only "custom" volumes can be attached to instances`))
+	}
+
 	// Find the device
 	if devName == "" {
 		for n, d := range inst.Devices {
-			if d["type"] == "disk" && d["pool"] == resource.name && d["source"] == args[1] {
+			if d["type"] == "disk" && d["pool"] == resource.name && d["source"] == volName {
 				if devName != "" {
 					return errors.New(i18n.G("More than one device matches, specify the device name"))
 				}
@@ -913,7 +919,7 @@ func (c *cmdStorageVolumeDetachProfile) command() *cobra.Command {
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], true)
 		}
 
 		if len(args) == 2 {
@@ -956,10 +962,15 @@ func (c *cmdStorageVolumeDetachProfile) run(cmd *cobra.Command, args []string) e
 		return err
 	}
 
+	volName, volType := parseVolume("custom", args[1])
+	if volType != "custom" {
+		return errors.New(i18n.G(`Only "custom" volumes can be attached to instances`))
+	}
+
 	// Find the device
 	if devName == "" {
 		for n, d := range profile.Devices {
-			if d["type"] == "disk" && d["pool"] == resource.name && d["source"] == args[1] {
+			if d["type"] == "disk" && d["pool"] == resource.name && d["source"] == volName {
 				if devName != "" {
 					return errors.New(i18n.G("More than one device matches, specify the device name"))
 				}
@@ -1017,7 +1028,7 @@ lxc storage volume edit [<remote>:]<pool> [<type>/]<volume> < volume.yaml
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1244,7 +1255,7 @@ lxc storage volume get default virtual-machine/data snapshots.expiry
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], false)
 		}
 
 		if len(args) == 2 {
@@ -1372,7 +1383,7 @@ lxc storage volume info default virtual-machine/data
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1958,7 +1969,7 @@ func (c *cmdStorageVolumeRename) command() *cobra.Command {
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -2098,7 +2109,7 @@ lxc storage volume set default virtual-machine/data snapshots.expiry=7d
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], false)
 		}
 
 		// TODO all volume config keys
@@ -2257,7 +2268,7 @@ lxc storage volume show default virtual-machine/data/snap0
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -2374,7 +2385,7 @@ lxc storage volume unset default virtual-machine/data snapshots.expiry
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], false)
 		}
 
 		if len(args) == 2 {
@@ -2434,7 +2445,7 @@ lxc storage volume snapshot create default v1 snap0 < config.yaml
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -2562,7 +2573,7 @@ func (c *cmdStorageVolumeRestore) command() *cobra.Command {
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], false)
 		}
 
 		if len(args) == 2 {
@@ -2649,7 +2660,7 @@ func (c *cmdStorageVolumeExport) command() *cobra.Command {
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], false)
 		}
 
 		return nil, cobra.ShellCompDirectiveDefault
