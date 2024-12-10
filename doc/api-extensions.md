@@ -2535,3 +2535,18 @@ Adds a new {config:option}`device-unix-hotplug-device-conf:ownership.inherit` co
 ## `unix_device_hotplug_subsystem_device_option`
 
 Adds a new {config:option}`device-unix-hotplug-device-conf:subsystem` configuration option for `unix-hotplug` devices. This adds support for detecting `unix-hotplug` devices by subsystem, and can be used in conjunction with {config:option}`device-unix-hotplug-device-conf:productid` and {config:option}`device-unix-hotplug-device-conf:vendorid`.
+
+## `storage_bucket_backup`
+
+Add storage bucket backup support.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/storage-pools/<pool>/buckets/<bucket>/backups`
+* `POST /1.0/storage-pools/<pool>/buckets/<bucket>/backups`
+
+* `GET /1.0/storage-pools/<pool>/buckets/<bucket>/backups/<name>`
+* `POST /1.0/storage-pools/<pool>/buckets/<bucket>/backups/<name>`
+* `DELETE /1.0/storage-pools/<pool>/buckets/<bucket>/backups/<name>`
+
+* `GET /1.0/storage-pools/<pool>/buckets/<bucket>/backups/<name>/export`
