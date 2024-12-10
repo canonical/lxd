@@ -84,7 +84,7 @@ You can also set an initial configuration directly when creating an instance. Fo
 
     lxc init <image> <instance_name> --device <device_name>,initial.zfs.block_mode=true
 
-Note that you cannot use initial volume configurations with custom volume options or to set the volume's size.
+Note that you cannot use initial volume configurations with custom volume options or to set the volume's size (quota).
 
 (devices-disk-options)=
 ## Device options
