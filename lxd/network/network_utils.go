@@ -1459,6 +1459,54 @@ func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 	return newProxyAddr, nil
 }
 
+// AllowedUplinkNetworks returns a list of allowed networks to use as uplinks based on project restrictions.
+func AllowedUplinkNetworks(s *state.State, projectConfig map[string]string) ([]string, error) {
+	var uplinkNetworkNames []string
+
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Uplink networks are always from the default project.
+		networks, err := tx.GetCreatedNetworksByProject(ctx, api.ProjectDefaultName)
+		if err != nil {
+			return fmt.Errorf("Failed getting uplink networks: %w", err)
+		}
+
+		// Add any compatible networks to the uplink network list.
+		for _, network := range networks {
+			if network.Type == "bridge" || network.Type == "physical" {
+				uplinkNetworkNames = append(uplinkNetworkNames, network.Name)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// If project is not restricted, return full network list.
+	if shared.IsFalseOrEmpty(projectConfig["restricted"]) {
+		return uplinkNetworkNames, nil
+	}
+
+	allowedUplinkNetworkNames := []string{}
+
+	// There are no allowed networks if restricted.networks.uplinks is not set.
+	if projectConfig["restricted.networks.uplinks"] == "" {
+		return allowedUplinkNetworkNames, nil
+	}
+
+	// Parse the allowed uplinks and return any that are present in the actual defined networks.
+	allowedRestrictedUplinks := shared.SplitNTrimSpace(projectConfig["restricted.networks.uplinks"], ",", -1, false)
+
+	for _, allowedRestrictedUplink := range allowedRestrictedUplinks {
+		if shared.ValueInSlice(allowedRestrictedUplink, uplinkNetworkNames) {
+			allowedUplinkNetworkNames = append(allowedUplinkNetworkNames, allowedRestrictedUplink)
+		}
+	}
+
+	return allowedUplinkNetworkNames, nil
+}
+
 // ProjectUplinkAddressThresholdExceeded checks whether the number of current uplink addresses used
 // in project projectName on network networkName is equal or higher than maxAddresses.
 // Uplink addresses encompasses load balancers, network forwards and downlink networks external addresses.
