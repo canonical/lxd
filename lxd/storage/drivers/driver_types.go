@@ -19,6 +19,7 @@ type Info struct {
 	DirectIO                     bool         // Whether the driver supports direct I/O.
 	IOUring                      bool         // Whether the driver supports io_uring.
 	MountedRoot                  bool         // Whether the pool directory itself is a mount.
+	PopulateSnapshotParentUUID   bool         // Whether the snapshot should have parent UUID populated before any action.
 }
 
 // VolumeFiller provides a struct for filling a volume.
