@@ -697,25 +697,24 @@ func ueventParseVendorProduct(props map[string]string, subsystem string, devname
 		return vendor, product, true
 	}
 
-	if subsystem != "hidraw" {
-		return "", "", false
-	}
+	// Retrieve missing device info.
+	if subsystem == "hidraw" {
+		if !filepath.IsAbs(devname) {
+			return "", "", false
+		}
 
-	if !filepath.IsAbs(devname) {
-		return "", "", false
-	}
+		file, err := os.OpenFile(devname, os.O_RDWR, 0000)
+		if err != nil {
+			return "", "", false
+		}
 
-	file, err := os.OpenFile(devname, os.O_RDWR, 0000)
-	if err != nil {
-		return "", "", false
-	}
+		defer func() { _ = file.Close() }()
 
-	defer func() { _ = file.Close() }()
-
-	vendor, product, err = getHidrawDevInfo(int(file.Fd()))
-	if err != nil {
-		logger.Debugf("Failed to retrieve device info from hidraw device \"%s\"", devname)
-		return "", "", false
+		vendor, product, err = getHidrawDevInfo(int(file.Fd()))
+		if err != nil {
+			logger.Debugf("Failed to retrieve device info from hidraw device \"%s\"", devname)
+			return "", "", false
+		}
 	}
 
 	return vendor, product, true
