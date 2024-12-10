@@ -1,5 +1,5 @@
 ---
-discourse: 8355
+discourse: lxc:8355
 ---
 
 (devices-proxy)=
