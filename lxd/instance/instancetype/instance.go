@@ -1285,7 +1285,7 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		return validate.IsAny, nil
 	}
 
-	return nil, fmt.Errorf("Unknown configuration key: %s", key)
+	return nil, fmt.Errorf("Unknown configuration key: %q", key)
 }
 
 // InstanceIncludeWhenCopying is used to decide whether to include a config item or not when copying an instance.
