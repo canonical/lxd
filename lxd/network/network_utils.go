@@ -1458,3 +1458,81 @@ func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 
 	return newProxyAddr, nil
 }
+
+// ProjectUplinkAddressThresholdExceeded checks whether the number of current uplink addresses used
+// in project projectName on network networkName is equal or higher than maxAddresses.
+// Uplink addresses encompasses load balancers, network forwards and downlink networks external addresses.
+// This function takes the limit as an argument so that we can abstain from doing more expensive operations if
+// the threshold is hit early in function workflow.
+func ProjectUplinkAddressThresholdExceeded(s *state.State, projectName string, networkName string, maxAddresses int) (bool, error) {
+	// If the provided threshold is below 0, return right away.
+	if maxAddresses < 0 {
+		return true, nil
+	}
+
+	allocatedUplinkAdresses := 0
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// First count uplink addresses for other networks as this is cheaper.
+		projectNetworks, err := tx.GetCreatedNetworksByProject(ctx, projectName)
+		if err != nil {
+			return err
+		}
+
+		for _, network := range projectNetworks {
+			if network.Name == networkName {
+				continue // Skip target network.
+			}
+
+			// Check if each network is using our target network as an uplink.
+			if network.Config["network"] == networkName {
+				allocatedUplinkAdresses++
+				if allocatedUplinkAdresses > maxAddresses {
+					return db.ErrListStop
+				}
+			}
+		}
+
+		// Count listen addresses for network forwards.
+		forwardListenAddressesMap, err := tx.GetProjectNetworkForwardListenAddressesByUplink(ctx, networkName, false)
+		if err != nil {
+			return err
+		}
+
+		// Iterate through each network on the provided project while counting the uplink addresses used by their
+		// network forwards.
+		for _, addresses := range forwardListenAddressesMap[projectName] {
+			allocatedUplinkAdresses += len(addresses)
+			if allocatedUplinkAdresses > maxAddresses {
+				return db.ErrListStop
+			}
+		}
+
+		// Count listen addresses for load balancers.
+		loadBalancerAddressesMap, err := tx.GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx, networkName, false)
+		if err != nil {
+			return err
+		}
+
+		// Iterate through each network on the provided project while counting the uplink addresses used by their
+		// load balancers.
+		for _, addresses := range loadBalancerAddressesMap[projectName] {
+			allocatedUplinkAdresses += len(addresses)
+			if allocatedUplinkAdresses > maxAddresses {
+				return db.ErrListStop
+			}
+		}
+
+		return nil
+	})
+	// If transaction returned early, this means the threshold was met.
+	if err == db.ErrListStop {
+		return true, nil
+	}
+
+	if err != nil {
+		return false, err
+	}
+
+	// Otherwise, threshold wasn't met.
+	return false, nil
+}

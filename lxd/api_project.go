@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -294,7 +295,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the configuration.
-	err = projectValidateConfig(s, project.Config)
+	err = projectValidateConfig(s, project.Config, project.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -682,7 +683,7 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 	}
 
 	// Validate the configuration.
-	err := projectValidateConfig(s, req.Config)
+	err := projectValidateConfig(s, req.Config, project.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -1024,7 +1025,7 @@ func isEitherAllowOrBlockOrManaged(value string) error {
 	return validate.Optional(validate.IsOneOf("block", "allow", "managed"))(value)
 }
 
-func projectValidateConfig(s *state.State, config map[string]string) error {
+func projectValidateConfig(s *state.State, config map[string]string, projectName string) error {
 	// Validate the project configuration.
 	projectConfigKeys := map[string]func(value string) error{
 		// lxdmeta:generate(entities=project; group=specific; key=backups.compression_algorithm)
@@ -1412,6 +1413,73 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 	})
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return fmt.Errorf("Failed loading storage pool names: %w", err)
+	}
+
+	// Add the network keys.
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		effectiveProject, _, err := projecthelpers.NetworkProject(s.DB.Cluster, projectName)
+		if err != nil {
+			return err
+		}
+
+		networks, err := tx.GetNetworks(ctx, effectiveProject)
+		if err != nil {
+			return err
+		}
+
+		// Add the network-specific config keys.
+		for _, networkName := range networks {
+			// The validator function checks whether the network specified in the config key is suitable to be an uplink network.
+			// So we only query for network information when validating a provided config key.
+			uplinkIPLimitValidator := func(value string) error {
+				// Validate the key itself before looking at the value.
+				// This key should only apply to networks suitable to be used as an uplink.
+				uplinkNet, err := network.LoadByName(s, effectiveProject, networkName)
+				if err != nil {
+					return fmt.Errorf("Failed loading network: %w", err)
+				}
+
+				if uplinkNet.DBType() != db.NetworkTypeBridge && uplinkNet.DBType() != db.NetworkTypePhysical {
+					return fmt.Errorf("Networks of type %s can't be used as uplink networks", uplinkNet.Type())
+				}
+
+				// Perform cheaper checks on the value first.
+				providedLimit, err := strconv.Atoi(value)
+				if err != nil {
+					return err
+				}
+
+				if providedLimit < 0 {
+					return fmt.Errorf("Value must be non-negative")
+				}
+
+				// Check if the provided value is equal or lower to the number of uplink addresses currently in use
+				// on the providided project and in the specified network.
+				invalidQuota, err := network.ProjectUplinkAddressThresholdExceeded(s, projectName, uplinkNet.Name(), providedLimit)
+				if invalidQuota {
+					return fmt.Errorf("Value %s is below current number of used uplink addresses", value)
+				}
+
+				return err
+			}
+
+			// lxdmeta:generate(entities=project; group=limits; key=limits.networks.uplink_ips.NETWORK_NAME)
+			// This represents the maximum value for IPs made available on a network
+			// named NETWORK_NAME to be assigned as uplink addresses for entities inside
+			// a specific project.
+			//
+			// ---
+			//  type: string
+			//  shortdesc: Quota of IPs on a certain network used by entities on this project
+			projectConfigKeys[fmt.Sprintf("limits.networks.uplink_ips.%s", networkName)] = uplinkIPLimitValidator
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("Failed loading network names: %w", err)
 	}
 
 	for k, v := range config {
