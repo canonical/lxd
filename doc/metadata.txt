@@ -4053,6 +4053,15 @@ The value is the maximum value for the sum of the individual {config:option}`ins
 
 ```
 
+```{config:option} limits.networks.uplink_ips.NETWORK_NAME project-limits
+:shortdesc: "Quota of IPs on a certain network used by entities on this project"
+:type: "string"
+This represents the maximum value for IPs made available on a network
+named NETWORK_NAME to be assigned as uplink addresses for entities inside
+a specific project.
+
+```
+
 ```{config:option} limits.processes project-limits
 :shortdesc: "Maximum number of processes within the project"
 :type: "integer"

@@ -4604,6 +4604,13 @@
 						}
 					},
 					{
+						"limits.networks.uplink_ips.NETWORK_NAME": {
+							"longdesc": "This represents the maximum value for IPs made available on a network\nnamed NETWORK_NAME to be assigned as uplink addresses for entities inside\na specific project.\n",
+							"shortdesc": "Quota of IPs on a certain network used by entities on this project",
+							"type": "string"
+						}
+					},
+					{
 						"limits.processes": {
 							"longdesc": "This value is the maximum value for the sum of the individual {config:option}`instance-resource-limits:limits.processes` configurations set on the instances of the project.",
 							"shortdesc": "Maximum number of processes within the project",
