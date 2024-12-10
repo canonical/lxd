@@ -292,7 +292,7 @@ You can add any of the following fields to the request data:
   In this case, the backup can only be used with pools that use the same storage driver.
 
   Exporting a volume in optimized mode is usually quicker than exporting the individual files.
-  Snapshots are exported as differences from the main volume, which decreases their size and makes them easily accessible.
+  Snapshots are exported as differences from the main volume, which decreases their size (quota) and makes them easily accessible.
 
 `"instance-only": true`
 : By default, the backup contains all snapshots of the instance.
