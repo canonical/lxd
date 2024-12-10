@@ -712,7 +712,7 @@ func ueventParseVendorProduct(props map[string]string, subsystem string, devname
 
 		vendor, product, err = getHidrawDevInfo(int(file.Fd()))
 		if err != nil {
-			logger.Debugf("Failed to retrieve device info from hidraw device \"%s\"", devname)
+			logger.Debugf("Failed to retrieve device info from hidraw device %q", devname)
 			return "", "", false
 		}
 	}
