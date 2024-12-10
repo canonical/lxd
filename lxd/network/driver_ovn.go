@@ -2097,6 +2097,16 @@ func (n *ovn) validateUplinkNetwork(p *api.Project, uplinkNetworkName string) (s
 		uplinkNetworkName = allowedUplinkNetworks[0]
 	}
 
+	// Check project quota for uplink IPs in this uplink after confirming the uplink is allowed.
+	quotaAvailable, err := n.projectUplinkIPQuotaAvailable(p, uplinkNetworkName)
+	if err != nil {
+		return "", err
+	}
+
+	if !quotaAvailable {
+		return "", fmt.Errorf("Project %s's quota for uplink IPs on network %s is exhausted", p.Name, uplinkNetworkName)
+	}
+
 	return uplinkNetworkName, nil
 }
 
