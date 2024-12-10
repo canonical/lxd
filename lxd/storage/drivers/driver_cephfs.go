@@ -437,6 +437,8 @@ func (d *cephfs) Validate(config map[string]string) error {
 		//  shortdesc: Whether the CephFS file system was empty on creation time
 		//  scope: global
 		"volatile.pool.pristine": validate.IsAny,
+		// Override general 'security.shared' rule since only cephfs does not support block volumes.
+		"volume.security.shared": func(value string) error { return fmt.Errorf("") },
 	}
 
 	return d.validatePool(config, rules, nil)
