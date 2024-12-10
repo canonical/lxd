@@ -141,6 +141,7 @@ MiB
 Mibit
 MicroCeph
 MicroCloud
+MicroOVN
 MII
 MinIO
 MITM
