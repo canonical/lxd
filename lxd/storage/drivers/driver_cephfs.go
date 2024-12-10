@@ -1,10 +1,12 @@
 package drivers
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/migration"
@@ -102,6 +104,29 @@ func (d *cephfs) FillConfig() error {
 		d.config["cephfs.user.name"] = CephDefaultUser
 	}
 
+	if d.config["cephfs.osd_pool_size"] == "" {
+		size, err := shared.TryRunCommand("ceph",
+			"--name", "client."+d.config["cephfs.user.name"],
+			"--cluster", d.config["cephfs.cluster_name"],
+			"config",
+			"get",
+			"mon",
+			"osd_pool_default_size",
+			"--format",
+			"json")
+		if err != nil {
+			return err
+		}
+
+		var sizeInt int
+		err = json.Unmarshal([]byte(size), &sizeInt)
+		if err != nil {
+			return err
+		}
+
+		d.config["cephfs.osd_pool_size"] = strconv.Itoa(sizeInt)
+	}
+
 	return nil
 }
 
@@ -176,7 +201,7 @@ func (d *cephfs) Create() error {
 			if !osdPoolExists {
 				// Create new osd pool.
 				_, err := shared.RunCommand("ceph",
-					"--name", fmt.Sprintf("client.%s", d.config["cephfs.user.name"]),
+					"--name", "client."+d.config["cephfs.user.name"],
 					"--cluster", d.config["cephfs.cluster_name"],
 					"osd",
 					"pool",
@@ -191,7 +216,7 @@ func (d *cephfs) Create() error {
 				revert.Add(func() {
 					// Delete the OSD pool.
 					_, _ = shared.RunCommand("ceph",
-						"--name", fmt.Sprintf("client.%s", d.config["cephfs.user.name"]),
+						"--name", "client."+d.config["cephfs.user.name"],
 						"--cluster", d.config["cephfs.cluster_name"],
 						"osd",
 						"pool",
@@ -201,12 +226,26 @@ func (d *cephfs) Create() error {
 						"--yes-i-really-really-mean-it",
 					)
 				})
+
+				_, err = shared.TryRunCommand("ceph",
+					"--name", "client."+d.config["cephfs.user.name"],
+					"--cluster", d.config["cephfs.cluster_name"],
+					"osd",
+					"pool",
+					"set",
+					pool,
+					"size",
+					d.config["cephfs.osd_pool_size"],
+					"--yes-i-really-mean-it")
+				if err != nil {
+					return err
+				}
 			}
 		}
 
 		// Create the filesystem.
 		_, err := shared.RunCommand("ceph",
-			"--name", fmt.Sprintf("client.%s", d.config["cephfs.user.name"]),
+			"--name", "client."+d.config["cephfs.user.name"],
 			"--cluster", d.config["cephfs.cluster_name"],
 			"fs",
 			"new",
@@ -221,7 +260,7 @@ func (d *cephfs) Create() error {
 		revert.Add(func() {
 			// Set the FS to fail so that we can remove it.
 			_, _ = shared.RunCommand("ceph",
-				"--name", fmt.Sprintf("client.%s", d.config["cephfs.user.name"]),
+				"--name", "client."+d.config["cephfs.user.name"],
 				"--cluster", d.config["cephfs.cluster_name"],
 				"fs",
 				"fail",
@@ -230,7 +269,7 @@ func (d *cephfs) Create() error {
 
 			// Delete the FS.
 			_, _ = shared.RunCommand("ceph",
-				"--name", fmt.Sprintf("client.%s", d.config["cephfs.user.name"]),
+				"--name", "client."+d.config["cephfs.user.name"],
 				"--cluster", d.config["cephfs.cluster_name"],
 				"fs",
 				"rm",
@@ -414,6 +453,14 @@ func (d *cephfs) Validate(config map[string]string) error {
 		//  shortdesc: Number of placement groups when creating missing OSD pools
 		//  scope: global
 		"cephfs.osd_pg_num": validate.Optional(validate.IsInt64),
+		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.osd_pool_size)
+		// This option specifies the number of OSD pool replicas to use
+		// when creating an OSD pool.
+		// ---
+		//  type: string
+		//  defaultdesc: `3`
+		//  shortdesc: Number of RADOS object replicas. Set to 1 for no replication.
+		"cephfs.osd_pool_size": validate.Optional(validate.IsInRange(1, 255)),
 		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.meta_pool)
 		// This option specifies the name for the file metadata OSD pool that should be used when
 		// creating a file system automatically.
@@ -445,6 +492,29 @@ func (d *cephfs) Validate(config map[string]string) error {
 
 // Update applies any driver changes required from a configuration change.
 func (d *cephfs) Update(changedConfig map[string]string) error {
+	newSize, changed := changedConfig["cephfs.osd_pool_size"]
+	if changed {
+		for _, poolName := range []string{d.config["cephfs.meta_pool"], d.config["cephfs.data_pool"]} {
+			if poolName == "" {
+				continue
+			}
+
+			_, err := shared.TryRunCommand("ceph",
+				"--name", "client."+d.config["cephfs.user.name"],
+				"--cluster", d.config["cephfs.cluster_name"],
+				"osd",
+				"pool",
+				"set",
+				poolName,
+				"size",
+				newSize,
+				"--yes-i-really-mean-it")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
