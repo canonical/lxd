@@ -1,0 +1,28 @@
+name: Setup MicroOVN
+description: |
+  Setup MicroOVN snap. Once bootstrapped, the MicroOVN CA certificate is located
+  at `/var/snap/microovn/common/data/pki/cacert.pem`.
+
+  To configure LXD to use it:
+
+  ```
+  lxc config set network.ovn.northbound_connection "ssl:127.0.0.1:6641"
+  ```
+
+inputs:
+  microovn-channel:
+    description: MicroOVN snap channel to install
+    default: "latest/edge"
+    type: string
+
+runs:
+  using: composite
+  steps:
+    - name: Install MicroOVN snap
+      shell: bash
+      run: |
+          set -eux
+
+          sudo snap install microovn --channel "${{ inputs.microovn-channel }}"
+          sudo microovn cluster bootstrap
+          sudo microovn status
