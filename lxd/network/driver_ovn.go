@@ -1232,15 +1232,47 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 	routerExtPortIPv4 := net.ParseIP(n.config[ovnVolatileUplinkIPv4])
 	routerExtPortIPv6 := net.ParseIP(n.config[ovnVolatileUplinkIPv6])
 
+	// Get project's config.
+	var p *api.Project
+	var ipv4QuotaAvailable bool
+	var ipv6QuotaAvailable bool
+
+	err = n.state.DB.Cluster.Transaction(n.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
+		if err != nil {
+			return err
+		}
+
+		p, err = dbProject.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		// Check if we have quota available for the addresses we want to allocate for the new network.
+		ipv4QuotaAvailable, ipv6QuotaAvailable, err = n.projectUplinkIPQuotaAvailable(ctx, tx, p, uplinkNet.Name())
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	allocatingIPV4 := uplinkIPv4Net != nil && routerExtPortIPv4 == nil
+	allocatingIPV6 := uplinkIPv6Net != nil && routerExtPortIPv6 == nil
+
+	// A quota check result is only relevant if we intent to allocate an IP fot that quota's protocol.
+	if allocatingIPV4 && !ipv4QuotaAvailable || allocatingIPV6 && !ipv6QuotaAvailable {
+		return nil, fmt.Errorf("Project quota for uplink IPs on network %q is exhausted", uplinkNet.Name())
+	}
+
 	// Decide whether we need to allocate new IP(s) and go to the expense of retrieving all allocated IPs.
-	if (uplinkIPv4Net != nil && routerExtPortIPv4 == nil) || (uplinkIPv6Net != nil && routerExtPortIPv6 == nil) {
+	if (allocatingIPV4) || (allocatingIPV6) {
 		err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			allAllocatedIPv4, allAllocatedIPv6, err := n.uplinkAllAllocatedIPs(ctx, tx, uplinkNet.Name())
 			if err != nil {
 				return fmt.Errorf("Failed to get all allocated IPs for uplink: %w", err)
 			}
 
-			if uplinkIPv4Net != nil && routerExtPortIPv4 == nil {
+			if allocatingIPV4 {
 				if uplinkNetConf["ipv4.ovn.ranges"] == "" {
 					return fmt.Errorf(`Missing required "ipv4.ovn.ranges" config key on uplink network`)
 				}
@@ -1267,7 +1299,7 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 				n.config[ovnVolatileUplinkIPv4] = routerExtPortIPv4.String()
 			}
 
-			if uplinkIPv6Net != nil && routerExtPortIPv6 == nil {
+			if allocatingIPV6 {
 				// If IPv6 OVN ranges are specified by the uplink, allocate from them.
 				if uplinkNetConf["ipv6.ovn.ranges"] != "" {
 					dhcpSubnet := uplinkNet.DHCPv6Subnet()
