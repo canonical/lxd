@@ -1463,6 +1463,11 @@ func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 func AllowedUplinkNetworks(s *state.State, projectConfig map[string]string) ([]string, error) {
 	var uplinkNetworkNames []string
 
+	// There are no allowed networks if project is restricted and restricted.networks.uplinks is not set.
+	if shared.IsTrue(projectConfig["restricted"]) && projectConfig["restricted.networks.uplinks"] == "" {
+		return []string{}, nil
+	}
+
 	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Uplink networks are always from the default project.
 		networks, err := tx.GetCreatedNetworksByProject(ctx, api.ProjectDefaultName)
@@ -1489,11 +1494,6 @@ func AllowedUplinkNetworks(s *state.State, projectConfig map[string]string) ([]s
 	}
 
 	allowedUplinkNetworkNames := []string{}
-
-	// There are no allowed networks if restricted.networks.uplinks is not set.
-	if projectConfig["restricted.networks.uplinks"] == "" {
-		return allowedUplinkNetworkNames, nil
-	}
 
 	// Parse the allowed uplinks and return any that are present in the actual defined networks.
 	allowedRestrictedUplinks := shared.SplitNTrimSpace(projectConfig["restricted.networks.uplinks"], ",", -1, false)
