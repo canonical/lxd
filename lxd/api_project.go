@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -950,6 +951,35 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.SyncResponse(true, &state)
+}
+
+// uplinkIPLimitValidator creates a validator function that checks whether the provided value for uplink IP limits is valid.
+// This check can be expensive so we only do the most expensive checks when actually validating a provided config key.
+func uplinkIPLimitValidator(s *state.State, projectName string, networkName string) func(string) error {
+	return func(value string) error {
+		// Perform cheaper checks on the value first.
+		providedLimit, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+
+		if providedLimit < 0 {
+			return fmt.Errorf("Value must be non-negative")
+		}
+
+		// Check if the provided value is equal or lower to the number of uplink addresses currently in use
+		// on the provided project and in the specified network.
+		invalidQuota, err := network.ProjectUplinkAddressThresholdExceeded(s, projectName, networkName, providedLimit)
+		if err != nil {
+			return err
+		}
+
+		if invalidQuota {
+			return fmt.Errorf("Value %s is below current number of used uplink addresses", value)
+		}
+
+		return nil
+	}
 }
 
 // Check if a project is empty.
