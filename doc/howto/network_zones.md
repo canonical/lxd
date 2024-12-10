@@ -1,5 +1,5 @@
 ---
-discourse: 12033,13128
+discourse: lxc:12033,lxc:13128
 ---
 
 (network-zones)=
