@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -950,6 +951,54 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.SyncResponse(true, &state)
+}
+
+// uplinkIPLimitValidator returns a validator function for uplink IP limits.
+// The protocol argument specifies whether we should validate ipv4 or ipv6.
+func uplinkIPLimitValidator(s *state.State, projectName string, networkName string, protocol string) func(string) error {
+	return func(value string) error {
+		// Perform cheaper checks on the value first.
+		providedIPQuota, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+
+		if providedIPQuota < 0 {
+			return fmt.Errorf("Value must be non-negative")
+		}
+
+		// The results for the quota we are not interested in will be ignored in the end, so
+		// here -1 is used to prevent the quota that is not relevant from stopping UplinkAddressQuotasExceeded
+		// from returning early.
+		IPV4AddressQuota := -1
+		IPV6AddressQuota := -1
+
+		if protocol == "ipv6" {
+			IPV6AddressQuota = providedIPQuota
+		}
+
+		if protocol == "ipv4" {
+			IPV4AddressQuota = providedIPQuota
+		}
+
+		// Check if the provided value is equal or lower to the number of uplink addresses currently in use
+		// on the provided project and in the specified network.
+		// We are only interested on the result for the desired protocol, the other will always come out as true.
+		err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			invalidIPV4Quota, invalidIPV6Quota, err := limits.UplinkAddressQuotasExceeded(ctx, tx, projectName, networkName, IPV4AddressQuota, IPV6AddressQuota)
+			if err != nil {
+				return err
+			}
+
+			if protocol == "ipv4" && invalidIPV4Quota || protocol == "ipv6" && invalidIPV6Quota {
+				return fmt.Errorf("Uplink %s limit %q is below current number of used uplink addresses", protocol, value)
+			}
+
+			return nil
+		})
+
+		return err
+	}
 }
 
 // Check if a project is empty.
