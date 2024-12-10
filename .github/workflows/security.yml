@@ -95,7 +95,7 @@ jobs:
 
       - name: Download snap for scan
         run: |
-          snap download lxd --channel=${{ matrix.version }}/stable
+          snap download lxd --channel=${{ matrix.version }}/stable --cohort="+"
           unsquashfs ./lxd*.snap
 
       - name: Run Trivy vulnerability scanner
