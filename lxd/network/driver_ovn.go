@@ -4787,6 +4787,7 @@ func (n *ovn) projectUplinkIPQuotaAvailable(p *api.Project, uplinkName string) (
 
 // triageExternalAddressUsage performs common steps between creating network forwards and load balancers.
 // This includes validating the provided listen address or auto-allocating one if needed.
+// Also checks for project uplink IP limits.
 func (n *ovn) triageExternalAddressUsage(listenAddressNet *net.IPNet, proposedAddress string) (string, error) {
 	// Load the project to get uplink network restrictions.
 	var p *api.Project
@@ -4813,6 +4814,16 @@ func (n *ovn) triageExternalAddressUsage(listenAddressNet *net.IPNet, proposedAd
 	})
 	if err != nil {
 		return "", err
+	}
+
+	// Check project quota for uplink IPs in this uplink.
+	quotaAvailable, err := n.projectUplinkIPQuotaAvailable(p, uplink.Name)
+	if err != nil {
+		return "", err
+	}
+
+	if !quotaAvailable {
+		return "", fmt.Errorf("Project %s's quota for uplink IPs on network %s is exhausted", p.Name, uplink.Name)
 	}
 
 	uplinkRoutes, err := n.uplinkRoutes(uplink)
