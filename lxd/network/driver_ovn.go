@@ -2077,23 +2077,27 @@ func (n *ovn) validateUplinkNetwork(p *api.Project, uplinkNetworkName string) (s
 		return "", err
 	}
 
-	if uplinkNetworkName != "" {
-		if !shared.ValueInSlice(uplinkNetworkName, allowedUplinkNetworks) {
-			return "", fmt.Errorf(`Option "network" value %q is not one of the allowed uplink networks in project`, uplinkNetworkName)
+	// If provided uplink was invalid, return an error.
+	if uplinkNetworkName != "" && !shared.ValueInSlice(uplinkNetworkName, allowedUplinkNetworks) {
+		return "", fmt.Errorf(`Option "network" value %q is not one of the allowed uplink networks in project`, uplinkNetworkName)
+	}
+
+	// Derive uplink network if not provided and only one is valid.
+	if uplinkNetworkName == "" {
+		allowedNetworkCount := len(allowedUplinkNetworks)
+		if allowedNetworkCount == 0 {
+			return "", fmt.Errorf(`No allowed uplink networks in project`)
 		}
 
-		return uplinkNetworkName, nil
-	}
+		if allowedNetworkCount > 1 {
+			return "", fmt.Errorf(`Option "network" is required`)
+		}
 
-	allowedNetworkCount := len(allowedUplinkNetworks)
-	if allowedNetworkCount == 0 {
-		return "", fmt.Errorf(`No allowed uplink networks in project`)
-	} else if allowedNetworkCount == 1 {
 		// If there is only one allowed uplink network then use it if not specified by user.
-		return allowedUplinkNetworks[0], nil
+		uplinkNetworkName = allowedUplinkNetworks[0]
 	}
 
-	return "", fmt.Errorf(`Option "network" is required`)
+	return uplinkNetworkName, nil
 }
 
 // getDHCPv4Reservations returns list DHCP IPv4 reservations from NICs connected to this network.
