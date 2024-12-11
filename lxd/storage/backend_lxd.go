@@ -3261,12 +3261,14 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (*VolumeUsage, err
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 	vol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
 
-	// Get the usage.
+	// Get the usage
+	// If storage driver does not support getting the volume usage, proceed getting the total.
 	size, err := b.driver.GetVolumeUsage(vol)
-	if err != nil {
+	if err != nil && !errors.Is(err, drivers.ErrNotSupported) {
 		return nil, err
 	}
 
+	// If driver does not support getting volume usage, this value would be -1.
 	val.Used = size
 
 	// Get the total size.
@@ -3285,6 +3287,14 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (*VolumeUsage, err
 		if total >= 0 {
 			val.Total = total
 		}
+	}
+
+	// If the instance volume is neither block based/typed nor bound by the device's size config key,
+	// this means it is only bound by the pool limits and has access to the entire pool storage.
+	// So instead of showing the entire pool size for each instance disk, we return -1 to signify the root disk
+	// is unbounded below the pool level.
+	if val.Total == 0 {
+		val.Total = -1
 	}
 
 	return &val, nil
