@@ -684,6 +684,7 @@ jobs:
       - name: Trigger Launchpad snap build
         run: |
           set -eux
+          echo "${PATH}"
           localRev="$(git rev-parse HEAD)"
           cd ~/"${PACKAGE}-pkg-snap-lp"
           lxd-snapcraft -package "${PACKAGE}" -set-version "git-${localRev:0:7}" -set-source-commit "${localRev}"
