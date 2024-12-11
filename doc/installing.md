@@ -54,28 +54,34 @@ Complete the following steps to install the snap:
 
    For the current LTS release (**recommended** option), use:
 
-        sudo snap install lxd
+    ```bash
+    snap install lxd
+    ```
 
    For the LXD 5.21 LTS release, use:
 
-        sudo snap install lxd --channel=5.21/stable
+    ```bash
+    sudo snap install lxd --channel=5.21/stable
+    ```
 
    For the LXD 5.0 LTS release, use:
 
-        sudo snap install lxd --channel=5.0/stable
+    ```bash
+    sudo snap install lxd --channel=5.0/stable
+    ```
 
 ```{note}
 LXD cluster members all need to use the exact same version of LXD and this requires special consideration due to how snaps are deployed as explained in {ref}`Keep cluster members in sync<howto-snap-cohort>`. To ensure all the cluster members are offered the same snap revision, it is possible to specify a cohort parameter which will bypass the progressive deployment:
 
-        snap install lxd --cohort="+"
+    snap install lxd --cohort="+"
 
 This can also be specified during refreshes (not required if done at install time):
 
-        snap refresh lxd --cohort="+"
+    snap refresh lxd --cohort="+"
 
 If for some reason, the cohort mechanism did not work as expected, it is also possible to install a specific snap revision that matches that used on all the cluster members:
 
-        snap install lxd --revision=<revision_number>
+    snap install lxd --revision=<revision_number>
 ```
 
 For more information about LXD snap packages (regarding more versions, update management etc.), see [Managing the LXD snap](https://discourse.ubuntu.com/t/managing-the-lxd-snap-package/37214).
@@ -83,12 +89,12 @@ For more information about LXD snap packages (regarding more versions, update ma
 ```{note}
 On Ubuntu 18.04 LTS, if you previously had the LXD deb package installed, you can migrate all your existing data over by installing the 5.0 snap and running the following commands:
 
-        sudo install lxd --channel=5.0/stable
-        sudo lxd.migrate
+    sudo install lxd --channel=5.0/stable
+    sudo lxd.migrate
 
 After successfully running the `lxd.migrate` command, you can then switch to a newer snap channel if desired, like the 5.21 one:
 
-        sudo refresh lxd --channel=5.21/stable
+    sudo refresh lxd --channel=5.21/stable
 ```
 
 If you want the current user to be able to interact with the LXD daemon, add it to the `lxd` group as the installation process does not add it for you:
