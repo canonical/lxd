@@ -589,6 +589,31 @@ func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
 	return snapshots, nil
 }
 
+// getOSDPoolDefaultSize gets the global OSD default pool size that is used for
+// all pools created without an explicit OSD pool size.
+func (d *ceph) getOSDPoolDefaultSize() (int, error) {
+	defaultSize, err := shared.TryRunCommand("ceph",
+		"--name", "client."+d.config["ceph.user.name"],
+		"--cluster", d.config["ceph.cluster_name"],
+		"config",
+		"get",
+		"mon",
+		"osd_pool_default_size",
+		"--format",
+		"json")
+	if err != nil {
+		return -1, err
+	}
+
+	var defaultSizeInt int
+	err = json.Unmarshal([]byte(defaultSize), &defaultSizeInt)
+	if err != nil {
+		return -1, err
+	}
+
+	return defaultSizeInt, nil
+}
+
 // copyVolumeDiff creates a sparse copy of a volume by exporting and importing the diff
 // between `sourceVolumeName` and its optional `sourceParentSnapshot` onto `targetVolumeName`.
 // This does not introduce a dependency relation between the source RBD storage
