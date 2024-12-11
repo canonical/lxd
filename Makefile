@@ -129,6 +129,13 @@ endif
 	go get toolchain@none
 
 	@echo "Dependencies updated"
+	if [ -t 0 ] && ! git diff --quiet -- ./go.mod ./go.sum; then \
+		read -rp "Would you like to commit gomod changes (Y/n)? " answer; \
+		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
+			git commit -S -sm "gomod: Update dependencies" -- ./go.mod ./go.sum;\
+		fi;\
+	fi
+
 
 .PHONY: update-protobuf
 update-protobuf:
@@ -150,11 +157,23 @@ endif
 	@# Generate spec and exclude package from dependency which causes a 'classifier: unknown swagger annotation "extendee"' error.
 	@# For more details see: https://github.com/go-swagger/go-swagger/issues/2917.
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m -x github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2/options
+	if [ -t 0 ] && ! git diff --quiet -- ./doc/rest-api.yaml; then \
+		read -rp "Would you like to commit swagger YAML changes (Y/n)? " answer; \
+		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
+			git commit -S -sm "doc/rest-api: Refresh swagger YAML" -- ./doc/rest-api.yaml;\
+		fi;\
+	fi
 
 .PHONY: update-metadata
 update-metadata: build
 	@echo "Generating golang documentation metadata"
 	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/metadata.txt --substitution-db ./doc/substitutions.yaml
+	if [ -t 0 ] && ! git diff --quiet -- ./lxd/metadata/configuration.json ./doc/metadata.txt; then \
+		read -rp "Would you like to commit metadata changes (Y/n)? " answer; \
+		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
+			git commit -S -sm "doc: Update metadata" -- ./lxd/metadata/configuration.json ./doc/metadata.txt;\
+		fi;\
+	fi
 
 .PHONY: doc
 doc: doc-clean doc-install doc-html doc-objects
@@ -233,7 +252,8 @@ update-po:
 	if [ -t 0 ] && ! git diff --quiet -- po/*.po; then \
 		read -rp "Would you like to commit i18n changes (Y/n)? " answer; \
 			if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-				git commit -sm "i18n: Update translations." -- po/*.po; fi; \
+				git commit -S -sm "i18n: Update translations." -- po/*.po; \
+			fi; \
 	fi
 
 .PHONY: update-pot
@@ -246,7 +266,8 @@ endif
 	if [ -t 0 ] && ! git diff --quiet --ignore-matching-lines='^\s*"POT-Creation-Date: .*\n"' -- po/*.pot; then \
 		read -rp "Would you like to commit i18n template changes (Y/n)? " answer; \
 			if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-				git commit -sm "i18n: Update translation templates." -- po/*.pot; fi; \
+				git commit -S -sm "i18n: Update translation templates." -- po/*.pot; \
+			fi; \
 	fi
 
 .PHONY: build-mo
