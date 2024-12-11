@@ -1,7 +1,6 @@
 package drivers
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -213,18 +212,25 @@ func (d *cephfs) Create() error {
 					)
 				})
 
-				_, err = shared.TryRunCommand("ceph",
-					"--name", "client."+d.config["cephfs.user.name"],
-					"--cluster", d.config["cephfs.cluster_name"],
-					"osd",
-					"pool",
-					"set",
-					pool,
-					"size",
-					d.config["cephfs.osd_pool_size"],
-					"--yes-i-really-mean-it")
+				defaultSize, err := d.getOSDPoolDefaultSize()
 				if err != nil {
 					return err
+				}
+
+				if strconv.Itoa(defaultSize) != d.config["cephfs.osd_pool_size"] {
+					_, err = shared.TryRunCommand("ceph",
+						"--name", "client."+d.config["cephfs.user.name"],
+						"--cluster", d.config["cephfs.cluster_name"],
+						"osd",
+						"pool",
+						"set",
+						pool,
+						"size",
+						d.config["cephfs.osd_pool_size"],
+						"--yes-i-really-mean-it")
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
