@@ -5,12 +5,12 @@
 
 LXD has two types of releases:
 
-- Monthly feature releases
+- Feature releases
 - LTS releases
 
 For feature releases, only the latest one is supported, and we usually
 don't do point releases. Instead, users are expected to wait until the
-next monthly release.
+next feature release.
 
 For LTS releases, we do periodic bugfix releases that include an
 accumulation of bugfixes from the feature releases. Such bugfix releases
