@@ -28,6 +28,12 @@ const (
 // ConfigVolatilePrefix indicates the prefix used for volatile config keys.
 const ConfigVolatilePrefix = "volatile."
 
+// ConfigKeyPrefixesAny indicates valid prefixes for configuration options.
+var ConfigKeyPrefixesAny = []string{"environment.", "user.", "image."}
+
+// ConfigKeyPrefixesContainer indicates valid prefixes for container configuration options.
+var ConfigKeyPrefixesContainer = []string{"linux.sysctl.", "limits.kernel."}
+
 // ValidName validates an instance name. There are different validation rules for instance snapshot names
 // so it takes an argument indicating whether the name is to be used for a snapshot or not.
 func ValidName(instanceName string, isSnapshot bool) error {
@@ -1274,29 +1280,16 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		}
 	}
 
-	if strings.HasPrefix(key, "environment.") {
+	if (instanceType == Any || instanceType == Container) && strings.HasPrefix(key, "linux.sysctl.") {
 		return validate.IsAny, nil
 	}
 
-	if strings.HasPrefix(key, "user.") {
+	knownPrefixes := append(ConfigKeyPrefixesAny, ConfigKeyPrefixesContainer...)
+	if shared.StringHasPrefix(key, knownPrefixes...) {
 		return validate.IsAny, nil
 	}
 
-	if strings.HasPrefix(key, "image.") {
-		return validate.IsAny, nil
-	}
-
-	if strings.HasPrefix(key, "limits.kernel.") &&
-		(len(key) > len("limits.kernel.")) {
-		return validate.IsAny, nil
-	}
-
-	if (instanceType == Any || instanceType == Container) &&
-		strings.HasPrefix(key, "linux.sysctl.") {
-		return validate.IsAny, nil
-	}
-
-	return nil, fmt.Errorf("Unknown configuration key: %s", key)
+	return nil, fmt.Errorf("Unknown configuration key: %q", key)
 }
 
 // InstanceIncludeWhenCopying is used to decide whether to include a config item or not when copying an instance.

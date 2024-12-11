@@ -1070,7 +1070,7 @@ test_projects_restrictions() {
   lxc project set p1 restricted.containers.interception=allow
   lxc config set c1 security.syscalls.intercept.mknod=true
   lxc config set c1 security.syscalls.intercept.mount=true
-  ! lxc config set c1 security.syscalls.intercept.mount.allow=ext4 || false
+  ! lxc config set c1 security.syscalls.intercept.mount.allowed=ext4 || false
 
   lxc delete c1
 
