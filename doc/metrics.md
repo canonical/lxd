@@ -1,5 +1,5 @@
 ---
-discourse: 12281,11735
+discourse: lxc:12281,lxc:11735
 ---
 
 (metrics)=

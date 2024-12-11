@@ -1,5 +1,5 @@
 ---
-discourse: 11567
+discourse: lxc:11567
 ---
 
 (network-bgp)=

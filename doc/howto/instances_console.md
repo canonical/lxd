@@ -1,5 +1,5 @@
 ---
-discourse: 9223
+discourse: lxc:9223
 ---
 
 (instances-console)=

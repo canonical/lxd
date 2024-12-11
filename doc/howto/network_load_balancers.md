@@ -1,5 +1,5 @@
 ---
-discourse: 14317
+discourse: lxc:14317
 ---
 
 (network-load-balancers)=

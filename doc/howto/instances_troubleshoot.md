@@ -1,5 +1,5 @@
 ---
-discourse: 7362
+discourse: lxc:7362
 ---
 
 (instances-troubleshoot)=

@@ -1,5 +1,5 @@
 ---
-discourse: 10877
+discourse: lxc:10877
 ---
 
 (howto-storage-move-volume)=
