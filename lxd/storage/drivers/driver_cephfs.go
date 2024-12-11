@@ -105,26 +105,12 @@ func (d *cephfs) FillConfig() error {
 	}
 
 	if d.config["cephfs.osd_pool_size"] == "" {
-		size, err := shared.TryRunCommand("ceph",
-			"--name", "client."+d.config["cephfs.user.name"],
-			"--cluster", d.config["cephfs.cluster_name"],
-			"config",
-			"get",
-			"mon",
-			"osd_pool_default_size",
-			"--format",
-			"json")
+		defaultSize, err := d.getOSDPoolDefaultSize()
 		if err != nil {
 			return err
 		}
 
-		var sizeInt int
-		err = json.Unmarshal([]byte(size), &sizeInt)
-		if err != nil {
-			return err
-		}
-
-		d.config["cephfs.osd_pool_size"] = strconv.Itoa(sizeInt)
+		d.config["cephfs.osd_pool_size"] = strconv.Itoa(defaultSize)
 	}
 
 	return nil
