@@ -59,6 +59,6 @@ runs:
 
         # Update system PATH to add ~/go/bin if needed
         echo "${PATH}"
-        if ! echo "${PATH}" | grep -F go/bin; then
+        if ! echo "${PATH}" | grep -qF '/go/bin:'; then
           echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
         fi
