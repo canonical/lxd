@@ -3257,7 +3257,7 @@ definitions:
                     $ref: '#/definitions/NetworkForwardPort'
                 type: array
                 x-go-name: Ports
-        title: NetworkForward used for displaying an network address forward.
+        title: NetworkForward used for displaying a network address forward.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     NetworkForwardPort:

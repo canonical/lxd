@@ -2538,3 +2538,8 @@ Adds a new {config:option}`device-unix-hotplug-device-conf:subsystem` configurat
 
 ## `storage_ceph_osd_pool_size`
 This introduces the configuration keys {config:option}`storage-ceph-pool-conf:ceph.osd.pool_size`, and {config:option}`storage-cephfs-pool-conf:cephfs.osd_pool_size` to be used when adding or updating a `ceph` or `cephfs` storage pool to instruct LXD to create set the replication size for the underlying OSD pools.
+
+## `projects_limits_uplink_ips`
+
+Introduces per-network project uplink IP limits, adding a `limits.networks.uplink_ips.NETWORK_NAME` configuration key for projects with `features.networks` enabled.
+This key defines the maximum value of IPs made available on a network named NETWORK_NAME to be assigned as uplink IPs for entities inside a certain project. These entities can be other networks, network forwards or load balancers.

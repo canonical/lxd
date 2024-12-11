@@ -179,7 +179,7 @@ func (f *NetworkForwardPut) Normalise() {
 	}
 }
 
-// NetworkForward used for displaying an network address forward.
+// NetworkForward used for displaying a network address forward.
 //
 // swagger:model
 //

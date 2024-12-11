@@ -1458,3 +1458,129 @@ func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 
 	return newProxyAddr, nil
 }
+
+// AllowedUplinkNetworks returns a list of allowed networks to use as uplinks based on project restrictions.
+func AllowedUplinkNetworks(s *state.State, projectConfig map[string]string) ([]string, error) {
+	var uplinkNetworkNames []string
+
+	// There are no allowed networks if project is restricted and restricted.networks.uplinks is not set.
+	if shared.IsTrue(projectConfig["restricted"]) && projectConfig["restricted.networks.uplinks"] == "" {
+		return []string{}, nil
+	}
+
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Uplink networks are always from the default project.
+		networks, err := tx.GetCreatedNetworksByProject(ctx, api.ProjectDefaultName)
+		if err != nil {
+			return fmt.Errorf("Failed getting uplink networks: %w", err)
+		}
+
+		// Add any compatible networks to the uplink network list.
+		for _, network := range networks {
+			if network.Type == "bridge" || network.Type == "physical" {
+				uplinkNetworkNames = append(uplinkNetworkNames, network.Name)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// If project is not restricted, return full network list.
+	if shared.IsFalseOrEmpty(projectConfig["restricted"]) {
+		return uplinkNetworkNames, nil
+	}
+
+	allowedUplinkNetworkNames := []string{}
+
+	// Parse the allowed uplinks and return any that are present in the actual defined networks.
+	allowedRestrictedUplinks := shared.SplitNTrimSpace(projectConfig["restricted.networks.uplinks"], ",", -1, false)
+
+	for _, allowedRestrictedUplink := range allowedRestrictedUplinks {
+		if shared.ValueInSlice(allowedRestrictedUplink, uplinkNetworkNames) {
+			allowedUplinkNetworkNames = append(allowedUplinkNetworkNames, allowedRestrictedUplink)
+		}
+	}
+
+	return allowedUplinkNetworkNames, nil
+}
+
+// ProjectUplinkAddressThresholdExceeded checks whether the number of current uplink addresses used
+// in project projectName on network networkName is equal or higher than maxAddresses.
+// Uplink addresses encompasses load balancers, network forwards and downlink networks external addresses.
+// This function takes the limit as an argument so that we can abstain from doing more expensive operations if
+// the threshold is hit early in function workflow.
+func ProjectUplinkAddressThresholdExceeded(s *state.State, projectName string, networkName string, uplinkIPQuota int) (bool, error) {
+	// If the provided threshold is below 0, return right away.
+	if uplinkIPQuota < 0 {
+		return true, nil
+	}
+
+	allocatedUplinkAdresses := 0
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// First count uplink addresses for other networks as this is cheaper.
+		projectNetworks, err := tx.GetCreatedNetworksByProject(ctx, projectName)
+		if err != nil {
+			return err
+		}
+
+		for _, network := range projectNetworks {
+			if network.Name == networkName {
+				continue // Skip target network.
+			}
+
+			// Check if each network is using our target network as an uplink.
+			if network.Config["network"] == networkName {
+				allocatedUplinkAdresses++
+				if allocatedUplinkAdresses > uplinkIPQuota {
+					return db.ErrListStop
+				}
+			}
+		}
+
+		// Count listen addresses for network forwards.
+		forwardListenAddressesMap, err := tx.GetProjectNetworkForwardListenAddressesByUplink(ctx, networkName, false)
+		if err != nil {
+			return err
+		}
+
+		// Iterate through each network on the provided project while counting the uplink addresses used by their
+		// network forwards.
+		for _, addresses := range forwardListenAddressesMap[projectName] {
+			allocatedUplinkAdresses += len(addresses)
+			if allocatedUplinkAdresses > uplinkIPQuota {
+				return db.ErrListStop
+			}
+		}
+
+		// Count listen addresses for load balancers.
+		loadBalancerAddressesMap, err := tx.GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx, networkName, false)
+		if err != nil {
+			return err
+		}
+
+		// Iterate through each network on the provided project while counting the uplink addresses used by their
+		// load balancers.
+		for _, addresses := range loadBalancerAddressesMap[projectName] {
+			allocatedUplinkAdresses += len(addresses)
+			if allocatedUplinkAdresses > uplinkIPQuota {
+				return db.ErrListStop
+			}
+		}
+
+		return nil
+	})
+	// If transaction returned early, this means the threshold was met.
+	if err == db.ErrListStop {
+		return true, nil
+	}
+
+	if err != nil {
+		return false, err
+	}
+
+	// Otherwise, threshold wasn't met.
+	return false, nil
+}

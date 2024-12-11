@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -294,7 +295,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the configuration.
-	err = projectValidateConfig(s, project.Config)
+	err = projectValidateConfig(s, project.Config, project.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -682,7 +683,7 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 	}
 
 	// Validate the configuration.
-	err := projectValidateConfig(s, req.Config)
+	err := projectValidateConfig(s, req.Config, project.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -952,6 +953,35 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, &state)
 }
 
+// uplinkIPLimitValidator creates a validator function that checks whether the provided value for uplink IP limits is valid.
+// This check can be expensive so we only do the most expensive checks when actually validating a provided config key.
+func uplinkIPLimitValidator(s *state.State, projectName string, networkName string) func(string) error {
+	return func(value string) error {
+		// Perform cheaper checks on the value first.
+		providedLimit, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+
+		if providedLimit < 0 {
+			return fmt.Errorf("Value must be non-negative")
+		}
+
+		// Check if the provided value is equal or lower to the number of uplink addresses currently in use
+		// on the provided project and in the specified network.
+		invalidQuota, err := network.ProjectUplinkAddressThresholdExceeded(s, projectName, networkName, providedLimit)
+		if err != nil {
+			return err
+		}
+
+		if invalidQuota {
+			return fmt.Errorf("Value %s is below current number of used uplink addresses", value)
+		}
+
+		return nil
+	}
+}
+
 // Check if a project is empty.
 func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.ClusterTx) (bool, error) {
 	instances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: &project.Name})
@@ -1024,7 +1054,7 @@ func isEitherAllowOrBlockOrManaged(value string) error {
 	return validate.Optional(validate.IsOneOf("block", "allow", "managed"))(value)
 }
 
-func projectValidateConfig(s *state.State, config map[string]string) error {
+func projectValidateConfig(s *state.State, config map[string]string, projectName string) error {
 	// Validate the project configuration.
 	projectConfigKeys := map[string]func(value string) error{
 		// lxdmeta:generate(entities=project; group=specific; key=backups.compression_algorithm)
@@ -1412,6 +1442,28 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 	})
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return fmt.Errorf("Failed loading storage pool names: %w", err)
+	}
+
+	// Per-network project limits for uplink IPs only make sense for projects with their own networks.
+	if shared.IsTrue(config["features.networks"]) {
+		// Get networks that are allowed to be used as uplinks by this project.
+		allowedUplinkNetworks, err := network.AllowedUplinkNetworks(s, config)
+		if err != nil {
+			return nil
+		}
+
+		// Add network-specific config keys.
+		for _, networkName := range allowedUplinkNetworks {
+			// lxdmeta:generate(entities=project; group=limits; key=limits.networks.uplink_ips.NETWORK_NAME)
+			// This represents the maximum value for IPs made available on a network
+			// named NETWORK_NAME to be assigned as uplink addresses for entities inside
+			// a specific project.
+			//
+			// ---
+			//  type: string
+			//  shortdesc: Quota of IPs on a certain network used by entities on this project
+			projectConfigKeys[fmt.Sprintf("limits.networks.uplink_ips.%s", networkName)] = uplinkIPLimitValidator(s, projectName, networkName)
+		}
 	}
 
 	for k, v := range config {
