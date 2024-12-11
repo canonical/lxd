@@ -480,6 +480,17 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 					return err
 				}
 
+				if d.inst != nil {
+					instVolType, err := storagePools.InstanceTypeToVolumeType(d.inst.Type())
+					if err != nil {
+						return err
+					}
+
+					if instVolType == volumeType && d.inst.Name() == volumeName {
+						return errors.New("Instance root device cannot be attached to itself")
+					}
+				}
+
 				// Derive the effective storage project name from the instance config's project.
 				storageProjectName, err = project.StorageVolumeProject(d.state.DB.Cluster, instConf.Project().Name, dbVolumeType)
 				if err != nil {
