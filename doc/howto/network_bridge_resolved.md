@@ -70,11 +70,18 @@ You must repeat the commands after each reboot and after LXD is restarted, or ma
 
 ## Make the `resolved` configuration persistent
 
-### Solution "A"
 
-You can automate the `systemd-resolved` DNS configuration, so that it is applied on system start and takes effect when LXD creates the network interface.
+There are two approaches to automating `systemd-resolved` configuration to ensure that it persists when the LXD bridge network is re-created. Use only one of these approaches, described below.
 
-To do so, create a `systemd` network file named `/etc/systemd/network/<network_bridge>.network` with the following content:
+The first approach is recommended because it is more resilient. It applies your desired configuration whenever your system is rebooted, _and_ whenever the LXD bridge network is re-created outside of a system reboot. For example, updating and restarting LXD can occasionally cause its bridge network to be re-created.
+
+If you are unable to use the recommended approach, the alternative approach can be used. The alternative approach applies your desired configuration only when your system is rebooted. If LXD re-creates its bridge network outside of a system reboot, you must reapply the configuration manually.
+
+### Recommended approach
+
+#### Create a `systemd` network file
+
+Create a `systemd` network file named `/etc/systemd/network/<network_bridge>.network` with the following content:
 
 ```
 [Match]
@@ -84,7 +91,7 @@ DNS=<dns_address>
 Domains=~<dns_domain>
 ```
 
-So for example, `/etc/systemd/network/lxdbr0.network` with the following content (your IP, of course):
+Example file content for `/etc/systemd/network/lxdbr0.network` (insert your own DNS value):
 
 ```
 [Match]
@@ -94,20 +101,24 @@ DNS=10.167.146.1
 Domains=~lxd
 ```
 
-If you have NOT freshly installed `lxd` (you've rebooted since install), then you only need to reload `systemd-resolved`:
+#### Apply the updated configuration
+
+If you have rebooted since you first installed LXD, you only need to reload `systemd-resolved`:
 
     systemctl restart systemd-resolved.service
 
-In case you **haven't rebooted yet since first initializing `lxd`**, then you need to either A) reboot the system, or B) reload `systemd-networkd` (to reload the `.network` files) and restart `lxd` (to add the routing).
+If you have _not_ rebooted your system since you first installed LXD, you must either:
+1. reboot the system, or 
+1. reload `systemd-networkd` (to reload the `.network` files) and restart `lxd` (to add the routing):
 
     networkctl reload
     snap restart lxd
 
-You can test that the configuration got applied by running:
+You can test that the updated configuration was applied by running:
 
     resolvectl status
 
-The output should contain a part similar to this (you can see the DNS server and the `.lxd` domain mentioned):
+The output should contain a section similar to the example shown below. You should see the configured DNS server and the `~lxd` domain:
 
 ```
 [...]
@@ -120,13 +131,20 @@ Current DNS Server: 10.167.146.1
 [...]
 ```
 
-This solution "A" is better than solution "B" in the sense that it is more resilient, and gets reapplied if the `lxdbr0` network is re-created for some reason (LXD update+restart occasionally does this).
+### Alternative approach
 
-### Solution "B"
+```{warning}
+This approach only automates applying your desired configuration when your system is rebooted. If LXD re-creates its bridge network outside of a system reboot, you must reapply the configuration manually with the following command:
 
-You can automate the `systemd-resolved` DNS configuration, so that it is applied on system start and takes effect when LXD creates the network interface.
+    systemctl restart lxd-dns-<bridge_network>.service
 
-To do so, create a `systemd` unit file named `/etc/systemd/system/lxd-dns-<network_bridge>.service` with the following content:
+Example:
+
+    systemctl restart lxd-dns-lxdbr0.service
+```
+
+
+Create a `systemd` unit file named `/etc/systemd/system/lxd-dns-<network_bridge>.service` with the following content:
 
 ```
 [Unit]
