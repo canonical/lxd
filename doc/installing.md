@@ -21,7 +21,7 @@ See {ref}`installing-manage-access` for instructions.
 ```
 
 LTS releases are recommended for production environments, because they benefit from regular bugfix and security updates.
-However, there are no new features added to an LTS release, nor any kind of behavioral change.
+However, not all new features added to an LTS release, nor any kind of behavioral change.
 
 To get all the latest features and monthly updates to LXD, use the feature release branch instead.
 
