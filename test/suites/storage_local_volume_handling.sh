@@ -66,6 +66,17 @@ test_storage_local_volume_handling() {
     lxc storage volume set "${pool}" vol1 user.foo=snap0
     lxc storage volume set "${pool}" vol1 snapshots.expiry=1H
 
+    lxc storage volume create "${pool}" blockVol --type=block
+    lxc storage volume create "${pool}" isoVol --type=iso
+
+    # security.shared is only allowed for block volumes
+    ! lxc storage volume set default vol1 security.shared true || false
+    ! lxc storage volume set default isoVol security.shared true || false
+    lxc storage volume set default blockVol security.shared true
+
+    lxc storage volume delete blockVol
+    lxc storage volume delete isoVol
+
     # This will create the snapshot vol1/snap0
     lxc storage volume snapshot "${pool}" vol1
 
