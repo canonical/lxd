@@ -76,7 +76,7 @@ Terraform provider          | https://registry.terraform.io/providers/terraform-
 Consider the following aspects to ensure that your LXD installation is secure:
 
 - Keep your operating system up-to-date and install all available security patches.
-- Use only supported LXD versions (LTS releases or monthly feature releases).
+- Use only supported LXD versions (LTS releases or the latest feature release).
 - Restrict access to the LXD daemon and the remote API.
 - Configure your network interfaces to be secure.
 - Do not use privileged containers unless required. If you use privileged containers, put appropriate security measures in place.
