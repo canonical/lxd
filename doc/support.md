@@ -29,7 +29,7 @@ Feature releases
 : After LXD 5.21 is released, the next feature release will be LXD 6.x (starting with 6.1), available from the `6/stable` channel.
   See `snap info lxd` for a full list of available channels.
 
-  Feature releases are pushed out about every month and contain new features as well as bugfixes.
+  Feature releases are pushed out more often and contain new features as well as bugfixes.
   The normal support length for those releases is until the next release comes out.
   Some Linux distributions might offer longer support for particular feature releases that they decided to ship.
 
