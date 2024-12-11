@@ -72,6 +72,7 @@ ESA
 ESM
 ETag
 failover
+filesystem
 firmware
 FQDNs
 gapped
@@ -102,6 +103,7 @@ IdP
 iGPU
 iGPUs
 incrementing
+intra
 InfiniBand
 init
 initramfs
@@ -153,6 +155,7 @@ NATed
 natively
 NDP
 netmask
+NBD
 NFS
 NIC
 NICs
@@ -199,6 +202,7 @@ qdisc
 qdiscs
 QEMU
 QFQ
+QMP
 qgroup
 qgroups
 RADOS
