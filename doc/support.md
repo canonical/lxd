@@ -26,10 +26,12 @@ Long term support (LTS) releases
     Currently in extended support phase.
 
 Feature releases
-: After LXD 5.21 is released, the next feature release will be LXD 6.x (starting with 6.1), available from the `6/stable` channel.
+: The current feature series is LXD 6.x (starting with 6.1).
+  This is available from the `6/stable` snap channel and  will continue to follow the LXD 6.x series as it
+  progresses from a feature release series into an LTS release in 2026.
   See `snap info lxd` for a full list of available channels.
 
-  Feature releases are pushed out about every month and contain new features as well as bugfixes.
+  Feature releases are pushed out more often and contain new features as well as bugfixes.
   The normal support length for those releases is until the next release comes out.
   Some Linux distributions might offer longer support for particular feature releases that they decided to ship.
 
