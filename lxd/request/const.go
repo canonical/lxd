@@ -48,6 +48,9 @@ const (
 
 	// CtxMetricsCallbackFunc is a callback function that can be called to mark the request as completed for the API metrics.
 	CtxMetricsCallbackFunc CtxKey = "metrics_callback_function"
+
+	// CtxOpenFGARequestCache is used to set a cache for the OpenFGA datastore to improve driver performance on a per request basis.
+	CtxOpenFGARequestCache CtxKey = "openfga_request_cache"
 )
 
 // Headers.
