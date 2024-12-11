@@ -1222,6 +1222,13 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc config device remove c3 eth0
   LXD_DIR="${LXD_ONE_DIR}" lxc config device add c3 eth0 nic hwaddr="${c1MAC}" nictype=bridged parent="${net}"
 
+  # Check networks local to a cluster member show up when targeting that member
+  # and hidden when targeting other cluster members. Setup is in includes/clustering.sh
+  LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node1 | grep localBridge1
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node1 | grep localBridge2 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node2 | grep localBridge1 || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node2 | grep localBridge2
+
   # Cleanup instances and image.
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1 c2 c3
   LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
