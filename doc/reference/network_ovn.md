@@ -1,5 +1,5 @@
 ---
-discourse: 11033
+discourse: lxc:11033
 ---
 
 (network-ovn)=

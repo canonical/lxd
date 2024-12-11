@@ -1,5 +1,5 @@
 ---
-discourse: 24
+discourse: lxc:24
 ---
 
 (lxd-lxc)=

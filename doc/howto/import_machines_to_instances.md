@@ -1,5 +1,5 @@
 ---
-discourse: 14345
+discourse: lxc:14345
 ---
 
 (import-machines-to-instances)=
