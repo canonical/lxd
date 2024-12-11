@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-12-05 16:02+0000\n"
+"POT-Creation-Date: 2024-12-09 03:18-0300\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -1131,7 +1131,7 @@ msgstr "Копирование образа: %s"
 msgid "Backup exported successfully!"
 msgstr ""
 
-#: lxc/info.go:654 lxc/storage_volume.go:1527
+#: lxc/info.go:666 lxc/storage_volume.go:1527
 msgid "Backups:"
 msgstr ""
 
@@ -1179,11 +1179,11 @@ msgstr ""
 msgid "Bridge:"
 msgstr ""
 
-#: lxc/info.go:577 lxc/network.go:944
+#: lxc/info.go:589 lxc/network.go:944
 msgid "Bytes received"
 msgstr "Получено байтов"
 
-#: lxc/info.go:578 lxc/network.go:945
+#: lxc/info.go:590 lxc/network.go:945
 msgid "Bytes sent"
 msgstr "Отправлено байтов"
 
@@ -1212,11 +1212,11 @@ msgstr " Использование ЦП:"
 msgid "CPU USAGE"
 msgstr ""
 
-#: lxc/info.go:527
+#: lxc/info.go:539
 msgid "CPU usage (in seconds)"
 msgstr "Использование ЦП (в секундах)"
 
-#: lxc/info.go:531
+#: lxc/info.go:543
 #, fuzzy
 msgid "CPU usage:"
 msgstr " Использование ЦП:"
@@ -2182,7 +2182,12 @@ msgstr ""
 msgid "Disk %d:"
 msgstr " Использование диска:"
 
-#: lxc/info.go:520
+#: lxc/info.go:533
+#, fuzzy
+msgid "Disk total:"
+msgstr " Использование диска:"
+
+#: lxc/info.go:529
 #, fuzzy
 msgid "Disk usage:"
 msgstr " Использование диска:"
@@ -2473,7 +2478,7 @@ msgid ""
 "AND stdout are terminals (stderr is ignored)."
 msgstr ""
 
-#: lxc/info.go:640 lxc/info.go:691 lxc/storage_volume.go:1514
+#: lxc/info.go:652 lxc/info.go:703 lxc/storage_volume.go:1514
 #: lxc/storage_volume.go:1564
 msgid "Expires at"
 msgstr ""
@@ -3020,7 +3025,7 @@ msgstr ""
 msgid "HOSTNAME"
 msgstr ""
 
-#: lxc/info.go:566
+#: lxc/info.go:578
 #, fuzzy
 msgid "Host interface"
 msgstr "Псевдонимы:"
@@ -3075,7 +3080,7 @@ msgstr ""
 msgid "IP ADDRESS"
 msgstr ""
 
-#: lxc/info.go:582
+#: lxc/info.go:594
 msgid "IP addresses"
 msgstr ""
 
@@ -3241,7 +3246,7 @@ msgstr ""
 msgid "Inspect permissions"
 msgstr ""
 
-#: lxc/info.go:692
+#: lxc/info.go:704
 #, fuzzy
 msgid "Instance Only"
 msgstr "Имя контейнера: %s"
@@ -3818,7 +3823,7 @@ msgstr ""
 msgid "Log level filtering can only be used with pretty formatting"
 msgstr ""
 
-#: lxc/info.go:720
+#: lxc/info.go:732
 msgid "Log:"
 msgstr ""
 
@@ -3836,7 +3841,7 @@ msgstr "Копирование образа: %s"
 msgid "MAC ADDRESS"
 msgstr ""
 
-#: lxc/info.go:570
+#: lxc/info.go:582
 msgid "MAC address"
 msgstr ""
 
@@ -3879,7 +3884,7 @@ msgstr ""
 msgid "MII state"
 msgstr ""
 
-#: lxc/info.go:574
+#: lxc/info.go:586
 msgid "MTU"
 msgstr ""
 
@@ -4154,15 +4159,15 @@ msgstr ""
 msgid "Member %s renamed to %s"
 msgstr ""
 
-#: lxc/info.go:538
+#: lxc/info.go:550
 msgid "Memory (current)"
 msgstr ""
 
-#: lxc/info.go:542
+#: lxc/info.go:554
 msgid "Memory (peak)"
 msgstr ""
 
-#: lxc/info.go:554
+#: lxc/info.go:566
 #, fuzzy
 msgid "Memory usage:"
 msgstr " Использование памяти:"
@@ -4524,7 +4529,7 @@ msgstr ""
 msgid "NVRM Version: %v"
 msgstr ""
 
-#: lxc/info.go:638 lxc/info.go:689 lxc/storage_volume.go:1512
+#: lxc/info.go:650 lxc/info.go:701 lxc/storage_volume.go:1512
 #: lxc/storage_volume.go:1562
 msgid "Name"
 msgstr ""
@@ -4638,7 +4643,7 @@ msgstr ""
 msgid "Network type"
 msgstr " Использование сети:"
 
-#: lxc/info.go:595 lxc/network.go:943
+#: lxc/info.go:607 lxc/network.go:943
 #, fuzzy
 msgid "Network usage:"
 msgstr " Использование сети:"
@@ -4760,7 +4765,7 @@ msgstr ""
 msgid "Operation %s deleted"
 msgstr ""
 
-#: lxc/info.go:693 lxc/storage_volume.go:1566
+#: lxc/info.go:705 lxc/storage_volume.go:1566
 msgid "Optimized Storage"
 msgstr ""
 
@@ -4819,11 +4824,11 @@ msgstr ""
 msgid "PUBLIC"
 msgstr ""
 
-#: lxc/info.go:579 lxc/network.go:946
+#: lxc/info.go:591 lxc/network.go:946
 msgid "Packets received"
 msgstr ""
 
-#: lxc/info.go:580 lxc/network.go:947
+#: lxc/info.go:592 lxc/network.go:947
 msgid "Packets sent"
 msgstr ""
 
@@ -6118,7 +6123,7 @@ msgstr "Копирование образа: %s"
 msgid "Snapshots are read-only and can't have their configuration changed"
 msgstr ""
 
-#: lxc/info.go:607 lxc/storage_volume.go:1491
+#: lxc/info.go:619 lxc/storage_volume.go:1491
 msgid "Snapshots:"
 msgstr ""
 
@@ -6149,7 +6154,7 @@ msgstr ""
 msgid "Starting %s"
 msgstr ""
 
-#: lxc/info.go:564
+#: lxc/info.go:576
 #, fuzzy
 msgid "State"
 msgstr "Авто-обновление: %s"
@@ -6159,7 +6164,7 @@ msgstr "Авто-обновление: %s"
 msgid "State: %s"
 msgstr "Авто-обновление: %s"
 
-#: lxc/info.go:641
+#: lxc/info.go:653
 msgid "Stateful"
 msgstr ""
 
@@ -6264,11 +6269,11 @@ msgstr ""
 msgid "Supported ports: %s"
 msgstr ""
 
-#: lxc/info.go:546
+#: lxc/info.go:558
 msgid "Swap (current)"
 msgstr ""
 
-#: lxc/info.go:550
+#: lxc/info.go:562
 msgid "Swap (peak)"
 msgstr ""
 
@@ -6309,7 +6314,7 @@ msgstr ""
 msgid "TYPE"
 msgstr ""
 
-#: lxc/info.go:639 lxc/info.go:690 lxc/storage_volume.go:1563
+#: lxc/info.go:651 lxc/info.go:702 lxc/storage_volume.go:1563
 msgid "Taken at"
 msgstr ""
 
@@ -6634,7 +6639,7 @@ msgstr ""
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
 
-#: lxc/info.go:563
+#: lxc/info.go:575
 msgid "Type"
 msgstr ""
 
@@ -6900,7 +6905,7 @@ msgstr ""
 msgid "Unsupported content type for attaching to instances"
 msgstr ""
 
-#: lxc/info.go:712
+#: lxc/info.go:724
 #, c-format
 msgid "Unsupported instance type: %s"
 msgstr ""

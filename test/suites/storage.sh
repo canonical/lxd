@@ -931,8 +931,8 @@ EOF
     # Disable quotas. The usage should be 0.
     # shellcheck disable=SC2031
     btrfs quota disable "${LXD_DIR}/storage-pools/${pool_name}"
-    usage=$(lxc query /1.0/instances/c1/state | jq '.disk.root')
-    [ "${usage}" = "null" ]
+    # Usage -1 indicates the driver does not support getting instance usage.
+    [ "$(lxc query /1.0/instances/c1/state | jq '.disk.root.usage')" = "-1" ]
 
     # Enable quotas. The usage should then be > 0.
     # shellcheck disable=SC2031
