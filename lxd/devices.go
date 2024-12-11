@@ -301,7 +301,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 func fillFixedInstances(fixedInstances map[int64][]instance.Instance, inst instance.Instance, effectiveCpus []int64, targetCPUPool []int64, targetCPUNum int, loadBalancing bool) {
 	if len(targetCPUPool) < targetCPUNum {
 		diffCount := len(targetCPUPool) - targetCPUNum
-		logger.Warnf("%v CPUs have been required for pinning, but %v CPUs won't be allocated", len(targetCPUPool), -diffCount)
+		logger.Warn("Insufficient CPUs in the target pool for required pinning: reducing required CPUs to match available CPUs", logger.Ctx{"available": len(targetCPUPool), "required": targetCPUNum, "difference": -diffCount})
 		targetCPUNum = len(targetCPUPool)
 	}
 
@@ -395,7 +395,7 @@ func deviceTaskBalance(s *state.State) {
 	// Get effective cpus list - those are all guaranteed to be online
 	cg, err := cgroup.NewFileReadWriter(1, true)
 	if err != nil {
-		logger.Errorf("Unable to load cgroup writer: %v", err)
+		logger.Error("Unable to load cgroup writer", logger.Ctx{"err": err})
 		return
 	}
 
@@ -404,14 +404,14 @@ func deviceTaskBalance(s *state.State) {
 		// Older kernel - use cpuset.cpus
 		effectiveCpus, err = cg.GetCpuset()
 		if err != nil {
-			logger.Errorf("Error reading host's cpuset.cpus")
+			logger.Error("Error reading host's cpuset.cpus", logger.Ctx{"err": err, "cpuset.cpus": effectiveCpus})
 			return
 		}
 	}
 
 	effectiveCpusInt, err := resources.ParseCpuset(effectiveCpus)
 	if err != nil {
-		logger.Errorf("Error parsing effective CPU set")
+		logger.Error("Error parsing effective CPU set", logger.Ctx{"err": err, "cpuset.cpus": effectiveCpus})
 		return
 	}
 
@@ -442,7 +442,7 @@ func deviceTaskBalance(s *state.State) {
 	// Get CPU topology.
 	cpusTopology, err := resources.GetCPU()
 	if err != nil {
-		logger.Errorf("Unable to load system CPUs information: %v", err)
+		logger.Error("Unable to load system CPUs information", logger.Ctx{"err": err})
 		return
 	}
 
@@ -519,7 +519,7 @@ func deviceTaskBalance(s *state.State) {
 			}
 
 			if len(numaCpus) > 0 {
-				logger.Warnf("The pinned CPUs: %v, override the NUMA configuration with the CPUs: %v", instanceCpus, numaCpus)
+				logger.Warn("The pinned CPUs override the NUMA configuration CPUs", logger.Ctx{"pinnedCPUs": instanceCpus, "numaCPUs": numaCpus})
 			}
 
 			fillFixedInstances(fixedInstances, c, cpus, instanceCpus, len(instanceCpus), false)
@@ -543,7 +543,7 @@ func deviceTaskBalance(s *state.State) {
 	for cpu, ctns := range fixedInstances {
 		c, ok := usage[cpu]
 		if !ok {
-			logger.Errorf("Internal error: instance using unavailable cpu")
+			logger.Error("Internal error: instance using unavailable cpu")
 			continue
 		}
 
@@ -598,7 +598,7 @@ func deviceTaskBalance(s *state.State) {
 func deviceEventListener(stateFunc func() *state.State) {
 	chNetlinkCPU, chNetlinkNetwork, chUSB, chUnix, err := deviceNetlinkListener()
 	if err != nil {
-		logger.Errorf("scheduler: Couldn't setup netlink listener: %v", err)
+		logger.Error("Scheduler: Couldn't setup netlink listener", logger.Ctx{"err": err})
 		return
 	}
 
@@ -606,7 +606,7 @@ func deviceEventListener(stateFunc func() *state.State) {
 		select {
 		case e := <-chNetlinkCPU:
 			if len(e) != 2 {
-				logger.Errorf("Scheduler: received an invalid cpu hotplug event")
+				logger.Error("Scheduler: received an invalid cpu hotplug event")
 				continue
 			}
 
@@ -616,11 +616,11 @@ func deviceEventListener(stateFunc func() *state.State) {
 				continue
 			}
 
-			logger.Debugf("Scheduler: cpu: %s is now %s: re-balancing", e[0], e[1])
+			logger.Debug("Scheduler: re-balancing", logger.Ctx{"devpath": e[0], "action": e[1]})
 			deviceTaskBalance(s)
 		case e := <-chNetlinkNetwork:
 			if len(e) != 2 {
-				logger.Errorf("Scheduler: received an invalid network hotplug event")
+				logger.Error("Scheduler: received an invalid network hotplug event")
 				continue
 			}
 
@@ -631,7 +631,7 @@ func deviceEventListener(stateFunc func() *state.State) {
 				continue
 			}
 
-			logger.Debugf("Scheduler: network: %s has been added: updating network priorities", e[0])
+			logger.Debug("Scheduler: network has been added: updating network priorities", logger.Ctx{"network": e[0]})
 			err = networkAutoAttach(s.DB.Cluster, e[0])
 			if err != nil {
 				logger.Warn("Failed to auto-attach network", logger.Ctx{"err": err, "dev": e[0]})
@@ -643,7 +643,7 @@ func deviceEventListener(stateFunc func() *state.State) {
 			device.UnixHotplugRunHandlers(stateFunc(), &e)
 		case e := <-cgroup.DeviceSchedRebalance:
 			if len(e) != 3 {
-				logger.Errorf("Scheduler: received an invalid rebalance event")
+				logger.Error("Scheduler: received an invalid rebalance event")
 				continue
 			}
 
@@ -653,7 +653,7 @@ func deviceEventListener(stateFunc func() *state.State) {
 				continue
 			}
 
-			logger.Debugf("Scheduler: %s %s %s: re-balancing", e[0], e[1], e[2])
+			logger.Debug("Scheduler: re-balancing", logger.Ctx{"srcName": e[0], "srcType": e[1], "srcStatus": e[2]})
 			deviceTaskBalance(s)
 		}
 	}
@@ -712,7 +712,7 @@ func ueventParseVendorProduct(props map[string]string, subsystem string, devname
 
 		vendor, product, err = getHidrawDevInfo(int(file.Fd()))
 		if err != nil {
-			logger.Debugf("Failed to retrieve device info from hidraw device %q", devname)
+			logger.Debug("Failed to retrieve device info from hidraw device", logger.Ctx{"devname": devname})
 			return "", "", false
 		}
 	}
