@@ -182,18 +182,27 @@ func (d *ceph) Create() error {
 
 		revert.Add(func() { _ = d.osdDeletePool() })
 
-		_, err = shared.TryRunCommand("ceph",
-			"--name", "client."+d.config["ceph.user.name"],
-			"--cluster", d.config["ceph.cluster_name"],
-			"osd",
-			"pool",
-			"set",
-			d.config["ceph.osd.pool_name"],
-			"size",
-			d.config["ceph.osd.pool_size"],
-			"--yes-i-really-mean-it")
+		// Fetch the default OSD pool size.
+		defaultSize, err := d.getOSDPoolDefaultSize()
 		if err != nil {
 			return err
+		}
+
+		// If the OSD pool size in the config for this pool is different than the default OSD pool size, then set the pool size for the pool.
+		if d.config["ceph.osd.pool_size"] != strconv.Itoa(defaultSize) {
+			_, err = shared.TryRunCommand("ceph",
+				"--name", "client."+d.config["ceph.user.name"],
+				"--cluster", d.config["ceph.cluster_name"],
+				"osd",
+				"pool",
+				"set",
+				d.config["ceph.osd.pool_name"],
+				"size",
+				d.config["ceph.osd.pool_size"],
+				"--yes-i-really-mean-it")
+			if err != nil {
+				return err
+			}
 		}
 
 		// Initialize the pool. This is not necessary but allows the pool to be monitored.
