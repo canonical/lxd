@@ -1094,6 +1094,11 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Source.Type {
 	case "":
+		// Makes no sense to create an empty ISO volume.
+		if req.ContentType == "iso" {
+			return response.BadRequest(errors.New("Creation of empty iso volumes is not allowed, either copy or import"))
+		}
+
 		return doVolumeCreateOrCopy(s, r, requestProjectName, projectName, poolName, &req)
 	case api.SourceTypeCopy:
 		if dbVolume != nil {
