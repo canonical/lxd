@@ -1,6 +1,8 @@
 package drivers
 
 import (
+	"encoding/json"
+
 	"github.com/canonical/lxd/shared"
 )
 
@@ -40,6 +42,31 @@ func (d *cephfs) osdPoolExists(clusterName string, userName string, osdPoolName 
 	}
 
 	return true, nil
+}
+
+// getOSDPoolDefaultSize gets the global OSD default pool size that is used for
+// all pools created without an explicit OSD pool size.
+func (d *cephfs) getOSDPoolDefaultSize() (int, error) {
+	size, err := shared.TryRunCommand("ceph",
+		"--name", "client."+d.config["cephfs.user.name"],
+		"--cluster", d.config["cephfs.cluster_name"],
+		"config",
+		"get",
+		"mon",
+		"osd_pool_default_size",
+		"--format",
+		"json")
+	if err != nil {
+		return -1, err
+	}
+
+	var sizeInt int
+	err = json.Unmarshal([]byte(size), &sizeInt)
+	if err != nil {
+		return -1, err
+	}
+
+	return sizeInt, nil
 }
 
 // getConfig parses the Ceph configuration file and returns the list of monitors and secret key.
