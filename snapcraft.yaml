@@ -1451,7 +1451,7 @@ parts:
       - qemu-ovmf-secureboot
       - nftables
     source: https://github.com/awslabs/python-uefivars
-    source-commit: 9679002a4392d8e7831d2dbda3fab41ccc5c6b8c # v1.0.0
+    source-commit: ec1eab1717c65ea36ca7160c96fe0e10e071fb66 # v1.2
     source-depth: 1
     source-type: git
     plugin: python
