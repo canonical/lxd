@@ -132,6 +132,9 @@ test_storage_local_volume_handling() {
     lxc storage volume move "${pool}1/vol1" "${pool}1/vol1" --project "${project}" --target-project default
     lxc storage volume show "${pool}1" vol1 --project default
 
+    # Create empty ISO volumes is not allowed
+    ! lxc storage volume create "${pool}" isoVol --type=iso || false
+
     # Create new pools
     lxc storage create pool_1 dir
     lxc storage create pool_2 dir
