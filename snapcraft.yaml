@@ -6,6 +6,7 @@ version: git
 grade: devel
 summary: LXD - container and VM manager
 license: AGPL-3.0
+title: LXD
 description: |-
  LXD is a system container and virtual machine manager.
 
@@ -51,6 +52,7 @@ description: |-
    - openvswitch.external: Use the system's OVS tools (ignores openvswitch.builtin) [default=false]
    - ovn.builtin: Use snap-specific OVN configuration [default=false]
    - ui.enable: Enable the web interface [default=true]
+   - zfs.external: Use the system's ZFS tools [default=false]
 
  For system-wide configuration of the CLI, place your configuration in
  /var/snap/lxd/common/global-conf/ (config.yml and servercerts)
@@ -191,14 +193,19 @@ parts:
       - libatomic
     plugin: nil
     stage-packages:
+      # XXX: explicitly depend on libsnappy1v5 due to https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2072656
       - on amd64:
         - ceph-common
+        - libsnappy1v5
       - on arm64:
         - ceph-common
+        - libsnappy1v5
       - on ppc64el:
         - ceph-common
+        - libsnappy1v5
       - on s390x:
         - ceph-common
+        - libsnappy1v5
     organize:
       usr/bin/: bin/
       usr/lib/: lib/
@@ -247,11 +254,13 @@ parts:
       - lib/*/librtmp.so*
       - lib/*/libsasl2.so*
       - lib/*/libsnappy.so*
-      - lib/*/libncurses.so*
+      - lib/*/libssh.so*
+      - lib/*/libtcmalloc.so*
+      - lib/*/libunwind.so*
 
   criu:
     source: https://github.com/checkpoint-restore/criu
-    source-commit: f8b14286b092853a4485813e1efd564109df9123 # v3.19
+    source-commit: c2b48ff423aa663b3534a5ba96907366e4c1b408 # v4.0
     source-depth: 1
     source-type: git
     plugin: nil
@@ -278,7 +287,10 @@ parts:
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && [ "$(uname -m)" != "armv7l" ] && exit 0
       set -ex
 
-      make USERCFLAGS=-Wno-error=format-truncation criu
+      git config user.email "noreply@lists.canonical.com"
+      git config user.name "LXD snap builder"
+
+      make criu
       mkdir -p "${CRAFT_PART_INSTALL}/criu/"
       cp criu/criu "${CRAFT_PART_INSTALL}/criu/"
     organize:
@@ -552,6 +564,25 @@ parts:
       sbin/: bin/
       usr/lib/: lib/
       usr/sbin/: bin/
+    override-build: |-
+      # Patch lvm.conf
+      # lvm.conf changes for lvm2 from 22.04/core22
+      sed -i \
+        -e "s%\(# \)\?obtain_device_list_from_udev = 1%obtain_device_list_from_udev = 0%" \
+        -e "s%\(# \)\?cache_file_prefix = \"\"%cache_file_prefix = \"lxd\"%" \
+        "${CRAFT_PART_INSTALL}/etc/lvm/lvm.conf"
+
+      # Generic lvm.conf changes
+      sed -i \
+        -e "s%\(# \)\?udev_sync = 1%udev_sync = 0%" \
+        -e "s%\(# \)\?udev_rules = 1%udev_rules = 0%" \
+        -e "s%\(# \)\?use_lvmetad = 1%use_lvmetad = 0%" \
+        -e "s%\(# \)\?monitoring = 1%monitoring = 0%" \
+        -e "/# .*_\?executable =/s/# //" \
+        -e "s%\(/usr\)\?/s\?bin/%/snap/lxd/current/bin/%" \
+        "${CRAFT_PART_INSTALL}/etc/lvm/lvm.conf"
+
+      craftctl default
     prime:
       - bin/cache_*
       - bin/dmeventd
@@ -567,6 +598,7 @@ parts:
       - -bin/lvmetad
       - -bin/lvmpolld
       - etc/lvm/lvm.conf
+      - etc/lvm/profile/*
       - lib/*/device-mapper/*
       - lib/*/libaio.so*
       - lib/*/libdevmapper*
@@ -634,12 +666,12 @@ parts:
 
   nvidia-container:
     source: https://github.com/NVIDIA/libnvidia-container
-    source-commit: 63d366ee3b4183513c310ac557bf31b05b83328f # v1.17.1
+    source-commit: 63d366ee3b4183513c310ac557bf31b05b83328f # v1.17.2
     source-depth: 1
     source-type: git
     plugin: make
     build-environment:
-      - GIT_TAG: "1.17.1" # Enables source-depth: 1, should match git tag without "v" prefix.
+      - GIT_TAG: "1.17.2" # Enables source-depth: 1, should match git tag without "v" prefix.
     build-packages:
       - bmake
       - curl
@@ -675,6 +707,32 @@ parts:
     prime:
       - bin/nvidia-container-cli*
       - lib/libnvidia-container*.so*
+
+  nvidia-container-toolkit:
+    source: https://github.com/NVIDIA/nvidia-container-toolkit
+    source-depth: 1
+    source-commit: fa66e4cd562804509055e44a88f666673e6d27c0 # v1.17.2
+    source-type: git
+    build-snaps:
+      - go
+    plugin: make
+    override-prime: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      set -ex
+
+      make binaries
+      mkdir -p "${CRAFT_PART_INSTALL}/bin/"
+      cp nvidia-ctk "${CRAFT_PART_INSTALL}/bin/"
+    organize:
+      usr/bin/: bin/
+    prime:
+      - bin/nvidia-ctk
 
   nvme:
     plugin: nil
@@ -1194,7 +1252,7 @@ parts:
 
   zfs-2-2:
     source: https://github.com/openzfs/zfs
-    source-commit: 2566592045780e7be7afc899c2496b1ae3af4f4d # zfs-2.2.4
+    source-commit: baa50314567afd986a00838f0fa65fdacbd12daf # zfs-2.2.6
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1241,7 +1299,7 @@ parts:
 
   apparmor:
     source: https://gitlab.com/apparmor/apparmor.git
-    source-commit: 84a6bc1b6dcdfeabb1ed3597f01e314f3bcee5c1 # v4.0.2
+    source-commit: b4dfdf50f50ed1d64161424d036a2453645f0cfe # v4.0.3
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1393,7 +1451,7 @@ parts:
       - qemu-ovmf-secureboot
       - nftables
     source: https://github.com/awslabs/python-uefivars
-    source-commit: 9679002a4392d8e7831d2dbda3fab41ccc5c6b8c # v1.0.0
+    source-commit: ec1eab1717c65ea36ca7160c96fe0e10e071fb66 # v1.2
     source-depth: 1
     source-type: git
     plugin: python
@@ -1408,6 +1466,7 @@ parts:
       craftctl default
     organize:
       lib/python3.10/site-packages/: lib/python3/dist-packages/
+      bin/uefivars: bin/uefivars.py
     prime:
       - bin/uefivars.py
       - lib/python3/dist-packages/google_crc32c*
@@ -1464,7 +1523,7 @@ parts:
       ln -s "$(pwd)" "${GOPATH}/src/github.com/canonical/lxd"
 
       # Download the dependencies
-      go get -d -v ./...
+      go get -v ./...
     override-build: |
       set -ex
 
@@ -1481,10 +1540,19 @@ parts:
 
       # Build the binaries
       go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxc" github.com/canonical/lxd/lxc
-      go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd" -tags=libsqlite3 github.com/canonical/lxd/lxd
-      CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-agent" -tags=agent,netgo github.com/canonical/lxd/lxd-agent
-      go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-user" github.com/canonical/lxd/lxd-user
 
+      # Build LXD server binary into ${CRAFT_PART_INSTALL}/sbin/lxd so that it does not conflict with the
+      # lxd-stophook wrapper script which is stored in ${CRAFT_PART_INSTALL}/bin/lxd.
+      # This way when a container stops it will call "/snap/lxd/current/bin/lxd callhook" which is handled by the
+      # lxd-stophook script, which in turn will execute "/snap/lxd/current/bin/lxd-user callhook" to notify LXD.
+      go build -trimpath -o "${CRAFT_PART_INSTALL}/sbin/lxd" -tags=libsqlite3 github.com/canonical/lxd/lxd
+
+      # Build static binaries
+      CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-agent" -tags=agent,netgo github.com/canonical/lxd/lxd-agent
+      CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-user" -tags netgo github.com/canonical/lxd/lxd-user
+
+      # Some python dependencies are not available for riscv64 or just require a build from source.
+      # Not worth the effort for now.
       if [ "$(uname -m)" != "riscv64" ]; then
         # Build the static website
         make doc
@@ -1495,21 +1563,31 @@ parts:
         rm doc/_build/.buildinfo
         rm -rf doc/_build/_sphinx_design_static/
 
-        # Stage the static website
-        mkdir -p "${CRAFT_STAGE}/share/lxd-documentation"
-        cp -a doc/_build/. "${CRAFT_STAGE}/share/lxd-documentation/"
+        # Copy the static website
+        mkdir -p "${CRAFT_PART_INSTALL}/share/lxd-documentation"
+        cp -a doc/_build/. "${CRAFT_PART_INSTALL}/share/lxd-documentation/"
       fi
 
       # Setup bash completion
       mkdir -p "${CRAFT_PART_INSTALL}/etc/bash_completion.d/"
-      cp scripts/bash/lxd-client "${CRAFT_PART_INSTALL}/etc/bash_completion.d/snap.lxd.lxc"
+      # Snapd requires the unaliased command `lxd.lxc` to be supplied as the first command for completion to be detected
+      set_cmds='s/^\s*complete.*__start_lxc /&lxd.lxc /'
+      # When executed by snapd, the COLUMNS shell value is unset, so use $(tput cols) instead
+      set_cols='s/# $COLUMNS.*/COLUMN="$(tput cols)"  \# store the current shell width./'
+      # When executed by snapd, the `compopt` support detection doesn't work so fake that it is always `builtin`
+      set_compopt='s|$(type -t compopt)|"builtin"|'
+      # Modify requestComp variable to use lxc based on context ($SNAP/bin/lxc in Snap environment)
+      set_request_comp='s|requestComp="${words\[0\]} __complete ${args\[\*\]}"|requestComp="/snap/lxd/current/bin/lxc __complete ${args[*]}"|'
+      # Generate completions script
+      "${CRAFT_PART_INSTALL}/bin/lxc" completion bash | sed -e "${set_cmds}" -e "${set_cols}" -e "${set_compopt}" -e "${set_request_comp}" > "${CRAFT_PART_INSTALL}/etc/bash_completion.d/snap.lxd.lxc"
     organize:
       usr/bin/: bin/
       usr/lib/: lib/
       usr/share/misc/: share/misc/
       var/lib/usbutils/usb.ids: share/misc/
       usr/sbin/: bin/
-      sbin/: bin/
+      sbin/iw: bin/ # core22 installs iw in sbin (not needed for core24 which installs to usr/sbin)
+      sbin/sgdisk: bin/
     prime:
       - bin/dnsmasq
       - bin/getfattr
@@ -1525,13 +1603,14 @@ parts:
 
       - etc/bash_completion.d/snap.lxd.lxc
 
+      - share/lxd-documentation*
       - share/misc/pci.ids
       - share/misc/usb.ids
 
       - bin/lxc
-      - bin/lxd
       - bin/lxd-agent
       - bin/lxd-user
+      - sbin/lxd
 
   lxd-ui:
     source: https://github.com/canonical/lxd-ui
@@ -1595,6 +1674,7 @@ parts:
       - criu
       - lxd
       - shmounts
+      - nvidia-container-toolkit
     plugin: nil
     override-prime: |
       set -x
@@ -1606,10 +1686,12 @@ parts:
       rm -rf "${CRAFT_PRIME}/usr/share/"
 
       # Strip binaries (excluding shell scripts and LXCFS)
+      # The "${CRAFT_PRIME}/bin/lxd" file is ignored as that is the lxd-stophook wrapper script.
       find "${CRAFT_PRIME}"/bin -type f \
         -not -path "${CRAFT_PRIME}/bin/ceph" \
         -not -path "${CRAFT_PRIME}/bin/editor" \
         -not -path "${CRAFT_PRIME}/bin/lxc-checkconfig" \
+        -not -path "${CRAFT_PRIME}/bin/lxd" \
         -not -path "${CRAFT_PRIME}/bin/nvidia-container-cli" \
         -not -path "${CRAFT_PRIME}/bin/remote-viewer" \
         -not -path "${CRAFT_PRIME}/bin/snap-query" \
@@ -1618,7 +1700,11 @@ parts:
         -not -path "${CRAFT_PRIME}/bin/xfs_admin" \
         -not -path "${CRAFT_PRIME}/bin/uefivars.py" \
         -not -path "${CRAFT_PRIME}/bin/lxcfs" \
-        -exec strip -s {} +
+        -not -path "${CRAFT_PRIME}/bin/gpu-2404-custom-wrapper" \
+        -exec strip --strip-all {} +
+
+      # This is the actual LXD binary.
+      strip --strip-all "${CRAFT_PRIME}/sbin/lxd"
 
       # Strip binaries not under bin/ due to being dynamically
       # added to the path with `snap set lxd`, like `criu.enable=true`
@@ -1638,13 +1724,6 @@ parts:
         -not -path "${CRAFT_PRIME}/lib/python3/*" \
         -not -path "${CRAFT_PRIME}/lib/liblxcfs.so" \
         -exec strip -s {} +
-
-      if [ "$(uname -m)" != "riscv64" ]; then
-          # Prime the documentation only if the arch is not riscv64.
-          # Some python dependencies are not available for riscv64 or just require a build from source.
-          # Not worth the effort for now.
-          cp -r "${CRAFT_STAGE}/share/lxd-documentation" "${CRAFT_PRIME}/share/"
-      fi
 
       # Delete empty directories
       find "${CRAFT_PRIME}/" -type d -empty -print -delete
@@ -1668,6 +1747,7 @@ parts:
     organize:
       commands/snap-query: bin/
       hooks/: snap/hooks/
+      wrappers/lxd-stophook: bin/lxd
       wrappers/editor: bin/
       wrappers/remote-viewer: bin/
       wrappers/sshfs: bin/

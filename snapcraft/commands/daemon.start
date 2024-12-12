@@ -23,7 +23,7 @@ export HOME="/tmp/"
 export LXD_DIR="${SNAP_COMMON}/lxd/"
 export LXD_LXC_TEMPLATE_CONFIG="${SNAP_CURRENT}/lxc/config/"
 export LXD_LXC_HOOK="${SNAP_CURRENT}/lxc/hooks/"
-export LXD_EXEC_PATH="${SNAP_CURRENT}/bin/lxd"
+export LXD_EXEC_PATH="${SNAP_CURRENT}/sbin/lxd"
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:${SNAP_CURRENT}/lib:${SNAP_CURRENT}/lib/${ARCH}:${SNAP_CURRENT}/lib/${ARCH}/ceph"
 export PATH="${PATH}:${SNAP_CURRENT}/bin"
 export LXD_CLUSTER_UPDATE="${SNAP_CURRENT}/commands/refresh"
@@ -204,6 +204,12 @@ if [ "${lvm_external:-"false"}" = "true" ]; then
     ln -s "${SNAP}/wrappers/run-host" "/run/bin/lvresize"
 fi
 
+if [ "${zfs_external:-"false"}" = "true" ]; then
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/zfs"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/zpool"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/zvol_id"
+fi
+
 # Detect presence of sideloaded lxd-agent executable.
 if [ -x "${SNAP_COMMON}/lxd-agent.debug" ]; then
     echo "==> WARNING: Using a custom debug lxd-agent binary!"
@@ -311,19 +317,16 @@ else
 fi
 
 # Setup for LVM
-echo "==> Setting up LVM configuration"
-mkdir -p /etc/lvm/
-sed \
-    -e "s#obtain_device_list_from_udev = 1#obtain_device_list_from_udev = 0#g" \
-    -e "s#cache_file_prefix = \"\"#cache_file_prefix = \"lxd\"#g" \
-    -e "s#udev_sync = 1#udev_sync = 0#g" \
-    -e "s#udev_rules = 1#udev_rules = 0#g" \
-    -e "s#use_lvmetad = 1#use_lvmetad = 0#g" \
-    -e "s#monitoring = 1#monitoring = 0#g" \
-    -e "s%# executable = \"/sbin/dmeventd\"%executable = \"${SNAP}/bin/dmeventd\"%g" \
-    -e "/# .*_executable =/s/# //g" \
-    -e "s#/usr/sbin/#${SNAP}/bin/#g" \
-    "${SNAP}/etc/lvm/lvm.conf" > /etc/lvm/lvm.conf
+if [ "${lvm_external:-"false"}" = "false" ]; then
+    echo "==> Setting up LVM configuration"
+    # XXX: the directory ${SNAP}/etc/lvm cannot be symlink'ed as LVM tools try
+    # to create /etc/lvm/{archive,backup} dirs which is not possible as ${SNAP}
+    # is read-only.
+    mkdir -p /etc/lvm
+    ln -sf "${SNAP}/etc/lvm/lvm.conf" /etc/lvm/
+    # the /etc/lvm/profile dir is however only read from so a symlink is OK
+    ln -sf "${SNAP}/etc/lvm/profile" /etc/lvm/
+fi
 
 # Setup for OVN
 echo "==> Setting up OVN configuration"
@@ -370,22 +373,28 @@ echo "==> Rotating logs"
 logrotate -f "${SNAP}/etc/logrotate.conf" -s "/etc/logrotate.status" || true
 
 # Setup for ZFS
-if [ -e /sys/module/zfs/version ]; then
-    read -r VERSION < /sys/module/zfs/version
-else
-    VERSION=$(nsenter -t 1 -m modinfo -F version zfs 2>/dev/null || true)
-fi
+if [ "${zfs_external:-"false"}" = "false" ]; then
+    if [ -e /sys/module/zfs/version ]; then
+        read -r VERSION < /sys/module/zfs/version
+    else
+        VERSION=$(nsenter -t 1 -m modinfo -F version zfs 2>/dev/null || true)
+    fi
 
-ZFS_VER="$(echo "${VERSION}" | cut -c 1-3)"
+    ZFS_VER="$(echo "${VERSION}" | cut -c 1-3)"
 
-if [ -d "${SNAP_CURRENT}/zfs-${ZFS_VER}/bin" ]; then
-    echo "==> Setting up ZFS (${ZFS_VER})"
-    export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-${ZFS_VER}/lib/:${LD_LIBRARY_PATH}"
-    export PATH="${SNAP_CURRENT}/zfs-${ZFS_VER}/bin:${PATH}"
-elif [ -n "${ZFS_VER}" ]; then
-    echo "==> Unsupported ZFS version (${ZFS_VER})"
+    if [ -d "${SNAP_CURRENT}/zfs-${ZFS_VER}/bin" ]; then
+        echo "==> Setting up ZFS (${ZFS_VER})"
+        export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-${ZFS_VER}/lib/:${LD_LIBRARY_PATH}"
+        export PATH="${SNAP_CURRENT}/zfs-${ZFS_VER}/bin:${PATH}"
+    elif [ -n "${ZFS_VER}" ]; then
+        echo "==> Unsupported ZFS version (${ZFS_VER})"
+        echo "Consider installing ZFS tools in the host and use zfs.external"
+    else
+        echo "==> No ZFS support"
+        echo "Consider installing ZFS tools in the host and use zfs.external"
+    fi
 else
-    echo "==> No ZFS support"
+    echo "==> Using ZFS tools from the host system"
 fi
 
 # Escape resource limits

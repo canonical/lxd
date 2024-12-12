@@ -58,6 +58,7 @@ openvswitch_builtin=$(get_bool "$(snapctl get openvswitch.builtin)")
 openvswitch_external=$(get_bool "$(snapctl get openvswitch.external)")
 ovn_builtin=$(get_bool "$(snapctl get ovn.builtin)")
 ui_enable=$(get_bool "$(snapctl get ui.enable)")
+zfs_external=$(get_bool "$(snapctl get zfs.external)")
 
 # Special-handling of daemon.preseed
 daemon_preseed=$(snapctl get daemon.preseed)
@@ -89,6 +90,7 @@ openvswitch_builtin=${openvswitch_builtin:-"false"}
 openvswitch_external=${openvswitch_external:-"false"}
 ovn_builtin=${ovn_builtin:-"false"}
 ui_enable=${ui_enable:-"true"}
+zfs_external=${zfs_external:-"false"}
 EOC
 
 # Set socket ownership in case it changed
