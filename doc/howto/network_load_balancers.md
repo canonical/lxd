@@ -59,7 +59,7 @@ The backend target address must be within the same subnet as the network that th
 Use the following command to add a backend specification:
 
 ```bash
-lxc network load-balancer backend add <network_name> <listen_address> <backend_name> <listen_ports> <target_address> [<target_ports>]
+lxc network load-balancer backend add <network_name> <listen_address> <backend_name> <target_address> [<target_ports>]
 ```
 
 The target ports are optional.
