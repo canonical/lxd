@@ -2892,13 +2892,13 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 	}
 
 	// Get current config to compare what has changed.
-	curVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
+	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
 	if err != nil {
 		return err
 	}
 
 	// Apply config changes if there are any.
-	changedConfig, userOnly := b.detectChangedConfig(curVol.Config, newConfig)
+	changedConfig, userOnly := b.detectChangedConfig(dbVol.Config, newConfig)
 	if len(changedConfig) != 0 {
 		// Check that the volume's size property isn't being changed.
 		if changedConfig["size"] != "" {
@@ -2921,16 +2921,10 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 		}
 
 		if shared.IsFalseOrEmpty(changedConfig["security.shared"]) && volDBType == cluster.StoragePoolVolumeTypeVM {
-			err = allowRemoveSecurityShared(b.state, inst.Project().Name, &curVol.StorageVolume)
+			err = allowRemoveSecurityShared(b.state, inst.Project().Name, &dbVol.StorageVolume)
 			if err != nil {
 				return err
 			}
-		}
-
-		// Load storage volume from database.
-		dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
-		if err != nil {
-			return err
 		}
 
 		// Generate the effective root device volume for instance.
@@ -2950,7 +2944,7 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 	}
 
 	// Update the database if something changed.
-	if len(changedConfig) != 0 || newDesc != curVol.Description {
+	if len(changedConfig) != 0 || newDesc != dbVol.Description {
 		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpdateStoragePoolVolume(ctx, inst.Project().Name, inst.Name(), volDBType, b.ID(), newDesc, newConfig)
 		})
