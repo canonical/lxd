@@ -263,6 +263,9 @@ jobs:
         with:
           microceph-channel: "squid/candidate"
 
+      - name: Setup MicroOVN
+        uses: ./.github/actions/setup-microovn
+
       - name: Make GOCOVERDIR
         run: |
           set -eux
