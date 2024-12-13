@@ -389,9 +389,9 @@ func (g *cmdGlobal) cmpInstanceSetKeys(instanceName string) ([]string, cobra.She
 }
 
 // cmpServerAllKeys provides shell completion for all server configuration keys.
-// It takes an instance name and returns a list of all server configuration keys along with a shell completion directive.
-func (g *cmdGlobal) cmpServerAllKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
-	resources, err := g.ParseServers(instanceName)
+// It takes a partial input string and returns a list of all server configuration keys along with a shell completion directive.
+func (g *cmdGlobal) cmpServerAllKeys(toComplete string) ([]string, cobra.ShellCompDirective) {
+	resources, err := g.ParseServers(toComplete)
 	if err != nil || len(resources) == 0 {
 		return nil, cobra.ShellCompDirectiveError
 	}
