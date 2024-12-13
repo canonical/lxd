@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -479,7 +480,18 @@ func (d *cephfs) Validate(config map[string]string) error {
 		"volatile.pool.pristine": validate.IsAny,
 	}
 
-	return d.validatePool(config, rules, nil)
+	// This overrides the common driver rule for security.shared.
+	volumeRules := map[string]func(value string) error{
+		"security.shared": func(value string) error {
+			if value != "" {
+				return errors.New(`Setting "security.shared" is not allowed for cephfs as it doesn't support block volumes`)
+			}
+
+			return nil
+		},
+	}
+
+	return d.validatePool(config, rules, volumeRules)
 }
 
 // Update applies any driver changes required from a configuration change.

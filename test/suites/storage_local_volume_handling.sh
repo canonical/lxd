@@ -66,6 +66,18 @@ test_storage_local_volume_handling() {
     lxc storage volume set "${pool}" vol1 user.foo=snap0
     lxc storage volume set "${pool}" vol1 snapshots.expiry=1H
 
+    lxc storage volume create "${pool}" blockVol --type=block
+    truncate -s 25MiB foo.iso
+    lxc storage volume import "${pool}" ./foo.iso isoVol
+
+    # security.shared is only allowed for block volumes
+    ! lxc storage volume set "${pool}" vol1 security.shared true || false
+    ! lxc storage volume set "${pool}" isoVol security.shared true || false
+    lxc storage volume set "${pool}" blockVol security.shared true
+
+    lxc storage volume delete "${pool}" blockVol
+    lxc storage volume delete "${pool}" isoVol
+
     # This will create the snapshot vol1/snap0
     lxc storage volume snapshot "${pool}" vol1
 
@@ -292,7 +304,6 @@ test_storage_local_volume_handling() {
           [ "$(lxc storage volume get "${target_pool}" vol5/snap0 volatile.uuid)" = "${old_snap0_uuid}" ]
 
           # copy ISO custom volumes
-          truncate -s 25MiB foo.iso
           lxc storage volume import "${source_pool}" ./foo.iso iso1
           lxc storage volume copy "${source_pool}/iso1" "${target_pool}/iso1"
           lxc storage volume show "${target_pool}" iso1 | grep -q 'content_type: iso'
@@ -311,10 +322,11 @@ test_storage_local_volume_handling() {
           lxc storage volume delete "${source_pool}" vol6
           lxc storage volume delete "${target_pool}" iso1
           lxc storage volume delete "${target_pool}" iso2
-          rm -f foo.iso
         fi
       done
     done
+
+    rm -f foo.iso
   )
 
   # shellcheck disable=SC2031,2269
