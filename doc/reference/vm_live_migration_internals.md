@@ -36,7 +36,7 @@ Non-Shared Storage Migration
 
 The state transitions during the process are shown below:
 
-```{figure} /images/vm_live_migration_fsa_diagram.svg
+```{figure} /images/vm_live_migration_state_diagram.svg
 Non-Shared Storage Migration State Transitions
 ```
 
