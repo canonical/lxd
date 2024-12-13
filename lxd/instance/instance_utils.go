@@ -128,6 +128,40 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 }
 
 func validConfigKey(os *sys.OS, key string, value string, instanceType instancetype.Type) error {
+	// Check if the key is a valid prefix and whether or not it requires a subkey.
+	knownPrefixes := append(instancetype.ConfigKeyPrefixesAny, instancetype.ConfigKeyPrefixesContainer...)
+	if strings.HasSuffix(key, ".") {
+		// Disallow keys with container-specific prefixes such as "linux.sysctl." and "limits.kernel." for VMs.
+		if instanceType == instancetype.VM && shared.StringHasPrefix(key, instancetype.ConfigKeyPrefixesContainer...) {
+			return fmt.Errorf("%q isn't supported for %q", key, instanceType)
+		}
+
+		if !(key == instancetype.ConfigVolatilePrefix || shared.ValueInSlice(key, knownPrefixes)) {
+			// Not a known prefix.
+			return fmt.Errorf("Unknown configuration key: %q", key)
+		}
+
+		return fmt.Errorf("%q requires a subkey", key)
+	}
+
+	// Validate the configuration key against instance type for containers and VMs.
+	// Ignore configuration keys with known prefixes since usage has already been validated, and ConfigKeyChecker validates keys syntactically.
+	if instanceType != instancetype.Any && !shared.StringHasPrefix(key, knownPrefixes...) && !strings.HasPrefix(key, instancetype.ConfigVolatilePrefix) {
+		// Ensure key is present in instance config key map based on type.
+		exists := false
+		switch instanceType {
+		case instancetype.VM:
+			_, exists = instancetype.InstanceConfigKeysVM[key]
+		case instancetype.Container:
+			_, exists = instancetype.InstanceConfigKeysContainer[key]
+		}
+
+		_, existsAny := instancetype.InstanceConfigKeysAny[key]
+		if !(exists || existsAny) {
+			return fmt.Errorf("%q isn't supported for %q", key, instanceType)
+		}
+	}
+
 	f, err := instancetype.ConfigKeyChecker(key, instanceType)
 	if err != nil {
 		return err
@@ -135,10 +169,6 @@ func validConfigKey(os *sys.OS, key string, value string, instanceType instancet
 
 	if err = f(value); err != nil {
 		return err
-	}
-
-	if strings.HasPrefix(key, "limits.kernel.") && instanceType == instancetype.VM {
-		return fmt.Errorf("%s isn't supported for VMs", key)
 	}
 
 	if key == "raw.lxc" {
