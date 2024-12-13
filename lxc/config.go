@@ -24,7 +24,7 @@ type cmdConfig struct {
 	flagTarget string
 }
 
-// Command creates a Cobra command for managing instance and server configurations,
+// command creates a Cobra command for managing instance and server configurations,
 // including options for device, edit, get, metadata, profile, set, show, template, trust, and unset.
 func (c *cmdConfig) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -92,7 +92,7 @@ type cmdConfigEdit struct {
 	config *cmdConfig
 }
 
-// Command creates a Cobra command to edit instance or server configurations using YAML, with optional flags for targeting cluster members.
+// command creates a Cobra command to edit instance or server configurations using YAML, with optional flags for targeting cluster members.
 func (c *cmdConfigEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:][<instance>[/<snapshot>]]"))
@@ -139,7 +139,7 @@ func (c *cmdConfigEdit) helpTemplate() string {
 ### Note that the name is shown but cannot be changed`)
 }
 
-// Run executes the config edit command, allowing users to edit instance or server configurations via an interactive YAML editor.
+// run executes the config edit command, allowing users to edit instance or server configurations via an interactive YAML editor.
 func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
@@ -384,7 +384,7 @@ type cmdConfigGet struct {
 	flagIsProperty bool
 }
 
-// Command creates a Cobra command to fetch values for given instance or server configuration keys,
+// command creates a Cobra command to fetch values for given instance or server configuration keys,
 // with optional flags for expanded configuration and cluster targeting.
 func (c *cmdConfigGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -417,7 +417,7 @@ func (c *cmdConfigGet) command() *cobra.Command {
 	return cmd
 }
 
-// Run fetches and prints the specified configuration key's value for an instance or server, also handling target and expansion flags.
+// run fetches and prints the specified configuration key's value for an instance or server, also handling target and expansion flags.
 func (c *cmdConfigGet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
@@ -534,7 +534,7 @@ type cmdConfigSet struct {
 	flagIsProperty bool
 }
 
-// Command creates a new Cobra command to set instance or server configuration keys and returns it.
+// command creates a new Cobra command to set instance or server configuration keys and returns it.
 func (c *cmdConfigSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:][<instance>] <key>=<value>..."))
@@ -577,7 +577,7 @@ lxc config set core.trust_password=blah
 	return cmd
 }
 
-// Run executes the "set" command, updating instance or server configuration keys based on provided arguments.
+// run executes the "set" command, updating instance or server configuration keys based on provided arguments.
 func (c *cmdConfigSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
@@ -767,7 +767,7 @@ type cmdConfigShow struct {
 	flagExpanded bool
 }
 
-// Command sets up the "show" command, which displays instance or server configurations based on the provided arguments.
+// command sets up the "show" command, which displays instance or server configurations based on the provided arguments.
 func (c *cmdConfigShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:][<instance>[/<snapshot>]]"))
@@ -790,7 +790,7 @@ func (c *cmdConfigShow) command() *cobra.Command {
 	return cmd
 }
 
-// Run executes the "show" command, displaying the YAML-formatted configuration of a specified server or instance.
+// run executes the "show" command, displaying the YAML-formatted configuration of a specified server or instance.
 func (c *cmdConfigShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
@@ -899,7 +899,7 @@ type cmdConfigUnset struct {
 	flagIsProperty bool
 }
 
-// Command generates a new "unset" command to remove specific configuration keys for an instance or server.
+// command generates a new "unset" command to remove specific configuration keys for an instance or server.
 func (c *cmdConfigUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:][<instance>] <key>"))
@@ -931,7 +931,7 @@ func (c *cmdConfigUnset) command() *cobra.Command {
 	return cmd
 }
 
-// Run executes the "unset" command, delegating to the "set" command to remove specific configuration keys.
+// run executes the "unset" command, delegating to the "set" command to remove specific configuration keys.
 func (c *cmdConfigUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
@@ -950,7 +950,7 @@ type cmdConfigUefi struct {
 	config *cmdConfig
 }
 
-// Command creates a Cobra command for managing virtual machine instance UEFI variables,
+// command creates a Cobra command for managing virtual machine instance UEFI variables,
 // including options for get, set, unset, show, edit.
 func (c *cmdConfigUefi) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -991,7 +991,7 @@ type cmdConfigUefiGet struct {
 	configUefi *cmdConfigUefi
 }
 
-// Command creates a Cobra command to fetch virtual machine instance UEFI variables.
+// command creates a Cobra command to fetch virtual machine instance UEFI variables.
 func (c *cmdConfigUefiGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<instance> <key>"))
@@ -1004,7 +1004,7 @@ func (c *cmdConfigUefiGet) command() *cobra.Command {
 	return cmd
 }
 
-// Run fetches and prints the specified UEFI variable's value.
+// run fetches and prints the specified UEFI variable's value.
 func (c *cmdConfigUefiGet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -1046,7 +1046,7 @@ type cmdConfigUefiSet struct {
 	configUefi *cmdConfigUefi
 }
 
-// Command creates a new Cobra command to set virtual machine instance UEFI variables.
+// command creates a new Cobra command to set virtual machine instance UEFI variables.
 func (c *cmdConfigUefiSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<instance> <key>=<value>..."))
@@ -1062,7 +1062,7 @@ func (c *cmdConfigUefiSet) command() *cobra.Command {
 	return cmd
 }
 
-// Run executes the "set" command, updating virtual machine instance UEFI variables based on provided arguments.
+// run executes the "set" command, updating virtual machine instance UEFI variables based on provided arguments.
 func (c *cmdConfigUefiSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -1137,7 +1137,7 @@ type cmdConfigUefiUnset struct {
 	configSet  *cmdConfigUefiSet
 }
 
-// Command generates a new "unset" command to remove specific virtual machine instance UEFI variable.
+// command generates a new "unset" command to remove specific virtual machine instance UEFI variable.
 func (c *cmdConfigUefiUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<instance> <key>"))
@@ -1150,7 +1150,7 @@ func (c *cmdConfigUefiUnset) command() *cobra.Command {
 	return cmd
 }
 
-// Run executes the "unset" command, delegating to the "set" command to remove specific UEFI variable.
+// run executes the "unset" command, delegating to the "set" command to remove specific UEFI variable.
 func (c *cmdConfigUefiUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -1168,7 +1168,7 @@ type cmdConfigUefiShow struct {
 	configUefi *cmdConfigUefi
 }
 
-// Command sets up the "show" command, which displays virtual machine instance UEFI variables based on the provided arguments.
+// command sets up the "show" command, which displays virtual machine instance UEFI variables based on the provided arguments.
 func (c *cmdConfigUefiShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<instance>"))
@@ -1181,7 +1181,7 @@ func (c *cmdConfigUefiShow) command() *cobra.Command {
 	return cmd
 }
 
-// Run executes the "show" command, displaying the YAML-formatted configuration of a virtual machine instance UEFI variables.
+// run executes the "show" command, displaying the YAML-formatted configuration of a virtual machine instance UEFI variables.
 func (c *cmdConfigUefiShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -1222,7 +1222,7 @@ type cmdConfigUefiEdit struct {
 	configUefi *cmdConfigUefi
 }
 
-// Command creates a Cobra command to edit virtual machine instance UEFI variables.
+// command creates a Cobra command to edit virtual machine instance UEFI variables.
 func (c *cmdConfigUefiEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<instance>"))
@@ -1273,7 +1273,7 @@ func (c *cmdConfigUefiEdit) helpTemplate() string {
 ###`)
 }
 
-// Run executes the config edit command, allowing users to edit virtual machine instance UEFI variables via an interactive YAML editor.
+// run executes the config edit command, allowing users to edit virtual machine instance UEFI variables via an interactive YAML editor.
 func (c *cmdConfigUefiEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
