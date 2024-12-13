@@ -902,7 +902,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 		}
 
 		revert.Add(cleanup)
-		defer snapInstOp.Done(err) //nolint:revive
+		defer snapInstOp.Done(err)
 
 		// Recreate missing mountpoints and symlinks.
 		volStorageName := project.Instance(projectName, snapInstName)
