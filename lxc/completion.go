@@ -342,7 +342,7 @@ func (g *cmdGlobal) cmpInstanceSetKeys(instanceName string) ([]string, cobra.She
 	// Early return when completing server keys.
 	_, instanceNameOnly, found := strings.Cut(instanceName, ":")
 	if instanceNameOnly == "" && found {
-		return g.cmpServerAllKeys(instanceName)
+		return g.cmpServerSetKeys(instanceName)
 	}
 
 	resources, err := g.ParseServers(instanceName)
@@ -425,6 +425,46 @@ func (g *cmdGlobal) cmpServerAllKeys(toComplete string) ([]string, cobra.ShellCo
 	}
 
 	return keys, cobra.ShellCompDirectiveNoFileComp
+}
+
+// cmpServerSetKeys provides shell completion for server configuration keys which are currently set.
+// It takes a partial input string and returns a list of server configuration keys along with a shell completion directive.
+func (g *cmdGlobal) cmpServerSetKeys(toComplete string) ([]string, cobra.ShellCompDirective) {
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
+
+	resources, err := g.ParseServers(toComplete)
+	if err != nil || len(resources) == 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+	server, _, err := resource.server.GetServer()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	// Fetch all server config keys that can be set.
+	allServerConfigKeys, _ := g.cmpServerAllKeys(resource.remote)
+
+	// Convert slice to map[string]struct{} for O(1) lookups.
+	keySet := make(map[string]struct{}, len(allServerConfigKeys))
+	for _, key := range allServerConfigKeys {
+		keySet[key] = struct{}{}
+	}
+
+	// Pre-allocate configKeys slice capacity.
+	keyCount := len(allServerConfigKeys)
+	configKeys := make([]string, 0, keyCount)
+
+	for configKey := range server.Config {
+		// We only want to return the intersection between allServerConfigKeys and configKeys to avoid returning the full server config.
+		_, exists := keySet[configKey]
+		if exists {
+			configKeys = append(configKeys, configKey)
+		}
+	}
+
+	return configKeys, cmpDirectives | cobra.ShellCompDirectiveNoSpace
 }
 
 // cmpInstanceConfigTemplates provides shell completion for instance config templates.
