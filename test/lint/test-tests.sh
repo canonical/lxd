@@ -5,6 +5,8 @@ set -o pipefail
 # This is a meta-test as it tests the tests themselves. It makes sure that all
 # the exising test functions are being called by the test suite.
 
+# It also check there are no invalid test constructs like: `! cmd_should_fail || true`
+
 # Ensure predictable sorting
 export LC_ALL=C.UTF-8
 
@@ -49,3 +51,10 @@ diff -Nau "${CALLED_TESTS}" "${EXISTING_TESTS}"
 
 # Cleanup
 rm -f "${CALLED_TESTS}" "${EXISTING_TESTS}" "${SKIPPED_TESTS}" "${REQUIRED_TESTS}"
+
+
+# Check for invalid test constructs
+if grep -rlE '\!.* \|\| true$' test/; then
+    echo "Some tests commands are ignoring expected failures (! cmd_should_fail || true)" >&2
+    exit 1
+fi
