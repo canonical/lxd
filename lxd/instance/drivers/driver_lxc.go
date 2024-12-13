@@ -2376,7 +2376,7 @@ func (d *lxc) Start(stateful bool) error {
 	// Setup a new operation.
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
-		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
+		if errors.Is(err, operationlock.ErrNonReusableSucceeded) {
 			// An existing matching operation has now succeeded, return.
 			return nil
 		}
@@ -2630,7 +2630,7 @@ func (d *lxc) Stop(stateful bool) error {
 	// Setup a new operation
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, true)
 	if err != nil {
-		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
+		if errors.Is(err, operationlock.ErrNonReusableSucceeded) {
 			// An existing matching operation has now succeeded, return.
 			return nil
 		}
@@ -2813,7 +2813,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 	// Setup a new operation
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart}, true, true)
 	if err != nil {
-		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
+		if errors.Is(err, operationlock.ErrNonReusableSucceeded) {
 			// An existing matching operation has now succeeded, return.
 			return nil
 		}
