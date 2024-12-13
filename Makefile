@@ -246,8 +246,8 @@ po/%.po: po/$(DOMAIN).pot
 .PHONY: update-po
 update-po:
 	set -eu; \
-	for lang in $(LINGUAS); do\
-	    msgmerge --backup=none -U $$lang.po po/$(DOMAIN).pot; \
+	for lang in $(LINGUAS); do \
+		msgmerge --backup=none -U $$lang.po po/$(DOMAIN).pot; \
 	done; \
 	if [ -t 0 ] && ! git diff --quiet -- po/*.po; then \
 		read -rp "Would you like to commit i18n changes (Y/n)? " answer; \
