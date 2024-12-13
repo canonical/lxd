@@ -21,7 +21,7 @@ echo "Checking that the metadata is up to date..."
 metadata_hash "$hash_before"
 cp "${json_metadata}" "${json_metadata}.bak"
 cp "${doc_config_options}" "${doc_config_options}.bak"
-make update-metadata -s
+make update-metadata --silent 2>&1 | grep -vF ' Found lxddoc at '
 metadata_hash "$hash_after"
 mv "${json_metadata}.bak" "${json_metadata}"
 mv "${doc_config_options}.bak" "${doc_config_options}"
