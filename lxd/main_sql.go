@@ -6,15 +6,16 @@ import (
 	"io"
 	"os"
 
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
+	cli "github.com/canonical/lxd/shared/cmd"
 )
 
 type cmdSQL struct {
-	global *cmdGlobal
+	global     *cmdGlobal
+	flagFormat string
 }
 
 func (c *cmdSQL) command() *cobra.Command {
@@ -52,6 +53,7 @@ func (c *cmdSQL) command() *cobra.Command {
 `
 	cmd.RunE = c.run
 	cmd.Hidden = true
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", cli.TableFormatSQLResult, `Format (sql|csv|json|table|yaml|compact) (default "sql")`)
 
 	return cmd
 }
@@ -139,7 +141,10 @@ func (c *cmdSQL) run(cmd *cobra.Command, args []string) error {
 		}
 
 		if result.Type == "select" {
-			sqlPrintSelectResult(result)
+			err = sqlPrintSelectResult(c.flagFormat, result)
+			if err != nil {
+				return err
+			}
 		} else {
 			fmt.Printf("Rows affected: %d\n", result.RowsAffected)
 		}
@@ -151,20 +156,16 @@ func (c *cmdSQL) run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func sqlPrintSelectResult(result internalSQLResult) {
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetAutoWrapText(false)
-	table.SetAutoFormatHeaders(false)
-	table.SetHeader(result.Columns)
+func sqlPrintSelectResult(format string, result internalSQLResult) error {
+	data := make([][]string, 0, len(result.Rows))
 	for _, row := range result.Rows {
-		data := []string{}
+		r := make([]string, 0, len(row))
 		for _, col := range row {
-			data = append(data, fmt.Sprintf("%v", col))
+			r = append(r, fmt.Sprintf("%v", col))
 		}
 
-		table.Append(data)
+		data = append(data, r)
 	}
 
-	table.Render()
+	return cli.RenderTable(format, result.Columns, data, result)
 }
