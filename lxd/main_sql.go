@@ -161,7 +161,7 @@ func sqlPrintSelectResult(format string, result internalSQLResult) error {
 	for _, row := range result.Rows {
 		r := make([]string, 0, len(row))
 		for _, col := range row {
-			r = append(r, fmt.Sprintf("%v", col))
+			r = append(r, fmt.Sprint(col))
 		}
 
 		data = append(data, r)
