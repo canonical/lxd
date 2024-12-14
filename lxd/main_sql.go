@@ -13,11 +13,11 @@ import (
 	"github.com/canonical/lxd/shared"
 )
 
-type cmdSql struct {
+type cmdSQL struct {
 	global *cmdGlobal
 }
 
-func (c *cmdSql) command() *cobra.Command {
+func (c *cmdSQL) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "sql <local|global> <query>"
 	cmd.Short = "Execute a SQL query against the LXD local or global database"
@@ -56,7 +56,7 @@ func (c *cmdSql) command() *cobra.Command {
 	return cmd
 }
 
-func (c *cmdSql) run(cmd *cobra.Command, args []string) error {
+func (c *cmdSQL) run(cmd *cobra.Command, args []string) error {
 	if len(args) != 2 {
 		_ = cmd.Help()
 
