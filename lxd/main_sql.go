@@ -17,7 +17,7 @@ type cmdSql struct {
 	global *cmdGlobal
 }
 
-func (c *cmdSql) Command() *cobra.Command {
+func (c *cmdSql) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "sql <local|global> <query>"
 	cmd.Short = "Execute a SQL query against the LXD local or global database"
@@ -50,13 +50,13 @@ func (c *cmdSql) Command() *cobra.Command {
   This command targets the global LXD database and works in both local
   and cluster mode.
 `
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Hidden = true
 
 	return cmd
 }
 
-func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdSql) run(cmd *cobra.Command, args []string) error {
 	if len(args) != 2 {
 		_ = cmd.Help()
 
