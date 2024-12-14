@@ -10,7 +10,7 @@ on:
     - cron: '0 0 * * *'  # Test TICS daily
 
 env:
-  LXD_REQUIRED_TESTS: "storage_buckets"
+  LXD_REQUIRED_TESTS: "storage_buckets,network_ovn"
   LXD_SKIP_TESTS: "clustering_upgrade clustering_upgrade_large"
   GOCOVERDIR: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && '/home/runner/work/lxd/lxd/coverage' || '' }}
 
