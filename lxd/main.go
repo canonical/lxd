@@ -209,7 +209,7 @@ func main() {
 
 	// sql sub-command
 	sqlCmd := cmdSql{global: &globalCmd}
-	app.AddCommand(sqlCmd.Command())
+	app.AddCommand(sqlCmd.command())
 
 	// version sub-command
 	versionCmd := cmdVersion{global: &globalCmd}
