@@ -149,7 +149,7 @@ func anyToSlice(slice any) ([]any, error) {
 		return nil, nil
 	}
 
-	ret := make([]interface{}, s.Len())
+	ret := make([]any, s.Len())
 
 	for i := 0; i < s.Len(); i++ {
 		ret[i] = s.Index(i).Interface()
