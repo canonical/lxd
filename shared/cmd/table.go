@@ -15,11 +15,12 @@ import (
 
 // Table list format.
 const (
-	TableFormatCSV     = "csv"
-	TableFormatJSON    = "json"
-	TableFormatTable   = "table"
-	TableFormatYAML    = "yaml"
-	TableFormatCompact = "compact"
+	TableFormatCSV       = "csv"
+	TableFormatJSON      = "json"
+	TableFormatTable     = "table"
+	TableFormatYAML      = "yaml"
+	TableFormatCompact   = "compact"
+	TableFormatSQLResult = "sql"
 )
 
 // RenderTable renders tabular data in various formats.
@@ -34,6 +35,10 @@ func RenderTable(format string, header []string, data [][]string, raw any) error
 		table.SetColumnSeparator("")
 		table.SetHeaderLine(false)
 		table.SetBorder(false)
+		table.Render()
+	case TableFormatSQLResult:
+		table := getBaseTable(header, data)
+		table.SetAutoFormatHeaders(false)
 		table.Render()
 	case TableFormatCSV:
 		w := csv.NewWriter(os.Stdout)
