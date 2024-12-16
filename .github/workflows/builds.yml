@@ -2,7 +2,6 @@ name: Builds
 on:
   push:
     branches:
-      - latest-edge
       - 5.0-edge
 
 permissions:
