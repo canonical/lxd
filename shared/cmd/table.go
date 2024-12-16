@@ -10,17 +10,24 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
 
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/i18n"
 )
 
 // Table list format.
 const (
-	TableFormatCSV     = "csv"
-	TableFormatJSON    = "json"
-	TableFormatTable   = "table"
-	TableFormatYAML    = "yaml"
-	TableFormatCompact = "compact"
+	TableFormatCSV       = "csv"
+	TableFormatJSON      = "json"
+	TableFormatTable     = "table"
+	TableFormatYAML      = "yaml"
+	TableFormatCompact   = "compact"
+	TableFormatSQLResult = "sql"
 )
+
+// isTableFormat returns true if the given format can be rendered as an actual table or csv with columns and rows.
+func isTableFormat(format string) bool {
+	return shared.ValueInSlice(format, []string{TableFormatTable, TableFormatCSV, TableFormatCompact, TableFormatSQLResult})
+}
 
 // RenderTable renders tabular data in various formats.
 func RenderTable(format string, header []string, data [][]string, raw any) error {
@@ -34,6 +41,10 @@ func RenderTable(format string, header []string, data [][]string, raw any) error
 		table.SetColumnSeparator("")
 		table.SetHeaderLine(false)
 		table.SetBorder(false)
+		table.Render()
+	case TableFormatSQLResult:
+		table := getBaseTable(header, data)
+		table.SetAutoFormatHeaders(false)
 		table.Render()
 	case TableFormatCSV:
 		w := csv.NewWriter(os.Stdout)
@@ -92,46 +103,41 @@ type Column struct {
 // is not a slice, if the format is unrecognized, if any characters in the columns argument is not present in the
 // columnMap argument.
 func RenderSlice(data any, format string, displayColumns string, sortColumns string, columnMap map[rune]Column) error {
-	rows, err := anyToSlice(data)
-	if err != nil {
-		return fmt.Errorf("Cannot render table: %w", err)
-	}
-
-	switch format {
-	case TableFormatTable, TableFormatCSV, TableFormatCompact:
-		break
-	case TableFormatJSON, TableFormatYAML:
-		return RenderTable(format, nil, nil, data)
-	default:
-		return fmt.Errorf(i18n.G("Invalid format %q"), format)
-	}
-
-	headers := make([]string, len(displayColumns))
-	for i, r := range displayColumns {
-		column, ok := columnMap[r]
-		if !ok {
-			return fmt.Errorf("Invalid column %q", string(r))
+	var headers []string
+	var tableData [][]string
+	if isTableFormat(format) {
+		rows, err := anyToSlice(data)
+		if err != nil {
+			return fmt.Errorf("Cannot render table: %w", err)
 		}
 
-		headers[i] = column.Header
-	}
-
-	tableData := make([][]string, len(rows))
-	for i, row := range rows {
-		rowData := make([]string, len(displayColumns))
-		for j, r := range displayColumns {
-			rowData[j], err = columnMap[r].DataFunc(row)
-			if err != nil {
-				return err
+		headers = make([]string, 0, len(displayColumns))
+		for _, r := range displayColumns {
+			column, ok := columnMap[r]
+			if !ok {
+				return fmt.Errorf("Invalid column %q", string(r))
 			}
+
+			headers = append(headers, column.Header)
 		}
 
-		tableData[i] = rowData
-	}
+		tableData = make([][]string, len(rows))
+		for i, row := range rows {
+			rowData := make([]string, len(displayColumns))
+			for j, r := range displayColumns {
+				rowData[j], err = columnMap[r].DataFunc(row)
+				if err != nil {
+					return err
+				}
+			}
 
-	err = SortByPrecedence(tableData, displayColumns, sortColumns)
-	if err != nil {
-		return nil
+			tableData[i] = rowData
+		}
+
+		err = SortByPrecedence(tableData, displayColumns, sortColumns)
+		if err != nil {
+			return nil
+		}
 	}
 
 	return RenderTable(format, headers, tableData, data)
@@ -149,7 +155,7 @@ func anyToSlice(slice any) ([]any, error) {
 		return nil, nil
 	}
 
-	ret := make([]interface{}, s.Len())
+	ret := make([]any, s.Len())
 
 	for i := 0; i < s.Len(); i++ {
 		ret[i] = s.Index(i).Interface()
