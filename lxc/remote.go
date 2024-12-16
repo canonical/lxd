@@ -877,7 +877,7 @@ func (c *cmdRemoteRename) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemoteNames()
+			return c.global.cmpRemoteNames(true)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -958,7 +958,7 @@ func (c *cmdRemoteRemove) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemoteNames()
+			return c.global.cmpRemoteNames(false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1022,7 +1022,7 @@ func (c *cmdRemoteSwitch) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemoteNames()
+			return c.global.cmpRemoteNames(false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1070,7 +1070,7 @@ func (c *cmdRemoteSetURL) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemoteNames()
+			return c.global.cmpRemoteNames(true)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
