@@ -10,7 +10,7 @@ echo "Checking that the .pot files are up to date..."
 # make sure the .pot is updated
 hash1=$(safe_pot_hash)
 mv "po/lxd.pot" "po/lxd.pot.bak"
-make i18n -s
+make i18n --silent < /dev/null
 hash2=$(safe_pot_hash)
 mv "po/lxd.pot.bak" "po/lxd.pot"
 git checkout -- po/*.po

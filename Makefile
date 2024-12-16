@@ -241,13 +241,13 @@ po/%.mo: po/%.po
 	msgfmt --statistics -o $@ $<
 
 po/%.po: po/$(DOMAIN).pot
-	msgmerge -U po/$*.po po/$(DOMAIN).pot
+	msgmerge --silent -U po/$*.po po/$(DOMAIN).pot
 
 .PHONY: update-po
 update-po:
 	set -eu; \
-	for lang in $(LINGUAS); do\
-	    msgmerge --backup=none -U $$lang.po po/$(DOMAIN).pot; \
+	for lang in $(LINGUAS); do \
+		msgmerge --silent --backup=none -U $$lang.po po/$(DOMAIN).pot; \
 	done; \
 	if [ -t 0 ] && ! git diff --quiet -- po/*.po; then \
 		read -rp "Would you like to commit i18n changes (Y/n)? " answer; \
@@ -295,13 +295,13 @@ endif
 	shellcheck test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh test/extras/*.sh
 	NOT_EXEC="$(shell find test/lint -type f -not -executable)"; \
 	if [ -n "$$NOT_EXEC" ]; then \
-        echo "lint scripts not executable: $$NOT_EXEC"; \
-        exit 1; \
+		echo "lint scripts not executable: $$NOT_EXEC"; \
+		exit 1; \
 	fi
 	BAD_NAME="$(shell find test/lint -type f -not -name '*.sh')"; \
 	if [ -n "$$BAD_NAME" ]; then \
-        echo "lint scripts missing .sh extension: $$BAD_NAME"; \
-        exit 1; \
+		echo "lint scripts missing .sh extension: $$BAD_NAME"; \
+		exit 1; \
 	fi
 	run-parts --verbose --exit-on-error --regex '.sh' test/lint
 
