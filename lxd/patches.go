@@ -1421,7 +1421,7 @@ func patchSplitIdentityCertificateEntityTypes(_ string, d *Daemon) error {
 		// Select all permissions with entity type = "identity", that really are certificates (auth_method = "tls")
 		// and set their entity type to "certificate" instead. Use "UPDATE OR REPLACE" in case of UNIQUE constraint violation.
 		stmt := `
-UPDATE OR REPLACE auth_groups_permissions 
+UPDATE OR REPLACE auth_groups_permissions
 	SET entity_type = ?
 	WHERE id IN (
 	    SELECT auth_groups_permissions.id FROM auth_groups_permissions
