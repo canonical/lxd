@@ -1356,67 +1356,36 @@ func patchInstanceRemoveVolatileLastStateIPAddresses(_ string, d *Daemon) error 
 	s := d.State()
 
 	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		foundCandidateKey := func(k string) bool {
-			if strings.HasPrefix(k, "volatile.") && strings.HasSuffix(k, ".last_state.ip_addresses") {
-				return true
-			}
-
-			return false
+		_, err := tx.Tx().ExecContext(ctx, `
+			DELETE FROM instances_config WHERE id IN(
+				SELECT instances_config.id
+				FROM instances_config
+				JOIN instances ON instances.id = instances_config.instance_id
+				JOIN nodes ON nodes.id = instances.node_id
+				WHERE key LIKE 'volatile.%.last_state.ip_addresses'
+				AND nodes.name = ?
+			)
+		`, s.ServerName)
+		if err != nil {
+			return err
 		}
 
-		// Get instances on this member.
-		return tx.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
-			l := logger.AddContext(logger.Ctx{"project": dbInst.Project, "inst": dbInst.Name})
+		_, err = tx.Tx().ExecContext(ctx, `
+			DELETE FROM instances_snapshots_config WHERE id IN(
+				SELECT instances_snapshots_config.id
+				FROM instances_snapshots_config
+				JOIN instances_snapshots ON instances_snapshots.id = instances_snapshots_config.instance_snapshot_id
+				JOIN instances ON instances.id = instances_snapshots.instance_id
+				JOIN nodes ON nodes.id = instances.node_id
+				WHERE key LIKE 'volatile.%.last_state.ip_addresses'
+				AND nodes.name = ?
+			)
+		`, s.ServerName)
+		if err != nil {
+			return err
+		}
 
-			for k := range dbInst.Config {
-				if !foundCandidateKey(k) {
-					continue
-				}
-
-				// Remove found config key.
-				changes := map[string]string{
-					k: "",
-				}
-
-				l.Debug("Removing config key from instance", logger.Ctx{"key": k})
-				err := tx.UpdateInstanceConfig(dbInst.ID, changes)
-				if err != nil {
-					return fmt.Errorf("Failed removing config key %q for instance %q (project %q): %w", k, dbInst.Name, dbInst.Project, err)
-				}
-			}
-
-			// Get snapshots for instance so we can check those too.
-			dbSnaps, err := tx.GetInstanceSnapshotsWithName(ctx, dbInst.Project, dbInst.Name)
-			if err != nil {
-				return fmt.Errorf("Failed getting snapshots for %q (project %q): %w", dbInst.Name, dbInst.Project, err)
-			}
-
-			for _, dbSnap := range dbSnaps {
-				snapConfig, err := dbCluster.GetInstanceSnapshotConfig(ctx, tx.Tx(), dbSnap.ID)
-				if err != nil {
-					return err
-				}
-
-				for k := range snapConfig {
-					if !foundCandidateKey(k) {
-						continue
-					}
-
-					// Remove found config key.
-					changes := map[string]string{
-						k: "",
-					}
-
-					l.Debug("Removing config key from instance snapshot", logger.Ctx{"snapshot": dbSnap.Name, "key": k})
-					err := tx.UpdateInstanceSnapshotConfig(dbSnap.ID, changes)
-					if err != nil {
-						return fmt.Errorf("Failed removing config key %q for instance %q (project %q): %w", k, dbSnap.Name, dbSnap.Project, err)
-					}
-				}
-			}
-
-			return nil
-		}, dbCluster.InstanceFilter{Node: &s.ServerName})
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("Failed removing volatile.*.last_state.ip_addresses config keys: %w", err)
@@ -1437,7 +1406,7 @@ func patchSplitIdentityCertificateEntityTypes(_ string, d *Daemon) error {
 		// Select all permissions with entity type = "identity", that really are certificates (auth_method = "tls")
 		// and set their entity type to "certificate" instead. Use "UPDATE OR REPLACE" in case of UNIQUE constraint violation.
 		stmt := `
-UPDATE OR REPLACE auth_groups_permissions 
+UPDATE OR REPLACE auth_groups_permissions
 	SET entity_type = ?
 	WHERE id IN (
 	    SELECT auth_groups_permissions.id FROM auth_groups_permissions
