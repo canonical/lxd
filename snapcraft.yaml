@@ -360,9 +360,9 @@ parts:
       - share/qemu/*
 
   libmnl:
-    source: https://git.netfilter.org/libmnl
-    source-commit: 493aacf2ec9cc61a5b30d77cd55ec248f033bc74 # libmnl-1.0.5
-    source-type: git
+    # XXX: Netfilter's git repo is unreliable
+    source: https://www.netfilter.org/projects/libmnl/files/libmnl-1.0.5.tar.bz2
+    source-checksum: sha256/274b9b919ef3152bfb3da3a13c950dd60d6e2bcd54230ffeca298d03b40d0525
     plugin: autotools
     autotools-configure-parameters:
       - --prefix=
