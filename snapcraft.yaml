@@ -360,9 +360,9 @@ parts:
       - share/qemu/*
 
   libmnl:
-    source: https://git.netfilter.org/libmnl
-    source-commit: 493aacf2ec9cc61a5b30d77cd55ec248f033bc74 # libmnl-1.0.5
-    source-type: git
+    # XXX: Netfilter's git repo is unreliable
+    source: https://www.netfilter.org/projects/libmnl/files/libmnl-1.0.5.tar.bz2
+    source-checksum: sha256/274b9b919ef3152bfb3da3a13c950dd60d6e2bcd54230ffeca298d03b40d0525
     plugin: autotools
     autotools-configure-parameters:
       - --prefix=
@@ -374,9 +374,9 @@ parts:
   libnftnl:
     after:
       - libmnl
-    source: https://git.netfilter.org/libnftnl
-    source-commit: 116e95aa7b6358c917de8c69f6f173874030b46b # libnftnl-1.2.7
-    source-type: git
+    # XXX: Netfilter's git repo is unreliable
+    source: https://www.netfilter.org/projects/libnftnl/files/libnftnl-1.2.7.tar.xz
+    source-checksum: sha256/9122774f968093d5c0bacddd67de480f31fa4073405a7fc058a34b0f387aecb3
     plugin: autotools
     autotools-configure-parameters:
       - --prefix=
@@ -534,9 +534,9 @@ parts:
     after:
       - libmnl
       - libnftnl
-    source: https://git.netfilter.org/nftables
-    source-commit: d946842f576b422972212a2b83601bbd6204337c # v1.1.0
-    source-type: git
+    # XXX: Netfilter's git repo is unreliable
+    source: https://www.netfilter.org/projects/nftables/files/nftables-1.1.0.tar.xz
+    source-checksum: sha256/ef3373294886c5b607ee7be82c56a25bc04e75f802f8e8adcd55aac91eb0aa24
     plugin: autotools
     autotools-configure-parameters:
       - --prefix=
@@ -548,15 +548,6 @@ parts:
       - libreadline-dev
     stage-packages:
       - libjansson4
-    override-build: |
-      set -ex
-
-      # Git cherry-picks
-      git config user.email "noreply@lists.canonical.com"
-      git config user.name "LXD snap builder"
-
-      set +ex
-      craftctl default
     organize:
       sbin/: bin/
       usr/lib/: lib/
