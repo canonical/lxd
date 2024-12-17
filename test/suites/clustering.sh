@@ -498,14 +498,14 @@ test_clustering_containers() {
   LXD_DIR="${LXD_TWO_DIR}" lxc move bar egg --target node2
   LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -q "Location: node2"
   apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
-  [ "${apply_template1}" =  "${apply_template2}" ] || false
+  [ "${apply_template1}" =  "${apply_template2}" ]
 
   # Move back to node3 the container on node1, keeping the same name.
   apply_template1=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   LXD_DIR="${LXD_TWO_DIR}" lxc move egg --target node3
   LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -q "Location: node3"
   apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
-  [ "${apply_template1}" =  "${apply_template2}" ] || false
+  [ "${apply_template1}" =  "${apply_template2}" ]
 
   if command -v criu >/dev/null 2>&1; then
     # If CRIU supported, then try doing a live move using same name,
@@ -1572,11 +1572,11 @@ test_clustering_update_cert() {
   # Send update request
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster update-cert "${cert_path}" "${key_path}" -q
 
-  cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
-  cmp -s "${LXD_TWO_DIR}/cluster.crt" "${cert_path}" || false
+  cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}"
+  cmp -s "${LXD_TWO_DIR}/cluster.crt" "${cert_path}"
 
-  cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
-  cmp -s "${LXD_TWO_DIR}/cluster.key" "${key_path}" || false
+  cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}"
+  cmp -s "${LXD_TWO_DIR}/cluster.key" "${key_path}"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
   LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
@@ -1746,11 +1746,11 @@ test_clustering_update_cert_token() {
   # Change the cluster cert
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster update-cert "${cert_path}" "${key_path}" -q
 
-  cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
-  cmp -s "${LXD_TWO_DIR}/cluster.crt" "${cert_path}" || false
+  cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}"
+  cmp -s "${LXD_TWO_DIR}/cluster.crt" "${cert_path}"
 
-  cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
-  cmp -s "${LXD_TWO_DIR}/cluster.key" "${key_path}" || false
+  cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}"
+  cmp -s "${LXD_TWO_DIR}/cluster.key" "${key_path}"
 
   # Verify the token with the wrong cert fingerprint is not usable due to the fingerprint mismatch
   url="https://10.1.1.101:8443"
@@ -2169,8 +2169,8 @@ test_clustering_image_replication() {
   # Image replication will be performed across all nodes in the cluster by default
   images_minimal_replica1=$(LXD_DIR="${LXD_ONE_DIR}" lxc config get cluster.images_minimal_replica)
   images_minimal_replica2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get cluster.images_minimal_replica)
-  [ "$images_minimal_replica1" = "" ] || false
-  [ "$images_minimal_replica2" = "" ] || false
+  [ "$images_minimal_replica1" = "" ]
+  [ "$images_minimal_replica2" = "" ]
 
   # Import the test image on node1
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
@@ -2181,8 +2181,8 @@ test_clustering_image_replication() {
 
   # The image tarball is available on both nodes
   fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')
-  [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
-  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+  [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ]
+  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ]
 
   # Spawn a third node
   setup_clustering_netns 3
@@ -2223,15 +2223,15 @@ test_clustering_image_replication() {
 
   # The image tarball is available on all three nodes
   fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')
-  [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
-  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
-  [ -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
+  [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ]
+  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ]
+  [ -f "${LXD_THREE_DIR}/images/${fingerprint}" ]
 
   # Delete the imported image
   LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
-  [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
-  [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
-  [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ]
+  [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ]
+  [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ]
 
   # Import the image from the container
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
@@ -2243,9 +2243,9 @@ test_clustering_image_replication() {
   lxc publish c1 --alias new-image
 
   fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info new-image | awk '/^Fingerprint/ {print $2}')
-  [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
-  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
-  [ -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
+  [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ]
+  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ]
+  [ -f "${LXD_THREE_DIR}/images/${fingerprint}" ]
 
   # Delete the imported image
   LXD_DIR="${LXD_TWO_DIR}" lxc image delete new-image
@@ -2279,7 +2279,7 @@ test_clustering_image_replication() {
 
   # The image tarball is only available on node2
   fingerprint=$(LXD_DIR="${LXD_TWO_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')
-  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ]
   [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
   [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
 
