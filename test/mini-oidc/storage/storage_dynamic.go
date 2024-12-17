@@ -15,7 +15,7 @@ type multiStorage struct {
 
 // NewMultiStorage implements the op.Storage interface by wrapping multiple storage structs
 // and selecting them by the calling issuer.
-func NewMultiStorage(issuers []string) *multiStorage { //nolint:revive
+func NewMultiStorage(issuers []string) *multiStorage {
 	s := make(map[string]*Storage)
 	for _, issuer := range issuers {
 		s[issuer] = NewStorage(NewUserStore(issuer))
