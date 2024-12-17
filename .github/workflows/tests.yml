@@ -10,7 +10,7 @@ on:
     - cron: '0 0 * * *'  # Test TICS daily
 
 env:
-  LXD_REQUIRED_TESTS: "storage_buckets"
+  LXD_REQUIRED_TESTS: "storage_buckets,network_ovn"
   LXD_SKIP_TESTS: "clustering_upgrade clustering_upgrade_large"
   GOCOVERDIR: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && '/home/runner/work/lxd/lxd/coverage' || '' }}
 
@@ -205,6 +205,10 @@ jobs:
       LXD_CEPH_CLUSTER: "ceph"
       LXD_CEPH_CEPHFS: "cephfs"
       LXD_CEPH_CEPHOBJECT_RADOSGW: "http://127.0.0.1"
+      LXD_OVN_NB_CONNECTION: "ssl:127.0.0.1:6641"
+      LXD_OVN_NB_CLIENT_CRT_FILE: "/var/snap/microovn/common/data/pki/client-cert.pem"
+      LXD_OVN_NB_CLIENT_KEY_FILE: "/var/snap/microovn/common/data/pki/client-privkey.pem"
+      LXD_OVN_NB_CA_CRT_FILE: "/var/snap/microovn/common/data/pki/cacert.pem"
       LXD_CONCURRENT: "1"
       LXD_VERBOSE: "1"
       LXD_OFFLINE: "1"
@@ -259,6 +263,9 @@ jobs:
         with:
           osd-count: 3
 
+      - name: Setup MicroOVN
+        uses: ./.github/actions/setup-microovn
+
       - name: Make GOCOVERDIR
         run: |
           set -eux
@@ -272,7 +279,8 @@ jobs:
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
-          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+          export PATH="$PATH:/snap/microovn/current/commands"
+          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
 
       - name: Upload crash dumps
         if: always()
