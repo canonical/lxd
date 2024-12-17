@@ -1,21 +1,27 @@
 # Test the lxd sql command.
 test_sql() {
   # Invalid arguments
-  ! lxd sql foo "SELECT * FROM CONFIG" || false
+  ! lxd sql foo "SELECT * FROM config" || false
   ! lxd sql global "" || false
 
   # Local database query
-  lxd sql local "SELECT * FROM config" | grep -qF "core.https_address"
+  [ "$(lxd sql local --format csv "SELECT count(*) FROM config WHERE key = 'core.https_address'")" = 1 ]
 
   # Global database query
-  lxd sql global "SELECT * FROM config" | grep -qF "core.trust_password"
+  lxc config set user.foo=bar
+  [ "$(lxd sql global --format csv "SELECT value FROM config WHERE key = 'user.foo'")" = "bar" ]
+
+  # Test formats
+  lxd sql global --format sql 'SELECT key FROM config' | grep -F 'key'
+  lxd sql global --format table 'SELECT key FROM config' | grep -F 'KEY'
+  lxd sql global --format compact 'SELECT key FROM config' | grep -F 'KEY'
 
   # Global database insert
   lxd sql global "INSERT INTO config(key,value) VALUES('core.https_allowed_credentials','true')" | grep -qxF "Rows affected: 1"
   lxd sql global "DELETE FROM config WHERE key='core.https_allowed_credentials'" | grep -qxF "Rows affected: 1"
 
   # Standard input
-  echo "SELECT * FROM config" | lxd sql global - | grep -qF "core.trust_password"
+  [ "$(echo "SELECT value FROM config WHERE key = 'user.foo'" | lxd sql global --format csv -)" = "bar" ]
 
   # Multiple queries
   lxd sql global "SELECT * FROM config; SELECT * FROM instances" | grep -qxF "=> Query 0:"
