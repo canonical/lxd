@@ -30,7 +30,7 @@ test_oidc() {
   [ "$(lxc query oidc:/1.0 | jq -r '.auth_user_name')" = "test-user@example.com" ]
 
   # OIDC user should be added to identities table.
-  [ "$(lxd sql global "SELECT identifier, name, auth_method, type FROM identities WHERE type = 5 AND identifier = 'test-user@example.com' AND auth_method = 2" | wc -l)" = 5 ]
+  [ "$(lxd sql global --format csv "SELECT count(*) FROM identities WHERE type = 5 AND identifier = 'test-user@example.com' AND auth_method = 2")" = 1 ]
 
   # Cleanup OIDC
   lxc auth identity delete oidc/test-user@example.com
