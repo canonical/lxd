@@ -25,8 +25,9 @@ test_oidc() {
   # This should succeed.
   BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc
 
-  # lxc info should show the email address as the username.
-  [ "$(lxc info oidc: | grep ^auth_user_name | sed "s/.*: //g")" = "test-user@example.com" ]
+  # The user should now be logged in and their email should show in the "auth_user_name" field.
+  [ "$(lxc query oidc:/1.0 | jq -r '.auth')" = "trusted" ]
+  [ "$(lxc query oidc:/1.0 | jq -r '.auth_user_name')" = "test-user@example.com" ]
 
   # OIDC user should be added to identities table.
   [ "$(lxd sql global --format csv "SELECT count(*) FROM identities WHERE type = 5 AND identifier = 'test-user@example.com' AND auth_method = 2")" = 1 ]
