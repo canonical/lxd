@@ -63,7 +63,7 @@ test_container_devices_disk_restricted() {
   lxc stop -f c1
   lxc config device set c1 d1 source="${testRoot}/allowed1/foolink" path=/mnt/foolink
   lxc start c1
-  [ "$(lxc exec c1 --project restricted  -- stat /mnt/foolink -c '%u:%g')" = "65534:65534" ] || false
+  [ "$(lxc exec c1 --project restricted  -- stat /mnt/foolink -c '%u:%g')" = "65534:65534" ]
   lxc stop -f c1
 
   # Check usage of raw.idmap is restricted.
@@ -86,12 +86,12 @@ test_container_devices_disk_restricted() {
   # Check single entry raw.idmap has taken effect on disk share.
   lxc config device set c1 d1 source="${testRoot}/allowed1" path=/mnt
   lxc start c1 || (lxc info --show-log c1 ; false)
-  [ "$(lxc exec c1 --project restricted -- stat /mnt/foo1 -c '%u:%g')" = "1000:1000" ] || false
-  [ "$(lxc exec c1 --project restricted -- stat /mnt/foo2 -c '%u:%g')" = "65534:65534" ] || false
+  [ "$(lxc exec c1 --project restricted -- stat /mnt/foo1 -c '%u:%g')" = "1000:1000" ]
+  [ "$(lxc exec c1 --project restricted -- stat /mnt/foo2 -c '%u:%g')" = "65534:65534" ]
 
   # Check adding unix socket is allowed.
   lxc config device add c1 unix-socket disk source="${testRoot}/allowed1/lxd.sock" path=/root/lxd.sock
-  [ "$(lxc exec c1 --project restricted -- stat /root/lxd.sock -c '%F')" = "socket" ] || false
+  [ "$(lxc exec c1 --project restricted -- stat /root/lxd.sock -c '%F')" = "socket" ]
 
   lxc delete -f c1
   lxc project switch default
