@@ -6121,8 +6121,13 @@ func (d *qemu) delete(force bool) error {
 		return fmt.Errorf("Instance is protected from being deleted")
 	}
 
+	err := d.checkRootVolumeNotInUse()
+	if err != nil {
+		return err
+	}
+
 	// Delete any persistent warnings for instance.
-	err := d.warningsDelete()
+	err = d.warningsDelete()
 	if err != nil {
 		return err
 	}
