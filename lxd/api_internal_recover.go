@@ -214,7 +214,7 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 		// This way if we are dealing with an existing pool or have successfully created the DB record then
 		// we won't unmount it. As we should leave successfully imported pools mounted.
 		if ourMount {
-			defer func() { //nolint:revive
+			defer func() {
 				cleanupPool := pools[pool.Name()]
 				if cleanupPool != nil && cleanupPool.ID() == storagePools.PoolIDTemporary {
 					_, _ = cleanupPool.Unmount()

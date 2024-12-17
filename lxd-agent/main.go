@@ -46,6 +46,6 @@ func main() {
 	err := app.Execute()
 	if err != nil {
 		// Ensure we exit with a non-zero exit code.
-		os.Exit(1) //nolint:revive
+		os.Exit(1)
 	}
 }

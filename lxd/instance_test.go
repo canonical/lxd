@@ -73,7 +73,6 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 	suite.Req.Nil(err, "Failed to create the unprivileged profile.")
 	defer func() {
 		_ = suite.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			//nolint:revive // revive seems to think this return is outside of the transaction.
 			return cluster.DeleteProfile(ctx, tx.Tx(), "default", "unprivileged")
 		})
 	}()
