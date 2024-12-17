@@ -4,6 +4,7 @@ linters:
     - godot
     - gofmt
     - misspell
+    - prealloc
     - whitespace
     - revive
 issues:
