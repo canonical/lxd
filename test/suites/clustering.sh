@@ -272,10 +272,10 @@ test_clustering_membership() {
 
   # Gracefully remove a node and check trust certificate is removed.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep node4
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'SELECT name FROM identities WHERE type = 3' | grep node4
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT count(*) FROM identities WHERE type = 3 and name = "node4"')" = 1 ]
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster remove node4
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep node4 || false
-  ! LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'SELECT name FROM identities WHERE type = 3' | grep node4 || false
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT count(*) FROM identities WHERE type = 3 and name = "node4"')" = 0 ]
 
   # The node isn't clustered anymore.
   ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list || false
@@ -600,8 +600,8 @@ test_clustering_storage() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep data | grep -q CREATED
 
   # Check both nodes show preseeded storage pool created.
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'data' AND nodes.name = 'node1'" | grep "| node1 | 1     |"
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'data' AND nodes.name = 'node2'" | grep "| node2 | 1     |"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'data' AND nodes.name = 'node1'")" = "node1,1" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'data' AND nodes.name = 'node2'")" = "node2,1" ]
 
   # Trying to pass config values other than 'source' results in an error
   ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo size=123 --target node1 || false
@@ -611,19 +611,19 @@ test_clustering_storage() {
     # Create pending nodes.
     LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}" --target node1
     LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" --target node2
-    LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'pool1' AND nodes.name = 'node1'" | grep "| node1 | 0     |"
-    LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'pool1' AND nodes.name = 'node2'" | grep "| node2 | 0     |"
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'pool1' AND nodes.name = 'node1'")" = "node1,0" ]
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'pool1' AND nodes.name = 'node2'")" = "node2,0" ]
 
     # Modify first pending node with invalid config and check it fails and all nodes are pending.
     LXD_DIR="${LXD_ONE_DIR}" lxc storage set pool1 source=/tmp/not/exist --target node1
     ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}" || false
-    LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'pool1' AND nodes.name = 'node1'" | grep "| node1 | 0     |"
-    LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'pool1' AND nodes.name = 'node2'" | grep "| node2 | 0     |"
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'pool1' AND nodes.name = 'node1'")" = "node1,0" ]
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'pool1' AND nodes.name = 'node2'")" = "node2,0" ]
 
     # Run create on second node, so it succeeds and then fails notifying first node.
     ! LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" || false
-    LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'pool1' AND nodes.name = 'node1'" | grep "| node1 | 0     |"
-    LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'pool1' AND nodes.name = 'node2'" | grep "| node2 | 1     |"
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'pool1' AND nodes.name = 'node1'")" = "node1,0" ]
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'pool1' AND nodes.name = 'node2'")" = "node2,1" ]
 
     # Check we cannot update global config while in pending state.
     ! LXD_DIR="${LXD_ONE_DIR}" lxc storage set pool1 rsync.bwlimit 10 || false
@@ -652,8 +652,8 @@ test_clustering_storage() {
     stat "${LXD_TWO_SOURCE}/containers"
 
     # Check both nodes marked created.
-    LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'pool1' AND nodes.name = 'node1'" | grep "| node1 | 1     |"
-    LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'pool1' AND nodes.name = 'node2'" | grep "| node2 | 1     |"
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'pool1' AND nodes.name = 'node1'")" = "node1,1" ]
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'pool1' AND nodes.name = 'node2'")" = "node2,1" ]
 
     # Check copying storage volumes works.
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create pool1 vol1 --target=node1
@@ -1082,8 +1082,8 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network list| grep "${bridge}" | grep -q CREATED
 
   # Check both nodes show network created.
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${bridge}' AND nodes.name = 'node1'" | grep "| node1 | 1     |"
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${bridge}' AND nodes.name = 'node2'" | grep "| node2 | 1     |"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${bridge}' AND nodes.name = 'node1'")" = "node1,1" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${bridge}' AND nodes.name = 'node2'")" = "node2,1" ]
 
   # Trying to pass config values other than
   # 'bridge.external_interfaces' results in an error
@@ -1132,15 +1132,15 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Errored # Check has errored status.
 
   # Check each node status (expect both node1 and node2 to be pending as local member running created failed first).
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node1'" | grep "| node1 | 0     |"
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node2'" | grep "| node2 | 0     |"
+[ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node1'")" = "node1,0" ]
+[ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node2'")" = "node2,0" ]
 
   # Run network create on other node2 (still excpect to fail on node1, but expect node2 create to succeed).
   ! LXD_DIR="${LXD_TWO_DIR}" lxc network create "${net}" || false
 
   # Check each node status (expect node1 to be pending and node2 to be created).
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node1'" | grep "| node1 | 0     |"
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node2'" | grep "| node2 | 1     |"
+[ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node1'")" = "node1,0" ]
+[ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node2'")" = "node2,1" ]
 
   # Check interfaces are expected types (dummy on node1 and bridge on node2).
   nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep dummy
@@ -1181,8 +1181,8 @@ test_clustering_network() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" || false # Check re-create is blocked after success.
 
   # Check both nodes marked created.
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node1'" | grep "| node1 | 1     |"
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node2'" | grep "| node2 | 1     |"
+[ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node1'")" = "node1,1" ]
+[ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node2'")" = "node2,1" ]
 
   # Check instance can be connected to created network and assign static DHCP allocations.
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}"
@@ -2755,7 +2755,8 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database$"
 
   # The second node is still in the raft_nodes table.
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql local "SELECT * FROM raft_nodes" | grep -qF "10.1.1.102"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes WHERE address = '10.1.1.102:8443'")" = 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes")" = 4 ]
 
   # Force removing the raft node.
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster remove-raft-node -q "10.1.1.102"
@@ -2770,7 +2771,8 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database$"
 
   # The second node is gone from the raft_nodes_table.
-  ! LXD_DIR="${LXD_ONE_DIR}" lxd sql local "SELECT * FROM raft_nodes" | grep -qF "10.1.1.102" || false
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes WHERE address = '10.1.1.102:8443'")" = 0 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes")" = 3 ]
 
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
@@ -2988,11 +2990,10 @@ test_clustering_image_refresh() {
 
   if [ "${poolDriver}" != "dir" ]; then
     # Check image storage volume records exist.
-    lxd sql global 'select name from storage_volumes'
     if [ "${poolDriver}" = "ceph" ]; then
-      [ "$(lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}")" = "1" ]
+      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name LIKE '${old_fingerprint}%'")" = 1 ]
     else
-      [ "$(lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}")" = "3" ]
+      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name LIKE '${old_fingerprint}%'")" = 3 ]
     fi
   fi
 
@@ -3009,14 +3010,13 @@ test_clustering_image_refresh() {
   done
 
   if [ "${poolDriver}" != "dir" ]; then
-    lxd sql global 'select name from storage_volumes'
     # Check image storage volume records actually removed from relevant members and replaced with new fingerprint.
     if [ "${poolDriver}" = "ceph" ]; then
-      [ "$(lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}")" = "0" ]
-      [ "$(lxd sql global 'select name from storage_volumes' | grep -Fc "${new_fingerprint}")" = "1" ]
+      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name LIKE '${old_fingerprint}%'")" = 0 ]
+      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name LIKE '${new_fingerprint}%'")" = 1 ]
     else
-      [ "$(lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}")" = "1" ]
-      [ "$(lxd sql global 'select name from storage_volumes' | grep -Fc "${new_fingerprint}")" = "2" ]
+      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name LIKE '${old_fingerprint}%'")" = 1 ]
+      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name LIKE '${new_fingerprint}%'")" = 2 ]
     fi
   fi
 
@@ -3024,12 +3024,12 @@ test_clustering_image_refresh() {
   # while project foo should still have the old image.
   # Also, it should only show 1 entry for the old image and 2 entries
   # for the new one.
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep -F "${old_fingerprint}"
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -cF "${old_fingerprint}")" -eq 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="foo"' | cut -c1-12)" = "${old_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint LIKE '${old_fingerprint}%'")" = 1 ]
 
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="default"' | grep -F "${new_fingerprint}"
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="bar"' | grep -F "${new_fingerprint}"
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -cF "${new_fingerprint}")" -eq 2 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="default"' | cut -c1-12)" = "${new_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"' | cut -c1-12)" = "${new_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint LIKE '${new_fingerprint}%'")" = 2 ]
 
   pids=""
 
@@ -3046,12 +3046,12 @@ test_clustering_image_refresh() {
     wait "${pid}" || true
   done
 
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep -F "${old_fingerprint}"
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -cF "${old_fingerprint}")" -eq 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="foo"' | cut -c1-12)" = "${old_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint LIKE '${old_fingerprint}%'")" = 1 ]
 
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="default"' | grep -F "${new_fingerprint}"
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="bar"' | grep -F "${new_fingerprint}"
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -cF "${new_fingerprint}")" -eq 2 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="default"' | cut -c1-12)" = "${new_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"' | cut -c1-12)" = "${new_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint LIKE '${new_fingerprint}%'")" = 2 ]
 
   # Modify public testimage
   dd if=/dev/urandom count=32 | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
@@ -3074,12 +3074,12 @@ test_clustering_image_refresh() {
 
   pids=""
 
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep -F "${old_fingerprint}"
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -cF "${old_fingerprint}")" -eq 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="foo"' | cut -c1-12)" = "${old_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint LIKE '${old_fingerprint}%'")" = 1 ]
 
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="default"' | grep -F "${new_fingerprint}"
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="bar"' | grep -F "${new_fingerprint}"
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -cF "${new_fingerprint}")" -eq 2 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="default"' | cut -c1-12)" = "${new_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"' | cut -c1-12)" = "${new_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint LIKE '${new_fingerprint}%'")" = 2 ]
 
   # Clean up everything
   for project in default foo bar; do
