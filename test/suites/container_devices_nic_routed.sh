@@ -59,13 +59,10 @@ test_container_devices_nic_routed() {
   lxc init testimage "${ctName}"
 
   # Check vlan option not allowed without parent option.
-  ! lxc config device add "${ctName}" eth0 nic \
-    name=eth0 \
-    nictype=routed \
-    vlan=1234 || false
+  ! lxc config device add "${ctName}" eth0 nic name=eth0 nictype=routed vlan=1234 || false
 
   # Check VLAN parent interface creation and teardown.
-  lxc config device add "${ctName}" eth0 nic \
+  lxc config device add "${ctName}" eth0 nic 
     name=eth0 \
     nictype=routed \
     parent=${ctName} \
