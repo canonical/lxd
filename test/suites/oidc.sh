@@ -29,7 +29,7 @@ test_oidc() {
   [ "$(lxc info oidc: | grep ^auth_user_name | sed "s/.*: //g")" = "test-user@example.com" ]
 
   # OIDC user should be added to identities table.
-  [ "$(lxd sql global "SELECT identifier, name, auth_method, type FROM identities WHERE type = 5 AND identifier = 'test-user@example.com' AND auth_method = 2" | wc -l)" = 5 ]
+  [ "$(lxd sql global --format csv "SELECT count(*) FROM identities WHERE type = 5 AND identifier = 'test-user@example.com' AND auth_method = 2")" = 1 ]
 
   # Cleanup OIDC
   lxc remote remove oidc
