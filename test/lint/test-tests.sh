@@ -58,3 +58,7 @@ if grep -rlE '\!.* \|\| true$' test/; then
     echo "Some tests commands are ignoring expected failures (! cmd_should_fail || true)" >&2
     exit 1
 fi
+if grep -rlE '^\s*[^\!]+ \|\| false$' test/; then
+    echo "Some tests commands use unneeded construct to fail (cmd_should_succeed || false)" >&2
+    exit 1
+fi
