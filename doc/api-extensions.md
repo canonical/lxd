@@ -2542,3 +2542,18 @@ This introduces the configuration keys {config:option}`storage-ceph-pool-conf:ce
 ## `network_get_target`
 
 Adds optional `target` parameter to `GET /1.0/network`. When target is set, forward the request to the specified cluster member and return the non-managed interfaces from that member.
+
+## `storage_bucket_backup`
+
+Add storage bucket backup support.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/storage-pools/<pool>/buckets/<bucket>/backups`
+* `POST /1.0/storage-pools/<pool>/buckets/<bucket>/backups`
+
+* `GET /1.0/storage-pools/<pool>/buckets/<bucket>/backups/<name>`
+* `POST /1.0/storage-pools/<pool>/buckets/<bucket>/backups/<name>`
+* `DELETE /1.0/storage-pools/<pool>/buckets/<bucket>/backups/<name>`
+
+* `GET /1.0/storage-pools/<pool>/buckets/<bucket>/backups/<name>/export`
