@@ -44,15 +44,15 @@ _container_devices_disk_shift() {
 
   lxc start foo
   lxc config device add foo idmapped_mount disk source="${TEST_DIR}/shift-source" path=/mnt
-  [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "65534:65534" ] || false
+  [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "65534:65534" ]
   lxc config device remove foo idmapped_mount
 
   lxc config device add foo idmapped_mount disk source="${TEST_DIR}/shift-source" path=/mnt shift=true
-  [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "123:456" ] || false
+  [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "123:456" ]
 
   lxc stop foo -f
   lxc start foo
-  [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "123:456" ] || false
+  [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "123:456" ]
   lxc config device remove foo idmapped_mount
   lxc stop foo -f
 
@@ -80,10 +80,10 @@ _container_devices_disk_shift() {
   lxc exec foo -- touch /mnt/a
   lxc exec foo -- chown 123:456 /mnt/a
 
-  [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "123:456" ] || false
-  [ "$(lxc exec foo-priv -- stat /mnt/a -c '%u:%g')" = "123:456" ] || false
-  [ "$(lxc exec foo-isol1 -- stat /mnt/a -c '%u:%g')" = "123:456" ] || false
-  [ "$(lxc exec foo-isol2 -- stat /mnt/a -c '%u:%g')" = "123:456" ] || false
+  [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "123:456" ]
+  [ "$(lxc exec foo-priv -- stat /mnt/a -c '%u:%g')" = "123:456" ]
+  [ "$(lxc exec foo-isol1 -- stat /mnt/a -c '%u:%g')" = "123:456" ]
+  [ "$(lxc exec foo-isol2 -- stat /mnt/a -c '%u:%g')" = "123:456" ]
 
   lxc delete -f foo-priv foo-isol1 foo-isol2
   lxc config device remove foo shifted
@@ -99,19 +99,19 @@ _container_devices_raw_mount_options() {
   lxc launch testimage foo-priv -c security.privileged=true
 
   lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt
-  [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "0:0" ] || false
+  [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "0:0" ]
   lxc exec foo-priv -- touch /mnt/foo
   lxc config device remove foo-priv loop_raw_mount_options
 
   lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt raw.mount.options=uid=123,gid=456,ro
-  [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "123:456" ] || false
+  [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "123:456" ]
   ! lxc exec foo-priv -- touch /mnt/foo || false
   lxc config device remove foo-priv loop_raw_mount_options
 
   lxc stop foo-priv -f
   lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt raw.mount.options=uid=123,gid=456,ro
   lxc start foo-priv
-  [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "123:456" ] || false
+  [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "123:456" ]
   ! lxc exec foo-priv -- touch /mnt/foo || false
   lxc config device remove foo-priv loop_raw_mount_options
 
@@ -163,9 +163,9 @@ _container_devices_disk_cephfs() {
 _container_devices_disk_socket() {
   lxc start foo
   lxc config device add foo unix-socket disk source="${LXD_DIR}/unix.socket" path=/root/lxd.sock
-  [ "$(lxc exec foo -- stat /root/lxd.sock -c '%F')" = "socket" ] || false
+  [ "$(lxc exec foo -- stat /root/lxd.sock -c '%F')" = "socket" ]
   lxc restart -f foo
-  [ "$(lxc exec foo -- stat /root/lxd.sock -c '%F')" = "socket" ] || false
+  [ "$(lxc exec foo -- stat /root/lxd.sock -c '%F')" = "socket" ]
   lxc config device remove foo unix-socket
   lxc stop foo -f
 }
@@ -173,9 +173,9 @@ _container_devices_disk_socket() {
 _container_devices_disk_char() {
   lxc start foo
   lxc config device add foo char disk source=/dev/zero path=/root/zero
-  [ "$(lxc exec foo -- stat /root/zero -c '%F')" = "character special file" ] || false
+  [ "$(lxc exec foo -- stat /root/zero -c '%F')" = "character special file" ]
   lxc restart -f foo
-  [ "$(lxc exec foo -- stat /root/zero -c '%F')" = "character special file" ] || false
+  [ "$(lxc exec foo -- stat /root/zero -c '%F')" = "character special file" ]
   lxc config device remove foo char
   lxc stop foo -f
 }
