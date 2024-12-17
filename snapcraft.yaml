@@ -534,9 +534,9 @@ parts:
     after:
       - libmnl
       - libnftnl
-    source: https://git.netfilter.org/nftables
-    source-commit: d946842f576b422972212a2b83601bbd6204337c # v1.1.0
-    source-type: git
+    # XXX: Netfilter's git repo is unreliable
+    source: https://www.netfilter.org/projects/nftables/files/nftables-1.1.0.tar.xz
+    source-checksum: sha256/ef3373294886c5b607ee7be82c56a25bc04e75f802f8e8adcd55aac91eb0aa24
     plugin: autotools
     autotools-configure-parameters:
       - --prefix=
@@ -548,15 +548,6 @@ parts:
       - libreadline-dev
     stage-packages:
       - libjansson4
-    override-build: |
-      set -ex
-
-      # Git cherry-picks
-      git config user.email "noreply@lists.canonical.com"
-      git config user.name "LXD snap builder"
-
-      set +ex
-      craftctl default
     organize:
       sbin/: bin/
       usr/lib/: lib/
