@@ -421,13 +421,13 @@ test_basic_usage() {
 
   # Test user, group and cwd
   lxc exec foo -- mkdir /blah
-  [ "$(lxc exec foo --user 1000 -- id -u)" = "1000" ] || false
-  [ "$(lxc exec foo --group 1000 -- id -g)" = "1000" ] || false
-  [ "$(lxc exec foo --cwd /blah -- pwd)" = "/blah" ] || false
+  [ "$(lxc exec foo --user 1000 -- id -u)" = "1000" ]
+  [ "$(lxc exec foo --group 1000 -- id -g)" = "1000" ]
+  [ "$(lxc exec foo --cwd /blah -- pwd)" = "/blah" ]
 
-  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /blah -- id -u)" = "1234" ] || false
-  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /blah -- id -g)" = "5678" ] || false
-  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /blah -- pwd)" = "/blah" ] || false
+  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /blah -- id -u)" = "1234" ]
+  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /blah -- id -g)" = "5678" ]
+  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /blah -- pwd)" = "/blah" ]
 
   # check that we can set the environment
   lxc exec foo -- pwd | grep /root
