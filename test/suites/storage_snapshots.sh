@@ -83,7 +83,7 @@ EOF
   ! lxc storage volume show "${storage_pool}" "${storage_volume}/snap1" | grep -q 'expires_at: 0001-01-01T00:00:00Z' || false
 
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}" --no-expiry
-  lxc storage volume show "${storage_pool}" "${storage_volume}/snap2" | grep -q 'expires_at: 0001-01-01T00:00:00Z' || false
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap2" | grep -q 'expires_at: 0001-01-01T00:00:00Z'
 
   lxc storage volume rm "${storage_pool}" "${storage_volume}/snap2"
   lxc storage volume rm "${storage_pool}" "${storage_volume}/snap1"
