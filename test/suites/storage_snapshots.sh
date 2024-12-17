@@ -41,7 +41,16 @@ expires_at: ${expiry_date_in_one_minute}
 EOF
   # Check that the expiry date is set correctly
   lxc storage volume show "${storage_pool}" "${storage_volume}/yaml_volume_snapshot" | grep "expires_at: ${expiry_date_in_one_minute}"
-  lxc storage volume show "${storage_pool}" "${storage_volume}/yaml_volume_snapshot" | grep "description: foodesc"
+
+  # Dates are formatted differently between `show` and `get --property`
+  property_expiry_date_in_one_minute="$(date -u -d "${expiry_date_in_one_minute}" '+%Y-%m-%d %H:%M:%S %z %Z')"
+  [ "$(lxc storage volume get --property "${storage_pool}" "${storage_volume}/yaml_volume_snapshot" expires_at)" = "${property_expiry_date_in_one_minute}" ]
+
+  # Check that the description property can be set/get correctly
+  [ "$(lxc storage volume get --property "${storage_pool}" "${storage_volume}/yaml_volume_snapshot" description)" = "foodesc" ]
+  lxc storage volume set --property "${storage_pool}" "${storage_volume}/yaml_volume_snapshot" description="bardesc"
+  [ "$(lxc storage volume get --property "${storage_pool}" "${storage_volume}/yaml_volume_snapshot" description)" = "bardesc" ]
+
   # Delete the snapshot
   lxc storage volume delete "${storage_pool}" "${storage_volume}/yaml_volume_snapshot"
 
