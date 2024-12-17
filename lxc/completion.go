@@ -1347,10 +1347,13 @@ func (g *cmdGlobal) cmpRemotes(includeAll bool) ([]string, cobra.ShellCompDirect
 
 // cmpRemoteNames provides shell completion for remote names.
 // It returns a list of remote names provided by `g.conf.Remotes` along with a shell completion directive.
-func (g *cmdGlobal) cmpRemoteNames() ([]string, cobra.ShellCompDirective) {
-	var results []string
-
+func (g *cmdGlobal) cmpRemoteNames(includeDefaultRemote bool) ([]string, cobra.ShellCompDirective) {
+	results := make([]string, 0, len(g.conf.Remotes))
 	for remoteName := range g.conf.Remotes {
+		if !includeDefaultRemote && remoteName == g.conf.DefaultRemote {
+			continue
+		}
+
 		results = append(results, remoteName)
 	}
 
