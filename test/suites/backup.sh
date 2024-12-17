@@ -266,7 +266,7 @@ EOF
     echo "After:"
     echo "${poolConfigAfter}"
 
-    [ "${poolConfigBefore}" =  "${poolConfigAfter}" ] || false
+    [ "${poolConfigBefore}" = "${poolConfigAfter}" ]
     lxc storage show "${poolName}"
 
     lxc info c1 | grep snap0
