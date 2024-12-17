@@ -374,9 +374,9 @@ parts:
   libnftnl:
     after:
       - libmnl
-    source: https://git.netfilter.org/libnftnl
-    source-commit: 116e95aa7b6358c917de8c69f6f173874030b46b # libnftnl-1.2.7
-    source-type: git
+    # XXX: Netfilter's git repo is unreliable
+    source: https://www.netfilter.org/projects/libnftnl/files/libnftnl-1.2.7.tar.xz
+    source-checksum: sha256/9122774f968093d5c0bacddd67de480f31fa4073405a7fc058a34b0f387aecb3
     plugin: autotools
     autotools-configure-parameters:
       - --prefix=
