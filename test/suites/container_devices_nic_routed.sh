@@ -62,11 +62,7 @@ test_container_devices_nic_routed() {
   ! lxc config device add "${ctName}" eth0 nic name=eth0 nictype=routed vlan=1234 || false
 
   # Check VLAN parent interface creation and teardown.
-  lxc config device add "${ctName}" eth0 nic 
-    name=eth0 \
-    nictype=routed \
-    parent=${ctName} \
-    vlan=1235
+  lxc config device add "${ctName}" eth0 nic name=eth0 nictype=routed parent=${ctName} vlan=1235
   lxc start "${ctName}"
   stat "/sys/class/net/${ctName}.1235"
   lxc stop -f "${ctName}"
@@ -74,10 +70,7 @@ test_container_devices_nic_routed() {
   lxc config device remove "${ctName}" eth0
 
   # Add routed NIC to instance.
-  lxc config device add "${ctName}" eth0 nic \
-    name=eth0 \
-    nictype=routed \
-    parent=${ctName}
+  lxc config device add "${ctName}" eth0 nic name=eth0 nictype=routed parent=${ctName}
 
   # Check starting routed NIC with IPs in use on parent network is prevented.
   lxc config device set "${ctName}" eth0 ipv4.address="192.0.2.254"
@@ -96,12 +89,7 @@ test_container_devices_nic_routed() {
   lxc config device unset "${ctName}" eth0 ipv6.neighbor_probe
 
   # Check starting routed NIC with unused IPs.
-  lxc config device set "${ctName}" eth0 \
-    ipv4.address="192.0.2.1${ipRand}" \
-    ipv6.address="2001:db8::1${ipRand}" \
-    ipv4.routes="192.0.3.0/24" \
-    ipv6.routes="2001:db7::/64" \
-    mtu=1600
+  lxc config device set "${ctName}" eth0 ipv4.address="192.0.2.1${ipRand}" ipv6.address="2001:db8::1${ipRand}" ipv4.routes="192.0.3.0/24" ipv6.routes="2001:db7::/64" mtu=1600
   lxc start "${ctName}"
 
   ctHost=$(lxc config get "${ctName}" volatile.eth0.host_name)
