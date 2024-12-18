@@ -41,7 +41,7 @@ You can also restrict access to LXD entities by confining them to specific proje
 ```{toctree}
 :titlesonly:
 
-About authentication </authentication>
+/authentication
 About authorization </explanation/authorization>
 /explanation/projects
 ```
