@@ -16,6 +16,9 @@ const (
 
 	// TypeSDC represents Dell SDC storage connector.
 	TypeSDC string = "sdc"
+
+	// TypeISCSI represents an iSCSI storage connector.
+	TypeISCSI string = "iscsi"
 )
 
 // session represents a connector session that is established with a target.
@@ -61,6 +64,11 @@ func NewConnector(connectorType string, serverUUID string) (Connector, error) {
 
 	case TypeSDC:
 		return &connectorSDC{
+			common: common,
+		}, nil
+
+	case TypeISCSI:
+		return &connectorISCSI{
 			common: common,
 		}, nil
 
