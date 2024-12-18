@@ -3,7 +3,7 @@ discourse: lxc:24
 ---
 
 (lxd-lxc)=
-# About `lxd` and `lxc`
+# `lxd` and `lxc`
 
 LXD is frequently confused with LXC, and the fact that LXD provides both a `lxd` command and a `lxc` command doesn't make things easier.
 
