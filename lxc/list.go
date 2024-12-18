@@ -52,7 +52,7 @@ func (c *cmdList) command() *cobra.Command {
 Default column layout: ns46tS
 Fast column layout: nsacPt
 
-A single keyword like "web" which will list any instance with a name starting by "web".
+A single keyword like "web" which will list any instance with a name starting with "web".
 A regular expression on the instance name. (e.g. .*web.*01$).
 A key/value pair referring to a configuration item. For those, the
 namespace can be abbreviated to the smallest unambiguous identifier.
