@@ -2,8 +2,17 @@ package connectors
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/canonical/lxd/shared/revert"
+)
+
+const (
+	// TypeUnknown represents an unknown storage connector.
+	TypeUnknown string = "unknown"
+
+	// TypeNVME represents an NVMe/TCP storage connector.
+	TypeNVME string = "nvme"
 )
 
 // session represents a connector session that is established with a target.
@@ -31,4 +40,25 @@ type Connector interface {
 	DisconnectAll() error
 	SessionID(targetQN string) (string, error)
 	findSession(targetQN string) (*session, error)
+}
+
+// NewConnector instantiates a new connector of the given type.
+// The caller needs to ensure connector type is validated before calling this
+// function, as common (empty) connector is returned for unknown type.
+func NewConnector(connectorType string, serverUUID string) (Connector, error) {
+	common := common{
+		serverUUID: serverUUID,
+	}
+
+	switch connectorType {
+	case TypeNVME:
+		return &connectorNVMe{
+			common: common,
+		}, nil
+
+	default:
+		// Return common connector if the type is unknown. This removes
+		// the need to check for nil or handle the error in the caller.
+		return nil, fmt.Errorf("Unknown storage connector type %q", connectorType)
+	}
 }
