@@ -105,7 +105,7 @@ Pre-defined column shorthand chars:
   P - Profiles
   s - State
   S - Number of snapshots
-  t - Type (persistent or ephemeral)
+  t - Type (container or virtual-machine, ephemeral indicated if applicable)
   u - CPU usage (in seconds)
   L - Location of the instance (e.g. its cluster member)
   f - Base Image Fingerprint (short)
