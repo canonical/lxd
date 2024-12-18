@@ -7,6 +7,9 @@ import (
 const (
 	// TypeUnknown represents an unknown storage connector.
 	TypeUnknown string = "unknown"
+
+	// TypeISCSI represents an iSCSI storage connector.
+	TypeISCSI string = "iscsi"
 )
 
 // Connector represents a storage connector that handles connections through
@@ -21,4 +24,25 @@ type Connector interface {
 	ConnectAll(ctx context.Context, targetAddr string) error
 	Disconnect(targetQN string) error
 	DisconnectAll() error
+}
+
+// NewConnector instantiates a new connector of the given type.
+// The caller needs to ensure connector type is validated before calling this
+// function, as common (empty) connector is returned for unknown type.
+func NewConnector(connectorType string, serverUUID string) Connector {
+	common := common{
+		serverUUID: serverUUID,
+	}
+
+	switch connectorType {
+	case TypeISCSI:
+		return &connectorISCSI{
+			common: common,
+		}
+
+	default:
+		// Return common connector if the type is unknown. This removes
+		// the need to check for nil or handle the error in the caller.
+		return &common
+	}
 }
