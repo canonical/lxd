@@ -42,7 +42,7 @@ You can also restrict access to LXD entities by confining them to specific proje
 :titlesonly:
 
 /authentication
-About authorization </explanation/authorization>
+/explanation/authorization
 /explanation/projects
 ```
 
