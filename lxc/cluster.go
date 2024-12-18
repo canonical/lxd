@@ -680,9 +680,10 @@ func (c *cmdClusterEnable) command() *cobra.Command {
   This command turns a non-clustered LXD server into the first member of a new
   LXD cluster, which will have the given name.
 
-  It's required that the LXD is already available on the network. You can check
-  that by running 'lxc config get core.https_address', and possibly set a value
-  for the address if not yet set.`))
+  It's required that LXD is already available on the network. You can check
+  this by running 'lxc config get core.https_address'. If either an IP address
+  and port is displayed, or both, LXD is already available on the network. If
+  no value is set, use 'lxc config set core.https_address' to set it.`))
 
 	cmd.RunE = c.run
 
