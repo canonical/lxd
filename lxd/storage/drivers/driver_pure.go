@@ -7,6 +7,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/revert"
@@ -20,14 +21,18 @@ var pureLoaded = false
 // pureVersion indicates Pure Storage version.
 var pureVersion = ""
 
-// Pure Storage modes.
-const (
-	pureModeISCSI = "iscsi"
-	pureModeNVMe  = "nvme"
-)
+// pureSupportedConnectors is a list of supported Pure Storage connectors.
+var pureSupportedConnectors = []string{
+	connectors.TypeISCSI,
+	connectors.TypeNVME,
+}
 
 type pure struct {
 	common
+
+	// Holds the low level connector for the Pure Storage driver.
+	// Use pure.connector() to retrieve the initialized connector.
+	storageConnector connectors.Connector
 
 	// Holds the low level HTTP client for the Pure Storage API.
 	// Use pure.client() to retrieve the client struct.
@@ -44,45 +49,25 @@ func (d *pure) load() error {
 		return nil
 	}
 
-	switch d.config["pure.mode"] {
-	case pureModeISCSI:
-		// Detect and record the version of the iSCSI CLI.
-		// It will fail if the "iscsiadm" is not installed on the host.
-		out, err := shared.RunCommand("iscsiadm", "--version")
-		if err != nil {
-			return fmt.Errorf("Failed to get iscsiadm version: %w", err)
-		}
+	versions := connectors.GetSupportedVersions(pureSupportedConnectors)
+	pureVersion = strings.Join(versions, " / ")
+	pureLoaded = true
 
-		fields := strings.Split(strings.TrimSpace(out), " ")
-		if strings.HasPrefix(out, "iscsiadm version ") && len(fields) > 2 {
-			pureVersion = fmt.Sprintf("%s (iscsiadm)", fields[2])
-		}
+	// Load the kernel modules of the respective connector, ignoring those that cannot
+	// be loaded. Support for a selected connector is checked during configuration
+	// validation. However, this ensures that the kernel modules are loaded, even if
+	// the host has been rebooted.
+	_ = d.connector().LoadModules()
 
-		// Load the iSCSI and kernel modules, ignoring those that cannot be loaded.
-		// Support for the Pure Storage mode is checked during pool creation. However, this
-		// ensures that the kernel modules are loaded, even if the host has been rebooted.
-		_ = d.loadISCSIModules()
-	case pureModeNVMe:
-		// Detect and record the version of the NVMe CLI.
-		// The NVMe CLI is shipped with the snap.
-		out, err := shared.RunCommand("nvme", "version")
-		if err != nil {
-			return fmt.Errorf("Failed to get nvme-cli version: %w", err)
-		}
+	return nil
+}
 
-		fields := strings.Split(strings.TrimSpace(out), " ")
-		if strings.HasPrefix(out, "nvme version ") && len(fields) > 2 {
-			pureVersion = fmt.Sprintf("%s (nvme-cli)", fields[2])
-		}
-
-		// Load the NVMe and kernel modules, ignoring those that cannot be loaded.
-		// Support for the Pure Storage mode is checked during pool creation. However, this
-		// ensures that the kernel modules are loaded, even if the host has been rebooted.
-		_ = d.loadNVMeModules()
+func (d *pure) connector() connectors.Connector {
+	if d.storageConnector == nil {
+		d.storageConnector = connectors.NewConnector(d.config["pure.mode"], d.state.ServerUUID)
 	}
 
-	pureLoaded = true
-	return nil
+	return d.storageConnector
 }
 
 // client returns the drivers Pure Storage client. A new client is created only if it does not already exist.
@@ -123,7 +108,7 @@ func (d *pure) Info() Info {
 func (d *pure) FillConfig() error {
 	// Use NVMe by default.
 	if d.config["pure.mode"] == "" {
-		d.config["pure.mode"] = pureModeNVMe
+		d.config["pure.mode"] = connectors.TypeNVME
 	}
 
 	return nil
@@ -159,7 +144,7 @@ func (d *pure) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: the discovered mode
 		//  shortdesc: How volumes are mapped to the local server
-		"pure.mode": validate.Optional(validate.IsOneOf(pureModeISCSI, pureModeNVMe)),
+		"pure.mode": validate.Optional(validate.IsOneOf(connectors.TypeISCSI, connectors.TypeNVME)),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=volume.size)
 		// Default Pure Storage volume size rounded to 512B. The minimum size is 1MiB.
 		// ---
@@ -189,16 +174,8 @@ func (d *pure) Validate(config map[string]string) error {
 	// on the other cluster members too. This can be done here since Validate
 	// gets executed on every cluster member when receiving the cluster
 	// notification to finally create the pool.
-	switch config["pure.mode"] {
-	case pureModeISCSI:
-		if !d.loadISCSIModules() {
-			return fmt.Errorf("iSCSI is not supported")
-		}
-
-	case pureModeNVMe:
-		if !d.loadNVMeModules() {
-			return fmt.Errorf("NVMe is not supported")
-		}
+	if newMode != "" && !connectors.NewConnector(newMode, "").LoadModules() {
+		return fmt.Errorf("Pure Storage mode %q is not supported due to missing kernel modules", newMode)
 	}
 
 	return nil
