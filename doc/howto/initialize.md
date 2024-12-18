@@ -19,7 +19,7 @@ The tool asks a series of questions to determine the required configuration.
 The questions are dynamically adapted to the answers that you give.
 They cover the following areas:
 
-Clustering (see {ref}`exp-clustering` and {ref}`cluster-form`)
+Clustering (see {ref}`exp-clusters` and {ref}`cluster-form`)
 : A cluster combines several LXD servers.
   The cluster members share the same distributed database and can be managed uniformly using the LXD client ([`lxc`](lxc.md)) or the REST API.
 
