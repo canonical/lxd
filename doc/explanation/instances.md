@@ -4,7 +4,7 @@ relatedlinks: '[LXD&#32;virtual&#32;machines:&#32;an&#32;overview](https://ubunt
 ---
 
 (containers-and-vms)=
-# About containers and VMs
+# Containers and VMs
 
 LXD provides support for two different types of {ref}`instances <expl-instances>`: *system containers* and *virtual machines*.
 
