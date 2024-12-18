@@ -1,5 +1,5 @@
 (networks)=
-# About networking
+# Networking setups
 
 There are different ways to connect your instances to the Internet. The easiest method is to have LXD create a network bridge during initialization and use this bridge for all instances, but LXD supports many different and advanced setups for networking.
 
