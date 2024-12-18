@@ -273,7 +273,7 @@ func (g *cmdGlobal) cmpInstanceKeys(instanceName string) ([]string, cobra.ShellC
 				configKey = strings.TrimSuffix(configKey, "*")
 
 				// InstanceTypeAny config keys.
-				if configKeyField.Condition == "" {
+				if configKeyField.Condition == "" || configKeyField.Condition == "If supported by image" {
 					configKeys = append(configKeys, configKey)
 					continue
 				}
