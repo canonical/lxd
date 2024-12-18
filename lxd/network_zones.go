@@ -279,7 +279,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			if err != nil {
-				continue
+				return response.SmartError(err)
 			}
 
 			netzoneInfo := netzone.Info()
