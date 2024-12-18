@@ -2268,7 +2268,7 @@ lxc storage volume show default virtual-machine/data/snap0
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpStoragePoolVolumes(args[0])
+			return c.global.cmpStoragePoolVolumes(args[0], "custom")
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp

@@ -1634,9 +1634,17 @@ func (g *cmdGlobal) cmpStoragePoolVolumes(poolName string, volumeTypes ...string
 
 	customVolumeNames := make([]string, 0, customKeyCount)
 
-	// Only include custom volumes
+	// Only complete volumes specified by volumeTypes.
 	for _, volume := range volumes {
 		_, volType := parseVolume("custom", volume)
+
+		// Parse snapshots returned by GetStoragePoolVolumeNames.
+		volumeName, snapshotName, found := strings.Cut(volume, "/snapshots")
+		if found {
+			customVolumeNames = append(customVolumeNames, volumeName+snapshotName)
+			continue
+		}
+
 		if shared.ValueInSlice(volType, volumeTypes) {
 			customVolumeNames = append(customVolumeNames, volume)
 		}
