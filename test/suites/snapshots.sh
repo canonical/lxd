@@ -360,16 +360,20 @@ test_snap_expiry() {
   lxc launch testimage c1
   lxc snapshot c1
   lxc config show c1/snap0 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
+  [ "$(lxc config get --property c1/snap0 expires_at)" = "0001-01-01 00:00:00 +0000 UTC" ]
 
   lxc config set c1 snapshots.expiry '1d'
   lxc snapshot c1
   ! lxc config show c1/snap1 | grep -q 'expires_at: 0001-01-01T00:00:00Z' || false
+  [ "$(lxc config get --property c1/snap1 expires_at)" != "0001-01-01 00:00:00 +0000 UTC" ]
 
   lxc copy c1 c2
   ! lxc config show c2/snap1 | grep -q 'expires_at: 0001-01-01T00:00:00Z' || false
+  [ "$(lxc config get --property c2/snap1 expires_at)" != "0001-01-01 00:00:00 +0000 UTC" ]
 
   lxc snapshot c1 --no-expiry
   lxc config show c1/snap2 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
+  [ "$(lxc config get --property c1/snap2 expires_at)" = "0001-01-01 00:00:00 +0000 UTC" ]
 
   lxc rm -f c1
   lxc rm -f c2
