@@ -3,7 +3,7 @@ relatedlinks: https://www.youtube.com/watch?v=QyXOOE_4cm0
 ---
 
 (performance-tuning)=
-# About performance tuning
+# Performance tuning
 
 When you are ready to move your LXD setup to production, you should take some time to optimize the performance of your system.
 There are different aspects that impact performance.
