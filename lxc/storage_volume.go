@@ -2360,7 +2360,7 @@ func (c *cmdStorageVolumeUnset) command() *cobra.Command {
 Supported types are custom, image, container and virtual-machine.
 
 lxc storage volume unset default data size
-    Remotes the size/quota of a custom volume "data" in pool "default".
+    Removes the size/quota of a custom volume "data" in pool "default".
 
 lxc storage volume unset default virtual-machine/data snapshots.expiry
     Removes the snapshot expiration period for a virtual machine "data" in pool "default".`))
