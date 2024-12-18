@@ -81,8 +81,7 @@ runs:
 
               # MicroCeph does not accept partitions directly.
               # See: https://github.com/canonical/microceph/issues/251
-              disk="$(losetup -f)"
-              sudo losetup --direct-io=on "${disk}" "${ephemeral_disk}${i}"
+              disk="$(sudo losetup --find --nooverlap --direct-io=on --show "${ephemeral_disk}${i}")"
               sudo microceph disk add "${disk}"
             done
           else
