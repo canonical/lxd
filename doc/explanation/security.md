@@ -4,7 +4,7 @@ relatedlinks: https://linuxcontainers.org/lxc/security/
 
 (exp-security)=
 (security)=
-# About security
+# Security
 
 ```{youtube} https://www.youtube.com/watch?v=cOOzKdYHkus
 ```
