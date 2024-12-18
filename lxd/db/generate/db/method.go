@@ -178,8 +178,9 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		stmtLocal := stmtVar + "Local"
 		buf.L("%s := strings.Replace(%s, \"%%s_id\", fmt.Sprintf(\"%%s_id\", parent), -1)", stmtLocal, stmtVar)
 		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
+		buf.L("mangledParent := strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
 		buf.L("for i := range fillParent {")
-		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
+		buf.L("fillParent[i] = mangledParent")
 		buf.L("}")
 		buf.N()
 		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)
