@@ -636,7 +636,7 @@ user_is_not_project_operator() {
 
   # Should not be able to see or create network zones.
   lxc_remote network zone create zone1
-  [ "$(lxc_remote network zone list "${remote}:" -f csv | wc -l)" = 0 ]
+  [ "$(lxc_remote network zone list "${remote}:" -f csv)" = "" ]
   [ "$(lxc_remote network zone list "${remote}:" -f csv --all-projects)" = "" ]
   ! lxc_remote network zone create "${remote}:test-zone" || false
   lxc_remote network zone delete zone1
