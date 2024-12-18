@@ -9,9 +9,8 @@ settings:
     
   # (Optional) Jira project components that should be attached to the created issue
   # Component names are case-sensitive
-  # components:
-  #  - LXD
-  #  - Microcloud
+  components:
+    - LXD
       
   # (Optional) GitHub labels. Only issues with one of those labels will be synchronized.
   # If not specified, all issues will be synchronized
@@ -28,7 +27,7 @@ settings:
   sync_comments: false
   
   # (Optional) (Default: None) Parent Epic key to link the issue to
-  epic_key: "LXD-1251"
+  epic_key: "LXD-2468"
       
   # (Optional) Dictionary mapping GitHub issue labels to Jira issue types. 
   # If label on the issue is not in specified list, this issue will be created as a Bug
