@@ -25,7 +25,7 @@ See the {ref}`howtos` for instructions on how to work with these entities, and t
 :titlesonly:
 
 /image-handling
-About storage </explanation/storage>
+/explanation/storage
 /explanation/networks
 /database
 /explanation/lxc_show_info

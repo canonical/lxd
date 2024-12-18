@@ -1,5 +1,5 @@
 (exp-storage)=
-# About storage pools, volumes and buckets
+# Storage pools, volumes, and buckets
 
 LXD stores its data in storage pools, divided into storage volumes of different content types (like images or instances).
 You could think of a storage pool as the disk that is used to store data, while storage volumes are different partitions on this disk that are used for specific purposes.
