@@ -1103,7 +1103,11 @@ func (d *pure) mapVolume(vol Volume) error {
 		return err
 	}
 
-	unlock, err := locking.Lock(d.state.ShutdownCtx, d.config["pure.mode"])
+	// Use lock to prevent a concurrent operation from the same of different
+	// storage pool from disconnecting the volume or even removing the Pure
+	// Storage host. This can happen if the last volume is unmapped just
+	// before this volume is mapped.
+	unlock, err := locking.Lock(d.state.ShutdownCtx, fmt.Sprintf("storage_pure_%s", d.config["pure.mode"]))
 	if err != nil {
 		return err
 	}
@@ -1147,7 +1151,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 		return err
 	}
 
-	unlock, err := locking.Lock(d.state.ShutdownCtx, d.config["pure.mode"])
+	unlock, err := locking.Lock(d.state.ShutdownCtx, fmt.Sprintf("storage_pure_%s", d.config["pure.mode"]))
 	if err != nil {
 		return err
 	}
