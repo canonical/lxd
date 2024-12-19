@@ -7777,24 +7777,23 @@ func (d *qemu) Render(options ...func(response any) error) (state any, etag any,
 		etag := []any{d.expiryDate}
 
 		snapState := api.InstanceSnapshot{
-			CreatedAt:       d.creationDate,
-			ExpandedConfig:  d.expandedConfig,
-			ExpandedDevices: d.expandedDevices.CloneNative(),
-			LastUsedAt:      d.lastUsedDate,
 			Name:            strings.SplitN(d.name, "/", 2)[1],
+			Architecture:    d.architectureName,
+			Profiles:        profileNames,
+			Config:          d.localConfig,
+			ExpandedConfig:  d.expandedConfig,
+			Devices:         d.localDevices.CloneNative(),
+			ExpandedDevices: d.expandedDevices.CloneNative(),
+			CreatedAt:       d.creationDate,
+			LastUsedAt:      d.lastUsedDate,
+			ExpiresAt:       d.expiryDate,
+			Ephemeral:       d.ephemeral,
 			Stateful:        d.stateful,
 
 			// Default to uninitialised/error state (0 means no CoW usage).
 			// The size can then be populated optionally via the options argument.
 			Size: -1,
 		}
-
-		snapState.Architecture = d.architectureName
-		snapState.Config = d.localConfig
-		snapState.Devices = d.localDevices.CloneNative()
-		snapState.Ephemeral = d.ephemeral
-		snapState.Profiles = profileNames
-		snapState.ExpiresAt = d.expiryDate
 
 		for _, option := range options {
 			err := option(&snapState)
@@ -7810,9 +7809,19 @@ func (d *qemu) Render(options ...func(response any) error) (state any, etag any,
 	etag = []any{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
 
 	instState := api.Instance{
-		ExpandedConfig:  d.expandedConfig,
-		ExpandedDevices: d.expandedDevices.CloneNative(),
 		Name:            d.name,
+		Description:     d.description,
+		Architecture:    d.architectureName,
+		Profiles:        profileNames,
+		Config:          d.localConfig,
+		ExpandedConfig:  d.expandedConfig,
+		Devices:         d.localDevices.CloneNative(),
+		ExpandedDevices: d.expandedDevices.CloneNative(),
+		CreatedAt:       d.creationDate,
+		LastUsedAt:      d.lastUsedDate,
+		Ephemeral:       d.ephemeral,
+		Stateful:        d.stateful,
+		Project:         d.project.Name,
 		Location:        d.node,
 		Type:            d.Type().String(),
 		StatusCode:      api.Error, // Default to error status for remote instances that are unreachable.
@@ -7824,17 +7833,6 @@ func (d *qemu) Render(options ...func(response any) error) (state any, etag any,
 	}
 
 	instState.Status = instState.StatusCode.String()
-
-	instState.Description = d.description
-	instState.Architecture = d.architectureName
-	instState.Config = d.localConfig
-	instState.CreatedAt = d.creationDate
-	instState.Devices = d.localDevices.CloneNative()
-	instState.Ephemeral = d.ephemeral
-	instState.LastUsedAt = d.lastUsedDate
-	instState.Profiles = profileNames
-	instState.Stateful = d.stateful
-	instState.Project = d.project.Name
 
 	for _, option := range options {
 		err := option(&instState)
