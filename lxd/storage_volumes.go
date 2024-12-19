@@ -1878,10 +1878,12 @@ func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, poolName s
 	defer revert.Fail()
 
 	// Update devices using the volume in instances and profiles.
-	err = storagePoolVolumeUpdateUsers(s, projectName, pool.Name(), vol, pool.Name(), &newVol)
+	cleanup, err := storagePoolVolumeUpdateUsers(s, projectName, pool.Name(), vol, pool.Name(), &newVol)
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	revert.Add(cleanup)
 
 	// Use an empty operation for this sync response to pass the requestor
 	op := &operations.Operation{}
@@ -1919,14 +1921,12 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, poolName str
 		defer revert.Fail()
 
 		// Update devices using the volume in instances and profiles.
-		err = storagePoolVolumeUpdateUsers(s, requestProjectName, pool.Name(), vol, newPool.Name(), &newVol)
+		cleanup, err := storagePoolVolumeUpdateUsers(s, requestProjectName, pool.Name(), vol, newPool.Name(), &newVol)
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() {
-			_ = storagePoolVolumeUpdateUsers(s, projectName, newPool.Name(), &newVol, pool.Name(), vol)
-		})
+		revert.Add(cleanup)
 
 		// Provide empty description and nil config to instruct CreateCustomVolumeFromCopy to copy it
 		// from source volume.
