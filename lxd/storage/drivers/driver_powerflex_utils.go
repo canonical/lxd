@@ -65,7 +65,7 @@ type powerFlexError map[string]any
 
 // Error tries to return all kinds of errors from the PowerFlex API in a nicely formatted way.
 func (p *powerFlexError) Error() string {
-	var errorStrings []string
+	errorStrings := make([]string, 0, len(*p))
 	for k, v := range *p {
 		errorStrings = append(errorStrings, fmt.Sprintf("%s: %v", k, v))
 	}
