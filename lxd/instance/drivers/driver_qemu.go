@@ -7783,7 +7783,10 @@ func (d *qemu) Render(options ...func(response any) error) (state any, etag any,
 			LastUsedAt:      d.lastUsedDate,
 			Name:            strings.SplitN(d.name, "/", 2)[1],
 			Stateful:        d.stateful,
-			Size:            -1, // Default to uninitialised/error state (0 means no CoW usage).
+
+			// Default to uninitialised/error state (0 means no CoW usage).
+			// The size can then be populated optionally via the options argument.
+			Size: -1,
 		}
 
 		snapState.Architecture = d.architectureName
