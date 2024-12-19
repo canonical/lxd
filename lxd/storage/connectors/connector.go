@@ -13,6 +13,9 @@ const (
 
 	// TypeNVME represents an NVMe/TCP storage connector.
 	TypeNVME string = "nvme"
+
+	// TypeSDC represents Dell SDC storage connector.
+	TypeSDC string = "sdc"
 )
 
 // Connector represents a storage connector that handles connections through
@@ -44,6 +47,11 @@ func NewConnector(connectorType string, serverUUID string) Connector {
 		}
 
 	case TypeNVME:
+		return &connectorNVMe{
+			common: common,
+		}
+
+	case TypeSDC:
 		return &connectorNVMe{
 			common: common,
 		}
