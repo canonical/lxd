@@ -35,6 +35,7 @@ func (d *mock) Info() Info {
 		RunningCopyFreeze:            true,
 		DirectIO:                     true,
 		MountedRoot:                  true,
+		PopulateParentVolumeUUID:     false,
 	}
 }
 
