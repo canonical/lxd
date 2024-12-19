@@ -154,5 +154,5 @@ EOF
   lxc delete devlxd --force
   kill -9 ${monitorDevlxdPID} || true
 
-  [ "${MATCH}" = "1" ] || false
+  [ "${MATCH}" = "1" ]
 }
