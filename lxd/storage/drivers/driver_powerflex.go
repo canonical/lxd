@@ -280,6 +280,15 @@ func (d *powerflex) Validate(config map[string]string) error {
 		return err
 	}
 
+	newMode := config["powerflex.mode"]
+	oldMode := d.config["powerflex.mode"]
+
+	// Ensure powerflex.mode cannot be changed to avoid leaving volume mappings
+	// and to prevent disturbing running instances.
+	if oldMode != "" && oldMode != newMode {
+		return fmt.Errorf("PowerFlex mode cannot be changed")
+	}
+
 	// Check if the selected PowerFlex mode is supported on this node.
 	// Also when forming the storage pool on a LXD cluster, the mode
 	// that got discovered on the creating machine needs to be validated
