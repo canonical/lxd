@@ -89,8 +89,9 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filters ...Devic
 
 	deviceObjectsLocal := strings.Replace(deviceObjects, "%s_id", fmt.Sprintf("%s_id", parent), -1)
 	fillParent := make([]any, strings.Count(deviceObjectsLocal, "%s"))
+	mangledParent := strings.Replace(parent, "_", "s_", -1) + "s"
 	for i := range fillParent {
-		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
+		fillParent[i] = mangledParent
 	}
 
 	queryStr := fmt.Sprintf(deviceObjectsLocal, fillParent...)
