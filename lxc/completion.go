@@ -6,7 +6,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
@@ -359,30 +358,13 @@ func (g *cmdGlobal) cmpInstanceSetKeys(instanceName string) ([]string, cobra.She
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	instanceType := instance.Type
-
-	// Fetch all config keys that can be set by a user based on instance type.
-	allInstanceConfigKeys, _ := g.cmpInstanceKeys(instanceName)
-
-	// Convert slice to map[string]struct{} for O(1) lookups.
-	keySet := make(map[string]struct{}, len(allInstanceConfigKeys))
-	for _, key := range allInstanceConfigKeys {
-		keySet[key] = struct{}{}
-	}
-
 	// Pre-allocate configKeys slice capacity.
 	keyCount := len(instance.Config)
 	configKeys := make([]string, 0, keyCount)
 
 	for configKey := range instance.Config {
-		// We only want to return the intersection between allInstanceConfigKeys and configKeys to avoid returning the full instance config.
-		_, exists := keySet[configKey]
-		if exists {
-			if shared.StringHasPrefix(configKey, instancetype.ConfigKeyPrefixesAny...) {
-				configKeys = append(configKeys, configKey)
-			} else if instanceType == string(api.InstanceTypeContainer) && shared.StringHasPrefix(configKey, instancetype.ConfigKeyPrefixesContainer...) {
-				configKeys = append(configKeys, configKey)
-			}
+		if !shared.StringHasPrefix(configKey, []string{"volatile", "image"}...) {
+			configKeys = append(configKeys, configKey)
 		}
 	}
 
