@@ -206,6 +206,11 @@ func getCPUdmi() (vendor string, model string, err error) {
 	return "", "", fmt.Errorf("No DMI table found")
 }
 
+type cpuInfo struct {
+	Name   string
+	Vendor string
+}
+
 // GetCPU returns a filled api.ResourcesCPU struct ready for use by LXD.
 func GetCPU() (*api.ResourcesCPU, error) {
 	cpu := api.ResourcesCPU{}
@@ -227,7 +232,68 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	}
 
 	defer func() { _ = f.Close() }()
-	cpuInfo := bufio.NewScanner(f)
+	cpuInfoScanner := bufio.NewScanner(f)
+	cpuInfoMap := map[int64]*cpuInfo{}
+
+	// CPU information
+	for cpuInfoScanner.Scan() {
+		line := strings.TrimSpace(cpuInfoScanner.Text())
+		if !strings.HasPrefix(line, "processor") {
+			return nil, fmt.Errorf("Failed to parse /proc/cpuinfo: Unexpected line %q", line)
+		}
+
+		// Extract cpu index
+		fields := strings.SplitN(line, ":", 2)
+		value := strings.TrimSpace(fields[1])
+		cpuSocket, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse cpu index %q in /proc/cpuinfo: %w", value, err)
+		}
+
+		_, ok := cpuInfoMap[cpuSocket]
+		if ok {
+			return nil, fmt.Errorf("Failed to parse /proc/cpuinfo: duplicate CPU block in cpuinfo?")
+		}
+
+		cpuInfo := &cpuInfo{}
+
+		// Iterate until we hit the separator line
+		for cpuInfoScanner.Scan() {
+			line := strings.TrimSpace(cpuInfoScanner.Text())
+
+			// End of processor section
+			if line == "" {
+				break
+			}
+
+			// Check if we already have the data and seek to next
+			if cpuInfo.Vendor != "" && cpuInfo.Name != "" {
+				continue
+			}
+
+			// Get key/value
+			fields := strings.SplitN(line, ":", 2)
+			key := strings.TrimSpace(fields[0])
+			value := strings.TrimSpace(fields[1])
+
+			if key == "vendor_id" {
+				cpuInfo.Vendor = value
+				continue
+			}
+
+			if key == "model name" {
+				cpuInfo.Name = value
+				continue
+			}
+
+			if key == "cpu" {
+				cpuInfo.Name = value
+				continue
+			}
+		}
+
+		cpuInfoMap[cpuSocket] = cpuInfo
+	}
 
 	// List all the CPUs
 	entries, err := os.ReadDir(sysDevicesCPU)
@@ -283,57 +349,10 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			// Socket number
 			resSocket.Socket = uint64(cpuSocket)
 
-			// CPU information
-			for cpuInfo.Scan() {
-				line := strings.TrimSpace(cpuInfo.Text())
-				if !strings.HasPrefix(line, "processor") {
-					continue
-				}
-
-				// Check if we're dealing with the right CPU
-				fields := strings.SplitN(line, ":", 2)
-				value := strings.TrimSpace(fields[1])
-
-				if value != fmt.Sprintf("%v", cpuSocket) {
-					continue
-				}
-
-				// Iterate until we hit the separator line
-				for cpuInfo.Scan() {
-					line := strings.TrimSpace(cpuInfo.Text())
-
-					// End of processor section
-					if line == "" {
-						break
-					}
-
-					// Check if we already have the data and seek to next
-					if resSocket.Vendor != "" && resSocket.Name != "" {
-						continue
-					}
-
-					// Get key/value
-					fields := strings.SplitN(line, ":", 2)
-					key := strings.TrimSpace(fields[0])
-					value := strings.TrimSpace(fields[1])
-
-					if key == "vendor_id" {
-						resSocket.Vendor = value
-						continue
-					}
-
-					if key == "model name" {
-						resSocket.Name = value
-						continue
-					}
-
-					if key == "cpu" {
-						resSocket.Name = value
-						continue
-					}
-				}
-
-				break
+			cpuInfo, ok := cpuInfoMap[cpuSocket]
+			if ok {
+				resSocket.Vendor = cpuInfo.Vendor
+				resSocket.Name = cpuInfo.Name
 			}
 
 			// Fill in model/vendor from DMI if missing.
