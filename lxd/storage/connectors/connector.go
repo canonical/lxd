@@ -70,3 +70,26 @@ func NewConnector(connectorType string, serverUUID string) (Connector, error) {
 		return nil, fmt.Errorf("Unknown storage connector type %q", connectorType)
 	}
 }
+
+// GetSupportedVersions returns the versions for the given connector types
+// ignoring those that produce an error when version is being retrieved
+// (e.g. due to a missing required tools).
+func GetSupportedVersions(connectorTypes []string) []string {
+	versions := make([]string, 0, len(connectorTypes))
+
+	// Iterate over the provided connector types, and extract
+	// their versions.
+	for _, connectorType := range connectorTypes {
+		connector, err := NewConnector(connectorType, "")
+		if err != nil {
+			continue
+		}
+
+		version, _ := connector.Version()
+		if version != "" {
+			versions = append(versions, version)
+		}
+	}
+
+	return versions
+}
