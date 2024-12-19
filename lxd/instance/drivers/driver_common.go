@@ -1697,6 +1697,55 @@ func (d *common) deleteSnapshots(deleteFunc func(snapInst instance.Instance) err
 	return nil
 }
 
+// checkRootVolumeNotInUse fails if the instance's root volume is in use on
+// another instance.
+func (d *common) checkRootVolumeNotInUse() error {
+	// Make sure that the instance's root volume is not attached to another instance
+	storagePool, err := d.getStoragePool()
+	if err != nil {
+		return err
+	}
+
+	rootVolumeType, err := storagePools.InstanceTypeToVolumeType(d.Type())
+	if err != nil {
+		return err
+	}
+
+	rootVolumeDBType, err := storagePools.VolumeTypeToDBType(rootVolumeType)
+	if err != nil {
+		return err
+	}
+
+	var rootVolume *db.StorageVolume
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		rootVolume, err = tx.GetStoragePoolVolume(ctx, storagePool.ID(), d.Project().Name, rootVolumeDBType, d.Name(), true)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	err = storagePools.VolumeUsedByProfileDevices(d.state, storagePool.Name(), d.Project().Name, &rootVolume.StorageVolume, func(profileID int64, profile api.Profile, p api.Project, usedByDevices []string) error {
+		return fmt.Errorf(`"%s/%s" is attached to a profile`, rootVolume.Type, rootVolume.Name)
+	})
+	if err != nil {
+		return err
+	}
+
+	err = storagePools.VolumeUsedByInstanceDevices(d.state, storagePool.Name(), d.Project().Name, &rootVolume.StorageVolume, false, func(inst db.InstanceArgs, p api.Project, usedByDevices []string) error {
+		if inst.Name == d.Name() && inst.Project == d.Project().Name {
+			return nil
+		}
+
+		return fmt.Errorf(`"%s/%s" is attached to another instance`, rootVolume.Type, rootVolume.Name)
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // removeUnixDevices reads the devices path and remove all unix devices.
 func (d *common) removeUnixDevices() error {
 	// Check that we indeed have devices to remove

@@ -2193,7 +2193,7 @@ See {ref}`container-security` for more information.
 
 ```{config:option} security.protection.delete instance-security
 :defaultdesc: "`false`"
-:liveupdate: "yes"
+:liveupdate: "container"
 :shortdesc: "Whether to prevent the instance from being deleted"
 :type: "bool"
 
@@ -2210,7 +2210,7 @@ Set this option to `true` to prevent the instance's file system from being UID/G
 
 ```{config:option} security.protection.start instance-security
 :defaultdesc: "`false`"
-:liveupdate: "yes"
+:liveupdate: "container"
 :shortdesc: "Whether to prevent the instance from being started"
 :type: "bool"
 
@@ -4881,7 +4881,7 @@ prior to creating the storage pool.
 <!-- config group storage-btrfs-pool-conf end -->
 <!-- config group storage-btrfs-volume-conf start -->
 ```{config:option} security.shared storage-btrfs-volume-conf
-:condition: "custom block volume"
+:condition: "virtual-machine or custom block volume"
 :defaultdesc: "same as `volume.security.shared` or `false`"
 :scope: "global"
 :shortdesc: "Enable volume sharing"
@@ -5073,7 +5073,7 @@ If not set, `ext4` is assumed.
 ```
 
 ```{config:option} security.shared storage-ceph-volume-conf
-:condition: "custom block volume"
+:condition: "virtual-machine or custom block volume"
 :defaultdesc: "same as `volume.security.shared` or `false`"
 :scope: "global"
 :shortdesc: "Enable volume sharing"
@@ -5404,7 +5404,7 @@ to be placed on the socket I/O.
 <!-- config group storage-dir-pool-conf end -->
 <!-- config group storage-dir-volume-conf start -->
 ```{config:option} security.shared storage-dir-volume-conf
-:condition: "custom block volume"
+:condition: "virtual-machine or custom block volume"
 :defaultdesc: "same as `volume.security.shared` or `false`"
 :scope: "global"
 :shortdesc: "Enable volume sharing"
@@ -5622,7 +5622,7 @@ The size must be at least 4096 bytes, and a multiple of 512 bytes.
 ```
 
 ```{config:option} security.shared storage-lvm-volume-conf
-:condition: "custom block volume"
+:condition: "virtual-machine or custom block volume"
 :defaultdesc: "same as `volume.security.shared` or `false`"
 :scope: "global"
 :shortdesc: "Enable volume sharing"
@@ -5832,7 +5832,7 @@ If not set, `ext4` is assumed.
 ```
 
 ```{config:option} security.shared storage-powerflex-volume-conf
-:condition: "custom block volume"
+:condition: "virtual-machine or custom block volume"
 :defaultdesc: "same as `volume.security.shared` or `false`"
 :scope: "global"
 :shortdesc: "Enable volume sharing"
@@ -6003,7 +6003,7 @@ If not set, `ext4` is assumed.
 ```
 
 ```{config:option} security.shared storage-zfs-volume-conf
-:condition: "custom block volume"
+:condition: "virtual-machine or custom block volume"
 :defaultdesc: "same as `volume.security.shared` or `false`"
 :scope: "global"
 :shortdesc: "Enable volume sharing"

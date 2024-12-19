@@ -355,7 +355,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// ---
 	//  type: bool
 	//  defaultdesc: `false`
-	//  liveupdate: yes
+	//  liveupdate: container
 	//  shortdesc: Whether to prevent the instance from being deleted
 	"security.protection.delete": validate.Optional(validate.IsBool),
 
@@ -364,7 +364,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// ---
 	//  type: bool
 	//  defaultdesc: `false`
-	//  liveupdate: yes
+	//  liveupdate: container
 	//  shortdesc: Whether to prevent the instance from being started
 	"security.protection.start": validate.Optional(validate.IsBool),
 

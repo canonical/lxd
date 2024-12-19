@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/backup"
@@ -96,8 +97,7 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 
 // storagePoolVolumeUsedByGet returns a list of URL resources that use the volume.
 func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, vol *db.StorageVolume) ([]string, error) {
-	// Handle instance volumes.
-	if vol.Type == cluster.StoragePoolVolumeTypeNameContainer || vol.Type == cluster.StoragePoolVolumeTypeNameVM {
+	if vol.Type == cluster.StoragePoolVolumeTypeNameContainer {
 		volName, snapName, isSnap := api.GetParentAndSnapshotName(vol.Name)
 		if isSnap {
 			return []string{api.NewURL().Path(version.APIVersion, "instances", volName, "snapshots", snapName).Project(vol.Project).String()}, nil
@@ -140,6 +140,24 @@ func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, vol *
 	})
 	if err != nil {
 		return []string{}, err
+	}
+
+	// Handle instance volumes.
+	if vol.Type == cluster.StoragePoolVolumeTypeNameVM {
+		volName, snapName, isSnap := api.GetParentAndSnapshotName(vol.Name)
+		if isSnap {
+			return []string{api.NewURL().Path(version.APIVersion, "instances", volName, "snapshots", snapName).Project(vol.Project).String()}, nil
+		}
+
+		// VolumeUsedByInstanceDevices will find virtual-machine/container volumes
+		// when they are a root disk device in an instance's unexpanded devices,
+		// but not in a profile's devices.
+		// Since every virtual-machine/container volume is always in use by its
+		// corresponding instance, this ensures that it is reported.
+		instancePath := api.NewURL().Path(version.APIVersion, "instances", volName).Project(vol.Project).String()
+		if !slices.Contains(volumeUsedBy, instancePath) {
+			volumeUsedBy = append(volumeUsedBy, instancePath)
+		}
 	}
 
 	return volumeUsedBy, nil

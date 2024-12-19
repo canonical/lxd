@@ -2473,7 +2473,7 @@
 					{
 						"security.protection.delete": {
 							"defaultdesc": "`false`",
-							"liveupdate": "yes",
+							"liveupdate": "container",
 							"longdesc": "",
 							"shortdesc": "Whether to prevent the instance from being deleted",
 							"type": "bool"
@@ -2492,7 +2492,7 @@
 					{
 						"security.protection.start": {
 							"defaultdesc": "`false`",
-							"liveupdate": "yes",
+							"liveupdate": "container",
 							"longdesc": "",
 							"shortdesc": "Whether to prevent the instance from being started",
 							"type": "bool"
@@ -5508,7 +5508,7 @@
 				"keys": [
 					{
 						"security.shared": {
-							"condition": "custom block volume",
+							"condition": "virtual-machine or custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
 							"scope": "global",
@@ -5713,7 +5713,7 @@
 					},
 					{
 						"security.shared": {
-							"condition": "custom block volume",
+							"condition": "virtual-machine or custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
 							"scope": "global",
@@ -6069,7 +6069,7 @@
 				"keys": [
 					{
 						"security.shared": {
-							"condition": "custom block volume",
+							"condition": "virtual-machine or custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
 							"scope": "global",
@@ -6299,7 +6299,7 @@
 					},
 					{
 						"security.shared": {
-							"condition": "custom block volume",
+							"condition": "virtual-machine or custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
 							"scope": "global",
@@ -6521,7 +6521,7 @@
 					},
 					{
 						"security.shared": {
-							"condition": "custom block volume",
+							"condition": "virtual-machine or custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
 							"scope": "global",
@@ -6696,7 +6696,7 @@
 					},
 					{
 						"security.shared": {
-							"condition": "custom block volume",
+							"condition": "virtual-machine or custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
 							"scope": "global",

@@ -2542,3 +2542,9 @@ This introduces the configuration keys {config:option}`storage-ceph-pool-conf:ce
 ## `network_get_target`
 
 Adds optional `target` parameter to `GET /1.0/network`. When target is set, forward the request to the specified cluster member and return the non-managed interfaces from that member.
+
+## `instance_root_volume_attachment`
+
+Adds support for instance root volumes to be attached to other instances as disk
+devices. Introduces the `<type>/<volume>` syntax for the `source` property of
+disk devices.

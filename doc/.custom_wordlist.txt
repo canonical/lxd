@@ -303,6 +303,7 @@ uptime
 URI
 URIs
 userspace
+UUIDs
 vCPU
 vCPUs
 VDPA

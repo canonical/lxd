@@ -5190,6 +5190,11 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 		return err
 	}
 
+	err = d.checkRootVolumeNotInUse()
+	if err != nil {
+		return err
+	}
+
 	if d.IsRunning() {
 		return fmt.Errorf("Renaming of running instance not allowed")
 	}
@@ -5597,6 +5602,47 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		// Ensure the instance has a root disk.
 		if newErr != nil {
 			return fmt.Errorf("Invalid root disk device: %w", newErr)
+		}
+
+		// If security.protection.start is being removed, we need to make sure that
+		// our root disk device is not attached to another instance.
+		if shared.IsTrue(oldExpandedConfig["security.protection.start"]) && shared.IsFalseOrEmpty(d.expandedConfig["security.protection.start"]) {
+			// If the root disk device has security.shared: true, then it's OK to
+			// remove security.protection.start.
+			pool, err := storagePools.LoadByName(d.state, newRootDev["pool"])
+			if err != nil {
+				return err
+			}
+
+			volumeType := dbCluster.StoragePoolVolumeTypeVM
+			volumeName := d.common.name
+			volumeProject := project.StorageVolumeProjectFromRecord(&d.common.project, volumeType)
+
+			var dbVolume *db.StorageVolume
+			err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), volumeProject, volumeType, volumeName, true)
+				return err
+			})
+			if err != nil {
+				volumeTypeName := dbCluster.StoragePoolVolumeTypeNames[volumeType]
+				return fmt.Errorf(`Failed loading "%s/%s" from project %q: %w`, volumeTypeName, volumeName, volumeProject, err)
+			}
+
+			if shared.IsFalseOrEmpty(dbVolume.Config["security.shared"]) {
+				// Only check instances here, as a VM root volume cannot be part of a profile
+				// when not using security.shared
+				err := storagePools.VolumeUsedByInstanceDevices(d.state, pool.Name(), volumeProject, &dbVolume.StorageVolume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+					// The volume is always attached to its instance; using dbVolume.Name because args.Name is sometimes unset
+					if args.Project == inst.Project && dbVolume.Name == inst.Name {
+						return nil
+					}
+
+					return fmt.Errorf("Cannot unset security.protection.start while the root device is attached to another instance")
+				})
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -6071,8 +6117,13 @@ func (d *qemu) delete(force bool) error {
 		return fmt.Errorf("Instance is protected from being deleted")
 	}
 
+	err := d.checkRootVolumeNotInUse()
+	if err != nil {
+		return err
+	}
+
 	// Delete any persistent warnings for instance.
-	err := d.warningsDelete()
+	err = d.warningsDelete()
 	if err != nil {
 		return err
 	}
