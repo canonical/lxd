@@ -26,15 +26,17 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 		}
 
 		localDevices := inst.LocalDevices()
+		newDevices := localDevices.Clone()
+
 		for _, devName := range usedByDevices {
-			_, exists := localDevices[devName]
+			_, exists := newDevices[devName]
 			if exists {
-				localDevices[devName]["pool"] = newPoolName
+				newDevices[devName]["pool"] = newPoolName
 
 				if strings.Contains(localDevices[devName]["source"], "/") {
-					localDevices[devName]["source"] = newVol.Type + "/" + newVol.Name
+					newDevices[devName]["source"] = newVol.Type + "/" + newVol.Name
 				} else {
-					localDevices[devName]["source"] = newVol.Name
+					newDevices[devName]["source"] = newVol.Name
 				}
 			}
 		}
@@ -43,7 +45,7 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 			Architecture: inst.Architecture(),
 			Description:  inst.Description(),
 			Config:       inst.LocalConfig(),
-			Devices:      localDevices,
+			Devices:      newDevices,
 			Ephemeral:    inst.IsEphemeral(),
 			Profiles:     inst.Profiles(),
 			Project:      inst.Project().Name,
@@ -64,22 +66,35 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 
 	// Update all profiles that are using the volume with a device.
 	err = storagePools.VolumeUsedByProfileDevices(s, oldPoolName, projectName, oldVol, func(profileID int64, profile api.Profile, p api.Project, usedByDevices []string) error {
-		for name, dev := range profile.Devices {
-			if shared.ValueInSlice(name, usedByDevices) {
-				dev["pool"] = newPoolName
+		newDevices := make(map[string]map[string]string, len(profile.Devices))
+
+		for devName, dev := range profile.Devices {
+			for key, val := range dev {
+				_, exists := newDevices[devName]
+				if !exists {
+					newDevices[devName] = make(map[string]string, len(dev))
+				}
+
+				newDevices[devName][key] = val
+			}
+
+			if shared.ValueInSlice(devName, usedByDevices) {
+				newDevices[devName]["pool"] = newPoolName
 
 				if strings.Contains(dev["source"], "/") {
-					dev["source"] = newVol.Type + "/" + newVol.Name
+					newDevices[devName]["source"] = newVol.Type + "/" + newVol.Name
 				} else {
-					dev["source"] = newVol.Name
+					newDevices[devName]["source"] = newVol.Name
 				}
 			}
 		}
 
-		pUpdate := api.ProfilePut{}
-		pUpdate.Config = profile.Config
-		pUpdate.Description = profile.Description
-		pUpdate.Devices = profile.Devices
+		pUpdate := api.ProfilePut{
+			Config:      profile.Config,
+			Description: profile.Description,
+			Devices:     newDevices,
+		}
+
 		err = doProfileUpdate(s, p, profile.Name, profileID, &profile, pUpdate)
 		if err != nil {
 			return err
