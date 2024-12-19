@@ -143,6 +143,9 @@ update-protobuf:
 
 .PHONY: update-schema
 update-schema:
+ifeq ($(shell command -v goimports),)
+	(cd / ; go install golang.org/x/tools/cmd/goimports@latest)
+endif
 	cd lxd/db/generate && go build -v -trimpath -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG) && cd -
 	go generate ./...
 	gofmt -s -w ./lxd/db/
