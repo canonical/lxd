@@ -218,7 +218,7 @@ func NetworkAllowed(reqProjectConfig map[string]string, networkName string, isMa
 		return true
 	}
 
-	// Check if reqquested network is in list of allowed networks.
+	// Check if requested network is in list of allowed networks.
 	allowedRestrictedNetworks := shared.SplitNTrimSpace(reqProjectConfig["restricted.networks.access"], ",", -1, false)
 	return shared.ValueInSlice(networkName, allowedRestrictedNetworks)
 }
