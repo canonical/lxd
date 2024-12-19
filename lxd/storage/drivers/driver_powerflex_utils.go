@@ -885,7 +885,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 
 	switch d.config["powerflex.mode"] {
 	case powerFlexModeNVMe:
-		unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
+		unlock, err := locking.Lock(d.state.ShutdownCtx, "storage_powerflex_nvme")
 		if err != nil {
 			return nil, err
 		}
@@ -1104,7 +1104,7 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 			return err
 		}
 
-		unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
+		unlock, err := locking.Lock(d.state.ShutdownCtx, "storage_powerflex_nvme")
 		if err != nil {
 			return err
 		}
