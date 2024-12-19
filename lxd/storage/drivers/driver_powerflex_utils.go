@@ -792,21 +792,6 @@ func (d *powerflex) getHostGUID() (string, error) {
 	return d.sdcGUID, nil
 }
 
-// getServerName returns the hostname of this host.
-// It prefers the value from the daemons state in case LXD is clustered.
-func (d *powerflex) getServerName() (string, error) {
-	if d.state.ServerName != "none" {
-		return d.state.ServerName, nil
-	}
-
-	hostname, err := os.Hostname()
-	if err != nil {
-		return "", fmt.Errorf("Failed to get hostname: %w", err)
-	}
-
-	return hostname, nil
-}
-
 // getVolumeType returns the selected provisioning type of the volume.
 // As a default it returns type thin.
 func (d *powerflex) getVolumeType(vol Volume) powerFlexVolumeType {
@@ -837,7 +822,7 @@ func (d *powerflex) createNVMeHost() (string, revert.Hook, error) {
 			return "", nil, err
 		}
 
-		hostname, err := d.getServerName()
+		hostname, err := ResolveServerName(d.state.ServerName)
 		if err != nil {
 			return "", nil, err
 		}
