@@ -62,3 +62,23 @@ func NewConnector(connectorType string, serverUUID string) Connector {
 		return &common
 	}
 }
+
+// GetSupportedVersions returns the versions for the given connector types
+// ignoring those that produce an error when version is being retrieved
+// (e.g. due to a missing required tools).
+func GetSupportedVersions(connectorTypes []string) []string {
+	versions := make([]string, 0, len(connectorTypes))
+
+	// Iterate over the supported connectors, extracting version and loading
+	// kernel module for each of them.
+	for _, connectorType := range connectorTypes {
+		version, err := NewConnector(connectorType, "").Version()
+		if err != nil {
+			continue
+		}
+
+		versions = append(versions, version)
+	}
+
+	return versions
+}
