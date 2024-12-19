@@ -174,6 +174,15 @@ func (d *pure) Validate(config map[string]string) error {
 		return err
 	}
 
+	newMode := config["pure.mode"]
+	oldMode := d.config["pure.mode"]
+
+	// Ensure pure.mode cannot be changed to avoid leaving volume mappings
+	// and to prevent disturbing running instances.
+	if oldMode != "" && oldMode != newMode {
+		return fmt.Errorf("Pure Storage mode cannot be changed")
+	}
+
 	// Check if the selected Pure Storage mode is supported on this node.
 	// Also when forming the storage pool on a LXD cluster, the mode
 	// that got discovered on the creating machine needs to be validated
