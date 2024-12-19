@@ -53,6 +53,10 @@ The following configuration options are supported:
 
 For more information about the configuration options, see the [`cloud-init` instance options](instance-options-cloud-init), and the documentation for the {ref}`LXD data source <cloud-init:datasource_lxd>` in the `cloud-init` documentation.
 
+```{note}
+Ubuntu 20.04 and earlier have recent versions of the `cloud-init` package but support for the modern `cloud-init.*` configuration options is disabled in those series. As such, when using such old instances, remember to use the `user.*` configuration options instead.
+```
+
 ### Vendor data and user data
 
 Both `vendor-data` and `user-data` are used to provide {ref}`cloud configuration data <explanation/format:cloud config data>` to `cloud-init`.
