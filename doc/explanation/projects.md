@@ -1,5 +1,5 @@
 (exp-projects)=
-# About projects
+# Instances grouping with projects
 
 ```{youtube} https://www.youtube.com/watch?v=cUHkgg6TovM
 ```
