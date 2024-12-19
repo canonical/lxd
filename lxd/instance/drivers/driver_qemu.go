@@ -7808,17 +7808,22 @@ func (d *qemu) Render(options ...func(response any) error) (state any, etag any,
 
 	// Prepare the ETag
 	etag = []any{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
-	statusCode := d.statusCode()
 
 	instState := api.Instance{
 		ExpandedConfig:  d.expandedConfig,
 		ExpandedDevices: d.expandedDevices.CloneNative(),
 		Name:            d.name,
-		Status:          statusCode.String(),
-		StatusCode:      statusCode,
 		Location:        d.node,
 		Type:            d.Type().String(),
+		StatusCode:      api.Error, // Default to error status for remote instances that are unreachable.
 	}
+
+	// If instance is local then request status.
+	if d.state.ServerName == d.Location() {
+		instState.StatusCode = d.statusCode()
+	}
+
+	instState.Status = instState.StatusCode.String()
 
 	instState.Description = d.description
 	instState.Architecture = d.architectureName
