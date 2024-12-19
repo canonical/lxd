@@ -25,7 +25,7 @@ See the {ref}`howtos` for instructions on how to work with these entities, and t
 :titlesonly:
 
 /image-handling
-About storage </explanation/storage>
+/explanation/storage
 /explanation/networks
 /database
 /explanation/lxc_show_info
@@ -41,8 +41,8 @@ You can also restrict access to LXD entities by confining them to specific proje
 ```{toctree}
 :titlesonly:
 
-About authentication </authentication>
-About authorization </explanation/authorization>
+/authentication
+/explanation/authorization
 /explanation/projects
 ```
 
@@ -54,7 +54,7 @@ When you're ready to move your LXD setup to production, you should read up on th
 ```{toctree}
 :titlesonly:
 
-/explanation/clustering
+/explanation/clusters
 /explanation/performance_tuning
 /explanation/security
 ```
