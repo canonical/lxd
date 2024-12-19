@@ -51,17 +51,17 @@ func parseRangedListToInt64Slice(input string) ([]int64, error) {
 	for _, chunk := range chunks {
 		if strings.Contains(chunk, "-") {
 			// Range
-			fields := strings.SplitN(chunk, "-", 2)
-			if len(fields) != 2 {
+			before, after, _ := strings.Cut(chunk, "-")
+			if after == "" {
 				return nil, fmt.Errorf("Invalid CPU/NUMA set value: %q", input)
 			}
 
-			low, err := strconv.ParseInt(fields[0], 10, 64)
+			low, err := strconv.ParseInt(before, 10, 64)
 			if err != nil {
 				return nil, fmt.Errorf("Invalid CPU/NUMA set value: %w", err)
 			}
 
-			high, err := strconv.ParseInt(fields[1], 10, 64)
+			high, err := strconv.ParseInt(after, 10, 64)
 			if err != nil {
 				return nil, fmt.Errorf("Invalid CPU/NUMA set value: %w", err)
 			}
@@ -243,8 +243,12 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		}
 
 		// Extract cpu index
-		fields := strings.SplitN(line, ":", 2)
-		value := strings.TrimSpace(fields[1])
+		_, value, found := strings.Cut(line, ":")
+		if !found {
+			return nil, fmt.Errorf("Failed to parse /proc/cpuinfo: Missing separator")
+		}
+
+		value = strings.TrimSpace(value)
 		cpuSocket, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse cpu index %q in /proc/cpuinfo: %w", value, err)
@@ -272,9 +276,13 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			}
 
 			// Get key/value
-			fields := strings.SplitN(line, ":", 2)
-			key := strings.TrimSpace(fields[0])
-			value := strings.TrimSpace(fields[1])
+			key, value, found := strings.Cut(line, ":")
+			if !found {
+				return nil, fmt.Errorf("Failed to parse /proc/cpuinfo: Missing separator")
+			}
+
+			key = strings.TrimSpace(key)
+			value = strings.TrimSpace(value)
 
 			if key == "vendor_id" {
 				cpuInfo.Vendor = value

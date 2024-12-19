@@ -12,11 +12,9 @@ test_warnings() {
     lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"global warning 2\", \"project\": \"default\"}' /internal/testing/warnings
 
     # There should be two warnings now.
-    count=$(lxc query --wait /1.0/warnings | jq 'length')
-    [ "${count}" -eq 2 ] || false
+    [ "$(lxc query --wait /1.0/warnings | jq 'length')" = "2" ]
 
-    count=$(lxc query --wait /1.0/warnings\?recursion=1 | jq 'length')
-    [ "${count}" -eq 2 ] || false
+    [ "$(lxc query --wait /1.0/warnings\?recursion=1 | jq 'length')" = "2" ]
 
     # Invalid query (unknown project)
     ! lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"global warning\", \"project\": \"foo\"}' /internal/testing/warnings || false
@@ -36,27 +34,22 @@ test_warnings() {
     lxc query --wait -X POST -d "{\\\"type_code\\\": 0, \\\"message\\\": \\\"global warning\\\", \\\"entity_type\\\": \\\"image\\\", \\\"entity_id\\\": ${image_id}}" /internal/testing/warnings
 
     # There should be three warnings now.
-    count=$(lxc warning list --format json | jq 'length')
-    [ "${count}" -eq 3 ] || false
+    [ "$(lxc warning list --format json | jq 'length')" = "3" ]
 
     # Test filtering
-    count=$(curl -G --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/warnings" --data-urlencode "recursion=0" --data-urlencode "filter=status eq new" | jq ".metadata | length")
-    [ "${count}" -eq 3 ] || false
+    [ "$(curl -G --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/warnings" --data-urlencode "recursion=0" --data-urlencode "filter=status eq new" | jq ".metadata | length")" = "3" ]
 
-    count=$(curl -G --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/warnings" --data-urlencode "recursion=0" --data-urlencode "filter=status eq resolved" | jq ".metadata | length")
-    [ "${count}" -eq 0 ] || false
+    [ "$(curl -G --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/warnings" --data-urlencode "recursion=0" --data-urlencode "filter=status eq resolved" | jq ".metadata | length")" = "0" ]
 
     # Acknowledge a warning
     uuid=$(lxc warning list --format json | jq -r '.[] | select(.last_message=="global warning 2") | .uuid')
     lxc warning ack "${uuid}"
 
     # This should hide the acknowledged
-    count=$(lxc warning list --format json | jq 'length')
-    [ "${count}" -eq 2 ] || false
+    [ "$(lxc warning list --format json | jq 'length')" = "2" ]
 
     # ... unless one uses --all.
-    count=$(lxc warning list --all --format json | jq 'length')
-    [ "${count}" -eq 3 ] || false
+    [ "$(lxc warning list --all --format json | jq 'length')" = "3" ]
 
     lxc warning show "${uuid}" | grep "global warning 2"
 
