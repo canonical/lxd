@@ -89,8 +89,9 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string, filters ...Config
 
 	configObjectsLocal := strings.Replace(configObjects, "%s_id", fmt.Sprintf("%s_id", parent), -1)
 	fillParent := make([]any, strings.Count(configObjectsLocal, "%s"))
+	mangledParent := strings.Replace(parent, "_", "s_", -1) + "s"
 	for i := range fillParent {
-		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
+		fillParent[i] = mangledParent
 	}
 
 	queryStr := fmt.Sprintf(configObjectsLocal, fillParent...)
