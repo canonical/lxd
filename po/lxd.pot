@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-        "POT-Creation-Date: 2024-12-18 08:40-0700\n"
+        "POT-Creation-Date: 2024-12-19 16:04-0700\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -7096,10 +7096,10 @@ msgid   "lxc storage volume import default backup0.tar.gz\n"
 msgstr  ""
 
 #: lxc/storage_volume.go:2430
-msgid   "lxc storage volume snapshot create default v1 snap0\n"
+msgid   "lxc storage volume snapshot default v1 snap0\n"
         "       Create a snapshot of \"v1\" in pool \"default\" called \"snap0\".\n"
         "\n"
-        "lxc storage volume snapshot create default v1 snap0 < config.yaml\n"
+        "lxc storage volume snapshot default v1 snap0 < config.yaml\n"
         "       Create a snapshot of \"v1\" in pool \"default\" called \"snap0\" with the configuration from \"config.yaml\"."
 msgstr  ""
 
