@@ -174,7 +174,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 	return caches, nil
 }
 
-func getCPUdmi() (string, string, error) {
+func getCPUdmi() (vendor string, model string, err error) {
 	// Open the system DMI tables.
 	stream, _, err := smbios.Stream()
 	if err != nil {
