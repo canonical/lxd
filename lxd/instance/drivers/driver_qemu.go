@@ -5190,6 +5190,11 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 		return err
 	}
 
+	err = d.checkRootVolumeNotInUse()
+	if err != nil {
+		return err
+	}
+
 	if d.IsRunning() {
 		return fmt.Errorf("Renaming of running instance not allowed")
 	}
