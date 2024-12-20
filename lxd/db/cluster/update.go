@@ -1,5 +1,7 @@
 package cluster
 
+//go:generate lxd-generate db schema cluster
+
 import (
 	"context"
 	"database/sql"
