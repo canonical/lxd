@@ -15,6 +15,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/idmap"
+	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
@@ -908,4 +909,13 @@ func ResolveServerName(serverName string) (string, error) {
 	}
 
 	return hostname, nil
+}
+
+// storageConnectorLock acquires a lock for storage connector and returns the unlock function.
+func storageConnectorLock(connectorName string, driverName string) (locking.UnlockFunc, error) {
+	l := logger.AddContext(logger.Ctx{"connector": connectorName, "driver": driverName})
+	l.Debug("Acquiring lock for storage connector")
+	defer l.Debug("Lock acquired for storage connector")
+
+	return locking.Lock(context.TODO(), fmt.Sprintf("StorageConnector_%s_%s", connectorName, driverName))
 }
