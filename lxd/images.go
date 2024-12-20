@@ -253,13 +253,13 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		defer func() { _ = os.Remove(tempfile.Name()) }()
 
 		// Prepare 'tar2sqfs' arguments
-		args := []string{"tar2sqfs"}
+		args := make([]string, 0, len(fields))
 		if len(fields) > 1 {
 			args = append(args, fields[1:]...)
 		}
 
 		args = append(args, "--no-skip", "--force", "--compressor", "xz", tempfile.Name())
-		cmd = exec.Command(args[0], args[1:]...)
+		cmd = exec.Command("tar2sqfs", args...)
 		cmd.Stdin = infile
 
 		output, err := cmd.CombinedOutput()
