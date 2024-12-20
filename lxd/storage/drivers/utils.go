@@ -219,23 +219,6 @@ func tryExists(ctx context.Context, path string) bool {
 	}
 }
 
-// waitGone waits for a file to not exist anymore or the context being cancelled.
-// The probe happens at intervals of 500 milliseconds.
-func waitGone(ctx context.Context, path string) bool {
-	for {
-		select {
-		case <-ctx.Done():
-			return false
-		default:
-			if !shared.PathExists(path) {
-				return true
-			}
-		}
-
-		time.Sleep(500 * time.Millisecond)
-	}
-}
-
 // fsUUID returns the filesystem UUID for the given block path.
 // error is returned if the given block device exists but has no UUID.
 func fsUUID(path string) (string, error) {
