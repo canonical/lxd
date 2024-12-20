@@ -14,6 +14,7 @@ EBS
 EKS
 enablement
 favicon
+FlashArray
 Furo
 GDB
 Git
@@ -21,6 +22,7 @@ GitHub
 Grafana
 IAM
 installable
+iSCSI
 JSON
 Juju
 Kubeflow

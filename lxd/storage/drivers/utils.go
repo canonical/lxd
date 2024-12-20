@@ -894,3 +894,18 @@ func roundAbove(above, val int64) int64 {
 
 	return rounded
 }
+
+// ResolveServerName returns the given server name if it is not "none".
+// If the server name is "none", it retrieves and returns the server's hostname.
+func ResolveServerName(serverName string) (string, error) {
+	if serverName != "none" {
+		return serverName, nil
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		return "", fmt.Errorf("Failed to get hostname: %w", err)
+	}
+
+	return hostname, nil
+}
