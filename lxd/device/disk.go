@@ -871,7 +871,6 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 				return nil, err
 			}
 
-			// Only custom volumes can be attached currently.
 			instProj := d.inst.Project()
 			storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
 
@@ -1608,21 +1607,19 @@ func (w *cgroupWriter) Set(version cgroup.Backend, controller string, key string
 	return nil
 }
 
-// mountPoolVolume mounts the pool volume specified in d.config["source"] from pool specified in d.config["pool"]
-// and return the mount path and MountInfo struct. If the instance type is container volume will be shifted if needed.
+// mountPoolVolume mounts storage volumes created via the storage api. Config keys:
+//   - d.config["pool"] : pool name
+//   - d.config["source"] : volume name
+//   - d.config["source-type"] : volume type
+//
+// Returns the mount path and MountInfo struct. If d.inst type is container the
+// volume will be shifted if needed.
 func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
 	var mountInfo *storagePools.MountInfo
 
-	// Deal with mounting storage volumes created via the storage api. Extract the name of the storage volume
-	// that we are supposed to attach. We assume that the only syntactically valid ways of specifying a
-	// storage volume are:
-	// - <volume_name>
-	// - <type>/<volume_name>
-	// Currently, <type> must either be empty or "custom".
-	// We do not yet support instance mounts.
 	if filepath.IsAbs(d.config["source"]) {
 		return nil, "", nil, fmt.Errorf(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
 	}
@@ -1632,7 +1629,6 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		return nil, "", nil, err
 	}
 
-	// Only custom volumes can be attached currently.
 	instProj := d.inst.Project()
 	storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
 
