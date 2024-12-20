@@ -20,7 +20,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 	defer revert.Fail()
 
 	// Apply server configuration.
-	if config.Config != nil && len(config.Config) > 0 {
+	if len(config.Config) > 0 {
 		// Get current config.
 		currentServer, etag, err := d.GetServer()
 		if err != nil {
@@ -49,7 +49,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 	}
 
 	// Apply storage configuration.
-	if config.StoragePools != nil && len(config.StoragePools) > 0 {
+	if len(config.StoragePools) > 0 {
 		// Get the list of storagePools.
 		storagePoolNames, err := d.GetStoragePoolNames()
 		if err != nil {
@@ -195,7 +195,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 	}
 
 	// Apply project configuration.
-	if config.Projects != nil && len(config.Projects) > 0 {
+	if len(config.Projects) > 0 {
 		// Get the list of projects.
 		projectNames, err := d.GetProjectNames()
 		if err != nil {
@@ -355,7 +355,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 	}
 
 	// Apply profile configuration.
-	if config.Profiles != nil && len(config.Profiles) > 0 {
+	if len(config.Profiles) > 0 {
 		// Get the list of profiles.
 		profileNames, err := d.GetProfileNames()
 		if err != nil {
