@@ -1317,7 +1317,7 @@ func (g *cmdGlobal) cmpRemotes(includeAll bool) ([]string, cobra.ShellCompDirect
 	results := make([]string, 0, len(g.conf.Remotes))
 
 	for remoteName, rc := range g.conf.Remotes {
-		if remoteName == "local" || (!includeAll && rc.Protocol != "lxd" && rc.Protocol != "") {
+		if remoteName == "local" && g.conf.DefaultRemote == "local" || remoteName == g.conf.DefaultRemote || (!includeAll && rc.Protocol != "lxd" && rc.Protocol != "") {
 			continue
 		}
 
