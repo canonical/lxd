@@ -14,7 +14,12 @@ test_storage_volume_snapshots() {
   storage_pool2="${storage_pool}2"
   storage_volume="${storage_pool}-vol"
 
-  lxc storage create "$storage_pool" "$lxd_backend"
+  if [ "${lxd_backend}" = "pure" ]; then
+    # Pure Storage needs some additional configuration, therefore create it using a helper function.
+    configure_pure_pool "${storage_pool}"
+  else
+    lxc storage create "$storage_pool" "$lxd_backend"
+  fi
   lxc storage volume create "${storage_pool}" "${storage_volume}"
   lxc launch testimage c1 -s "${storage_pool}"
   lxc storage volume attach "${storage_pool}" "${storage_volume}" c1 /mnt

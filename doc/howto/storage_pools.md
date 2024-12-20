@@ -173,6 +173,20 @@ Create a storage pool named `pool5` that explicitly uses the PowerFlex SDC:
 
     lxc storage create pool5 powerflex powerflex.mode=sdc powerflex.pool=<id of sp1> powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
 
+#### Create a Pure Storage pool
+
+Create a storage pool named `pool1` that uses NVMe/TCP by default:
+
+    lxc storage create pool1 pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token>
+
+Create a storage pool named `pool2` that uses a Pure Storage gateway with a certificate that is not trusted:
+
+    lxc storage create pool2 pure pure.gateway=https://<pure-storage-address> pure.gateway.verify=false pure.api.token=<pure-storage-api-token>
+
+Create a storage pool named `pool3` that uses iSCSI to connect to Pure Storage array:
+
+    lxc storage create pool3 pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token> pure.mode=iscsi
+
 (storage-pools-cluster)=
 ## Create a storage pool in a cluster
 
@@ -238,6 +252,19 @@ Storage pool my-remote-pool2 pending on member vm02
 Storage pool my-remote-pool2 pending on member vm03
 :input: lxc storage create my-remote-pool2 powerflex powerflex.mode=sdc powerflex.pool=sp1 powerflex.domain=pd1 powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
 Storage pool my-remote-pool2 created
+```
+
+Create a third storage pool named `my-remote-pool3` using the Pure Storage driver:
+
+```{terminal}
+:input: lxc storage create my-remote-pool3 pure --target=vm01
+Storage pool my-remote-pool3 pending on member vm01
+:input: lxc storage create my-remote-pool3 pure --target=vm02
+Storage pool my-remote-pool3 pending on member vm02
+:input: lxc storage create my-remote-pool3 pure --target=vm03
+Storage pool my-remote-pool3 pending on member vm03
+:input: lxc storage create my-remote-pool3 pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token>
+Storage pool my-remote-pool3 created
 ```
 
 ## Configure storage pool settings
