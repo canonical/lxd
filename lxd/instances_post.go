@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"slices"
-	"strings"
 
 	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/google/uuid"
@@ -657,7 +656,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	defer revert.Fail()
 
 	// Create temporary file to store uploaded backup data.
-	backupFile, err := os.CreateTemp(shared.VarPath("backups"), fmt.Sprintf("%s_", backup.WorkingDirPrefix))
+	backupFile, err := os.CreateTemp(shared.VarPath("backups"), backup.WorkingDirPrefix+"_")
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -687,7 +686,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		decomArgs := append(decomArgs, backupFile.Name())
 
 		// Create temporary file to store the decompressed tarball in.
-		tarFile, err := os.CreateTemp(shared.VarPath("backups"), fmt.Sprintf("%s_decompress_", backup.WorkingDirPrefix))
+		tarFile, err := os.CreateTemp(shared.VarPath("backups"), backup.WorkingDirPrefix+"_decompress_")
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -925,7 +924,7 @@ func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName s
 				break
 			}
 
-			rootDevName = fmt.Sprintf("root%d", i)
+			rootDevName = fmt.Sprint("root", i)
 			continue
 		}
 
@@ -1211,7 +1210,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			i := 0
 			for {
 				i++
-				req.Name = strings.ToLower(petname.Generate(2, "-"))
+				req.Name = petname.Generate(2, "-")
 				if !shared.ValueInSlice(req.Name, names) {
 					break
 				}

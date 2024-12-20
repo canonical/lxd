@@ -654,7 +654,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 			// Use the remaining space in the volume group.
 			_, err = shared.RunCommand("lvresize", "-f", "-l", "+100%FREE", lvPath)
 			if err != nil {
-				return err
+				return fmt.Errorf("Error resizing LV named %q: %w", lvPath, err)
 			}
 		}
 	}

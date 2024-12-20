@@ -74,7 +74,8 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 		}
 	}
 
-	var peers []db.NodeInfo
+	// Filter out ourselves and nodes that are offline.
+	peers := make([]db.NodeInfo, 0, len(members)-1)
 	for _, member := range members {
 		if member.Address == localClusterAddress || member.Address == "0.0.0.0" {
 			continue // Exclude ourselves
