@@ -856,9 +856,10 @@ func (c *cmdFilePush) run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
+			reverter.Add(func() { _ = file.Close() })
 		}
 
-		reverter.Add(func() { _ = file.Close() })
 		files = append(files, file)
 	}
 
