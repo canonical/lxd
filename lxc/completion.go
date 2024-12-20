@@ -6,7 +6,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
@@ -14,7 +13,6 @@ import (
 // cmpClusterGroupNames provides shell completion for cluster group names.
 // It takes a partial input string and returns a list of matching names along with a shell completion directive.
 func (g *cmdGlobal) cmpClusterGroupNames(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	resources, _ := g.ParseServers(toComplete)
@@ -30,7 +28,7 @@ func (g *cmdGlobal) cmpClusterGroupNames(toComplete string) ([]string, cobra.She
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	results, err = resource.server.GetClusterGroupNames()
+	results, err := resource.server.GetClusterGroupNames()
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError
 	}
@@ -41,7 +39,6 @@ func (g *cmdGlobal) cmpClusterGroupNames(toComplete string) ([]string, cobra.She
 // cmpClusterGroups provides shell completion for cluster groups and their remotes.
 // It takes a partial input string and returns a list of matching cluster groups along with a shell completion directive.
 func (g *cmdGlobal) cmpClusterGroups(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	resources, _ := g.ParseServers(toComplete)
@@ -61,6 +58,8 @@ func (g *cmdGlobal) cmpClusterGroups(toComplete string) ([]string, cobra.ShellCo
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError
 	}
+
+	results := make([]string, 0, len(groups))
 
 	for _, group := range groups {
 		var name string
@@ -105,7 +104,7 @@ func (g *cmdGlobal) cmpClusterMemberConfigs(memberName string) ([]string, cobra.
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var results []string
+	results := make([]string, 0, len(member.Config))
 	for k := range member.Config {
 		results = append(results, k)
 	}
@@ -160,6 +159,7 @@ func (g *cmdGlobal) cmpClusterMembers(toComplete string) ([]string, cobra.ShellC
 			return nil, cobra.ShellCompDirectiveError
 		}
 
+		results = make([]string, 0, len(members))
 		for _, member := range members {
 			var name string
 
@@ -185,7 +185,6 @@ func (g *cmdGlobal) cmpClusterMembers(toComplete string) ([]string, cobra.ShellC
 // cmpImages provides shell completion for image aliases.
 // It takes a partial input string and returns a list of matching image aliases along with a shell completion directive.
 func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
 	var remote string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
@@ -199,6 +198,7 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 
 	images, _ := remoteServer.GetImages()
 
+	results := make([]string, 0, len(images))
 	for _, image := range images {
 		for _, alias := range image.Aliases {
 			var name string
@@ -358,30 +358,13 @@ func (g *cmdGlobal) cmpInstanceSetKeys(instanceName string) ([]string, cobra.She
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	instanceType := instance.Type
-
-	// Fetch all config keys that can be set by a user based on instance type.
-	allInstanceConfigKeys, _ := g.cmpInstanceKeys(instanceName)
-
-	// Convert slice to map[string]struct{} for O(1) lookups.
-	keySet := make(map[string]struct{}, len(allInstanceConfigKeys))
-	for _, key := range allInstanceConfigKeys {
-		keySet[key] = struct{}{}
-	}
-
 	// Pre-allocate configKeys slice capacity.
 	keyCount := len(instance.Config)
 	configKeys := make([]string, 0, keyCount)
 
 	for configKey := range instance.Config {
-		// We only want to return the intersection between allInstanceConfigKeys and configKeys to avoid returning the full instance config.
-		_, exists := keySet[configKey]
-		if exists {
-			if shared.StringHasPrefix(configKey, instancetype.ConfigKeyPrefixesAny...) {
-				configKeys = append(configKeys, configKey)
-			} else if instanceType == string(api.InstanceTypeContainer) && shared.StringHasPrefix(configKey, instancetype.ConfigKeyPrefixesContainer...) {
-				configKeys = append(configKeys, configKey)
-			}
+		if !shared.StringHasPrefix(configKey, []string{"volatile", "image"}...) {
+			configKeys = append(configKeys, configKey)
 		}
 	}
 
@@ -510,7 +493,7 @@ func (g *cmdGlobal) cmpInstanceDeviceNames(instanceName string) ([]string, cobra
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var results []string
+	results := make([]string, 0, len(instanceNameOnly.Devices))
 	for k := range instanceNameOnly.Devices {
 		results = append(results, k)
 	}
@@ -593,6 +576,7 @@ func (g *cmdGlobal) cmpInstances(toComplete string) ([]string, cobra.ShellCompDi
 
 		instances, _ := resource.server.GetInstanceNames("")
 
+		results = make([]string, 0, len(instances))
 		for _, instance := range instances {
 			var name string
 
@@ -652,6 +636,7 @@ func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagFor
 
 		instances, _ := resource.server.GetInstances("")
 
+		results = make([]string, 0, len(instances))
 		for _, instance := range instances {
 			var name string
 
@@ -721,20 +706,19 @@ func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra
 // cmpInstanceNamesFromRemote provides shell completion for instances for a specific remote.
 // It takes a partial input string and returns a list of matching instances along with a shell completion directive.
 func (g *cmdGlobal) cmpInstanceNamesFromRemote(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
-
 	resources, _ := g.ParseServers(toComplete)
 
 	if len(resources) > 0 {
 		resource := resources[0]
 
 		containers, _ := resource.server.GetInstanceNames("container")
-		results = append(results, containers...)
 		vms, _ := resource.server.GetInstanceNames("virtual-machine")
-		results = append(results, vms...)
+		results := append(containers, vms...)
+
+		return results, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	return results, cobra.ShellCompDirectiveNoFileComp
+	return nil, cobra.ShellCompDirectiveNoFileComp
 }
 
 // cmpNetworkACLConfigs provides shell completion for network ACL configs.
@@ -754,7 +738,7 @@ func (g *cmdGlobal) cmpNetworkACLConfigs(aclName string) ([]string, cobra.ShellC
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var results []string
+	results := make([]string, 0, len(acl.Config))
 	for k := range acl.Config {
 		results = append(results, k)
 	}
@@ -765,7 +749,6 @@ func (g *cmdGlobal) cmpNetworkACLConfigs(aclName string) ([]string, cobra.ShellC
 // cmpNetworkACLs provides shell completion for network ACL's.
 // It takes a partial input string and returns a list of matching network ACL's along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkACLs(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	resources, _ := g.ParseServers(toComplete)
@@ -781,6 +764,7 @@ func (g *cmdGlobal) cmpNetworkACLs(toComplete string) ([]string, cobra.ShellComp
 		return nil, cobra.ShellCompDirectiveError
 	}
 
+	results := make([]string, 0, len(acls))
 	for _, acl := range acls {
 		var name string
 
@@ -805,9 +789,8 @@ func (g *cmdGlobal) cmpNetworkACLs(toComplete string) ([]string, cobra.ShellComp
 // cmpNetworkACLRuleProperties provides shell completion for network ACL rule properties.
 // It returns a list of network ACL rules provided by `networkACLRuleJSONStructFieldMap()“ along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkACLRuleProperties() ([]string, cobra.ShellCompDirective) {
-	var results []string
-
 	allowedKeys := networkACLRuleJSONStructFieldMap()
+	results := make([]string, 0, len(allowedKeys))
 	for key := range allowedKeys {
 		results = append(results, key+"=")
 	}
@@ -832,7 +815,7 @@ func (g *cmdGlobal) cmpNetworkForwardConfigs(networkName string, listenAddress s
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var results []string
+	results := make([]string, 0, len(forward.Config))
 	for k := range forward.Config {
 		results = append(results, k)
 	}
@@ -843,7 +826,6 @@ func (g *cmdGlobal) cmpNetworkForwardConfigs(networkName string, listenAddress s
 // cmpNetworkForwards provides shell completion for network forwards.
 // It takes a network name and returns a list of network forwards along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkForwards(networkName string) ([]string, cobra.ShellCompDirective) {
-	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	resources, _ := g.ParseServers(networkName)
@@ -865,7 +847,6 @@ func (g *cmdGlobal) cmpNetworkForwards(networkName string) ([]string, cobra.Shel
 // cmpNetworkLoadBalancers provides shell completion for network load balancers.
 // It takes a network name and returns a list of network load balancers along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkLoadBalancers(networkName string) ([]string, cobra.ShellCompDirective) {
-	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	resources, _ := g.ParseServers(networkName)
@@ -887,7 +868,6 @@ func (g *cmdGlobal) cmpNetworkLoadBalancers(networkName string) ([]string, cobra
 // cmpNetworkPeerConfigs provides shell completion for network peer configs.
 // It takes a network name and peer name, and returns a list of network peer configs along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkPeerConfigs(networkName string, peerName string) ([]string, cobra.ShellCompDirective) {
-	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	resources, _ := g.ParseServers(networkName)
@@ -903,6 +883,7 @@ func (g *cmdGlobal) cmpNetworkPeerConfigs(networkName string, peerName string) (
 		return nil, cobra.ShellCompDirectiveError
 	}
 
+	results := make([]string, 0, len(peer.Config))
 	for k := range peer.Config {
 		results = append(results, k)
 	}
@@ -913,7 +894,6 @@ func (g *cmdGlobal) cmpNetworkPeerConfigs(networkName string, peerName string) (
 // cmpNetworkPeers provides shell completion for network peers.
 // It takes a network name and returns a list of network peers along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkPeers(networkName string) ([]string, cobra.ShellCompDirective) {
-	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	resources, _ := g.ParseServers(networkName)
@@ -948,6 +928,7 @@ func (g *cmdGlobal) cmpNetworks(toComplete string) ([]string, cobra.ShellCompDir
 			return nil, cobra.ShellCompDirectiveError
 		}
 
+		results = make([]string, 0, len(networks))
 		for _, network := range networks {
 			var name string
 
@@ -987,7 +968,7 @@ func (g *cmdGlobal) cmpNetworkConfigs(networkName string) ([]string, cobra.Shell
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var results []string
+	results := make([]string, 0, len(network.Config))
 	for k := range network.Config {
 		results = append(results, k)
 	}
@@ -1012,7 +993,7 @@ func (g *cmdGlobal) cmpNetworkInstances(networkName string) ([]string, cobra.She
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var results []string
+	results := make([]string, 0, len(network.UsedBy))
 	for _, i := range network.UsedBy {
 		r := regexp.MustCompile(`/1.0/instances/(.*)`)
 		match := r.FindStringSubmatch(i)
@@ -1042,7 +1023,7 @@ func (g *cmdGlobal) cmpNetworkProfiles(networkName string) ([]string, cobra.Shel
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var results []string
+	results := make([]string, 0, len(network.UsedBy))
 	for _, i := range network.UsedBy {
 		r := regexp.MustCompile(`/1.0/profiles/(.*)`)
 		match := r.FindStringSubmatch(i)
@@ -1072,7 +1053,7 @@ func (g *cmdGlobal) cmpNetworkZoneConfigs(zoneName string) ([]string, cobra.Shel
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var results []string
+	results := make([]string, 0, len(zone.Config))
 	for k := range zone.Config {
 		results = append(results, k)
 	}
@@ -1083,7 +1064,6 @@ func (g *cmdGlobal) cmpNetworkZoneConfigs(zoneName string) ([]string, cobra.Shel
 // cmpNetworkZoneRecordConfigs provides shell completion for network zone record configs.
 // It takes a zone name and record name, and returns a list of network zone record configs along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkZoneRecordConfigs(zoneName string, recordName string) ([]string, cobra.ShellCompDirective) {
-	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	resources, _ := g.ParseServers(zoneName)
@@ -1099,6 +1079,7 @@ func (g *cmdGlobal) cmpNetworkZoneRecordConfigs(zoneName string, recordName stri
 		return nil, cobra.ShellCompDirectiveError
 	}
 
+	results := make([]string, 0, len(peer.Config))
 	for k := range peer.Config {
 		results = append(results, k)
 	}
@@ -1109,7 +1090,6 @@ func (g *cmdGlobal) cmpNetworkZoneRecordConfigs(zoneName string, recordName stri
 // cmpNetworkZoneRecords provides shell completion for network zone records.
 // It takes a zone name and returns a list of network zone records along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkZoneRecords(zoneName string) ([]string, cobra.ShellCompDirective) {
-	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	resources, _ := g.ParseServers(zoneName)
@@ -1144,6 +1124,7 @@ func (g *cmdGlobal) cmpNetworkZones(toComplete string) ([]string, cobra.ShellCom
 			return nil, cobra.ShellCompDirectiveError
 		}
 
+		results = make([]string, 0, len(zones))
 		for _, project := range zones {
 			var name string
 
@@ -1182,7 +1163,7 @@ func (g *cmdGlobal) cmpProfileConfigs(profileName string) ([]string, cobra.Shell
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var configs []string
+	configs := make([]string, 0, len(profile.Config))
 	for c := range profile.Config {
 		configs = append(configs, c)
 	}
@@ -1207,7 +1188,7 @@ func (g *cmdGlobal) cmpProfileDeviceNames(instanceName string) ([]string, cobra.
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var results []string
+	results := make([]string, 0, len(profile.Devices))
 	for k := range profile.Devices {
 		results = append(results, k)
 	}
@@ -1225,8 +1206,7 @@ func (g *cmdGlobal) cmpProfileNamesFromRemote(toComplete string) ([]string, cobr
 	if len(resources) > 0 {
 		resource := resources[0]
 
-		profiles, _ := resource.server.GetProfileNames()
-		results = append(results, profiles...)
+		results, _ = resource.server.GetProfileNames()
 	}
 
 	return results, cobra.ShellCompDirectiveNoFileComp
@@ -1245,6 +1225,7 @@ func (g *cmdGlobal) cmpProfiles(toComplete string, includeRemotes bool) ([]strin
 
 		profiles, _ := resource.server.GetProfileNames()
 
+		results = make([]string, 0, len(profiles))
 		for _, profile := range profiles {
 			var name string
 
@@ -1283,7 +1264,7 @@ func (g *cmdGlobal) cmpProjectConfigs(projectName string) ([]string, cobra.Shell
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var configs []string
+	configs := make([]string, 0, len(project.Config))
 	for c := range project.Config {
 		configs = append(configs, c)
 	}
@@ -1307,6 +1288,7 @@ func (g *cmdGlobal) cmpProjects(toComplete string) ([]string, cobra.ShellCompDir
 			return nil, cobra.ShellCompDirectiveError
 		}
 
+		results = make([]string, 0, len(projects))
 		for _, project := range projects {
 			var name string
 
@@ -1381,7 +1363,7 @@ func (g *cmdGlobal) cmpStoragePoolConfigs(poolName string) ([]string, cobra.Shel
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var results []string
+	results := make([]string, 0, len(pool.Config))
 	for k := range pool.Config {
 		results = append(results, k)
 	}
@@ -1398,7 +1380,7 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 			return nil, compdir
 		}
 
-		var results []string
+		results := make([]string, 0, len(pools))
 		for _, pool := range pools {
 			if strings.HasSuffix(pool, ":") {
 				results = append(results, pool)
@@ -1416,7 +1398,7 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 		return nil, compdir
 	}
 
-	var results []string
+	results := make([]string, 0, len(volumes))
 	for _, volume := range volumes {
 		volName, _ := parseVolume("custom", volume)
 		results = append(results, pool+"/"+volName)
@@ -1437,6 +1419,7 @@ func (g *cmdGlobal) cmpStoragePools(toComplete string, noSpace bool) ([]string, 
 
 		storagePools, _ := resource.server.GetStoragePoolNames()
 
+		results = make([]string, 0, len(storagePools))
 		for _, storage := range storagePools {
 			var name string
 
@@ -1486,7 +1469,7 @@ func (g *cmdGlobal) cmpStoragePoolVolumeConfigs(poolName string, volumeName stri
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var results []string
+	results := make([]string, 0, len(volume.Config))
 	for k := range volume.Config {
 		results = append(results, k)
 	}
@@ -1518,7 +1501,7 @@ func (g *cmdGlobal) cmpStoragePoolVolumeInstances(poolName string, volumeName st
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var results []string
+	results := make([]string, 0, len(volume.UsedBy))
 	for _, i := range volume.UsedBy {
 		r := regexp.MustCompile(`/1.0/instances/(.*)`)
 		match := r.FindStringSubmatch(i)
@@ -1555,7 +1538,7 @@ func (g *cmdGlobal) cmpStoragePoolVolumeProfiles(poolName string, volumeName str
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var results []string
+	results := make([]string, 0, len(volume.UsedBy))
 	for _, i := range volume.UsedBy {
 		r := regexp.MustCompile(`/1.0/profiles/(.*)`)
 		match := r.FindStringSubmatch(i)
@@ -1634,9 +1617,17 @@ func (g *cmdGlobal) cmpStoragePoolVolumes(poolName string, volumeTypes ...string
 
 	customVolumeNames := make([]string, 0, customKeyCount)
 
-	// Only include custom volumes
+	// Only complete volumes specified by volumeTypes.
 	for _, volume := range volumes {
 		_, volType := parseVolume("custom", volume)
+
+		// Parse snapshots returned by GetStoragePoolVolumeNames.
+		volumeName, snapshotName, found := strings.Cut(volume, "/snapshots")
+		if found {
+			customVolumeNames = append(customVolumeNames, volumeName+snapshotName)
+			continue
+		}
+
 		if shared.ValueInSlice(volType, volumeTypes) {
 			customVolumeNames = append(customVolumeNames, volume)
 		}
