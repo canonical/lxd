@@ -54,7 +54,7 @@ func main() {
 
 	// Only configure device code authentication.
 	router.HandleFunc("/device", func(w http.ResponseWriter, r *http.Request) {
-		userCodeHandler(storage, w, r)
+		userCodeHandler(storage, r)
 	})
 
 	// Register the root to handle discovery.
@@ -73,7 +73,7 @@ func main() {
 	}
 }
 
-func userCodeHandler(storage *storage.Storage, w http.ResponseWriter, r *http.Request) {
+func userCodeHandler(storage *storage.Storage, r *http.Request) {
 	name, _ := usernameAndEmail()
 
 	err := r.ParseForm()
