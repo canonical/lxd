@@ -31,7 +31,7 @@ func FreshSchema() string {
 // SchemaDotGo refreshes the schema.go file in this package, using the updates
 // defined here.
 func SchemaDotGo() error {
-	return schema.DotGo(updates, "schema")
+	return schema.DotGo(updates, "node", "schema.go")
 }
 
 /* Database updates are one-time actions that are needed to move an
