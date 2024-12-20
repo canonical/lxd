@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"crypto/sha256"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/zitadel/oidc/v3/pkg/op"
 
 	"github.com/canonical/lxd/test/mini-oidc/storage"
@@ -97,8 +97,6 @@ func userCodeHandler(storage *storage.Storage, w http.ResponseWriter, r *http.Re
 	}
 
 	fmt.Printf("%s => %s\n", userCode, name)
-
-	return
 }
 
 func usernameAndEmail() (username string, email string) {
