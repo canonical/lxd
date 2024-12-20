@@ -148,7 +148,6 @@ ifeq ($(shell command -v goimports),)
 endif
 	cd lxd/db/generate && go build -v -trimpath -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG) && cd -
 	go generate ./...
-	goimports -w ./lxd/db/
 	@echo "Code generation completed"
 
 .PHONY: update-api
