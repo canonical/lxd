@@ -1619,18 +1619,8 @@ func (g *cmdGlobal) cmpStoragePoolVolumes(poolName string, volumeTypes ...string
 		return volumes, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	// Pre-allocate slice capacity.
-	customKeyCount := 0
-	for _, volume := range volumes {
-		_, volType := parseVolume("custom", volume)
-		if shared.ValueInSlice(volType, volumeTypes) {
-			customKeyCount++
-		}
-	}
-
-	customVolumeNames := make([]string, 0, customKeyCount)
-
 	// Only complete volumes specified by volumeTypes.
+	customVolumeNames := []string{}
 	for _, volume := range volumes {
 		// Parse snapshots returned by GetStoragePoolVolumeNames.
 		volumeName, snapshotName, found := strings.Cut(volume, "/snapshots")
