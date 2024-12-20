@@ -410,6 +410,27 @@ func getCPULists() (effectiveCpus string, cpus []int64, err error) {
 	return effectiveCpus, cpus, nil
 }
 
+func getNumaNodeToCPUMap() (numaNodeToCPU map[int64][]int64, err error) {
+	// Get CPU topology.
+	cpusTopology, err := resources.GetCPU()
+	if err != nil {
+		logger.Error("Unable to load system CPUs information", logger.Ctx{"err": err})
+		return nil, err
+	}
+
+	// Build a map of NUMA node to CPU threads.
+	numaNodeToCPU = make(map[int64][]int64)
+	for _, cpu := range cpusTopology.Sockets {
+		for _, core := range cpu.Cores {
+			for _, thread := range core.Threads {
+				numaNodeToCPU[int64(thread.NUMANode)] = append(numaNodeToCPU[int64(thread.NUMANode)], thread.ID)
+			}
+		}
+	}
+
+	return numaNodeToCPU, err
+}
+
 // deviceTaskBalance is used to balance the CPU load across instances running on a host.
 // It first checks if CGroup support is available and returns if it isn't.
 // It then retrieves the effective CPU list (the CPUs that are guaranteed to be online) and isolates any isolated CPUs.
@@ -448,21 +469,9 @@ func deviceTaskBalance(s *state.State) {
 		return
 	}
 
-	// Get CPU topology.
-	cpusTopology, err := resources.GetCPU()
+	numaNodeToCPU, err := getNumaNodeToCPUMap()
 	if err != nil {
-		logger.Error("Unable to load system CPUs information", logger.Ctx{"err": err})
 		return
-	}
-
-	// Build a map of NUMA node to CPU threads.
-	numaNodeToCPU := make(map[int64][]int64)
-	for _, cpu := range cpusTopology.Sockets {
-		for _, core := range cpu.Cores {
-			for _, thread := range core.Threads {
-				numaNodeToCPU[int64(thread.NUMANode)] = append(numaNodeToCPU[int64(thread.NUMANode)], thread.ID)
-			}
-		}
 	}
 
 	fixedInstances := map[int64][]instance.Instance{}
