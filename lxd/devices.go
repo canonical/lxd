@@ -366,6 +366,50 @@ func fillFixedInstances(fixedInstances map[int64][]instance.Instance, inst insta
 	}
 }
 
+func getCPULists() (effectiveCpus string, cpus []int64, err error) {
+	// Get effective cpus list - those are all guaranteed to be online
+	cg, err := cgroup.NewFileReadWriter(1, true)
+	if err != nil {
+		logger.Error("Unable to load cgroup writer", logger.Ctx{"err": err})
+		return "", nil, err
+	}
+
+	effectiveCpus, err = cg.GetEffectiveCpuset()
+	if err != nil {
+		// Older kernel - use cpuset.cpus
+		effectiveCpus, err = cg.GetCpuset()
+		if err != nil {
+			logger.Error("Error reading host's cpuset.cpus", logger.Ctx{"err": err, "cpuset.cpus": effectiveCpus})
+			return "", nil, err
+		}
+	}
+
+	effectiveCpusInt, err := resources.ParseCpuset(effectiveCpus)
+	if err != nil {
+		logger.Error("Error parsing effective CPU set", logger.Ctx{"err": err, "cpuset.cpus": effectiveCpus})
+		return "", nil, err
+	}
+
+	isolatedCpusInt := resources.GetCPUIsolated()
+	effectiveCpusSlice := []string{}
+	for _, id := range effectiveCpusInt {
+		if shared.ValueInSlice(id, isolatedCpusInt) {
+			continue
+		}
+
+		effectiveCpusSlice = append(effectiveCpusSlice, fmt.Sprintf("%d", id))
+	}
+
+	effectiveCpus = strings.Join(effectiveCpusSlice, ",")
+	cpus, err = resources.ParseCpuset(effectiveCpus)
+	if err != nil {
+		logger.Error("Error parsing host's cpu set", logger.Ctx{"cpuset": effectiveCpus, "err": err})
+		return "", nil, err
+	}
+
+	return effectiveCpus, cpus, nil
+}
+
 // deviceTaskBalance is used to balance the CPU load across instances running on a host.
 // It first checks if CGroup support is available and returns if it isn't.
 // It then retrieves the effective CPU list (the CPUs that are guaranteed to be online) and isolates any isolated CPUs.
@@ -392,43 +436,8 @@ func deviceTaskBalance(s *state.State) {
 		return
 	}
 
-	// Get effective cpus list - those are all guaranteed to be online
-	cg, err := cgroup.NewFileReadWriter(1, true)
+	effectiveCpus, cpus, err := getCPULists()
 	if err != nil {
-		logger.Error("Unable to load cgroup writer", logger.Ctx{"err": err})
-		return
-	}
-
-	effectiveCpus, err := cg.GetEffectiveCpuset()
-	if err != nil {
-		// Older kernel - use cpuset.cpus
-		effectiveCpus, err = cg.GetCpuset()
-		if err != nil {
-			logger.Error("Error reading host's cpuset.cpus", logger.Ctx{"err": err, "cpuset.cpus": effectiveCpus})
-			return
-		}
-	}
-
-	effectiveCpusInt, err := resources.ParseCpuset(effectiveCpus)
-	if err != nil {
-		logger.Error("Error parsing effective CPU set", logger.Ctx{"err": err, "cpuset.cpus": effectiveCpus})
-		return
-	}
-
-	isolatedCpusInt := resources.GetCPUIsolated()
-	effectiveCpusSlice := []string{}
-	for _, id := range effectiveCpusInt {
-		if shared.ValueInSlice(id, isolatedCpusInt) {
-			continue
-		}
-
-		effectiveCpusSlice = append(effectiveCpusSlice, fmt.Sprintf("%d", id))
-	}
-
-	effectiveCpus = strings.Join(effectiveCpusSlice, ",")
-	cpus, err := resources.ParseCpuset(effectiveCpus)
-	if err != nil {
-		logger.Error("Error parsing host's cpu set", logger.Ctx{"cpuset": effectiveCpus, "err": err})
 		return
 	}
 
