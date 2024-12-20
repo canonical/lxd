@@ -94,7 +94,7 @@ func (c *Client) DevMode() bool {
 }
 
 // RestrictAdditionalIdTokenScopes allows specifying which custom scopes shall be asserted into the id_token.
-func (c *Client) RestrictAdditionalIdTokenScopes() func(scopes []string) []string {
+func (c *Client) RestrictAdditionalIdTokenScopes() func(scopes []string) []string { //revive:disable-line:var-naming
 	return func(scopes []string) []string {
 		return scopes
 	}
