@@ -1,6 +1,8 @@
 package acl
 
 import (
+	"context"
+
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
@@ -19,7 +21,7 @@ type NetworkACL interface {
 	UsedBy() ([]string, error)
 
 	// GetLog.
-	GetLog(clientType request.ClientType) (string, error)
+	GetLog(ctx context.Context, clientType request.ClientType) (string, error)
 
 	// Internal validation.
 	validateName(name string) error
