@@ -15,6 +15,8 @@ package cluster
 //go:generate mapper method -i -e config Create struct=Config
 //go:generate mapper method -i -e config Update struct=Config
 //go:generate mapper method -i -e config DeleteMany
+//go:generate goimports -w config.mapper.go
+//go:generate goimports -w config.interface.mapper.go
 
 // Config is a reference struct representing one configuration entry of another entity.
 type Config struct {

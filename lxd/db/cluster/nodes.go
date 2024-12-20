@@ -6,6 +6,8 @@ package cluster
 //go:generate mapper stmt -e node id
 //
 //go:generate mapper method -i -e node ID
+//go:generate goimports -w nodes.mapper.go
+//go:generate goimports -w nodes.interface.mapper.go
 
 // Node represents a LXD cluster node.
 type Node struct {

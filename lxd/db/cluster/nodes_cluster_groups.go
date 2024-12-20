@@ -11,6 +11,8 @@ package cluster
 //
 //go:generate mapper method -e node_cluster_group GetMany
 //go:generate mapper method -e node_cluster_group DeleteOne-by-GroupID
+//go:generate goimports -w nodes_cluster_groups.mapper.go
+//go:generate goimports -w nodes_cluster_groups.interface.mapper.go
 
 // NodeClusterGroup associates a node to a cluster group.
 type NodeClusterGroup struct {

@@ -49,6 +49,8 @@ import (
 //go:generate mapper method -i -e instance Rename
 //go:generate mapper method -i -e instance DeleteOne-by-Project-and-Name
 //go:generate mapper method -i -e instance Update references=Config,Device
+//go:generate goimports -w instances.mapper.go
+//go:generate goimports -w instances.interface.mapper.go
 
 // Instance is a value object holding db-related details about an instance.
 type Instance struct {

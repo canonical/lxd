@@ -16,6 +16,8 @@ package cluster
 //go:generate mapper method -i -e identity_project DeleteMany struct=Identity
 //go:generate mapper method -i -e identity_project Create struct=Identity
 //go:generate mapper method -i -e identity_project Update struct=Identity
+//go:generate goimports -w identity_projects.mapper.go
+//go:generate goimports -w identity_projects.interface.mapper.go
 
 // IdentityProject is an association table struct that associates
 // identities to projects.
