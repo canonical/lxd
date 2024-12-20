@@ -22,28 +22,11 @@ func newDb() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(newDbSchema())
 	cmd.AddCommand(newDbMapper())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
-	return cmd
-}
-
-func newDbSchema() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "schema",
-		Short: "Generate database schema by applying updates.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 1 {
-				return fmt.Errorf(`Schema kind must be provided (must be "node", or "cluster")`)
-			}
-
-			return db.UpdateSchema(args[0])
-		},
-	}
-
 	return cmd
 }
 
