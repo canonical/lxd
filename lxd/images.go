@@ -264,7 +264,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("tar2sqfs: %v (%v)", err, strings.TrimSpace(string(output)))
+			return fmt.Errorf("tar2sqfs: %w (%v)", err, strings.TrimSpace(string(output)))
 		}
 		// Replay the result to outfile
 		_, err = tempfile.Seek(0, io.SeekStart)
