@@ -885,7 +885,7 @@ func (g *cmdGlobal) cmpNetworkLoadBalancers(networkName string) ([]string, cobra
 
 	resource := resources[0]
 
-	results, err := resource.server.GetNetworkForwardAddresses(networkName)
+	results, err := resource.server.GetNetworkLoadBalancerAddresses(networkName)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError
 	}
