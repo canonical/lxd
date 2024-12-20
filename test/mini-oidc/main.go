@@ -119,10 +119,12 @@ func usernameAndEmail() (username string, email string) {
 
 type userStore struct{}
 
+// ExampleClientID returns an example client ID.
 func (u userStore) ExampleClientID() string {
 	return "service"
 }
 
+// GetUserByID returns a user by ID.
 func (u userStore) GetUserByID(string) *storage.User {
 	name, email := usernameAndEmail()
 
@@ -133,6 +135,7 @@ func (u userStore) GetUserByID(string) *storage.User {
 	}
 }
 
+// GetUserByUsername returns a user by username.
 func (u userStore) GetUserByUsername(string) *storage.User {
 	name, email := usernameAndEmail()
 
