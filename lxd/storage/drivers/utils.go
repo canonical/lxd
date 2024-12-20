@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/idmap"
+	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
@@ -910,4 +911,16 @@ func ResolveServerName(serverName string) (string, error) {
 	}
 
 	return hostname, nil
+}
+
+// remoteVolumeMapLock acquires a lock used when mapping or unmapping remote
+// storage volumes. This lock prevents conflicts between operations trying to
+// associate or disassociate volumes with the LXD host. If the lock is
+// successfully acquired, unlock function is returned.
+func remoteVolumeMapLock(connectorName string, driverName string) (locking.UnlockFunc, error) {
+	l := logger.AddContext(logger.Ctx{"connector": connectorName, "driver": driverName})
+	l.Debug("Acquiring lock for remote volume map")
+	defer l.Debug("Lock acquired for remote volume map")
+
+	return locking.Lock(context.TODO(), fmt.Sprintf("RemoteVolumeMap_%s_%s", connectorName, driverName))
 }
