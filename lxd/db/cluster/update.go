@@ -1,5 +1,7 @@
 package cluster
 
+//go:generate lxd-generate db schema cluster
+
 import (
 	"context"
 	"database/sql"
@@ -30,7 +32,7 @@ func FreshSchema() string {
 // SchemaDotGo refreshes the schema.go file in this package, using the updates
 // defined here.
 func SchemaDotGo() error {
-	return schema.DotGo(updates, "schema")
+	return schema.DotGo(updates, "cluster", "schema.go")
 }
 
 // SchemaVersion is the current version of the cluster database schema.

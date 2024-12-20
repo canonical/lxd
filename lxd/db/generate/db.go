@@ -36,7 +36,11 @@ func newDbSchema() *cobra.Command {
 		Use:   "schema",
 		Short: "Generate database schema by applying updates.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return db.UpdateSchema()
+			if len(args) < 1 {
+				return fmt.Errorf(`Schema kind must be provided (must be "node", or "cluster")`)
+			}
+
+			return db.UpdateSchema(args[0])
 		},
 	}
 
