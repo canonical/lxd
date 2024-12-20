@@ -1,6 +1,6 @@
 package node
 
-//go:generate lxd-generate db schema node
+//go:generate go run ../freshschema/main.go node
 
 import (
 	"context"
