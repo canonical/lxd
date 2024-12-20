@@ -909,11 +909,6 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 			_ = os.Remove(f.Name())
 		})
 
-		err = os.Chmod(f.Name(), 0600)
-		if err != nil {
-			return []byte{}, err
-		}
-
 		_, err = f.Write(inContent)
 		if err != nil {
 			return []byte{}, err
