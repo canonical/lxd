@@ -148,7 +148,7 @@ func GetDistinctAuthGroupNamesFromIDPGroupNames(ctx context.Context, tx *sql.Tx,
 		return nil, nil
 	}
 
-	var args []any
+	args := make([]any, 0, len(idpGroupNames))
 	for _, idpGroupName := range idpGroupNames {
 		args = append(args, idpGroupName)
 	}
