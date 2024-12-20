@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -40,9 +39,10 @@ func DotGo(updates map[int]Update, name string) error {
 	// Passing 1 to runtime.Caller identifies our caller.
 	_, filename, _, _ := runtime.Caller(1)
 
-	// runtime.Caller returns the path after "${GOPATH}/src" when used with `go generate`.
+	// runtime.Caller returns source file path starting from github.com.
+	// Translate into relative path to source file.
 	if strings.HasPrefix(filename, "github.com") {
-		filename = filepath.Join(os.Getenv("GOPATH"), "src", filename)
+		filename = strings.TrimPrefix(filename, "github.com/canonical/lxd/lxd/db/")
 	}
 
 	file, err := os.Create(path.Join(path.Dir(filename), name+".go"))
