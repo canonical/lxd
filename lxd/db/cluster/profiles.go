@@ -33,6 +33,8 @@ import (
 //go:generate mapper method -i -e profile Rename
 //go:generate mapper method -i -e profile Update references=Config,Device
 //go:generate mapper method -i -e profile DeleteOne-by-Project-and-Name
+//go:generate goimports -w profiles.mapper.go
+//go:generate goimports -w profiles.interface.mapper.go
 
 // Profile is a value object holding db-related details about a profile.
 type Profile struct {

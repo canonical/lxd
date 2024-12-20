@@ -23,6 +23,8 @@ import (
 //go:generate mapper method -i -e operation CreateOrReplace
 //go:generate mapper method -i -e operation DeleteOne-by-UUID
 //go:generate mapper method -i -e operation DeleteMany-by-NodeID
+//go:generate goimports -w operations.mapper.go
+//go:generate goimports -w operations.interface.mapper.go
 
 // Operation holds information about a single LXD operation running on a node
 // in the cluster.

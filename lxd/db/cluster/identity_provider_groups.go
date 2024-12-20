@@ -33,6 +33,8 @@ import (
 //go:generate mapper method -i -e identity_provider_group DeleteOne-by-Name
 //go:generate mapper method -i -e identity_provider_group Update
 //go:generate mapper method -i -e identity_provider_group Rename
+//go:generate goimports -w identity_provider_groups.mapper.go
+//go:generate goimports -w identity_provider_groups.interface.mapper.go
 
 // IdentityProviderGroup is the database representation of an api.IdentityProviderGroup.
 type IdentityProviderGroup struct {
@@ -146,7 +148,7 @@ func GetDistinctAuthGroupNamesFromIDPGroupNames(ctx context.Context, tx *sql.Tx,
 		return nil, nil
 	}
 
-	var args []any
+	args := make([]any, 0, len(idpGroupNames))
 	for _, idpGroupName := range idpGroupNames {
 		args = append(args, idpGroupName)
 	}
