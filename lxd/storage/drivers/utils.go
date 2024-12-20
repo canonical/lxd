@@ -15,6 +15,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/idmap"
+	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
@@ -210,23 +211,6 @@ func tryExists(ctx context.Context, path string) bool {
 			return false
 		default:
 			if shared.PathExists(path) {
-				return true
-			}
-		}
-
-		time.Sleep(500 * time.Millisecond)
-	}
-}
-
-// waitGone waits for a file to not exist anymore or the context being cancelled.
-// The probe happens at intervals of 500 milliseconds.
-func waitGone(ctx context.Context, path string) bool {
-	for {
-		select {
-		case <-ctx.Done():
-			return false
-		default:
-			if !shared.PathExists(path) {
 				return true
 			}
 		}
@@ -893,4 +877,28 @@ func roundAbove(above, val int64) int64 {
 	}
 
 	return rounded
+}
+
+// ResolveServerName returns the given server name if it is not "none".
+// If the server name is "none", it retrieves and returns the server's hostname.
+func ResolveServerName(serverName string) (string, error) {
+	if serverName != "none" {
+		return serverName, nil
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		return "", fmt.Errorf("Failed to get hostname: %w", err)
+	}
+
+	return hostname, nil
+}
+
+// storageConnectorLock acquires a lock for storage connector and returns the unlock function.
+func storageConnectorLock(connectorName string, driverName string) (locking.UnlockFunc, error) {
+	l := logger.AddContext(logger.Ctx{"connector": connectorName, "driver": driverName})
+	l.Debug("Acquiring lock for storage connector")
+	defer l.Debug("Lock acquired for storage connector")
+
+	return locking.Lock(context.TODO(), fmt.Sprintf("StorageConnector_%s_%s", connectorName, driverName))
 }
