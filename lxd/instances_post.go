@@ -657,7 +657,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	defer revert.Fail()
 
 	// Create temporary file to store uploaded backup data.
-	backupFile, err := os.CreateTemp(shared.VarPath("backups"), fmt.Sprintf("%s_", backup.WorkingDirPrefix))
+	backupFile, err := os.CreateTemp(shared.VarPath("backups"), backup.WorkingDirPrefix+"_")
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -687,7 +687,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		decomArgs := append(decomArgs, backupFile.Name())
 
 		// Create temporary file to store the decompressed tarball in.
-		tarFile, err := os.CreateTemp(shared.VarPath("backups"), fmt.Sprintf("%s_decompress_", backup.WorkingDirPrefix))
+		tarFile, err := os.CreateTemp(shared.VarPath("backups"), backup.WorkingDirPrefix+"_decompress_")
 		if err != nil {
 			return response.InternalError(err)
 		}
