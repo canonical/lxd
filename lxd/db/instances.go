@@ -106,16 +106,15 @@ func (c *ClusterTx) GetNodeAddressOfInstance(ctx context.Context, project string
 		args = append(args, instType)
 	}
 
-	if strings.Contains(name, shared.SnapshotDelimiter) {
-		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-
+	instanceName, snapshotName, found := strings.Cut(name, shared.SnapshotDelimiter)
+	if found {
 		// Instance name filter.
 		filters.WriteString(" AND instances.name = ?")
-		args = append(args, parts[0])
+		args = append(args, instanceName)
 
 		// Snapshot name filter.
 		filters.WriteString(" AND instances_snapshots.name = ?")
-		args = append(args, parts[1])
+		args = append(args, snapshotName)
 
 		stmt = fmt.Sprintf(`
 SELECT nodes.id, nodes.address
@@ -128,7 +127,7 @@ SELECT nodes.id, nodes.address
 	} else {
 		// Instance name filter.
 		filters.WriteString(" AND instances.name = ?")
-		args = append(args, name)
+		args = append(args, instanceName)
 
 		stmt = fmt.Sprintf(`
 SELECT nodes.id, nodes.address
@@ -930,12 +929,12 @@ SELECT storage_pools.name FROM storage_pools
 
 // DeleteInstance removes the instance with the given name from the database.
 func (c *ClusterTx) DeleteInstance(ctx context.Context, project, name string) error {
-	if strings.Contains(name, shared.SnapshotDelimiter) {
-		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-		return cluster.DeleteInstanceSnapshot(ctx, c.tx, project, parts[0], parts[1])
+	instance, snapshot, found := strings.Cut(name, shared.SnapshotDelimiter)
+	if found {
+		return cluster.DeleteInstanceSnapshot(ctx, c.tx, project, instance, snapshot)
 	}
 
-	return cluster.DeleteInstance(ctx, c.tx, project, name)
+	return cluster.DeleteInstance(ctx, c.tx, project, instance)
 }
 
 // GetInstanceProjectAndName returns the project and the name of the instance
