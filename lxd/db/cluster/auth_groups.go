@@ -33,6 +33,8 @@ import (
 //go:generate mapper method -i -e auth_group DeleteOne-by-Name
 //go:generate mapper method -i -e auth_group Update
 //go:generate mapper method -i -e auth_group Rename
+//go:generate goimports -w auth_groups.mapper.go
+//go:generate goimports -w auth_groups.interface.mapper.go
 
 // AuthGroup is the database representation of an api.AuthGroup.
 type AuthGroup struct {
