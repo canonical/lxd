@@ -118,7 +118,7 @@ apps:
 
   lxc:
     command: commands/lxc
-    completer: etc/bash_completion.d/snap.lxd.lxc
+    completer: lxc-completer.sh
     plugs:
       - lxd-support
       - system-observe
@@ -1637,9 +1637,10 @@ parts:
       # When executed by snapd, the `compopt` support detection doesn't work so fake that it is always `builtin`
       set_compopt='s|$(type -t compopt)|"builtin"|'
       # Modify requestComp variable to use lxc based on context ($SNAP/bin/lxc in Snap environment)
-      set_request_comp='s|requestComp="${words\[0\]} __complete ${args\[\*\]}"|requestComp="/snap/lxd/current/bin/lxc __complete ${args[*]}"|'
+      set_request_comp='s|requestComp="${words\[0\]} __complete ${args\[\*\]}"|requestComp="/snap/lxd/current/commands/lxc __complete ${args[*]}"|'
       # Generate completions script
-      "${CRAFT_PART_INSTALL}/bin/lxc" completion bash | sed -e "${set_cmds}" -e "${set_cols}" -e "${set_compopt}" -e "${set_request_comp}" > "${CRAFT_PART_INSTALL}/etc/bash_completion.d/snap.lxd.lxc"
+      "${CRAFT_PART_INSTALL}/bin/lxc" completion bash | sed -e "${set_cmds}" -e "${set_cols}" -e "${set_compopt}" -e "${set_request_comp}" > "${CRAFT_PART_INSTALL}/lxc-completer.sh"
+      chmod +x "${CRAFT_PART_INSTALL}/lxc-completer.sh"
     organize:
       usr/bin/: bin/
       usr/lib/: lib/
@@ -1661,7 +1662,7 @@ parts:
 
       - lib/*/libidn.so.*
 
-      - etc/bash_completion.d/snap.lxd.lxc
+      - lxc-completer.sh
 
       - share/lxd-documentation*
       - share/misc/pci.ids
