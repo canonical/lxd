@@ -675,7 +675,7 @@ func (d *lvm) logicalVolumeSize(volDevPath string) (int64, error) {
 	return strconv.ParseInt(output, 10, 64)
 }
 
-func (d *lvm) thinPoolVolumeUsage(volDevPath string) (uint64, uint64, error) {
+func (d *lvm) thinPoolVolumeUsage(volDevPath string) (totalSize uint64, usedSize uint64, err error) {
 	args := []string{
 		volDevPath,
 		"--noheadings",
@@ -700,7 +700,7 @@ func (d *lvm) thinPoolVolumeUsage(volDevPath string) (uint64, uint64, error) {
 		return 0, 0, fmt.Errorf("Failed parsing thin volume total size (%q): %w", parts[0], err)
 	}
 
-	totalSize := total
+	totalSize = total
 
 	// Used percentage is not available if thin volume isn't activated.
 	if parts[1] == "" {
@@ -722,7 +722,7 @@ func (d *lvm) thinPoolVolumeUsage(volDevPath string) (uint64, uint64, error) {
 		}
 	}
 
-	usedSize := uint64(float64(total) * ((dataPerc + metaPerc) / 100))
+	usedSize = uint64(float64(total) * ((dataPerc + metaPerc) / 100))
 
 	return totalSize, usedSize, nil
 }
