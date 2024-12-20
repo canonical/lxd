@@ -12,12 +12,17 @@ import (
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
 
 var supportedVolumeTypes = []int{cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM, cluster.StoragePoolVolumeTypeCustom, cluster.StoragePoolVolumeTypeImage}
 
-func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolName string, oldVol *api.StorageVolume, newPoolName string, newVol *api.StorageVolume) error {
+func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolName string, oldVol *api.StorageVolume, newPoolName string, newVol *api.StorageVolume) (revert.Hook, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Update all instances that are using the volume with a local (non-expanded) device.
 	err := storagePools.VolumeUsedByInstanceDevices(s, oldPoolName, projectName, oldVol, false, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
 		inst, err := instance.Load(s, dbInst, project)
@@ -26,15 +31,17 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 		}
 
 		localDevices := inst.LocalDevices()
+		newDevices := localDevices.Clone()
+
 		for _, devName := range usedByDevices {
-			_, exists := localDevices[devName]
+			_, exists := newDevices[devName]
 			if exists {
-				localDevices[devName]["pool"] = newPoolName
+				newDevices[devName]["pool"] = newPoolName
 
 				if strings.Contains(localDevices[devName]["source"], "/") {
-					localDevices[devName]["source"] = newVol.Type + "/" + newVol.Name
+					newDevices[devName]["source"] = newVol.Type + "/" + newVol.Name
 				} else {
-					localDevices[devName]["source"] = newVol.Name
+					newDevices[devName]["source"] = newVol.Name
 				}
 			}
 		}
@@ -43,7 +50,7 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 			Architecture: inst.Architecture(),
 			Description:  inst.Description(),
 			Config:       inst.LocalConfig(),
-			Devices:      localDevices,
+			Devices:      newDevices,
 			Ephemeral:    inst.IsEphemeral(),
 			Profiles:     inst.Profiles(),
 			Project:      inst.Project().Name,
@@ -56,42 +63,77 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 			return err
 		}
 
+		revert.Add(func() {
+			err := inst.Update(dbInst, false)
+			if err != nil {
+				logger.Error("Failed to revert instance update", logger.Ctx{"project": dbInst.Project, "instance": dbInst.Name, "error": err})
+			}
+		})
+
 		return nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Update all profiles that are using the volume with a device.
 	err = storagePools.VolumeUsedByProfileDevices(s, oldPoolName, projectName, oldVol, func(profileID int64, profile api.Profile, p api.Project, usedByDevices []string) error {
-		for name, dev := range profile.Devices {
-			if shared.ValueInSlice(name, usedByDevices) {
-				dev["pool"] = newPoolName
+		newDevices := make(map[string]map[string]string, len(profile.Devices))
+
+		for devName, dev := range profile.Devices {
+			for key, val := range dev {
+				_, exists := newDevices[devName]
+				if !exists {
+					newDevices[devName] = make(map[string]string, len(dev))
+				}
+
+				newDevices[devName][key] = val
+			}
+
+			if shared.ValueInSlice(devName, usedByDevices) {
+				newDevices[devName]["pool"] = newPoolName
 
 				if strings.Contains(dev["source"], "/") {
-					dev["source"] = newVol.Type + "/" + newVol.Name
+					newDevices[devName]["source"] = newVol.Type + "/" + newVol.Name
 				} else {
-					dev["source"] = newVol.Name
+					newDevices[devName]["source"] = newVol.Name
 				}
 			}
 		}
 
-		pUpdate := api.ProfilePut{}
-		pUpdate.Config = profile.Config
-		pUpdate.Description = profile.Description
-		pUpdate.Devices = profile.Devices
+		pUpdate := api.ProfilePut{
+			Config:      profile.Config,
+			Description: profile.Description,
+			Devices:     newDevices,
+		}
+
 		err = doProfileUpdate(s, p, profile.Name, profileID, &profile, pUpdate)
 		if err != nil {
 			return err
 		}
 
+		revert.Add(func() {
+			original := api.ProfilePut{
+				Config:      profile.Config,
+				Description: profile.Description,
+				Devices:     profile.Devices,
+			}
+
+			err := doProfileUpdate(s, p, profile.Name, profileID, &profile, original)
+			if err != nil {
+				logger.Error("Failed reverting profile update", logger.Ctx{"project": p.Name, "profile": profile.Name, "error": err})
+			}
+		})
+
 		return nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return cleanup, nil
 }
 
 // storagePoolVolumeUsedByGet returns a list of URL resources that use the volume.
