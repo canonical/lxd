@@ -69,7 +69,7 @@ func NewUserStore(issuer string) UserStore {
 	}
 }
 
-// ExampleClientID is only used in the example server
+// ExampleClientID is only used in the example server.
 func (u userStore) ExampleClientID() string {
 	return "service"
 }
