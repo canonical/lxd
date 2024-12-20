@@ -28,7 +28,7 @@ type AuthRequest struct {
 	CallbackURI   string
 	TransferState string
 	Prompt        []string
-	UiLocales     []language.Tag
+	UILocales     []language.Tag
 	LoginHint     string
 	MaxAuthAge    *time.Duration
 	UserID        string
@@ -147,7 +147,7 @@ func authRequestToInternal(authReq *oidc.AuthRequest, userID string) *AuthReques
 		CallbackURI:   authReq.RedirectURI,
 		TransferState: authReq.State,
 		Prompt:        PromptToInternal(authReq.Prompt),
-		UiLocales:     authReq.UILocales,
+		UILocales:     authReq.UILocales,
 		LoginHint:     authReq.LoginHint,
 		MaxAuthAge:    MaxAgeToInternal(authReq.MaxAge),
 		UserID:        userID,
