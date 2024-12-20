@@ -924,7 +924,7 @@ func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName s
 				break
 			}
 
-			rootDevName = fmt.Sprintf("root%d", i)
+			rootDevName = fmt.Sprint("root", i)
 			continue
 		}
 
