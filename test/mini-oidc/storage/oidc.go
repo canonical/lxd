@@ -119,7 +119,7 @@ func (a *AuthRequest) Done() bool {
 }
 
 func PromptToInternal(oidcPrompt oidc.SpaceDelimitedArray) []string {
-	prompts := make([]string, len(oidcPrompt))
+	prompts := make([]string, 0, len(oidcPrompt))
 	for _, oidcPrompt := range oidcPrompt {
 		switch oidcPrompt {
 		case oidc.PromptNone,
