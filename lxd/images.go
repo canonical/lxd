@@ -258,7 +258,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 			args = append(args, fields[1:]...)
 		}
 
-		args = append(args, "--no-skip", "--force", "--compressor", "xz", tempfile.Name())
+		args = append(args, "--quiet", "--no-skip", "--force", "--compressor", "xz", tempfile.Name())
 		cmd = exec.Command("tar2sqfs", args...)
 		cmd.Stdin = infile
 
