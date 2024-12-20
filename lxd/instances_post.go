@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"slices"
+	"strconv"
 
 	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/google/uuid"
@@ -924,7 +925,7 @@ func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName s
 				break
 			}
 
-			rootDevName = fmt.Sprintf("root%d", i)
+			rootDevName = "root" + strconv.Itoa(i)
 			continue
 		}
 
