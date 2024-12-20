@@ -98,12 +98,12 @@ func udevDecode(s string) (string, error) {
 		if s[i] == '\\' && i+4 <= len(s) && s[i+1] == 'x' {
 			hexValue := s[i+2 : i+4]
 			strValue, err := hex.DecodeString(hexValue)
-			if err == nil {
-				ret += string(strValue)
-				i += 3
-			} else {
+			if err != nil {
 				return ret, err
 			}
+
+			ret += string(strValue)
+			i += 3
 		} else {
 			ret += s[i : i+1]
 		}
