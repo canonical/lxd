@@ -2,6 +2,7 @@ package main
 
 import (
 	"io/fs"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -867,6 +868,48 @@ func (g *cmdGlobal) cmpNetworkForwards(networkName string) ([]string, cobra.Shel
 	results, err := resource.server.GetNetworkForwardAddresses(networkName)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError
+	}
+
+	return results, cmpDirectives
+}
+
+// cmpNetworkForwardPortTargetAddresses provides shell completion for network forward port target addresses.
+// It takes a network name and listen address to determine whether to return ipv4 or ipv6 target addresses and returns a list of target addresses.
+func (g *cmdGlobal) cmpNetworkForwardPortTargetAddresses(networkName string, listenAddress string) ([]string, cobra.ShellCompDirective) {
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
+
+	resources, _ := g.ParseServers(networkName)
+	if len(resources) <= 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+	instances, err := resource.server.GetInstancesFull(api.InstanceTypeAny)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	var results []string
+	listenAddressIsIP4 := net.ParseIP(listenAddress).To4() != nil
+	for _, instance := range instances {
+		if instance.IsActive() && instance.State != nil && instance.State.Network != nil {
+			for _, network := range instance.State.Network {
+				if network.Type == "loopback" {
+					continue
+				}
+
+				results = make([]string, 0, len(network.Addresses))
+				for _, address := range network.Addresses {
+					if shared.ValueInSlice(address.Scope, []string{"link", "local"}) {
+						continue
+					}
+
+					if (listenAddressIsIP4 && address.Family == "inet") || (!listenAddressIsIP4 && address.Family == "inet6") {
+						results = append(results, address.Address)
+					}
+				}
+			}
+		}
 	}
 
 	return results, cmpDirectives

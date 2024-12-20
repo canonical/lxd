@@ -904,6 +904,10 @@ func (c *cmdNetworkForwardPort) commandAdd() *cobra.Command {
 			return []string{"tcp", "udp"}, cobra.ShellCompDirectiveNoFileComp
 		}
 
+		if len(args) == 4 {
+			return c.global.cmpNetworkForwardPortTargetAddresses(args[0], args[1])
+		}
+
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
@@ -984,6 +988,10 @@ func (c *cmdNetworkForwardPort) commandRemove() *cobra.Command {
 
 		if len(args) == 2 {
 			return []string{"tcp", "udp"}, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		if len(args) == 4 {
+			return c.global.cmpNetworkForwardPortTargetAddresses(args[0], args[1])
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
