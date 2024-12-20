@@ -1173,55 +1173,56 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 func (d *powerflex) connectNVMeSubsys() (revert.Hook, error) {
 	basePath := "/sys/devices/virtual/nvme-subsystem"
 
-	// Retrieve list of existing NVMe subsystems on this host.
-	directories, err := os.ReadDir(basePath)
-	if err != nil {
-		return nil, fmt.Errorf("Failed getting a list of NVMe subsystems: %w", err)
-	}
-
 	revert := revert.New()
 	defer revert.Fail()
 
-	pool, err := d.resolvePool()
-	if err != nil {
-		return nil, err
-	}
-
-	domain, err := d.client().getProtectionDomain(pool.ProtectionDomainID)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, directory := range directories {
-		subsystemName := directory.Name()
-
-		// Get the subsystem's NQN.
-		nqnBytes, err := os.ReadFile(filepath.Join(basePath, subsystemName, "subsysnqn"))
+	// Retrieve list of existing NVMe subsystems on this host.
+	directories, err := os.ReadDir(basePath)
+	// In case no subsystem is connected the directory might not exist.
+	if err != nil && !errors.Is(err, unix.ENOENT) {
+		return nil, fmt.Errorf("Failed getting a list of NVMe subsystems: %w", err)
+	} else {
+		pool, err := d.resolvePool()
 		if err != nil {
-			return nil, fmt.Errorf("Failed getting the NQN of subystem %q: %w", subsystemName, err)
+			return nil, err
 		}
 
-		if strings.Contains(string(nqnBytes), domain.SystemID) {
-			cleanup := revert.Clone().Fail
-			revert.Success()
-
-			// Already connected to the NVMe subsystem for the respective PowerFlex system.
-			return cleanup, nil
+		domain, err := d.client().getProtectionDomain(pool.ProtectionDomainID)
+		if err != nil {
+			return nil, err
 		}
-	}
 
-	nqn := d.getHostNQN()
-	serverUUID := d.state.ServerUUID
-	_, stderr, err := shared.RunCommandSplit(d.state.ShutdownCtx, nil, nil, "nvme", "connect-all", "-t", "tcp", "-a", d.config["powerflex.sdt"], "-q", nqn, "-I", serverUUID)
-	if err != nil {
-		return nil, fmt.Errorf("Failed nvme connect-all: %w", err)
-	}
+		for _, directory := range directories {
+			subsystemName := directory.Name()
 
-	if stderr != "" {
-		return nil, fmt.Errorf("Failed connecting to PowerFlex NVMe/TCP subsystem: %s", stderr)
-	}
+			// Get the subsystem's NQN.
+			nqnBytes, err := os.ReadFile(filepath.Join(basePath, subsystemName, "subsysnqn"))
+			if err != nil {
+				return nil, fmt.Errorf("Failed getting the NQN of subystem %q: %w", subsystemName, err)
+			}
 
-	revert.Add(func() { _ = d.disconnectNVMeSubsys() })
+			if strings.Contains(string(nqnBytes), domain.SystemID) {
+				cleanup := revert.Clone().Fail
+				revert.Success()
+
+				// Already connected to the NVMe subsystem for the respective PowerFlex system.
+				return cleanup, nil
+			}
+		}
+
+		nqn := d.getHostNQN()
+		serverUUID := d.state.ServerUUID
+		_, stderr, err := shared.RunCommandSplit(d.state.ShutdownCtx, nil, nil, "nvme", "connect-all", "-t", "tcp", "-a", d.config["powerflex.sdt"], "-q", nqn, "-I", serverUUID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed nvme connect-all: %w", err)
+		}
+
+		if stderr != "" {
+			return nil, fmt.Errorf("Failed connecting to PowerFlex NVMe/TCP subsystem: %s", stderr)
+		}
+
+		revert.Add(func() { _ = d.disconnectNVMeSubsys() })
+	}
 
 	cleanup := revert.Clone().Fail
 	revert.Success()
