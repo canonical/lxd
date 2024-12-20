@@ -1,5 +1,7 @@
 package node
 
+//go:generate lxd-generate db schema node
+
 import (
 	"context"
 	"database/sql"
