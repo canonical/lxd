@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"slices"
-	"strings"
 
 	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/google/uuid"
@@ -1211,7 +1210,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			i := 0
 			for {
 				i++
-				req.Name = strings.ToLower(petname.Generate(2, "-"))
+				req.Name = petname.Generate(2, "-")
 				if !shared.ValueInSlice(req.Name, names) {
 					break
 				}
