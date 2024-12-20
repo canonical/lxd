@@ -24,6 +24,9 @@ import (
 //go:generate mapper method -i -e cluster_group Update
 //go:generate mapper method -i -e cluster_group DeleteOne-by-Name
 
+//go:generate goimports -w cluster_groups.mapper.go
+//go:generate goimports -w cluster_groups.interface.mapper.go
+
 // ClusterGroup is a value object holding db-related details about a cluster group.
 type ClusterGroup struct {
 	ID          int

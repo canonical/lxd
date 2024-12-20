@@ -33,6 +33,8 @@ import (
 //go:generate mapper method -i -e project ID struct=Project
 //go:generate mapper method -i -e project Rename
 //go:generate mapper method -i -e project DeleteOne-by-Name
+//go:generate goimports -w projects.mapper.go
+//go:generate goimports -w projects.interface.mapper.go
 
 // ProjectFeature indicates the behaviour of a project feature.
 type ProjectFeature struct {

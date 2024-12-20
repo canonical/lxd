@@ -19,6 +19,8 @@ import (
 //go:generate mapper method -i -e device Create struct=Device
 //go:generate mapper method -i -e device Update struct=Device
 //go:generate mapper method -i -e device DeleteMany
+//go:generate goimports -w devices.mapper.go
+//go:generate goimports -w devices.interface.mapper.go
 
 // DeviceType represents the types of supported devices.
 type DeviceType int

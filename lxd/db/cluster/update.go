@@ -1,6 +1,8 @@
 package cluster
 
-//go:generate lxd-generate db schema cluster
+// Have to run goimports first because the .mapper files are being generated at the same time.
+// This causes "freshschema" to be unable to import the cluster package.
+//go:generate go run ../freshschema/main.go cluster
 
 import (
 	"context"
