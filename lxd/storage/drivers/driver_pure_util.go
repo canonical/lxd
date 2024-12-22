@@ -165,6 +165,18 @@ type pureStorageArray struct {
 	Space    pureSpace `json:"space"`
 }
 
+// pureProtectionGroup represents a protection group in Pure Storage.
+type pureProtectionGroup struct {
+	Name        string `json:"name"`
+	IsDestroyed bool   `json:"destroyed"`
+}
+
+// pureDefaultProtection represents a default protection in Pure Storage.
+type pureDefaultProtection struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
 // pureStoragePool represents a storage pool (pod) in Pure Storage.
 type pureStoragePool struct {
 	ID          string       `json:"id"`
@@ -436,6 +448,129 @@ func (p *pureClient) getNetworkInterfaces(service string) ([]pureNetworkInterfac
 	return resp.Items, nil
 }
 
+// getProtectionGroup returns the protection group with the given name.
+func (p *pureClient) getProtectionGroup(name string) (*pureProtectionGroup, error) {
+	var resp pureResponse[pureProtectionGroup]
+
+	url := api.NewURL().Path("protection-groups").WithQuery("names", name)
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		if isPureErrorNotFound(err) {
+			return nil, api.StatusErrorf(http.StatusNotFound, "Protection group %q not found", name)
+		}
+
+		return nil, fmt.Errorf("Failed to get protection group %q: %w", name, err)
+	}
+
+	if len(resp.Items) == 0 {
+		return nil, api.StatusErrorf(http.StatusNotFound, "Protection group %q not found", name)
+	}
+
+	return &resp.Items[0], nil
+}
+
+// deleteProtectionGroup deletes the protection group with the given name.
+func (p *pureClient) deleteProtectionGroup(name string) error {
+	pg, err := p.getProtectionGroup(name)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			// Already removed.
+			return nil
+		}
+
+		return err
+	}
+
+	url := api.NewURL().Path("protection-groups").WithQuery("names", name)
+
+	// Ensure the protection group is destroyed.
+	if !pg.IsDestroyed {
+		req, err := p.createBodyReader(map[string]any{
+			"destroyed": true,
+		})
+		if err != nil {
+			return err
+		}
+
+		err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
+		if err != nil {
+			return fmt.Errorf("Failed to destroy protection group %q: %w", name, err)
+		}
+	}
+
+	// Delete the protection group.
+	err = p.requestAuthenticated(http.MethodDelete, url.URL, nil, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to delete protection group %q: %w", name, err)
+	}
+
+	return nil
+}
+
+// deleteStoragePoolDefaultProtections unsets default protections for the given
+// storage pool and removes its default protection groups.
+func (p *pureClient) deleteStoragePoolDefaultProtections(poolName string) error {
+	var resp pureResponse[struct {
+		Type               string                  `json:"type"`
+		DefaultProtections []pureDefaultProtection `json:"default_protections"`
+	}]
+
+	url := api.NewURL().Path("container-default-protections").WithQuery("names", poolName)
+
+	// Extract default protections for the given storage pool.
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		if isPureErrorNotFound(err) {
+			// Default protections does not exist.
+			return nil
+		}
+
+		return fmt.Errorf("Failed to get default protections for storage pool %q: %w", poolName, err)
+	}
+
+	// Remove default protections and protection groups related to the storage pool.
+	for _, item := range resp.Items {
+		// Ensure protection applies to the storage pool.
+		if item.Type != "pod" {
+			continue
+		}
+
+		// To be able to delete default protection groups, they have to
+		// be removed from the list of default protections.
+		req, err := p.createBodyReader(map[string]any{
+			"default_protections": []pureDefaultProtection{},
+		})
+		if err != nil {
+			return err
+		}
+
+		err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
+		if err != nil {
+			if isPureErrorNotFound(err) {
+				// Default protection already removed.
+				continue
+			}
+
+			return fmt.Errorf("Failed to unset default protections for storage pool %q: %w", poolName, err)
+		}
+
+		// Iterate over default protections and extract protection group names.
+		for _, pg := range item.DefaultProtections {
+			if pg.Type != "protection_group" {
+				continue
+			}
+
+			// Remove protection groups.
+			err := p.deleteProtectionGroup(pg.Name)
+			if err != nil {
+				return fmt.Errorf("Failed to remove protection group %q for storage pool %q: %w", pg.Name, poolName, err)
+			}
+		}
+	}
+
+	return nil
+}
+
 // getStorageArray returns the list of storage arrays.
 // If arrayNames are provided, only those are returned.
 func (p *pureClient) getStorageArrays(arrayNames ...string) ([]pureStorageArray, error) {
@@ -473,6 +608,9 @@ func (p *pureClient) getStoragePool(poolName string) (*pureStoragePool, error) {
 
 // createStoragePool creates a storage pool (Pure Storage pod).
 func (p *pureClient) createStoragePool(poolName string, size int64) error {
+	revert := revert.New()
+	defer revert.Fail()
+
 	reqBody := make(map[string]any)
 	if size > 0 {
 		reqBody["quota_limit"] = size
@@ -495,21 +633,30 @@ func (p *pureClient) createStoragePool(poolName string, size int64) error {
 		}
 
 		logger.Info("Storage pool has been restored", logger.Ctx{"pool": poolName})
-		return nil
+	} else {
+		// Storage pool does not exist in destroyed state, therefore, try to create a new one.
+		req, err := p.createBodyReader(reqBody)
+		if err != nil {
+			return err
+		}
+
+		url := api.NewURL().Path("pods").WithQuery("names", poolName)
+		err = p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
+		if err != nil {
+			return fmt.Errorf("Failed to create storage pool %q: %w", poolName, err)
+		}
 	}
 
-	req, err := p.createBodyReader(reqBody)
+	revert.Add(func() { _ = p.deleteStoragePool(poolName) })
+
+	// Delete default protection groups of the new storage pool to ensure
+	// there is no limitations when deleting the pool or volume.
+	err = p.deleteStoragePoolDefaultProtections(poolName)
 	if err != nil {
 		return err
 	}
 
-	// Storage pool does not exist in destroyed state, therefore, try to create a new one.
-	url := api.NewURL().Path("pods").WithQuery("names", poolName)
-	err = p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
-	if err != nil {
-		return fmt.Errorf("Failed to create storage pool %q: %w", poolName, err)
-	}
-
+	revert.Success()
 	return nil
 }
 
