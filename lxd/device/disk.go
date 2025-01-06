@@ -880,7 +880,8 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		}
 
 		// Mount the source in the instance devices directory.
-		revertFunc, sourceDevPath, isFile, err := d.createDevice(srcPath)
+		devPath := d.getDevicePath(d.name, d.config)
+		revertFunc, isFile, err := d.createDevice(srcPath, devPath)
 		if err != nil {
 			return nil, err
 		}
@@ -896,7 +897,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		// Instruct LXD to perform the mount.
 		runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
 			DevName:    d.name,
-			DevPath:    sourceDevPath,
+			DevPath:    devPath,
 			TargetPath: relativeDestPath,
 			FSType:     "none",
 			Opts:       options,
