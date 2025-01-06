@@ -949,6 +949,13 @@ func (d *disk) detectVMPoolMountOpts() []string {
 	return opts
 }
 
+// virtiofsdSourceEncode encodes a path string to be used as part of a disk source on viriofsd.
+// virtiofsd fails if the source property contains an equal sign.
+// The encoding scheme replaces "-" with "--" and then "=" with "-".
+func (d *disk) virtiofsdSourceEncode(text string) string {
+	return strings.Replace(strings.Replace(text, "-", "--", -1), "=", "-", -1)
+}
+
 // startVM starts the disk device for a virtual machine instance.
 func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
