@@ -1514,3 +1514,15 @@ func ApplyDeviceOverrides(localDevices map[string]map[string]string, profileDevi
 
 	return localDevices, nil
 }
+
+// IsMicroOVNUsed returns whether the current LXD deployment is using a built-in openvswitch
+// or is connected to MicroOVN, which in this case, would make `/run/openvswitch` a symlink to
+// `/var/snap/lxd/common/microovn/chassis/switch`.
+func IsMicroOVNUsed() bool {
+	targetPath, err := os.Readlink("/run/openvswitch")
+	if err == nil && strings.HasSuffix(targetPath, "/microovn/chassis/switch") {
+		return true
+	}
+
+	return false
+}
