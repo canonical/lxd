@@ -38,7 +38,7 @@ require (
 	github.com/minio/minio-go/v7 v7.0.81
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/osrg/gobgp/v3 v3.32.0
+	github.com/osrg/gobgp/v3 v3.33.0
 	github.com/pkg/sftp v1.13.7
 	github.com/pkg/xattr v0.4.10
 	github.com/robfig/cron/v3 v3.0.1
