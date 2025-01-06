@@ -1156,16 +1156,20 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil, fmt.Errorf(`Missing mount "path" setting`)
 				}
 
+				// Escaping to avoid invalid source errors.
+				devPath := d.virtiofsdSourceEncode(d.getDevicePath(d.name, d.config))
+
 				// Mount the source in the instance devices directory.
 				// This will ensure that if the exported directory configured as readonly that this
 				// takes effect event if using virtio-fs (which doesn't support read only mode) by
 				// having the underlying mount setup as readonly.
 				var revertFunc func()
-				revertFunc, mount.DevPath, _, err = d.createDevice(mount.DevPath)
+				revertFunc, _, err = d.createDevice(mount.DevPath, devPath)
 				if err != nil {
 					return nil, err
 				}
 
+				mount.DevPath = devPath
 				revert.Add(revertFunc)
 
 				mount.TargetPath = d.config["path"]
