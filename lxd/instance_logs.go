@@ -360,7 +360,7 @@ func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// swagger:operation GET /1.0/instances/{name}/logs/exec-output instances instance_exec-outputs_get
+// swagger:operation GET /1.0/instances/{name}/logs/exec-output instances instance_exec-output_get
 //
 //	Get the exec record-output files
 //
