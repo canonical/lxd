@@ -36,7 +36,6 @@ github.com/zitadel/oidc/v3/pkg/crypto
 github.com/zitadel/oidc/v3/pkg/http
 github.com/zitadel/oidc/v3/pkg/oidc
 github.com/zitadel/oidc/v3/pkg/oidc/grants/tokenexchange
-github.com/zitadel/oidc/v3/pkg/strings
 github.com/zitadel/schema
 go.opentelemetry.io/auto/sdk
 go.opentelemetry.io/auto/sdk/internal/telemetry
