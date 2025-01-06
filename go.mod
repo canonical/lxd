@@ -14,7 +14,7 @@ require (
 	github.com/dustinkirkland/golang-petname v0.0.0-20240428194347-eebcea082ee0
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
 	github.com/fvbommel/sortorder v1.1.0
-	github.com/go-acme/lego/v4 v4.20.4
+	github.com/go-acme/lego/v4 v4.21.0
 	github.com/go-chi/chi/v5 v5.2.0
 	github.com/go-jose/go-jose/v4 v4.0.4
 	github.com/google/gopacket v1.1.19
@@ -55,7 +55,7 @@ require (
 	go.starlark.net v0.0.0-20241125201518-c05ff208a98f
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.31.0
-	golang.org/x/exp v0.0.0-20241204233417-43b7b7cde48d
+	golang.org/x/exp v0.0.0-20241210194714-1829a127f884
 	golang.org/x/oauth2 v0.24.0
 	golang.org/x/sync v0.10.0
 	golang.org/x/sys v0.28.0
@@ -93,7 +93,7 @@ require (
 	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/goccy/go-json v0.10.3 // indirect
+	github.com/goccy/go-json v0.10.4 // indirect
 	github.com/google/cel-go v0.22.1 // indirect
 	github.com/google/renameio v1.0.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
@@ -161,7 +161,7 @@ require (
 	go.uber.org/mock v0.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/mod v0.22.0 // indirect
-	golang.org/x/net v0.32.0 // indirect
+	golang.org/x/net v0.33.0 // indirect
 	gonum.org/v1/gonum v0.15.1 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20241209162323-e6fa225c2576 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241209162323-e6fa225c2576 // indirect
