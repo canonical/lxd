@@ -228,12 +228,10 @@ func (c *cmdGroupEdit) helpTemplate() string {
 ###   url: /1.0/projects/default
 ###   entitlement: can_view
 ### identities:
-### - authentication_method: oidc
-###   type: OIDC client
-###   identifier: jane.doe@example.com
-###   name: Jane Doe
-###   metadata:
-###     subject: auth0|123456789
+###   oidc:
+###   - jane.doe@example.com
+###   tls:
+###   - eaa46a1b73827350e0543949fb161410c50e950d4cb9802fc58dbfbd5700e508
 ### identity_provider_groups:
 ### - sales
 ### - operations
