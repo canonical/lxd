@@ -34,12 +34,26 @@ const (
 	IdentityTypeOIDCClient = "OIDC client"
 )
 
+// WithEntitlements is meant to be an embedded struct to API types eligible for entitlement enrichment,
+// that is, entities that can have access entitlements granted to the requesting user.
+//
+// swagger:model
+//
+// API extension: entities_with_entitlements.
+type WithEntitlements struct {
+	// AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+	// Example: ["can_view", "can_edit"]
+	AccessEntitlements []string `json:"access_entitlements" yaml:"access_entitlements"`
+}
+
 // Identity is the type for an authenticated party that can make requests to the HTTPS API.
 //
 // swagger:model
 //
 // API extension: access_management.
 type Identity struct {
+	WithEntitlements `yaml:",inline"`
+
 	// AuthenticationMethod is the authentication method that the identity
 	// authenticates to LXD with.
 	// Example: tls
@@ -153,6 +167,8 @@ type IdentitiesTLSPost struct {
 //
 // API extension: access_management.
 type AuthGroup struct {
+	WithEntitlements `yaml:",inline"`
+
 	// Name is the name of the group.
 	// Example: default-c1-viewers
 	Name string `json:"name" yaml:"name"`
@@ -228,6 +244,8 @@ type AuthGroupPut struct {
 //
 // API extension: access_management.
 type IdentityProviderGroup struct {
+	WithEntitlements `yaml:",inline"`
+
 	// Name is the name of the IdP group.
 	Name string `json:"name" yaml:"name"`
 

@@ -134,6 +134,8 @@ type ImagePut struct {
 //
 // swagger:model
 type Image struct {
+	WithEntitlements `yaml:",inline"`
+
 	// List of aliases
 	Aliases []ImageAlias `json:"aliases" yaml:"aliases"`
 
