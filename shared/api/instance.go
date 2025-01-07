@@ -224,6 +224,8 @@ type InstanceRebuildPost struct {
 //
 // API extension: instances.
 type Instance struct {
+	WithEntitlements `yaml:",inline"`
+
 	// Instance name
 	// Example: foo
 	Name string `json:"name" yaml:"name"`

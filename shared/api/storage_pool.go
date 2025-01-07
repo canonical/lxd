@@ -38,6 +38,8 @@ type StoragePoolsPost struct {
 //
 // API extension: storage.
 type StoragePool struct {
+	WithEntitlements `yaml:",inline"`
+
 	// Storage pool name
 	// Example: local
 	Name string `json:"name" yaml:"name"`

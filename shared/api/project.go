@@ -48,6 +48,8 @@ type ProjectPut struct {
 //
 // API extension: projects.
 type Project struct {
+	WithEntitlements `yaml:",inline"`
+
 	// The project name
 	// Read only: true
 	// Example: foo
