@@ -147,7 +147,9 @@ groups:
 tls_certificate: ""
 effective_groups:
 - test-group
-effective_permissions: []'
+effective_permissions: []
+fine_grained: true'
+
   [ "$(lxc auth identity info oidc:)" = "${expectedOIDCInfo}" ]
 
   expectedTLSInfo="authentication_method: tls
@@ -160,7 +162,9 @@ tls_certificate: |
 $(awk '{printf "  %s\n", $0}' "${LXD_CONF2}/client.crt")
 effective_groups:
 - test-group
-effective_permissions: []"
+effective_permissions: []
+fine_grained: true"
+
   [ "$(LXD_CONF="${LXD_CONF2}" lxc auth identity info tls:)" = "${expectedTLSInfo}" ]
 
 
@@ -274,6 +278,15 @@ effective_permissions: []"
   [ "$(LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "trusted" ]
   [ "$(LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "untrusted" ]
 
+  # Check that an unrestricted client certificate is not fine grained.
+  LXD_CONF6=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF6}" gen_cert_and_key "unrestricted"
+  lxdconf6_fingerprint_short="$(cert_fingerprint "${LXD_CONF6}/unrestricted.crt" | head -c12)"
+  lxc config trust add "${LXD_CONF6}/unrestricted.crt"
+  lxc config trust show "${lxdconf6_fingerprint_short}" | grep -xF "restricted: false"
+  [ "$(LXD_CONF="${LXD_CONF6}" CERTNAME=unrestricted my_curl -X GET "https://${LXD_ADDR}/1.0/auth/identities/current" | jq -r .metadata.fine_grained)" = "false" ]
+  lxc config trust remove "${lxdconf6_fingerprint_short}"
+
   # Cleanup
   lxc auth group delete test-group
   lxc auth identity-provider-group delete test-idp-group
@@ -284,6 +297,7 @@ effective_permissions: []"
   rm -r "${LXD_CONF3}"
   rm -r "${LXD_CONF4}"
   rm -r "${LXD_CONF5}"
+  rm -r "${LXD_CONF6}"
   lxc config unset core.remote_token_expiry
   lxc config unset oidc.issuer
   lxc config unset oidc.client.id
