@@ -80,6 +80,10 @@ lxc move <instance>/<old snapshot name> <instance>/<new snapshot name>
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
+	_ = cmd.RegisterFlagCompletionFunc("mode", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"pull", "push", "relay"}, cobra.ShellCompDirectiveNoFileComp
+	})
+
 	return cmd
 }
 
