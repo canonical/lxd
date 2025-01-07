@@ -34,6 +34,8 @@ type NetworkZonePut struct {
 //
 // API extension: network_dns.
 type NetworkZone struct {
+	WithEntitlements `yaml:",inline"`
+
 	// The name of the zone (DNS domain name)
 	// Example: example.net
 	Name string `json:"name" yaml:"name"`
