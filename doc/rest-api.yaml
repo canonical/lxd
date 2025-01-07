@@ -1,6 +1,15 @@
 definitions:
     AuthGroup:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             description:
                 description: Description is a short description of the group.
                 example: Viewers of instance c1 in the default project.
@@ -89,6 +98,15 @@ definitions:
     Certificate:
         description: Certificate represents a LXD certificate
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             certificate:
                 description: The certificate itself, as PEM encoded X509 certificate
                 example: X509 PEM certificate
@@ -757,6 +775,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     Identity:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             authentication_method:
                 description: |-
                     AuthenticationMethod is the authentication method that the identity
@@ -803,6 +830,15 @@ definitions:
     IdentityInfo:
         description: These fields can only be evaluated for the currently authenticated identity.
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             authentication_method:
                 description: |-
                     AuthenticationMethod is the authentication method that the identity
@@ -873,6 +909,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     IdentityProviderGroup:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             groups:
                 description: Groups are the groups the IdP group resolves to.
                 example:
@@ -936,6 +981,15 @@ definitions:
     Image:
         description: Image represents a LXD image
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             aliases:
                 description: List of aliases
                 items:
@@ -1618,6 +1672,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     Instance:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             architecture:
                 description: Architecture name
                 example: x86_64
@@ -1901,6 +1964,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     InstanceFull:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             architecture:
                 description: Architecture name
                 example: x86_64
@@ -2961,6 +3033,15 @@ definitions:
     Network:
         description: Network represents a LXD network
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
@@ -3025,6 +3106,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     NetworkACL:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
@@ -3887,6 +3977,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     NetworkZone:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
@@ -4234,6 +4333,15 @@ definitions:
     Profile:
         description: Profile represents a LXD profile
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
@@ -4373,6 +4481,15 @@ definitions:
     Project:
         description: Project represents a LXD project
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
@@ -6055,6 +6172,15 @@ definitions:
     StorageBucket:
         description: StorageBucket represents the fields of a LXD storage pool bucket
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
@@ -6213,6 +6339,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     StoragePool:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
@@ -6398,6 +6533,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     StorageVolume:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
@@ -6834,6 +6978,21 @@ definitions:
                 type: string
                 x-go-name: Status
         title: WarningPut represents the modifiable fields of a warning.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    WithEntitlements:
+        description: that is, entities that can have access entitlements granted to the requesting user.
+        properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
+        title: WithEntitlements is meant to be an embedded struct to API types eligible for entitlement enrichment,
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
 info:
