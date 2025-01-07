@@ -1540,7 +1540,7 @@ func (c *cmdPermissionList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	i := 0
-	var displayPermissions []*displayPermission
+	displayPermissions := make([]*displayPermission, 0, len(permissionsInfo))
 	displayPermissionIdx := make(map[string]int)
 	for _, perm := range permissionsInfo {
 		idx, ok := displayPermissionIdx[perm.EntityReference]
