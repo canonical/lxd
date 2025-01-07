@@ -749,35 +749,49 @@ func (d *common) Delete() error {
 }
 
 // GetLog gets the ACL log.
-func (d *common) GetLog(clientType request.ClientType) (string, error) {
+func (d *common) GetLog(ctx context.Context, clientType request.ClientType) (string, error) {
 	// ACLs aren't specific to a particular network type but the log only works with OVN.
-	logPath := shared.HostPath("/var/log/ovn/ovn-controller.log")
-	if !shared.PathExists(logPath) {
-		return "", fmt.Errorf("Only OVN log entries may be retrieved at this time")
-	}
+	var logEntries []string
+	var err error
 
-	// Open the log file.
-	logFile, err := os.Open(logPath)
-	if err != nil {
-		return "", fmt.Errorf("Couldn't open OVN log file: %w", err)
-	}
-
-	defer func() { _ = logFile.Close() }()
-
-	logEntries := []string{}
-	scanner := bufio.NewScanner(logFile)
-	for scanner.Scan() {
-		logEntry := ovnParseLogEntry(scanner.Text(), fmt.Sprintf("lxd_acl%d-", d.id))
-		if logEntry == "" {
-			continue
+	if shared.IsMicroOVNUsed() {
+		prefix := fmt.Sprintf("lxd_acl%d-", d.id)
+		logEntries, err = ovnParseLogEntriesFromJournald(ctx, "snap.microovn.chassis.service", prefix)
+		if err != nil {
+			return "", fmt.Errorf("Failed to get OVN log entries from syslog: %w", err)
+		}
+	} else {
+		// Else, if the current LXD deployment does not use MicroOVN,
+		// then try to read the OVN controller log file directly (a standalone OVN controller might be built-in with LXD).
+		logEntries = []string{}
+		prefix := fmt.Sprintf("lxd_acl%d-", d.id)
+		logPath := shared.HostPath("/var/log/ovn/ovn-controller.log")
+		if !shared.PathExists(logPath) {
+			return "", fmt.Errorf("Only OVN log entries may be retrieved at this time")
 		}
 
-		logEntries = append(logEntries, logEntry)
-	}
+		// Open the log file.
+		logFile, err := os.Open(logPath)
+		if err != nil {
+			return "", fmt.Errorf("Failed to open OVN log file: %w", err)
+		}
 
-	err = scanner.Err()
-	if err != nil {
-		return "", fmt.Errorf("Failed to read OVN log file: %w", err)
+		defer func() { _ = logFile.Close() }()
+
+		scanner := bufio.NewScanner(logFile)
+		for scanner.Scan() {
+			logEntry := ovnParseLogEntry(scanner.Text(), "", prefix)
+			if logEntry == "" {
+				continue
+			}
+
+			logEntries = append(logEntries, logEntry)
+		}
+
+		err = scanner.Err()
+		if err != nil {
+			return "", fmt.Errorf("Failed to read OVN log file: %w", err)
+		}
 	}
 
 	// Aggregates the entries from the rest of the cluster.
