@@ -220,7 +220,8 @@ func (c *cmdGroupEdit) helpTemplate() string {
 		`### This is a YAML representation of the group.
 ### Any line starting with a '# will be ignored.
 ###
-### A group has the following format:
+### NOTE: All group information is shown but only the description and permissions can be modified.
+### 
 ### name: my-first-group
 ### description: My first group.
 ### permissions:
@@ -235,8 +236,7 @@ func (c *cmdGroupEdit) helpTemplate() string {
 ### identity_provider_groups:
 ### - sales
 ### - operations
-###
-### Note that all group information is shown but only the description and permissions can be modified`)
+`)
 }
 
 func (c *cmdGroupEdit) run(cmd *cobra.Command, args []string) error {
