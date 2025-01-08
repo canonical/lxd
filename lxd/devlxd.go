@@ -344,7 +344,15 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 		}
 
 		resp := f(d, c, w, r)
-		_ = resp.Render(w, r)
+		if resp != nil {
+			err = resp.Render(w, r)
+			if err != nil {
+				writeErr := response.DevLxdErrorResponse(err, false).Render(w, r)
+				if writeErr != nil {
+					logger.Warn("Failed writing error for HTTP response", logger.Ctx{"url": r.URL, "err": err, "writeErr": writeErr})
+				}
+			}
+		}
 	}
 }
 
