@@ -53,7 +53,7 @@ func ClearBlock(blockPath string, blockOffset int64) error {
 
 	// Blocks are trickier to reset with options varying based on disk features.
 	// We use a set of 3 markers to validate whether it was reset.
-	marker := []byte("INCUS")
+	marker := []byte("LXD")
 	markerLength := int64(len(marker))
 	markerOffsetStart := blockOffset
 	markerOffsetMiddle := blockOffset + ((size - blockOffset) / 2)
