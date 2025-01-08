@@ -884,7 +884,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			}
 
 			if shared.IsTrue(dbVolume.Config["security.shifted"]) {
-				ownerShift = "dynamic"
+				ownerShift = deviceConfig.MountOwnerShiftDynamic
 			}
 		}
 
