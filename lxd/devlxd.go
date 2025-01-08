@@ -119,14 +119,7 @@ func devlxdImageExportHandler(d *Daemon, c instance.Instance, w http.ResponseWri
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
 
-	resp := imageExport(d, r)
-
-	err := resp.Render(w, r)
-	if err != nil {
-		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
-	}
-
-	return response.DevLxdResponse(http.StatusOK, "", "raw", c.Type() == instancetype.VM)
+	return imageExport(d, r)
 }
 
 var devlxdMetadataGet = devLxdHandler{
