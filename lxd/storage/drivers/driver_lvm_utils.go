@@ -513,7 +513,7 @@ func (d *lvm) resizeLogicalVolume(lvPath string, sizeBytes int64) error {
 		return fmt.Errorf("Error checking LVM version: %w", err)
 	}
 
-	args := []string{"-L", fmt.Sprintf("%db", sizeBytes), "-f", lvPath}
+	args := []string{"-L", strconv.FormatInt(sizeBytes, 10) + "b", "-f", lvPath}
 	if isRecent {
 		args = append(args, "--fs=ignore")
 	}
