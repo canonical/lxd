@@ -4738,7 +4738,7 @@ func (b *lxdBackend) recoverMinIOKeys(projectName string, bucketName string, op 
 		break
 	}
 
-	var recoveredKeys []api.StorageBucketKeysPost
+	recoveredKeys := make([]api.StorageBucketKeysPost, 0, len(svcAccounts))
 
 	// Extract bucket keys for each service account.
 	for _, creds := range svcAccounts {
