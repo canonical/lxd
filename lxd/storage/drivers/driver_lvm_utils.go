@@ -13,6 +13,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -373,6 +374,12 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 		_, err = makeFSType(volDevPath, vol.ConfigBlockFilesystem(), nil)
 		if err != nil {
 			return fmt.Errorf("Error making filesystem on LVM logical volume: %w", err)
+		}
+	} else if !d.usesThinpool() {
+		// Make sure we get an empty LV.
+		err := block.ClearBlock(volDevPath, 0)
+		if err != nil {
+			return fmt.Errorf("Error clearing LVM logical volume: %w", err)
 		}
 	}
 
