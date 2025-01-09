@@ -18,7 +18,7 @@ const separator = "_"
 // Instance adds the "<project>_" prefix to instance name when the given project name is not "default".
 func Instance(projectName string, instanceName string) string {
 	if projectName != api.ProjectDefaultName {
-		return fmt.Sprintf("%s%s%s", projectName, separator, instanceName)
+		return projectName + separator + instanceName
 	}
 
 	return instanceName
@@ -27,7 +27,7 @@ func Instance(projectName string, instanceName string) string {
 // DNS adds ".<project>" as a suffix to instance name when the given project name is not "default".
 func DNS(projectName string, instanceName string) string {
 	if projectName != api.ProjectDefaultName {
-		return fmt.Sprintf("%s.%s", instanceName, projectName)
+		return instanceName + "." + projectName
 	}
 
 	return instanceName
@@ -52,7 +52,7 @@ func InstanceParts(projectInstanceName string) (projectName string, instanceName
 
 // StorageVolume adds the "<project>_prefix" to the storage volume name. Even if the project name is "default".
 func StorageVolume(projectName string, storageVolumeName string) string {
-	return fmt.Sprintf("%s%s%s", projectName, separator, storageVolumeName)
+	return projectName + separator + storageVolumeName
 }
 
 // StorageVolumeParts takes a project prefixed storage volume name and returns the project and storage volume

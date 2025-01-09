@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"crypto/sha256"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/zitadel/oidc/v3/pkg/op"
 
 	"github.com/canonical/lxd/test/mini-oidc/storage"
@@ -46,7 +46,7 @@ func main() {
 		},
 	}
 
-	provider, err := op.NewOpenIDProvider(issuer, config, storage, op.WithAllowInsecure())
+	provider, err := op.NewOpenIDProvider(issuer, config, storage, op.WithAllowInsecure()) //nolint:staticcheck,unused // SA1019 to be replaced by Mark L.
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -54,7 +54,7 @@ func main() {
 
 	// Only configure device code authentication.
 	router.HandleFunc("/device", func(w http.ResponseWriter, r *http.Request) {
-		userCodeHandler(storage, w, r)
+		userCodeHandler(storage, r)
 	})
 
 	// Register the root to handle discovery.
@@ -73,7 +73,7 @@ func main() {
 	}
 }
 
-func userCodeHandler(storage *storage.Storage, w http.ResponseWriter, r *http.Request) {
+func userCodeHandler(storage *storage.Storage, r *http.Request) {
 	name, _ := usernameAndEmail()
 
 	err := r.ParseForm()
@@ -97,8 +97,6 @@ func userCodeHandler(storage *storage.Storage, w http.ResponseWriter, r *http.Re
 	}
 
 	fmt.Printf("%s => %s\n", userCode, name)
-
-	return
 }
 
 func usernameAndEmail() (username string, email string) {
@@ -121,10 +119,12 @@ func usernameAndEmail() (username string, email string) {
 
 type userStore struct{}
 
+// ExampleClientID returns an example client ID.
 func (u userStore) ExampleClientID() string {
 	return "service"
 }
 
+// GetUserByID returns a user by ID.
 func (u userStore) GetUserByID(string) *storage.User {
 	name, email := usernameAndEmail()
 
@@ -135,6 +135,7 @@ func (u userStore) GetUserByID(string) *storage.User {
 	}
 }
 
+// GetUserByUsername returns a user by username.
 func (u userStore) GetUserByUsername(string) *storage.User {
 	name, email := usernameAndEmail()
 
