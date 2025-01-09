@@ -74,6 +74,7 @@ WHERE storage_volumes.type = ?
 // GetStoragePoolVolumeWithID returns the volume with the given ID.
 func (c *ClusterTx) GetStoragePoolVolumeWithID(ctx context.Context, volumeID int) (StorageVolumeArgs, error) {
 	var response StorageVolumeArgs
+	var rawVolumeType = int(-1)
 
 	stmt := `
 SELECT
@@ -92,7 +93,7 @@ LEFT JOIN nodes ON nodes.id = storage_volumes.node_id
 WHERE storage_volumes.id = ?
 `
 
-	err := c.tx.QueryRowContext(ctx, stmt, volumeID).Scan(&response.ID, &response.Name, &response.Description, &response.CreationDate, &response.Type, &response.NodeID, &response.PoolName, &response.ProjectName)
+	err := c.tx.QueryRowContext(ctx, stmt, volumeID).Scan(&response.ID, &response.Name, &response.Description, &response.CreationDate, &rawVolumeType, &response.NodeID, &response.PoolName, &response.ProjectName)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return StorageVolumeArgs{}, api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
@@ -106,7 +107,12 @@ WHERE storage_volumes.id = ?
 		return StorageVolumeArgs{}, err
 	}
 
-	response.TypeName = cluster.StoragePoolVolumeTypeNames[response.Type]
+	response.Type, err = cluster.StoragePoolVolumeTypeFromInt(rawVolumeType)
+	if err != nil {
+		return StorageVolumeArgs{}, err
+	}
+
+	response.TypeName = response.Type.Name()
 
 	return response, nil
 }
@@ -214,24 +220,27 @@ func (c *ClusterTx) GetStorageVolumes(ctx context.Context, memberSpecific bool, 
 	var volumes []*StorageVolume
 
 	err = query.Scan(ctx, c.Tx(), q.String(), func(scan func(dest ...any) error) error {
-		var volumeType = int(-1)
-		var contentType = int(-1)
+		var rawVolumeType = int(-1)
+		var rawContentType = int(-1)
 		var vol StorageVolume
 
-		err := scan(&vol.Project, &vol.ID, &vol.Name, &vol.Location, &volumeType, &contentType, &vol.Description, &vol.CreatedAt, &vol.Pool)
+		err := scan(&vol.Project, &vol.ID, &vol.Name, &vol.Location, &rawVolumeType, &rawContentType, &vol.Description, &vol.CreatedAt, &vol.Pool)
 		if err != nil {
 			return err
 		}
 
-		vol.Type, err = storagePoolVolumeTypeToName(volumeType)
+		volumeType, err := cluster.StoragePoolVolumeTypeFromInt(rawVolumeType)
 		if err != nil {
 			return err
 		}
 
-		vol.ContentType, err = storagePoolVolumeContentTypeToName(contentType)
+		contentType, err := cluster.StoragePoolVolumeContentTypeFromInt(rawContentType)
 		if err != nil {
 			return err
 		}
+
+		vol.Type = volumeType.Name()
+		vol.ContentType = contentType.Name()
 
 		volumes = append(volumes, &vol)
 
@@ -311,9 +320,9 @@ func (c *ClusterTx) GetLocalStoragePoolVolumeSnapshotsWithType(ctx context.Conte
 		var s StorageVolumeArgs
 		var snapName string
 		var expiryDate sql.NullTime
-		var contentType int
+		var rawContentType = int(-1)
 
-		err := scan(&s.ID, &snapName, &s.Description, &s.CreationDate, &expiryDate, &contentType)
+		err := scan(&s.ID, &snapName, &s.Description, &s.CreationDate, &expiryDate, &rawContentType)
 		if err != nil {
 			return err
 		}
@@ -324,10 +333,12 @@ func (c *ClusterTx) GetLocalStoragePoolVolumeSnapshotsWithType(ctx context.Conte
 		s.Snapshot = true
 		s.ExpiryDate = expiryDate.Time // Convert null to zero.
 
-		s.ContentType, err = storagePoolVolumeContentTypeToName(contentType)
+		contentType, err := cluster.StoragePoolVolumeContentTypeFromInt(rawContentType)
 		if err != nil {
 			return err
 		}
+
+		s.ContentType = contentType.Name()
 
 		snapshots = append(snapshots, s)
 
@@ -542,7 +553,7 @@ type StorageVolumeArgs struct {
 	Name string
 
 	// At least one of Type or TypeName must be set.
-	Type     int
+	Type     cluster.StoragePoolVolumeType
 	TypeName string
 
 	// At least one of PoolID or PoolName must be set.
@@ -775,36 +786,6 @@ func storageVolumeConfigClear(tx *sql.Tx, volumeID int64, isSnapshot bool) error
 	}
 
 	return nil
-}
-
-// Convert a volume integer type code to its human-readable name.
-func storagePoolVolumeTypeToName(volumeType int) (string, error) {
-	switch volumeType {
-	case cluster.StoragePoolVolumeTypeContainer:
-		return cluster.StoragePoolVolumeTypeNameContainer, nil
-	case cluster.StoragePoolVolumeTypeVM:
-		return cluster.StoragePoolVolumeTypeNameVM, nil
-	case cluster.StoragePoolVolumeTypeImage:
-		return cluster.StoragePoolVolumeTypeNameImage, nil
-	case cluster.StoragePoolVolumeTypeCustom:
-		return cluster.StoragePoolVolumeTypeNameCustom, nil
-	}
-
-	return "", fmt.Errorf("Invalid storage volume type")
-}
-
-// Convert a volume integer content type code to its human-readable name.
-func storagePoolVolumeContentTypeToName(contentType int) (string, error) {
-	switch contentType {
-	case cluster.StoragePoolVolumeContentTypeFS:
-		return cluster.StoragePoolVolumeContentTypeNameFS, nil
-	case cluster.StoragePoolVolumeContentTypeBlock:
-		return cluster.StoragePoolVolumeContentTypeNameBlock, nil
-	case cluster.StoragePoolVolumeContentTypeISO:
-		return cluster.StoragePoolVolumeContentTypeNameISO, nil
-	}
-
-	return "", fmt.Errorf("Invalid storage volume content type")
 }
 
 // GetCustomVolumesInProject returns all custom volumes in the given project.
