@@ -75,6 +75,10 @@ lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size
 		return c.global.cmpImages(toComplete)
 	}
 
+	_ = cmd.RegisterFlagCompletionFunc("profile", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return c.global.cmpProfiles(toComplete, true)
+	})
+
 	return cmd
 }
 
