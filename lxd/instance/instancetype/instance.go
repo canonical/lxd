@@ -53,10 +53,6 @@ func ValidName(instanceName string, isSnapshot bool) error {
 			return fmt.Errorf("Invalid instance snapshot name %q: Cannot contain spaces or slashes", snapshotName)
 		}
 	} else {
-		if strings.Contains(instanceName, shared.SnapshotDelimiter) {
-			return fmt.Errorf("Invalid instance name %q: Cannot contain slashes", instanceName)
-		}
-
 		err := validate.IsHostname(instanceName)
 		if err != nil {
 			return fmt.Errorf("Invalid instance name %q: %w", instanceName, err)

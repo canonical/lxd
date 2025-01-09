@@ -428,8 +428,7 @@ func (c *ClusterTx) RenameStoragePoolVolume(ctx context.Context, projectName str
 	isSnapshot := strings.Contains(oldVolumeName, shared.SnapshotDelimiter)
 	var stmt string
 	if isSnapshot {
-		parts := strings.Split(newVolumeName, shared.SnapshotDelimiter)
-		newVolumeName = parts[1]
+		_, newVolumeName, _ = strings.Cut(newVolumeName, shared.SnapshotDelimiter)
 		stmt = "UPDATE storage_volumes_snapshots SET name=? WHERE id=?"
 	} else {
 		stmt = "UPDATE storage_volumes SET name=? WHERE id=?"
@@ -688,6 +687,10 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 		inargs = append(inargs, driver)
 	}
 
+	if !strings.Contains(pattern, "%d") {
+		return 0
+	}
+
 	results, err := queryScan(ctx, c, q, inargs, outfmt)
 	if err != nil {
 		return 0
@@ -699,10 +702,8 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 			continue
 		}
 
-		fields := strings.SplitN(pattern, "%d", 2)
-
 		var num int
-		count, err := fmt.Sscanf(substr, fmt.Sprintf("%s%%d%s", fields[0], fields[1]), &num)
+		count, err := fmt.Sscanf(substr, pattern, &num)
 		if err != nil || count != 1 {
 			continue
 		}

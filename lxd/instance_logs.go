@@ -176,7 +176,7 @@ func instanceLogsGet(d *Daemon, r *http.Request) response.Response {
 			continue
 		}
 
-		result = append(result, fmt.Sprintf("/%s/instances/%s/logs/%s", version.APIVersion, name, f.Name()))
+		result = append(result, "/"+version.APIVersion+"/instances/"+name+"/logs/"+f.Name())
 	}
 
 	return response.SyncResponse(true, result)
@@ -360,7 +360,7 @@ func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// swagger:operation GET /1.0/instances/{name}/logs/exec-output instances instance_exec-outputs_get
+// swagger:operation GET /1.0/instances/{name}/logs/exec-output instances instance_exec-output_get
 //
 //	Get the exec record-output files
 //
@@ -474,7 +474,7 @@ func instanceExecOutputsGet(d *Daemon, r *http.Request) response.Response {
 			continue
 		}
 
-		result = append(result, fmt.Sprintf("/%s/instances/%s/logs/exec-output/%s", version.APIVersion, name, f.Name()))
+		result = append(result, "/"+version.APIVersion+"/instances/"+name+"/logs/exec-output/"+f.Name())
 	}
 
 	return response.SyncResponse(true, result)

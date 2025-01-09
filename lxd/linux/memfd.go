@@ -21,7 +21,7 @@ func CreateMemfd(content []byte) (*os.File, error) {
 		return nil, err
 	}
 
-	revert.Add(func() { unix.Close(fd) })
+	revert.Add(func() { _ = unix.Close(fd) })
 
 	// Set its size.
 	err = unix.Ftruncate(fd, int64(len(content)))

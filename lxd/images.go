@@ -234,7 +234,6 @@ var imagePublishLock sync.Mutex
 var imageTaskMu sync.Mutex
 
 func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
-	reproducible := []string{"gzip"}
 	var cmd *exec.Cmd
 
 	// Parse the command.
@@ -255,18 +254,18 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		defer func() { _ = os.Remove(tempfile.Name()) }()
 
 		// Prepare 'tar2sqfs' arguments
-		args := []string{"tar2sqfs"}
+		args := make([]string, 0, len(fields))
 		if len(fields) > 1 {
 			args = append(args, fields[1:]...)
 		}
 
-		args = append(args, "--no-skip", "--force", "--compressor", "xz", tempfile.Name())
-		cmd = exec.Command(args[0], args[1:]...)
+		args = append(args, "--quiet", "--no-skip", "--force", "--compressor", "xz", tempfile.Name())
+		cmd = exec.Command("tar2sqfs", args...)
 		cmd.Stdin = infile
 
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("tar2sqfs: %v (%v)", err, strings.TrimSpace(string(output)))
+			return fmt.Errorf("tar2sqfs: %w (%v)", err, strings.TrimSpace(string(output)))
 		}
 		// Replay the result to outfile
 		_, err = tempfile.Seek(0, io.SeekStart)
@@ -284,7 +283,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 			args = append(args, fields[1:]...)
 		}
 
-		if shared.ValueInSlice(fields[0], reproducible) {
+		if fields[0] == "gzip" {
 			args = append(args, "-n")
 		}
 

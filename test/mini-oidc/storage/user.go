@@ -7,6 +7,7 @@ import (
 	"golang.org/x/text/language"
 )
 
+// User represents the storage model of a user.
 type User struct {
 	ID                string
 	Username          string
@@ -21,10 +22,12 @@ type User struct {
 	IsAdmin           bool
 }
 
+// Service is the storage service.
 type Service struct {
 	keys map[string]*rsa.PublicKey
 }
 
+// UserStore is the storage interface for users.
 type UserStore interface {
 	GetUserByID(string) *User
 	GetUserByUsername(string) *User
@@ -35,6 +38,7 @@ type userStore struct {
 	users map[string]*User
 }
 
+// NewUserStore creates a new user store.
 func NewUserStore(issuer string) UserStore {
 	hostname := strings.Split(strings.Split(issuer, "://")[1], ":")[0]
 	return userStore{
@@ -69,15 +73,17 @@ func NewUserStore(issuer string) UserStore {
 	}
 }
 
-// ExampleClientID is only used in the example server
+// ExampleClientID is only used in the example server.
 func (u userStore) ExampleClientID() string {
 	return "service"
 }
 
+// GetUserByID returns a user by ID.
 func (u userStore) GetUserByID(id string) *User {
 	return u.users[id]
 }
 
+// GetUserByUsername returns a user by username.
 func (u userStore) GetUserByUsername(username string) *User {
 	for _, user := range u.users {
 		if user.Username == username {
