@@ -72,7 +72,7 @@ func ConfigDiff(oldConfig map[string]string, newConfig map[string]string) ([]str
 }
 
 // VolumeTypeNameToDBType converts a volume type string to internal volume type DB code.
-func VolumeTypeNameToDBType(volumeTypeName string) (int, error) {
+func VolumeTypeNameToDBType(volumeTypeName string) (cluster.StoragePoolVolumeType, error) {
 	switch volumeTypeName {
 	case cluster.StoragePoolVolumeTypeNameContainer:
 		return cluster.StoragePoolVolumeTypeContainer, nil
@@ -88,7 +88,7 @@ func VolumeTypeNameToDBType(volumeTypeName string) (int, error) {
 }
 
 // VolumeTypeToDBType converts volume type to internal volume type DB code.
-func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
+func VolumeTypeToDBType(volType drivers.VolumeType) (cluster.StoragePoolVolumeType, error) {
 	switch volType {
 	case drivers.VolumeTypeContainer:
 		return cluster.StoragePoolVolumeTypeContainer, nil
@@ -104,7 +104,7 @@ func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
 }
 
 // VolumeDBTypeToType converts internal volume type DB code to storage driver volume type.
-func VolumeDBTypeToType(volDBType int) (drivers.VolumeType, error) {
+func VolumeDBTypeToType(volDBType cluster.StoragePoolVolumeType) (drivers.VolumeType, error) {
 	switch volDBType {
 	case cluster.StoragePoolVolumeTypeContainer:
 		return drivers.VolumeTypeContainer, nil
@@ -964,7 +964,7 @@ func volumeIsUsedByDevice(vol api.StorageVolume, inst *db.InstanceArgs, dev map[
 			return false, err
 		}
 
-		if inst.Name == vol.Name && cluster.StoragePoolVolumeTypeNames[rootVolumeDBType] == vol.Type {
+		if inst.Name == vol.Name && rootVolumeDBType.Name() == vol.Type {
 			return true, nil
 		}
 	}
