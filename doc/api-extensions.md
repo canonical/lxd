@@ -2587,3 +2587,15 @@ The following new pool level configuration keys have been added:
 The following configuration keys have been added for volumes backed by PowerFlex:
 
 1. {config:option}`storage-powerflex-volume-conf:block.type`
+
+## `storage_driver_pure`
+
+Adds a new `pure` storage driver which allows the consumption of storage volumes from a Pure Storage storage array using either iSCSI or NVMe/TCP.
+
+The following pool level configuration keys have been added:
+
+1. {config:option}`storage-pure-pool-conf:pure.gateway`
+1. {config:option}`storage-pure-pool-conf:pure.gateway.verify`
+1. {config:option}`storage-pure-pool-conf:pure.api.token`
+1. {config:option}`storage-pure-pool-conf:pure.mode`
+1. {config:option}`storage-pure-pool-conf:pure.target`
