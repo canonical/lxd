@@ -883,7 +883,7 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 	return doStoragePoolVolumeSnapshotUpdate(s, r, effectiveProjectName, dbVolume.Name, details.volumeType, req)
 }
 
-func doStoragePoolVolumeSnapshotUpdate(s *state.State, r *http.Request, projectName string, volName string, volumeType int, req api.StorageVolumeSnapshotPut) response.Response {
+func doStoragePoolVolumeSnapshotUpdate(s *state.State, r *http.Request, projectName string, volName string, volumeType dbCluster.StoragePoolVolumeType, req api.StorageVolumeSnapshotPut) response.Response {
 	expiry := time.Time{}
 	if req.ExpiresAt != nil {
 		expiry = *req.ExpiresAt

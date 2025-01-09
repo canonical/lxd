@@ -639,7 +639,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Convert volume type name to internal integer representation if requested.
-	var volumeType int
+	var volumeType cluster.StoragePoolVolumeType
 	if volumeTypeName != "" {
 		volumeType, err = storagePools.VolumeTypeNameToDBType(volumeTypeName)
 		if err != nil {
@@ -2703,7 +2703,7 @@ const ctxStorageVolumeDetails request.CtxKey = "storage-volume-details"
 type storageVolumeDetails struct {
 	volumeName         string
 	volumeTypeName     string
-	volumeType         int
+	volumeType         cluster.StoragePoolVolumeType
 	location           string
 	pool               storagePools.Pool
 	forwardingNodeInfo *db.NodeInfo
@@ -2822,7 +2822,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 // the local cluster member it returns nil and no error. If it is another cluster member it returns a db.NodeInfo containing
 // the name and address of the remote member. If there is more than one cluster member with a matching volume name, an
 // error is returned.
-func getRemoteVolumeNodeInfo(ctx context.Context, s *state.State, poolName string, projectName string, volumeName string, volumeType int) (*db.NodeInfo, error) {
+func getRemoteVolumeNodeInfo(ctx context.Context, s *state.State, poolName string, projectName string, volumeName string, volumeType cluster.StoragePoolVolumeType) (*db.NodeInfo, error) {
 	localNodeID := s.DB.Cluster.GetNodeID()
 	var err error
 	var nodes []db.NodeInfo
