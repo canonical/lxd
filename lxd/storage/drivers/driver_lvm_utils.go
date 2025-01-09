@@ -594,7 +594,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []string, refr
 		}
 
 		newVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
-		tmpVolName := fmt.Sprintf("%s%s", vol.name, tmpVolSuffix)
+		tmpVolName := vol.name + tmpVolSuffix
 		tmpVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, tmpVolName)
 
 		// Rename existing volume to temporary new name so we can revert if needed.
