@@ -77,9 +77,17 @@ func (t StoragePoolVolumeType) Name() string {
 	return StoragePoolVolumeTypeNameCustom
 }
 
+// StoragePoolVolumeContentType records a volume's content-type in the database.
+//
+// # Type Safety
+// Funtions using this type should assume that a StoragePoolVolumeContentType
+// is always a valid value; i.e. that it is type safe. Use the parsing methods
+// below when converting to StoragePoolVolumeContentType.
+type StoragePoolVolumeContentType int
+
 // Content types.
 const (
-	StoragePoolVolumeContentTypeFS = iota
+	StoragePoolVolumeContentTypeFS StoragePoolVolumeContentType = iota
 	StoragePoolVolumeContentTypeBlock
 	StoragePoolVolumeContentTypeISO
 )
@@ -90,3 +98,45 @@ const (
 	StoragePoolVolumeContentTypeNameBlock string = "block"
 	StoragePoolVolumeContentTypeNameISO   string = "iso"
 )
+
+// StoragePoolVolumeContentTypeFromInt is a checked conversion to StoragePoolVolumeContentType.
+func StoragePoolVolumeContentTypeFromInt(contentType int) (StoragePoolVolumeContentType, error) {
+	switch StoragePoolVolumeContentType(contentType) {
+	case StoragePoolVolumeContentTypeFS, StoragePoolVolumeContentTypeBlock, StoragePoolVolumeContentTypeISO:
+		return StoragePoolVolumeContentType(contentType), nil
+	default:
+		return StoragePoolVolumeContentType(contentType), errors.New("Invalid storage volume content type ID")
+	}
+}
+
+// StoragePoolVolumeContentTypeFromName is a checked conversion to StoragePoolVolumeContentType.
+func StoragePoolVolumeContentTypeFromName(contentTypeName string) (StoragePoolVolumeContentType, error) {
+	switch contentTypeName {
+	case StoragePoolVolumeContentTypeNameFS:
+		return StoragePoolVolumeContentTypeFS, nil
+	case StoragePoolVolumeContentTypeNameBlock:
+		return StoragePoolVolumeContentTypeBlock, nil
+	case StoragePoolVolumeContentTypeNameISO:
+		return StoragePoolVolumeContentTypeISO, nil
+	}
+
+	return StoragePoolVolumeContentTypeFS, errors.New("Invalid volume content type name")
+}
+
+// Name gives the name of a StoragePoolVolumeContentType.
+//
+// # Safety
+// This function assumes that `t` is one of the StoragePoolVolumeContentType
+// enums defined above.
+func (t StoragePoolVolumeContentType) Name() string {
+	switch t {
+	case StoragePoolVolumeContentTypeFS:
+		return StoragePoolVolumeContentTypeNameFS
+	case StoragePoolVolumeContentTypeBlock:
+		return StoragePoolVolumeContentTypeNameBlock
+	case StoragePoolVolumeContentTypeISO:
+		return StoragePoolVolumeContentTypeNameISO
+	}
+
+	return StoragePoolVolumeContentTypeNameFS
+}
