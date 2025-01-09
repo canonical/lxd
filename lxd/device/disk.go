@@ -148,7 +148,7 @@ func (d *disk) sourceIsLocalPath(source string) bool {
 	return true
 }
 
-func (d *disk) sourceVolumeFields() (volumeName string, volumeType storageDrivers.VolumeType, dbVolumeType int, volumeTypeName string, err error) {
+func (d *disk) sourceVolumeFields() (volumeName string, volumeType storageDrivers.VolumeType, dbVolumeType cluster.StoragePoolVolumeType, volumeTypeName string, err error) {
 	volumeName = d.config["source"]
 
 	if d.config["source.snapshot"] != "" {
@@ -160,7 +160,7 @@ func (d *disk) sourceVolumeFields() (volumeName string, volumeType storageDriver
 		volumeTypeName = d.config["source.type"]
 	}
 
-	dbVolumeType, err = storagePools.VolumeTypeNameToDBType(volumeTypeName)
+	dbVolumeType, err = cluster.StoragePoolVolumeTypeFromName(volumeTypeName)
 	if err != nil {
 		return volumeName, volumeType, dbVolumeType, volumeTypeName, err
 	}
@@ -1945,7 +1945,7 @@ func (d *disk) localSourceOpen(srcPath string) (*os.File, error) {
 	return f, nil
 }
 
-func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName string, volumeType int, remapPath string) error {
+func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName string, volumeType cluster.StoragePoolVolumeType, remapPath string) error {
 	var err error
 	var dbVolume *db.StorageVolume
 	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
