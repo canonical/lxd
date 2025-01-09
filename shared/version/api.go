@@ -434,6 +434,7 @@ var APIExtensions = []string{
 	"entities_with_entitlements",
 	"profiles_all_projects",
 	"storage_driver_powerflex",
+	"storage_driver_pure",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
