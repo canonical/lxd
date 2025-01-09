@@ -144,7 +144,7 @@ func VolumeTypeToAPIInstanceType(volType drivers.VolumeType) (api.InstanceType, 
 }
 
 // VolumeContentTypeToDBContentType converts volume type to internal code.
-func VolumeContentTypeToDBContentType(contentType drivers.ContentType) (int, error) {
+func VolumeContentTypeToDBContentType(contentType drivers.ContentType) (cluster.StoragePoolVolumeContentType, error) {
 	switch contentType {
 	case drivers.ContentTypeBlock:
 		return cluster.StoragePoolVolumeContentTypeBlock, nil
@@ -158,7 +158,7 @@ func VolumeContentTypeToDBContentType(contentType drivers.ContentType) (int, err
 }
 
 // VolumeDBContentTypeToContentType converts internal content type DB code to driver representation.
-func VolumeDBContentTypeToContentType(volDBType int) (drivers.ContentType, error) {
+func VolumeDBContentTypeToContentType(volDBType cluster.StoragePoolVolumeContentType) (drivers.ContentType, error) {
 	switch volDBType {
 	case cluster.StoragePoolVolumeContentTypeBlock:
 		return drivers.ContentTypeBlock, nil
@@ -172,7 +172,7 @@ func VolumeDBContentTypeToContentType(volDBType int) (drivers.ContentType, error
 }
 
 // VolumeContentTypeNameToContentType converts volume content type string internal code.
-func VolumeContentTypeNameToContentType(contentTypeName string) (int, error) {
+func VolumeContentTypeNameToContentType(contentTypeName string) (cluster.StoragePoolVolumeContentType, error) {
 	switch contentTypeName {
 	case cluster.StoragePoolVolumeContentTypeNameFS:
 		return cluster.StoragePoolVolumeContentTypeFS, nil
