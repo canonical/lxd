@@ -459,7 +459,7 @@ func (c *ClusterTx) RenameStoragePoolVolume(ctx context.Context, projectName str
 }
 
 // CreateStoragePoolVolume creates a new storage volume attached to a given storage pool.
-func (c *ClusterTx) CreateStoragePoolVolume(ctx context.Context, projectName string, volumeName string, volumeDescription string, volumeType cluster.StoragePoolVolumeType, poolID int64, volumeConfig map[string]string, contentType int, creationDate time.Time) (int64, error) {
+func (c *ClusterTx) CreateStoragePoolVolume(ctx context.Context, projectName string, volumeName string, volumeDescription string, volumeType cluster.StoragePoolVolumeType, poolID int64, volumeConfig map[string]string, contentType cluster.StoragePoolVolumeContentType, creationDate time.Time) (int64, error) {
 	var volumeID int64
 
 	if shared.IsSnapshot(volumeName) {
