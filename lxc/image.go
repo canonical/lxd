@@ -178,7 +178,7 @@ It requires the source to be an alias and for it to be public.`))
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpRemotes(false)
+			return c.global.cmpRemotes(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -711,7 +711,7 @@ Descriptive properties can be set by providing key=value pairs. Example: os=Ubun
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpRemotes(false)
+			return c.global.cmpRemotes(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1371,7 +1371,7 @@ func (c *cmdImageList) run(cmd *cobra.Command, args []string) error {
 
 	serverFilters, clientFilters := getServerSupportedFilters(filters, api.Image{})
 
-	var allImages, images []api.Image
+	var allImages []api.Image
 	if c.flagAllProjects {
 		allImages, err = remoteServer.GetImagesAllProjectsWithFilter(serverFilters)
 		if err != nil {
@@ -1394,6 +1394,7 @@ func (c *cmdImageList) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	images := make([]api.Image, 0, len(allImages))
 	for _, image := range allImages {
 		if !c.imageShouldShow(clientFilters, &image) {
 			continue
