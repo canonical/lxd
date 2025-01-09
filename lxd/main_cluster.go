@@ -379,7 +379,7 @@ func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
 	if len(config.Members) > 0 {
 		fmt.Printf(segmentComment+"\n\n%s", segmentID, data)
 	} else {
-		fmt.Print(data)
+		fmt.Printf("%s", data)
 	}
 
 	return nil
