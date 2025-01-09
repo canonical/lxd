@@ -105,7 +105,7 @@ lxc project create p1 < config.yaml
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(false)
+			return c.global.cmpRemotes(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -477,7 +477,7 @@ func (c *cmdProjectList) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(false)
+			return c.global.cmpRemotes(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
