@@ -70,9 +70,11 @@ func (t StoragePoolVolumeType) Name() string {
 	return StoragePoolVolumeTypeNameCustom
 }
 
+type StoragePoolVolumeContentType int
+
 // Content types.
 const (
-	StoragePoolVolumeContentTypeFS = iota
+	StoragePoolVolumeContentTypeFS StoragePoolVolumeContentType = iota
 	StoragePoolVolumeContentTypeBlock
 	StoragePoolVolumeContentTypeISO
 )
@@ -83,3 +85,25 @@ const (
 	StoragePoolVolumeContentTypeNameBlock string = "block"
 	StoragePoolVolumeContentTypeNameISO   string = "iso"
 )
+
+func StoragePoolVolumeContentTypeFromInt(contentType int) (StoragePoolVolumeContentType, error) {
+	switch StoragePoolVolumeContentType(contentType) {
+	case StoragePoolVolumeContentTypeFS, StoragePoolVolumeContentTypeBlock, StoragePoolVolumeContentTypeISO:
+		return StoragePoolVolumeContentType(contentType), nil
+	default:
+		return StoragePoolVolumeContentType(contentType), errors.New("Invalid storage volume content type ID")
+	}
+}
+
+func (t StoragePoolVolumeContentType) Name() string {
+	switch t {
+	case StoragePoolVolumeContentTypeFS:
+		return StoragePoolVolumeContentTypeNameFS
+	case StoragePoolVolumeContentTypeBlock:
+		return StoragePoolVolumeContentTypeNameBlock
+	case StoragePoolVolumeContentTypeISO:
+		return StoragePoolVolumeContentTypeNameISO
+	}
+
+	return StoragePoolVolumeContentTypeNameFS
+}
