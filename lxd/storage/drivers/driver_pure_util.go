@@ -115,6 +115,14 @@ type pureResponse[T any] struct {
 	Items []T `json:"items"`
 }
 
+// purePort represents a network interface in Pure Storage.
+type pureNetworkInterface struct {
+	Name     string `json:"name"`
+	Ethernet struct {
+		Address string `json:"address,omitempty"`
+	} `json:"eth,omitempty"`
+}
+
 // pureStoragePool represents a storage pool (pod) in Pure Storage.
 type pureStoragePool struct {
 	ID          string `json:"id"`
@@ -342,6 +350,27 @@ func (p *pureClient) login() error {
 	}
 
 	return nil
+}
+
+// getNetworkInterfaces retrieves a valid Pure Storage network interfaces, which
+// means the interface has an IP address configured and is enabled. The result
+// can be filtered by a specific service name, where an empty string represents
+// no filtering.
+func (p *pureClient) getNetworkInterfaces(service string) ([]pureNetworkInterface, error) {
+	var resp pureResponse[pureNetworkInterface]
+
+	// Retrieve enabled network interfaces that have an IP address configured.
+	url := api.NewURL().Path("network-interfaces").WithQuery("filter", "enabled='true'").WithQuery("filter", "eth.address")
+	if service != "" {
+		url = url.WithQuery("filter", "services='"+service+"'")
+	}
+
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to retrieve Pure Storage network interfaces: %w", err)
+	}
+
+	return resp.Items, nil
 }
 
 // getStoragePool returns the storage pool with the given name.
