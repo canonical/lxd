@@ -1008,7 +1008,7 @@ func patchStorageZfsUnsetInvalidBlockSettingsV2(_ string, d *Daemon) error {
 		return err
 	}
 
-	var volType int
+	var volType dbCluster.StoragePoolVolumeType
 
 	for pool, volumes := range poolVolumes {
 		for _, vol := range volumes {
