@@ -18,7 +18,7 @@ import (
 
 // CreateStorageVolumeSnapshot creates a new storage volume snapshot attached to a given
 // storage pool.
-func (c *ClusterTx) CreateStorageVolumeSnapshot(ctx context.Context, projectName string, volumeName string, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, creationDate time.Time, expiryDate time.Time) (int64, error) {
+func (c *ClusterTx) CreateStorageVolumeSnapshot(ctx context.Context, projectName string, volumeName string, volumeDescription string, volumeType cluster.StoragePoolVolumeType, poolID int64, volumeConfig map[string]string, creationDate time.Time, expiryDate time.Time) (int64, error) {
 	var volumeID int64
 
 	volumeName, snapshotName, _ := strings.Cut(volumeName, shared.SnapshotDelimiter)
@@ -54,7 +54,7 @@ func (c *ClusterTx) CreateStorageVolumeSnapshot(ctx context.Context, projectName
 }
 
 // UpdateStorageVolumeSnapshot updates the storage volume snapshot attached to a given storage pool.
-func (c *ClusterTx) UpdateStorageVolumeSnapshot(ctx context.Context, projectName string, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string, expiryDate time.Time) error {
+func (c *ClusterTx) UpdateStorageVolumeSnapshot(ctx context.Context, projectName string, volumeName string, volumeType cluster.StoragePoolVolumeType, poolID int64, volumeDescription string, volumeConfig map[string]string, expiryDate time.Time) error {
 	var err error
 
 	if !strings.Contains(volumeName, shared.SnapshotDelimiter) {

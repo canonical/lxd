@@ -21,7 +21,7 @@ import (
 // GetStoragePoolVolumesWithType return a list of all volumes of the given type.
 // If memberSpecific is true, then the search is restricted to volumes that belong to this member or belong to
 // all members.
-func (c *ClusterTx) GetStoragePoolVolumesWithType(ctx context.Context, volumeType int, memberSpecific bool) ([]StorageVolumeArgs, error) {
+func (c *ClusterTx) GetStoragePoolVolumesWithType(ctx context.Context, volumeType cluster.StoragePoolVolumeType, memberSpecific bool) ([]StorageVolumeArgs, error) {
 	var q strings.Builder
 	q.WriteString(`
 SELECT
@@ -119,7 +119,7 @@ WHERE storage_volumes.id = ?
 
 // StorageVolumeFilter used for filtering storage volumes with GetStorageVolumes().
 type StorageVolumeFilter struct {
-	Type    *int
+	Type    *cluster.StoragePoolVolumeType
 	Project *string
 	Name    *string
 	PoolID  *int64
@@ -262,7 +262,7 @@ func (c *ClusterTx) GetStorageVolumes(ctx context.Context, memberSpecific bool, 
 }
 
 // GetStoragePoolVolume returns the storage volume attached to a given storage pool.
-func (c *ClusterTx) GetStoragePoolVolume(ctx context.Context, poolID int64, projectName string, volumeType int, volumeName string, memberSpecific bool) (*StorageVolume, error) {
+func (c *ClusterTx) GetStoragePoolVolume(ctx context.Context, poolID int64, projectName string, volumeType cluster.StoragePoolVolumeType, volumeName string, memberSpecific bool) (*StorageVolume, error) {
 	filters := []StorageVolumeFilter{{
 		Project: &projectName,
 		Type:    &volumeType,
@@ -286,7 +286,7 @@ func (c *ClusterTx) GetStoragePoolVolume(ctx context.Context, poolID int64, proj
 // GetLocalStoragePoolVolumeSnapshotsWithType get all snapshots of a storage volume
 // attached to a given storage pool of a given volume type, on the local member.
 // Returns snapshots slice ordered by when they were created, oldest first.
-func (c *ClusterTx) GetLocalStoragePoolVolumeSnapshotsWithType(ctx context.Context, projectName string, volumeName string, volumeType int, poolID int64) ([]StorageVolumeArgs, error) {
+func (c *ClusterTx) GetLocalStoragePoolVolumeSnapshotsWithType(ctx context.Context, projectName string, volumeName string, volumeType cluster.StoragePoolVolumeType, poolID int64) ([]StorageVolumeArgs, error) {
 	remoteDrivers := StorageRemoteDriverNames()
 
 	// ORDER BY creation_date and then id is important here as the users of this function can expect that the
@@ -384,7 +384,7 @@ func storageVolumeSnapshotConfig(ctx context.Context, tx *ClusterTx, volumeSnaps
 }
 
 // UpdateStoragePoolVolume updates the storage volume attached to a given storage pool.
-func (c *ClusterTx) UpdateStoragePoolVolume(ctx context.Context, projectName string, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
+func (c *ClusterTx) UpdateStoragePoolVolume(ctx context.Context, projectName string, volumeName string, volumeType cluster.StoragePoolVolumeType, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
 	isSnapshot := strings.Contains(volumeName, shared.SnapshotDelimiter)
 
 	volume, err := c.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, volumeName, true)
@@ -412,7 +412,7 @@ func (c *ClusterTx) UpdateStoragePoolVolume(ctx context.Context, projectName str
 
 // RemoveStoragePoolVolume deletes the storage volume attached to a given storage
 // pool.
-func (c *ClusterTx) RemoveStoragePoolVolume(ctx context.Context, projectName string, volumeName string, volumeType int, poolID int64) error {
+func (c *ClusterTx) RemoveStoragePoolVolume(ctx context.Context, projectName string, volumeName string, volumeType cluster.StoragePoolVolumeType, poolID int64) error {
 	isSnapshot := strings.Contains(volumeName, shared.SnapshotDelimiter)
 	var stmt string
 	if isSnapshot {
@@ -435,7 +435,7 @@ func (c *ClusterTx) RemoveStoragePoolVolume(ctx context.Context, projectName str
 }
 
 // RenameStoragePoolVolume renames the storage volume attached to a given storage pool.
-func (c *ClusterTx) RenameStoragePoolVolume(ctx context.Context, projectName string, oldVolumeName string, newVolumeName string, volumeType int, poolID int64) error {
+func (c *ClusterTx) RenameStoragePoolVolume(ctx context.Context, projectName string, oldVolumeName string, newVolumeName string, volumeType cluster.StoragePoolVolumeType, poolID int64) error {
 	isSnapshot := strings.Contains(oldVolumeName, shared.SnapshotDelimiter)
 	var stmt string
 	if isSnapshot {
@@ -459,7 +459,7 @@ func (c *ClusterTx) RenameStoragePoolVolume(ctx context.Context, projectName str
 }
 
 // CreateStoragePoolVolume creates a new storage volume attached to a given storage pool.
-func (c *ClusterTx) CreateStoragePoolVolume(ctx context.Context, projectName string, volumeName string, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, contentType int, creationDate time.Time) (int64, error) {
+func (c *ClusterTx) CreateStoragePoolVolume(ctx context.Context, projectName string, volumeName string, volumeDescription string, volumeType cluster.StoragePoolVolumeType, poolID int64, volumeConfig map[string]string, contentType int, creationDate time.Time) (int64, error) {
 	var volumeID int64
 
 	if shared.IsSnapshot(volumeName) {
@@ -508,7 +508,7 @@ INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, 
 
 // Return the ID of a storage volume on a given storage pool of a given storage
 // volume type, on the given node.
-func (c *ClusterTx) storagePoolVolumeGetTypeID(ctx context.Context, project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
+func (c *ClusterTx) storagePoolVolumeGetTypeID(ctx context.Context, project string, volumeName string, volumeType cluster.StoragePoolVolumeType, poolID, nodeID int64) (int64, error) {
 	remoteDrivers := StorageRemoteDriverNames()
 
 	s := `
@@ -542,7 +542,7 @@ SELECT storage_volumes_all.id
 
 // GetStoragePoolNodeVolumeID gets the ID of a storage volume on a given storage pool
 // of a given storage volume type and project, on the current node.
-func (c *ClusterTx) GetStoragePoolNodeVolumeID(ctx context.Context, projectName string, volumeName string, volumeType int, poolID int64) (int64, error) {
+func (c *ClusterTx) GetStoragePoolNodeVolumeID(ctx context.Context, projectName string, volumeName string, volumeType cluster.StoragePoolVolumeType, poolID int64) (int64, error) {
 	return c.storagePoolVolumeGetTypeID(ctx, projectName, volumeName, volumeType, poolID, c.nodeID)
 }
 
@@ -580,7 +580,7 @@ type StorageVolumeArgs struct {
 // The volume name can be either a regular name or a volume snapshot name.
 // If the volume is defined, but without a specific node, then the ErrNoClusterMember error is returned.
 // If the volume is not found then an api.StatusError with code set to http.StatusNotFound is returned.
-func (c *ClusterTx) GetStorageVolumeNodes(ctx context.Context, poolID int64, projectName string, volumeName string, volumeType int) ([]NodeInfo, error) {
+func (c *ClusterTx) GetStorageVolumeNodes(ctx context.Context, poolID int64, projectName string, volumeName string, volumeType cluster.StoragePoolVolumeType) ([]NodeInfo, error) {
 	nodes := []NodeInfo{}
 
 	sql := `
@@ -678,7 +678,7 @@ func (c *ClusterTx) storageVolumeConfigGet(ctx context.Context, volumeID int64, 
 //
 // Note, the code below doesn't deal with snapshots of snapshots.
 // To do that, we'll need to weed out based on # slashes in names.
-func (c *ClusterTx) GetNextStorageVolumeSnapshotIndex(ctx context.Context, pool, name string, typ int, pattern string) (nextIndex int) {
+func (c *ClusterTx) GetNextStorageVolumeSnapshotIndex(ctx context.Context, pool, name string, typ cluster.StoragePoolVolumeType, pattern string) (nextIndex int) {
 	remoteDrivers := StorageRemoteDriverNames()
 
 	q := `
@@ -866,7 +866,7 @@ func (c *ClusterTx) GetStorageVolumeURIs(ctx context.Context, project string) ([
 
 // UpdateStorageVolumeNode changes the name of a storage volume and the cluster member hosting it.
 // It's meant to be used when moving a storage volume backed by ceph from one cluster node to another.
-func (c *ClusterTx) UpdateStorageVolumeNode(ctx context.Context, projectName string, oldName string, newName string, newMemberName string, poolID int64, volumeType int) error {
+func (c *ClusterTx) UpdateStorageVolumeNode(ctx context.Context, projectName string, oldName string, newName string, newMemberName string, poolID int64, volumeType cluster.StoragePoolVolumeType) error {
 	volume, err := c.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, oldName, false)
 	if err != nil {
 		return err
