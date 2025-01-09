@@ -99,6 +99,15 @@ For help with any of those, simply call them with --help.`))
 	app.PersistentFlags().BoolVarP(&globalCmd.flagQuiet, "quiet", "q", false, i18n.G("Don't show progress information"))
 	app.PersistentFlags().BoolVar(&globalCmd.flagSubCmds, "sub-commands", false, i18n.G("Use with help or --help to view sub-commands"))
 
+	_ = app.RegisterFlagCompletionFunc("project", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		projects, directives := globalCmd.cmpProjects(toComplete)
+		if projects != nil {
+			return projects, directives
+		}
+
+		return nil, cobra.ShellCompDirectiveError
+	})
+
 	// Wrappers
 	app.PersistentPreRunE = globalCmd.PreRun
 	app.PersistentPostRunE = globalCmd.PostRun
