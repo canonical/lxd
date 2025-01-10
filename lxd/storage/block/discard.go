@@ -30,6 +30,10 @@ func ClearBlock(blockPath string, blockOffset int64) error {
 		return err
 	}
 
+	if size == blockOffset {
+		return fmt.Errorf("Size and offset are equal, nothing to clear")
+	}
+
 	// Get all the stat data.
 	st, err := fd.Stat()
 	if err != nil {
