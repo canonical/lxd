@@ -2,8 +2,10 @@ package drivers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -336,6 +338,15 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		var wrapper *ioprogress.ProgressTracker
 		if volTargetArgs.TrackProgress {
 			wrapper = migration.ProgressTracker(op, "block_progress", volName)
+		}
+
+		// Reset the volume.
+		// The sparse writer will skip any zero blocks, so need to discard (block) or
+		// truncate (file) prior to unpacking the data or we risk having leftover data from
+		// a previous snapshot interfere with the new state.
+		err := block.ClearBlock(path, 0)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("Failed clearing block volume %q: %w", path, err)
 		}
 
 		to, err := os.OpenFile(path, os.O_WRONLY|os.O_TRUNC, 0)
@@ -788,6 +799,15 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots [
 
 			unpack := func(size int64) error {
 				var allowUnsafeResize bool
+
+				// Reset the volume.
+				// The sparse writer will skip any zero blocks, so need to discard (block) or
+				// truncate (file) prior to unpacking the data or we risk having leftover data from
+				// a previous snapshot interfere with the new state.
+				err = block.ClearBlock(targetPath, 0)
+				if err != nil && !errors.Is(err, fs.ErrNotExist) {
+					return fmt.Errorf("Failed clearing block volume %q: %w", targetPath, err)
+				}
 
 				// Open block file (use O_CREATE to support drivers that use image files).
 				to, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)

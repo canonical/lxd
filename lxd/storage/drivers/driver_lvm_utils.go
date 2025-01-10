@@ -13,6 +13,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -374,6 +375,12 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 		if err != nil {
 			return fmt.Errorf("Error making filesystem on LVM logical volume: %w", err)
 		}
+	} else if !d.usesThinpool() {
+		// Make sure we get an empty LV.
+		err := block.ClearBlock(volDevPath, 0)
+		if err != nil {
+			return fmt.Errorf("Error clearing LVM logical volume: %w", err)
+		}
 	}
 
 	isRecent, err := d.lvmVersionIsAtLeast(lvmVersion, "2.02.99")
@@ -501,7 +508,17 @@ func (d *lvm) lvmDevPath(vgName string, volType VolumeType, contentType ContentT
 
 // resizeLogicalVolume resizes an LVM logical volume. This function does not resize any filesystem inside the LV.
 func (d *lvm) resizeLogicalVolume(lvPath string, sizeBytes int64) error {
-	_, err := shared.TryRunCommand("lvresize", "-L", fmt.Sprintf("%db", sizeBytes), "-f", lvPath)
+	isRecent, err := d.lvmVersionIsAtLeast(lvmVersion, "2.03.17")
+	if err != nil {
+		return fmt.Errorf("Error checking LVM version: %w", err)
+	}
+
+	args := []string{"-L", strconv.FormatInt(sizeBytes, 10) + "b", "-f", lvPath}
+	if isRecent {
+		args = append(args, "--fs=ignore")
+	}
+
+	_, err = shared.TryRunCommand("lvresize", args...)
 	if err != nil {
 		return err
 	}
@@ -577,7 +594,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []string, refr
 		}
 
 		newVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
-		tmpVolName := fmt.Sprintf("%s%s", vol.name, tmpVolSuffix)
+		tmpVolName := vol.name + tmpVolSuffix
 		tmpVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, tmpVolName)
 
 		// Rename existing volume to temporary new name so we can revert if needed.
@@ -695,12 +712,10 @@ func (d *lvm) thinPoolVolumeUsage(volDevPath string) (totalSize uint64, usedSize
 		return 0, 0, fmt.Errorf("Unexpected output from lvs command")
 	}
 
-	total, err := strconv.ParseUint(parts[0], 10, 64)
+	totalSize, err = strconv.ParseUint(parts[0], 10, 64)
 	if err != nil {
 		return 0, 0, fmt.Errorf("Failed parsing thin volume total size (%q): %w", parts[0], err)
 	}
-
-	totalSize = total
 
 	// Used percentage is not available if thin volume isn't activated.
 	if parts[1] == "" {
@@ -722,7 +737,7 @@ func (d *lvm) thinPoolVolumeUsage(volDevPath string) (totalSize uint64, usedSize
 		}
 	}
 
-	usedSize = uint64(float64(total) * ((dataPerc + metaPerc) / 100))
+	usedSize = uint64(float64(totalSize) * ((dataPerc + metaPerc) / 100))
 
 	return totalSize, usedSize, nil
 }
