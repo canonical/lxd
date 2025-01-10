@@ -264,6 +264,14 @@ lxc network forward create n1 127.0.0.1 < config.yaml
 	cmd.Flags().StringVar(&c.networkForward.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().StringVar(&c.flagAllocate, "allocate", "", i18n.G("Auto-allocate an IPv4 or IPv6 listen address. One of 'ipv4', 'ipv6'.")+"``")
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpNetworks(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -904,6 +912,10 @@ func (c *cmdNetworkForwardPort) commandAdd() *cobra.Command {
 			return []string{"tcp", "udp"}, cobra.ShellCompDirectiveNoFileComp
 		}
 
+		if len(args) == 4 {
+			return c.global.cmpNetworkForwardPortTargetAddresses(args[0], args[1])
+		}
+
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
@@ -984,6 +996,10 @@ func (c *cmdNetworkForwardPort) commandRemove() *cobra.Command {
 
 		if len(args) == 2 {
 			return []string{"tcp", "udp"}, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		if len(args) == 4 {
+			return c.global.cmpNetworkForwardPortTargetAddresses(args[0], args[1])
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
