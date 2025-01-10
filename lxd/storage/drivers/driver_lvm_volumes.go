@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/rsync"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -66,6 +67,21 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 				devPath, err = d.GetVolumeDiskPath(vol)
 				if err != nil {
 					return err
+				}
+
+				// Check the block size for image volumes.
+				if vol.volType == VolumeTypeImage {
+					blockSize, err := block.DiskBlockSize(devPath)
+					if err != nil {
+						return err
+					}
+
+					// Our images are all built using 512 bytes physical block sizes.
+					// When those are written to a 4k physical block size device,
+					// the partition table makes no sense and leads to an unbootable VM.
+					if blockSize != 512 {
+						return fmt.Errorf("Underlying storage uses %d bytes sector size when virtual machine images require 512 bytes", blockSize)
+					}
 				}
 			}
 
@@ -548,10 +564,17 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 			return err
 		}
 
-		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
-		// expected the caller will do all necessary post resize actions themselves).
-		if vol.IsVMBlock() && !allowUnsafeResize {
-			// Activate the volume for resizing.
+		// The new blocks in a grown volume will need clearing if using a thick pool.
+		needsClearing := !d.usesThinpool() && (oldSizeBytes < sizeBytes)
+
+		// VM block volumes need the GPT header moved on normal resize scenarios.
+		needsGPTHeaderMove := vol.IsVMBlock() && !allowUnsafeResize
+
+		// Need to activate the volume to clear it or to move the GPT header.
+		needsActivating := needsClearing || needsGPTHeaderMove
+
+		if needsActivating {
+			// Activate the volume for clearing blocks and/or moving GPT header.
 			activated, err := d.activateVolume(vol)
 			if err != nil {
 				return err
@@ -562,7 +585,21 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 					_, _ = d.deactivateVolume(vol)
 				}()
 			}
+		}
 
+		// On thick pools, discard the blocks in the additional space when the volume is grown.
+		if needsClearing {
+			// Discard blocks from the end of the old volume's size.
+			err := block.ClearBlock(volDevPath, oldSizeBytes)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
+		// expected the caller will do all necessary post resize actions themselves).
+		// Do this after the new blocks have been cleared.
+		if needsGPTHeaderMove {
 			err = d.moveGPTAltHeader(volDevPath)
 			if err != nil {
 				return err

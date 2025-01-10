@@ -37,3 +37,22 @@ func DiskSizeBytes(blockDiskPath string) (int64, error) {
 
 	return fi.Size(), nil
 }
+
+// DiskBlockSize returns the physical block size of a block device.
+func DiskBlockSize(path string) (uint32, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0, err
+	}
+
+	defer func() { _ = f.Close() }()
+	fd := int(f.Fd())
+
+	// Retrieve the physical block size.
+	res, err := unix.IoctlGetUint32(fd, unix.BLKPBSZGET)
+	if err != nil {
+		return 0, err
+	}
+
+	return res, nil
+}

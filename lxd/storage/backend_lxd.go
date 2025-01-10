@@ -1328,6 +1328,12 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Load the target volume from database.
+	dbVol, err := VolumeDBGet(b, projectName, volName, drivers.VolumeType(srcConfig.Volume.Type))
+	if err != nil {
+		return err
+	}
+
 	// Only send the snapshots that the target needs when refreshing.
 	// There is currently no recorded creation timestamp, so we can only detect changes based on name.
 	var snapshotNames []string
@@ -1342,7 +1348,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		}
 
 		// Get a list of already existing snapshots on the target volume.
-		targetSnaps, err := VolumeDBSnapshotsGet(b, projectName, volName, drivers.VolumeTypeCustom)
+		targetSnaps, err := VolumeDBSnapshotsGet(b, projectName, dbVol.Name, drivers.VolumeTypeCustom)
 		if err != nil {
 			return err
 		}
@@ -1376,13 +1382,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		}
 	}
 
-	// Load the target volume from database.
-	dbVol, err := VolumeDBGet(b, projectName, volName, drivers.VolumeType(srcConfig.Volume.Type))
-	if err != nil {
-		return err
-	}
-
-	volStorageName := project.StorageVolume(projectName, volName)
+	volStorageName := project.StorageVolume(projectName, dbVol.Name)
 	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, dbVol.Config)
 
 	// Get the src volume name on storage.
@@ -1395,7 +1395,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		// Only refresh the snapshots that the target needs.
 		srcSnapVols := make([]string, 0, len(srcConfig.VolumeSnapshots))
 		for _, srcSnap := range srcConfig.VolumeSnapshots {
-			newSnapshotName := drivers.GetSnapshotVolumeName(volName, srcSnap.Name)
+			newSnapshotName := drivers.GetSnapshotVolumeName(dbVol.Name, srcSnap.Name)
 			snapExpiryDate := time.Time{}
 			if srcSnap.ExpiresAt != nil {
 				snapExpiryDate = *srcSnap.ExpiresAt
@@ -1421,7 +1421,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		// Some snapshots might have been removed from the target volume if they aren't anymore present on the source volume.
 		// Other snapshots might require a refresh if they have been deleted from the target volume in the meantime.
 		// Get the snapshots directly from the database to ensure they are in the right order.
-		targetSnaps, err := VolumeDBSnapshotsGet(b, projectName, volName, drivers.VolumeTypeCustom)
+		targetSnaps, err := VolumeDBSnapshotsGet(b, projectName, dbVol.Name, drivers.VolumeTypeCustom)
 		if err != nil {
 			return err
 		}
@@ -1505,7 +1505,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		go func() {
 			err := b.CreateCustomVolumeFromMigration(projectName, bEnd, migration.VolumeTargetArgs{
 				IndexHeaderVersion: migration.IndexHeaderVersion,
-				Name:               volName,
+				Name:               dbVol.Name,
 				Description:        desc,
 				Config:             config,
 				Snapshots:          snapshotNames,
@@ -4748,7 +4748,7 @@ func (b *lxdBackend) recoverMinIOKeys(projectName string, bucketName string, op 
 		break
 	}
 
-	var recoveredKeys []api.StorageBucketKeysPost
+	recoveredKeys := make([]api.StorageBucketKeysPost, 0, len(svcAccounts))
 
 	// Extract bucket keys for each service account.
 	for _, creds := range svcAccounts {
