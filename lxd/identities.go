@@ -1885,7 +1885,8 @@ func updateIdentityCacheFromLocal(d *Daemon) error {
 		return fmt.Errorf("Failed reading certificates from local database: %w", err)
 	}
 
-	var identityCacheEntries []identity.CacheEntry
+	// identityCacheEntries needs to be pre-allocated.
+	identityCacheEntries := make([]identity.CacheEntry, 0, len(localServerCerts))
 	for _, dbCert := range localServerCerts {
 		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
 		if certBlock == nil {
