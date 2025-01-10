@@ -627,7 +627,8 @@ user_is_not_project_operator() {
 
   # Should not be able to see or create network zones.
   lxc_remote network zone create zone1
-  [ "$(lxc_remote network zone list "${remote}:" -f csv | wc -l)" = 0 ]
+  [ "$(lxc_remote network zone list "${remote}:" -f csv)" = "" ]
+  [ "$(lxc_remote network zone list "${remote}:" -f csv --all-projects)" = "" ]
   ! lxc_remote network zone create "${remote}:test-zone" || false
   lxc_remote network zone delete zone1
 
@@ -725,6 +726,7 @@ auth_project_features() {
   [ "$(lxc_remote network list "${remote}:" --project default --format csv)" = "" ]
   [ "$(lxc_remote operation list "${remote}:" --project default --format csv)" = "" ]
   [ "$(lxc_remote network zone list "${remote}:" --project default --format csv)" = "" ]
+  [ "$(lxc_remote network list "${remote}:" --all-projects --format csv)" = "" ]
   [ "$(lxc_remote storage volume list "${remote}:${pool_name}" --project default --format csv)" = "" ]
   [ "$(lxc_remote storage bucket list "${remote}:${pool_name}" --project default --format csv)" = "" ]
 
@@ -879,6 +881,7 @@ auth_project_features() {
   # The network zone we created in the default project is *not* visible in project blah.
   ! lxc_remote network zone show "${remote}:${zoneName}" --project blah || false
   ! lxc_remote network zone list "${remote}:" --project blah | grep -F "${zoneName}" || false
+  ! lxc_remote network zone list "${remote}:" --all-projects | grep -F "${zoneName}" || false
 
   # Allow view access to network zones in the default project.
   lxc auth group permission add test-group project default can_view_network_zones
@@ -888,6 +891,7 @@ auth_project_features() {
   lxc_remote network zone list "${remote}:" --project default | grep -F "${zoneName}"
   lxc_remote network zone show "${remote}:${zoneName}" --project blah
   lxc_remote network zone list "${remote}:" --project blah | grep -F "${zoneName}"
+  lxc_remote network zone list "${remote}:" --all-projects | grep -F "${zoneName}"
 
   # Members of test-group cannot edit the network zone.
   ! lxc_remote network zone set "${remote}:${zoneName}" user.foo=bar --project blah || false
@@ -903,6 +907,7 @@ auth_project_features() {
   lxc_remote network zone list "${remote}:" --project blah | grep blah-zone
   lxc_remote network zone show "${remote}:blah-zone" --project default
   lxc_remote network zone list "${remote}:" --project default | grep blah-zone
+  lxc_remote network zone list "${remote}:" --all-projects | grep -F blah-zone
 
   # Members of test-group cannot delete the network zone.
   ! lxc_remote network zone delete "${remote}:blah-zone" --project blah || false

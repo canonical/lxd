@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -19,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/version"
@@ -116,6 +118,11 @@ func networkZoneAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *h
 //      description: Project name
 //      type: string
 //      example: default
+//    - in: query
+//      name: all-projects
+//      description: Retrieve network zones from all projects
+//      type: boolean
+//      example: true
 //  responses:
 //    "200":
 //      description: API endpoints
@@ -165,6 +172,11 @@ func networkZoneAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *h
 //	    description: Project name
 //	    type: string
 //	    example: default
+//	  - in: query
+//	    name: all-projects
+//	    description: Retrieve network zones from all projects
+//	    type: boolean
+//	    example: true
 //	responses:
 //	  "200":
 //	    description: API endpoints
@@ -196,19 +208,50 @@ func networkZoneAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *h
 func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	requestProjectName := request.ProjectParam(r)
-	effectiveProjectName, _, err := project.NetworkZoneProject(s.DB.Cluster, requestProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
+	requestProjectName := request.QueryParam(r, "project")
+
+	// requestProjectName is only valid for project specific requests.
+	if allProjects && requestProjectName != "" {
+		return response.BadRequest(errors.New("Cannot specify a project when requesting all projects"))
+	}
+
+	var effectiveProjectName string
+	var err error
+	if !allProjects {
+		if requestProjectName == "" {
+			requestProjectName = api.ProjectDefaultName
+		}
+
+		// Project specific requests require an effective project, when "features.networks.zones" is enabled this is the requested project, otherwise it is the default project.
+		effectiveProjectName, _, err = project.NetworkZoneProject(s.DB.Cluster, requestProjectName)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// If the request is project specific, then set effective project name in the request context so that the authorizer can generate the correct URL.
+		request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	}
 
 	recursion := util.IsRecursionRequest(r)
 
-	var zoneNames []string
-
+	var zoneNamesMap map[string]string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Get list of Network zones.
-		zoneNames, err = tx.GetNetworkZonesByProject(ctx, effectiveProjectName)
+		if allProjects {
+			zoneNamesMap, err = tx.GetNetworkZones(ctx)
+		} else {
+			// Get list of Network zones.
+			zoneNames, err := tx.GetNetworkZonesByProject(ctx, effectiveProjectName)
+			if err != nil {
+				return err
+			}
+
+			// Network zones should be mapped to the requested project for project specific requests.
+			zoneNamesMap = make(map[string]string, len(zoneNames))
+			for _, zoneName := range zoneNames {
+				zoneNamesMap[zoneName] = requestProjectName
+			}
+		}
 
 		return err
 	})
@@ -216,7 +259,6 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeNetworkZone)
 	if err != nil {
 		return response.InternalError(err)
@@ -224,22 +266,30 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 
 	resultString := []string{}
 	resultMap := []api.NetworkZone{}
-	for _, zoneName := range zoneNames {
-		if !userHasPermission(entity.NetworkZoneURL(requestProjectName, zoneName)) {
+	for zoneName, projectName := range zoneNamesMap {
+		// Check permission for each network zone against the requested project.
+		if !userHasPermission(entity.NetworkZoneURL(projectName, zoneName)) {
 			continue
 		}
 
 		if !recursion {
 			resultString = append(resultString, api.NewURL().Path(version.APIVersion, "network-zones", zoneName).String())
 		} else {
-			netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, zoneName)
+			var netzone zone.NetworkZone
+			if !allProjects {
+				netzone, err = zone.LoadByNameAndProject(s, effectiveProjectName, zoneName)
+			} else {
+				netzone, err = zone.LoadByNameAndProject(s, projectName, zoneName)
+			}
+
 			if err != nil {
-				continue
+				return response.SmartError(err)
 			}
 
 			netzoneInfo := netzone.Info()
 			netzoneInfo.UsedBy, _ = netzone.UsedBy() // Ignore errors in UsedBy, will return nil.
 			netzoneInfo.UsedBy = project.FilterUsedBy(s.Authorizer, r, netzoneInfo.UsedBy)
+			netzoneInfo.Project = projectName
 
 			resultMap = append(resultMap, *netzoneInfo)
 		}
