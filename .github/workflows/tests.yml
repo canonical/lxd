@@ -230,6 +230,9 @@ jobs:
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
 
+      - name: Reclaim some memory
+        uses: ./.github/actions/reclaim-memory
+
       - name: Reclaim disk space
         uses: ./.github/actions/reclaim-disk-space
 
@@ -316,6 +319,9 @@ jobs:
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
+
+      - name: Reclaim some memory
+        uses: ./.github/actions/reclaim-memory
 
       - name: Reclaim disk space
         uses: ./.github/actions/reclaim-disk-space
