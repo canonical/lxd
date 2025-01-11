@@ -147,7 +147,8 @@ func (d *disk) sourceIsLocalPath(source string) bool {
 	return true
 }
 
-// Check that unshared custom storage block volumes are not added to profiles or multiple instances.
+// Check that unshared custom storage block volumes are not added to profiles or
+// multiple instances unless they will not be accessed concurrently.
 func (d *disk) checkBlockVolSharing(instanceType instancetype.Type, projectName string, volume *api.StorageVolume) error {
 	// Skip the checks if the volume is set to be shared or is not a block volume.
 	if volume.ContentType != cluster.StoragePoolVolumeContentTypeNameBlock || shared.IsTrue(volume.Config["security.shared"]) {
@@ -155,7 +156,7 @@ func (d *disk) checkBlockVolSharing(instanceType instancetype.Type, projectName 
 	}
 
 	if instanceType == instancetype.Any {
-		return fmt.Errorf("Cannot add custom storage block volume to profiles if security.shared is false or unset")
+		return fmt.Errorf("Cannot add block volume to profiles if security.shared is false or unset")
 	}
 
 	err := storagePools.VolumeUsedByInstanceDevices(d.state, d.pool.Name(), projectName, volume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
@@ -164,13 +165,24 @@ func (d *disk) checkBlockVolSharing(instanceType instancetype.Type, projectName 
 			return nil
 		}
 
-		return db.ErrListStop
-	})
-	if err != nil {
-		if err == db.ErrListStop {
-			return fmt.Errorf("Cannot add custom storage block volume to more than one instance if security.shared is false or unset")
+		// Don't count a VM volume's instance if security.protection.start is preventing that instance from starting.
+		// It's safe to share block volumes with an instance that cannot start.
+		if volume.Type == cluster.StoragePoolVolumeTypeNameVM && volume.Project == inst.Project && volume.Name == inst.Name {
+			apiInst, err := inst.ToAPI()
+			if err != nil {
+				return err
+			}
+
+			apiInst.ExpandedConfig = instancetype.ExpandInstanceConfig(d.state.GlobalConfig.Dump(), apiInst.Config, inst.Profiles)
+
+			if shared.IsTrue(apiInst.ExpandedConfig["security.protection.start"]) {
+				return nil
+			}
 		}
 
+		return fmt.Errorf("Cannot add block volume to more than one instance if security.shared is false or unset")
+	})
+	if err != nil {
 		return err
 	}
 
@@ -466,6 +478,17 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 				volumeType, dbVolumeType, _, volumeName, err := storagePools.DiskVolumeSourceParse(d.config["source"])
 				if err != nil {
 					return err
+				}
+
+				if d.inst != nil {
+					instVolType, err := storagePools.InstanceTypeToVolumeType(d.inst.Type())
+					if err != nil {
+						return err
+					}
+
+					if instVolType == volumeType && d.inst.Name() == volumeName {
+						return errors.New("Instance root device cannot be attached to itself")
+					}
 				}
 
 				// Derive the effective storage project name from the instance config's project.
@@ -1579,9 +1602,6 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		return nil, "", nil, err
 	}
 
-	volStorageName := project.StorageVolume(storageProjectName, volumeName)
-	srcPath := storageDrivers.GetVolumeMountPath(d.config["pool"], volumeType, volStorageName)
-
 	mountInfo, err = d.pool.MountVolume(storageProjectName, volumeName, volumeType, nil)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf(`Failed mounting storage volume "%s/%s" from storage pool %q: %w`, volumeTypeName, volumeName, d.pool.Name(), err)
@@ -1600,6 +1620,15 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		return nil, "", nil, fmt.Errorf("Failed to fetch local storage volume record: %w", err)
 	}
 
+	var volStorageName string
+	if dbVolume.Type == cluster.StoragePoolVolumeTypeNameCustom {
+		volStorageName = project.StorageVolume(storageProjectName, volumeName)
+	} else {
+		volStorageName = project.Instance(storageProjectName, volumeName)
+	}
+
+	srcPath := storageDrivers.GetVolumeMountPath(d.config["pool"], volumeType, volStorageName)
+
 	if d.inst.Type() == instancetype.Container {
 		if dbVolume.ContentType != cluster.StoragePoolVolumeContentTypeNameFS {
 			return nil, "", nil, fmt.Errorf("Only filesystem volumes are supported for containers")
@@ -1612,8 +1641,6 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	}
 
 	if dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock || dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameISO {
-		volStorageName := project.StorageVolume(storageProjectName, volumeName)
-
 		volume := d.pool.GetVolume(volumeType, storageDrivers.ContentType(dbVolume.ContentType), volStorageName, dbVolume.Config)
 
 		srcPath, err = d.pool.Driver().GetVolumeDiskPath(volume)

@@ -201,16 +201,14 @@ func DiskVolumeSourceParse(source string) (volType drivers.VolumeType, dbVolType
 		volName = source
 	}
 
-	// Check volume type name is custom.
+	// Check volume type can be attached as a disk device.
 	switch volTypeName {
 	case cluster.StoragePoolVolumeTypeNameContainer:
 		err = errors.New("Using container storage volumes is not supported")
-	case cluster.StoragePoolVolumeTypeNameVM:
-		err = errors.New("Using virtual-machine storage volumes is not supported")
+	case cluster.StoragePoolVolumeTypeNameVM, cluster.StoragePoolVolumeTypeNameCustom:
 	case "":
 		// We simply received the name of a custom storage volume.
 		volTypeName = cluster.StoragePoolVolumeTypeNameCustom
-	case cluster.StoragePoolVolumeTypeNameCustom:
 	case cluster.StoragePoolVolumeTypeNameImage:
 		err = errors.New("Using image storage volumes is not supported")
 	default:
@@ -592,14 +590,14 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		rules["security.unmapped"] = validate.Optional(validate.IsBool)
 	}
 
-	// security.shared is only relevant for custom block volumes.
-	if vol == nil || (vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeBlock) {
+	// security.shared guards virtual-machine and custom block volumes.
+	if vol == nil || ((vol.Type() == drivers.VolumeTypeCustom || vol.Type() == drivers.VolumeTypeVM) && vol.ContentType() == drivers.ContentTypeBlock) {
 		// lxdmeta:generate(entities=storage-btrfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=security.shared)
 		// Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
 		//
 		// ---
 		//  type: bool
-		//  condition: custom block volume
+		//  condition: virtual-machine or custom block volume
 		//  defaultdesc: same as `volume.security.shared` or `false`
 		//  shortdesc: Enable volume sharing
 		//  scope: global
@@ -972,6 +970,45 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 	return contentType
 }
 
+// volumeIsUsedByDevice; true when vol is referred to by dev
+// inst is the instance dev belongs to, or nil if dev is part of a profile.
+func volumeIsUsedByDevice(vol api.StorageVolume, inst *db.InstanceArgs, dev map[string]string) (bool, error) {
+	if dev["type"] != cluster.TypeDisk.String() {
+		return false, nil
+	}
+
+	if dev["pool"] != vol.Pool {
+		return false, nil
+	}
+
+	if inst != nil && instancetype.IsRootDiskDevice(dev) {
+		rootVolumeType, err := InstanceTypeToVolumeType(inst.Type)
+		if err != nil {
+			return false, err
+		}
+
+		rootVolumeDBType, err := VolumeTypeToDBType(rootVolumeType)
+		if err != nil {
+			return false, err
+		}
+
+		if inst.Name == vol.Name && cluster.StoragePoolVolumeTypeNames[rootVolumeDBType] == vol.Type {
+			return true, nil
+		}
+	}
+
+	_, _, volumeTypeName, volumeName, err := DiskVolumeSourceParse(dev["source"])
+	if err != nil {
+		return false, err
+	}
+
+	if volumeTypeName == vol.Type && volumeName == vol.Name {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 // VolumeUsedByProfileDevices finds profiles using a volume and passes them to profileFunc for evaluation.
 // The profileFunc is provided with a profile config, project config and a list of device names that are using
 // the volume.
@@ -1056,20 +1093,12 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 		// Iterate through each of the profiles's devices, looking for disks in the same pool as volume.
 		// Then try and match the volume name against the profile device's "source" property.
 		for name, dev := range profile.Devices {
-			if dev["type"] != cluster.TypeDisk.String() {
-				continue
-			}
-
-			if dev["pool"] != poolName {
-				continue
-			}
-
-			_, _, _, volumeName, err := DiskVolumeSourceParse(dev["source"])
+			usesVol, err := volumeIsUsedByDevice(*vol, nil, dev)
 			if err != nil {
 				return err
 			}
 
-			if volumeName == vol.Name {
+			if usesVol {
 				usedByDevices = append(usedByDevices, name)
 			}
 		}
@@ -1127,20 +1156,12 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 			// Iterate through each of the instance's devices, looking for disks in the same pool as volume.
 			// Then try and match the volume name against the instance device's "source" property.
 			for devName, dev := range devices {
-				if dev["type"] != "disk" {
-					continue
-				}
-
-				if dev["pool"] != poolName {
-					continue
-				}
-
-				_, _, _, volumeName, err := DiskVolumeSourceParse(dev["source"])
+				usesVol, err := volumeIsUsedByDevice(*vol, &inst, dev)
 				if err != nil {
 					return err
 				}
 
-				if volumeName == vol.Name {
+				if usesVol {
 					usedByDevices = append(usedByDevices, devName)
 				}
 			}

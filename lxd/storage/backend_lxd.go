@@ -2892,13 +2892,13 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 	}
 
 	// Get current config to compare what has changed.
-	curVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
+	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
 	if err != nil {
 		return err
 	}
 
 	// Apply config changes if there are any.
-	changedConfig, userOnly := b.detectChangedConfig(curVol.Config, newConfig)
+	changedConfig, userOnly := b.detectChangedConfig(dbVol.Config, newConfig)
 	if len(changedConfig) != 0 {
 		// Check that the volume's size property isn't being changed.
 		if changedConfig["size"] != "" {
@@ -2920,10 +2920,11 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 			return fmt.Errorf(`Instance volume "volatile.uuid" property cannot be changed`)
 		}
 
-		// Load storage volume from database.
-		dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
-		if err != nil {
-			return err
+		if shared.IsFalseOrEmpty(changedConfig["security.shared"]) && volDBType == cluster.StoragePoolVolumeTypeVM {
+			err = allowRemoveSecurityShared(b.state, inst.Project().Name, &dbVol.StorageVolume)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Generate the effective root device volume for instance.
@@ -2943,7 +2944,7 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 	}
 
 	// Update the database if something changed.
-	if len(changedConfig) != 0 || newDesc != curVol.Description {
+	if len(changedConfig) != 0 || newDesc != dbVol.Description {
 		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpdateStoragePoolVolume(ctx, inst.Project().Name, inst.Name(), volDBType, b.ID(), newDesc, newConfig)
 		})
@@ -5951,6 +5952,46 @@ func (b *lxdBackend) detectChangedConfig(curConfig, newConfig map[string]string)
 	return changedConfig, userOnly
 }
 
+func allowRemoveSecurityShared(s *state.State, projectName string, volume *api.StorageVolume) error {
+	err := VolumeUsedByProfileDevices(s, volume.Pool, projectName, volume, func(profileID int64, profile api.Profile, project api.Project, usedByDevices []string) error {
+		return errors.New("Cannot disable security.shared on block storage volume as it is attached to profile(s)")
+	})
+	if err != nil {
+		return err
+	}
+
+	usedByInstances := 0
+
+	err = VolumeUsedByInstanceDevices(s, volume.Pool, projectName, volume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+		// Don't consider a virtual-machine to be using its root volume if security.protection.start=true
+		if volume.Type == cluster.StoragePoolVolumeTypeNameVM && inst.Type == instancetype.VM && volume.Project == inst.Project && volume.Name == inst.Name {
+			apiInst, err := inst.ToAPI()
+			if err != nil {
+				return err
+			}
+
+			apiInst.ExpandedConfig = instancetype.ExpandInstanceConfig(s.GlobalConfig.Dump(), apiInst.Config, inst.Profiles)
+
+			if shared.IsTrue(apiInst.ExpandedConfig["security.protection.start"]) {
+				return nil
+			}
+		}
+
+		usedByInstances += 1
+
+		if usedByInstances > 1 {
+			return errors.New("Cannot disable security.shared on block storage volume as it is attached to more than one instance")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // UpdateCustomVolume applies the supplied config to the custom volume.
 func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newDesc string, newConfig map[string]string, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volName": volName, "newDesc": newDesc, "newConfig": newConfig})
@@ -6028,38 +6069,9 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 
 		sharedVolume, ok := changedConfig["security.shared"]
 		if ok && shared.IsFalseOrEmpty(sharedVolume) && curVol.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock {
-			usedByProfile := false
-
-			err = VolumeUsedByProfileDevices(b.state, b.name, projectName, &curVol.StorageVolume, func(profileID int64, profile api.Profile, project api.Project, usedByDevices []string) error {
-				usedByProfile = true
-
-				return db.ErrListStop
-			})
-			if err != nil && err != db.ErrListStop {
+			err = allowRemoveSecurityShared(b.state, projectName, &curVol.StorageVolume)
+			if err != nil {
 				return err
-			}
-
-			if usedByProfile {
-				return fmt.Errorf("Cannot disable security.shared on custom storage block volume as it is attached to profile(s)")
-			}
-
-			var usedByInstanceDevices []string
-
-			err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &curVol.StorageVolume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
-				usedByInstanceDevices = append(usedByInstanceDevices, inst.Name)
-
-				if len(usedByInstanceDevices) > 1 {
-					return db.ErrListStop
-				}
-
-				return nil
-			})
-			if err != nil && err != db.ErrListStop {
-				return err
-			}
-
-			if len(usedByInstanceDevices) > 1 {
-				return fmt.Errorf("Cannot disable security.shared on custom storage block volume as it is attached to more than one instance")
 			}
 		}
 
