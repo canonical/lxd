@@ -315,8 +315,9 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 		request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
 
 		conn := ucred.GetConnFromContext(r.Context())
-		cred, ok := pidMapper.m[conn.(*net.UnixConn)]
-		if !ok {
+
+		cred := pidMapper.GetConnUcred(conn.(*net.UnixConn))
+		if cred == nil {
 			http.Error(w, errPIDNotInContainer.Error(), http.StatusInternalServerError)
 			return
 		}
