@@ -439,6 +439,14 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	}
 }
 
+// GetConnUcred returns a previously stored ucred associated to a connection.
+// Returns nil if no ucred found for the connection.
+func (m *ConnPidMapper) GetConnUcred(conn *net.UnixConn) *unix.Ucred {
+	m.mLock.Lock()
+	defer m.mLock.Unlock()
+	return pidMapper.m[conn]
+}
+
 var errPIDNotInContainer = errors.New("Process ID not found in container")
 
 func findContainerForPid(pid int32, s *state.State) (instance.Container, error) {
