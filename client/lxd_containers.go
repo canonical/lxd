@@ -155,6 +155,7 @@ func (r *ProtocolLXD) CreateContainerFromBackup(args ContainerBackupArgs) (Opera
 }
 
 // CreateContainer requests that LXD creates a new container.
+// Deprecated: Use CreateInstance instead.
 func (r *ProtocolLXD) CreateContainer(container api.ContainersPost) (Operation, error) {
 	if container.Source.ContainerOnly {
 		err := r.CheckExtension("container_only_migration")
