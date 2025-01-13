@@ -609,6 +609,7 @@ func (r *ProtocolLXD) tryMigrateContainer(source InstanceServer, name string, re
 }
 
 // MigrateContainer requests that LXD prepares for a container migration.
+// Deprecated: Use MigrateInstance instead.
 func (r *ProtocolLXD) MigrateContainer(name string, container api.ContainerPost) (Operation, error) {
 	if container.ContainerOnly {
 		err := r.CheckExtension("container_only_migration")
