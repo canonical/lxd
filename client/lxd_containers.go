@@ -88,6 +88,7 @@ func (r *ProtocolLXD) GetContainer(name string) (*api.Container, string, error) 
 
 // CreateContainerFromBackup is a convenience function to make it easier to
 // create a container from a backup.
+// Deprecated: Use CreateInstanceFromBackup instead.
 func (r *ProtocolLXD) CreateContainerFromBackup(args ContainerBackupArgs) (Operation, error) {
 	err := r.CheckExtension("container_backup")
 	if err != nil {
