@@ -912,7 +912,9 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	"security.syscalls.intercept.sysinfo": validate.Optional(validate.IsBool),
 
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.last_state.idmap)
-	//
+	// The UID/GID map that has been applied to the container's underlying storage.
+	// This is usually set for containers created on older kernels that don't
+	// support idmapped mounts.
 	// ---
 	//  type: string
 	//  shortdesc: Serialized instance UID/GID map
