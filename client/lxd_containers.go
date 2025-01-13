@@ -297,6 +297,7 @@ func (r *ProtocolLXD) CreateContainerFromImage(source ImageServer, image api.Ima
 }
 
 // CopyContainer copies a container from a remote server. Additional options can be passed using ContainerCopyArgs.
+// Deprecated: Use CopyInstance instead.
 func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Container, args *ContainerCopyArgs) (RemoteOperation, error) {
 	// Base request
 	req := api.ContainersPost{
