@@ -40,6 +40,7 @@ func (r *ProtocolLXD) GetContainerNames() ([]string, error) {
 }
 
 // GetContainers returns a list of containers.
+// Deprecated: Use GetInstances instead.
 func (r *ProtocolLXD) GetContainers() ([]api.Container, error) {
 	containers := []api.Container{}
 
