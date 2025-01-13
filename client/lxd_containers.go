@@ -54,6 +54,7 @@ func (r *ProtocolLXD) GetContainers() ([]api.Container, error) {
 }
 
 // GetContainersFull returns a list of containers including snapshots, backups and state.
+// Deprecated: Use GetInstancesFull instead.
 func (r *ProtocolLXD) GetContainersFull() ([]api.ContainerFull, error) {
 	containers := []api.ContainerFull{}
 
