@@ -537,6 +537,7 @@ func (r *ProtocolLXD) UpdateContainer(name string, container api.ContainerPut, E
 }
 
 // RenameContainer requests that LXD renames the container.
+// Deprecated: Use RenameInstance instead.
 func (r *ProtocolLXD) RenameContainer(name string, container api.ContainerPost) (Operation, error) {
 	// Quick check.
 	if container.Migration {
