@@ -78,7 +78,7 @@ func (r *ProtocolLXD) GetContainer(name string) (*api.Container, string, error) 
 	container := api.Container{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", "/containers/" + url.PathEscape(name), nil, "", &container)
+	etag, err := r.queryStruct("GET", "/containers/"+url.PathEscape(name), nil, "", &container)
 	if err != nil {
 		return nil, "", err
 	}
@@ -525,6 +525,7 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 }
 
 // UpdateContainer updates the container definition.
+// Deprecated: Use UpdateInstance instead.
 func (r *ProtocolLXD) UpdateContainer(name string, container api.ContainerPut, ETag string) (Operation, error) {
 	// Send the request
 	op, _, err := r.queryOperation("PUT", "/containers/"+url.PathEscape(name), container, ETag, true)
