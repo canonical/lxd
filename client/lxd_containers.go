@@ -233,6 +233,7 @@ func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) 
 }
 
 // CreateContainerFromImage is a convenience function to make it easier to create a container from an existing image.
+// Deprecated: Use CreateInstanceFromImage instead.
 func (r *ProtocolLXD) CreateContainerFromImage(source ImageServer, image api.Image, req api.ContainersPost) (RemoteOperation, error) {
 	// Set the minimal source fields
 	req.Source.Type = api.SourceTypeImage
