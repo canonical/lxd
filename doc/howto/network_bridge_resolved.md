@@ -111,8 +111,10 @@ If you have _not_ rebooted your system since you first installed LXD, you must e
 1. reboot the system, or
 1. reload `systemd-networkd` (to reload the `.network` files) and restart `lxd` (to add the routing):
 
+    ```
     networkctl reload
     snap restart lxd
+    ```
 
 You can test that the updated configuration was applied by running:
 
