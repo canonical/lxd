@@ -73,6 +73,7 @@ func (r *ProtocolLXD) GetContainersFull() ([]api.ContainerFull, error) {
 }
 
 // GetContainer returns the container entry for the provided name.
+// Deprecated: Use GetInstance instead.
 func (r *ProtocolLXD) GetContainer(name string) (*api.Container, string, error) {
 	container := api.Container{}
 
