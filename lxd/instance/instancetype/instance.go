@@ -917,28 +917,32 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	// support idmapped mounts.
 	// ---
 	//  type: string
-	//  shortdesc: Serialized instance UID/GID map
+	//  condition: container
+	//  shortdesc: On-disk UID/GID map for the container's rootfs
 	"volatile.last_state.idmap": validate.IsAny,
 
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.idmap.base)
 	//
 	// ---
 	//  type: integer
-	//  shortdesc: The first ID in the instance's primary idmap range
+	//  condition: container
+	//  shortdesc: The first ID in the container's primary idmap range
 	"volatile.idmap.base": validate.IsAny,
 
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.idmap.current)
 	//
 	// ---
 	//  type: string
-	//  shortdesc: The idmap currently in use by the instance
+	//  condition: container
+	//  shortdesc: The idmap currently in use by the container
 	"volatile.idmap.current": validate.IsAny,
 
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.idmap.next)
 	//
 	// ---
 	//  type: string
-	//  shortdesc: The idmap to use the next time the instance starts
+	//  condition: container
+	//  shortdesc: The idmap to use the next time the container starts
 	"volatile.idmap.next": validate.IsAny,
 }
 
