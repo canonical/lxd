@@ -1846,6 +1846,7 @@ func (r *ProtocolLXD) DeleteContainerBackup(containerName string, name string) (
 }
 
 // GetContainerBackupFile requests the container backup content.
+// Deprecated: Use GetInstanceBackupFile instead.
 func (r *ProtocolLXD) GetContainerBackupFile(containerName string, name string, req *BackupFileRequest) (*BackupFileResponse, error) {
 	err := r.CheckExtension("container_backup")
 	if err != nil {
