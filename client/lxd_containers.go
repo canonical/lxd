@@ -1829,6 +1829,7 @@ func (r *ProtocolLXD) RenameContainerBackup(containerName string, name string, b
 }
 
 // DeleteContainerBackup requests that LXD deletes the container backup.
+// Deprecated: Use DeleteInstanceBackup instead.
 func (r *ProtocolLXD) DeleteContainerBackup(containerName string, name string) (Operation, error) {
 	err := r.CheckExtension("container_backup")
 	if err != nil {
