@@ -1374,6 +1374,7 @@ func (r *ProtocolLXD) UpdateContainerSnapshot(containerName string, name string,
 }
 
 // GetContainerState returns a ContainerState entry for the provided container name.
+// Deprecated: Use GetInstanceState instead.
 func (r *ProtocolLXD) GetContainerState(name string) (*api.ContainerState, string, error) {
 	state := api.ContainerState{}
 
