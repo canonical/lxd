@@ -1777,6 +1777,7 @@ func (r *ProtocolLXD) GetContainerBackups(containerName string) ([]api.Container
 }
 
 // GetContainerBackup returns a Backup struct for the provided container and backup names.
+// Deprecated: Use GetInstanceBackup instead.
 func (r *ProtocolLXD) GetContainerBackup(containerName string, name string) (*api.ContainerBackup, string, error) {
 	err := r.CheckExtension("container_backup")
 	if err != nil {
