@@ -645,6 +645,7 @@ func (r *ProtocolLXD) DeleteContainer(name string) (Operation, error) {
 }
 
 // ExecContainer requests that LXD spawns a command inside the container.
+// Deprecated: Use ExecInstance instead.
 func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExecPost, args *ContainerExecArgs) (Operation, error) {
 	if exec.RecordOutput {
 		err := r.CheckExtension("container_exec_recording")
