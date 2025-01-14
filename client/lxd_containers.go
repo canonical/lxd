@@ -25,6 +25,7 @@ import (
 // Please use the equivalent Instance function instead.
 
 // GetContainerNames returns a list of container names.
+// Deprecated: Use GetInstanceNames instead.
 func (r *ProtocolLXD) GetContainerNames() ([]string, error) {
 	// Fetch the raw URL values.
 	urls := []string{}
