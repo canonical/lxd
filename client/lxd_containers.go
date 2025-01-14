@@ -1554,6 +1554,7 @@ func (r *ProtocolLXD) GetContainerTemplateFile(containerName string, templateNam
 }
 
 // CreateContainerTemplateFile creates an a template for a container.
+// Deprecated: Use CreateInstanceTemplateFile instead.
 func (r *ProtocolLXD) CreateContainerTemplateFile(containerName string, templateName string, content io.ReadSeeker) error {
 	err := r.CheckExtension("container_edit_metadata")
 	if err != nil {
