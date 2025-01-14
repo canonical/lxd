@@ -5871,7 +5871,9 @@ the specified size is used to set either `volblocksize` or `recordsize` in ZFS.
 :shortdesc: "Whether to delegate the ZFS dataset"
 :type: "bool"
 This option controls whether to delegate the ZFS dataset and anything underneath it to the
-container or containers that use it. This allows using the `zfs` command in the container.
+container or containers that use it. When used in conjunction with
+{config:option}`instance-security:security.nesting`, this allows
+using the `zfs` command in the container.
 ```
 
 ```{config:option} zfs.remove_snapshots storage-zfs-volume-conf

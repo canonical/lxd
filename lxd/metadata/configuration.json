@@ -6552,7 +6552,7 @@
 						"zfs.delegate": {
 							"condition": "ZFS 2.2 or higher",
 							"defaultdesc": "same as `volume.zfs.delegate`",
-							"longdesc": "This option controls whether to delegate the ZFS dataset and anything underneath it to the\ncontainer or containers that use it. This allows using the `zfs` command in the container.",
+							"longdesc": "This option controls whether to delegate the ZFS dataset and anything underneath it to the\ncontainer or containers that use it. When used in conjunction with\n{config:option}`instance-security:security.nesting`, this allows\nusing the `zfs` command in the container.",
 							"shortdesc": "Whether to delegate the ZFS dataset",
 							"type": "bool"
 						}
