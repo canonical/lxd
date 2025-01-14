@@ -1498,6 +1498,7 @@ func (r *ProtocolLXD) SetContainerMetadata(name string, metadata api.ImageMetada
 }
 
 // GetContainerTemplateFiles returns the list of names of template files for a container.
+// Deprecated: Use GetInstanceTemplateFiles instead.
 func (r *ProtocolLXD) GetContainerTemplateFiles(containerName string) ([]string, error) {
 	err := r.CheckExtension("container_edit_metadata")
 	if err != nil {
