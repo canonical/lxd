@@ -633,6 +633,7 @@ func (r *ProtocolLXD) MigrateContainer(name string, container api.ContainerPost)
 }
 
 // DeleteContainer requests that LXD deletes the container.
+// Deprecated: Use DeleteInstance instead.
 func (r *ProtocolLXD) DeleteContainer(name string) (Operation, error) {
 	// Send the request
 	op, _, err := r.queryOperation("DELETE", "/containers/"+url.PathEscape(name), nil, "", true)
