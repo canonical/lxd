@@ -873,6 +873,7 @@ func (r *ProtocolLXD) GetContainerFile(containerName string, path string) (io.Re
 }
 
 // CreateContainerFile tells LXD to create a file in the container.
+// Deprecated: Use CreateInstanceFile instead.
 func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, args ContainerFileArgs) error {
 	if args.Type == "directory" {
 		err := r.CheckExtension("directory_manipulation")
