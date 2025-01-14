@@ -1721,6 +1721,7 @@ func (r *ProtocolLXD) GetContainerConsoleLog(containerName string, args *Contain
 }
 
 // DeleteContainerConsoleLog deletes the requested container's console log.
+// Deprecated: Use DeleteInstanceConsoleLog instead.
 func (r *ProtocolLXD) DeleteContainerConsoleLog(containerName string, args *ContainerConsoleLogArgs) error {
 	err := r.CheckExtension("console")
 	if err != nil {
