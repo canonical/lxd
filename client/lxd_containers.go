@@ -1450,6 +1450,7 @@ func (r *ProtocolLXD) GetContainerLogfile(name string, filename string) (io.Read
 }
 
 // DeleteContainerLogfile deletes the requested logfile.
+// Deprecated: Use DeleteInstanceLogfile instead.
 func (r *ProtocolLXD) DeleteContainerLogfile(name string, filename string) error {
 	// Send the request
 	_, _, err := r.query("DELETE", "/containers/"+url.PathEscape(name)+"/logs/"+url.PathEscape(filename), nil, "")
