@@ -963,6 +963,7 @@ func (r *ProtocolLXD) DeleteContainerFile(containerName string, path string) err
 }
 
 // GetContainerSnapshotNames returns a list of snapshot names for the container.
+// Deprecated: Use GetInstanceSnapshotNames instead.
 func (r *ProtocolLXD) GetContainerSnapshotNames(containerName string) ([]string, error) {
 	// Fetch the raw URL values.
 	urls := []string{}
