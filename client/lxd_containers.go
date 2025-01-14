@@ -1345,6 +1345,7 @@ func (r *ProtocolLXD) MigrateContainerSnapshot(containerName string, name string
 }
 
 // DeleteContainerSnapshot requests that LXD deletes the container snapshot.
+// Deprecated: Use DeleteInstanceSnapshot instead.
 func (r *ProtocolLXD) DeleteContainerSnapshot(containerName string, name string) (Operation, error) {
 	// Send the request
 	op, _, err := r.queryOperation("DELETE", "/containers/"+url.PathEscape(containerName)+"/snapshots/"+url.PathEscape(name), nil, "", true)
