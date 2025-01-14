@@ -1588,11 +1588,13 @@ func (r *ProtocolLXD) CreateContainerTemplateFile(containerName string, template
 }
 
 // UpdateContainerTemplateFile updates the content for a container template file.
+// Deprecated: Use UpdateInstanceTemplateFile instead.
 func (r *ProtocolLXD) UpdateContainerTemplateFile(containerName string, templateName string, content io.ReadSeeker) error {
 	return r.CreateContainerTemplateFile(containerName, templateName, content)
 }
 
 // DeleteContainerTemplateFile deletes a template file for a container.
+// Deprecated: Use DeleteInstanceTemplateFile instead.
 func (r *ProtocolLXD) DeleteContainerTemplateFile(name string, templateName string) error {
 	err := r.CheckExtension("container_edit_metadata")
 	if err != nil {
