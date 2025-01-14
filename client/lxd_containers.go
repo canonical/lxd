@@ -1388,6 +1388,7 @@ func (r *ProtocolLXD) GetContainerState(name string) (*api.ContainerState, strin
 }
 
 // UpdateContainerState updates the container to match the requested state.
+// Deprecated: Use UpdateInstanceState instead.
 func (r *ProtocolLXD) UpdateContainerState(name string, state api.ContainerStatePut, ETag string) (Operation, error) {
 	// Send the request
 	op, _, err := r.queryOperation("PUT", "/containers/"+url.PathEscape(name)+"/state", state, ETag, true)
