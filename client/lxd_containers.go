@@ -1738,6 +1738,7 @@ func (r *ProtocolLXD) DeleteContainerConsoleLog(containerName string, args *Cont
 }
 
 // GetContainerBackupNames returns a list of backup names for the container.
+// Deprecated: Use GetInstanceBackupNames instead.
 func (r *ProtocolLXD) GetContainerBackupNames(containerName string) ([]string, error) {
 	err := r.CheckExtension("container_backup")
 	if err != nil {
