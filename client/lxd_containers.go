@@ -946,6 +946,7 @@ func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, arg
 }
 
 // DeleteContainerFile deletes a file in the container.
+// Deprecated: Use DeleteInstanceFile instead.
 func (r *ProtocolLXD) DeleteContainerFile(containerName string, path string) error {
 	err := r.CheckExtension("file_delete")
 	if err != nil {
