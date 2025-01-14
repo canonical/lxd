@@ -1606,6 +1606,7 @@ func (r *ProtocolLXD) DeleteContainerTemplateFile(name string, templateName stri
 }
 
 // ConsoleContainer requests that LXD attaches to the console device of a container.
+// Deprecated: Use ConsoleInstance instead.
 func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.ContainerConsolePost, args *ContainerConsoleArgs) (Operation, error) {
 	err := r.CheckExtension("console")
 	if err != nil {
