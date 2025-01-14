@@ -1462,6 +1462,7 @@ func (r *ProtocolLXD) DeleteContainerLogfile(name string, filename string) error
 }
 
 // GetContainerMetadata returns container metadata.
+// Deprecated: Use GetInstanceMetadata instead.
 func (r *ProtocolLXD) GetContainerMetadata(name string) (*api.ImageMetadata, string, error) {
 	err := r.CheckExtension("container_edit_metadata")
 	if err != nil {
