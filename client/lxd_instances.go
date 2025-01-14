@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/websocket"
@@ -1659,11 +1660,11 @@ func (r *ProtocolLXD) CreateInstanceFile(instanceName string, filePath string, a
 
 	// Set the various headers
 	if args.UID > -1 {
-		req.Header.Set("X-LXD-uid", fmt.Sprintf("%d", args.UID))
+		req.Header.Set("X-LXD-uid", strconv.FormatInt(args.UID, 10))
 	}
 
 	if args.GID > -1 {
-		req.Header.Set("X-LXD-gid", fmt.Sprintf("%d", args.GID))
+		req.Header.Set("X-LXD-gid", strconv.FormatInt(args.GID, 10))
 	}
 
 	if args.Mode > -1 {
@@ -3092,7 +3093,7 @@ func (r *ProtocolLXD) GetInstanceBackupFile(instanceName string, name string, re
 			Tracker: &ioprogress.ProgressTracker{
 				Length: response.ContentLength,
 				Handler: func(percent int64, speed int64) {
-					req.ProgressHandler(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2))})
+					req.ProgressHandler(ioprogress.ProgressData{Text: strconv.FormatInt(percent, 10) + "% (" + units.GetByteSizeString(speed, 2) + "/s)"})
 				},
 			},
 		}
