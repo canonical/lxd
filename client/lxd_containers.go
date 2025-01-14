@@ -1357,6 +1357,7 @@ func (r *ProtocolLXD) DeleteContainerSnapshot(containerName string, name string)
 }
 
 // UpdateContainerSnapshot requests that LXD updates the container snapshot.
+// Deprecated: Use UpdateInstanceSnapshot instead.
 func (r *ProtocolLXD) UpdateContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPut, ETag string) (Operation, error) {
 	err := r.CheckExtension("snapshot_expiry")
 	if err != nil {
