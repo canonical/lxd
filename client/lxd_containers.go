@@ -1795,6 +1795,7 @@ func (r *ProtocolLXD) GetContainerBackup(containerName string, name string) (*ap
 }
 
 // CreateContainerBackup requests that LXD creates a new backup for the container.
+// Deprecated: Use CreateInstanceBackup instead.
 func (r *ProtocolLXD) CreateContainerBackup(containerName string, backup api.ContainerBackupsPost) (Operation, error) {
 	err := r.CheckExtension("container_backup")
 	if err != nil {
