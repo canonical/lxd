@@ -1254,6 +1254,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 }
 
 // RenameContainerSnapshot requests that LXD renames the snapshot.
+// Deprecated: Use RenameInstanceSnapshot instead.
 func (r *ProtocolLXD) RenameContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (Operation, error) {
 	// Quick check.
 	if container.Migration {
