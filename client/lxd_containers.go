@@ -1026,6 +1026,7 @@ func (r *ProtocolLXD) CreateContainerSnapshot(containerName string, snapshot api
 }
 
 // CopyContainerSnapshot copies a snapshot from a remote server into a new container. Additional options can be passed using ContainerCopyArgs.
+// Deprecated: Use CopyInstanceSnapshot instead.
 func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName string, snapshot api.ContainerSnapshot, args *ContainerSnapshotCopyArgs) (RemoteOperation, error) {
 	// Backward compatibility (with broken Name field)
 	fields := strings.Split(snapshot.Name, shared.SnapshotDelimiter)
