@@ -1006,6 +1006,7 @@ func (r *ProtocolLXD) GetContainerSnapshot(containerName string, name string) (*
 }
 
 // CreateContainerSnapshot requests that LXD creates a new snapshot for the container.
+// Deprecated: Use CreateInstanceSnapshot instead.
 func (r *ProtocolLXD) CreateContainerSnapshot(containerName string, snapshot api.ContainerSnapshotsPost) (Operation, error) {
 	// Validate the request
 	if snapshot.ExpiresAt != nil {
