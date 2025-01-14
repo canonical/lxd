@@ -1481,6 +1481,7 @@ func (r *ProtocolLXD) GetContainerMetadata(name string) (*api.ImageMetadata, str
 }
 
 // SetContainerMetadata sets the content of the container metadata file.
+// Deprecated: Use SetInstanceMetadata instead.
 func (r *ProtocolLXD) SetContainerMetadata(name string, metadata api.ImageMetadata, ETag string) error {
 	err := r.CheckExtension("container_edit_metadata")
 	if err != nil {
