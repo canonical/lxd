@@ -1400,6 +1400,7 @@ func (r *ProtocolLXD) UpdateContainerState(name string, state api.ContainerState
 }
 
 // GetContainerLogfiles returns a list of logfiles for the container.
+// Deprecated: Use GetInstanceLogfiles instead.
 func (r *ProtocolLXD) GetContainerLogfiles(name string) ([]string, error) {
 	// Fetch the raw URL values.
 	urls := []string{}
