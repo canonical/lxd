@@ -99,7 +99,6 @@ func RenderSlice(data any, format string, displayColumns string, sortColumns str
 
 	switch format {
 	case TableFormatTable, TableFormatCSV, TableFormatCompact:
-		break
 	case TableFormatJSON, TableFormatYAML:
 		return RenderTable(format, nil, nil, data)
 	default:
