@@ -1681,6 +1681,7 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 }
 
 // GetContainerConsoleLog requests that LXD attaches to the console device of a container.
+// Deprecated: Use GetInstanceConsoleLog instead.
 //
 // Note that it's the caller's responsibility to close the returned ReadCloser.
 func (r *ProtocolLXD) GetContainerConsoleLog(containerName string, args *ContainerConsoleLogArgs) (io.ReadCloser, error) {
