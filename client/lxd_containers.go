@@ -1812,6 +1812,7 @@ func (r *ProtocolLXD) CreateContainerBackup(containerName string, backup api.Con
 }
 
 // RenameContainerBackup requests that LXD renames the backup.
+// Deprecated: Use RenameInstanceBackup instead.
 func (r *ProtocolLXD) RenameContainerBackup(containerName string, name string, backup api.ContainerBackupPost) (Operation, error) {
 	err := r.CheckExtension("container_backup")
 	if err != nil {
