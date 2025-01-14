@@ -1415,6 +1415,7 @@ func (r *ProtocolLXD) GetContainerLogfiles(name string) ([]string, error) {
 }
 
 // GetContainerLogfile returns the content of the requested logfile
+// Deprecated: Use GetInstanceLogfile instead.
 //
 // Note that it's the caller's responsibility to close the returned ReadCloser.
 func (r *ProtocolLXD) GetContainerLogfile(name string, filename string) (io.ReadCloser, error) {
