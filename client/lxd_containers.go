@@ -1517,6 +1517,7 @@ func (r *ProtocolLXD) GetContainerTemplateFiles(containerName string) ([]string,
 }
 
 // GetContainerTemplateFile returns the content of a template file for a container.
+// Deprecated: Use GetInstanceTemplateFile instead.
 func (r *ProtocolLXD) GetContainerTemplateFile(containerName string, templateName string) (io.ReadCloser, error) {
 	err := r.CheckExtension("container_edit_metadata")
 	if err != nil {
