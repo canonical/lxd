@@ -1328,6 +1328,7 @@ func (r *ProtocolLXD) tryMigrateContainerSnapshot(source InstanceServer, contain
 }
 
 // MigrateContainerSnapshot requests that LXD prepares for a snapshot migration.
+// Deprecated: Use MigrateInstanceSnapshot instead.
 func (r *ProtocolLXD) MigrateContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (Operation, error) {
 	// Quick check.
 	if !container.Migration {
