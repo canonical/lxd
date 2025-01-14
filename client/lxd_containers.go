@@ -800,6 +800,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 }
 
 // GetContainerFile retrieves the provided path from the container.
+// Deprecated: Use GetInstanceFile instead.
 func (r *ProtocolLXD) GetContainerFile(containerName string, path string) (io.ReadCloser, *ContainerFileResponse, error) {
 	// Prepare the HTTP request
 	requestURL, err := shared.URLEncode(
