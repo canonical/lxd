@@ -978,6 +978,7 @@ func (r *ProtocolLXD) GetContainerSnapshotNames(containerName string) ([]string,
 }
 
 // GetContainerSnapshots returns a list of snapshots for the container.
+// Deprecated: Use GetInstanceSnapshots instead.
 func (r *ProtocolLXD) GetContainerSnapshots(containerName string) ([]api.ContainerSnapshot, error) {
 	snapshots := []api.ContainerSnapshot{}
 
