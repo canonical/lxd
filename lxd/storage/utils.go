@@ -220,6 +220,7 @@ func VolumeDBGet(pool Pool, projectName string, volumeName string, volumeType dr
 
 // VolumeDBCreate creates a volume in the database.
 // If removeUnknownKeys is true, any unknown config keys are removed from volumeConfig rather than failing.
+// If volumeConfig is provided, it should be complete with all relevant values, such as size and pool specific keys.
 func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDescription string, volumeType drivers.VolumeType, snapshot bool, volumeConfig map[string]string, creationDate time.Time, expiryDate time.Time, contentType drivers.ContentType, removeUnknownKeys bool, hasSource bool) error {
 	p, ok := pool.(*lxdBackend)
 	if !ok {
@@ -229,17 +230,6 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 	// Prevent using this function to create storage volume bucket records.
 	if volumeType == drivers.VolumeTypeBucket {
 		return fmt.Errorf("Cannot store volume using bucket type")
-	}
-
-	// If the volumeType represents an instance type then check that the volumeConfig doesn't contain any of
-	// the instance disk effective override fields (which should not be stored in the database).
-	if volumeType.IsInstance() {
-		for _, k := range instanceDiskVolumeEffectiveFields {
-			_, found := volumeConfig[k]
-			if found {
-				return fmt.Errorf("Instance disk effective override field %q should not be stored in volume config", k)
-			}
-		}
 	}
 
 	// Convert the volume type to our internal integer representation.
@@ -263,7 +253,30 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 		return err
 	}
 
-	vol := drivers.NewVolume(pool.Driver(), pool.Name(), volType, contentType, volumeName, volumeConfig, pool.Driver().Config())
+	// Make a copy as to not compromise the original config passed in
+	// Don't define a size as an unknown number of driver specific config keys.
+	configCopy := make(map[string]string)
+	for key, value := range volumeConfig {
+		configCopy[key] = value
+	}
+
+	vol := drivers.NewVolume(pool.Driver(), pool.Name(), volType, contentType, volumeName, configCopy, pool.Driver().Config())
+
+	// If dealing with an instance volume, populate volatile.rootfs.size with the volume's initial size
+	// and deleting any present effective fields as they shouldn't be stored in the database.
+	if volumeType.IsInstance() && !snapshot {
+		volumeSize, ok := vol.Config()["size"] // volume's size should inherit volume.size if applicable.
+		if (!ok || volumeSize == "") && (vol.IsVMBlock() || vol.IsBlockBacked()) {
+			// If size is not set and volume is block backed, set its size to the default size for its driver.
+			volumeSize = pool.Driver().Info().DefaultBlockSize
+		}
+
+		configCopy["volatile.rootfs.size"] = volumeSize
+
+		for _, key := range instanceDiskVolumeEffectiveFields {
+			delete(configCopy, key)
+		}
+	}
 
 	// Set source indicator.
 	vol.SetHasSource(hasSource)
