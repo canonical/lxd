@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/flosch/pongo2"
+	"github.com/pkg/sftp"
 
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
@@ -1522,4 +1523,95 @@ func IsMicroOVNUsed() bool {
 	}
 
 	return false
+}
+
+// EncodeRemoteAbsPathWithNonExistingDir splits a path into existing and non-existing parts and encodes it.
+func EncodeRemoteAbsPathWithNonExistingDir(c *sftp.Client, absPath string) (string, error) {
+	if !filepath.IsAbs(absPath) {
+		return "", fmt.Errorf("Path is not absolute")
+	}
+
+	// First, try to resolve the path (handles /./, /../, symlinks, etc.)
+	// A user might provide a path with /./ or /../ in it, so we need to resolve it.
+	// Note that this does not return an error if the path doesn't exist. We'll handle that later with Lstat.
+	resolvedExistingPath, err := c.RealPath(absPath)
+	if err != nil {
+		return "", fmt.Errorf("Failed to resolve path while encoding path with non existing directory %q: %w", absPath, err)
+	}
+
+	// Now, check the path existence
+	_, err = c.Lstat(resolvedExistingPath)
+	if err == nil {
+		// The path exists. We can just return it as is.
+		return resolvedExistingPath, nil
+	}
+
+	// If there is an error, it should be because the path doesn't exist.
+	if !os.IsNotExist(err) {
+		return "", err
+	}
+
+	// The path doesn't exist. We need to split it into existing and non-existing parts,
+	// in order to be able to create the non-existing parts later.
+	currentPath := string(os.PathSeparator)
+	parts := strings.Split(resolvedExistingPath, string(os.PathSeparator))[1:]
+
+	// Find the split point between existing and non-existing parts.
+	// We start iterating from the root of the provided path, and for each part, we check if it exists.
+	splitIndex := -1
+	for i, part := range parts {
+		if part == "" {
+			continue
+		}
+
+		if part == "." || part == ".." {
+			currentPath = filepath.Join(currentPath, part)
+			continue
+		}
+
+		testPath := filepath.Join(currentPath, part)
+		p, err := c.Lstat(testPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				splitIndex = i
+				break
+			}
+
+			return "", err
+		}
+
+		if p.Mode()&os.ModeSymlink != 0 {
+			// This is a symlink, so we need to resolve it first.
+			resolvedPath, err := c.ReadLink(testPath)
+			if err != nil {
+				return "", err
+			}
+
+			currentPath = resolvedPath
+		} else {
+			currentPath = testPath
+		}
+	}
+
+	// Add a '/./' marker to separate the existing and non-existing parts
+	sep := string(os.PathSeparator) + "." + string(os.PathSeparator)
+	finalPath := string(os.PathSeparator) + filepath.Join(parts[:splitIndex]...) + sep + filepath.Join(parts[splitIndex:]...)
+
+	// Check if the final path is 'clean' (e.g, `/a/b/./../c/d` is valid but `/../../..` is invalid since the resolved path goes out of the root).
+	cleanedPath := path.Clean(finalPath)
+	if strings.HasPrefix(cleanedPath, "../") || strings.HasPrefix(cleanedPath, "/..") || !strings.HasPrefix(cleanedPath, "/") {
+		return "", fmt.Errorf("Invalid cleaned final path, %q", cleanedPath)
+	}
+
+	return finalPath, nil
+}
+
+// DecodeRemoteAbsPathWithNonExistingDir splits an encoded path back into its parts.
+func DecodeRemoteAbsPathWithNonExistingDir(encodedPath string) (existing, nonExisting string) {
+	parts := strings.Split(encodedPath, "/./")
+	if len(parts) == 1 {
+		return parts[0], ""
+	}
+
+	return parts[0], parts[1]
 }
