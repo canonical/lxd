@@ -221,7 +221,7 @@ func (p *powerFlexClient) request(method string, path string, token string, body
 	// Exit right away if not authorized.
 	// We cannot parse the returned body since it's not in JSON format.
 	if resp.StatusCode == http.StatusUnauthorized && resp.Header.Get("Content-Type") != "application/json" {
-		return api.StatusErrorf(http.StatusUnauthorized, "Unauthorized request")
+		return api.NewStatusError(http.StatusUnauthorized, "Unauthorized request")
 	}
 
 	// Overwrite the response data type if an error is detected.
