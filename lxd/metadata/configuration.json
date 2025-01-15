@@ -5549,7 +5549,7 @@
 							"condition": "appropriate driver",
 							"defaultdesc": "same as `volume.size`",
 							"longdesc": "",
-							"scope": "local",
+							"scope": "global",
 							"shortdesc": "Size/quota of the storage volume",
 							"type": "string"
 						}
@@ -5754,7 +5754,7 @@
 							"condition": "appropriate driver",
 							"defaultdesc": "same as `volume.size`",
 							"longdesc": "",
-							"scope": "local",
+							"scope": "global",
 							"shortdesc": "Size/quota of the storage volume",
 							"type": "string"
 						}
@@ -5927,7 +5927,7 @@
 							"condition": "appropriate driver",
 							"defaultdesc": "same as `volume.size`",
 							"longdesc": "",
-							"scope": "local",
+							"scope": "global",
 							"shortdesc": "Size/quota of the storage volume",
 							"type": "string"
 						}
@@ -6110,7 +6110,7 @@
 							"condition": "appropriate driver",
 							"defaultdesc": "same as `volume.size`",
 							"longdesc": "",
-							"scope": "local",
+							"scope": "global",
 							"shortdesc": "Size/quota of the storage volume",
 							"type": "string"
 						}
@@ -6340,7 +6340,7 @@
 							"condition": "appropriate driver",
 							"defaultdesc": "same as `volume.size`",
 							"longdesc": "",
-							"scope": "local",
+							"scope": "global",
 							"shortdesc": "Size/quota of the storage volume",
 							"type": "string"
 						}
@@ -6737,7 +6737,7 @@
 							"condition": "appropriate driver",
 							"defaultdesc": "same as `volume.size`",
 							"longdesc": "",
-							"scope": "local",
+							"scope": "global",
 							"shortdesc": "Size/quota of the storage volume",
 							"type": "string"
 						}
