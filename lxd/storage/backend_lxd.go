@@ -3290,14 +3290,6 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (*VolumeUsage, err
 		}
 	}
 
-	// If the instance volume is neither block based/typed nor bound by the device's size config key,
-	// this means it is only bound by the pool limits and has access to the entire pool storage.
-	// So instead of showing the entire pool size for each instance disk, we return -1 to signify the root disk
-	// is unbounded below the pool level.
-	if val.Total == 0 {
-		val.Total = -1
-	}
-
 	return &val, nil
 }
 
