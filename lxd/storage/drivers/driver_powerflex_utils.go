@@ -249,7 +249,7 @@ func (p *powerFlexClient) request(method string, path string, token string, body
 }
 
 // requestAuthenticated issues an authenticated HTTP request against the PowerFlex gateway.
-func (p *powerFlexClient) requestAuthenticated(method string, path string, body io.Reader, response any) error {
+func (p *powerFlexClient) requestAuthenticated(method string, path string, body map[string]any, response any) error {
 	retries := 0
 	for {
 		// Returns a copy of the client's token.
@@ -261,7 +261,17 @@ func (p *powerFlexClient) requestAuthenticated(method string, path string, body 
 			return err
 		}
 
-		err = p.request(method, path, token, body, response)
+		// In the loop create a reader of the request body to allow retry of the request.
+		// The reader provided for the request's body will be read after the first request.
+		var bodyReader io.Reader
+		if body != nil {
+			bodyReader, err = p.createBodyReader(body)
+			if err != nil {
+				return fmt.Errorf("Failed to create reader from requets body: %w", err)
+			}
+		}
+
+		err = p.request(method, path, token, bodyReader, response)
 		if err != nil {
 			if api.StatusErrorCheck(err, http.StatusUnauthorized) && retries == 0 {
 				// Access token seems to be expired.
@@ -343,15 +353,12 @@ func (p *powerFlexClient) getStoragePoolStatistics(poolID string) (*powerFlexSto
 
 // getProtectionDomainID returns the ID of the protection domain behind domainName.
 func (p *powerFlexClient) getProtectionDomainID(domainName string) (string, error) {
-	body, err := p.createBodyReader(map[string]any{
+	body := map[string]any{
 		"name": domainName,
-	})
-	if err != nil {
-		return "", err
 	}
 
 	var actualResponse string
-	err = p.requestAuthenticated(http.MethodPost, "/api/types/ProtectionDomain/instances/action/queryIdByKey", body, &actualResponse)
+	err := p.requestAuthenticated(http.MethodPost, "/api/types/ProtectionDomain/instances/action/queryIdByKey", body, &actualResponse)
 	if err != nil {
 		powerFlexError, ok := err.(*powerFlexError)
 		if ok {
@@ -403,15 +410,12 @@ func (p *powerFlexClient) getProtectionDomainSDTRelations(domainID string) ([]po
 
 // getVolumeID returns the volume ID for the given name.
 func (p *powerFlexClient) getVolumeID(name string) (string, error) {
-	body, err := p.createBodyReader(map[string]any{
+	body := map[string]any{
 		"name": name,
-	})
-	if err != nil {
-		return "", err
 	}
 
 	var actualResponse string
-	err = p.requestAuthenticated(http.MethodPost, "/api/types/Volume/instances/action/queryIdByKey", body, &actualResponse)
+	err := p.requestAuthenticated(http.MethodPost, "/api/types/Volume/instances/action/queryIdByKey", body, &actualResponse)
 	if err != nil {
 		powerFlexError, ok := err.(*powerFlexError)
 		if ok {
@@ -445,21 +449,18 @@ func (p *powerFlexClient) getVolume(volumeID string) (*powerFlexVolume, error) {
 // The returned string represents the ID of the volume.
 func (p *powerFlexClient) createVolume(volumeName string, sizeGiB int64, volumeType powerFlexVolumeType, poolID string) (string, error) {
 	stringSize := strconv.FormatInt(sizeGiB, 10)
-	body, err := p.createBodyReader(map[string]any{
+	body := map[string]any{
 		"name":           volumeName,
 		"volumeSizeInGb": stringSize,
 		"volumeType":     volumeType,
 		"storagePoolId":  poolID,
-	})
-	if err != nil {
-		return "", err
 	}
 
 	var actualResponse struct {
 		ID string `json:"id"`
 	}
 
-	err = p.requestAuthenticated(http.MethodPost, "/api/types/Volume/instances", body, &actualResponse)
+	err := p.requestAuthenticated(http.MethodPost, "/api/types/Volume/instances", body, &actualResponse)
 	if err != nil {
 		powerFlexError, ok := err.(*powerFlexError)
 		if ok {
@@ -481,14 +482,11 @@ func (p *powerFlexClient) createVolume(volumeName string, sizeGiB int64, volumeT
 // The unit used by PowerFlex is GiB.
 func (p *powerFlexClient) setVolumeSize(volumeID string, sizeGiB int64) error {
 	stringSize := strconv.FormatInt(sizeGiB, 10)
-	body, err := p.createBodyReader(map[string]any{
+	body := map[string]any{
 		"sizeInGB": stringSize,
-	})
-	if err != nil {
-		return err
 	}
 
-	err = p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/setVolumeSize", volumeID), body, nil)
+	err := p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/setVolumeSize", volumeID), body, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to set volume size: %q: %w", volumeID, err)
 	}
@@ -498,14 +496,11 @@ func (p *powerFlexClient) setVolumeSize(volumeID string, sizeGiB int64) error {
 
 // overwriteVolume overwrites the volumes contents behind volumeID with the given snapshot.
 func (p *powerFlexClient) overwriteVolume(volumeID string, snapshotID string) error {
-	body, err := p.createBodyReader(map[string]any{
+	body := map[string]any{
 		"srcVolumeId": snapshotID,
-	})
-	if err != nil {
-		return err
 	}
 
-	err = p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/overwriteVolumeContent", volumeID), body, nil)
+	err := p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/overwriteVolumeContent", volumeID), body, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to overwrite volume: %q: %w", volumeID, err)
 	}
@@ -517,7 +512,7 @@ func (p *powerFlexClient) overwriteVolume(volumeID string, snapshotID string) er
 // The accessMode can be either ReadWrite or ReadOnly.
 // The returned string represents the ID of the snapshot.
 func (p *powerFlexClient) createVolumeSnapshot(systemID string, volumeID string, snapshotName string, accessMode powerFlexSnapshotMode) (string, error) {
-	body, err := p.createBodyReader(map[string]any{
+	body := map[string]any{
 		"snapshotDefs": []map[string]string{
 			{
 				"volumeId":     volumeID,
@@ -525,16 +520,13 @@ func (p *powerFlexClient) createVolumeSnapshot(systemID string, volumeID string,
 			},
 		},
 		"accessModeLimit": accessMode,
-	})
-	if err != nil {
-		return "", err
 	}
 
 	var actualResponse struct {
 		VolumeIDs []string `json:"volumeIdList"`
 	}
 
-	err = p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/System::%s/action/snapshotVolumes", systemID), body, &actualResponse)
+	err := p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/System::%s/action/snapshotVolumes", systemID), body, &actualResponse)
 	if err != nil {
 		powerFlexError, ok := err.(*powerFlexError)
 		if ok {
@@ -583,14 +575,11 @@ func (p *powerFlexClient) getVolumeSnapshots(volumeID string) ([]powerFlexVolume
 // It describes the impact when deleting a volume from the underlying VTree. ONLY_ME deletes the
 // provided volume only whereas WHOLE_VTREE also deletes the volumes parent(s) and child(s).
 func (p *powerFlexClient) deleteVolume(volumeID string, deleteMode string) error {
-	body, err := p.createBodyReader(map[string]any{
+	body := map[string]any{
 		"removeMode": deleteMode,
-	})
-	if err != nil {
-		return err
 	}
 
-	err = p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/removeVolume", volumeID), body, nil)
+	err := p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/removeVolume", volumeID), body, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to delete volume: %q: %w", volumeID, err)
 	}
@@ -677,19 +666,16 @@ func (p *powerFlexClient) getSDCHostByGUID(guid string) (*powerFlexSDC, error) {
 
 // createHost creates a new host.
 func (p *powerFlexClient) createHost(hostName string, nqn string) (string, error) {
-	body, err := p.createBodyReader(map[string]any{
+	body := map[string]any{
 		"name": hostName,
 		"nqn":  nqn,
-	})
-	if err != nil {
-		return "", err
 	}
 
 	var actualResponse struct {
 		ID string `json:"id"`
 	}
 
-	err = p.requestAuthenticated(http.MethodPost, "/api/types/Host/instances", body, &actualResponse)
+	err := p.requestAuthenticated(http.MethodPost, "/api/types/Host/instances", body, &actualResponse)
 	if err != nil {
 		return "", fmt.Errorf("Failed to create host: %w", err)
 	}
@@ -709,16 +695,13 @@ func (p *powerFlexClient) deleteHost(hostID string) error {
 
 // createHostVolumeMapping creates the mapping between a host and volume.
 func (p *powerFlexClient) createHostVolumeMapping(hostID string, volumeID string) error {
-	body, err := p.createBodyReader(map[string]any{
+	body := map[string]any{
 		"hostId": hostID,
 		// This is required in live migration scenarios.
 		"allowMultipleMappings": "true",
-	})
-	if err != nil {
-		return err
 	}
 
-	err = p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/addMappedHost", volumeID), body, nil)
+	err := p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/addMappedHost", volumeID), body, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to create host volume mapping between %q and %q: %w", hostID, volumeID, err)
 	}
@@ -729,14 +712,11 @@ func (p *powerFlexClient) createHostVolumeMapping(hostID string, volumeID string
 // deleteHostVolumeMapping deletes the mapping between a host and volume.
 // Set hostIdentification to either its hostID in PowerFlex or SDC guid.
 func (p *powerFlexClient) deleteHostVolumeMapping(hostID string, volumeID string) error {
-	body, err := p.createBodyReader(map[string]any{
+	body := map[string]any{
 		"hostId": hostID,
-	})
-	if err != nil {
-		return err
 	}
 
-	err = p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/removeMappedHost", volumeID), body, nil)
+	err := p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/removeMappedHost", volumeID), body, nil)
 	if err != nil {
 		powerFlexError, ok := err.(*powerFlexError)
 		if ok {
