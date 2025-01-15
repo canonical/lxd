@@ -38,7 +38,7 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 		// Currently only Containers, VMs and custom volumes support project level volumes.
 		// This means that other volume types may have underscores in their names that don't
 		// indicate the project name.
-		if volType == drivers.VolumeTypeContainer || volType == drivers.VolumeTypeVM {
+		if volType.IsInstance() {
 			projectName, volName = project.InstanceParts(volName)
 		} else if volType == drivers.VolumeTypeCustom {
 			projectName, volName = project.StorageVolumeParts(volName)
