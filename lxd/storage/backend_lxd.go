@@ -6248,12 +6248,15 @@ func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (*VolumeU
 	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
 	// Get the usage.
-	size, err := b.driver.GetVolumeUsage(vol)
-	if err != nil {
+	usedBytes, err := b.driver.GetVolumeUsage(vol)
+	if err != nil && !errors.Is(err, drivers.ErrNotSupported) {
 		return nil, err
 	}
 
-	val.Used = size
+	// If retrieving usage is unsupported, Used should be 0.
+	if usedBytes > 0 {
+		val.Used = usedBytes
+	}
 
 	// Get the total size.
 	sizeStr, ok := vol.Config()["size"]
