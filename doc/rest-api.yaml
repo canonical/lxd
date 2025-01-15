@@ -2516,13 +2516,13 @@ definitions:
     InstanceStateDisk:
         properties:
             total:
-                description: Total size in bytes. Uses -1 to convey that the instance has access to the entire pool's storage.
+                description: Total size in bytes. Uses 0 to convey that the instance has access to the entire pool's storage.
                 example: 502239232
                 format: int64
                 type: integer
                 x-go-name: Total
             usage:
-                description: Disk usage in bytes. Uses -1 to indicate that the storage driver for the instance's pool does not support retrieving the disk usage.
+                description: Disk usage in bytes. Uses 0 to indicate that the storage driver for the pool does not support retrieving disk usage.
                 example: 502239232
                 format: int64
                 type: integer
@@ -6703,13 +6703,13 @@ definitions:
         description: StorageVolumeStateUsage represents the disk usage of a volume
         properties:
             total:
-                description: Storage volume size in bytes
+                description: Storage volume size in bytes. Uses 0 to convey that the volume has access to the entire pool's storage.
                 example: 5189222192
                 format: int64
                 type: integer
                 x-go-name: Total
             used:
-                description: Used space in bytes
+                description: Used space in bytes. Uses 0 to indicate that the storage driver for the pool does not support retrieving volume usage.
                 example: 1693552640
                 format: uint64
                 type: integer
