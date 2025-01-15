@@ -4911,7 +4911,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} size storage-btrfs-volume-conf
 :condition: "appropriate driver"
 :defaultdesc: "same as `volume.size`"
-:scope: "local"
+:scope: "global"
 :shortdesc: "Size/quota of the storage volume"
 :type: "string"
 
@@ -5103,7 +5103,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} size storage-ceph-volume-conf
 :condition: "appropriate driver"
 :defaultdesc: "same as `volume.size`"
-:scope: "local"
+:scope: "global"
 :shortdesc: "Size/quota of the storage volume"
 :type: "string"
 
@@ -5268,7 +5268,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} size storage-cephfs-volume-conf
 :condition: "appropriate driver"
 :defaultdesc: "same as `volume.size`"
-:scope: "local"
+:scope: "global"
 :shortdesc: "Size/quota of the storage volume"
 :type: "string"
 
@@ -5434,7 +5434,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} size storage-dir-volume-conf
 :condition: "appropriate driver"
 :defaultdesc: "same as `volume.size`"
-:scope: "local"
+:scope: "global"
 :shortdesc: "Size/quota of the storage volume"
 :type: "string"
 
@@ -5652,7 +5652,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} size storage-lvm-volume-conf
 :condition: "appropriate driver"
 :defaultdesc: "same as `volume.size`"
-:scope: "local"
+:scope: "global"
 :shortdesc: "Size/quota of the storage volume"
 :type: "string"
 
@@ -6033,7 +6033,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} size storage-zfs-volume-conf
 :condition: "appropriate driver"
 :defaultdesc: "same as `volume.size`"
-:scope: "local"
+:scope: "global"
 :shortdesc: "Size/quota of the storage volume"
 :type: "string"
 
