@@ -496,9 +496,10 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 		resultList := make([]string, 0, len(resultFullList))
 		for i := range resultFullList {
 			instancePath := "instances"
-			if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+			routeName := mux.CurrentRoute(r).GetName()
+			if routeName == "container" {
 				instancePath = "containers"
-			} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
+			} else if routeName == "vm" {
 				instancePath = "virtual-machines"
 			}
 
