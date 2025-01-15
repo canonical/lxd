@@ -51,6 +51,8 @@ import (
 //go:generate mapper method -i -e identity DeleteOne-by-AuthMethod-and-Identifier
 //go:generate mapper method -i -e identity DeleteMany-by-Name-and-Type
 //go:generate mapper method -i -e identity Update struct=Identity
+//go:generate goimports -w identities.mapper.go
+//go:generate goimports -w identities.interface.mapper.go
 
 // AuthMethod is a database representation of an authentication method.
 //

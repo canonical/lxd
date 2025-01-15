@@ -81,7 +81,7 @@ Use the following command to set configuration options for a storage bucket:
 
     lxc storage bucket set <pool_name> <bucket_name> <key> <value>
 
-For example, to set the quota size of a bucket, use the following command:
+For example, to set the size (quota) of a bucket, use the following command:
 
     lxc storage bucket set my-pool my-bucket size 1MiB
 

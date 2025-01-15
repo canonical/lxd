@@ -80,10 +80,9 @@ test_image_list_all_aliases() {
     local sum
     sum="$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
     lxc image alias create zzz "$sum"
-    lxc image list | grep -vq zzz
     # both aliases are listed if the "aliases" column is included in output
-    lxc image list -c L | grep -q testimage
-    lxc image list -c L | grep -q zzz
+    lxc image list -c L | grep -qwF testimage
+    lxc image list -c L | grep -qwF zzz
 
 }
 

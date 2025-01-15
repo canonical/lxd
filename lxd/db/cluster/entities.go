@@ -246,7 +246,7 @@ func GetEntityURL(ctx context.Context, tx *sql.Tx, entityType entity.Type, entit
 // This method combines the above queries into a single query using the UNION operator. If no entity types are given, this function will
 // return URLs for all entity types. If no project name is given, this function will return URLs for all projects. This may result in
 // stupendously large queries, so use with caution!
-func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, filteringEntityTypes ...entity.Type) (map[entity.Type]map[int]*api.URL, error) { //nolint:unused // This will be used in a forthcoming feature.
+func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, filteringEntityTypes ...entity.Type) (map[entity.Type]map[int]*api.URL, error) {
 	var stmts []string
 	var args []any
 	result := make(map[entity.Type]map[int]*api.URL)
@@ -370,7 +370,7 @@ func PopulateEntityReferencesFromURLs(ctx context.Context, tx *sql.Tx, entityURL
 	}
 
 	stmts := make([]string, 0, len(entityURLs))
-	var args []any
+	var args []any //nolint:prealloc
 	for i, entityURL := range entityURLs {
 		// Parse the URL to get the majority of the fields of the EntityRef for that URL.
 		entityType, projectName, location, pathArgs, err := entity.ParseURL(entityURL.URL)

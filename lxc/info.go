@@ -40,7 +40,7 @@ lxc info [<remote>:] [--resources]
     For LXD server information.`))
 
 	cmd.RunE = c.run
-	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Show the instance's last 100 log lines?"))
+	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Show the instance's last 100 log lines"))
 	cmd.Flags().BoolVar(&c.flagResources, "resources", false, i18n.G("Show the resources available to the server"))
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 

@@ -637,7 +637,7 @@ func networkACLLogGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
-	log, err := netACL.GetLog(clientType)
+	log, err := netACL.GetLog(r.Context(), clientType)
 	if err != nil {
 		return response.SmartError(err)
 	}

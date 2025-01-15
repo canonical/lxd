@@ -1398,7 +1398,6 @@ This option specifies whether to use the HAProxy PROXY protocol to transmit send
 <!-- config group device-proxy-device-conf end -->
 <!-- config group device-tpm-device-conf start -->
 ```{config:option} path device-tpm-device-conf
-:condition: "containers"
 :required: "for containers"
 :shortdesc: "Path inside the container"
 :type: "string"
@@ -1406,7 +1405,6 @@ For example: `/dev/tpm0`
 ```
 
 ```{config:option} pathrm device-tpm-device-conf
-:condition: "containers"
 :required: "for containers"
 :shortdesc: "Resource manager path inside the container"
 :type: "string"
@@ -5873,7 +5871,9 @@ the specified size is used to set either `volblocksize` or `recordsize` in ZFS.
 :shortdesc: "Whether to delegate the ZFS dataset"
 :type: "bool"
 This option controls whether to delegate the ZFS dataset and anything underneath it to the
-container or containers that use it. This allows using the `zfs` command in the container.
+container or containers that use it. When used in conjunction with
+{config:option}`instance-security:security.nesting`, this allows
+using the `zfs` command in the container.
 ```
 
 ```{config:option} zfs.remove_snapshots storage-zfs-volume-conf

@@ -1,5 +1,9 @@
 package cluster
 
+// Have to run goimports first because the .mapper files are being generated at the same time.
+// This causes "freshschema" to be unable to import the cluster package.
+//go:generate go run ../freshschema/main.go cluster
+
 import (
 	"context"
 	"database/sql"
@@ -30,7 +34,7 @@ func FreshSchema() string {
 // SchemaDotGo refreshes the schema.go file in this package, using the updates
 // defined here.
 func SchemaDotGo() error {
-	return schema.DotGo(updates, "schema")
+	return schema.DotGo(updates, "cluster", "schema.go")
 }
 
 // SchemaVersion is the current version of the cluster database schema.

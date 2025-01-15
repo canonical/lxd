@@ -1605,7 +1605,6 @@
 				"keys": [
 					{
 						"path": {
-							"condition": "containers",
 							"longdesc": "For example: `/dev/tpm0`",
 							"required": "for containers",
 							"shortdesc": "Path inside the container",
@@ -1614,7 +1613,6 @@
 					},
 					{
 						"pathrm": {
-							"condition": "containers",
 							"longdesc": "For example: `/dev/tpmrm0`",
 							"required": "for containers",
 							"shortdesc": "Resource manager path inside the container",
@@ -6554,7 +6552,7 @@
 						"zfs.delegate": {
 							"condition": "ZFS 2.2 or higher",
 							"defaultdesc": "same as `volume.zfs.delegate`",
-							"longdesc": "This option controls whether to delegate the ZFS dataset and anything underneath it to the\ncontainer or containers that use it. This allows using the `zfs` command in the container.",
+							"longdesc": "This option controls whether to delegate the ZFS dataset and anything underneath it to the\ncontainer or containers that use it. When used in conjunction with\n{config:option}`instance-security:security.nesting`, this allows\nusing the `zfs` command in the container.",
 							"shortdesc": "Whether to delegate the ZFS dataset",
 							"type": "bool"
 						}

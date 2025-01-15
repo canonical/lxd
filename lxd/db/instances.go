@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -106,37 +107,34 @@ func (c *ClusterTx) GetNodeAddressOfInstance(ctx context.Context, project string
 		args = append(args, instType)
 	}
 
-	if strings.Contains(name, shared.SnapshotDelimiter) {
-		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-
+	instanceName, snapshotName, found := strings.Cut(name, shared.SnapshotDelimiter)
+	if found {
 		// Instance name filter.
 		filters.WriteString(" AND instances.name = ?")
-		args = append(args, parts[0])
+		args = append(args, instanceName)
 
 		// Snapshot name filter.
 		filters.WriteString(" AND instances_snapshots.name = ?")
-		args = append(args, parts[1])
+		args = append(args, snapshotName)
 
-		stmt = fmt.Sprintf(`
+		stmt = `
 SELECT nodes.id, nodes.address
   FROM nodes
   JOIN instances ON instances.node_id = nodes.id
   JOIN projects ON projects.id = instances.project_id
   JOIN instances_snapshots ON instances_snapshots.instance_id = instances.id
- WHERE %s
-`, filters.String())
+ WHERE ` + filters.String()
 	} else {
 		// Instance name filter.
 		filters.WriteString(" AND instances.name = ?")
-		args = append(args, name)
+		args = append(args, instanceName)
 
-		stmt = fmt.Sprintf(`
+		stmt = `
 SELECT nodes.id, nodes.address
   FROM nodes
   JOIN instances ON instances.node_id = nodes.id
   JOIN projects ON projects.id = instances.project_id
- WHERE %s
-`, filters.String())
+ WHERE ` + filters.String()
 	}
 
 	var address string
@@ -199,7 +197,7 @@ func (c *ClusterTx) GetInstancesByMemberAddress(ctx context.Context, offlineThre
 	`)
 
 	// Project filter.
-	q.WriteString(fmt.Sprintf("WHERE projects.name IN %s", query.Params(len(projects))))
+	q.WriteString("WHERE projects.name IN " + query.Params(len(projects)))
 	for _, project := range projects {
 		args = append(args, project)
 	}
@@ -364,7 +362,7 @@ func (c *ClusterTx) instanceConfigFill(ctx context.Context, snapshotsMode bool, 
 
 		first = false
 
-		q.WriteString(fmt.Sprintf("%d", instanceID))
+		q.WriteString(strconv.Itoa(instanceID))
 	}
 
 	q.WriteString(`)`)
@@ -444,7 +442,7 @@ func (c *ClusterTx) instanceDevicesFill(ctx context.Context, snapshotsMode bool,
 
 		first = false
 
-		q.WriteString(fmt.Sprintf("%d", instanceID))
+		q.WriteString(strconv.Itoa(instanceID))
 	}
 
 	q.WriteString(`)`)
@@ -528,7 +526,7 @@ func (c *ClusterTx) instanceProfilesFill(ctx context.Context, snapshotsMode bool
 
 		first = false
 
-		q.WriteString(fmt.Sprintf("%d", instanceID))
+		q.WriteString(strconv.Itoa(instanceID))
 	}
 
 	q.WriteString(`)
@@ -899,7 +897,7 @@ func (c *ClusterTx) GetInstancePool(ctx context.Context, projectName string, ins
 	// unique, and their storage volumes carry the same name, their storage
 	// volumes are unique too.
 	poolName := ""
-	query := fmt.Sprintf(`
+	query := `
 SELECT storage_pools.name FROM storage_pools
   JOIN storage_volumes_all ON storage_pools.id=storage_volumes_all.storage_pool_id
   JOIN instances ON instances.name=storage_volumes_all.name
@@ -908,7 +906,7 @@ SELECT storage_pools.name FROM storage_pools
    AND storage_volumes_all.name=?
    AND storage_volumes_all.type IN (?,?)
    AND storage_volumes_all.project_id = instances.project_id
-   AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN %s)`, query.Params(len(remoteDrivers)))
+   AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN ` + query.Params(len(remoteDrivers)) + `)`
 	inargs := []any{projectName, instanceName, cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM, c.nodeID}
 	outargs := []any{&poolName}
 
@@ -930,12 +928,12 @@ SELECT storage_pools.name FROM storage_pools
 
 // DeleteInstance removes the instance with the given name from the database.
 func (c *ClusterTx) DeleteInstance(ctx context.Context, project, name string) error {
-	if strings.Contains(name, shared.SnapshotDelimiter) {
-		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-		return cluster.DeleteInstanceSnapshot(ctx, c.tx, project, parts[0], parts[1])
+	instance, snapshot, found := strings.Cut(name, shared.SnapshotDelimiter)
+	if found {
+		return cluster.DeleteInstanceSnapshot(ctx, c.tx, project, instance, snapshot)
 	}
 
-	return cluster.DeleteInstance(ctx, c.tx, project, name)
+	return cluster.DeleteInstance(ctx, c.tx, project, instance)
 }
 
 // GetInstanceProjectAndName returns the project and the name of the instance
@@ -1048,6 +1046,11 @@ ORDER BY instances_snapshots.creation_date, instances_snapshots.id
 	inargs := []any{project, name}
 	outfmt := []any{numstr}
 
+	// Check if pattern is valid.
+	if !strings.Contains(pattern, "%d") {
+		return 0
+	}
+
 	results, err := queryScan(ctx, c, q, inargs, outfmt)
 	if err != nil {
 		return 0
@@ -1059,10 +1062,8 @@ ORDER BY instances_snapshots.creation_date, instances_snapshots.id
 			continue
 		}
 
-		fields := strings.SplitN(pattern, "%d", 2)
-
 		var num int
-		count, err := fmt.Sscanf(snapOnlyName, fmt.Sprintf("%s%%d%s", fields[0], fields[1]), &num)
+		count, err := fmt.Sscanf(snapOnlyName, pattern, &num)
 		if err != nil || count != 1 {
 			continue
 		}

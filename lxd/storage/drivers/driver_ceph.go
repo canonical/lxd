@@ -158,7 +158,7 @@ func (d *ceph) Create() error {
 	if !poolExists {
 		// Create new osd pool.
 		_, err := shared.TryRunCommand("ceph",
-			"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
+			"--name", "client."+d.config["ceph.user.name"],
 			"--cluster", d.config["ceph.cluster_name"],
 			"osd",
 			"pool",
@@ -217,7 +217,7 @@ func (d *ceph) Create() error {
 
 		// Use existing OSD pool.
 		msg, err := shared.RunCommand("ceph",
-			"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
+			"--name", "client."+d.config["ceph.user.name"],
 			"--cluster", d.config["ceph.cluster_name"],
 			"osd",
 			"pool",
@@ -388,7 +388,7 @@ func (d *ceph) GetResources() (*api.ResourcesStoragePool, error) {
 
 	err := shared.RunCommandWithFds(context.TODO(), nil, &stdout,
 		"ceph",
-		"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
+		"--name", "client."+d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
 		"df",
 		"-f", "json")

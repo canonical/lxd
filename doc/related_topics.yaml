@@ -1,6 +1,6 @@
 # This file defines substitutions for links to related topics, which
 # should make it easier to keep links in sync.
-{clustering_exp: "Explanation:\n\n- {ref}`exp-clustering`",
+{clustering_exp: "Explanation:\n\n- {ref}`exp-clusters`",
 clustering_how: "How-to guides:\n\n- {ref}`clustering`",
 clustering_ref: "Reference:\n\n- {ref}`cluster-member-config`",
 getting_started_exp: "Explanation:\n\n- {ref}`containers-and-vms`",

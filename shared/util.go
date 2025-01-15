@@ -216,12 +216,12 @@ func HostPath(path string) string {
 
 	// Check if the path is already snap-aware
 	for _, prefix := range []string{"/dev", "/snap", "/var/snap", "/var/lib/snapd"} {
-		if path == prefix || strings.HasPrefix(path, fmt.Sprintf("%s/", prefix)) {
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
 			return path
 		}
 	}
 
-	return fmt.Sprintf("/var/lib/snapd/hostfs%s", path)
+	return "/var/lib/snapd/hostfs" + path
 }
 
 // VarPath returns the provided path elements joined by a slash and
@@ -241,12 +241,12 @@ func VarPath(path ...string) string {
 // set, this path is $LXD_DIR/cache, otherwise it is /var/cache/lxd.
 func CachePath(path ...string) string {
 	varDir := os.Getenv("LXD_DIR")
-	logDir := "/var/cache/lxd"
+	cacheDir := "/var/cache/lxd"
 	if varDir != "" {
-		logDir = filepath.Join(varDir, "cache")
+		cacheDir = filepath.Join(varDir, "cache")
 	}
 
-	items := []string{logDir}
+	items := []string{cacheDir}
 	items = append(items, path...)
 	return filepath.Join(items...)
 }
@@ -909,11 +909,6 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 			_ = os.Remove(f.Name())
 		})
 
-		err = os.Chmod(f.Name(), 0600)
-		if err != nil {
-			return []byte{}, err
-		}
-
 		_, err = f.Write(inContent)
 		if err != nil {
 			return []byte{}, err
@@ -924,7 +919,7 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 			return []byte{}, err
 		}
 
-		path = fmt.Sprintf("%s.yaml", f.Name())
+		path = f.Name() + ".yaml"
 		err = os.Rename(f.Name(), path)
 		if err != nil {
 			return []byte{}, err
@@ -1193,9 +1188,9 @@ func SetProgressMetadata(metadata map[string]any, stage, displayPrefix string, p
 			metadata[stage+"_progress"] = fmt.Sprintf("%s: %d%%", displayPrefix, percent)
 		}
 	} else if processed > 0 {
-		metadata[stage+"_progress"] = fmt.Sprintf("%s: %s (%s/s)", displayPrefix, units.GetByteSizeString(processed, 2), units.GetByteSizeString(speed, 2))
+		metadata[stage+"_progress"] = displayPrefix + ": " + units.GetByteSizeString(processed, 2) + " (" + units.GetByteSizeString(speed, 2) + "/s)"
 	} else {
-		metadata[stage+"_progress"] = fmt.Sprintf("%s: %s/s", displayPrefix, units.GetByteSizeString(speed, 2))
+		metadata[stage+"_progress"] = displayPrefix + ": " + units.GetByteSizeString(speed, 2) + "/s"
 	}
 }
 
@@ -1513,4 +1508,16 @@ func ApplyDeviceOverrides(localDevices map[string]map[string]string, profileDevi
 	}
 
 	return localDevices, nil
+}
+
+// IsMicroOVNUsed returns whether the current LXD deployment is using a built-in openvswitch
+// or is connected to MicroOVN, which in this case, would make `/run/openvswitch` a symlink to
+// `/var/snap/lxd/common/microovn/chassis/switch`.
+func IsMicroOVNUsed() bool {
+	targetPath, err := os.Readlink("/run/openvswitch")
+	if err == nil && strings.HasSuffix(targetPath, "/microovn/chassis/switch") {
+		return true
+	}
+
+	return false
 }

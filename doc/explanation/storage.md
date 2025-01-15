@@ -1,5 +1,5 @@
 (exp-storage)=
-# About storage pools, volumes and buckets
+# Storage pools, volumes, and buckets
 
 LXD stores its data in storage pools, divided into storage volumes of different content types (like images or instances).
 You could think of a storage pool as the disk that is used to store data, while storage volumes are different partitions on this disk that are used for specific purposes.
@@ -66,7 +66,7 @@ The loop files reside in `/var/snap/lxd/common/lxd/disks/` if you are using the 
 
 Loop files usually cannot be shrunk.
 They will grow up to the configured limit, but deleting instances or images will not cause the file to shrink.
-You can increase their size though; see {ref}`storage-resize-pool`.
+You can increase their size (quota) though; see {ref}`storage-resize-pool`.
 
 #### Remote storage
 
@@ -161,7 +161,7 @@ Each storage volume uses one of the following content types:
 
 `iso`
 : This content type is used for custom ISO volumes.
-  A custom storage volume of type `iso` can only be created by importing an ISO file using [`lxc storage volume import`](lxc_storage_volume_import.md).
+  A custom storage volume of type `iso` can only be created by importing an ISO file using [`lxc storage volume import`](lxc_storage_volume_import.md) or by copying another volume.
 
   Custom storage volumes of content type `iso` can only be attached to virtual machines.
   They can be attached to multiple machines simultaneously as they are always read-only.

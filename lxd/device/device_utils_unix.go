@@ -20,17 +20,16 @@ import (
 // unixDefaultMode default mode to create unix devices with if not specified in device config.
 const unixDefaultMode = 0660
 
-// unixDeviceAttributes returns the decice type, major and minor numbers for a device.
-func unixDeviceAttributes(path string) (string, uint32, uint32, error) {
+// unixDeviceAttributes returns the device type, major and minor numbers for a device.
+func unixDeviceAttributes(path string) (dType string, major uint32, minor uint32, err error) {
 	// Get a stat struct from the provided path
 	stat := unix.Stat_t{}
-	err := unix.Stat(path, &stat)
+	err = unix.Stat(path, &stat)
 	if err != nil {
 		return "", 0, 0, err
 	}
 
 	// Check what kind of file it is
-	dType := ""
 	if stat.Mode&unix.S_IFMT == unix.S_IFBLK {
 		dType = "b"
 	} else if stat.Mode&unix.S_IFMT == unix.S_IFCHR {
@@ -40,8 +39,9 @@ func unixDeviceAttributes(path string) (string, uint32, uint32, error) {
 	}
 
 	// Return the device information
-	major := unix.Major(uint64(stat.Rdev))
-	minor := unix.Minor(uint64(stat.Rdev))
+	major = unix.Major(uint64(stat.Rdev))
+	minor = unix.Minor(uint64(stat.Rdev))
+
 	return dType, major, minor, nil
 }
 
@@ -326,12 +326,9 @@ func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, devi
 // device to ascertain these attributes. If defaultMode is true or mode is supplied in the device
 // config then the origin device does not need to be accessed for its file mode.
 func unixDeviceSetupCharNum(s *state.State, devicesPath string, typePrefix string, deviceName string, m deviceConfig.Device, major uint32, minor uint32, path string, defaultMode bool, runConf *deviceConfig.RunConfig) error {
-	configCopy := deviceConfig.Device{}
-	for k, v := range m {
-		configCopy[k] = v
-	}
+	configCopy := m.Clone()
 
-	// Overridng these in the config copy should avoid the need for unixDeviceSetup to stat
+	// Overriding these in the config copy should avoid the need for unixDeviceSetup to stat
 	// the origin device to ascertain this information.
 	configCopy["type"] = "unix-char"
 	configCopy["major"] = fmt.Sprintf("%d", major)
@@ -347,12 +344,9 @@ func unixDeviceSetupCharNum(s *state.State, devicesPath string, typePrefix strin
 // device to ascertain these attributes. If defaultMode is true or mode is supplied in the device
 // config then the origin device does not need to be accessed for its file mode.
 func unixDeviceSetupBlockNum(s *state.State, devicesPath string, typePrefix string, deviceName string, m deviceConfig.Device, major uint32, minor uint32, path string, defaultMode bool, runConf *deviceConfig.RunConfig) error {
-	configCopy := deviceConfig.Device{}
-	for k, v := range m {
-		configCopy[k] = v
-	}
+	configCopy := m.Clone()
 
-	// Overridng these in the config copy should avoid the need for unixDeviceSetup to stat
+	// Overriding these in the config copy should avoid the need for unixDeviceSetup to stat
 	// the origin device to ascertain this information.
 	configCopy["type"] = "unix-block"
 	configCopy["major"] = fmt.Sprintf("%d", major)

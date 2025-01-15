@@ -1,5 +1,5 @@
 (about-images)=
-# About images
+# Local and remote images
 
 ```{youtube} https://www.youtube.com/watch?v=wT7IDjo0Wgg
 ```

@@ -236,6 +236,7 @@ func (c *cmdStorageVolumeAttach) run(cmd *cobra.Command, args []string) error {
 		case "block", "iso":
 			devName = args[3]
 		case "filesystem":
+			// If using a filesystem volume, the path must also be provided as the fourth argument.
 			if !strings.HasPrefix(args[3], "/") {
 				devPath = path.Join("/", args[3])
 			} else {
@@ -2359,7 +2360,7 @@ func (c *cmdStorageVolumeUnset) command() *cobra.Command {
 Supported types are custom, image, container and virtual-machine.
 
 lxc storage volume unset default data size
-    Remotes the size/quota of a custom volume "data" in pool "default".
+    Removes the size/quota of a custom volume "data" in pool "default".
 
 lxc storage volume unset default virtual-machine/data snapshots.expiry
     Removes the snapshot expiration period for a virtual machine "data" in pool "default".`))
@@ -2416,10 +2417,10 @@ func (c *cmdStorageVolumeSnapshot) command() *cobra.Command {
 	cmd.Short = i18n.G("Snapshot storage volumes")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Snapshot storage volumes`))
-	cmd.Example = cli.FormatSection("", i18n.G(`lxc storage volume snapshot create default v1 snap0
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc storage volume snapshot default v1 snap0
        Create a snapshot of "v1" in pool "default" called "snap0".
 
-lxc storage volume snapshot create default v1 snap0 < config.yaml
+lxc storage volume snapshot default v1 snap0 < config.yaml
        Create a snapshot of "v1" in pool "default" called "snap0" with the configuration from "config.yaml".`))
 
 	cmd.RunE = c.run

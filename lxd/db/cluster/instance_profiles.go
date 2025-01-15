@@ -23,6 +23,8 @@ import (
 //go:generate mapper method -i -e instance_profile GetMany struct=Instance
 //go:generate mapper method -i -e instance_profile Create struct=Instance
 //go:generate mapper method -i -e instance_profile DeleteMany struct=Instance
+//go:generate goimports -w instance_profiles.mapper.go
+//go:generate goimports -w instance_profiles.interface.mapper.go
 
 // InstanceProfile is an association table struct that associates Instances
 // to Profiles.

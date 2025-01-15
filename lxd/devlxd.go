@@ -315,8 +315,9 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 		request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
 
 		conn := ucred.GetConnFromContext(r.Context())
-		cred, ok := pidMapper.m[conn.(*net.UnixConn)]
-		if !ok {
+
+		cred := pidMapper.GetConnUcred(conn.(*net.UnixConn))
+		if cred == nil {
 			http.Error(w, errPIDNotInContainer.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -436,6 +437,14 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	default:
 		logger.Debug("Unknown state for devlxd connection", logger.Ctx{"state": state.String()})
 	}
+}
+
+// GetConnUcred returns a previously stored ucred associated to a connection.
+// Returns nil if no ucred found for the connection.
+func (m *ConnPidMapper) GetConnUcred(conn *net.UnixConn) *unix.Ucred {
+	m.mLock.Lock()
+	defer m.mLock.Unlock()
+	return pidMapper.m[conn]
 }
 
 var errPIDNotInContainer = errors.New("Process ID not found in container")

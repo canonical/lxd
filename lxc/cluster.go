@@ -680,9 +680,10 @@ func (c *cmdClusterEnable) command() *cobra.Command {
   This command turns a non-clustered LXD server into the first member of a new
   LXD cluster, which will have the given name.
 
-  It's required that the LXD is already available on the network. You can check
-  that by running 'lxc config get core.https_address', and possibly set a value
-  for the address if not yet set.`))
+  It's required that LXD is already available on the network. You can check
+  this by running 'lxc config get core.https_address'. If either an IP address
+  and port is displayed, or both, LXD is already available on the network. If
+  no value is set, use 'lxc config set core.https_address' to set it.`))
 
 	cmd.RunE = c.run
 
@@ -1292,7 +1293,7 @@ func (c *cmdClusterEvacuate) command() *cobra.Command {
 	cmdAction := cmdClusterEvacuateAction{global: c.global}
 	c.action = &cmdAction
 
-	cmd := c.action.command("evacuate")
+	cmd := c.action.command()
 	cmd.Aliases = []string{"evac"}
 	cmd.Use = usage("evacuate", i18n.G("[<remote>:]<member>"))
 	cmd.Short = i18n.G("Evacuate cluster member")
@@ -1323,7 +1324,7 @@ func (c *cmdClusterRestore) command() *cobra.Command {
 	cmdAction := cmdClusterEvacuateAction{global: c.global}
 	c.action = &cmdAction
 
-	cmd := c.action.command("restore")
+	cmd := c.action.command()
 	cmd.Use = usage("restore", i18n.G("[<remote>:]<member>"))
 	cmd.Short = i18n.G("Restore cluster member")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Restore cluster member`))
@@ -1341,7 +1342,7 @@ func (c *cmdClusterRestore) command() *cobra.Command {
 	return cmd
 }
 
-func (c *cmdClusterEvacuateAction) command(action string) *cobra.Command {
+func (c *cmdClusterEvacuateAction) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.RunE = c.run
 

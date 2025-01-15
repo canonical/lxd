@@ -1,10 +1,10 @@
 ---
-discourse: 8767,7519,9281
+discourse: lxc:8767,lxc:7519,lxc:9281
 relatedlinks: '[LXD&#32;virtual&#32;machines:&#32;an&#32;overview](https://ubuntu.com/blog/lxd-virtual-machines-an-overview)'
 ---
 
 (containers-and-vms)=
-# About containers and VMs
+# Containers and VMs
 
 LXD provides support for two different types of {ref}`instances <expl-instances>`: *system containers* and *virtual machines*.
 

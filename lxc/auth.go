@@ -220,7 +220,8 @@ func (c *cmdGroupEdit) helpTemplate() string {
 		`### This is a YAML representation of the group.
 ### Any line starting with a '# will be ignored.
 ###
-### A group has the following format:
+### NOTE: All group information is shown but only the description and permissions can be modified.
+### 
 ### name: my-first-group
 ### description: My first group.
 ### permissions:
@@ -228,17 +229,14 @@ func (c *cmdGroupEdit) helpTemplate() string {
 ###   url: /1.0/projects/default
 ###   entitlement: can_view
 ### identities:
-### - authentication_method: oidc
-###   type: OIDC client
-###   identifier: jane.doe@example.com
-###   name: Jane Doe
-###   metadata:
-###     subject: auth0|123456789
+###   oidc:
+###   - jane.doe@example.com
+###   tls:
+###   - eaa46a1b73827350e0543949fb161410c50e950d4cb9802fc58dbfbd5700e508
 ### identity_provider_groups:
 ### - sales
 ### - operations
-###
-### Note that all group information is shown but only the description and permissions can be modified`)
+`)
 }
 
 func (c *cmdGroupEdit) run(cmd *cobra.Command, args []string) error {
@@ -1542,7 +1540,7 @@ func (c *cmdPermissionList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	i := 0
-	var displayPermissions []*displayPermission
+	displayPermissions := make([]*displayPermission, 0, len(permissionsInfo))
 	displayPermissionIdx := make(map[string]int)
 	for _, perm := range permissionsInfo {
 		idx, ok := displayPermissionIdx[perm.EntityReference]

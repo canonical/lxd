@@ -230,7 +230,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 		// ---
 		//  type: string
 		//  shortdesc: Name of the PowerFlex protection domain
-		"powerflex.domain": validate.Optional(validate.IsAny),
+		"powerflex.domain": validate.IsAny,
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.mode)
 		// The mode gets discovered automatically if the system provides the necessary kernel modules.
 		// This can be either `nvme` or `sdc`.

@@ -1,5 +1,5 @@
 ---
-discourse: 16635
+discourse: lxc:16635
 ---
 
 (move-instances)=

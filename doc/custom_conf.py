@@ -90,8 +90,8 @@ html_context = {
 
     # ru-fu: we're using different Discourses
     'discourse_prefix': {
-        'lxc': 'https://discuss.linuxcontainers.org/t/',
-        'ubuntu': 'https://discourse.ubuntu.com/t/'
+        'ubuntu': 'https://discourse.ubuntu.com/t/',
+        'lxc': 'https://discuss.linuxcontainers.org/t/'
     },
 
     # Change to the Mattermost channel you want to link to
@@ -145,7 +145,8 @@ slug = "lxd"
 redirects = {
     'howto/instances_snapshots/index': '../instances_backup/',
     'reference/network_external/index': '../networks/',
-    'explanation/containers_and_vms/index': '../instances/'
+    'explanation/containers_and_vms/index': '../instances/',
+    'explanation/clustering/index': '../clusters/'
 }
 
 ############################################################

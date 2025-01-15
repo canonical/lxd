@@ -221,7 +221,7 @@ EOF
     lxc exec c1 --project test -- hostname
 
     # Test recover after pool DB config deletion too.
-    poolConfigBefore=$(lxd sql global "SELECT key,value FROM storage_pools_config JOIN storage_pools ON storage_pools.id = storage_pools_config.storage_pool_id WHERE storage_pools.name = '${poolName}' ORDER BY key")
+    poolConfigBefore=$(lxd sql global --format csv "SELECT key,value FROM storage_pools_config JOIN storage_pools ON storage_pools.id = storage_pools_config.storage_pool_id WHERE storage_pools.name = '${poolName}' ORDER BY key")
     poolSource=$(lxc storage get "${poolName}" source)
     poolExtraConfig=""
 
@@ -259,14 +259,14 @@ EOF
 
     # Check recovered pool config (from instance backup file) matches what originally was there.
     lxc storage show "${poolName}"
-    poolConfigAfter=$(lxd sql global "SELECT key,value FROM storage_pools_config JOIN storage_pools ON storage_pools.id = storage_pools_config.storage_pool_id WHERE storage_pools.name = '${poolName}' ORDER BY key")
+    poolConfigAfter=$(lxd sql global --format csv "SELECT key,value FROM storage_pools_config JOIN storage_pools ON storage_pools.id = storage_pools_config.storage_pool_id WHERE storage_pools.name = '${poolName}' ORDER BY key")
     echo "Before:"
     echo "${poolConfigBefore}"
 
     echo "After:"
     echo "${poolConfigAfter}"
 
-    [ "${poolConfigBefore}" =  "${poolConfigAfter}" ] || false
+    [ "${poolConfigBefore}" = "${poolConfigAfter}" ]
     lxc storage show "${poolName}"
 
     lxc info c1 | grep snap0

@@ -72,6 +72,7 @@ ESA
 ESM
 ETag
 failover
+filesystem
 firmware
 FQDNs
 gapped
@@ -102,6 +103,7 @@ IdP
 iGPU
 iGPUs
 incrementing
+intra
 InfiniBand
 init
 initramfs
@@ -141,6 +143,7 @@ MiB
 Mibit
 MicroCeph
 MicroCloud
+MicroOVN
 MII
 MinIO
 MITM
@@ -153,6 +156,7 @@ NATed
 natively
 NDP
 netmask
+NBD
 NFS
 NIC
 NICs
@@ -169,6 +173,7 @@ OpenID
 OpenMetrics
 OpenSSL
 OpenSUSE
+OpenVSwitch
 OSD
 overcommitting
 OverlayFS
@@ -198,6 +203,7 @@ qdisc
 qdiscs
 QEMU
 QFQ
+QMP
 qgroup
 qgroups
 RADOS
@@ -219,6 +225,7 @@ scriptlet
 SDC
 SDK
 SDN
+SDNs
 SDS
 SDT
 SeaBIOS

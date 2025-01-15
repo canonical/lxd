@@ -47,10 +47,6 @@ func ValidName(instanceName string, isSnapshot bool) error {
 			return fmt.Errorf("Invalid instance snapshot name %q: Cannot contain spaces or slashes", snapshotName)
 		}
 	} else {
-		if strings.Contains(instanceName, shared.SnapshotDelimiter) {
-			return fmt.Errorf("Invalid instance name %q: Cannot contain slashes", instanceName)
-		}
-
 		err := validate.IsHostname(instanceName)
 		if err != nil {
 			return fmt.Errorf("Invalid instance name %q: %w", instanceName, err)
@@ -1057,7 +1053,7 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  liveupdate: no
 	//  condition: virtual machine
 	//  shortdesc: The guest owner's `base64`-encoded Diffie-Hellman key
-	"security.sev.session.dh": validate.Optional(validate.IsAny),
+	"security.sev.session.dh": validate.IsAny,
 
 	// lxdmeta:generate(entities=instance; group=security; key=security.sev.session.data)
 	//
@@ -1067,7 +1063,7 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  liveupdate: no
 	//  condition: virtual machine
 	//  shortdesc: The guest owner's `base64`-encoded session blob
-	"security.sev.session.data": validate.Optional(validate.IsAny),
+	"security.sev.session.data": validate.IsAny,
 
 	// lxdmeta:generate(entities=instance; group=miscellaneous; key=user.*)
 	// User keys can be used in search.

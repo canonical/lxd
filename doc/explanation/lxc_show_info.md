@@ -1,5 +1,5 @@
 (lxc-show-info)=
-# About `lxc` `show` and `info`
+# `lxc` `show` and `info`
 
 For the entities managed by LXD, the `lxc` command provides a `list` sub-command, and might provide `show` and `info` sub-commands.
 The purpose of the `info` sub-command is to show current state information, and the purpose of the `show` sub-command is to show configuration information and how the entity is used by other entities.

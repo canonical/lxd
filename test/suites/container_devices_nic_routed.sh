@@ -59,17 +59,10 @@ test_container_devices_nic_routed() {
   lxc init testimage "${ctName}"
 
   # Check vlan option not allowed without parent option.
-  ! lxc config device add "${ctName}" eth0 nic \
-    name=eth0 \
-    nictype=routed \
-    vlan=1234 || false
+  ! lxc config device add "${ctName}" eth0 nic name=eth0 nictype=routed vlan=1234 || false
 
   # Check VLAN parent interface creation and teardown.
-  lxc config device add "${ctName}" eth0 nic \
-    name=eth0 \
-    nictype=routed \
-    parent=${ctName} \
-    vlan=1235
+  lxc config device add "${ctName}" eth0 nic name=eth0 nictype=routed parent=${ctName} vlan=1235
   lxc start "${ctName}"
   stat "/sys/class/net/${ctName}.1235"
   lxc stop -f "${ctName}"
@@ -77,10 +70,7 @@ test_container_devices_nic_routed() {
   lxc config device remove "${ctName}" eth0
 
   # Add routed NIC to instance.
-  lxc config device add "${ctName}" eth0 nic \
-    name=eth0 \
-    nictype=routed \
-    parent=${ctName}
+  lxc config device add "${ctName}" eth0 nic name=eth0 nictype=routed parent=${ctName}
 
   # Check starting routed NIC with IPs in use on parent network is prevented.
   lxc config device set "${ctName}" eth0 ipv4.address="192.0.2.254"
@@ -99,21 +89,16 @@ test_container_devices_nic_routed() {
   lxc config device unset "${ctName}" eth0 ipv6.neighbor_probe
 
   # Check starting routed NIC with unused IPs.
-  lxc config device set "${ctName}" eth0 \
-    ipv4.address="192.0.2.1${ipRand}" \
-    ipv6.address="2001:db8::1${ipRand}" \
-    ipv4.routes="192.0.3.0/24" \
-    ipv6.routes="2001:db7::/64" \
-    mtu=1600
+  lxc config device set "${ctName}" eth0 ipv4.address="192.0.2.1${ipRand}" ipv6.address="2001:db8::1${ipRand}" ipv4.routes="192.0.3.0/24" ipv6.routes="2001:db7::/64" mtu=1600
   lxc start "${ctName}"
 
   ctHost=$(lxc config get "${ctName}" volatile.eth0.host_name)
   # Check profile routes are applied
-  if ! ip -4 r list dev "${ctHost}"| grep "192.0.3.0/24" ; then
+  if ! ip -4 r list dev "${ctHost}"| grep -F "192.0.3.0/24" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ! ip -6 r list dev "${ctHost}" | grep "2001:db7::/64" ; then
+  if ! ip -6 r list dev "${ctHost}" | grep -F "2001:db7::/64" ; then
     echo "ipv6.routes invalid"
     false
   fi
@@ -122,8 +107,8 @@ test_container_devices_nic_routed() {
   lxc exec "${ctName}" -- ip a | grep "inet 192.0.2.1${ipRand}/32 scope global eth0"
 
   # Check neighbour proxy entries added to parent interface.
-  ip neigh show proxy dev "${ctName}" | grep "192.0.2.1${ipRand}"
-  ip neigh show proxy dev "${ctName}" | grep "2001:db8::1${ipRand}"
+  ip neigh show proxy dev "${ctName}" | grep -F "192.0.2.1${ipRand}"
+  ip neigh show proxy dev "${ctName}" | grep -F "2001:db8::1${ipRand}"
 
   # Check custom MTU is applied.
   if ! lxc exec "${ctName}" -- ip link show eth0 | grep "mtu 1600" ; then
@@ -141,8 +126,8 @@ test_container_devices_nic_routed() {
   lxc stop "${ctName}" --force
 
   # Check neighbour proxy entries removed from parent interface.
-  ! ip neigh show proxy dev "${ctName}" | grep "192.0.2.1${ipRand}" || false
-  ! ip neigh show proxy dev "${ctName}" | grep "2001:db8::1${ipRand}" || false
+  ! ip neigh show proxy dev "${ctName}" | grep -F "192.0.2.1${ipRand}" || false
+  ! ip neigh show proxy dev "${ctName}" | grep -F "2001:db8::1${ipRand}" || false
 
   # Check that MTU is inherited from parent device when not specified on device.
   ip link set "${ctName}" mtu 1605
@@ -162,16 +147,16 @@ test_container_devices_nic_routed() {
     parent=${ctName} \
     ipv4.address="192.0.2.2${ipRand}, 192.0.2.3${ipRand}"
   lxc start "${ctName}2"
-  lxc exec "${ctName}2" -- ip -4 r | grep "169.254.0.1"
-  ! lxc exec "${ctName}2" -- ip -6 r | grep "fe80::1" || false
+  lxc exec "${ctName}2" -- ip -4 r | grep -F "169.254.0.1"
+  ! lxc exec "${ctName}2" -- ip -6 r | grep -F "fe80::1" || false
   lxc stop -f "${ctName}2"
 
   # Check single IPv6 family auto default gateway works.
   lxc config device unset "${ctName}2" eth0 ipv4.address
   lxc config device set "${ctName}2" eth0 ipv6.address="2001:db8::2${ipRand}, 2001:db8::3${ipRand}"
   lxc start "${ctName}2"
-  ! lxc exec "${ctName}2" -- ip r | grep "169.254.0.1" || false
-  lxc exec "${ctName}2" -- ip -6 r | grep "fe80::1"
+  ! lxc exec "${ctName}2" -- ip r | grep -F "169.254.0.1" || false
+  lxc exec "${ctName}2" -- ip -6 r | grep -F "fe80::1"
   lxc stop -f "${ctName}2"
 
   # Enable both IP families.
@@ -214,18 +199,18 @@ test_container_devices_nic_routed() {
   fi
 
   # Check static routes added to custom routing table
-  ip -4 route show table 100 | grep "192.0.2.1${ipRand}"
-  ip -6 route show table 101 | grep "2001:db8::1${ipRand}"
+  ip -4 route show table 100 | grep -F "192.0.2.1${ipRand}"
+  ip -6 route show table 101 | grep -F "2001:db8::1${ipRand}"
 
   # Check volatile cleanup on stop.
   lxc stop -f "${ctName}"
-  if lxc config show "${ctName}" | grep volatile.eth0 | grep -v volatile.eth0.hwaddr | grep -v volatile.eth0.name ; then
+  if [ "$(lxc config show "${ctName}" | grep -F volatile.eth0 | grep -vF volatile.eth0.hwaddr | grep -vF volatile.eth0.name)" != "" ]; then
     echo "unexpected volatile key remains"
     false
   fi
 
   # Check parent device is still up.
-  if ! grep "1" "/sys/class/net/${ctName}/carrier" ; then
+  if [ "$(cat /sys/class/net/${ctName}/carrier)" != "1" ]; then
     echo "parent is down"
     false
   fi

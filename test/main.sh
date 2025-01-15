@@ -215,10 +215,22 @@ run_test() {
   fi
 
   END_TIME=$(date +%s)
+  DURATION=$((END_TIME-START_TIME))
   cd "${cwd}"
 
-  echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} ($((END_TIME-START_TIME))s)"
+  echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} (${DURATION}s)"
+
+  if [ -n "${GITHUB_ACTIONS:-}" ]; then
+      # strip the "test_" prefix to save the shorten test name along with its duration
+      echo "${TEST_CURRENT#test_}|${DURATION}" >> "${GITHUB_STEP_SUMMARY}"
+  fi
 }
+
+if [ -n "${GITHUB_ACTIONS:-}" ]; then
+    # build a markdown table with the duration of each test
+    echo "Test | Duration (s)" > "${GITHUB_STEP_SUMMARY}"
+    echo ":--- | :---" >> "${GITHUB_STEP_SUMMARY}"
+fi
 
 # allow for running a specific set of tests
 if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "standalone" ]; then
@@ -357,6 +369,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_network_acl "network ACL management"
     run_test test_network_forward "network address forwards"
     run_test test_network_zone "network DNS zones"
+    run_test test_network_ovn "OVN network management"
     run_test test_idmap "id mapping"
     run_test test_template "file templating"
     run_test test_pki "PKI mode"

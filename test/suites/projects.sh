@@ -1044,7 +1044,7 @@ test_projects_restrictions() {
   # Setting restricted.containers.lowlevel to 'allow' makes it possible to set
   # low-level options.
   lxc project set p1 restricted.containers.lowlevel=allow
-  lxc init testimage c1 -c "raw.idmap=both 0 0" || false
+  lxc init testimage c1 -c "raw.idmap=both 0 0"
 
   # It's not possible to set restricted.containers.lowlevel back to 'block',
   # because there's an instance with raw.idmap set.

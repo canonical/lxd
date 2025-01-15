@@ -1,5 +1,5 @@
 ---
-discourse: 1333
+discourse: lxc:1333
 ---
 
 (howto-storage-pools)=
@@ -17,7 +17,7 @@ To create a storage pool, use the following command:
 
     lxc storage create <pool_name> <driver> [configuration_options...]
 
-Unless specified otherwise, LXD sets up loop-based storage with a sensible default size (20% of the free disk space, but at least 5 GiB and at most 30 GiB).
+Unless specified otherwise, LXD sets up loop-based storage with a sensible default size/quota (20% of the free disk space, but at least 5 GiB and at most 30 GiB).
 
 See the {ref}`storage-drivers` documentation for a list of available configuration options for each driver.
 
@@ -280,7 +280,7 @@ To see usage information for a specific pool, run the following command:
 (storage-resize-pool)=
 ## Resize a storage pool
 
-If you need more storage, you can increase the size of your storage pool by changing the `size` configuration key:
+If you need more storage, you can increase the size (quota) of your storage pool by changing the `size` configuration key:
 
     lxc storage set <pool_name> size=<new_size>
 
