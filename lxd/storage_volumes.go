@@ -1128,7 +1128,7 @@ func clusterCopyCustomVolumeInternal(s *state.State, r *http.Request, sourceAddr
 		Pool:       req.Source.Pool,
 		Migration:  true,
 		VolumeOnly: req.Source.VolumeOnly,
-		Project:    req.Source.Project,
+		Project:    projectName,
 		Source: api.StorageVolumeSource{
 			Location: req.Source.Location,
 		},
@@ -1430,7 +1430,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(fmt.Errorf("Target project does not have features.storage.volumes enabled"))
 		}
 
-		if effectiveProjectName == targetProjectName {
+		if targetProjectName != api.ProjectDefaultName && effectiveProjectName == targetProjectName {
 			return response.BadRequest(fmt.Errorf("Project and target project are the same"))
 		}
 
