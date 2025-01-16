@@ -2043,13 +2043,18 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		vol.SetParentUUID(parentUUID)
 	}
 
-	// Validate config and create database entry for new storage volume.
-	err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", volType, false, vol.Config(), inst.CreationDate(), time.Time{}, contentType, true, false)
-	if err != nil {
-		return err
-	}
+	// Define a function to create a DB entry for the new instance volume after its size gets defined.
+	createDBInstanceVolume := func(vol drivers.Volume) error {
+		// Validate config and create database entry for new storage volume.
+		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", volType, false, vol.Config(), inst.CreationDate(), time.Time{}, contentType, true, false)
+		if err != nil {
+			return err
+		}
 
-	revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
+		revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
+
+		return nil
+	}
 
 	err = b.applyInstanceRootDiskOverrides(inst, &vol)
 	if err != nil {
@@ -2061,6 +2066,11 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 	// If the driver doesn't support optimized image volumes or the optimized image volume should not be used,
 	// create a new empty volume and populate it with the contents of the image archive.
 	if !useOptimizedImage {
+		err = createDBInstanceVolume(vol)
+		if err != nil {
+			return err
+		}
+
 		volFiller := drivers.VolumeFiller{
 			Fingerprint: fingerprint,
 			Fill:        b.imageFiller(fingerprint, op),
@@ -2099,6 +2109,11 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		// Set the derived size directly as the "size" property on the new volume so that it is applied.
 		vol.SetConfigSize(newVolSize)
 		l.Debug("Set new volume size", logger.Ctx{"size": newVolSize})
+
+		err = createDBInstanceVolume(vol)
+		if err != nil {
+			return err
+		}
 
 		volCopy := drivers.NewVolumeCopy(vol)
 		imgVolCopy := drivers.NewVolumeCopy(imgVol)
