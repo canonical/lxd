@@ -75,7 +75,7 @@ func applyTriggers(ctx context.Context, tx *sql.Tx) error {
 			return fmt.Errorf("Trigger name or SQL missing for entity type %q", entityType)
 		}
 
-		_, err := tx.ExecContext(ctx, fmt.Sprintf(`DROP TRIGGER IF EXISTS %s`, triggerName))
+		_, err := tx.ExecContext(ctx, "DROP TRIGGER IF EXISTS "+triggerName)
 		if err != nil {
 			return err
 		}
