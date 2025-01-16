@@ -874,6 +874,14 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 			}
 		}
 
+		// Generate the effective root device volume for instance.
+		volStorageName := project.Instance(inst.Project().Name, inst.Name())
+		vol := b.GetVolume(volType, contentType, volStorageName, volumeConfig)
+		err = b.applyInstanceRootDiskOverrides(inst, &vol)
+		if err != nil {
+			return err
+		}
+
 		// Validate config and create database entry for new storage volume.
 		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
 		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), volumeDescription, volType, false, volumeConfig, volumeCreationDate, time.Time{}, contentType, true, true)
@@ -926,14 +934,6 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 			}
 
 			postHookRevert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, newSnapshotName, volType) })
-		}
-
-		// Generate the effective root device volume for instance.
-		volStorageName := project.Instance(inst.Project().Name, inst.Name())
-		vol := b.GetVolume(volType, contentType, volStorageName, volumeConfig)
-		err = b.applyInstanceRootDiskOverrides(inst, &vol)
-		if err != nil {
-			return err
 		}
 
 		// Save any changes that have occurred to the instance's config to the on-disk backup.yaml file.
