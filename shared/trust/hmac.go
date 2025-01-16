@@ -100,7 +100,7 @@ func (h *HMAC) Version() HMACVersion {
 
 // HTTPHeader returns the actual HMAC together with the used version.
 func (h *HMAC) HTTPHeader(hmac []byte) string {
-	return fmt.Sprintf("%s %s", h.conf.Version, hex.EncodeToString(hmac))
+	return string(h.conf.Version) + " " + hex.EncodeToString(hmac)
 }
 
 // ParseHTTPHeader parses the given header and returns a new instance of the default formatter
