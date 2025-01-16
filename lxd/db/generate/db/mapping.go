@@ -197,7 +197,7 @@ func (m *Mapping) RefFields() []*Field {
 // FieldArgs converts the given fields to function arguments, rendering their
 // name and type.
 func (m *Mapping) FieldArgs(fields []*Field, extra ...string) string {
-	args := []string{}
+	args := make([]string, 0, len(fields)+len(extra))
 
 	for _, field := range fields {
 		name := lex.Minuscule(field.Name)
