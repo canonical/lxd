@@ -515,7 +515,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  condition: appropriate driver
 		//  defaultdesc: same as `volume.size`
 		//  shortdesc: Size/quota of the storage volume
-		//  scope: local
+		//  scope: global
 
 		// lxdmeta:generate(entities=storage-cephobject; group=bucket-conf; key=size)
 		//
