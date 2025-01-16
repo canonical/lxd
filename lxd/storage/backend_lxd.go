@@ -685,6 +685,11 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 		return err
 	}
 
+	err = b.applyInstanceRootDiskOverrides(inst, &vol)
+	if err != nil {
+		return err
+	}
+
 	// Validate config and create database entry for new storage volume.
 	err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", volType, false, vol.Config(), inst.CreationDate(), time.Time{}, contentType, true, false)
 	if err != nil {
@@ -692,11 +697,6 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 	}
 
 	revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
-
-	err = b.applyInstanceRootDiskOverrides(inst, &vol)
-	if err != nil {
-		return err
-	}
 
 	err = b.driver.CreateVolume(vol, nil, op)
 	if err != nil {
