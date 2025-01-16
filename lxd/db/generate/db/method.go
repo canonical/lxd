@@ -176,7 +176,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		stmtVar := stmtCodeVar(m.entity, "objects")
 		stmtLocal := stmtVar + "Local"
-		buf.L("%s := strings.Replace(%s, \"%%s_id\", fmt.Sprintf(\"%%s_id\", parent), -1)", stmtLocal, stmtVar)
+		buf.L("%s := strings.Replace(%s, \"%%s_id\", parent+\"_id\", -1)", stmtLocal, stmtVar)
 		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
 		buf.L("mangledParent := strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
 		buf.L("for i := range fillParent {")
@@ -270,9 +270,9 @@ func (m *Method) getMany(buf *file.Buffer) error {
 					if name == field.Name && shared.IsTrue(field.Config.Get("marshal")) {
 						buf.L("marshaledFilter%s, err := query.Marshal(filter.%s)", name, name)
 						m.ifErrNotNil(buf, true, "nil", "err")
-						args += fmt.Sprintf("marshaledFilter%s,", name)
+						args += "marshaledFilter" + name + ","
 					} else if name == field.Name {
-						args += fmt.Sprintf("filter.%s,", name)
+						args += "filter." + name + ","
 					}
 				}
 			}
@@ -701,7 +701,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		stmtVar := stmtCodeVar(m.entity, "create")
 		stmtLocal := stmtVar + "Local"
-		buf.L("%s := strings.Replace(%s, \"%%s_id\", fmt.Sprintf(\"%%s_id\", parent), -1)", stmtLocal, stmtVar)
+		buf.L("%s := strings.Replace(%s, \"%%s_id\", parent+\"_id\", -1)", stmtLocal, stmtVar)
 		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
 		buf.L("for i := range fillParent {")
 		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
@@ -832,7 +832,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		}
 
 		if mapping.Type != EntityTable {
-			buf.L("err = %sCreate%s(ctx, tx, parent + \"_%s\", insert)", m.db, refStruct, m.entity)
+			buf.L("err = %sCreate%s(ctx, tx, parent+\"_%s\", insert)", m.db, refStruct, m.entity)
 			m.ifErrNotNil(buf, false, fmt.Sprintf("fmt.Errorf(\"Insert %s failed for %s: %%w\", err)", field.Name, mapping.Name))
 		} else {
 			buf.L("err = %sCreate%s(ctx, tx, \"%s\", insert)", m.db, refStruct, m.entity)
@@ -1150,7 +1150,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 	} else if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		stmtVar := stmtCodeVar(m.entity, "delete")
 		stmtLocal := stmtVar + "Local"
-		buf.L("%s := strings.Replace(%s, \"%%s_id\", fmt.Sprintf(\"%%s_id\", parent), -1)", stmtLocal, stmtVar)
+		buf.L("%s := strings.Replace(%s, \"%%s_id\", parent+\"_id\", -1)", stmtLocal, stmtVar)
 		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
 		buf.L("for i := range fillParent {")
 		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
