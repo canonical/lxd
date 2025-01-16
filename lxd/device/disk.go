@@ -1088,7 +1088,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			if d.config["pool"] != "" {
 				var revertFunc func()
 
-				_, dbVolumeType, _, volumeName, err := storagePools.DiskVolumeSourceParse(d.config["source"])
+				volumeType, dbVolumeType, _, volumeName, err := storagePools.DiskVolumeSourceParse(d.config["source"])
 				if err != nil {
 					return nil, err
 				}
@@ -1109,18 +1109,18 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil, fmt.Errorf("Failed loading custom volume: %w", err)
 				}
 
-				contentType, err := storagePools.VolumeContentTypeNameToContentType(dbVolume.ContentType)
+				dbContentType, err := storagePools.VolumeContentTypeNameToContentType(dbVolume.ContentType)
 				if err != nil {
 					return nil, err
 				}
 
-				if contentType == cluster.StoragePoolVolumeContentTypeISO {
+				if dbContentType == cluster.StoragePoolVolumeContentTypeISO {
 					mount.FSType = "iso9660"
 				}
 
 				// If the pool is ceph backed and a block device, don't mount it, instead pass config to QEMU instance
 				// to use the built in RBD support.
-				if d.pool.Driver().Info().Name == "ceph" && (contentType == cluster.StoragePoolVolumeContentTypeBlock || contentType == cluster.StoragePoolVolumeContentTypeISO) {
+				if d.pool.Driver().Info().Name == "ceph" && (dbContentType == cluster.StoragePoolVolumeContentTypeBlock || dbContentType == cluster.StoragePoolVolumeContentTypeISO) {
 					config := d.pool.ToAPI().Config
 					poolName := config["ceph.osd.pool_name"]
 
@@ -1134,14 +1134,24 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						clusterName = storageDrivers.CephDefaultUser
 					}
 
+					contentType, err := storagePools.VolumeDBContentTypeToContentType(dbContentType)
+					if err != nil {
+						return nil, err
+					}
+
+					projectStorageVolumeName := project.StorageVolume(d.inst.Project().Name, volumeName)
+
+					vol := d.pool.GetVolume(volumeType, contentType, projectStorageVolumeName, dbVolume.Config)
+					rbdImageName := storageDrivers.CephGetRBDImageName(vol, "", false)
+
 					mount := deviceConfig.MountEntryItem{
-						DevPath: DiskGetRBDFormat(clusterName, userName, poolName, volumeName),
+						DevPath: DiskGetRBDFormat(clusterName, userName, poolName, rbdImageName),
 						DevName: d.name,
 						Opts:    opts,
 						Limits:  diskLimits,
 					}
 
-					if contentType == cluster.StoragePoolVolumeContentTypeISO {
+					if dbContentType == cluster.StoragePoolVolumeContentTypeISO {
 						mount.FSType = "iso9660"
 					}
 
