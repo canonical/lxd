@@ -326,7 +326,7 @@ func (c *cmdAction) run(cmd *cobra.Command, args []string) error {
 	if c.flagAll {
 		// If no server passed, use current default.
 		if len(args) == 0 {
-			args = []string{fmt.Sprintf("%s:", conf.DefaultRemote)}
+			args = []string{conf.DefaultRemote + ":"}
 		}
 
 		// Get all the servers.
@@ -368,7 +368,7 @@ func (c *cmdAction) run(cmd *cobra.Command, args []string) error {
 						continue
 					}
 				}
-				names = append(names, fmt.Sprintf("%s:%s", resource.remote, ct.Name))
+				names = append(names, resource.remote+":"+ct.Name)
 			}
 		}
 	} else {
