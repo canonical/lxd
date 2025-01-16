@@ -941,11 +941,18 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 		return nil, err
 	}
 
-	reverter.Add(func() { _ = connector.DisconnectAll() })
+	// Reverting mapping or connection outside mapVolume function
+	// could conflict with other ongoing operations as lock will
+	// already be released. Therefore, use unmapVolume instead
+	// because it ensures the lock is acquired and accounts for
+	// an existing session before unmapping a volume.
+	outerReverter := revert.New()
+	if !mapped {
+		outerReverter.Add(func() { _ = d.unmapVolume(vol) })
+	}
 
-	cleanup := reverter.Clone().Fail
 	reverter.Success()
-	return cleanup, nil
+	return outerReverter.Fail, nil
 }
 
 // getMappedDevPath returns the local device path for the given volume.
