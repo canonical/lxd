@@ -58,7 +58,7 @@ func (r *ProtocolLXD) GetOperationsAllProjects() ([]api.Operation, error) {
 	v.Set("all-projects", "true")
 
 	// Fetch the raw value.
-	_, err = r.queryStruct("GET", fmt.Sprintf("%s?%s", path, v.Encode()), nil, "", &apiOperations)
+	_, err = r.queryStruct("GET", path+"?"+v.Encode(), nil, "", &apiOperations)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (r *ProtocolLXD) GetOperation(uuid string) (*api.Operation, string, error) 
 	op := api.Operation{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/operations/%s", url.PathEscape(uuid)), nil, "", &op)
+	etag, err := r.queryStruct("GET", "/operations/"+url.PathEscape(uuid), nil, "", &op)
 	if err != nil {
 		return nil, "", err
 	}
@@ -121,9 +121,9 @@ func (r *ProtocolLXD) GetOperationWaitSecret(uuid string, secret string, timeout
 
 // GetOperationWebsocket returns a websocket connection for the provided operation.
 func (r *ProtocolLXD) GetOperationWebsocket(uuid string, secret string) (*websocket.Conn, error) {
-	path := fmt.Sprintf("/operations/%s/websocket", url.PathEscape(uuid))
+	path := "/operations/" + url.PathEscape(uuid) + "/websocket"
 	if secret != "" {
-		path = fmt.Sprintf("%s?secret=%s", path, url.QueryEscape(secret))
+		path += "?secret=" + url.QueryEscape(secret)
 	}
 
 	return r.websocket(path)
@@ -132,7 +132,7 @@ func (r *ProtocolLXD) GetOperationWebsocket(uuid string, secret string) (*websoc
 // DeleteOperation deletes (cancels) a running operation.
 func (r *ProtocolLXD) DeleteOperation(uuid string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/operations/%s", url.PathEscape(uuid)), nil, "")
+	_, _, err := r.query("DELETE", "/operations/"+url.PathEscape(uuid), nil, "")
 	if err != nil {
 		return err
 	}
