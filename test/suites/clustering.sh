@@ -659,6 +659,9 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create pool1 vol1 --target=node1
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume copy pool1/vol1 pool1/vol1 --target=node1 --destination-target=node2
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume copy pool1/vol1 pool1/vol1 --target=node1 --destination-target=node2 --refresh
+    LXD_DIR="${LXD_ONE_DIR}" lxc project create foo
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume copy pool1/vol1 pool1/vol1 --target=node1 --destination-target=node2 --target-project foo
+    LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo
 
     # Check renaming storage volume works.
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create pool1 vol2 --target=node1
