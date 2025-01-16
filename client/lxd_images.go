@@ -223,7 +223,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, do func(
 			}
 		} else {
 			reader.Tracker.Handler = func(received int64, speed int64) {
-				req.ProgressHandler(ioprogress.ProgressData{Text: units.GetByteSizeString(received, 2)+" (" + units.GetByteSizeString(speed, 2) + "/s)"})
+				req.ProgressHandler(ioprogress.ProgressData{Text: units.GetByteSizeString(received, 2) + " (" + units.GetByteSizeString(speed, 2) + "/s)"})
 			}
 		}
 
@@ -483,7 +483,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 				ReadCloser: pr,
 				Tracker: &ioprogress.ProgressTracker{
 					Handler: func(received int64, speed int64) {
-						args.ProgressHandler(ioprogress.ProgressData{Text: units.GetByteSizeString(received, 2)+" (" + units.GetByteSizeString(speed, 2) + "/s)"})
+						args.ProgressHandler(ioprogress.ProgressData{Text: units.GetByteSizeString(received, 2) + " (" + units.GetByteSizeString(speed, 2) + "/s)"})
 					},
 				},
 			}
