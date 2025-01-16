@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -218,7 +219,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, do func(
 
 		if response.ContentLength > 0 {
 			reader.Tracker.Handler = func(percent int64, speed int64) {
-				req.ProgressHandler(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2))})
+				req.ProgressHandler(ioprogress.ProgressData{Text: strconv.FormatInt(percent, 10) + "% (" + units.GetByteSizeString(speed, 2) + "/s)"})
 			}
 		} else {
 			reader.Tracker.Handler = func(received int64, speed int64) {
