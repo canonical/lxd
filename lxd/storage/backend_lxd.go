@@ -1120,6 +1120,12 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	if b.Name() == srcPool.Name() {
 		l.Debug("CreateInstanceFromCopy same-pool mode detected")
 
+		// Generate the effective root device volume for instance.
+		err = b.applyInstanceRootDiskOverrides(inst, &vol)
+		if err != nil {
+			return err
+		}
+
 		// Validate config and create database entry for new storage volume.
 		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", vol.Type(), false, vol.Config(), inst.CreationDate(), time.Time{}, contentType, false, true)
 		if err != nil {
@@ -1141,7 +1147,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 			newSnapshotStorageName := project.Instance(inst.Project().Name, newSnapshotName)
 			snapVol := b.GetNewVolume(volType, contentType, newSnapshotStorageName, srcConfig.VolumeSnapshots[i].Config)
 
-			// Validate config and create database entry for new storage volume.
+			// Validate config and create database entry for new storage volume snapshot.
 			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, srcConfig.VolumeSnapshots[i].Description, vol.Type(), true, snapVol.Config(), srcConfig.VolumeSnapshots[i].CreatedAt, volumeSnapExpiryDate, vol.ContentType(), false, true)
 			if err != nil {
 				return err
@@ -1150,12 +1156,6 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 			revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, newSnapshotName, vol.Type()) })
 
 			targetSnapshots = append(targetSnapshots, snapVol)
-		}
-
-		// Generate the effective root device volume for instance.
-		err = b.applyInstanceRootDiskOverrides(inst, &vol)
-		if err != nil {
-			return err
 		}
 
 		// Get the src volume name on storage.
