@@ -88,7 +88,7 @@ func GetVars(pkg *packages.Package) map[string]*ast.ValueSpec {
 func FiltersFromStmt(pkg *packages.Package, kind string, entity string, filters []*Field) ([][]string, [][]string) {
 	objects := GetVars(pkg)
 	stmtFilters := [][]string{}
-	prefix := fmt.Sprintf("%s%sBy", lex.Minuscule(lex.Camel(entity)), lex.Camel(kind))
+	prefix := lex.Minuscule(lex.Camel(entity)) + lex.Camel(kind) + "By"
 
 	for name := range objects {
 		if !strings.HasPrefix(name, prefix) {
@@ -120,7 +120,7 @@ func RefFiltersFromStmt(pkg *packages.Package, entity string, ref string, filter
 	objects := GetVars(pkg)
 	stmtFilters := [][]string{}
 
-	prefix := fmt.Sprintf("%s%sRefBy", lex.Minuscule(lex.Camel(entity)), lex.Capital(ref))
+	prefix := lex.Minuscule(lex.Camel(entity)) + lex.Capital(ref) + "RefBy"
 
 	for name := range objects {
 		if !strings.HasPrefix(name, prefix) {
