@@ -2494,6 +2494,12 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Generate the effective root device volume for instance.
+	err = b.applyInstanceRootDiskOverrides(inst, &vol)
+	if err != nil {
+		return err
+	}
+
 	// Validate config and create database entry for new storage volume if not refreshing.
 	// Strip unsupported config keys (in case the export was made from a different type of storage pool).
 	err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), args.Description, volType, false, vol.Config(), inst.CreationDate(), time.Time{}, contentType, false, true)
@@ -2502,12 +2508,6 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 	}
 
 	revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
-
-	// Generate the effective root device volume for instance.
-	err = b.applyInstanceRootDiskOverrides(inst, &vol)
-	if err != nil {
-		return err
-	}
 
 	// Get instance's root disk device from local devices. Do not use expanded devices, as we want
 	// to determine whether the root disk volume size was explicitly set by the client.
