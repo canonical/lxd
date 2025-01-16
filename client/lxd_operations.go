@@ -1,8 +1,8 @@
 package lxd
 
 import (
-	"fmt"
 	"net/url"
+	"strconv"
 
 	"github.com/gorilla/websocket"
 
@@ -98,7 +98,7 @@ func (r *ProtocolLXD) GetOperationWait(uuid string, timeout int) (*api.Operation
 	transport.ResponseHeaderTimeout = 0
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/operations/%s/wait?timeout=%d", url.PathEscape(uuid), timeout), nil, "", &op)
+	etag, err := r.queryStruct("GET", "/operations/"+url.PathEscape(uuid)+"/wait?timeout="+strconv.FormatInt(int64(timeout), 10), nil, "", &op)
 	if err != nil {
 		return nil, "", err
 	}
@@ -111,7 +111,7 @@ func (r *ProtocolLXD) GetOperationWaitSecret(uuid string, secret string, timeout
 	op := api.Operation{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/operations/%s/wait?secret=%s&timeout=%d", url.PathEscape(uuid), url.PathEscape(secret), timeout), nil, "", &op)
+	etag, err := r.queryStruct("GET", "/operations/"+url.PathEscape(uuid)+"/wait?secret="+url.PathEscape(secret)+"&timeout="+strconv.FormatInt(int64(timeout), 10), nil, "", &op)
 	if err != nil {
 		return nil, "", err
 	}
