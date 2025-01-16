@@ -457,14 +457,12 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 // It then leverages the rawWebsocket method to establish and return a websocket connection to the generated URL.
 func (r *ProtocolLXD) websocket(path string) (*websocket.Conn, error) {
 	// Generate the URL
-	var url string
+	url := r.httpBaseURL.Host + "/1.0" + path
 	if r.httpBaseURL.Scheme == "https" {
-		url = fmt.Sprintf("wss://%s/1.0%s", r.httpBaseURL.Host, path)
-	} else {
-		url = fmt.Sprintf("ws://%s/1.0%s", r.httpBaseURL.Host, path)
+		return r.rawWebsocket("wss://" + url)
 	}
 
-	return r.rawWebsocket(url)
+	return r.rawWebsocket("ws://" + url)
 }
 
 // WithContext returns a client that will add context.Context.
