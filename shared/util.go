@@ -905,7 +905,7 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 
 	if inPath == "" {
 		// If provided input, create a new file
-		f, err = os.CreateTemp("", "lxd_editor_")
+		f, err = os.CreateTemp("", "lxd_editor_*.yaml")
 		if err != nil {
 			return []byte{}, err
 		}
@@ -923,12 +923,6 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 		}
 
 		err = f.Close()
-		if err != nil {
-			return []byte{}, err
-		}
-
-		path = f.Name() + ".yaml"
-		err = os.Rename(f.Name(), path)
 		if err != nil {
 			return []byte{}, err
 		}
