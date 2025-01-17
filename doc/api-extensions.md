@@ -2630,3 +2630,17 @@ Adds the field `client_certificate` to `GET /1.0` to indicate if the current req
 
 This API extension adds a `used_by` field to the API response for a {ref}`cluster group <cluster-groups>`.
 Deletion of a cluster group is disallowed if the cluster group is referenced by project configuration (see {config:option}`project-restricted:restricted.cluster.groups`).
+
+## `cluster_links`
+
+This introduces the cluster links API and identity type.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/cluster/links/<name>` - returns information about a specific cluster link.
+* `GET /1.0/cluster/links` - returns a combined view of self-created and delegated cluster links (if any).
+* `PUT /1.0/cluster/links/<name>` - allows for modification of a specific cluster link.
+* `POST /1.0/cluster/links/<name>` - adds a specific cluster link using a provided trust token.
+* `DELETE /1.0/cluster/links/<name>` - deletes a cluster link.
+
+This also includes the new `cluster_links` database table and its corresponding functions.
