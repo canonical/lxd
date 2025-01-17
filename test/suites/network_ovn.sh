@@ -189,6 +189,10 @@ test_network_ovn() {
   address_set_ipv6_name="${port_group_name}_routes_ip6"
   [ "$(ovn-nbctl get address_set "${address_set_ipv6_name}" addresses | jq -er '.[0]')" = "fd42:bd85:5f89:5293::/64" ]
 
+  # Check that uplink volatile address keys cannot be removed when associated network address is set.
+  ! lxc network unset "${ovn_network}" volatile.network.ipv4.address || false
+  ! lxc network unset "${ovn_network}" volatile.network.ipv6.address || false
+
   # Launch an instance on the OVN network and assert configuration changes.
   ensure_import_testimage
   lxc launch testimage c1 --network "${ovn_network}"
