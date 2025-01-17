@@ -1163,9 +1163,8 @@ func ovnParseLogEntry(logline string, syslogTimestamp string, prefix string) str
 func ovnParseLogEntriesFromJournald(ctx context.Context, systemdUnitName string, filter string) ([]string, error) {
 	var logEntries []string
 	cmd := []string{
-		"/usr/bin/journalctl",
+		"journalctl",
 		"--unit", systemdUnitName,
-		"--directory", shared.HostPath("/var/log/journal"),
 		"--no-pager",
 		"--boot", "0",
 		"--case-sensitive",
