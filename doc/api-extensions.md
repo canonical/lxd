@@ -3045,3 +3045,22 @@ Adds support for hotplugging GPU devices into containers when using {ref}`gpu-ph
 Adds `release_codename` and `release_title` fields to the `api.Image` struct. These fields are optional and are populated from the SimpleStreams index when available.
 
 Also updates the generated image description for SimpleStreams images to include variant if available. The image creation date and architecture are no longer used for image description.
+
+(extension-cluster-links)=
+## `cluster_links`
+
+Cluster links enable secure, authenticated communication between separate LXD clusters using mutual TLS certificates.
+See {ref}`exp-cluster-links` for more information.
+
+This introduces the cluster links API and identity type.
+
+This includes the following new endpoints (see {ref}`rest-api` for details):
+
+* [`GET /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_get)
+* [`GET /1.0/cluster/links`](swagger:/cluster-links/cluster_links_get)
+* [`GET /1.0/cluster/links/<name>/state`](swagger:/cluster-links/cluster_link_state_get)
+* [`PUT /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_put)
+* [`PATCH /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_patch)
+* [`POST /1.0/cluster/links`](swagger:/cluster-links/cluster_links_post)
+* [`POST /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_post)
+* [`DELETE /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_delete)
