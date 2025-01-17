@@ -8690,7 +8690,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 		"-nographic",
 		"-nodefaults",
 		"-no-user-config",
-		"-chardev", fmt.Sprintf("socket,id=monitor,path=%s,server=on,wait=off", monitorPath.Name()),
+		"-chardev", "socket,id=monitor,path=" + monitorPath.Name() + ",server=on,wait=off",
 		"-mon", "chardev=monitor,mode=control",
 		"-machine", qemuMachineType(hostArch),
 	}
@@ -8718,7 +8718,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 			return nil, fmt.Errorf("Unable to locate a VM UEFI firmware")
 		}
 
-		qemuArgs = append(qemuArgs, "-drive", fmt.Sprintf("if=pflash,format=raw,readonly=on,file=%s", efiPath))
+		qemuArgs = append(qemuArgs, "-drive", "if=pflash,format=raw,readonly=on,file="+efiPath)
 	}
 
 	var stderr bytes.Buffer
@@ -8795,7 +8795,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 
 	// Check io_uring feature.
 	blockDev := map[string]any{
-		"node-name": fmt.Sprintf("%s%s", qemuDeviceNamePrefix, "feature-check"),
+		"node-name": qemuDeviceNamePrefix + "feature-check",
 		"driver":    "file",
 		"filename":  blockDevPath.Name(),
 		"aio":       "io_uring",
@@ -9001,7 +9001,7 @@ func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 		return err
 	}
 
-	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, usbDev.DeviceName)
+	deviceID := qemuDeviceIDPrefix + usbDev.DeviceName
 
 	err = monitor.RemoveDevice(deviceID)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
