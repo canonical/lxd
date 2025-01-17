@@ -2638,3 +2638,15 @@ Adds new {config:option}`instance-security:security.delegate_bpf`.* group of opt
 ## `override_snapshot_profiles_on_copy`
 
 This adds a request option to set snapshot's target profile on instance copy to be inherited from target instance.
+
+## `cluster_links`
+
+This introduces the cluster links API and identity type.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/clusters/<name>` - returns information about a specific cluster link.
+* `GET /1.0/clusters` - returns a combined view of cluster links (if any).
+* `PUT /1.0/clusters/<name>` - allows for modification of a specific cluster link.
+* `POST /1.0/clusters` - adds a cluster link.
+* `DELETE /1.0/clusters/<name>` - deletes a specific cluster link.
