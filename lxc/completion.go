@@ -1550,9 +1550,9 @@ func (g *cmdGlobal) cmpStoragePoolVolumeConfigs(poolName string, volumeName stri
 	resource := resources[0]
 	client := resource.server
 
-	var pool = poolName
-	if strings.Contains(poolName, ":") {
-		pool = strings.Split(poolName, ":")[1]
+	_, pool, found := strings.Cut(poolName, ":")
+	if !found {
+		pool = poolName
 	}
 
 	volName, volType := parseVolume("custom", volumeName)
@@ -1582,9 +1582,9 @@ func (g *cmdGlobal) cmpStoragePoolVolumeInstances(poolName string, volumeName st
 	resource := resources[0]
 	client := resource.server
 
-	var pool = poolName
-	if strings.Contains(poolName, ":") {
-		pool = strings.Split(poolName, ":")[1]
+	_, pool, found := strings.Cut(poolName, ":")
+	if !found {
+		pool = poolName
 	}
 
 	volName, volType := parseVolume("custom", volumeName)
@@ -1619,9 +1619,9 @@ func (g *cmdGlobal) cmpStoragePoolVolumeProfiles(poolName string, volumeName str
 	resource := resources[0]
 	client := resource.server
 
-	var pool = poolName
-	if strings.Contains(poolName, ":") {
-		pool = strings.Split(poolName, ":")[1]
+	_, pool, found := strings.Cut(poolName, ":")
+	if !found {
+		pool = poolName
 	}
 
 	volName, volType := parseVolume("custom", volumeName)
@@ -1656,9 +1656,9 @@ func (g *cmdGlobal) cmpStoragePoolVolumeSnapshots(poolName string, volumeName st
 	resource := resources[0]
 	client := resource.server
 
-	var pool = poolName
-	if strings.Contains(poolName, ":") {
-		pool = strings.Split(poolName, ":")[1]
+	_, pool, found := strings.Cut(poolName, ":")
+	if !found {
+		pool = poolName
 	}
 
 	volName, volType := parseVolume("custom", volumeName)
@@ -1684,8 +1684,8 @@ func (g *cmdGlobal) cmpStoragePoolVolumes(poolName string, volumeTypes ...string
 	resource := resources[0]
 	client := resource.server
 
-	_, pool, _ := strings.Cut(poolName, ":")
-	if pool == "" {
+	_, pool, found := strings.Cut(poolName, ":")
+	if !found {
 		pool = poolName
 	}
 
