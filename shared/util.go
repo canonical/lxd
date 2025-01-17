@@ -774,9 +774,13 @@ func StringHasPrefix(value string, prefixes ...string) bool {
 	return false
 }
 
-// IsTrue returns true if value is "true", "1", "yes" or "on" (case insensitive).
+// IsTrue returns true if value is "1", "true", "yes" or "on" (case insensitive).
 func IsTrue(value string) bool {
-	return ValueInSlice(strings.ToLower(value), []string{"true", "1", "yes", "on"})
+	if value == "1" {
+		return true
+	}
+
+	return ValueInSlice(strings.ToLower(value), []string{"true", "yes", "on"})
 }
 
 // IsTrueOrEmpty returns true if value is empty or if IsTrue() returns true.
