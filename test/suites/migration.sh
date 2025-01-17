@@ -191,6 +191,18 @@ migration() {
   lxc copy cccp udssr --instance-only
   [ "$(lxc info udssr | grep -c snap)" -eq 0 ]
   [ "$(lxc file pull udssr/blah -)" = "after" ]
+
+  # Check the size of the copy gets reported accurately.
+  if [ "${lxd_backend}" = "btrfs" ] || [ "${lxd_backend}" = "dir" ] || [ "${lxd_backend}" = "zfs" ]; then
+    # Non-block based
+    [ -z "$(lxc info udssr | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" ]
+    [ -z "$(lxc storage volume get "${pool}" container/udssr volatile.rootfs.size)" ]
+  else
+    # Block based
+    [ "$(lxc info udssr | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" = "10.00GiB" ]
+    [ "$(lxc storage volume get "${pool}" container/udssr volatile.rootfs.size)" = "10GiB" ]
+  fi
+
   lxc delete udssr
 
   # Local container with snapshots copy.
@@ -207,6 +219,18 @@ migration() {
   lxc_remote copy l1:cccp l2:udssr --instance-only
   [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 0 ]
   [ "$(lxc_remote file pull l2:udssr/blah -)" = "after" ]
+
+  # Check the size of the remote copy gets reported accurately.
+  if [ "${lxd_backend}" = "btrfs" ] || [ "${lxd_backend}" = "dir" ] || [ "${lxd_backend}" = "zfs" ]; then
+    # Non-block based
+    [ -z "$(lxc_remote info l2:udssr | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" ]
+    [ -z "$(lxc_remote storage volume get l2:"${remote_pool}" container/udssr volatile.rootfs.size)" ]
+  else
+    # Block based
+    [ "$(lxc_remote info l2:udssr | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" = "10.00GiB" ]
+    [ "$(lxc_remote storage volume get l2:"${remote_pool}" container/udssr volatile.rootfs.size)" = "10GiB" ]
+  fi
+
   lxc_remote delete l2:udssr
 
   # Remote container with snapshots copy.
@@ -223,6 +247,18 @@ migration() {
   lxc_remote move l1:cccp l2:udssr --instance-only --mode=relay
   ! lxc_remote info l1:cccp || false
   [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 0 ]
+
+  # Check the size of the moved container gets reported accurately.
+  if [ "${lxd_backend}" = "btrfs" ] || [ "${lxd_backend}" = "dir" ] || [ "${lxd_backend}" = "zfs" ]; then
+    # Non-block based
+    [ -z "$(lxc_remote info l2:udssr | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" ]
+    [ -z "$(lxc_remote storage volume get l2:"${remote_pool}" container/udssr volatile.rootfs.size)" ]
+  else
+    # Block based
+    [ "$(lxc_remote info l2:udssr | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" = "10.00GiB" ]
+    [ "$(lxc_remote storage volume get l2:"${remote_pool}" container/udssr volatile.rootfs.size)" = "10GiB" ]
+  fi
+
   lxc_remote delete l2:udssr
 
   lxc_remote init testimage l1:cccp
