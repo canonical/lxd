@@ -788,9 +788,13 @@ func IsTrueOrEmpty(value string) bool {
 	return value == "" || IsTrue(value)
 }
 
-// IsFalse returns true if value is "false", "0", "no" or "off" (case insensitive).
+// IsFalse returns true if value is "0", "false", "no" or "off" (case insensitive).
 func IsFalse(value string) bool {
-	return ValueInSlice(strings.ToLower(value), []string{"false", "0", "no", "off"})
+	if value == "0" {
+		return true
+	}
+
+	return ValueInSlice(strings.ToLower(value), []string{"false", "no", "off"})
 }
 
 // IsFalseOrEmpty returns true if value is empty or if IsFalse() returns true.
