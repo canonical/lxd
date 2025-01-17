@@ -370,7 +370,7 @@ func PopulateEntityReferencesFromURLs(ctx context.Context, tx *sql.Tx, entityURL
 	}
 
 	stmts := make([]string, 0, len(entityURLs))
-	var args []any
+	var args []any //nolint:prealloc
 	for i, entityURL := range entityURLs {
 		// Parse the URL to get the majority of the fields of the EntityRef for that URL.
 		entityType, projectName, location, pathArgs, err := entity.ParseURL(entityURL.URL)
