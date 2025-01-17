@@ -927,9 +927,29 @@ func (d *pure) unmapVolume(vol Volume) error {
 			}
 
 			devName := filepath.Base(volumePath)
-			err := removeDevice(devName)
-			if err != nil {
-				return fmt.Errorf("Failed to unmap volume %q: Failed to remove device %q: %w", vol.name, devName, err)
+			if strings.HasPrefix(devName, "dm-") {
+				// Multipath device (/dev/dm-*) itself is not removable.
+				// Therefore, we remove its slaves instead.
+				slaves, err := filepath.Glob(fmt.Sprintf("/sys/block/%s/slaves/*", devName))
+				if err != nil {
+					return fmt.Errorf("Failed to unmap volume %q: Failed to list slaves for device %q: %w", vol.name, devName, err)
+				}
+
+				// Remove slave devices.
+				for _, slave := range slaves {
+					slaveDevName := filepath.Base(slave)
+
+					err := removeDevice(slaveDevName)
+					if err != nil {
+						return fmt.Errorf("Failed to unmap volume %q: Failed to remove slave device %q: %w", vol.name, slaveDevName, err)
+					}
+				}
+			} else {
+				// For non-multipath device (/dev/sd*), remove the device itself.
+				err := removeDevice(devName)
+				if err != nil {
+					return fmt.Errorf("Failed to unmap volume %q: Failed to remove device %q: %w", vol.name, devName, err)
+				}
 			}
 		}
 
