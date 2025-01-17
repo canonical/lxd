@@ -114,6 +114,27 @@ var updates = map[int]schema.Update{
 	71: updateFromV70,
 	72: updateFromV71,
 	73: updateFromV72,
+	74: updateFromV73,
+}
+
+func updateFromV73(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE cluster_links (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	identity_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	addresses TEXT NOT NULL,
+	description TEXT NOT NULL,
+	UNIQUE(name),
+	UNIQUE(identity_id),
+	FOREIGN KEY (identity_id) REFERENCES identities (id) ON DELETE CASCADE
+);
+`)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func updateFromV72(ctx context.Context, tx *sql.Tx) error {
