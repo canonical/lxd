@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
@@ -284,6 +285,21 @@ func (g *cmdGlobal) cmpInstanceKeys(instanceName string) ([]string, cobra.ShellC
 		return nil, cobra.ShellCompDirectiveError
 	}
 
+	instanceTypeAnyKeys := make([]string, 0, len(instancetype.InstanceConfigKeysAny))
+	for key := range instancetype.InstanceConfigKeysAny {
+		instanceTypeAnyKeys = append(instanceTypeAnyKeys, key)
+	}
+
+	instanceTypeContainerKeys := make([]string, 0, len(instancetype.InstanceConfigKeysContainer))
+	for key := range instancetype.InstanceConfigKeysContainer {
+		instanceTypeContainerKeys = append(instanceTypeContainerKeys, key)
+	}
+
+	instanceTypeVMKeys := make([]string, 0, len(instancetype.InstanceConfigKeysVM))
+	for key := range instancetype.InstanceConfigKeysVM {
+		instanceTypeVMKeys = append(instanceTypeVMKeys, key)
+	}
+
 	// Pre-allocate configKeys slice capacity.
 	keyCount := 0
 	for _, field := range instanceConfig {
@@ -294,18 +310,16 @@ func (g *cmdGlobal) cmpInstanceKeys(instanceName string) ([]string, cobra.ShellC
 
 	for _, field := range instanceConfig {
 		for _, key := range field.Keys {
-			for configKey, configKeyField := range key {
+			for configKey := range key {
 				configKey = strings.TrimSuffix(configKey, "*")
 
-				// InstanceTypeAny config keys.
-				if configKeyField.Condition == "" {
+				if shared.ValueInSlice(configKey, instanceTypeAnyKeys) || shared.StringHasPrefix(configKey, instancetype.ConfigKeyPrefixesAny...) {
 					configKeys = append(configKeys, configKey)
-					continue
 				}
 
-				if instanceType == string(api.InstanceTypeContainer) && configKeyField.Condition == "container" {
+				if instanceType == string(api.InstanceTypeContainer) && (shared.ValueInSlice(configKey, instanceTypeContainerKeys) || shared.StringHasPrefix(configKey, instancetype.ConfigKeyPrefixesContainer...)) {
 					configKeys = append(configKeys, configKey)
-				} else if instanceType == string(api.InstanceTypeVM) && configKeyField.Condition == "virtual machine" {
+				} else if instanceType == string(api.InstanceTypeVM) && shared.ValueInSlice(configKey, instanceTypeVMKeys) {
 					configKeys = append(configKeys, configKey)
 				}
 			}
