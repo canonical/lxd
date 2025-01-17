@@ -480,6 +480,7 @@ var APIExtensions = []string{
 	"gpu_cdi_amd",
 	"instance_refresh_config",
 	"clustering_control_plane",
+	"cluster_links",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
