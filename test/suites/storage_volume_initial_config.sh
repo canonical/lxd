@@ -32,7 +32,17 @@ test_storage_volume_initial_config() {
   lxc rm c
 
   lxc init c --empty --profile "${profile}"
-  [ "$(lxc storage volume get "${pool}" container/c block.filesystem)" = "ext4" ]
+  # Check the size of the new empty instance gets reported accurately.
+  # Non block based containers should have no size, block based use the default block size of 10GiB.
+  if [ "${lxd_backend}" = "btrfs" ] || [ "${lxd_backend}" = "dir" ] || [ "${lxd_backend}" = "zfs" ]; then
+    # Non-block based
+    [ -z "$(lxc info c | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" ]
+    [ -z "$(lxc storage volume get "${pool}" container/c volatile.rootfs.size)" ]
+  else
+    # Block based
+    [ "$(lxc info c | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" = "10.00GiB" ]
+    [ "$(lxc storage volume get "${pool}" container/c volatile.rootfs.size)" = "10GiB" ]
+  fi
   lxc rm c
 
   # Test profile initial configuration.
