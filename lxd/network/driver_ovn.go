@@ -3960,7 +3960,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		}
 	}
 
-	var routes []openvswitch.OVNRouterRoute
+	routes := make([]openvswitch.OVNRouterRoute, 0, len(internalRoutes)+len(externalRoutes))
 
 	// In l3only mode we add the instance port's IPs as static routes to the router.
 	if shared.IsTrue(n.config["ipv4.l3only"]) && dnsIPv4 != nil {
@@ -4312,7 +4312,7 @@ func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, d
 		return err
 	}
 
-	var removeRoutes []net.IPNet
+	removeRoutes := make([]net.IPNet, 0, len(dnsIPs)+len(internalRoutes)+len(externalRoutes))
 	var removeNATIPs []net.IP
 
 	if len(dnsIPs) > 0 {
