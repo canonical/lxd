@@ -475,6 +475,7 @@ var APIExtensions = []string{
 	"instance_boot_mode",
 	"auth_bearer",
 	"vm_limits_max_bus_ports",
+	"cluster_links",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
