@@ -114,6 +114,36 @@ var updates = map[int]schema.Update{
 	71: updateFromV70,
 	72: updateFromV71,
 	73: updateFromV72,
+	74: updateFromV73,
+}
+
+func updateFromV73(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE services (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	identity_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	addresses TEXT NOT NULL,
+	type INTEGER NOT NULL,
+	description TEXT NOT NULL,
+	UNIQUE(name),
+	FOREIGN KEY (identity_id) REFERENCES identities (id) ON DELETE CASCADE
+);
+
+CREATE TABLE services_config(
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	service_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	FOREIGN KEY (service_id) REFERENCES services (id) ON DELETE CASCADE,
+	UNIQUE(service_id, key)
+);
+`)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func updateFromV72(ctx context.Context, tx *sql.Tx) error {
@@ -1768,7 +1798,6 @@ FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
 UNIQUE (node_id, key)
 );
 	`)
-
 	if err != nil {
 		return fmt.Errorf("Failed creating nodes_config table: %w", err)
 	}
