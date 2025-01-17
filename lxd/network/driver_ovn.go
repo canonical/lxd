@@ -3211,6 +3211,20 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		return nil // Nothing changed.
 	}
 
+	// Check that the uplink volatile IPs haven't been removed incorrectly.
+	for _, ipVersion := range []int{4, 6} {
+		networkAddrKey := "ipv" + strconv.Itoa(ipVersion) + ".address"
+		uplinkAddrKey := ovnVolatileUplinkIPv4
+
+		if ipVersion == 6 {
+			uplinkAddrKey = ovnVolatileUplinkIPv6
+		}
+
+		if newNetwork.Config[uplinkAddrKey] == "" && newNetwork.Config[networkAddrKey] != "" {
+			return fmt.Errorf("Uplink address key %q cannot be empty when network address key %q is populated", uplinkAddrKey, networkAddrKey)
+		}
+	}
+
 	// If the network as a whole has not had any previous creation attempts, or the node itself is still
 	// pending, then don't apply the new settings to the node, just to the database record (ready for the
 	// actual global create request to be initiated).
