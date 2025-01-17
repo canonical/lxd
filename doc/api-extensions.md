@@ -2690,3 +2690,17 @@ This adds PCI device hotplugging for VMs.
 
 ## `device_patch_removal`
 The `PATCH /1.0/instances/{name}` endpoint allows removing an instance device by setting its value to `null` in the devices map.
+
+## `cluster_links`
+
+This introduces the cluster links API and identity type.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/cluster/links/<name>`
+* `GET /1.0/cluster/links`
+* `PUT /1.0/cluster/links/<name>`
+* `PATCH /1.0/cluster/links/<name>`
+* `POST /1.0/cluster/links`
+* `POST /1.0/cluster/links/<name>`
+* `DELETE /1.0/cluster/links/<name>`
