@@ -35,6 +35,24 @@ CREATE TABLE "cluster_groups" (
     description TEXT NOT NULL,
     UNIQUE (name)
 );
+CREATE TABLE cluster_links (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	identity_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	type INTEGER NOT NULL DEFAULT 0,
+	UNIQUE(name),
+	UNIQUE(identity_id),
+	FOREIGN KEY (identity_id) REFERENCES identities (id) ON DELETE CASCADE
+);
+CREATE TABLE cluster_links_config (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	cluster_link_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	UNIQUE (cluster_link_id, key),
+	FOREIGN KEY (cluster_link_id) REFERENCES cluster_links (id) ON DELETE CASCADE
+);
 CREATE TABLE config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     key TEXT NOT NULL,
@@ -662,5 +680,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (73, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (74, strftime("%s"))
 `
