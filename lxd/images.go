@@ -4276,7 +4276,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		ext = ""
 	}
 
-	filename := fmt.Sprintf("%s%s", imgInfo.Fingerprint, ext)
+	filename := imgInfo.Fingerprint + ext
 
 	if shared.PathExists(rootfsPath) {
 		files := make([]response.FileResponseEntry, 2)
@@ -4292,7 +4292,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 			ext = ""
 		}
 
-		filename = fmt.Sprintf("%s%s", imgInfo.Fingerprint, ext)
+		filename = imgInfo.Fingerprint + ext
 
 		if imgInfo.Type == "virtual-machine" {
 			files[1].Identifier = "rootfs.img"
