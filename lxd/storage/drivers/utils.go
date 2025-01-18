@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -473,7 +474,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 	}
 
 	// The smallest unit that resize2fs accepts in byte size (rather than blocks) is kilobytes.
-	strSize := fmt.Sprintf("%dK", byteSize/1024)
+	strSize := strconv.FormatInt(byteSize/1024, 10) + "K"
 
 	switch fsType {
 	case "ext4":
