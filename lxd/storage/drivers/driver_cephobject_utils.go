@@ -61,7 +61,7 @@ func (d *cephobject) radosgwadminGetUser(ctx context.Context, user string) (*S3C
 	// Get list of sub user names and store them without the main user prefix.
 	subUsers := make(map[string]S3Credentials, len(resp.SubUsers))
 	for _, subUser := range resp.SubUsers {
-		subUserName := strings.TrimPrefix(subUser.ID, fmt.Sprintf("%s:", user))
+		subUserName := strings.TrimPrefix(subUser.ID, user+":")
 		subUsers[subUserName] = S3Credentials{}
 	}
 
@@ -76,7 +76,7 @@ func (d *cephobject) radosgwadminGetUser(ctx context.Context, user string) (*S3C
 			}
 		} else {
 			for subUserName := range subUsers {
-				if strings.TrimPrefix(key.User, fmt.Sprintf("%s:", user)) == subUserName {
+				if strings.TrimPrefix(key.User, user+":") == subUserName {
 					subUser := subUsers[subUserName]
 					subUser.AccessKey = key.AccessKey
 					subUser.SecretKey = key.SecretKey
@@ -173,7 +173,7 @@ func (d *cephobject) radosgwadminSubUserAdd(ctx context.Context, user string, su
 		return nil, err
 	}
 
-	keyUser := fmt.Sprintf("%s:%s", user, subuser)
+	keyUser := user + ":" + subuser
 
 	for _, key := range creds.Keys {
 		if key.User == keyUser {
@@ -253,5 +253,5 @@ func (d *cephobject) radosgwadminBucketList(ctx context.Context) ([]string, erro
 
 // radosgwBucketName returns the bucket name to use for the actual radosgw bucket.
 func (d *cephobject) radosgwBucketName(bucketName string) string {
-	return fmt.Sprintf("%s%s", d.config["cephobject.bucket.name_prefix"], bucketName)
+	return d.config["cephobject.bucket.name_prefix"] + bucketName
 }
