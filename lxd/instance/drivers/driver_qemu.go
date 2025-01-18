@@ -3727,7 +3727,9 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]string, mountInfo *storageP
 				clusterName = storageDrivers.CephDefaultUser
 			}
 
-			driveConf.DevPath = device.DiskGetRBDFormat(clusterName, userName, config["ceph.osd.pool_name"], vol.Name())
+			rbdImageName := storageDrivers.CephGetRBDImageName(vol, "", false)
+
+			driveConf.DevPath = device.DiskGetRBDFormat(clusterName, userName, config["ceph.osd.pool_name"], rbdImageName)
 		}
 	}
 
@@ -3980,30 +3982,10 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 	} else if isRBDImage {
 		blockDev["driver"] = "rbd"
 
-		_, volName, opts, err := device.DiskParseRBDFormat(driveConf.DevPath)
+		_, rbdImageName, opts, err := device.DiskParseRBDFormat(driveConf.DevPath)
 		if err != nil {
 			return nil, fmt.Errorf("Failed parsing rbd string: %w", err)
 		}
-
-		// Driver and pool name arguments can be ignored as CephGetRBDImageName doesn't need them.
-		volumeType := storageDrivers.VolumeTypeCustom
-		volumeName := project.StorageVolume(d.project.Name, volName)
-
-		// Handle different name for instance volumes.
-		if driveConf.TargetPath == "/" {
-			volumeType = storageDrivers.VolumeTypeVM
-			volumeName = volName
-		}
-
-		// Identify the right content type.
-		rbdContentType := storageDrivers.ContentTypeBlock
-		if driveConf.FSType == "iso9660" {
-			rbdContentType = storageDrivers.ContentTypeISO
-		}
-
-		// Get the RBD image name.
-		vol := storageDrivers.NewVolume(nil, "", volumeType, rbdContentType, volumeName, nil, nil)
-		rbdImageName := storageDrivers.CephGetRBDImageName(vol, "", false)
 
 		// Parse the options (ceph credentials).
 		userName := storageDrivers.CephDefaultUser
