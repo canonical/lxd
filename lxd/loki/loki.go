@@ -384,9 +384,9 @@ func buildNestedContext(prefix string, m map[string]any) map[string]string {
 			}
 		} else {
 			if prefix == "" {
-				labels[k] = fmt.Sprintf("%v", v)
+				labels[k] = fmt.Sprint(v)
 			} else {
-				labels[prefix+"-"+k] = fmt.Sprintf("%v", v)
+				labels[prefix+"-"+k] = fmt.Sprint(v)
 			}
 		}
 	}
