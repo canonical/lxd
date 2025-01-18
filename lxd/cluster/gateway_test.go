@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -149,7 +148,7 @@ func TestGateway_NetworkAuth(t *testing.T) {
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}}
 
 	for path := range gateway.HandlerFuncs(nil, &identity.Cache{}) {
-		url := fmt.Sprintf("https://%s%s", address, path)
+		url := "https://" + address + path
 		response, err := client.Head(url)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusForbidden, response.StatusCode)
