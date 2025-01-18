@@ -432,7 +432,7 @@ func makeFSType(path string, fsType string, options *mkfsOptions) (string, error
 	}
 
 	if fsType == "ext4" {
-		cmd = append(cmd, "-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0")
+		cmd = append(cmd, "-E", "lazy_itable_init=0,lazy_journal_init=0")
 	}
 
 	// Always add the path to the device as the last argument for wider compatibility with versions of mkfs.
