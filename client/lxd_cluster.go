@@ -1,8 +1,6 @@
 package lxd
 
 import (
-	"fmt"
-
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -64,7 +62,7 @@ func (r *ProtocolLXD) DeleteClusterMember(name string, force bool) error {
 		params += "?force=1"
 	}
 
-	_, _, err = r.query("DELETE", fmt.Sprintf("/cluster/members/%s%s", name, params), nil, "")
+	_, _, err = r.query("DELETE", "/cluster/members/"+name+params, nil, "")
 	if err != nil {
 		return err
 	}
@@ -115,7 +113,7 @@ func (r *ProtocolLXD) GetClusterMember(name string) (*api.ClusterMember, string,
 	}
 
 	member := api.ClusterMember{}
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/cluster/members/%s", name), nil, "", &member)
+	etag, err := r.queryStruct("GET", "/cluster/members/"+name, nil, "", &member)
 	if err != nil {
 		return nil, "", err
 	}
@@ -138,7 +136,7 @@ func (r *ProtocolLXD) UpdateClusterMember(name string, member api.ClusterMemberP
 	}
 
 	// Send the request
-	_, _, err = r.query("PUT", fmt.Sprintf("/cluster/members/%s", name), member, ETag)
+	_, _, err = r.query("PUT", "/cluster/members/"+name, member, ETag)
 	if err != nil {
 		return err
 	}
@@ -153,7 +151,7 @@ func (r *ProtocolLXD) RenameClusterMember(name string, member api.ClusterMemberP
 		return err
 	}
 
-	_, _, err = r.query("POST", fmt.Sprintf("/cluster/members/%s", name), member, "")
+	_, _, err = r.query("POST", "/cluster/members/"+name, member, "")
 	if err != nil {
 		return err
 	}
@@ -215,7 +213,7 @@ func (r *ProtocolLXD) UpdateClusterMemberState(name string, state api.ClusterMem
 		return nil, err
 	}
 
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/cluster/members/%s/state", name), state, "", true)
+	op, _, err := r.queryOperation("POST", "/cluster/members/"+name+"/state", state, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +263,7 @@ func (r *ProtocolLXD) RenameClusterGroup(name string, group api.ClusterGroupPost
 		return err
 	}
 
-	_, _, err = r.query("POST", fmt.Sprintf("/cluster/groups/%s", name), group, "")
+	_, _, err = r.query("POST", "/cluster/groups/"+name, group, "")
 	if err != nil {
 		return err
 	}
@@ -295,7 +293,7 @@ func (r *ProtocolLXD) DeleteClusterGroup(name string) error {
 		return err
 	}
 
-	_, _, err = r.query("DELETE", fmt.Sprintf("/cluster/groups/%s", name), nil, "")
+	_, _, err = r.query("DELETE", "/cluster/groups/"+name, nil, "")
 	if err != nil {
 		return err
 	}
@@ -311,7 +309,7 @@ func (r *ProtocolLXD) UpdateClusterGroup(name string, group api.ClusterGroupPut,
 	}
 
 	// Send the request
-	_, _, err = r.query("PUT", fmt.Sprintf("/cluster/groups/%s", name), group, ETag)
+	_, _, err = r.query("PUT", "/cluster/groups/"+name, group, ETag)
 	if err != nil {
 		return err
 	}
@@ -327,7 +325,7 @@ func (r *ProtocolLXD) GetClusterGroup(name string) (*api.ClusterGroup, string, e
 	}
 
 	group := api.ClusterGroup{}
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/cluster/groups/%s", name), nil, "", &group)
+	etag, err := r.queryStruct("GET", "/cluster/groups/"+name, nil, "", &group)
 	if err != nil {
 		return nil, "", err
 	}
