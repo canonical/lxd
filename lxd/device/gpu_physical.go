@@ -288,11 +288,11 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 }
 
 func (d *gpuPhysical) generateCDIHooksFilePath() string {
-	return filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s%s", d.name, cdi.CDIHooksFileSuffix))
+	return filepath.Join(d.inst.DevicesPath(), d.name+cdi.CDIHooksFileSuffix)
 }
 
 func (d *gpuPhysical) generateCDIConfigDevicesFilePath() string {
-	return filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s%s", d.name, cdi.CDIConfigDevicesFileSuffix))
+	return filepath.Join(d.inst.DevicesPath(), d.name+cdi.CDIConfigDevicesFileSuffix)
 }
 
 // startContainer detects the requested GPU devices and sets up unix-char devices.
