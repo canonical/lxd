@@ -33,7 +33,7 @@ func NotifyUpgradeCompleted(state *state.State, networkCert *shared.CertInfo, se
 			return fmt.Errorf("failed to get connection info: %w", err)
 		}
 
-		url := fmt.Sprintf("%s%s", info.Addresses[0], databaseEndpoint)
+		url := info.Addresses[0] + databaseEndpoint
 		request, err := http.NewRequest("PATCH", url, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create database notify upgrade request: %w", err)
