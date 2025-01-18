@@ -488,8 +488,8 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 	targetAddressStr := forward.TargetAddress.String()
 
 	// Generate slices of rules to add.
-	var dnatRules []map[string]any
-	var snatRules []map[string]any
+	dnatRules := make([]map[string]any, 0, listenPortsLen)
+	snatRules := make([]map[string]any, 0, listenPortsLen)
 
 	targetPortRanges := portRangesFromSlice(forward.TargetPorts)
 	for _, targetPortRange := range targetPortRanges {
