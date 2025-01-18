@@ -402,7 +402,7 @@ func (d *btrfs) setSubvolumeReadonlyProperty(path string, readonly bool) error {
 		args = append(args, "-f")
 	}
 
-	args = append(args, "-ts", path, "ro", fmt.Sprintf("%t", readonly))
+	args = append(args, "-ts", path, "ro", fmt.Sprint(readonly))
 
 	_, err := shared.RunCommand("btrfs", args...)
 	return err
