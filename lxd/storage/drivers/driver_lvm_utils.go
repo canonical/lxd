@@ -229,11 +229,11 @@ func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string, thinpoolSiz
 	}
 
 	if thinpoolMetadataSizeBytes > 0 {
-		args = append(args, "--poolmetadatasize", fmt.Sprintf("%db", thinpoolMetadataSizeBytes))
+		args = append(args, "--poolmetadatasize", strconv.FormatInt(thinpoolMetadataSizeBytes, 10)+"b")
 	}
 
 	if thinpoolSizeBytes > 0 {
-		args = append(args, "--size", fmt.Sprintf("%db", thinpoolSizeBytes))
+		args = append(args, "--size", strconv.FormatInt(thinpoolSizeBytes, 10)+"b")
 	} else if isRecent {
 		args = append(args, "--extents", "100%FREE")
 	} else {
@@ -251,7 +251,7 @@ func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string, thinpoolSiz
 				return fmt.Errorf("Invalid volume stripe size %q: %w", d.config["volume.lvm.stripes.size"], err)
 			}
 
-			args = append(args, "--stripesize", fmt.Sprintf("%db", stripSizeBytes))
+			args = append(args, "--stripesize", strconv.FormatInt(stripSizeBytes, 10)+"b")
 		}
 	}
 
@@ -337,12 +337,12 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 		targetVg := vgName + "/" + thinPoolName
 		args = append(args,
 			"--thin",
-			"--virtualsize", fmt.Sprintf("%db", lvSizeBytes),
+			"--virtualsize", strconv.FormatInt(lvSizeBytes, 10)+"b",
 			targetVg,
 		)
 	} else {
 		args = append(args,
-			"--size", fmt.Sprintf("%db", lvSizeBytes),
+			"--size", strconv.FormatInt(lvSizeBytes, 10)+"b",
 			vgName,
 		)
 
@@ -358,7 +358,7 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 					return fmt.Errorf("Invalid volume stripe size %q: %w", stripeSize, err)
 				}
 
-				args = append(args, "--stripesize", fmt.Sprintf("%db", stripSizeBytes))
+				args = append(args, "--stripesize", strconv.FormatInt(stripSizeBytes, 10)+"b")
 			}
 		}
 	}
@@ -397,7 +397,7 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 		}
 	}
 
-	d.logger.Debug("Logical volume created", logger.Ctx{"vg_name": vgName, "lv_name": lvFullName, "size": fmt.Sprintf("%db", lvSizeBytes), "fs": vol.ConfigBlockFilesystem()})
+	d.logger.Debug("Logical volume created", logger.Ctx{"vg_name": vgName, "lv_name": lvFullName, "size": strconv.FormatInt(lvSizeBytes, 10) + "b", "fs": vol.ConfigBlockFilesystem()})
 	return nil
 }
 
@@ -523,7 +523,7 @@ func (d *lvm) resizeLogicalVolume(lvPath string, sizeBytes int64) error {
 		return err
 	}
 
-	d.logger.Debug("Logical volume resized", logger.Ctx{"dev": lvPath, "size": fmt.Sprintf("%db", sizeBytes)})
+	d.logger.Debug("Logical volume resized", logger.Ctx{"dev": lvPath, "size": strconv.FormatInt(sizeBytes, 10) + "b"})
 	return nil
 }
 
