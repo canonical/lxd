@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -98,7 +99,7 @@ func (d *cephobject) radosgwadminUserAdd(ctx context.Context, user string, maxBu
 	revert := revert.New()
 	defer revert.Fail()
 
-	out, err := d.radosgwadmin(ctx, "user", "create", "--max-buckets", fmt.Sprintf("%d", maxBuckets), "--display-name", user, "--uid", user)
+	out, err := d.radosgwadmin(ctx, "user", "create", "--max-buckets", strconv.FormatInt(int64(maxBuckets), 10), "--display-name", user, "--uid", user)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +216,7 @@ func (d *cephobject) radosgwadminBucketSetQuota(ctx context.Context, user string
 			return err
 		}
 
-		_, err = d.radosgwadmin(ctx, "quota", "set", "--quota-scope=bucket", "--uid", user, "--max-size", fmt.Sprintf("%d", size))
+		_, err = d.radosgwadmin(ctx, "quota", "set", "--quota-scope=bucket", "--uid", user, "--max-size", strconv.FormatInt(size, 10))
 		if err != nil {
 			return err
 		}
