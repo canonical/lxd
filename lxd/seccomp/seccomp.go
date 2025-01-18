@@ -2456,7 +2456,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 			"mount",
 			fmt.Sprintf("%d", args.pid),
 			fmt.Sprintf("%d", pidFdNr),
-			fmt.Sprintf("%d", 0),
+			"0",
 			args.source,
 			args.target,
 			args.fstype,
@@ -2642,7 +2642,7 @@ func lxcSupportSeccompNotify(state *state.State) error {
 		return fmt.Errorf("Failed to load seccomp notify test container")
 	}
 
-	err = c.SetConfigItem("lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
+	err = c.SetConfigItem("lxc.seccomp.notify.proxy", "unix:"+shared.VarPath("seccomp.socket"))
 	if err != nil {
 		return fmt.Errorf("LXC doesn't support notify proxy: %w", err)
 	}
