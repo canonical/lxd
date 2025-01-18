@@ -736,7 +736,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	}
 
 	for _, snapName := range srcBackup.Snapshots {
-		snapInstName := fmt.Sprintf("%s%s%s", srcBackup.Name, shared.SnapshotDelimiter, snapName)
+		snapInstName := srcBackup.Name + shared.SnapshotDelimiter + snapName
 		err = instancetype.ValidName(snapInstName, true)
 		if err != nil {
 			return nil, nil, err
@@ -744,7 +744,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	}
 
 	for _, snap := range srcBackup.Config.Snapshots {
-		snapInstName := fmt.Sprintf("%s%s%s", srcBackup.Name, shared.SnapshotDelimiter, snap.Name)
+		snapInstName := srcBackup.Name + shared.SnapshotDelimiter + snap.Name
 		err = instancetype.ValidName(snapInstName, true)
 		if err != nil {
 			return nil, nil, err
@@ -1837,7 +1837,7 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string, op 
 			metadata := make(map[string]any)
 			tracker = &ioprogress.ProgressTracker{
 				Handler: func(percent, speed int64) {
-					displayPrefix := fmt.Sprintf("Converting image format from %s to raw", imgFormat)
+					displayPrefix := "Converting image format from " + imgFormat + " to raw"
 					shared.SetProgressMetadata(metadata, "format_progress", displayPrefix, percent, 0, speed)
 					_ = op.UpdateMetadata(metadata)
 				},
@@ -2495,7 +2495,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		// to a temporary location before converting it into the desired format.
 		// The conversion cannot be done in-place, therefore the image has to be
 		// saved in an intermediate location.
-		conversionID := fmt.Sprintf("conversion_%s_%s", inst.Project().Name, inst.Name())
+		conversionID := "conversion_" + inst.Project().Name + "_" + inst.Name()
 		imgPath := filepath.Join(shared.VarPath("backups"), conversionID)
 
 		// Create new file in backups directory.
@@ -6711,7 +6711,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 		if ok {
 			// We need to delete some snapshots and try again.
 			for _, snapName := range snapErr.Snapshots {
-				err := b.DeleteCustomVolumeSnapshot(projectName, fmt.Sprintf("%s/%s", volName, snapName), op)
+				err := b.DeleteCustomVolumeSnapshot(projectName, volName+"/"+snapName, op)
 				if err != nil {
 					return err
 				}
