@@ -647,7 +647,7 @@ func (d *lvm) ListVolumes() ([]Volume, error) {
 		var volName string
 
 		for _, volumeType := range d.Info().VolumeTypes {
-			prefix := fmt.Sprintf("%s_", volumeType)
+			prefix := string(volumeType) + "_"
 			if strings.HasPrefix(rawName, prefix) {
 				volType = volumeType
 				volName = strings.TrimPrefix(rawName, prefix)
@@ -1076,7 +1076,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 		regenerateFSUUID := renegerateFilesystemUUIDNeeded(snapVol.ConfigBlockFilesystem())
 		if regenerateFSUUID {
 			// Instantiate a new volume to be the temporary writable snapshot.
-			tmpVolName := fmt.Sprintf("%s%s", snapVol.name, tmpVolSuffix)
+			tmpVolName := snapVol.name + tmpVolSuffix
 			tmpVol := NewVolume(d, d.name, snapVol.volType, snapVol.contentType, tmpVolName, snapVol.config, snapVol.poolConfig)
 
 			// Create writable snapshot from source snapshot named with a tmpVolSuffix suffix.
@@ -1179,7 +1179,7 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 		d.logger.Debug("Unmounted logical volume snapshot", logger.Ctx{"path": mountPath})
 
 		// Check if a temporary snapshot exists, and if so remove it.
-		tmpVolName := fmt.Sprintf("%s%s", snapVol.name, tmpVolSuffix)
+		tmpVolName := snapVol.name + tmpVolSuffix
 		tmpVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, tmpVolName)
 		exists, err := d.logicalVolumeExists(tmpVolDevPath)
 		if err != nil {
@@ -1293,7 +1293,7 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation
 		}
 
 		originalVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], restoreVol.volType, restoreVol.contentType, restoreVol.name)
-		tmpVolName := fmt.Sprintf("%s%s", restoreVol.name, tmpVolSuffix)
+		tmpVolName := restoreVol.name + tmpVolSuffix
 		tmpVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], restoreVol.volType, restoreVol.contentType, tmpVolName)
 
 		reverter := revert.New()
