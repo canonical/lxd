@@ -819,7 +819,7 @@ func (r *ProtocolLXD) MoveStoragePoolVolume(pool string, source InstanceServer, 
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", "/storage-pools/"+url.PathEscape(sourcePool)+"/volumes/"+url.PathEscape(volume.Type)+"/"+volume.Name, req, "", true)
+	op, _, err := r.queryOperation("POST", "/storage-pools/"+url.PathEscape(sourcePool)+"/volumes/"+url.PathEscape(volume.Type)+"/"+url.PathEscape(volume.Name), req, "", true)
 	if err != nil {
 		return nil, err
 	}
