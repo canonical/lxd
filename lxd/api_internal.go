@@ -1006,7 +1006,7 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 				break
 			}
 
-			rootDevName = fmt.Sprintf("root%d", i)
+			rootDevName = "root" + strconv.FormatInt(int64(i), 10)
 			continue
 		}
 
