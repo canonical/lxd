@@ -396,7 +396,7 @@ func buildNestedContext(prefix string, m map[string]any) map[string]string {
 
 // MarshalJSON returns the JSON encoding of Entry.
 func (e Entry) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("[\"%d\", %s]", e.Timestamp.UnixNano(), strconv.Quote(e.Line))), nil
+	return []byte(`["` + strconv.FormatInt(e.Timestamp.UnixNano(), 10) + `", ` + strconv.Quote(e.Line) + "]"), nil
 }
 
 // String implements the Stringer interface. It returns a formatted/sorted set of label key/value pairs.
