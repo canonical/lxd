@@ -446,7 +446,7 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 	for _, subVolPath := range subVolPaths {
 		subVols = append(subVols, BTRFSSubVolume{
 			Snapshot: snapName,
-			Path:     fmt.Sprintf("%s%s", string(filepath.Separator), subVolPath),
+			Path:     string(filepath.Separator) + subVolPath,
 			Readonly: BTRFSSubVolumeIsRo(filepath.Join(vol.MountPath(), subVolPath)),
 		})
 	}
