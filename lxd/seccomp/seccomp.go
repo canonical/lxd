@@ -1351,7 +1351,7 @@ func (s *Server) doDeviceSyscall(c Instance, args *MknodArgs, siov *Iovec) int {
 	// has CAP_MKNOD capability?
 	hasCapability, err := isCapableInCtInitUserns(siov, C.CAP_MKNOD)
 	if err != nil {
-		l.Error(fmt.Sprintf("%v", err))
+		l.Error(fmt.Sprint(err))
 		return int(-C.EPERM)
 	}
 
