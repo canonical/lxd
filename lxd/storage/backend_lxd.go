@@ -3323,8 +3323,15 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmSta
 		return err
 	}
 
-	// Apply the main volume quota.
+	// If no size is provided, block volumes should get resized to the pool's default size for block volumes.
 	vol := b.GetVolume(volType, contentVolume, volStorageName, dbVol.Config)
+	if size == "" {
+		// Instance volumes don't have a size property on the database, so ConfigSize will rely
+		// on the pool's config and driver's default block size.
+		size = vol.ConfigSize()
+	}
+
+	// Apply the main volume quota.
 	err = b.driver.SetVolumeQuota(vol, size, false, op)
 	if err != nil {
 		return err
