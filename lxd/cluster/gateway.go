@@ -994,7 +994,7 @@ func attemptGetLeaderAddressFromNodeAddress(ctx context.Context, transport http.
 		Timeout:   timeout,
 	}
 
-	url := fmt.Sprintf("https://%s%s", nodeAddress, databaseEndpoint)
+	url := "https://" + nodeAddress + databaseEndpoint
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
@@ -1040,7 +1040,7 @@ func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway
 		return nil, err
 	}
 
-	path := fmt.Sprintf("https://%s%s", addr, databaseEndpoint)
+	path := "https://" + addr + databaseEndpoint
 
 	// Establish the connection
 	request := &http.Request{
@@ -1136,7 +1136,7 @@ const databaseEndpoint = "/internal/database"
 
 // DqliteLog redirects dqlite's logs to our own logger.
 func DqliteLog(l client.LogLevel, format string, a ...any) {
-	format = fmt.Sprintf("Dqlite: %s", format)
+	format = "Dqlite: " + format
 	switch l {
 	case client.LogDebug:
 		logger.Debugf(format, a...)
