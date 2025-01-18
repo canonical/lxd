@@ -31,7 +31,7 @@ func qemuDeviceNameOrID(prefix string, deviceName string, suffix string, maxLeng
 		}
 	}
 
-	return fmt.Sprintf("%s%s%s", prefix, baseName, suffix)
+	return prefix + baseName + suffix
 }
 
 type cfgEntry struct {
@@ -50,15 +50,15 @@ func qemuStringifyCfg(cfg ...cfgSection) *strings.Builder {
 
 	for _, section := range cfg {
 		if section.comment != "" {
-			sb.WriteString(fmt.Sprintf("# %s\n", section.comment))
+			sb.WriteString("# " + section.comment + "\n")
 		}
 
-		sb.WriteString(fmt.Sprintf("[%s]\n", section.name))
+		sb.WriteString("[" + section.name + "]\n")
 
 		for _, entry := range section.entries {
 			value := entry.value
 			if value != "" {
-				sb.WriteString(fmt.Sprintf("%s = \"%s\"\n", entry.key, value))
+				sb.WriteString(entry.key + ` = "` + value + `"` + "\n")
 			}
 		}
 
@@ -205,7 +205,7 @@ func qemuSerial(opts *qemuSerialOpts) []cfgSection {
 	}, {
 		// Ring buffer used by the lxd agent to report (write) its status to. LXD server will read
 		// its content via QMP using "ringbuf-read" command.
-		name:    fmt.Sprintf(`chardev "%s"`, opts.charDevName),
+		name:    `chardev "` + opts.charDevName + `"`,
 		comment: "LXD serial identifier",
 		entries: []cfgEntry{
 			{key: "backend", value: "ringbuf"},
@@ -283,7 +283,7 @@ func qemuPCIe(opts *qemuPCIeOpts) []cfgSection {
 	}
 
 	return []cfgSection{{
-		name:    fmt.Sprintf(`device "%s"`, opts.portName),
+		name:    `device "` + opts.portName + `"`,
 		entries: entries,
 	}}
 }
@@ -682,7 +682,7 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 		}
 
 		driveSection = cfgSection{
-			name:    fmt.Sprintf(`fsdev "%s"`, opts.id),
+			name:    `fsdev "` + opts.id + `"`,
 			comment: opts.comment,
 			entries: []cfgEntry{
 				{key: "fsdriver", value: opts.fsdriver},
@@ -702,7 +702,7 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 		}
 	} else if opts.protocol == "virtio-fs" {
 		driveSection = cfgSection{
-			name:    fmt.Sprintf(`chardev "%s"`, opts.id),
+			name:    `chardev "` + opts.id + `"`,
 			comment: opts.comment,
 			entries: []cfgEntry{
 				{key: "backend", value: "socket"},
@@ -724,7 +724,7 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 	return []cfgSection{
 		driveSection,
 		{
-			name:    fmt.Sprintf(`device "%s"`, opts.id),
+			name:    `device "` + opts.id + `"`,
 			entries: append(qemuDeviceEntries(&deviceOpts), extraDeviceEntries...),
 		},
 	}
@@ -739,10 +739,10 @@ type qemuDriveConfigOpts struct {
 func qemuDriveConfig(opts *qemuDriveConfigOpts) []cfgSection {
 	return qemuHostDrive(&qemuHostDriveOpts{
 		dev: opts.dev,
-		id:  fmt.Sprintf("dev-qemu_config-drive-%s", opts.protocol),
+		id:  "dev-qemu_config-drive-" + opts.protocol,
 		// Devices use "qemu_" prefix indicating that this is a internally named device.
 		name:          "qemu_config",
-		comment:       fmt.Sprintf("Config drive (%s)", opts.protocol),
+		comment:       "Config drive (" + opts.protocol + ")",
 		mountTag:      "config",
 		protocol:      opts.protocol,
 		fsdriver:      "local",
@@ -767,8 +767,8 @@ func qemuDriveDir(opts *qemuDriveDirOpts) []cfgSection {
 		dev: opts.dev,
 		id:  qemuDeviceNameOrID(qemuDeviceIDPrefix, opts.devName, "-"+opts.protocol, qemuDeviceIDMaxLength),
 		// Devices use "lxd_" prefix indicating that this is a user named device.
-		name:     fmt.Sprintf("lxd_%s", opts.devName),
-		comment:  fmt.Sprintf("%s drive (%s)", opts.devName, opts.protocol),
+		name:     "lxd_" + opts.devName,
+		comment:  opts.devName + " drive (" + opts.protocol + ")",
 		mountTag: opts.mountTag,
 		protocol: opts.protocol,
 		fsdriver: "proxy",
@@ -797,7 +797,7 @@ func qemuPCIPhysical(opts *qemuPCIPhysicalOpts) []cfgSection {
 
 	return []cfgSection{{
 		// Devices use "lxd_" prefix indicating that this is a user named device.
-		name:    fmt.Sprintf(`device "%s"`, qemuDeviceNameOrID(qemuDeviceIDPrefix, opts.devName, "", qemuDeviceIDMaxLength)),
+		name:    `device "` + qemuDeviceNameOrID(qemuDeviceIDPrefix, opts.devName, "", qemuDeviceIDMaxLength) + `"`,
 		comment: fmt.Sprintf(`PCI card ("%s" device)`, opts.devName),
 		entries: entries,
 	}}
@@ -821,7 +821,7 @@ func qemuGPUDevPhysical(opts *qemuGPUDevPhysicalOpts) []cfgSection {
 	entries := qemuDeviceEntries(&deviceOpts)
 
 	if opts.vgpu != "" {
-		sysfsdev := fmt.Sprintf("/sys/bus/mdev/devices/%s", opts.vgpu)
+		sysfsdev := "/sys/bus/mdev/devices/" + opts.vgpu
 		entries = append(entries, cfgEntry{key: "sysfsdev", value: sysfsdev})
 	} else {
 		entries = append(entries, cfgEntry{key: "host", value: opts.pciSlotName})
@@ -833,8 +833,8 @@ func qemuGPUDevPhysical(opts *qemuGPUDevPhysicalOpts) []cfgSection {
 
 	return []cfgSection{{
 		// Devices use "lxd_" prefix indicating that this is a user named device.
-		name:    fmt.Sprintf(`device "%s"`, qemuDeviceNameOrID(qemuDeviceIDPrefix, opts.devName, "", qemuDeviceIDMaxLength)),
-		comment: fmt.Sprintf(`GPU card ("%s" device)`, opts.devName),
+		name:    `device "` + qemuDeviceNameOrID(qemuDeviceIDPrefix, opts.devName, "", qemuDeviceIDMaxLength) + `"`,
+		comment: `GPU card ("` + opts.devName + `" device)`,
 		entries: entries,
 	}}
 }
@@ -869,7 +869,7 @@ func qemuUSB(opts *qemuUSBOpts) []cfgSection {
 	for i := 1; i <= 3; i++ {
 		chardev := fmt.Sprintf("qemu_spice-usb-chardev%d", i)
 		sections = append(sections, []cfgSection{{
-			name: fmt.Sprintf(`chardev "%s"`, chardev),
+			name: `chardev "` + chardev + `"`,
 			entries: []cfgEntry{
 				{key: "backend", value: "spicevmc"},
 				{key: "name", value: "usbredir"},
@@ -897,19 +897,19 @@ func qemuTPM(opts *qemuTPMOpts) []cfgSection {
 	device := qemuDeviceNameOrID(qemuDeviceIDPrefix, opts.devName, "", qemuDeviceIDMaxLength)
 
 	return []cfgSection{{
-		name: fmt.Sprintf(`chardev "%s"`, chardev),
+		name: `chardev "` + chardev + `"`,
 		entries: []cfgEntry{
 			{key: "backend", value: "socket"},
 			{key: "path", value: opts.path},
 		},
 	}, {
-		name: fmt.Sprintf(`tpmdev "%s"`, tpmdev),
+		name: `tpmdev "` + tpmdev + `"`,
 		entries: []cfgEntry{
 			{key: "type", value: "emulator"},
 			{key: "chardev", value: chardev},
 		},
 	}, {
-		name: fmt.Sprintf(`device "%s"`, device),
+		name: `device "` + device + `"`,
 		entries: []cfgEntry{
 			{key: "driver", value: "tpm-crb"},
 			{key: "tpmdev", value: tpmdev},
