@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/canonical/lxd/client"
@@ -490,7 +491,7 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		}
 
 		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", sz))
+		w.Header().Set("Content-Length", strconv.FormatInt(sz, 10))
 		w.Header().Set("Content-Disposition", "inline;filename="+r.files[0].Filename)
 
 		http.ServeContent(w, req, r.files[0].Filename, mt, rs)
@@ -543,7 +544,7 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 }
 
 func (r *fileResponse) String() string {
-	return fmt.Sprintf("%d files", len(r.files))
+	return strconv.FormatInt(int64(len(r.files)), 10) + " files"
 }
 
 type forwardedResponse struct {
