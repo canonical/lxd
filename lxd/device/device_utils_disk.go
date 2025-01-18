@@ -31,7 +31,7 @@ const RBDFormatPrefix = "rbd"
 const RBDFormatSeparator = " "
 
 // DiskParseRBDFormat parses an rbd formatted string, and returns the pool name, volume name, and list of options.
-func DiskParseRBDFormat(rbd string) (poolName string, volumeName string, options []string, err error) {
+func DiskParseRBDFormat(rbd string) (cephPoolName string, rbdImageName string, options []string, err error) {
 	if !strings.HasPrefix(rbd, fmt.Sprintf("%s%s", RBDFormatPrefix, RBDFormatSeparator)) {
 		return "", "", nil, fmt.Errorf("Invalid rbd format, missing prefix")
 	}
@@ -52,17 +52,17 @@ func DiskParseRBDFormat(rbd string) (poolName string, volumeName string, options
 }
 
 // DiskGetRBDFormat returns a rbd formatted string with the given values.
-func DiskGetRBDFormat(clusterName string, userName string, poolName string, volumeName string) string {
+func DiskGetRBDFormat(clusterName string, userName string, cephPoolName string, rbdImageName string) string {
 	// Configuration values containing :, @, or = can be escaped with a leading \ character.
 	// According to https://docs.ceph.com/docs/hammer/rbd/qemu-rbd/#usage
 	optEscaper := strings.NewReplacer(":", `\:`, "@", `\@`, "=", `\=`)
 	opts := []string{
 		fmt.Sprintf("id=%s", optEscaper.Replace(userName)),
-		fmt.Sprintf("pool=%s", optEscaper.Replace(poolName)),
+		fmt.Sprintf("pool=%s", optEscaper.Replace(cephPoolName)),
 		fmt.Sprintf("conf=/etc/ceph/%s.conf", optEscaper.Replace(clusterName)),
 	}
 
-	return fmt.Sprintf("%s%s%s/%s%s%s", RBDFormatPrefix, RBDFormatSeparator, optEscaper.Replace(poolName), optEscaper.Replace(volumeName), RBDFormatSeparator, strings.Join(opts, ":"))
+	return fmt.Sprintf("%s%s%s/%s%s%s", RBDFormatPrefix, RBDFormatSeparator, optEscaper.Replace(cephPoolName), optEscaper.Replace(rbdImageName), RBDFormatSeparator, strings.Join(opts, ":"))
 }
 
 // BlockFsDetect detects the type of block device.
