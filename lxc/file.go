@@ -1333,7 +1333,7 @@ func (c *cmdFileMount) sshfsMount(ctx context.Context, resource remoteResource, 
 
 	// Use the format "lxd.<instance_name>" as the source "host" (although not used for communication)
 	// so that the mount can be seen to be associated with LXD and the instance in the local mount table.
-	sourceURL := fmt.Sprintf("lxd.%s:%s", instName, instPath)
+	sourceURL := "lxd." + instName + ":" + instPath
 
 	sshfsCmd := exec.Command(sshfsPath, "-o", "slave", sourceURL, targetPath)
 
@@ -1355,7 +1355,7 @@ func (c *cmdFileMount) sshfsMount(ctx context.Context, resource remoteResource, 
 		return fmt.Errorf(i18n.G("Failed starting sshfs: %w"), err)
 	}
 
-	fmt.Printf(i18n.G("sshfs mounting %q on %q")+"\n", fmt.Sprintf("%s%s", instName, instPath), targetPath)
+	fmt.Printf(i18n.G("sshfs mounting %q on %q")+"\n", instName+instPath, targetPath)
 	fmt.Println(i18n.G("Press ctrl+c to finish"))
 
 	ctx, cancel := context.WithCancel(ctx)
