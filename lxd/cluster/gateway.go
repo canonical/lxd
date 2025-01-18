@@ -141,7 +141,7 @@ const dqliteVersion = 1
 
 // Set the dqlite version header.
 func setDqliteVersionHeader(request *http.Request) {
-	request.Header.Set("X-Dqlite-Version", fmt.Sprintf("%d", dqliteVersion))
+	request.Header.Set("X-Dqlite-Version", strconv.FormatInt(dqliteVersion, 10))
 }
 
 // HandlerFuncs returns the HTTP handlers that should be added to the REST API
