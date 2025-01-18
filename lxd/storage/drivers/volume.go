@@ -470,16 +470,23 @@ func (v Volume) ConfigBlockMountOptions() string {
 // or pool's volume config, otherwise for block volumes and block-backed volumes the defaultBlockSize. For other
 // volumes an empty string is returned if no size is defined.
 func (v Volume) ConfigSize() string {
-	size := v.ExpandedConfig("size")
-
-	// If volume size isn't defined in either volume or pool config, then for block volumes or block-backed
-	// volumes return the defaultBlockSize.
-	if (size == "" || size == "0") && (v.contentType == ContentTypeBlock || v.IsBlockBacked()) {
-		return v.driver.Info().DefaultBlockSize
+	size, ok := v.config["size"]
+	if ok && size != "0" {
+		return size
 	}
 
-	// Return defined size or empty string if not defined.
-	return size
+	// If volume size isn't defined on the volume config, then for block volumes or block-backed
+	// volumes return the size from the pool config, if defined, or the driver's DefaultBlockSize.
+	if !(v.contentType == ContentTypeBlock || v.IsBlockBacked()) {
+		return size
+	}
+
+	size = v.ExpandedConfig("size")
+	if size != "" && size != "0" {
+		return size
+	}
+
+	return v.driver.Info().DefaultBlockSize
 }
 
 // ConfigSizeFromSource derives the volume size to use for a new volume when copying from a source volume.
