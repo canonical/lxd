@@ -4114,7 +4114,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		nodeName := qemuDeviceNameOrID(qemuDeviceNamePrefix, driveConf.DevName, "", qemuDeviceNameMaxLength)
 
 		if isRBDImage {
-			secretID := "pool_" + blockDev["pool"] + "_" + blockDev["user"]
+			secretID := fmt.Sprintf("pool_%s_%s", blockDev["pool"], blockDev["user"])
 
 			err := m.AddSecret(secretID, rbdSecret)
 			if err != nil {
