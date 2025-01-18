@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -465,7 +466,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		return nil
 	}
 
-	l := d.logger.AddContext(logger.Ctx{"dev": volDevPath, "size": fmt.Sprintf("%db", sizeBytes)})
+	l := d.logger.AddContext(logger.Ctx{"dev": volDevPath, "size": strconv.FormatInt(sizeBytes, 10) + "b"})
 
 	inUse := vol.MountInUse()
 
