@@ -126,7 +126,7 @@ func TestEnsureSchema_UpdateNodeVersion(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		t.Run(fmt.Sprintf("%v", c.ready), func(t *testing.T) {
+		t.Run(fmt.Sprint(c.ready), func(t *testing.T) {
 			db := newDB(t)
 
 			// Add ourselves with an older schema version and API
