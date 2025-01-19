@@ -10,10 +10,10 @@ import (
 func Pretty(input any) string {
 	pretty, err := json.MarshalIndent(input, "\t", "\t")
 	if err != nil {
-		return fmt.Sprintf("%v", input)
+		return fmt.Sprint(input)
 	}
 
-	return fmt.Sprintf("\n\t%s", pretty)
+	return "\n\t" + string(pretty)
 }
 
 // GetStack will convert the Go stack into a string suitable for logging.
@@ -21,5 +21,5 @@ func GetStack() string {
 	buf := make([]byte, 1<<16)
 	n := runtime.Stack(buf, true)
 
-	return fmt.Sprintf("\n\t%s", buf[:n])
+	return "\n\t" + string(buf[:n])
 }
