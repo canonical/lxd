@@ -2025,7 +2025,7 @@ func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
 	// has CAP_SYS_MODULE capability?
 	hasCapability, err := isCapableInCtInitUserns(siov, C.CAP_SYS_MODULE)
 	if err != nil {
-		ctx["err"] = fmt.Sprintf("%v", err)
+		ctx["err"] = fmt.Sprint(err)
 		return int(-C.EPERM)
 	}
 
