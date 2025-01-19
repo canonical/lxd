@@ -19,13 +19,13 @@ func CephGetRBDImageName(vol Volume, snapName string, zombie bool) string {
 
 	// Only use filesystem suffix on filesystem type image volumes (for all content types).
 	if vol.volType == VolumeTypeImage || vol.volType == cephVolumeTypeZombieImage {
-		parentName = fmt.Sprintf("%s_%s", parentName, vol.ConfigBlockFilesystem())
+		parentName = parentName + "_" + vol.ConfigBlockFilesystem()
 	}
 
 	if vol.contentType == ContentTypeBlock {
-		parentName = fmt.Sprintf("%s%s", parentName, cephBlockVolSuffix)
+		parentName = parentName + cephBlockVolSuffix
 	} else if vol.contentType == ContentTypeISO {
-		parentName = fmt.Sprintf("%s%s", parentName, cephISOVolSuffix)
+		parentName = parentName + cephISOVolSuffix
 	}
 
 	// Use volume's type as storage volume prefix, unless there is an override in cephVolTypePrefixes.
@@ -37,22 +37,22 @@ func CephGetRBDImageName(vol Volume, snapName string, zombie bool) string {
 
 	if snapName != "" {
 		// Always use the provided snapshot name if specified.
-		out = fmt.Sprintf("%s_%s@%s", volumeTypePrefix, parentName, snapName)
+		out = volumeTypePrefix + "_" + parentName + "@" + snapName
 	} else {
 		if isSnapshot {
 			// If volumeName is a snapshot (<vol>/<snap>) and snapName is not set,
 			// assume that it's a normal snapshot (not a zombie) and prefix it with
 			// "snapshot_".
-			out = fmt.Sprintf("%s_%s@snapshot_%s", volumeTypePrefix, parentName, snapshotName)
+			out = volumeTypePrefix + "_" + parentName + "@snapshot_" + snapshotName
 		} else {
-			out = fmt.Sprintf("%s_%s", volumeTypePrefix, parentName)
+			out = volumeTypePrefix + "_" + parentName
 		}
 	}
 
 	// If the volume is to be in zombie state (i.e. not tracked by the LXD database),
 	// prefix the output with "zombie_".
 	if zombie {
-		out = fmt.Sprintf("zombie_%s", out)
+		out = "zombie_" + out
 	}
 
 	return out
@@ -61,9 +61,9 @@ func CephGetRBDImageName(vol Volume, snapName string, zombie bool) string {
 // CephMonitors gets the mon-host field for the relevant cluster and extracts the list of addresses and ports.
 func CephMonitors(cluster string) ([]string, error) {
 	// Open the CEPH configuration.
-	cephConf, err := os.Open(fmt.Sprintf("/etc/ceph/%s.conf", cluster))
+	cephConf, err := os.Open("/etc/ceph/" + cluster + ".conf")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open %q: %w", fmt.Sprintf("/etc/ceph/%s.conf", cluster), err)
+		return nil, fmt.Errorf("Failed to open %q: %w", "/etc/ceph/"+cluster+".conf", err)
 	}
 
 	// Locate the mon-host key and its values.
@@ -183,10 +183,10 @@ func getCephKeyFromFile(path string) (string, error) {
 // CephKeyring gets the key for a particular Ceph cluster and client name.
 func CephKeyring(cluster string, client string) (string, error) {
 	var cephSecret string
-	cephConfigPath := fmt.Sprintf("/etc/ceph/%v.conf", cluster)
+	cephConfigPath := "/etc/ceph/" + cluster + ".conf"
 
-	keyringPathFull := fmt.Sprintf("/etc/ceph/%v.client.%v.keyring", cluster, client)
-	keyringPathCluster := fmt.Sprintf("/etc/ceph/%v.keyring", cluster)
+	keyringPathFull := "/etc/ceph/" + cluster + ".client." + client + ".keyring"
+	keyringPathCluster := "/etc/ceph/" + cluster + ".keyring"
 	keyringPathGlobal := "/etc/ceph/keyring"
 	keyringPathGlobalBin := "/etc/ceph/keyring.bin"
 
