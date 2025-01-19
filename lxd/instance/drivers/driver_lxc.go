@@ -6519,7 +6519,7 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 			d.state.OS.LxcPath,
 			configPath,
 			finalStateDir,
-			fmt.Sprintf("%v", preservesInodes),
+			fmt.Sprint(preservesInodes),
 		)
 
 		if migrateErr == nil {
