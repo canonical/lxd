@@ -324,13 +324,13 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	env.KernelFeatures = map[string]string{
-		"netnsid_getifaddrs":        fmt.Sprintf("%v", s.OS.NetnsGetifaddrs),
-		"uevent_injection":          fmt.Sprintf("%v", s.OS.UeventInjection),
-		"unpriv_binfmt":             fmt.Sprintf("%v", s.OS.UnprivBinfmt),
-		"unpriv_fscaps":             fmt.Sprintf("%v", s.OS.VFS3Fscaps),
-		"seccomp_listener":          fmt.Sprintf("%v", s.OS.SeccompListener),
-		"seccomp_listener_continue": fmt.Sprintf("%v", s.OS.SeccompListenerContinue),
-		"idmapped_mounts":           fmt.Sprintf("%v", s.OS.IdmappedMounts),
+		"netnsid_getifaddrs":        fmt.Sprint(s.OS.NetnsGetifaddrs),
+		"uevent_injection":          fmt.Sprint(s.OS.UeventInjection),
+		"unpriv_binfmt":             fmt.Sprint(s.OS.UnprivBinfmt),
+		"unpriv_fscaps":             fmt.Sprint(s.OS.VFS3Fscaps),
+		"seccomp_listener":          fmt.Sprint(s.OS.SeccompListener),
+		"seccomp_listener_continue": fmt.Sprint(s.OS.SeccompListenerContinue),
+		"idmapped_mounts":           fmt.Sprint(s.OS.IdmappedMounts),
 	}
 
 	drivers := instanceDrivers.DriverStatuses()
@@ -374,7 +374,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	if s.OS.LXCFeatures != nil {
 		env.LXCFeatures = map[string]string{}
 		for k, v := range s.OS.LXCFeatures {
-			env.LXCFeatures[k] = fmt.Sprintf("%v", v)
+			env.LXCFeatures[k] = fmt.Sprint(v)
 		}
 	}
 
