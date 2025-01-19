@@ -42,7 +42,7 @@ func logContextMap(ctx logrus.Fields) map[string]string {
 	ctxMap := map[string]string{}
 
 	for k, v := range ctx {
-		ctxMap[k] = fmt.Sprintf("%v", v)
+		ctxMap[k] = fmt.Sprint(v)
 	}
 
 	return ctxMap
