@@ -1291,7 +1291,7 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 			}
 
 			val, ok := m[key]
-			if ok && fmt.Sprintf("%v", val) == value {
+			if ok && fmt.Sprint(val) == value {
 				found = true
 			}
 		} else {
