@@ -1254,7 +1254,7 @@ func FindTGID(procFd int) (uint32, error) {
 
 // isCapableInCtInitUserns checks if intercepted syscall's caller has a (cap) effective
 // capability in the container's initial user namespace
-func isCapableInCtInitUserns(siov *Iovec, cap C.int) (bool, error) {
+func isCapableInCtInitUserns(siov *Iovec, capability C.int) (bool, error) {
 	containerInitPID := int(siov.msg.init_pid)
 	targetPID := int(siov.req.pid)
 
@@ -1273,7 +1273,7 @@ func isCapableInCtInitUserns(siov *Iovec, cap C.int) (bool, error) {
 		return false, nil
 	}
 
-	return bool(C.lxd_pid_cap_is_set(C.int(targetPID), cap, C.CAP_EFFECTIVE)), nil
+	return bool(C.lxd_pid_cap_is_set(C.int(targetPID), capability, C.CAP_EFFECTIVE)), nil
 }
 
 // CallForkmknod executes fork mknod.
