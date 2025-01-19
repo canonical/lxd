@@ -644,11 +644,11 @@ func (d *Daemon) UnixSocket() string {
 func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 	var uri string
 	if c.Path == "" {
-		uri = fmt.Sprintf("/%s", version)
+		uri = "/" + version
 	} else if version != "" {
-		uri = fmt.Sprintf("/%s/%s", version, c.Path)
+		uri = "/" + version + "/" + c.Path
 	} else {
-		uri = fmt.Sprintf("/%s", c.Path)
+		uri = "/" + c.Path
 	}
 
 	route := restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
@@ -743,7 +743,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 
 			r = r.WithContext(ctx)
 		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
-			logger.Debug(fmt.Sprintf("Allowing untrusted %s", r.Method), logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
+			logger.Debug("Allowing untrusted "+r.Method, logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else {
 			if d.oidcVerifier != nil {
 				_ = d.oidcVerifier.WriteHeaders(w)
