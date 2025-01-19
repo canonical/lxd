@@ -92,7 +92,7 @@ func (p *Process) Stop(ctx context.Context) error {
 		return nil
 	}
 
-	spawnUnlock, err := locking.Lock(context.TODO(), fmt.Sprintf("%s%s", minioLockPrefix, p.bucketName))
+	spawnUnlock, err := locking.Lock(context.TODO(), minioLockPrefix+p.bucketName)
 	if err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 	bucketName := bucketVol.Name()
 
 	// Prevent concurrent spawning of same bucket.
-	spawnUnlock, err := locking.Lock(context.TODO(), fmt.Sprintf("%s%s", minioLockPrefix, bucketName))
+	spawnUnlock, err := locking.Lock(context.TODO(), minioLockPrefix+bucketName)
 	if err != nil {
 		return nil, err
 	}
@@ -188,12 +188,12 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 	miniosMu.Unlock()
 
 	// Find free random port for minio process to listen on.
-	listener1, err := net.Listen("tcp", fmt.Sprintf("%s:0", minioHost))
+	listener1, err := net.Listen("tcp", minioHost+":0")
 	if err != nil {
 		return nil, fmt.Errorf("Failed finding free listen port for bucket MinIO process: %w", err)
 	}
 
-	listener2, err := net.Listen("tcp", fmt.Sprintf("%s:0", minioHost))
+	listener2, err := net.Listen("tcp", minioHost+":0")
 	if err != nil {
 		return nil, fmt.Errorf("Failed finding free listen port for bucket MinIO process: %w", err)
 	}
@@ -227,8 +227,8 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 
 	env := append(os.Environ(),
 		"MINIO_BROWSER=off",
-		fmt.Sprintf("MINIO_ROOT_USER=%s", minioProc.username),
-		fmt.Sprintf("MINIO_ROOT_PASSWORD=%s", minioProc.password),
+		"MINIO_ROOT_USER="+minioProc.username,
+		"MINIO_ROOT_PASSWORD="+minioProc.password,
 	)
 
 	bucketPath := filepath.Join(bucketVol.MountPath(), minioBucketDir)
@@ -371,7 +371,7 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 // Get returns an existing MinIO process if it exists.
 func Get(bucketName string) (*Process, error) {
 	// Wait for any ongoing spawn of the bucket process to finish.
-	spawnUnlock, err := locking.Lock(context.TODO(), fmt.Sprintf("%s%s", minioLockPrefix, bucketName))
+	spawnUnlock, err := locking.Lock(context.TODO(), minioLockPrefix+bucketName)
 	if err != nil {
 		return nil, err
 	}
