@@ -198,7 +198,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 				config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress, shared.HTTPSDefaultPort)
 
 				// Cluster certificate
-				cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
+				cert, err := shared.GetRemoteCertificate("https://"+config.Cluster.ClusterAddress, version.UserAgent)
 				if err != nil {
 					fmt.Printf("Error connecting to existing cluster member %q: %v\n", clusterAddress, err)
 					continue
@@ -254,7 +254,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 				UserAgent:     version.UserAgent,
 			}
 
-			client, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), args)
+			client, err := lxd.ConnectLXD("https://"+config.Cluster.ClusterAddress, args)
 			if err != nil {
 				return err
 			}
@@ -266,7 +266,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 			}
 
 			for i, config := range cluster.MemberConfig {
-				question := fmt.Sprintf("Choose %s: ", config.Description)
+				question := "Choose " + config.Description + ": "
 
 				// Allow for empty values.
 				configValue, err := c.global.asker.AskString(question, "", validate.Optional())
@@ -819,7 +819,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 					}
 
 					if !strings.HasSuffix(pool.Config["size"], "GiB") {
-						pool.Config["size"] = fmt.Sprintf("%sGiB", pool.Config["size"])
+						pool.Config["size"] = pool.Config["size"] + "GiB"
 					}
 				}
 			}
