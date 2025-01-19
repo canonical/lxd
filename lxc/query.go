@@ -53,7 +53,7 @@ func (c *cmdQuery) pretty(input any) string {
 	enc.SetIndent("", "\t")
 	err := enc.Encode(input)
 	if err != nil {
-		return fmt.Sprintf("%v", input)
+		return fmt.Sprint(input)
 	}
 
 	return pretty.String()
