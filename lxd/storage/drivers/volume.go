@@ -141,7 +141,7 @@ func (v Volume) ExpandedConfig(key string) string {
 		return volVal
 	}
 
-	return v.poolConfig["volume." + key]
+	return v.poolConfig["volume."+key]
 }
 
 // NewSnapshot instantiates a new Volume struct representing a snapshot of the parent volume.
