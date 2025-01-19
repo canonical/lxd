@@ -936,15 +936,15 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 
 // vmVirtfsProxyHelperPaths returns the path for PID file to use with virtfs-proxy-helper process.
 func (d *disk) vmVirtfsProxyHelperPaths() string {
-	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", filesystem.PathNameEncode(d.name)))
+	pidPath := filepath.Join(d.inst.DevicesPath(), filesystem.PathNameEncode(d.name)+".pid")
 
 	return pidPath
 }
 
 // vmVirtiofsdPaths returns the path for the socket and PID file to use with virtiofsd process.
 func (d *disk) vmVirtiofsdPaths() (sockPath string, pidPath string) {
-	sockPath = filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.sock", filesystem.PathNameEncode(d.name)))
-	pidPath = filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.pid", filesystem.PathNameEncode(d.name)))
+	sockPath = filepath.Join(d.inst.DevicesPath(), "virtio-fs."+filesystem.PathNameEncode(d.name)+".sock")
+	pidPath = filepath.Join(d.inst.DevicesPath(), "virtio-fs."+filesystem.PathNameEncode(d.name)+".pid")
 
 	return sockPath, pidPath
 }
@@ -984,12 +984,12 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 	// Allow the user to override the bus.
 	if d.config["io.bus"] != "" {
-		opts = append(opts, fmt.Sprintf("bus=%s", d.config["io.bus"]))
+		opts = append(opts, "bus="+d.config["io.bus"])
 	}
 
 	// Allow the user to override the caching mode.
 	if d.config["io.cache"] != "" {
-		opts = append(opts, fmt.Sprintf("cache=%s", d.config["io.cache"]))
+		opts = append(opts, "cache="+d.config["io.cache"])
 	}
 
 	// Add I/O limits if set.
@@ -1255,7 +1255,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					// and can only pass one DevPath at a time. Instead pass the sock path to
 					// the QEMU driver via the mount opts field as virtiofsdSock to allow the
 					// QEMU driver also setup the virtio-fs share.
-					mount.Opts = append(mount.Opts, fmt.Sprintf("%s=%s", DiskVirtiofsdSockMountOpt, sockPath))
+					mount.Opts = append(mount.Opts, DiskVirtiofsdSockMountOpt+"="+sockPath)
 
 					return nil
 				}()
@@ -1445,7 +1445,7 @@ func (d *disk) applyDeferredQuota() error {
 		// that cannot be done when the volume is in use.
 		err := d.applyQuota(true)
 		if err != nil {
-			return fmt.Errorf("Failed to apply deferred quota from %q: %w", fmt.Sprintf("volatile.%s.apply_quota", d.name), err)
+			return fmt.Errorf("Failed to apply deferred quota from %q: %w", "volatile."+d.name+".apply_quota", err)
 		}
 
 		// Remove volatile apply_quota key if successful.
@@ -2127,15 +2127,15 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 
 	for _, f := range dents {
 		fPath := filepath.Join("/sys/class/block/", f.Name())
-		if shared.PathExists(fmt.Sprintf("%s/partition", fPath)) {
+		if shared.PathExists(fPath + "/partition") {
 			continue
 		}
 
-		if !shared.PathExists(fmt.Sprintf("%s/dev", fPath)) {
+		if !shared.PathExists(fPath + "/dev") {
 			continue
 		}
 
-		block, err := os.ReadFile(fmt.Sprintf("%s/dev", fPath))
+		block, err := os.ReadFile(fPath + "/dev")
 		if err != nil {
 			return nil, err
 		}
@@ -2193,8 +2193,8 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 				// Attempt to deal with a partition (guess its parent)
 				fields := strings.SplitN(block, ":", 2)
 				fields[1] = "0"
-				if shared.ValueInSlice(fmt.Sprintf("%s:%s", fields[0], fields[1]), validBlocks) {
-					blockStr = fmt.Sprintf("%s:%s", fields[0], fields[1])
+				if shared.ValueInSlice(fields[0]+":"+fields[1], validBlocks) {
+					blockStr = fields[0] + ":" + fields[1]
 				}
 			}
 
