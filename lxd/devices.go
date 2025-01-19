@@ -431,6 +431,22 @@ func getNumaNodeToCPUMap() (numaNodeToCPU map[int64][]int64, err error) {
 	return numaNodeToCPU, err
 }
 
+func getNumaCPUs(numaNodeToCPU map[int64][]int64, cpuNodes string) ([]int64, error) {
+	var numaCpus []int64
+	if cpuNodes != "" {
+		numaNodeSet, err := resources.ParseNumaNodeSet(cpuNodes)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, numaNode := range numaNodeSet {
+			numaCpus = append(numaCpus, numaNodeToCPU[numaNode]...)
+		}
+	}
+
+	return numaCpus, nil
+}
+
 // deviceTaskBalance is used to balance the CPU load across instances running on a host.
 // It first checks if CGroup support is available and returns if it isn't.
 // It then retrieves the effective CPU list (the CPUs that are guaranteed to be online) and isolates any isolated CPUs.
@@ -479,17 +495,10 @@ func deviceTaskBalance(s *state.State) {
 	for _, c := range instances {
 		conf := c.ExpandedConfig()
 		cpuNodes := conf["limits.cpu.nodes"]
-		var numaCpus []int64
-		if cpuNodes != "" {
-			numaNodeSet, err := resources.ParseNumaNodeSet(cpuNodes)
-			if err != nil {
-				logger.Error("Error parsing numa node set", logger.Ctx{"numaNodes": cpuNodes, "err": err})
-				return
-			}
-
-			for _, numaNode := range numaNodeSet {
-				numaCpus = append(numaCpus, numaNodeToCPU[numaNode]...)
-			}
+		numaCpus, err := getNumaCPUs(numaNodeToCPU, cpuNodes)
+		if err != nil {
+			logger.Error("Error parsing numa node set", logger.Ctx{"numaNodes": cpuNodes, "err": err})
+			return
 		}
 
 		cpulimit, ok := conf["limits.cpu"]
