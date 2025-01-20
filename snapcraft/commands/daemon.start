@@ -219,6 +219,9 @@ fi
 # Redirect getent to the host
 ln -s "${SNAP}/wrappers/run-host" "/run/bin/getent"
 
+# Redirect journalctl to the host
+ln -s "${SNAP}/wrappers/run-host" "/run/bin/journalctl"
+
 # Avoid xtables talking to nft
 ln -s "${SNAP}/bin/arptables-legacy" "/run/bin/arptables"
 ln -s "${SNAP}/bin/ebtables-legacy" "/run/bin/ebtables"
