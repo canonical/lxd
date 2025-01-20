@@ -141,7 +141,9 @@ endif
 
 .PHONY: update-ovsdb
 update-ovsdb:
-	go install github.com/ovn-org/libovsdb/cmd/modelgen@main
+ifeq ($(shell command -v modelgen),)
+	(cd / ; go install github.com/ovn-org/libovsdb/cmd/modelgen@main)
+endif
 	rm -Rf lxd/network/openvswitch/schema
 	mkdir lxd/network/openvswitch/schema
 	curl -s https://raw.githubusercontent.com/ovn-org/ovn/v$(OVN_MINVER)/ovn-nb.ovsschema -o lxd/network/openvswitch/schema/ovn-nb.json
