@@ -194,7 +194,8 @@ func (d *zfs) getDatasets(dataset string, types string) ([]string, error) {
 
 // filterRedundantOptions filters out options for setting dataset properties that match with the values already set.
 func (d *zfs) filterRedundantOptions(dataset string, options ...string) ([]string, error) {
-	var keys, values []string
+	keys := make([]string, 0, len(options))
+	values := make([]string, 0, len(options))
 
 	// Extract keys and values from options.
 	for _, option := range options {
