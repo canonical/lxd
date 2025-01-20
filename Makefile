@@ -291,7 +291,9 @@ endif
 
 .PHONY: update-ovsdb
 update-ovsdb:
-	go install github.com/ovn-kubernetes/libovsdb/cmd/modelgen@main
+ifeq ($(shell command -v modelgen),)
+	(cd / ; go install github.com/ovn-kubernetes/libovsdb/cmd/modelgen@main)
+endif
 
 	rm -Rf lxd/network/ovs/schema
 	mkdir lxd/network/ovs/schema
