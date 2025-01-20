@@ -3211,6 +3211,20 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		return nil // Nothing changed.
 	}
 
+	// Check that the uplink volatile IPs haven't been removed incorrectly.
+	for _, ipVersion := range []int{4, 6} {
+		networkAddrKey := "ipv" + strconv.Itoa(ipVersion) + ".address"
+		uplinkAddrKey := ovnVolatileUplinkIPv4
+
+		if ipVersion == 6 {
+			uplinkAddrKey = ovnVolatileUplinkIPv6
+		}
+
+		if newNetwork.Config[uplinkAddrKey] == "" && newNetwork.Config[networkAddrKey] != "" {
+			return fmt.Errorf("Uplink address key %q cannot be empty when network address key %q is populated", uplinkAddrKey, networkAddrKey)
+		}
+	}
+
 	// If the network as a whole has not had any previous creation attempts, or the node itself is still
 	// pending, then don't apply the new settings to the node, just to the database record (ready for the
 	// actual global create request to be initiated).
@@ -3246,7 +3260,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		delete(newNetwork.Config, ovnVolatileUplinkIPv6)
 	}
 
-	// Apply changes to all nodes and databse.
+	// Apply changes to all nodes and database.
 	err = n.common.update(newNetwork, targetNode, clientType)
 	if err != nil {
 		return err
@@ -3946,7 +3960,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		}
 	}
 
-	var routes []openvswitch.OVNRouterRoute
+	routes := make([]openvswitch.OVNRouterRoute, 0, len(internalRoutes)+len(externalRoutes))
 
 	// In l3only mode we add the instance port's IPs as static routes to the router.
 	if shared.IsTrue(n.config["ipv4.l3only"]) && dnsIPv4 != nil {
@@ -4298,7 +4312,7 @@ func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, d
 		return err
 	}
 
-	var removeRoutes []net.IPNet
+	removeRoutes := make([]net.IPNet, 0, len(dnsIPs)+len(internalRoutes)+len(externalRoutes))
 	var removeNATIPs []net.IP
 
 	if len(dnsIPs) > 0 {
