@@ -51,7 +51,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	github.com/vishvananda/netlink v1.3.0
-	github.com/zitadel/oidc/v3 v3.34.0
+	github.com/zitadel/oidc/v3 v3.34.1
 	go.starlark.net v0.0.0-20241125201518-c05ff208a98f
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.32.0
@@ -77,7 +77,7 @@ require (
 	github.com/Yiling-J/theine-go v0.6.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bmatcuk/doublestar/v4 v4.7.1 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.8.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
