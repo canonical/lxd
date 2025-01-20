@@ -1814,7 +1814,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 		return fmt.Errorf("Failed getting UUIDs: %w", err)
 	}
 
-	var args []string
+	args := make([]string, 0, 5*len(lbUUIDs))
 
 	for _, lbUUID := range lbUUIDs {
 		if len(args) > 0 {
@@ -1984,7 +1984,7 @@ func (o *OVN) AddressSetCreate(addressSetPrefix OVNAddressSet, addresses ...net.
 // AddressSetAdd adds the supplied addresses to the address sets, or creates a new address sets if needed.
 // The address set name used is "<addressSetPrefix>_ip<IP version>", e.g. "foo_ip4".
 func (o *OVN) AddressSetAdd(addressSetPrefix OVNAddressSet, addresses ...net.IPNet) error {
-	var args []string
+	args := make([]string, 0, 6*len(addresses))
 	ipVersions := make(map[uint]struct{})
 
 	for _, address := range addresses {
@@ -2028,7 +2028,7 @@ func (o *OVN) AddressSetAdd(addressSetPrefix OVNAddressSet, addresses ...net.IPN
 // AddressSetRemove removes the supplied addresses from the address set.
 // The address set name used is "<addressSetPrefix>_ip<IP version>", e.g. "foo_ip4".
 func (o *OVN) AddressSetRemove(addressSetPrefix OVNAddressSet, addresses ...net.IPNet) error {
-	var args []string
+	args := make([]string, 0, 7*len(addresses))
 
 	for _, address := range addresses {
 		if len(args) > 0 {
@@ -2168,7 +2168,7 @@ func (o *OVN) LogicalRouterPeeringApply(opts OVNRouterPeering) error {
 	}
 
 	// Start fresh command set.
-	var args []string
+	args := make([]string, 0, 12+len(opts.LocalRouterPortIPs)+len(opts.TargetRouterPortIPs)+7*(len(opts.LocalRouterRoutes)+len(opts.TargetRouterRoutes)))
 
 	// Will use the first IP from each family of the router port interfaces.
 	localRouterGatewayIPs := make(map[uint]net.IP, 0)
