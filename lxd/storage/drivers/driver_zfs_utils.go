@@ -199,14 +199,13 @@ func (d *zfs) filterRedundantOptions(dataset string, options ...string) ([]strin
 
 	// Extract keys and values from options.
 	for _, option := range options {
-		property := strings.Split(option, "=")
-
-		if len(property) != 2 {
+		key, value, found := strings.Cut(option, "=")
+		if !found {
 			return nil, fmt.Errorf("Wrongly formatted option %q", option)
 		}
 
-		keys = append(keys, property[0])
-		values = append(values, property[1])
+		keys = append(keys, key)
+		values = append(values, value)
 	}
 
 	// Get current values for the keys.
