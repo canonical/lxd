@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	cmdLoad   = "r"
-	cmdUnload = "R"
-	cmdParse  = "Q"
+	cmdLoad   = "--replace"
+	cmdUnload = "--remove"
+	cmdParse  = "--skip-kernel-load"
 )
 
 var aaPath = shared.VarPath("security", "apparmor")
@@ -28,8 +28,8 @@ func runApparmor(sysOS *sys.OS, command string, name string) error {
 	}
 
 	_, err := shared.RunCommand("apparmor_parser", []string{
-		"-" + command + "WL",
-		filepath.Join(aaPath, "cache"),
+		command,
+		"--write-cache", "--cache-loc", filepath.Join(aaPath, "cache"),
 		filepath.Join(aaPath, "profiles", name),
 	}...)
 
