@@ -429,6 +429,10 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 		oidcScopes = append(oidcScopes, o.groupsClaim)
 	}
 
+	if o.scopes != "" {
+		oidcScopes = strings.Split(o.scopes, " ")
+	}
+
 	relyingParty, err := rp.NewRelyingPartyOIDC(ctx, o.issuer, o.clientID, "", fmt.Sprintf("https://%s/oidc/callback", host), oidcScopes, options...)
 	if err != nil {
 		return fmt.Errorf("Failed to get OIDC relying party: %w", err)
