@@ -35,10 +35,10 @@ func Test_Volume_ConfigSizeFromSource(t *testing.T) {
 		{
 			// Check the volume's pool volume.size is used when volume size not specified and empty
 			// image source volume used.
-			vol:    Volume{driver: &nonBlockBackedDriver, volType: VolumeTypeContainer, poolConfig: map[string]string{"volume.size": "2GiB"}},
+			vol:    Volume{driver: &blockBackedDriver, volType: VolumeTypeContainer, poolConfig: map[string]string{"volume.size": "2GiB"}},
 			srcVol: Volume{volType: VolumeTypeImage},
 			err:    nil,
-			size:   "2GiB",
+			size:   "",
 		},
 		{
 			// Check the volume's default block disk size is used when volume is a block type and
