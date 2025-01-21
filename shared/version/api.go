@@ -423,7 +423,6 @@ var APIExtensions = []string{
 	"state_logical_cpus",
 	"vm_limits_cpu_pin_strategy",
 	"gpu_cdi",
-	"images_all_projects",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
