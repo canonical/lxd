@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -227,7 +226,8 @@ func processesState() int64 {
 
 	// Go through the pid list, adding new pids at the end so we go through them all
 	for i := 0; i < len(pids); i++ {
-		fname := fmt.Sprintf("/proc/%d/task/%d/children", pids[i], pids[i])
+		pid := strconv.FormatInt(pids[i], 10)
+		fname := "/proc/" + pid + "/task/" + pid + "/children"
 		fcont, err := os.ReadFile(fname)
 		if err != nil {
 			// the process terminated during execution of this loop
