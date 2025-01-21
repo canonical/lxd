@@ -146,7 +146,7 @@ func eventsProcess(event api.Event) {
 	}
 
 	// Attempt to perform the mount.
-	mntSource := fmt.Sprintf("lxd_%s", e.Name)
+	mntSource := "lxd_" + e.Name
 	if e.Mount.Source != "" {
 		mntSource = e.Mount.Source
 	}
