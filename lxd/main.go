@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 
 	"github.com/canonical/go-dqlite/v2"
@@ -108,7 +107,7 @@ func main() {
 	app.SetVersionTemplate("{{.Version}}\n")
 	app.Version = version.Version
 	if version.IsLTSVersion {
-		app.Version = fmt.Sprintf("%s LTS", version.Version)
+		app.Version = version.Version + " LTS"
 	}
 
 	// activateifneeded sub-command
