@@ -60,7 +60,7 @@ func NewHMACArgon2(password []byte, salt []byte, conf HMACConf) (HMACFormatter, 
 
 // HTTPHeader returns the actual HMAC alongside it's salt together with the used version.
 func (h *HMACArgon2) HTTPHeader(hmac []byte) string {
-	return fmt.Sprintf("%s %s:%s", h.conf.Version, hex.EncodeToString(h.salt), hex.EncodeToString(hmac))
+	return string(h.conf.Version) + " " + hex.EncodeToString(h.salt) + ":" + hex.EncodeToString(hmac)
 }
 
 // ParseHTTPHeader parses the given header and returns a new instance of the argon2 formatter
