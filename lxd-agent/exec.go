@@ -211,11 +211,13 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 
 				s.requiredConnectedDone() // All required connections now connected.
 				return nil
-			} else if !found {
-				return fmt.Errorf("Unknown websocket number")
-			} else {
-				return fmt.Errorf("Websocket number already connected")
 			}
+
+			if !found {
+				return fmt.Errorf("Unknown websocket number")
+			}
+
+			return fmt.Errorf("Websocket number already connected")
 		}
 	}
 
