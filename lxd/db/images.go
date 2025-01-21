@@ -401,7 +401,6 @@ func (c *ClusterTx) GetImageByFingerprintPrefix(ctx context.Context, fingerprint
 	image.Cached = object.Cached
 	image.Public = object.Public
 	image.AutoUpdate = object.AutoUpdate
-	image.Project = object.Project
 
 	err = c.imageFill(
 		ctx, object.ID, &image,

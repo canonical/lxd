@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -1452,53 +1451,30 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	return &result, imageType, nil
 }
 
-func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses *filter.ClauseSet, hasPermission auth.PermissionChecker, allProjects bool) (any, error) {
+func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses *filter.ClauseSet, hasPermission auth.PermissionChecker) (any, error) {
 	mustLoadObjects := recursion || (clauses != nil && len(clauses.Clauses) > 0)
 
-	imagesProjectsMap := map[string][]string{}
-	if allProjects {
-		var err error
-
-		imagesProjectsMap, err = tx.GetImages(ctx)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		fingerprints, err := tx.GetImagesFingerprints(ctx, projectName, public)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, fingerprint := range fingerprints {
-			imagesProjectsMap[fingerprint] = []string{projectName}
-		}
+	fingerprints, err := tx.GetImagesFingerprints(ctx, projectName, public)
+	if err != nil {
+		return err, err
 	}
 
 	var resultString []string
 	var resultMap []*api.Image
 
 	if recursion {
-		resultMap = make([]*api.Image, 0, len(imagesProjectsMap))
+		resultMap = make([]*api.Image, 0, len(fingerprints))
 	} else {
-		resultString = make([]string, 0, len(imagesProjectsMap))
+		resultString = make([]string, 0, len(fingerprints))
 	}
 
-	for fingerprint, projects := range imagesProjectsMap {
-		hasAccess := false
-
-		image, err := doImageGet(ctx, tx, projects[0], fingerprint, public)
+	for _, fingerprint := range fingerprints {
+		image, err := doImageGet(ctx, tx, projectName, fingerprint, public)
 		if err != nil {
 			continue
 		}
 
-		for _, project := range projects {
-			if image.Public || hasPermission(entity.ImageURL(project, fingerprint)) {
-				hasAccess = true
-				break
-			}
-		}
-
-		if !hasAccess {
+		if !image.Public && !hasPermission(entity.ImageURL(projectName, fingerprint)) {
 			continue
 		}
 
@@ -1551,10 +1527,6 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 //      description: Collection filter
 //      type: string
 //      example: default
-//    - in: query
-//      name: all-projects
-//      description: Retrieve images from all projects
-//      type: boolean
 //  responses:
 //    "200":
 //      description: API endpoints
@@ -1609,10 +1581,6 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 //      description: Collection filter
 //      type: string
 //      example: default
-//    - in: query
-//      name: all-projects
-//      description: Retrieve images from all projects
-//      type: boolean
 //  responses:
 //    "200":
 //      description: API endpoints
@@ -1662,10 +1630,6 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 //      description: Collection filter
 //      type: string
 //      example: default
-//    - in: query
-//      name: all-projects
-//      description: Retrieve images from all projects
-//      type: boolean
 //  responses:
 //    "200":
 //      description: API endpoints
@@ -1720,11 +1684,6 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 //	    description: Collection filter
 //	    type: string
 //	    example: default
-//	  - in: query
-//	    name: all-projects
-//	    description: Retrieve images from all projects
-//	    type: boolean
-//	    example: default
 //	responses:
 //	  "200":
 //	    description: API endpoints
@@ -1755,13 +1714,7 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 //	    $ref: "#/responses/InternalServerError"
 func imagesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := request.ProjectParam(r)
-	allProjects := shared.IsTrue(r.FormValue("all-projects"))
 	filterStr := r.FormValue("filter")
-
-	// ProjectParam returns default if not set
-	if allProjects && projectName != api.ProjectDefaultName {
-		return response.BadRequest(fmt.Errorf("Cannot specify a project when requesting all projects"))
-	}
 
 	s := d.State()
 	var effectiveProjectName string
@@ -1776,14 +1729,8 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 
-	// If the caller is not trusted, we only want to list public images in the default project.
-	trusted := auth.IsTrusted(r.Context())
-	publicOnly := !trusted
-
-	// Untrusted callers can't request images from all projects or projects other than default.
-	if !trusted && (allProjects || projectName != api.ProjectDefaultName) {
-		return response.Forbidden(errors.New("Untrusted callers may only access public images in the default project"))
-	}
+	// If the caller is not trusted, we only want to list public images.
+	publicOnly := !auth.IsTrusted(r.Context())
 
 	// Get a permission checker. If the caller is not authenticated, the permission checker will deny all.
 	// However, the permission checker is only called when an image is private. Both trusted and untrusted clients will
@@ -1800,7 +1747,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	var result any
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		result, err = doImagesGet(ctx, tx, util.IsRecursionRequest(r), projectName, publicOnly, clauses, canViewImage, allProjects)
+		result, err = doImagesGet(ctx, tx, util.IsRecursionRequest(r), projectName, publicOnly, clauses, canViewImage)
 		if err != nil {
 			return err
 		}
