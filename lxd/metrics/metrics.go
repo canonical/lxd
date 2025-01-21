@@ -125,7 +125,7 @@ func (m *MetricSet) String() string {
 		for _, sample := range m.set[metricType] {
 			firstLabel := true
 			labels := ""
-			labelNames := []string{}
+			labelNames := make([]string, 0, len(sample.Labels))
 
 			// Add and sort labels if there are any
 			for labelName := range sample.Labels {
