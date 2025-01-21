@@ -150,25 +150,25 @@ func networkState() map[string]api.InstanceStateNetwork {
 		}
 
 		// Counters
-		value, err := os.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/tx_bytes", iface.Name))
+		value, err := os.ReadFile("/sys/class/net/" + iface.Name + "/statistics/tx_bytes")
 		valueInt, err1 := strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
 		if err == nil && err1 == nil {
 			network.Counters.BytesSent = valueInt
 		}
 
-		value, err = os.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/rx_bytes", iface.Name))
+		value, err = os.ReadFile("/sys/class/net/" + iface.Name + "/statistics/rx_bytes")
 		valueInt, err1 = strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
 		if err == nil && err1 == nil {
 			network.Counters.BytesReceived = valueInt
 		}
 
-		value, err = os.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/tx_packets", iface.Name))
+		value, err = os.ReadFile("/sys/class/net/" + iface.Name + "/statistics/tx_packets")
 		valueInt, err1 = strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
 		if err == nil && err1 == nil {
 			network.Counters.PacketsSent = valueInt
 		}
 
-		value, err = os.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/rx_packets", iface.Name))
+		value, err = os.ReadFile("/sys/class/net/" + iface.Name + "/statistics/rx_packets")
 		valueInt, err1 = strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
 		if err == nil && err1 == nil {
 			network.Counters.PacketsReceived = valueInt
