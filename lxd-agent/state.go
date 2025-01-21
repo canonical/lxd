@@ -178,7 +178,10 @@ func networkState() map[string]api.InstanceStateNetwork {
 		addrs, _ := iface.Addrs()
 
 		for _, addr := range addrs {
-			addressFields := strings.Split(addr.String(), "/")
+			addressFields := strings.SplitN(addr.String(), "/", 2)
+			if len(addressFields) != 2 {
+				continue
+			}
 
 			networkAddress := api.InstanceStateNetworkAddress{
 				Address: addressFields[0],
