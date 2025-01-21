@@ -98,7 +98,7 @@ func getTableData(ctx context.Context, tx *sql.Tx, table string) ([]string, erro
 	var statements []string
 
 	// Query all rows.
-	rows, err := tx.QueryContext(ctx, fmt.Sprintf("SELECT * FROM %s ORDER BY rowid", table))
+	rows, err := tx.QueryContext(ctx, "SELECT * FROM "+table+" ORDER BY rowid")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch rows for table %q: %w", table, err)
 	}
@@ -131,7 +131,7 @@ func getTableData(ctx context.Context, tx *sql.Tx, table string) ([]string, erro
 				values[j] = strconv.FormatInt(v, 10)
 			case string:
 				// This is based on logic from dump_callback in sqlite source for sqlite3_db_dump function.
-				v = fmt.Sprintf("'%s'", strings.ReplaceAll(v, "'", "''"))
+				v = "'" + strings.ReplaceAll(v, "'", "''") + "'"
 
 				if strings.Contains(v, "\r") {
 					v = "replace(" + strings.ReplaceAll(v, "\r", "\\r") + ",'\\r',char(13))"
@@ -144,7 +144,7 @@ func getTableData(ctx context.Context, tx *sql.Tx, table string) ([]string, erro
 				values[j] = v
 
 			case []byte:
-				values[j] = fmt.Sprintf("'%s'", string(v))
+				values[j] = "'" + string(v) + "'"
 			case time.Time:
 				// Try and match the sqlite3 .dump output format.
 				format := "2006-01-02 15:04:05"
@@ -165,7 +165,7 @@ func getTableData(ctx context.Context, tx *sql.Tx, table string) ([]string, erro
 			}
 		}
 
-		statement := fmt.Sprintf("INSERT INTO %s VALUES(%s);", table, strings.Join(values, ","))
+		statement := "INSERT INTO " + table + " VALUES(" + strings.Join(values, ",") + ");"
 		statements = append(statements, statement)
 	}
 
