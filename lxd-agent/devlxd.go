@@ -115,7 +115,7 @@ func devlxdConfigKeyGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request
 
 	defer client.Disconnect()
 
-	resp, _, err := client.RawQuery("GET", fmt.Sprintf("/1.0/config/%s", key), nil, "")
+	resp, _, err := client.RawQuery("GET", "/1.0/config/"+key, nil, "")
 	if err != nil {
 		return smartResponse(err)
 	}
