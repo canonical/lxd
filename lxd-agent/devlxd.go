@@ -322,7 +322,7 @@ func hoistReq(f func(*Daemon, http.ResponseWriter, *http.Request) *devLxdRespons
 		}
 
 		if resp.code != http.StatusOK {
-			http.Error(w, fmt.Sprintf("%s", resp.content), resp.code)
+			http.Error(w, fmt.Sprint(resp.content), resp.code)
 		} else if resp.ctype == "json" {
 			w.Header().Set("Content-Type", "application/json")
 
