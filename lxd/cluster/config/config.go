@@ -223,8 +223,8 @@ func (c *Config) RemoteTokenExpiry() string {
 }
 
 // OIDCServer returns all the OpenID Connect settings needed to connect to a server.
-func (c *Config) OIDCServer() (issuer string, clientID string, audience string, groupsClaim string) {
-	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), c.m.GetString("oidc.audience"), c.m.GetString("oidc.groups.claim")
+func (c *Config) OIDCServer() (issuer string, clientID string, audience string, groupsClaim string, scopes string) {
+	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), c.m.GetString("oidc.audience"), c.m.GetString("oidc.groups.claim"), c.m.GetString("oidc.scopes")
 }
 
 // ClusterHealingThreshold returns the configured healing threshold, i.e. the
@@ -689,6 +689,16 @@ var ConfigSchema = config.Schema{
 	//  scope: global
 	//  shortdesc: A claim used for mapping identity provider groups to LXD groups.
 	"oidc.groups.claim": {},
+
+	// lxdmeta:generate(entities=server; group=oidc; key=oidc.scopes)
+	// Overwrite the default scopes that are requested during OIDC flows.
+	// If not set, the flow will request oidc, offline_access, email,
+	// profile, and if defined the oidc_groups_claim as scopes.
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Scopes requested during OIDC flows
+	"oidc.scopes": {},
 	// OVN networking global keys.
 
 	// lxdmeta:generate(entities=server; group=miscellaneous; key=network.ovn.integration_bridge)
