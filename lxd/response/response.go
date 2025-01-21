@@ -55,7 +55,7 @@ type devLxdResponse struct {
 // Render renders a response for requests against the /dev/lxd socket.
 func (r *devLxdResponse) Render(w http.ResponseWriter, req *http.Request) (err error) {
 	if r.code != http.StatusOK {
-		http.Error(w, fmt.Sprintf("%s", r.content), r.code)
+		http.Error(w, fmt.Sprint(r.content), r.code)
 	} else if r.contentType == "json" {
 		w.Header().Set("Content-Type", "application/json")
 
