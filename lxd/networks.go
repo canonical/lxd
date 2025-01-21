@@ -316,7 +316,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			if !recursion {
-				resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName))
+				resultString = append(resultString, "/"+version.APIVersion+"/networks/"+networkName)
 			} else {
 				net, err := doNetworkGet(s, r, s.ServerClustered, requestProjectName, reqProject.Config, networkName)
 				if err != nil {
@@ -977,13 +977,13 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProject
 		}
 	} else if osInfo != nil && shared.IsLoopback(osInfo) {
 		apiNet.Type = "loopback"
-	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", apiNet.Name)) {
+	} else if shared.PathExists("/sys/class/net/" + apiNet.Name + "/bridge") {
 		apiNet.Type = "bridge"
-	} else if shared.PathExists(fmt.Sprintf("/proc/net/vlan/%s", apiNet.Name)) {
+	} else if shared.PathExists("/proc/net/vlan/" + apiNet.Name) {
 		apiNet.Type = "vlan"
-	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device", apiNet.Name)) {
+	} else if shared.PathExists("/sys/class/net/" + apiNet.Name + "/device") {
 		apiNet.Type = "physical"
-	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bonding", apiNet.Name)) {
+	} else if shared.PathExists("/sys/class/net/" + apiNet.Name + "/bonding") {
 		apiNet.Type = "bond"
 	} else {
 		ovs := openvswitch.NewOVS()
