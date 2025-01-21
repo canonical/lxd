@@ -85,8 +85,7 @@ func upsertConfig(tx *sql.Tx, table string, values map[string]string) error {
 	params := []any{}
 	for key, value := range values {
 		exprs = append(exprs, "(?, ?)")
-		params = append(params, key)
-		params = append(params, value)
+		params = append(params, key, value)
 	}
 
 	query += strings.Join(exprs, ",")
