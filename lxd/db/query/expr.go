@@ -3,7 +3,6 @@
 package query
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -16,5 +15,5 @@ func Params(n int) string {
 		tokens[i] = "?"
 	}
 
-	return fmt.Sprintf("(%s)", strings.Join(tokens, ", "))
+	return "(" + strings.Join(tokens, ", ") + ")"
 }
