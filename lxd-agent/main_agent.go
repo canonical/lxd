@@ -252,7 +252,7 @@ func (c *cmdAgent) writeStatus(status string) error {
 
 		defer vSerial.Close()
 
-		_, err = vSerial.Write([]byte(fmt.Sprintf("%s\n", status)))
+		_, err = vSerial.Write([]byte(status + "\n"))
 		if err != nil {
 			return err
 		}
@@ -283,7 +283,7 @@ func (c *cmdAgent) mountHostShares() {
 	for _, mount := range agentMounts {
 		// Convert relative mounts to absolute from / otherwise dir creation fails or mount fails.
 		if !strings.HasPrefix(mount.Target, "/") {
-			mount.Target = fmt.Sprintf("/%s", mount.Target)
+			mount.Target = "/" + mount.Target
 		}
 
 		l := logger.AddContext(logger.Ctx{"source": mount.Source, "path": mount.Target})
