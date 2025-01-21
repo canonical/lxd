@@ -71,7 +71,7 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.PathExists("/snap/bin") {
-		env["PATH"] = fmt.Sprintf("%s:/snap/bin", env["PATH"])
+		env["PATH"] = env["PATH"] + ":/snap/bin"
 	}
 
 	// If running as root, set some env variables
@@ -326,7 +326,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 	// Prepare the environment
 	for k, v := range s.env {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+		cmd.Env = append(cmd.Env, k+"="+v)
 	}
 
 	cmd.Stdin = stdin
