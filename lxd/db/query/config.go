@@ -13,9 +13,9 @@ import (
 //
 // Returns a map of key names to their associated values.
 func SelectConfig(ctx context.Context, tx *sql.Tx, table string, where string, args ...any) (map[string]string, error) {
-	query := fmt.Sprintf("SELECT key, value FROM %s", table)
+	query := "SELECT key, value FROM " + table
 	if where != "" {
-		query += fmt.Sprintf(" WHERE %s", where)
+		query += " WHERE " + where
 	}
 
 	rows, err := tx.QueryContext(ctx, query, args...)
@@ -80,7 +80,7 @@ func upsertConfig(tx *sql.Tx, table string, values map[string]string) error {
 		return nil // Nothing to update
 	}
 
-	query := fmt.Sprintf("INSERT OR REPLACE INTO %s (key, value) VALUES", table)
+	query := "INSERT OR REPLACE INTO " + table + " (key, value) VALUES"
 	exprs := []string{}
 	params := []any{}
 	for key, value := range values {
@@ -102,7 +102,7 @@ func deleteConfig(tx *sql.Tx, table string, keys []string) error {
 		return nil // Nothing to delete.
 	}
 
-	query := fmt.Sprintf("DELETE FROM %s WHERE key IN %s", table, Params(n))
+	query := "DELETE FROM " + table + " WHERE key IN " + Params(n)
 	values := make([]any, n)
 	for i, key := range keys {
 		values[i] = key
