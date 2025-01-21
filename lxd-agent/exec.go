@@ -163,6 +163,7 @@ type execWs struct {
 	cwd                   string
 }
 
+// Metadata returns the metadata for the operation.
 func (s *execWs) Metadata() any {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
@@ -181,6 +182,7 @@ func (s *execWs) Metadata() any {
 	}
 }
 
+// Connect establishes the websocket connections.
 func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
@@ -222,6 +224,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 	return os.ErrPermission
 }
 
+// Do executes the operation.
 func (s *execWs) Do(op *operations.Operation) error {
 	// Once this function ends ensure that any connected websockets are closed.
 	defer func() {
