@@ -51,6 +51,7 @@ type Verifier struct {
 	issuer         string
 	audience       string
 	groupsClaim    string
+	scopes         string
 	clusterCert    func() *shared.CertInfo
 	httpClientFunc func() (*http.Client, error)
 
@@ -617,7 +618,7 @@ type Opts struct {
 }
 
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientID string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
+func NewVerifier(issuer string, clientID string, audience string, scopes string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
 	opts := &Opts{}
 
 	if options != nil && options.GroupsClaim != "" {
@@ -628,6 +629,7 @@ func NewVerifier(issuer string, clientID string, audience string, clusterCert fu
 		issuer:               issuer,
 		clientID:             clientID,
 		audience:             audience,
+		scopes:               scopes,
 		identityCache:        identityCache,
 		groupsClaim:          opts.GroupsClaim,
 		clusterCert:          clusterCert,
