@@ -431,7 +431,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		rHost = host
 		rPort = port
 	} else {
-		rPort = fmt.Sprintf("%d", shared.HTTPSDefaultPort)
+		rPort = fmt.Sprint(shared.HTTPSDefaultPort)
 	}
 
 	if rScheme == "unix" {
