@@ -117,7 +117,7 @@ func (m *MetricSet) String() string {
 		}
 
 		// Add TYPE message as specified by OpenMetrics
-		_, err = out.WriteString(fmt.Sprintf("# TYPE %s %s\n", MetricNames[metricType], metricTypeName))
+		_, err = out.WriteString("# TYPE " + MetricNames[metricType] + " " + metricTypeName + "\n")
 		if err != nil {
 			return ""
 		}
@@ -139,16 +139,16 @@ func (m *MetricSet) String() string {
 					labels += ","
 				}
 
-				labels += fmt.Sprintf(`%s="%s"`, labelName, sample.Labels[labelName])
+				labels += labelName + `="` + sample.Labels[labelName] + `"`
 				firstLabel = false
 			}
 
 			valueStr := strconv.FormatFloat(sample.Value, 'g', -1, 64)
 
 			if labels != "" {
-				_, err = out.WriteString(fmt.Sprintf("%s{%s} %s\n", MetricNames[metricType], labels, valueStr))
+				_, err = out.WriteString(MetricNames[metricType] + "{" + labels + "} " + valueStr + "\n")
 			} else {
-				_, err = out.WriteString(fmt.Sprintf("%s %s\n", MetricNames[metricType], valueStr))
+				_, err = out.WriteString(MetricNames[metricType] + " " + valueStr + "\n")
 			}
 
 			if err != nil {
