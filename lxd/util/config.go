@@ -53,10 +53,10 @@ func CompareConfigs(config1, config2 map[string]string, exclude []string) error 
 
 // CopyConfig creates a new map with a copy of the given config.
 func CopyConfig(config map[string]string) map[string]string {
-	copy := make(map[string]string, len(config))
+	newConfig := make(map[string]string, len(config))
 	for key, value := range config {
-		copy[key] = value
+		newConfig[key] = value
 	}
 
-	return copy
+	return newConfig
 }
