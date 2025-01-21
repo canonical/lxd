@@ -525,9 +525,10 @@ init_module errno 38
 delete_module errno 38
 `
 
-//	8 == SECCOMP_FILTER_FLAG_NEW_LISTENER
+// 8 == SECCOMP_FILTER_FLAG_NEW_LISTENER
 //
 // 2146435072 == SECCOMP_RET_TRACE
+// Prevent the container from overriding our syscall supervision.
 const seccompNotifyDisallow = `seccomp errno 22 [1,2146435072,SCMP_CMP_MASKED_EQ,2146435072]
 seccomp errno 22 [1,8,SCMP_CMP_MASKED_EQ,8]
 `
@@ -594,6 +595,7 @@ const seccompNotifyMount = `mount notify [3,0,SCMP_CMP_MASKED_EQ,184467440704224
 // 5 == BPF_PROG_LOAD
 // 8 == BPF_PROG_ATTACH
 // 9 == BPF_PROG_DETACH
+// Policy snippet if security.syscalls.intercept.bpf is enabled.
 const seccompNotifyBpf = `bpf notify [0,5,SCMP_CMP_EQ]
 bpf notify [0,8,SCMP_CMP_EQ]
 bpf notify [0,9,SCMP_CMP_EQ]
@@ -1217,7 +1219,7 @@ func TaskIDs(pid int) (UID int64, GID int64, fsUID int64, fsGID int64, err error
 	return UID, GID, fsUID, fsGID, nil
 }
 
-// FindTGID returns the task group leader ID from /proc/<pid> fd
+// FindTGID returns the task group leader ID from /proc/<pid> fd.
 func FindTGID(procFd int) (uint32, error) {
 	var statusFile *os.File
 	fd, err := unix.Openat(procFd, "status", unix.O_RDONLY|unix.O_CLOEXEC, 0)
@@ -1253,7 +1255,7 @@ func FindTGID(procFd int) (uint32, error) {
 }
 
 // isCapableInCtInitUserns checks if intercepted syscall's caller has a (cap) effective
-// capability in the container's initial user namespace
+// capability in the container's initial user namespace.
 func isCapableInCtInitUserns(siov *Iovec, capability C.int) (bool, error) {
 	containerInitPID := int(siov.msg.init_pid)
 	targetPID := int(siov.req.pid)
@@ -1947,7 +1949,7 @@ type nullWriteCloser struct {
 	*bytes.Buffer
 }
 
-// Close is a no-op closer implementation
+// Close is a no-op closer implementation.
 func (nwc *nullWriteCloser) Close() error {
 	return nil
 }
@@ -2667,7 +2669,7 @@ func MountSyscallFilter(config map[string]string) []string {
 	return fs
 }
 
-// SyscallInterceptMountFilter creates a new mount syscall interception filter
+// SyscallInterceptMountFilter creates a new mount syscall interception filter.
 func SyscallInterceptMountFilter(config map[string]string) (map[string]string, error) {
 	if shared.IsFalseOrEmpty(config["security.syscalls.intercept.mount"]) {
 		return map[string]string{}, nil
