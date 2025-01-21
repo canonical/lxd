@@ -71,7 +71,7 @@ func devlxdConfigGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrite
 	filtered := []string{}
 	for k := range c.ExpandedConfig() {
 		if strings.HasPrefix(k, "user.") || strings.HasPrefix(k, "cloud-init.") {
-			filtered = append(filtered, fmt.Sprintf("/1.0/config/%s", k))
+			filtered = append(filtered, "/1.0/config/"+k)
 		}
 	}
 
@@ -278,8 +278,8 @@ func devlxdDevicesGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrit
 	localConfig := c.LocalConfig()
 	devices := c.ExpandedDevices()
 	for devName, devConfig := range devices {
-		if devConfig["type"] == "nic" && devConfig["hwaddr"] == "" && localConfig[fmt.Sprintf("volatile.%s.hwaddr", devName)] != "" {
-			devices[devName]["hwaddr"] = localConfig[fmt.Sprintf("volatile.%s.hwaddr", devName)]
+		if devConfig["type"] == "nic" && devConfig["hwaddr"] == "" && localConfig["volatile."+devName+".hwaddr"] != "" {
+			devices[devName]["hwaddr"] = localConfig["volatile."+devName+".hwaddr"]
 		}
 	}
 
