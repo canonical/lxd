@@ -530,7 +530,7 @@ func (c *cmdClusterRemoveRaftNode) Run(cmd *cobra.Command, args []string) error 
 		return fmt.Errorf("Failed to connect to LXD daemon: %w", err)
 	}
 
-	endpoint := fmt.Sprintf("/internal/cluster/raft-node/%s", address)
+	endpoint := "/internal/cluster/raft-node/" + address
 	_, _, err = client.RawQuery("DELETE", endpoint, nil, "")
 	if err != nil {
 		return err
