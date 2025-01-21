@@ -287,7 +287,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.In
 
 	v := map[string]string{
 		"volatile.idmap.next": jsonIdmap,
-		"volatile.idmap.base": fmt.Sprintf("%v", base),
+		"volatile.idmap.base": strconv.FormatInt(base, 10),
 	}
 
 	// Invalid idmap cache.
