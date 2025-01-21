@@ -4829,6 +4829,15 @@ for automatic access control.
 
 ```
 
+```{config:option} oidc.scopes server-oidc
+:scope: "global"
+:shortdesc: "Scopes requested during OIDC flows"
+:type: "string"
+Overwrite the default scopes that are requested during OIDC flows.
+If not set, the flow will request oidc, offline_access, email,
+profile, and if defined the oidc_groups_claim as scopes.
+```
+
 <!-- config group server-oidc end -->
 <!-- config group storage-btrfs-bucket-conf start -->
 ```{config:option} size storage-btrfs-bucket-conf

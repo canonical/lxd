@@ -5446,6 +5446,14 @@
 							"shortdesc": "OpenID Connect Discovery URL for the provider",
 							"type": "string"
 						}
+					},
+					{
+						"oidc.scopes": {
+							"longdesc": "Overwrite the default scopes that are requested during OIDC flows.\nIf not set, the flow will request oidc, offline_access, email,\nprofile, and if defined the oidc_groups_claim as scopes.",
+							"scope": "global",
+							"shortdesc": "Scopes requested during OIDC flows",
+							"type": "string"
+						}
 					}
 				]
 			}
