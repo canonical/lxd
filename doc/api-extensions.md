@@ -2552,3 +2552,8 @@ This adds support for listing network zones across all projects using the `all-p
 Adds support for instance root volumes to be attached to other instances as disk
 devices. Introduces the `<type>/<volume>` syntax for the `source` property of
 disk devices.
+
+## `oidc_scopes`
+
+This optional API extension enables setting an {config:option}`server-oidc:oidc.scopes` configuration key, which can be used to overwrite the default scopes that are requested during the OIDC flow.
+If not set, the flow will request `oidc offline_access email profile` as scopes and if defined the `oidc_groups_claim` as an additional scope.
