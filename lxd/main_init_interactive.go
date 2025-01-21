@@ -915,7 +915,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 
 				pool.Config["ceph.osd.pool_name"] = pool.Config["source"]
 			} else {
-				question := fmt.Sprintf("Name of the existing %s pool or dataset: ", strings.ToUpper(pool.Driver))
+				question := "Name of the existing " + strings.ToUpper(pool.Driver) + " pool or dataset: "
 				pool.Config["source"], err = c.global.asker.AskString(question, "", nil)
 				if err != nil {
 					return err
@@ -1007,7 +1007,7 @@ they otherwise would.
 			}
 
 			if net.ParseIP(netAddr).To4() == nil {
-				netAddr = fmt.Sprintf("[%s]", netAddr)
+				netAddr = "[" + netAddr + "]"
 			}
 
 			netPort, err := c.global.asker.AskInt(fmt.Sprintf("Port to bind LXD to [default=%d]: ", shared.HTTPSDefaultPort), 1, 65535, fmt.Sprintf("%d", shared.HTTPSDefaultPort), func(netPort int64) error {
