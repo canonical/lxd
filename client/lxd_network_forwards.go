@@ -17,7 +17,7 @@ func (r *ProtocolLXD) GetNetworkForwardAddresses(networkName string) ([]string, 
 
 	// Fetch the raw URL values.
 	urls := []string{}
-	baseURL := fmt.Sprintf("/networks/%s/forwards", url.PathEscape(networkName))
+	baseURL := "/networks/" + url.PathEscape(networkName) + "/forwards"
 	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func (r *ProtocolLXD) GetNetworkForwards(networkName string) ([]api.NetworkForwa
 	forwards := []api.NetworkForward{}
 
 	// Fetch the raw value.
-	_, err = r.queryStruct("GET", fmt.Sprintf("/networks/%s/forwards?recursion=1", url.PathEscape(networkName)), nil, "", &forwards)
+	_, err = r.queryStruct("GET", "/networks/"+url.PathEscape(networkName)+"/forwards?recursion=1", nil, "", &forwards)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (r *ProtocolLXD) GetNetworkForward(networkName string, listenAddress string
 	forward := api.NetworkForward{}
 
 	// Fetch the raw value.
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/networks/%s/forwards/%s", url.PathEscape(networkName), url.PathEscape(listenAddress)), nil, "", &forward)
+	etag, err := r.queryStruct("GET", "/networks/"+url.PathEscape(networkName)+"/forwards/"+url.PathEscape(listenAddress), nil, "", &forward)
 	if err != nil {
 		return nil, "", err
 	}
@@ -83,7 +83,7 @@ func (r *ProtocolLXD) CreateNetworkForward(networkName string, forward api.Netwo
 	}
 
 	// Send the request.
-	_, _, err = r.query("POST", fmt.Sprintf("/networks/%s/forwards", url.PathEscape(networkName)), forward, "")
+	_, _, err = r.query("POST", "/networks/"+url.PathEscape(networkName)+"/forwards", forward, "")
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func (r *ProtocolLXD) UpdateNetworkForward(networkName string, listenAddress str
 	}
 
 	// Send the request.
-	_, _, err = r.query("PUT", fmt.Sprintf("/networks/%s/forwards/%s", url.PathEscape(networkName), url.PathEscape(listenAddress)), forward, ETag)
+	_, _, err = r.query("PUT", "/networks/"+url.PathEscape(networkName)+"/forwards/"+url.PathEscape(listenAddress), forward, ETag)
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func (r *ProtocolLXD) DeleteNetworkForward(networkName string, listenAddress str
 	}
 
 	// Send the request.
-	_, _, err = r.query("DELETE", fmt.Sprintf("/networks/%s/forwards/%s", url.PathEscape(networkName), url.PathEscape(listenAddress)), nil, "")
+	_, _, err = r.query("DELETE", "/networks/"+url.PathEscape(networkName)+"/forwards/"+url.PathEscape(listenAddress), nil, "")
 	if err != nil {
 		return err
 	}
