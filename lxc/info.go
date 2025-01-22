@@ -501,37 +501,39 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 		fmt.Printf(i18n.G("Last Used: %s")+"\n", inst.LastUsedAt.Local().Format(layout))
 	}
 
+	// Show instance resources
+	fmt.Println("\n" + i18n.G("Resources:"))
+
+	// Disk usage
+	diskUsage := ""
+	diskTotal := ""
+	if inst.State.Disk != nil {
+		for entry, disk := range inst.State.Disk {
+			// Only show usage when supported.
+			if disk.Usage != -1 {
+				diskUsage += fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Usage, 2))
+			}
+		}
+
+		for entry, disk := range inst.State.Disk {
+			// Only show total for disks that are bounded within the pool.
+			if disk.Total > 0 {
+				diskTotal += fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Total, 2))
+			}
+		}
+	}
+
+	if diskUsage != "" {
+		fmt.Printf("  %s\n%s", i18n.G("Disk usage:"), diskUsage)
+	}
+
+	if diskTotal != "" {
+		fmt.Printf("  %s\n%s", i18n.G("Disk total:"), diskTotal)
+	}
+
 	if inst.State.Pid != 0 {
-		fmt.Println("\n" + i18n.G("Resources:"))
 		// Processes
 		fmt.Printf("  "+i18n.G("Processes: %d")+"\n", inst.State.Processes)
-
-		// Disk usage
-		diskUsage := ""
-		diskTotal := ""
-		if inst.State.Disk != nil {
-			for entry, disk := range inst.State.Disk {
-				// Only show usage when supported.
-				if disk.Usage != -1 {
-					diskUsage += fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Usage, 2))
-				}
-			}
-
-			for entry, disk := range inst.State.Disk {
-				// Only show total for disks that are bounded within the pool.
-				if disk.Total > 0 {
-					diskTotal += fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Total, 2))
-				}
-			}
-		}
-
-		if diskUsage != "" {
-			fmt.Printf("  %s\n%s", i18n.G("Disk usage:"), diskUsage)
-		}
-
-		if diskTotal != "" {
-			fmt.Printf("  %s\n%s", i18n.G("Disk total:"), diskTotal)
-		}
 
 		// CPU usage
 		cpuInfo := ""
