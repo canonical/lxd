@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-01-14 16:50+0000\n"
+"POT-Creation-Date: 2025-01-22 08:25+0000\n"
 "PO-Revision-Date: 2023-06-16 20:55+0000\n"
 "Last-Translator: Francisco Serrador <fserrador@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -657,7 +657,7 @@ msgstr ""
 msgid "%d (id: %d, online: %v, NUMA node: %v)"
 msgstr ""
 
-#: lxc/image.go:1180
+#: lxc/image.go:1168
 #, c-format
 msgid "%s (%d more)"
 msgstr "%s (%d más)"
@@ -784,11 +784,11 @@ msgstr ""
 msgid "ADDRESS"
 msgstr ""
 
-#: lxc/alias.go:139 lxc/image.go:1143 lxc/image_alias.go:234
+#: lxc/alias.go:139 lxc/image.go:1132 lxc/image_alias.go:234
 msgid "ALIAS"
 msgstr "ALIAS"
 
-#: lxc/image.go:1144
+#: lxc/image.go:1133
 msgid "ALIASES"
 msgstr "ALIASES"
 
@@ -1425,7 +1425,7 @@ msgstr ""
 msgid "Clustering enabled"
 msgstr ""
 
-#: lxc/image.go:1117 lxc/list.go:132 lxc/storage_volume.go:1596
+#: lxc/image.go:1115 lxc/list.go:132 lxc/storage_volume.go:1596
 #: lxc/warning.go:93
 msgid "Columns"
 msgstr "Columnas"
@@ -1797,7 +1797,7 @@ msgid "DEFAULT TARGET ADDRESS"
 msgstr ""
 
 #: lxc/auth.go:380 lxc/cluster.go:197 lxc/cluster_group.go:504
-#: lxc/image.go:1139 lxc/image_alias.go:237 lxc/list.go:565 lxc/network.go:1086
+#: lxc/image.go:1137 lxc/image_alias.go:237 lxc/list.go:565 lxc/network.go:1086
 #: lxc/network_acl.go:157 lxc/network_forward.go:157
 #: lxc/network_load_balancer.go:160 lxc/network_peer.go:149
 #: lxc/network_zone.go:148 lxc/network_zone.go:828 lxc/operation.go:173
@@ -1970,8 +1970,8 @@ msgstr ""
 #: lxc/file.go:321 lxc/file.go:378 lxc/file.go:456 lxc/file.go:689
 #: lxc/file.go:1208 lxc/image.go:38 lxc/image.go:159 lxc/image.go:337
 #: lxc/image.go:396 lxc/image.go:525 lxc/image.go:697 lxc/image.go:948
-#: lxc/image.go:1091 lxc/image.go:1450 lxc/image.go:1541 lxc/image.go:1607
-#: lxc/image.go:1671 lxc/image.go:1734 lxc/image_alias.go:24
+#: lxc/image.go:1090 lxc/image.go:1417 lxc/image.go:1508 lxc/image.go:1574
+#: lxc/image.go:1638 lxc/image.go:1701 lxc/image_alias.go:24
 #: lxc/image_alias.go:60 lxc/image_alias.go:107 lxc/image_alias.go:152
 #: lxc/image_alias.go:255 lxc/import.go:29 lxc/info.go:33 lxc/init.go:44
 #: lxc/launch.go:24 lxc/list.go:49 lxc/main.go:83 lxc/manpage.go:22
@@ -2159,11 +2159,6 @@ msgstr "Disco:"
 msgid "Disks:"
 msgstr "Discos:"
 
-#: lxc/image.go:1119
-#, fuzzy
-msgid "Display images from all projects"
-msgstr "No se puede proveer el nombre del container a la lista"
-
 #: lxc/list.go:135
 #, fuzzy
 msgid "Display instances from all projects"
@@ -2315,7 +2310,7 @@ msgstr ""
 msgid "Edit trust configurations as YAML"
 msgstr ""
 
-#: lxc/image.go:1161 lxc/list.go:622 lxc/storage_volume.go:1773
+#: lxc/image.go:1149 lxc/list.go:622 lxc/storage_volume.go:1773
 #: lxc/warning.go:236
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
@@ -2493,7 +2488,7 @@ msgstr ""
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:411 lxc/image.go:1141 lxc/image.go:1142
+#: lxc/config_trust.go:411 lxc/image.go:1134 lxc/image.go:1135
 #: lxc/image_alias.go:235
 msgid "FINGERPRINT"
 msgstr "HUELLA DIGITAL"
@@ -2729,7 +2724,7 @@ msgstr ""
 #: lxc/alias.go:112 lxc/auth.go:340 lxc/auth.go:920 lxc/auth.go:1902
 #: lxc/cluster.go:125 lxc/cluster.go:979 lxc/cluster_group.go:442
 #: lxc/config_template.go:275 lxc/config_trust.go:352 lxc/config_trust.go:434
-#: lxc/image.go:1118 lxc/image_alias.go:157 lxc/list.go:133 lxc/network.go:1009
+#: lxc/image.go:1116 lxc/image_alias.go:157 lxc/list.go:133 lxc/network.go:1009
 #: lxc/network.go:1108 lxc/network_acl.go:98 lxc/network_allocations.go:59
 #: lxc/network_forward.go:93 lxc/network_load_balancer.go:97
 #: lxc/network_peer.go:85 lxc/network_zone.go:89 lxc/network_zone.go:770
@@ -2805,7 +2800,7 @@ msgstr "Aliases:"
 msgid "Get a summary of resource allocations"
 msgstr ""
 
-#: lxc/image.go:1606 lxc/image.go:1607
+#: lxc/image.go:1573 lxc/image.go:1574
 msgid "Get image properties"
 msgstr ""
 
@@ -3099,7 +3094,7 @@ msgstr ""
 msgid "Ignore the instance state"
 msgstr ""
 
-#: lxc/image.go:1522
+#: lxc/image.go:1489
 msgid "Image already up to date."
 msgstr ""
 
@@ -3115,11 +3110,11 @@ msgstr ""
 msgid "Image exported successfully!"
 msgstr ""
 
-#: lxc/image.go:364 lxc/image.go:1477
+#: lxc/image.go:364 lxc/image.go:1444
 msgid "Image identifier missing"
 msgstr ""
 
-#: lxc/image.go:444 lxc/image.go:1703
+#: lxc/image.go:444 lxc/image.go:1670
 #, c-format
 msgid "Image identifier missing: %s"
 msgstr ""
@@ -3129,7 +3124,7 @@ msgstr ""
 msgid "Image imported with fingerprint: %s"
 msgstr ""
 
-#: lxc/image.go:1520
+#: lxc/image.go:1487
 msgid "Image refreshed successfully!"
 msgstr ""
 
@@ -3531,11 +3526,11 @@ msgid ""
 "Filters may be part of the image hash or part of the image alias name.\n"
 msgstr ""
 
-#: lxc/image.go:1090
+#: lxc/image.go:1089
 msgid "List images"
 msgstr ""
 
-#: lxc/image.go:1091
+#: lxc/image.go:1090
 msgid ""
 "List images\n"
 "\n"
@@ -3556,7 +3551,6 @@ msgid ""
 "    F - Fingerprint (long)\n"
 "    p - Whether image is public\n"
 "    d - Description\n"
-"    e - Project\n"
 "    a - Architecture\n"
 "    s - Size\n"
 "    u - Upload date\n"
@@ -4737,8 +4731,7 @@ msgstr ""
 msgid "PROFILES"
 msgstr ""
 
-#: lxc/image.go:1140 lxc/list.go:567 lxc/storage_volume.go:1763
-#: lxc/warning.go:213
+#: lxc/list.go:567 lxc/storage_volume.go:1763 lxc/warning.go:213
 msgid "PROJECT"
 msgstr ""
 
@@ -4746,7 +4739,7 @@ msgstr ""
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:1145 lxc/remote.go:854
+#: lxc/image.go:1136 lxc/remote.go:854
 msgid "PUBLIC"
 msgstr ""
 
@@ -4931,7 +4924,7 @@ msgstr ""
 msgid "Properties:"
 msgstr ""
 
-#: lxc/image.go:1654
+#: lxc/image.go:1621
 msgid "Property not found"
 msgstr ""
 
@@ -5061,7 +5054,7 @@ msgstr ""
 msgid "Query path must start with /"
 msgstr ""
 
-#: lxc/image.go:530 lxc/image.go:951 lxc/image.go:1544
+#: lxc/image.go:530 lxc/image.go:951 lxc/image.go:1511
 msgid "Query virtual machine images"
 msgstr ""
 
@@ -5100,7 +5093,7 @@ msgstr ""
 msgid "Refresh and update the existing storage volume copies"
 msgstr ""
 
-#: lxc/image.go:1449 lxc/image.go:1450
+#: lxc/image.go:1416 lxc/image.go:1417
 msgid "Refresh images"
 msgstr ""
 
@@ -5109,7 +5102,7 @@ msgstr ""
 msgid "Refreshing instance: %s"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/image.go:1486
+#: lxc/image.go:1453
 #, c-format
 msgid "Refreshing the image: %s"
 msgstr "Refrescando la imagen: %s"
@@ -5418,7 +5411,7 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "SEVERITY"
 msgstr ""
 
-#: lxc/image.go:1146
+#: lxc/image.go:1139
 msgid "SIZE"
 msgstr ""
 
@@ -5543,7 +5536,7 @@ msgid ""
 "    lxc profile device set [<remote>:]<profile> <device> <key> <value>"
 msgstr ""
 
-#: lxc/image.go:1670 lxc/image.go:1671
+#: lxc/image.go:1637 lxc/image.go:1638
 msgid "Set image properties"
 msgstr ""
 
@@ -5862,7 +5855,7 @@ msgid ""
 "method. Use the identifier instead if this occurs.\n"
 msgstr ""
 
-#: lxc/image.go:1540 lxc/image.go:1541
+#: lxc/image.go:1507 lxc/image.go:1508
 msgid "Show image properties"
 msgstr ""
 
@@ -6217,7 +6210,7 @@ msgstr "Contenedor publicado con huella digital: %s"
 msgid "TOKEN"
 msgstr ""
 
-#: lxc/auth.go:965 lxc/config_trust.go:408 lxc/image.go:1147
+#: lxc/auth.go:965 lxc/config_trust.go:408 lxc/image.go:1141
 #: lxc/image_alias.go:236 lxc/list.go:579 lxc/network.go:1082
 #: lxc/network.go:1164 lxc/network_allocations.go:27 lxc/operation.go:172
 #: lxc/storage_volume.go:1737 lxc/warning.go:216
@@ -6583,7 +6576,7 @@ msgstr ""
 msgid "UNLIMITED"
 msgstr ""
 
-#: lxc/image.go:1148
+#: lxc/image.go:1140
 msgid "UPLOAD DATE"
 msgstr ""
 
@@ -6629,7 +6622,7 @@ msgstr ""
 msgid "Unknown channel type for client %q: %s"
 msgstr ""
 
-#: lxc/image.go:1167 lxc/list.go:631 lxc/storage_volume.go:1779
+#: lxc/image.go:1155 lxc/list.go:631 lxc/storage_volume.go:1779
 #: lxc/warning.go:242
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
@@ -6673,7 +6666,7 @@ msgstr ""
 msgid "Unset device configuration keys"
 msgstr ""
 
-#: lxc/image.go:1733 lxc/image.go:1734
+#: lxc/image.go:1700 lxc/image.go:1701
 msgid "Unset image properties"
 msgstr ""
 
@@ -7021,7 +7014,7 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "[<remote>:] [<cert>]"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/image.go:1088 lxc/list.go:46
+#: lxc/image.go:1087 lxc/list.go:46
 #, fuzzy
 msgid "[<remote>:] [<filter>...]"
 msgstr "No se puede proveer el nombre del container a la lista"
@@ -7164,17 +7157,17 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "[<remote>:]<identity_provider_group> <new_name>"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/image.go:394 lxc/image.go:946 lxc/image.go:1539
+#: lxc/image.go:394 lxc/image.go:946 lxc/image.go:1506
 #, fuzzy
 msgid "[<remote>:]<image>"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/image.go:1605 lxc/image.go:1732
+#: lxc/image.go:1572 lxc/image.go:1699
 #, fuzzy
 msgid "[<remote>:]<image> <key>"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/image.go:1669
+#: lxc/image.go:1636
 #, fuzzy
 msgid "[<remote>:]<image> <key> <value>"
 msgstr "No se puede proveer el nombre del container a la lista"
@@ -7199,7 +7192,7 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "[<remote>:]<image> [<target>]"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/image.go:334 lxc/image.go:1448
+#: lxc/image.go:334 lxc/image.go:1415
 #, fuzzy
 msgid "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr "No se puede proveer el nombre del container a la lista"
@@ -8264,7 +8257,7 @@ msgstr ""
 msgid "name"
 msgstr ""
 
-#: lxc/image.go:994 lxc/image.go:999 lxc/image.go:1209
+#: lxc/image.go:994 lxc/image.go:999 lxc/image.go:1197
 msgid "no"
 msgstr ""
 
@@ -8310,9 +8303,13 @@ msgid "y"
 msgstr ""
 
 #: lxc/cluster.go:624 lxc/delete.go:52 lxc/image.go:996 lxc/image.go:1001
-#: lxc/image.go:1206
+#: lxc/image.go:1194
 msgid "yes"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Display images from all projects"
+#~ msgstr "No se puede proveer el nombre del container a la lista"
 
 #~ msgid "Action (defaults to GET)"
 #~ msgstr "Accion (predeterminados a GET)"
