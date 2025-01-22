@@ -5,24 +5,46 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/ovn-org/libovsdb/cache"
 	ovsdbClient "github.com/ovn-org/libovsdb/client"
+	"github.com/ovn-org/libovsdb/model"
+	"github.com/ovn-org/libovsdb/ovsdb"
 
 	"github.com/canonical/lxd/lxd/linux"
 	ovnNB "github.com/canonical/lxd/lxd/network/ovn/schema/ovn-nb"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
+)
+
+// nbWaitMode is used to define the waiting behavior of NB.transact.
+type nbWaitMode uint
+
+const (
+	// nbWaitNone instructs NB.transact not to wait for configuration changes to be applied in the southbound database or on the hypervisors.
+	nbWaitNone nbWaitMode = 0
+
+	// nbWaitSB instructs NB.transact to wait for configuration changes to be applied in the southbound database.
+	nbWaitSB nbWaitMode = 1
+
+	// nbWaitHV instructs NB.transact to wait for configuration changes to be applied on the hypervisors.
+	nbWaitHV nbWaitMode = 2
 )
 
 // NB client.
 type NB struct {
-	client ovsdbClient.Client
-	cookie ovsdbClient.MonitorCookie
+	client  ovsdbClient.Client
+	cookie  ovsdbClient.MonitorCookie
+	sbCfgCh chan int
+	hvCfgCh chan int
 
 	// For nbctl command calls.
 	dbAddr        string
@@ -204,6 +226,42 @@ func NewNB(s *state.State) (*NB, error) {
 	client.client = ovn
 	client.cookie = monitorCookie
 
+	// Create channels for sb_cfg and hv_cfg.
+	client.sbCfgCh = make(chan int)
+	client.hvCfgCh = make(chan int)
+
+	// Add an event handler that sends new values of sb_cfg or hv_cfg to their respective channels.
+	// This is used to detect configuration changes at the southbound database or hypervisor level without polling.
+	handler := cache.EventHandlerFuncs{
+		UpdateFunc: func(table string, oldModel model.Model, newModel model.Model) {
+			if table != "NB_Global" {
+				return
+			}
+
+			oldNBGlobal, ok := oldModel.(*ovnNB.NBGlobal)
+			if !ok {
+				logger.Error("Northbound global table has invalid schema", logger.Ctx{"expected": fmt.Sprintf("%T", &ovnNB.NBGlobal{}), "got": newModel})
+				return
+			}
+
+			newNBGlobal, ok := newModel.(*ovnNB.NBGlobal)
+			if !ok {
+				logger.Error("Northbound global table has invalid schema", logger.Ctx{"expected": fmt.Sprintf("%T", &ovnNB.NBGlobal{}), "got": newModel})
+				return
+			}
+
+			if newNBGlobal.SbCfg != oldNBGlobal.SbCfg {
+				client.sbCfgCh <- newNBGlobal.SbCfg
+			}
+
+			if newNBGlobal.HvCfg != oldNBGlobal.HvCfg {
+				client.hvCfgCh <- newNBGlobal.HvCfg
+			}
+		},
+	}
+
+	ovn.Cache().AddEventHandler(&handler)
+
 	// Set finalizer to stop the monitor.
 	runtime.SetFinalizer(client, func(o *NB) {
 		_ = ovn.MonitorCancel(context.Background(), o.cookie)
@@ -256,4 +314,102 @@ func (o *NB) nbctl(extraArgs ...string) (string, error) {
 
 	args = append(args, extraArgs...)
 	return shared.RunCommandInheritFds(context.Background(), files, "ovn-nbctl", args...)
+}
+
+// transact executes the given list of operations to the northbound database. The given nbWaitMode determines blocking
+// behavior for configuration propagation.
+func (o *NB) transact(ctx context.Context, waitMode nbWaitMode, operations ...ovsdb.Operation) error {
+	// Nothing to do, return.
+	if len(operations) == 0 {
+		return nil
+	}
+
+	// If we're waiting for configuration changes to be applied, the client must increment the `nb_cfg` attribute
+	// of NB_Global. This block adds this logic as an operation to the beginning of the operation list passed by the caller.
+	var nbGlobal *ovnNB.NBGlobal
+	if waitMode > nbWaitNone {
+		var err error
+		nbGlobal, err = o.nbGlobal()
+		if err != nil {
+			return err
+		}
+
+		nbGlobal.NbCfg++
+		nbGlobal.NbCfgTimestamp = int(time.Now().UnixMilli())
+		preOps, err := o.client.Where(nbGlobal).Update(nbGlobal)
+		if err != nil {
+			return err
+		}
+
+		operations = append(preOps, operations...)
+	}
+
+	// Perform the transaction.
+	res, err := o.client.Transact(ctx, operations...)
+	if err != nil {
+		return err
+	}
+
+	// Check the results.
+	_, err = ovsdb.CheckOperationResults(res, operations)
+	if err != nil {
+		return err
+	}
+
+	// If we're not waiting for anything, return now.
+	if waitMode == nbWaitNone {
+		return nil
+	}
+
+	// Current values, these are updated in the select statement below.
+	sbCfg := nbGlobal.SbCfg
+	hvCfg := nbGlobal.HvCfg
+
+	// If waiting for hypervisors, we check the minimum of sb_cfg and hv_cfg (see https://manpages.ubuntu.com/manpages/noble/en/man5/ovn-nb.5.html
+	// and https://github.com/ovn-org/ovn/blob/474bdfcad038e91aeaa036944b6b4be7c3e1ec15/utilities/ovn-nbctl.c#L118-L147)
+	// If waiting for the southbound database, we check sb_cfg only.
+	nextCfg := func() int {
+		if waitMode == nbWaitHV {
+			return min(sbCfg, hvCfg)
+		}
+
+		return sbCfg
+	}
+
+	// Wait for sb_cfg or hv_cfg to be updated. Update the local variables whenever a new value is received and recalculate
+	// nextCfg. If nextCfg is greater than or equal to nb_cfg, the configuration has been applied at the requested level.
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case sbCfg = <-o.sbCfgCh:
+			if nextCfg() >= nbGlobal.NbCfg {
+				return nil
+			}
+
+		case hvCfg = <-o.hvCfgCh:
+			if nextCfg() >= nbGlobal.NbCfg {
+				return nil
+			}
+		}
+	}
+}
+
+// nbGlobal gets the contents of the singleton row of the NB_Global table.
+func (o *NB) nbGlobal() (*ovnNB.NBGlobal, error) {
+	rows := o.client.Cache().Table("NB_Global").Rows()
+	if len(rows) > 1 {
+		return nil, errors.New("Northbound global table is not unique")
+	}
+
+	for _, m := range rows {
+		nbGlobal, ok := m.(*ovnNB.NBGlobal)
+		if !ok {
+			return nil, errors.New("Northbound global table has invalid schema")
+		}
+
+		return nbGlobal, nil
+	}
+
+	return nil, errors.New("Northbound global table is not present")
 }
