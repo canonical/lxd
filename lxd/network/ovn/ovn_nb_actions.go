@@ -1493,11 +1493,9 @@ func (o *NB) ChassisGroupChassisAdd(haChassisGroupName OVNChassisGroup, chassisI
 	}
 
 	// Apply the changes.
-	if len(operations) > 0 {
-		_, err := o.client.Transact(ctx, operations...)
-		if err != nil {
-			return err
-		}
+	err = o.transact(ctx, nbWaitSB, operations...)
+	if err != nil {
+		return err
 	}
 
 	return nil
