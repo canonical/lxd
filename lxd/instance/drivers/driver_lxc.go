@@ -287,7 +287,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.In
 
 	v := map[string]string{
 		"volatile.idmap.next": jsonIdmap,
-		"volatile.idmap.base": fmt.Sprintf("%v", base),
+		"volatile.idmap.base": strconv.FormatInt(base, 10),
 	}
 
 	// Invalid idmap cache.
@@ -6509,7 +6509,7 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 		}
 
 		if args.DumpDir != "" {
-			finalStateDir = fmt.Sprintf("%s/%s", args.StateDir, args.DumpDir)
+			finalStateDir = args.StateDir + "/" + args.DumpDir
 		}
 
 		_, migrateErr = shared.RunCommand(
@@ -6519,7 +6519,7 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 			d.state.OS.LxcPath,
 			configPath,
 			finalStateDir,
-			fmt.Sprintf("%v", preservesInodes),
+			fmt.Sprint(preservesInodes),
 		)
 
 		if migrateErr == nil {
@@ -6562,7 +6562,7 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 		}
 
 		if args.DumpDir != "" {
-			finalStateDir = fmt.Sprintf("%s/%s", args.StateDir, args.DumpDir)
+			finalStateDir = args.StateDir + "/" + args.DumpDir
 		}
 
 		// TODO: make this configurable? Ultimately I think we don't
@@ -6583,7 +6583,7 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 		}
 
 		if args.PreDumpDir != "" {
-			opts.PredumpDir = fmt.Sprintf("../%s", args.PreDumpDir)
+			opts.PredumpDir = "../" + args.PreDumpDir
 		}
 
 		if !d.IsRunning() {
@@ -6750,7 +6750,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			}
 
 			// Restrict filesystem access to within the container's rootfs
-			tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", d.name, tpl.Template), template.ChrootLoader{Path: d.RootfsPath()})
+			tplSet := pongo2.NewSet(d.name+"-"+tpl.Template, template.ChrootLoader{Path: d.RootfsPath()})
 
 			tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
 			if err != nil {
@@ -7185,7 +7185,7 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 	envSlice := []string{}
 
 	for k, v := range req.Environment {
-		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
+		envSlice = append(envSlice, k+"="+v)
 	}
 
 	// Setup logfile

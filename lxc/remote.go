@@ -176,7 +176,7 @@ func (c *cmdRemoteAdd) runToken(addr string, server string, token string, rawTok
 
 	// Otherwise, iterate over all addresses within the token.
 	for _, addr := range rawToken.Addresses {
-		addr = fmt.Sprintf("https://%s", addr)
+		addr = "https://" + addr
 
 		err := c.addRemoteFromToken(addr, server, token, *rawToken)
 		if err != nil {
@@ -431,7 +431,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		rHost = host
 		rPort = port
 	} else {
-		rPort = fmt.Sprintf("%d", shared.HTTPSDefaultPort)
+		rPort = fmt.Sprint(shared.HTTPSDefaultPort)
 	}
 
 	if rScheme == "unix" {
@@ -440,7 +440,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if strings.Contains(rHost, ":") && !strings.HasPrefix(rHost, "[") {
-		rHost = fmt.Sprintf("[%s]", rHost)
+		rHost = "[" + rHost + "]"
 	}
 
 	if rPort != "" {
@@ -837,7 +837,7 @@ func (c *cmdRemoteList) run(cmd *cobra.Command, args []string) error {
 
 		strName := name
 		if name == conf.DefaultRemote {
-			strName = fmt.Sprintf("%s (%s)", name, i18n.G("current"))
+			strName = name + " (" + i18n.G("current") + ")"
 		}
 
 		data = append(data, []string{strName, rc.Addr, rc.Protocol, rc.AuthType, strPublic, strStatic, strGlobal})

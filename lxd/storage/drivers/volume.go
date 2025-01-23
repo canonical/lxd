@@ -141,7 +141,7 @@ func (v Volume) ExpandedConfig(key string) string {
 		return volVal
 	}
 
-	return v.poolConfig[fmt.Sprintf("volume.%s", key)]
+	return v.poolConfig["volume."+key]
 }
 
 // NewSnapshot instantiates a new Volume struct representing a snapshot of the parent volume.
@@ -191,7 +191,7 @@ func (v Volume) MountPath() string {
 	volName := v.name
 
 	if v.volType == VolumeTypeCustom && v.contentType == ContentTypeISO {
-		volName = fmt.Sprintf("%s%s", volName, isoVolSuffix)
+		volName = volName + isoVolSuffix
 	}
 
 	return GetVolumeMountPath(v.pool, v.volType, volName)

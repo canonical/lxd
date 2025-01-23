@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -150,25 +149,25 @@ func networkState() map[string]api.InstanceStateNetwork {
 		}
 
 		// Counters
-		value, err := os.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/tx_bytes", iface.Name))
+		value, err := os.ReadFile("/sys/class/net/" + iface.Name + "/statistics/tx_bytes")
 		valueInt, err1 := strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
 		if err == nil && err1 == nil {
 			network.Counters.BytesSent = valueInt
 		}
 
-		value, err = os.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/rx_bytes", iface.Name))
+		value, err = os.ReadFile("/sys/class/net/" + iface.Name + "/statistics/rx_bytes")
 		valueInt, err1 = strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
 		if err == nil && err1 == nil {
 			network.Counters.BytesReceived = valueInt
 		}
 
-		value, err = os.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/tx_packets", iface.Name))
+		value, err = os.ReadFile("/sys/class/net/" + iface.Name + "/statistics/tx_packets")
 		valueInt, err1 = strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
 		if err == nil && err1 == nil {
 			network.Counters.PacketsSent = valueInt
 		}
 
-		value, err = os.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/rx_packets", iface.Name))
+		value, err = os.ReadFile("/sys/class/net/" + iface.Name + "/statistics/rx_packets")
 		valueInt, err1 = strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
 		if err == nil && err1 == nil {
 			network.Counters.PacketsReceived = valueInt
@@ -178,7 +177,10 @@ func networkState() map[string]api.InstanceStateNetwork {
 		addrs, _ := iface.Addrs()
 
 		for _, addr := range addrs {
-			addressFields := strings.Split(addr.String(), "/")
+			addressFields := strings.SplitN(addr.String(), "/", 2)
+			if len(addressFields) != 2 {
+				continue
+			}
 
 			networkAddress := api.InstanceStateNetworkAddress{
 				Address: addressFields[0],
@@ -224,7 +226,8 @@ func processesState() int64 {
 
 	// Go through the pid list, adding new pids at the end so we go through them all
 	for i := 0; i < len(pids); i++ {
-		fname := fmt.Sprintf("/proc/%d/task/%d/children", pids[i], pids[i])
+		pid := strconv.FormatInt(pids[i], 10)
+		fname := "/proc/" + pid + "/task/" + pid + "/children"
 		fcont, err := os.ReadFile(fname)
 		if err != nil {
 			// the process terminated during execution of this loop

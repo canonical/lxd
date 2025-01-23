@@ -774,9 +774,13 @@ func StringHasPrefix(value string, prefixes ...string) bool {
 	return false
 }
 
-// IsTrue returns true if value is "true", "1", "yes" or "on" (case insensitive).
+// IsTrue returns true if value is "1", "true", "yes" or "on" (case insensitive).
 func IsTrue(value string) bool {
-	return ValueInSlice(strings.ToLower(value), []string{"true", "1", "yes", "on"})
+	if value == "1" {
+		return true
+	}
+
+	return ValueInSlice(strings.ToLower(value), []string{"true", "yes", "on"})
 }
 
 // IsTrueOrEmpty returns true if value is empty or if IsTrue() returns true.
@@ -784,9 +788,13 @@ func IsTrueOrEmpty(value string) bool {
 	return value == "" || IsTrue(value)
 }
 
-// IsFalse returns true if value is "false", "0", "no" or "off" (case insensitive).
+// IsFalse returns true if value is "0", "false", "no" or "off" (case insensitive).
 func IsFalse(value string) bool {
-	return ValueInSlice(strings.ToLower(value), []string{"false", "0", "no", "off"})
+	if value == "0" {
+		return true
+	}
+
+	return ValueInSlice(strings.ToLower(value), []string{"false", "no", "off"})
 }
 
 // IsFalseOrEmpty returns true if value is empty or if IsFalse() returns true.
@@ -897,7 +905,7 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 
 	if inPath == "" {
 		// If provided input, create a new file
-		f, err = os.CreateTemp("", "lxd_editor_")
+		f, err = os.CreateTemp("", "lxd_editor_*.yaml")
 		if err != nil {
 			return []byte{}, err
 		}
@@ -915,12 +923,6 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 		}
 
 		err = f.Close()
-		if err != nil {
-			return []byte{}, err
-		}
-
-		path = f.Name() + ".yaml"
-		err = os.Rename(f.Name(), path)
 		if err != nil {
 			return []byte{}, err
 		}

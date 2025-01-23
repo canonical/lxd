@@ -32,7 +32,7 @@ const RBDFormatSeparator = " "
 
 // DiskParseRBDFormat parses an rbd formatted string, and returns the pool name, volume name, and list of options.
 func DiskParseRBDFormat(rbd string) (cephPoolName string, rbdImageName string, options []string, err error) {
-	if !strings.HasPrefix(rbd, fmt.Sprintf("%s%s", RBDFormatPrefix, RBDFormatSeparator)) {
+	if !strings.HasPrefix(rbd, RBDFormatPrefix+RBDFormatSeparator) {
 		return "", "", nil, fmt.Errorf("Invalid rbd format, missing prefix")
 	}
 
@@ -57,12 +57,12 @@ func DiskGetRBDFormat(clusterName string, userName string, cephPoolName string, 
 	// According to https://docs.ceph.com/docs/hammer/rbd/qemu-rbd/#usage
 	optEscaper := strings.NewReplacer(":", `\:`, "@", `\@`, "=", `\=`)
 	opts := []string{
-		fmt.Sprintf("id=%s", optEscaper.Replace(userName)),
-		fmt.Sprintf("pool=%s", optEscaper.Replace(cephPoolName)),
-		fmt.Sprintf("conf=/etc/ceph/%s.conf", optEscaper.Replace(clusterName)),
+		"id=" + optEscaper.Replace(userName),
+		"pool=" + optEscaper.Replace(cephPoolName),
+		"conf=/etc/ceph/" + optEscaper.Replace(clusterName) + ".conf",
 	}
 
-	return fmt.Sprintf("%s%s%s/%s%s%s", RBDFormatPrefix, RBDFormatSeparator, optEscaper.Replace(cephPoolName), optEscaper.Replace(rbdImageName), RBDFormatSeparator, strings.Join(opts, ":"))
+	return RBDFormatPrefix + RBDFormatSeparator + optEscaper.Replace(cephPoolName) + "/" + optEscaper.Replace(rbdImageName) + RBDFormatSeparator + strings.Join(opts, ":")
 }
 
 // BlockFsDetect detects the type of block device.
@@ -236,9 +236,9 @@ func diskCephfsOptions(clusterName string, userName string, fsName string, fsPat
 
 	// Prepare mount entry.
 	fsOptions := []string{
-		fmt.Sprintf("name=%v", userName),
-		fmt.Sprintf("secret=%v", secret),
-		fmt.Sprintf("mds_namespace=%v", fsName),
+		"name=" + userName,
+		"secret=" + secret,
+		"mds_namespace=" + fsName,
 	}
 
 	srcPath := strings.Join(monAddresses, ",") + ":/" + fsPath
@@ -489,7 +489,7 @@ func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Ins
 		"--fd=3",
 		// use -o flags for support in wider versions of virtiofsd.
 		"-o", "xattr",
-		"-o", fmt.Sprintf("source=%s", sharePath),
+		"-o", "source=" + sharePath,
 	}
 
 	// Virtiofsd defaults to namespace sandbox mode which requires pidfd_open support.

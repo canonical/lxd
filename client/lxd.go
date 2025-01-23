@@ -88,7 +88,7 @@ func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 				continue
 			}
 
-			url := fmt.Sprintf("https://%s", addr)
+			url := "https://" + addr
 			if !shared.ValueInSlice(url, urls) {
 				urls = append(urls, url)
 			}
@@ -168,7 +168,7 @@ func (r *ProtocolLXD) addClientHeaders(req *http.Request) {
 	}
 
 	if r.oidcClient != nil {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", r.oidcClient.getAccessToken()))
+		req.Header.Set("Authorization", "Bearer "+r.oidcClient.getAccessToken())
 	}
 }
 
@@ -182,7 +182,7 @@ func (r *ProtocolLXD) RequireAuthenticated(authenticated bool) {
 // This should only be used by internal LXD tools.
 func (r *ProtocolLXD) RawQuery(method string, path string, data any, ETag string) (*api.Response, string, error) {
 	// Generate the URL
-	url := fmt.Sprintf("%s%s", r.httpBaseURL.String(), path)
+	url := r.httpBaseURL.String() + path
 
 	return r.rawQuery(method, url, data, ETag)
 }
@@ -327,7 +327,7 @@ func (r *ProtocolLXD) setQueryAttributes(uri string) (string, error) {
 
 func (r *ProtocolLXD) query(method string, path string, data any, ETag string) (*api.Response, string, error) {
 	// Generate the URL
-	url := fmt.Sprintf("%s/1.0%s", r.httpBaseURL.String(), path)
+	url := r.httpBaseURL.String() + "/1.0" + path
 
 	// Add project/target
 	url, err := r.setQueryAttributes(url)
@@ -457,14 +457,12 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 // It then leverages the rawWebsocket method to establish and return a websocket connection to the generated URL.
 func (r *ProtocolLXD) websocket(path string) (*websocket.Conn, error) {
 	// Generate the URL
-	var url string
+	url := r.httpBaseURL.Host + "/1.0" + path
 	if r.httpBaseURL.Scheme == "https" {
-		url = fmt.Sprintf("wss://%s/1.0%s", r.httpBaseURL.Host, path)
-	} else {
-		url = fmt.Sprintf("ws://%s/1.0%s", r.httpBaseURL.Host, path)
+		return r.rawWebsocket("wss://" + url)
 	}
 
-	return r.rawWebsocket(url)
+	return r.rawWebsocket("ws://" + url)
 }
 
 // WithContext returns a client that will add context.Context.

@@ -379,7 +379,7 @@ func GenerateMemCert(client bool, options CertOptions) ([]byte, []byte, error) {
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			Organization: []string{"LXD"},
-			CommonName:   fmt.Sprintf("%s@%s", username, hostname),
+			CommonName:   username + "@" + hostname,
 		},
 		NotBefore: validFrom,
 		NotAfter:  validTo,

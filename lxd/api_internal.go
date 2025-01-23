@@ -820,7 +820,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	}
 
 	for _, snap := range existingSnapshots {
-		snapInstName := fmt.Sprintf("%s%s%s", backupConf.Container.Name, shared.SnapshotDelimiter, snap.Name)
+		snapInstName := backupConf.Container.Name + shared.SnapshotDelimiter + snap.Name
 
 		snapErr := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Check if an entry for the snapshot already exists in the db.
@@ -1006,7 +1006,7 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 				break
 			}
 
-			rootDevName = fmt.Sprintf("root%d", i)
+			rootDevName = "root" + strconv.FormatInt(int64(i), 10)
 			continue
 		}
 

@@ -157,7 +157,7 @@ func (d *lvm) countLogicalVolumes(vgName string) (int, error) {
 
 // countThinVolumes gets the count of thin volumes in a thin pool.
 func (d *lvm) countThinVolumes(vgName, poolName string) (int, error) {
-	output, err := shared.RunCommand("lvs", "--noheadings", "-o", "thin_count", fmt.Sprintf("%s/%s", vgName, poolName))
+	output, err := shared.RunCommand("lvs", "--noheadings", "-o", "thin_count", vgName+"/"+poolName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return -1, api.StatusErrorf(http.StatusNotFound, "LVM volume group not found")
@@ -172,7 +172,7 @@ func (d *lvm) countThinVolumes(vgName, poolName string) (int, error) {
 
 // thinpoolExists checks whether the specified thinpool exists in a volume group.
 func (d *lvm) thinpoolExists(vgName string, poolName string) (bool, error) {
-	output, err := shared.RunCommand("lvs", "--noheadings", "-o", "lv_attr", fmt.Sprintf("%s/%s", vgName, poolName))
+	output, err := shared.RunCommand("lvs", "--noheadings", "-o", "lv_attr", vgName+"/"+poolName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return false, nil
@@ -215,7 +215,7 @@ func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string, thinpoolSiz
 		return fmt.Errorf("Error checking LVM version: %w", err)
 	}
 
-	lvmThinPool := fmt.Sprintf("%s/%s", d.config["lvm.vg_name"], thinPoolName)
+	lvmThinPool := d.config["lvm.vg_name"] + "/" + thinPoolName
 
 	args := []string{
 		"--yes",
@@ -229,11 +229,11 @@ func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string, thinpoolSiz
 	}
 
 	if thinpoolMetadataSizeBytes > 0 {
-		args = append(args, "--poolmetadatasize", fmt.Sprintf("%db", thinpoolMetadataSizeBytes))
+		args = append(args, "--poolmetadatasize", strconv.FormatInt(thinpoolMetadataSizeBytes, 10)+"b")
 	}
 
 	if thinpoolSizeBytes > 0 {
-		args = append(args, "--size", fmt.Sprintf("%db", thinpoolSizeBytes))
+		args = append(args, "--size", strconv.FormatInt(thinpoolSizeBytes, 10)+"b")
 	} else if isRecent {
 		args = append(args, "--extents", "100%FREE")
 	} else {
@@ -251,7 +251,7 @@ func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string, thinpoolSiz
 				return fmt.Errorf("Invalid volume stripe size %q: %w", d.config["volume.lvm.stripes.size"], err)
 			}
 
-			args = append(args, "--stripesize", fmt.Sprintf("%db", stripSizeBytes))
+			args = append(args, "--stripesize", strconv.FormatInt(stripSizeBytes, 10)+"b")
 		}
 	}
 
@@ -334,15 +334,15 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 	}
 
 	if makeThinLv {
-		targetVg := fmt.Sprintf("%s/%s", vgName, thinPoolName)
+		targetVg := vgName + "/" + thinPoolName
 		args = append(args,
 			"--thin",
-			"--virtualsize", fmt.Sprintf("%db", lvSizeBytes),
+			"--virtualsize", strconv.FormatInt(lvSizeBytes, 10)+"b",
 			targetVg,
 		)
 	} else {
 		args = append(args,
-			"--size", fmt.Sprintf("%db", lvSizeBytes),
+			"--size", strconv.FormatInt(lvSizeBytes, 10)+"b",
 			vgName,
 		)
 
@@ -358,7 +358,7 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 					return fmt.Errorf("Invalid volume stripe size %q: %w", stripeSize, err)
 				}
 
-				args = append(args, "--stripesize", fmt.Sprintf("%db", stripSizeBytes))
+				args = append(args, "--stripesize", strconv.FormatInt(stripSizeBytes, 10)+"b")
 			}
 		}
 	}
@@ -397,7 +397,7 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 		}
 	}
 
-	d.logger.Debug("Logical volume created", logger.Ctx{"vg_name": vgName, "lv_name": lvFullName, "size": fmt.Sprintf("%db", lvSizeBytes), "fs": vol.ConfigBlockFilesystem()})
+	d.logger.Debug("Logical volume created", logger.Ctx{"vg_name": vgName, "lv_name": lvFullName, "size": strconv.FormatInt(lvSizeBytes, 10) + "b", "fs": vol.ConfigBlockFilesystem()})
 	return nil
 }
 
@@ -493,7 +493,7 @@ func (d *lvm) lvmFullVolumeName(volType VolumeType, contentType ContentType, vol
 	// Escape the volume name to a name suitable for using as a logical volume.
 	lvName := strings.Replace(strings.Replace(volName, "-", lvmEscapedHyphen, -1), shared.SnapshotDelimiter, lvmSnapshotSeparator, -1)
 
-	return fmt.Sprintf("%s_%s%s", volType, lvName, contentTypeSuffix)
+	return string(volType) + "_" + lvName + contentTypeSuffix
 }
 
 // lvmDevPath returns the path to the LVM volume device. Empty string is returned if invalid volType supplied.
@@ -503,7 +503,7 @@ func (d *lvm) lvmDevPath(vgName string, volType VolumeType, contentType ContentT
 		return "" // Invalid volType supplied.
 	}
 
-	return fmt.Sprintf("/dev/%s/%s", vgName, fullVolName)
+	return "/dev/" + vgName + "/" + fullVolName
 }
 
 // resizeLogicalVolume resizes an LVM logical volume. This function does not resize any filesystem inside the LV.
@@ -523,7 +523,7 @@ func (d *lvm) resizeLogicalVolume(lvPath string, sizeBytes int64) error {
 		return err
 	}
 
-	d.logger.Debug("Logical volume resized", logger.Ctx{"dev": lvPath, "size": fmt.Sprintf("%db", sizeBytes)})
+	d.logger.Debug("Logical volume resized", logger.Ctx{"dev": lvPath, "size": strconv.FormatInt(sizeBytes, 10) + "b"})
 	return nil
 }
 
@@ -762,10 +762,10 @@ func (d *lvm) parseLogicalVolumeSnapshot(parent Volume, lvmVolName string) strin
 	}
 
 	// Prefix we would expect for a snapshot of the parent volume.
-	snapPrefix := fmt.Sprintf("%s%s", fullVolName, lvmSnapshotSeparator)
+	snapPrefix := fullVolName + lvmSnapshotSeparator
 
 	// Prefix used when escaping "-" in volume names. Doesn't indicate a snapshot of parent.
-	badPrefix := fmt.Sprintf("%s%s", fullVolName, lvmEscapedHyphen)
+	badPrefix := fullVolName + lvmEscapedHyphen
 
 	// Check the volume matches the snapshot prefix, but doesn't match the prefix that indicates a similarly
 	// named volume that just has escaped "-" characters in it.

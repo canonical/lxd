@@ -68,9 +68,7 @@ func UpsertObject(tx *sql.Tx, table string, columns []string, values []any) (int
 		return -1, fmt.Errorf("columns length does not match values length")
 	}
 
-	stmt := fmt.Sprintf(
-		"INSERT OR REPLACE INTO %s (%s) VALUES %s",
-		table, strings.Join(columns, ", "), Params(n))
+	stmt := "INSERT OR REPLACE INTO " + table + " (" + strings.Join(columns, ", ") + ") VALUES " + Params(n)
 	result, err := tx.Exec(stmt, values...)
 	if err != nil {
 		return -1, fmt.Errorf("insert or replaced row: %w", err)
@@ -90,7 +88,7 @@ func UpsertObject(tx *sql.Tx, table string, columns []string, values []any) (int
 // It returns a flag indicating if a matching row was actually found and
 // deleted or not.
 func DeleteObject(tx *sql.Tx, table string, id int64) (bool, error) {
-	stmt := fmt.Sprintf("DELETE FROM %s WHERE id=?", table)
+	stmt := "DELETE FROM " + table + " WHERE id = ?"
 	result, err := tx.Exec(stmt, id)
 	if err != nil {
 		return false, err

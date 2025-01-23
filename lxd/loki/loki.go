@@ -188,7 +188,7 @@ func (c *Client) send(ctx context.Context, buf []byte) (int, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.cfg.timeout)
 	defer cancel()
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/loki/api/v1/push", c.cfg.url.String()), bytes.NewReader(buf))
+	req, err := http.NewRequest("POST", c.cfg.url.String()+"/loki/api/v1/push", bytes.NewReader(buf))
 	if err != nil {
 		return -1, err
 	}
@@ -298,10 +298,10 @@ func (c *Client) HandleEvent(event api.Event) {
 
 		// Add the remaining context as the message prefix.
 		for k, v := range context {
-			messagePrefix += fmt.Sprintf("%s=\"%s\" ", k, v)
+			messagePrefix += k + `="` + v + `" `
 		}
 
-		entry.Line = fmt.Sprintf("%s%s", messagePrefix, lifecycleEvent.Action)
+		entry.Line = messagePrefix + lifecycleEvent.Action
 	} else if event.Type == api.EventTypeLogging || event.Type == api.EventTypeOVN {
 		logEvent := api.EventLogging{}
 
@@ -357,7 +357,7 @@ func (c *Client) HandleEvent(event api.Event) {
 
 		// Add the remaining context as the message prefix. The keys are sorted alphabetically.
 		for _, k := range keys {
-			message.WriteString(fmt.Sprintf("%s=%q ", k, context[k]))
+			message.WriteString(k + `="` + context[k] + `" `)
 		}
 
 		message.WriteString(logEvent.Message)
@@ -379,14 +379,14 @@ func buildNestedContext(prefix string, m map[string]any) map[string]string {
 				if prefix == "" {
 					labels[k] = v
 				} else {
-					labels[fmt.Sprintf("%s-%s", prefix, k)] = v
+					labels[prefix+"-"+k] = v
 				}
 			}
 		} else {
 			if prefix == "" {
-				labels[k] = fmt.Sprintf("%v", v)
+				labels[k] = fmt.Sprint(v)
 			} else {
-				labels[fmt.Sprintf("%s-%s", prefix, k)] = fmt.Sprintf("%v", v)
+				labels[prefix+"-"+k] = fmt.Sprint(v)
 			}
 		}
 	}
@@ -396,7 +396,7 @@ func buildNestedContext(prefix string, m map[string]any) map[string]string {
 
 // MarshalJSON returns the JSON encoding of Entry.
 func (e Entry) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("[\"%d\", %s]", e.Timestamp.UnixNano(), strconv.Quote(e.Line))), nil
+	return []byte(`["` + strconv.FormatInt(e.Timestamp.UnixNano(), 10) + `", ` + strconv.Quote(e.Line) + "]"), nil
 }
 
 // String implements the Stringer interface. It returns a formatted/sorted set of label key/value pairs.

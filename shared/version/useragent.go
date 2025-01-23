@@ -1,7 +1,6 @@
 package version
 
 import (
-	"fmt"
 	"runtime"
 	"strings"
 
@@ -31,22 +30,22 @@ func getUserAgent() string {
 	osTokens = append(osTokens, getPlatformVersionStrings()...)
 
 	// Initial version string
-	agent := fmt.Sprintf("LXD %s", Version)
+	agent := "LXD " + Version
 	if IsLTSVersion {
-		agent = fmt.Sprintf("%s LTS", agent)
+		agent = agent + " LTS"
 	}
 
 	// OS information
-	agent = fmt.Sprintf("%s (%s)", agent, strings.Join(osTokens, "; "))
+	agent = agent + " (" + strings.Join(osTokens, "; ") + ")"
 
 	// Storage information
 	if len(userAgentStorageBackends) > 0 {
-		agent = fmt.Sprintf("%s (%s)", agent, strings.Join(userAgentStorageBackends, "; "))
+		agent = agent + " (" + strings.Join(userAgentStorageBackends, "; ") + ")"
 	}
 
 	// Feature information
 	if len(userAgentFeatures) > 0 {
-		agent = fmt.Sprintf("%s (%s)", agent, strings.Join(userAgentFeatures, "; "))
+		agent = agent + " (" + strings.Join(userAgentFeatures, "; ") + ")"
 	}
 
 	return agent

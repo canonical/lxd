@@ -198,7 +198,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 				config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress, shared.HTTPSDefaultPort)
 
 				// Cluster certificate
-				cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
+				cert, err := shared.GetRemoteCertificate("https://"+config.Cluster.ClusterAddress, version.UserAgent)
 				if err != nil {
 					fmt.Printf("Error connecting to existing cluster member %q: %v\n", clusterAddress, err)
 					continue
@@ -254,7 +254,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 				UserAgent:     version.UserAgent,
 			}
 
-			client, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), args)
+			client, err := lxd.ConnectLXD("https://"+config.Cluster.ClusterAddress, args)
 			if err != nil {
 				return err
 			}
@@ -266,7 +266,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 			}
 
 			for i, config := range cluster.MemberConfig {
-				question := fmt.Sprintf("Choose %s: ", config.Description)
+				question := "Choose " + config.Description + ": "
 
 				// Allow for empty values.
 				configValue, err := c.global.asker.AskString(question, "", validate.Optional())
@@ -538,7 +538,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 				return err
 			}
 
-			net.Config["ipv4.nat"] = fmt.Sprintf("%v", netIPv4UseNAT)
+			net.Config["ipv4.nat"] = fmt.Sprint(netIPv4UseNAT)
 		}
 
 		// IPv6
@@ -559,7 +559,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 				return err
 			}
 
-			net.Config["ipv6.nat"] = fmt.Sprintf("%v", netIPv6UseNAT)
+			net.Config["ipv6.nat"] = fmt.Sprint(netIPv6UseNAT)
 		}
 
 		// Add the new network
@@ -819,7 +819,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 					}
 
 					if !strings.HasSuffix(pool.Config["size"], "GiB") {
-						pool.Config["size"] = fmt.Sprintf("%sGiB", pool.Config["size"])
+						pool.Config["size"] = pool.Config["size"] + "GiB"
 					}
 				}
 			}
@@ -839,7 +839,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 
 				pool.Config["ceph.osd.pool_name"] = pool.Config["source"]
 			} else {
-				question := fmt.Sprintf("Name of the existing %s pool or dataset: ", strings.ToUpper(pool.Driver))
+				question := "Name of the existing " + strings.ToUpper(pool.Driver) + " pool or dataset: "
 				pool.Config["source"], err = c.global.asker.AskString(question, "", nil)
 				if err != nil {
 					return err
@@ -931,7 +931,7 @@ they otherwise would.
 			}
 
 			if net.ParseIP(netAddr).To4() == nil {
-				netAddr = fmt.Sprintf("[%s]", netAddr)
+				netAddr = "[" + netAddr + "]"
 			}
 
 			netPort, err := c.global.asker.AskInt(fmt.Sprintf("Port to bind LXD to [default=%d]: ", shared.HTTPSDefaultPort), 1, 65535, fmt.Sprintf("%d", shared.HTTPSDefaultPort), func(netPort int64) error {

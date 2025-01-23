@@ -87,7 +87,7 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string, filters ...Config
 	// Result slice.
 	objects := make([]Config, 0)
 
-	configObjectsLocal := strings.Replace(configObjects, "%s_id", fmt.Sprintf("%s_id", parent), -1)
+	configObjectsLocal := strings.Replace(configObjects, "%s_id", parent+"_id", -1)
 	fillParent := make([]any, strings.Count(configObjectsLocal, "%s"))
 	mangledParent := strings.Replace(parent, "_", "s_", -1) + "s"
 	for i := range fillParent {
@@ -152,7 +152,7 @@ func CreateConfig(ctx context.Context, tx *sql.Tx, parent string, object Config)
 		return nil
 	}
 
-	configCreateLocal := strings.Replace(configCreate, "%s_id", fmt.Sprintf("%s_id", parent), -1)
+	configCreateLocal := strings.Replace(configCreate, "%s_id", parent+"_id", -1)
 	fillParent := make([]any, strings.Count(configCreateLocal, "%s"))
 	for i := range fillParent {
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
@@ -196,7 +196,7 @@ func UpdateConfig(ctx context.Context, tx *sql.Tx, parent string, referenceID in
 // DeleteConfig deletes the config matching the given key parameters.
 // generator: config DeleteMany
 func DeleteConfig(ctx context.Context, tx *sql.Tx, parent string, referenceID int) error {
-	configDeleteLocal := strings.Replace(configDelete, "%s_id", fmt.Sprintf("%s_id", parent), -1)
+	configDeleteLocal := strings.Replace(configDelete, "%s_id", parent+"_id", -1)
 	fillParent := make([]any, strings.Count(configDeleteLocal, "%s"))
 	for i := range fillParent {
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"

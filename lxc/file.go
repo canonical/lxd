@@ -289,7 +289,7 @@ func (c *cmdFileCreate) run(cmd *cobra.Command, args []string) error {
 				Length: contentLength,
 				Handler: func(percent int64, speed int64) {
 					progress.UpdateProgress(ioprogress.ProgressData{
-						Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2)),
+						Text: strconv.FormatInt(percent, 10) + "% (" + units.GetByteSizeString(speed, 2) + "/s)",
 					})
 				},
 			},
@@ -661,9 +661,8 @@ func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 					}
 
 					progress.UpdateProgress(ioprogress.ProgressData{
-						Text: fmt.Sprintf("%s (%s/s)",
-							units.GetByteSizeString(bytesReceived, 2),
-							units.GetByteSizeString(speed, 2))})
+						Text: units.GetByteSizeString(bytesReceived, 2) + " (" + units.GetByteSizeString(speed, 2) + "/s)",
+					})
 				},
 			},
 		}
@@ -950,7 +949,7 @@ func (c *cmdFilePush) run(cmd *cobra.Command, args []string) error {
 				Length: fstat.Size(),
 				Handler: func(percent int64, speed int64) {
 					progress.UpdateProgress(ioprogress.ProgressData{
-						Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2)),
+						Text: strconv.FormatInt(percent, 10) + "% (" + units.GetByteSizeString(speed, 2) + "/s)",
 					})
 				},
 			},
@@ -1015,9 +1014,8 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 			Tracker: &ioprogress.ProgressTracker{
 				Handler: func(bytesReceived int64, speed int64) {
 					progress.UpdateProgress(ioprogress.ProgressData{
-						Text: fmt.Sprintf("%s (%s/s)",
-							units.GetByteSizeString(bytesReceived, 2),
-							units.GetByteSizeString(speed, 2))})
+						Text: units.GetByteSizeString(bytesReceived, 2) + " (" + units.GetByteSizeString(speed, 2) + "/s)",
+					})
 				},
 			},
 		}
@@ -1127,8 +1125,8 @@ func (c *cmdFile) recursivePushFile(d lxd.InstanceServer, inst string, source st
 					Length: contentLength,
 					Handler: func(percent int64, speed int64) {
 						progress.UpdateProgress(ioprogress.ProgressData{
-							Text: fmt.Sprintf("%d%% (%s/s)", percent,
-								units.GetByteSizeString(speed, 2))})
+							Text: strconv.FormatInt(percent, 10) + "% (" + units.GetByteSizeString(speed, 2) + "/s)",
+						})
 					},
 				},
 			}, args.Content)
@@ -1330,7 +1328,7 @@ func (c *cmdFileMount) sshfsMount(ctx context.Context, resource remoteResource, 
 
 	// Use the format "lxd.<instance_name>" as the source "host" (although not used for communication)
 	// so that the mount can be seen to be associated with LXD and the instance in the local mount table.
-	sourceURL := fmt.Sprintf("lxd.%s:%s", instName, instPath)
+	sourceURL := "lxd." + instName + ":" + instPath
 
 	sshfsCmd := exec.Command(sshfsPath, "-o", "slave", sourceURL, targetPath)
 
@@ -1352,7 +1350,7 @@ func (c *cmdFileMount) sshfsMount(ctx context.Context, resource remoteResource, 
 		return fmt.Errorf(i18n.G("Failed starting sshfs: %w"), err)
 	}
 
-	fmt.Printf(i18n.G("sshfs mounting %q on %q")+"\n", fmt.Sprintf("%s%s", instName, instPath), targetPath)
+	fmt.Printf(i18n.G("sshfs mounting %q on %q")+"\n", instName+instPath, targetPath)
 	fmt.Println(i18n.G("Press ctrl+c to finish"))
 
 	ctx, cancel := context.WithCancel(ctx)

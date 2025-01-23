@@ -116,7 +116,7 @@ For help with any of those, simply call them with --help.`))
 	app.SetVersionTemplate("{{.Version}}\n")
 	app.Version = version.Version
 	if version.IsLTSVersion {
-		app.Version = fmt.Sprintf("%s LTS", version.Version)
+		app.Version = version.Version + " LTS"
 	}
 
 	// alias sub-command

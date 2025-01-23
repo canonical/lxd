@@ -126,7 +126,7 @@ func TestEnsureSchema_UpdateNodeVersion(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		t.Run(fmt.Sprintf("%v", c.ready), func(t *testing.T) {
+		t.Run(fmt.Sprint(c.ready), func(t *testing.T) {
 			db := newDB(t)
 
 			// Add ourselves with an older schema version and API
@@ -170,7 +170,7 @@ func addNode(t *testing.T, db *sql.DB, address string, schema int, apiExtensions
 		stmt := `
 INSERT INTO nodes(name, address, schema, api_extensions, arch, description) VALUES (?, ?, ?, ?, ?, '')
 `
-		name := fmt.Sprintf("node at %s", address)
+		name := "node at " + address
 		_, err := tx.Exec(stmt, name, address, schema, apiExtensions, osarch.ARCH_64BIT_INTEL_X86)
 		return err
 	})

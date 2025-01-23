@@ -1594,10 +1594,12 @@ func (c *cmdPermissionList) run(cmd *cobra.Command, args []string) error {
 				var rowsAssigned []string
 				for k, v := range p.entitlementsAssigned {
 					// Pretty format for tables.
-					assignedRow := fmt.Sprintf("%s ==> (%s)", k, strings.Join(v, ", "))
+					var assignedRow string
 					if c.flagFormat == cli.TableFormatCSV {
 						// Machine readable format for CSV.
-						assignedRow = fmt.Sprintf("%s:(%s)", k, strings.Join(v, ","))
+						assignedRow = k + ":(" + strings.Join(v, ",") + ")"
+					} else {
+						assignedRow = k + " ==> (" + strings.Join(v, ", ") + ")"
 					}
 
 					rowsAssigned = append(rowsAssigned, assignedRow)
