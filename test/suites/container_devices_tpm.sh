@@ -4,6 +4,11 @@ test_container_devices_tpm() {
     return
   fi
 
+  if ! modprobe tpm_vtpm_proxy; then
+    echo "==> SKIP: Required tpm_vtpm_proxy.ko is missing"
+    return
+  fi
+
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
   ctName="ct$$"
