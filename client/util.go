@@ -225,7 +225,7 @@ func urlsToResourceNames(matchPathPrefix string, urls ...string) ([]string, erro
 			return nil, fmt.Errorf("Failed parsing URL %q: %w", urlRaw, err)
 		}
 
-		_, after, found := strings.Cut(u.Path, fmt.Sprintf("%s/", matchPathPrefix))
+		_, after, found := strings.Cut(u.Path, matchPathPrefix+"/")
 		if !found {
 			return nil, fmt.Errorf("Unexpected URL path %q", u)
 		}
@@ -241,8 +241,8 @@ func parseFilters(filters []string) string {
 	var result []string
 	for _, filter := range filters {
 		if strings.Contains(filter, "=") {
-			membs := strings.SplitN(filter, "=", 2)
-			result = append(result, fmt.Sprintf("%s eq %s", membs[0], membs[1]))
+			before, after, _ := strings.Cut(filter, "=")
+			result = append(result, before+" eq "+after)
 		}
 	}
 	return strings.Join(result, " and ")

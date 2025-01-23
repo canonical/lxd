@@ -35,7 +35,7 @@ type instanceVM interface {
 // InstanceProfileName returns the instance's AppArmor profile name.
 func InstanceProfileName(inst instance) string {
 	path := shared.VarPath("")
-	name := fmt.Sprintf("%s_<%s>", project.Instance(inst.Project().Name, inst.Name()), path)
+	name := project.Instance(inst.Project().Name, inst.Name()) + "_<" + path + ">"
 	return profileName("", name)
 }
 
@@ -43,7 +43,7 @@ func InstanceProfileName(inst instance) string {
 func InstanceNamespaceName(inst instance) string {
 	// Unlike in profile names, / isn't an allowed character so replace with a -.
 	path := strings.Replace(strings.Trim(shared.VarPath(""), "/"), "/", "-", -1)
-	name := fmt.Sprintf("%s_<%s>", project.Instance(inst.Project().Name, inst.Name()), path)
+	name := project.Instance(inst.Project().Name, inst.Name()) + "_<" + path + ">"
 	return profileName("", name)
 }
 
@@ -149,7 +149,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 	rawApparmor, ok := inst.ExpandedConfig()["raw.apparmor"]
 	if ok {
 		for _, line := range strings.Split(strings.Trim(rawApparmor, "\n"), "\n") {
-			rawContent += fmt.Sprintf("  %s\n", line)
+			rawContent += "  " + line + "\n"
 		}
 	}
 

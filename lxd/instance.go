@@ -386,8 +386,8 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 				// leave alone so we don't prevent copy.
 			}
 
-			fields := strings.SplitN(srcSnap.Name(), shared.SnapshotDelimiter, 2)
-			newSnapName := fmt.Sprintf("%s/%s", inst.Name(), fields[1])
+			_, origSnapName, _ := strings.Cut(srcSnap.Name(), shared.SnapshotDelimiter)
+			newSnapName := inst.Name() + "/" + origSnapName
 			snapInstArgs := db.InstanceArgs{
 				Architecture: srcSnap.Architecture(),
 				Config:       srcSnap.LocalConfig(),

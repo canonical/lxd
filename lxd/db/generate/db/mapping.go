@@ -129,7 +129,7 @@ func (m *Mapping) ActiveFilters(kind string) []*Field {
 // prefixed with the entity's table name.
 func (m *Mapping) FieldColumnName(name string, table string) string {
 	field := m.FieldByName(name)
-	return fmt.Sprintf("%s.%s", table, field.Column())
+	return table + "." + field.Column()
 }
 
 // FilterFieldByName returns the field with the given name if that field can be
@@ -197,7 +197,7 @@ func (m *Mapping) RefFields() []*Field {
 // FieldArgs converts the given fields to function arguments, rendering their
 // name and type.
 func (m *Mapping) FieldArgs(fields []*Field, extra ...string) string {
-	args := []string{}
+	args := make([]string, 0, len(fields)+len(extra))
 
 	for _, field := range fields {
 		name := lex.Minuscule(field.Name)
@@ -205,7 +205,7 @@ func (m *Mapping) FieldArgs(fields []*Field, extra ...string) string {
 			name = lex.Minuscule(m.Name) + field.Name
 		}
 
-		arg := fmt.Sprintf("%s %s", name, field.Type.Name)
+		arg := name + " " + field.Type.Name
 		args = append(args, arg)
 	}
 
@@ -241,7 +241,7 @@ func (m *Mapping) FieldParamsMarshal(fields []*Field) string {
 		}
 
 		if shared.IsTrue(field.Config.Get("marshal")) {
-			name = fmt.Sprintf("marshaled%s", field.Name)
+			name = "marshaled" + field.Name
 		}
 
 		args[i] = name
@@ -298,7 +298,7 @@ func (f *Field) Column() string {
 
 	join := f.JoinConfig()
 	if join != "" {
-		column = fmt.Sprintf("%s AS %s", join, column)
+		column = join + " AS " + column
 	}
 
 	return column
@@ -311,7 +311,7 @@ func (f *Field) SelectColumn(mapping *Mapping, primaryTable string) (string, err
 	// ReferenceTable and MapTable require specific fields, so parse those instead of checking tags.
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		table := primaryTable
-		column := fmt.Sprintf("%s.%s", table, lex.Snake(f.Name))
+		column := table + "." + lex.Snake(f.Name)
 		column = strings.Replace(column, "reference", "%s", -1)
 
 		return column, nil
@@ -335,16 +335,16 @@ func (f *Field) SelectColumn(mapping *Mapping, primaryTable string) (string, err
 	if join != "" {
 		column = join
 	} else {
-		column = fmt.Sprintf("%s.%s", tableName, columnName)
+		column = tableName + "." + columnName
 	}
 
 	coalesce, ok := f.Config["coalesce"]
 	if ok {
-		column = fmt.Sprintf("coalesce(%s, %s)", column, coalesce[0])
+		column = "coalesce(" + column + ", " + coalesce[0] + ")"
 	}
 
 	if join != "" {
-		column = fmt.Sprintf("%s AS %s", column, columnName)
+		column = column + " AS " + columnName
 	}
 
 	return column, nil
@@ -355,7 +355,7 @@ func (f *Field) OrderBy(mapping *Mapping, primaryTable string) (string, error) {
 	// ReferenceTable and MapTable require specific fields, so parse those instead of checking tags.
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		table := primaryTable
-		column := fmt.Sprintf("%s.%s", table, lex.Snake(f.Name))
+		column := table + "." + lex.Snake(f.Name)
 		column = strings.Replace(column, "reference", "%s", -1)
 
 		return column, nil
@@ -384,10 +384,10 @@ func (f *Field) OrderBy(mapping *Mapping, primaryTable string) (string, error) {
 	}
 
 	if tableName != "" {
-		return fmt.Sprintf("%s.%s", tableName, columnName), nil
+		return tableName + "." + columnName, nil
 	}
 
-	return fmt.Sprintf("%s.%s", entityTable(mapping.Name, tableName), columnName), nil
+	return entityTable(mapping.Name, tableName) + "." + columnName, nil
 }
 
 // JoinClause returns an SQL 'JOIN' clause using the 'join'  and 'joinon' tags, if present.
@@ -415,9 +415,9 @@ func (f *Field) JoinClause(mapping *Mapping, table string) (string, error) {
 		}
 
 		if tableName != "" && columnName != "" {
-			joinOn = fmt.Sprintf("%s.%s", tableName, columnName)
+			joinOn = tableName + "." + columnName
 		} else {
-			joinOn = fmt.Sprintf("%s.%s_id", table, lex.Singular(joinTable))
+			joinOn = table + "." + lex.Singular(joinTable) + "_id"
 		}
 	}
 
@@ -476,7 +476,7 @@ func (f *Field) InsertColumn(pkg *packages.Package, dbPkg *packages.Package, map
 			return "", "", fmt.Errorf("Failed to find registered statement %q for field %q of struct %q: %w", varName, f.Name, mapping.Name, err)
 		}
 
-		value = fmt.Sprintf("(%s)", strings.Replace(strings.Replace(joinStmt, "`", "", -1), "\n", "", -1))
+		value = "(" + strings.Replace(strings.Replace(joinStmt, "`", "", -1), "\n", "", -1) + ")"
 		value = strings.Replace(value, "  ", " ", -1)
 	} else {
 		column, err = f.SelectColumn(mapping, primaryTable)

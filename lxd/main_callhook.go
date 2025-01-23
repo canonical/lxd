@@ -125,7 +125,7 @@ func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) er
 	// Updating the linker cache
 	l := len(hooks.LDCacheUpdates)
 	if l > 0 {
-		ldConfFilePath := fmt.Sprintf("%s/etc/ld.so.conf.d/%s", containerRootFSMount, customCDILinkerConfFile)
+		ldConfFilePath := containerRootFSMount + "/etc/ld.so.conf.d/" + customCDILinkerConfFile
 		_, err = os.Stat(ldConfFilePath)
 		if err == nil {
 			// The file already exists. Read it first, analyze its entries

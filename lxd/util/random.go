@@ -27,7 +27,7 @@ func GetStableRandomInt64FromList(seed int64, list []int64) (int64, error) {
 		return 0, fmt.Errorf("Cannot get stable random value from empty list")
 	}
 
-	r, err := GetStableRandomGenerator(fmt.Sprintf("%d", seed))
+	r, err := GetStableRandomGenerator(fmt.Sprint(seed))
 	if err != nil {
 		return 0, fmt.Errorf("Failed to get stable random generator: %w", err)
 	}

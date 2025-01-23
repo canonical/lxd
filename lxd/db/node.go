@@ -110,7 +110,7 @@ func (n NodeInfo) ToAPI(ctx context.Context, tx *ClusterTx, args NodeInfoArgs) (
 	result := api.ClusterMember{}
 	result.Description = n.Description
 	result.ServerName = n.Name
-	result.URL = fmt.Sprintf("https://%s", n.Address)
+	result.URL = "https://" + n.Address
 	result.Database = false
 	result.Config = n.Config
 
@@ -492,7 +492,7 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 	args = append([]any{ClusterMemberStatePending}, args...)
 
 	if where != "" {
-		sql += fmt.Sprintf("AND %s ", where)
+		sql += "AND " + where + " "
 	}
 
 	sql += "ORDER BY id"
@@ -915,8 +915,7 @@ func (c *ClusterTx) NodeIsEmpty(ctx context.Context, id int64) (string, error) {
 	}
 
 	if len(instances) > 0 {
-		message := fmt.Sprintf(
-			"Node still has the following instances: %s", strings.Join(instances, ", "))
+		message := "Node still has the following instances: " + strings.Join(instances, ", ")
 		return message, nil
 	}
 
@@ -960,8 +959,7 @@ func (c *ClusterTx) NodeIsEmpty(ctx context.Context, id int64) (string, error) {
 	}
 
 	if len(fingerprints) > 0 {
-		message := fmt.Sprintf(
-			"Node still has the following images: %s", strings.Join(fingerprints, ", "))
+		message := "Node still has the following images: " + strings.Join(fingerprints, ", ")
 		return message, nil
 	}
 
@@ -978,8 +976,7 @@ SELECT storage_volumes.name
 	}
 
 	if len(volumes) > 0 {
-		message := fmt.Sprintf(
-			"Node still has the following custom volumes: %s", strings.Join(volumes, ", "))
+		message := "Node still has the following custom volumes: " + strings.Join(volumes, ", ")
 		return message, nil
 	}
 

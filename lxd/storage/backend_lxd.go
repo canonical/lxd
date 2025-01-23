@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -736,7 +737,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	}
 
 	for _, snapName := range srcBackup.Snapshots {
-		snapInstName := fmt.Sprintf("%s%s%s", srcBackup.Name, shared.SnapshotDelimiter, snapName)
+		snapInstName := srcBackup.Name + shared.SnapshotDelimiter + snapName
 		err = instancetype.ValidName(snapInstName, true)
 		if err != nil {
 			return nil, nil, err
@@ -744,7 +745,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	}
 
 	for _, snap := range srcBackup.Config.Snapshots {
-		snapInstName := fmt.Sprintf("%s%s%s", srcBackup.Name, shared.SnapshotDelimiter, snap.Name)
+		snapInstName := srcBackup.Name + shared.SnapshotDelimiter + snap.Name
 		err = instancetype.ValidName(snapInstName, true)
 		if err != nil {
 			return nil, nil, err
@@ -1837,7 +1838,7 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string, op 
 			metadata := make(map[string]any)
 			tracker = &ioprogress.ProgressTracker{
 				Handler: func(percent, speed int64) {
-					displayPrefix := fmt.Sprintf("Converting image format from %s to raw", imgFormat)
+					displayPrefix := "Converting image format from " + imgFormat + " to raw"
 					shared.SetProgressMetadata(metadata, "format_progress", displayPrefix, percent, 0, speed)
 					_ = op.UpdateMetadata(metadata)
 				},
@@ -2295,7 +2296,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	// will still be able to accommodate it.
 	if args.VolumeSize > 0 && contentType == drivers.ContentTypeBlock {
 		l.Debug("Setting volume size from offer header", logger.Ctx{"size": args.VolumeSize})
-		args.Config["size"] = fmt.Sprintf("%d", args.VolumeSize)
+		args.Config["size"] = strconv.FormatInt(args.VolumeSize, 10)
 	} else if args.Config["size"] != "" {
 		l.Debug("Using volume size from root disk config", logger.Ctx{"size": args.Config["size"]})
 	}
@@ -2495,7 +2496,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		// to a temporary location before converting it into the desired format.
 		// The conversion cannot be done in-place, therefore the image has to be
 		// saved in an intermediate location.
-		conversionID := fmt.Sprintf("conversion_%s_%s", inst.Project().Name, inst.Name())
+		conversionID := "conversion_" + inst.Project().Name + "_" + inst.Name()
 		imgPath := filepath.Join(shared.VarPath("backups"), conversionID)
 
 		// Create new file in backups directory.
@@ -2526,8 +2527,8 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 
 		if canResizeRootDiskSize {
 			// Set size of the volume to the uncompressed image size.
-			l.Debug("Setting volume size to uncompressed image size", logger.Ctx{"size": fmt.Sprintf("%d", imgBytes)})
-			vol.SetConfigSize(fmt.Sprintf("%d", imgBytes))
+			l.Debug("Setting volume size to uncompressed image size", logger.Ctx{"size": imgBytes})
+			vol.SetConfigSize(strconv.FormatInt(imgBytes, 10))
 		}
 
 		// Convert received image into intance volume.
@@ -2538,7 +2539,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		// block volume will still be able to accommodate it.
 		if canResizeRootDiskSize && contentType == drivers.ContentTypeBlock && args.VolumeSize > 0 {
 			l.Debug("Setting volume size to source disk size", logger.Ctx{"size": args.VolumeSize})
-			vol.SetConfigSize(fmt.Sprintf("%d", args.VolumeSize))
+			vol.SetConfigSize(strconv.FormatInt(args.VolumeSize, 10))
 		}
 
 		srcDiskSize = args.VolumeSize
@@ -2555,7 +2556,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 	}
 
 	// Parse source disk size into bytes.
-	srcSize, err := units.ParseByteSizeString(fmt.Sprintf("%d", srcDiskSize))
+	srcSize, err := units.ParseByteSizeString(strconv.FormatInt(srcDiskSize, 10))
 	if err != nil {
 		return fmt.Errorf("Failed parsing source disk size")
 	}
@@ -4153,7 +4154,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 
 	// If the volume filler has recorded the size of the unpacked volume, then store this in the image DB row.
 	if volFiller.Size != 0 {
-		imgVol.Config()["volatile.rootfs.size"] = fmt.Sprintf("%d", volFiller.Size)
+		imgVol.Config()["volatile.rootfs.size"] = strconv.FormatInt(volFiller.Size, 10)
 
 		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpdateStoragePoolVolume(ctx, api.ProjectDefaultName, image.Fingerprint, cluster.StoragePoolVolumeTypeImage, b.id, "", imgVol.Config())
@@ -5720,7 +5721,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	// The target should use this value if present, otherwise it might get an error like
 	// "no space left on device".
 	if args.VolumeSize > 0 {
-		vol.SetConfigSize(fmt.Sprintf("%d", args.VolumeSize))
+		vol.SetConfigSize(strconv.FormatInt(args.VolumeSize, 10))
 	}
 
 	// Receive index header from source if applicable and respond confirming receipt.
@@ -6711,7 +6712,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 		if ok {
 			// We need to delete some snapshots and try again.
 			for _, snapName := range snapErr.Snapshots {
-				err := b.DeleteCustomVolumeSnapshot(projectName, fmt.Sprintf("%s/%s", volName, snapName), op)
+				err := b.DeleteCustomVolumeSnapshot(projectName, volName+"/"+snapName, op)
 				if err != nil {
 					return err
 				}
@@ -7608,7 +7609,7 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 		Name: volName,
 		StorageVolumePut: api.StorageVolumePut{
 			Config: map[string]string{
-				"size": fmt.Sprintf("%d", size),
+				"size": strconv.FormatInt(size, 10),
 			},
 		},
 	}

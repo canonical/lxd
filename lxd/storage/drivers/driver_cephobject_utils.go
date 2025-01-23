@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -61,7 +62,7 @@ func (d *cephobject) radosgwadminGetUser(ctx context.Context, user string) (*S3C
 	// Get list of sub user names and store them without the main user prefix.
 	subUsers := make(map[string]S3Credentials, len(resp.SubUsers))
 	for _, subUser := range resp.SubUsers {
-		subUserName := strings.TrimPrefix(subUser.ID, fmt.Sprintf("%s:", user))
+		subUserName := strings.TrimPrefix(subUser.ID, user+":")
 		subUsers[subUserName] = S3Credentials{}
 	}
 
@@ -76,7 +77,7 @@ func (d *cephobject) radosgwadminGetUser(ctx context.Context, user string) (*S3C
 			}
 		} else {
 			for subUserName := range subUsers {
-				if strings.TrimPrefix(key.User, fmt.Sprintf("%s:", user)) == subUserName {
+				if strings.TrimPrefix(key.User, user+":") == subUserName {
 					subUser := subUsers[subUserName]
 					subUser.AccessKey = key.AccessKey
 					subUser.SecretKey = key.SecretKey
@@ -98,7 +99,7 @@ func (d *cephobject) radosgwadminUserAdd(ctx context.Context, user string, maxBu
 	revert := revert.New()
 	defer revert.Fail()
 
-	out, err := d.radosgwadmin(ctx, "user", "create", "--max-buckets", fmt.Sprintf("%d", maxBuckets), "--display-name", user, "--uid", user)
+	out, err := d.radosgwadmin(ctx, "user", "create", "--max-buckets", strconv.FormatInt(int64(maxBuckets), 10), "--display-name", user, "--uid", user)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +174,7 @@ func (d *cephobject) radosgwadminSubUserAdd(ctx context.Context, user string, su
 		return nil, err
 	}
 
-	keyUser := fmt.Sprintf("%s:%s", user, subuser)
+	keyUser := user + ":" + subuser
 
 	for _, key := range creds.Keys {
 		if key.User == keyUser {
@@ -215,7 +216,7 @@ func (d *cephobject) radosgwadminBucketSetQuota(ctx context.Context, user string
 			return err
 		}
 
-		_, err = d.radosgwadmin(ctx, "quota", "set", "--quota-scope=bucket", "--uid", user, "--max-size", fmt.Sprintf("%d", size))
+		_, err = d.radosgwadmin(ctx, "quota", "set", "--quota-scope=bucket", "--uid", user, "--max-size", strconv.FormatInt(size, 10))
 		if err != nil {
 			return err
 		}
@@ -253,5 +254,5 @@ func (d *cephobject) radosgwadminBucketList(ctx context.Context) ([]string, erro
 
 // radosgwBucketName returns the bucket name to use for the actual radosgw bucket.
 func (d *cephobject) radosgwBucketName(bucketName string) string {
-	return fmt.Sprintf("%s%s", d.config["cephobject.bucket.name_prefix"], bucketName)
+	return d.config["cephobject.bucket.name_prefix"] + bucketName
 }

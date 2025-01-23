@@ -171,7 +171,7 @@ func (r *ProtocolLXD) GetIdentityIdentifiersByAuthenticationMethod(authenticatio
 	}
 
 	urls := []string{}
-	baseURL := fmt.Sprintf("auth/identities/%s", authenticationMethod)
+	baseURL := "auth/identities/" + authenticationMethod
 	_, err = r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err

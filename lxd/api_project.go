@@ -344,7 +344,7 @@ func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 	profile := cluster.Profile{}
 	profile.Project = project
 	profile.Name = api.ProjectDefaultName
-	profile.Description = fmt.Sprintf("Default LXD profile for project %s", project)
+	profile.Description = "Default LXD profile for project " + project
 
 	_, err := cluster.CreateProfile(context.TODO(), tx.Tx(), profile)
 	if err != nil {
@@ -1405,7 +1405,7 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 			// ---
 			//  type: string
 			//  shortdesc: Maximum disk space used by the project on this pool
-			projectConfigKeys[fmt.Sprintf("limits.disk.pool.%s", poolName)] = validate.Optional(validate.IsSize)
+			projectConfigKeys["limits.disk.pool."+poolName] = validate.Optional(validate.IsSize)
 		}
 
 		return nil

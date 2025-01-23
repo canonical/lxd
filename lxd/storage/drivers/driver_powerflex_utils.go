@@ -65,9 +65,9 @@ type powerFlexError map[string]any
 
 // Error tries to return all kinds of errors from the PowerFlex API in a nicely formatted way.
 func (p *powerFlexError) Error() string {
-	var errorStrings []string
+	errorStrings := make([]string, 0, len(*p))
 	for k, v := range *p {
-		errorStrings = append(errorStrings, fmt.Sprintf("%s: %v", k, v))
+		errorStrings = append(errorStrings, fmt.Sprint(k, ": ", v))
 	}
 
 	return strings.Join(errorStrings, ", ")
@@ -189,7 +189,7 @@ func (p *powerFlexClient) createBodyReader(contents map[string]any) (io.Reader, 
 
 // request issues a HTTP request against the PowerFlex gateway.
 func (p *powerFlexClient) request(method string, path string, body io.Reader, response any) error {
-	url := fmt.Sprintf("%s%s", p.driver.config["powerflex.gateway"], path)
+	url := p.driver.config["powerflex.gateway"] + path
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return fmt.Errorf("Failed to create request: %w", err)
@@ -201,7 +201,7 @@ func (p *powerFlexClient) request(method string, path string, body io.Reader, re
 	}
 
 	if p.token != "" {
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", p.token))
+		req.Header.Add("Authorization", "Bearer "+p.token)
 	}
 
 	client := &http.Client{
@@ -306,7 +306,7 @@ func (p *powerFlexClient) login() error {
 // getStoragePool returns the storage pool behind poolID.
 func (p *powerFlexClient) getStoragePool(poolID string) (*powerFlexStoragePool, error) {
 	var actualResponse powerFlexStoragePool
-	err := p.requestAuthenticated(http.MethodGet, fmt.Sprintf("/api/instances/StoragePool::%s", poolID), nil, &actualResponse)
+	err := p.requestAuthenticated(http.MethodGet, "/api/instances/StoragePool::"+poolID, nil, &actualResponse)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get storage pool: %q: %w", poolID, err)
 	}
@@ -317,7 +317,7 @@ func (p *powerFlexClient) getStoragePool(poolID string) (*powerFlexStoragePool, 
 // getStoragePoolStatistics returns the storage pools statistics.
 func (p *powerFlexClient) getStoragePoolStatistics(poolID string) (*powerFlexStoragePoolStatistics, error) {
 	var actualResponse powerFlexStoragePoolStatistics
-	err := p.requestAuthenticated(http.MethodGet, fmt.Sprintf("/api/instances/StoragePool::%s/relationships/Statistics", poolID), nil, &actualResponse)
+	err := p.requestAuthenticated(http.MethodGet, "/api/instances/StoragePool::"+poolID+"/relationships/Statistics", nil, &actualResponse)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get storage pool statistics: %q: %w", poolID, err)
 	}
@@ -355,7 +355,7 @@ func (p *powerFlexClient) getProtectionDomainID(domainName string) (string, erro
 // getProtectionDomain returns the protection domain behind domainID.
 func (p *powerFlexClient) getProtectionDomain(domainID string) (*powerFlexProtectionDomain, error) {
 	var actualResponse powerFlexProtectionDomain
-	err := p.requestAuthenticated(http.MethodGet, fmt.Sprintf("/api/instances/ProtectionDomain::%s", domainID), nil, &actualResponse)
+	err := p.requestAuthenticated(http.MethodGet, "/api/instances/ProtectionDomain::"+domainID, nil, &actualResponse)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get protection domain: %q: %w", domainID, err)
 	}
@@ -366,7 +366,7 @@ func (p *powerFlexClient) getProtectionDomain(domainID string) (*powerFlexProtec
 // getProtectionDomainStoragePools returns the protection domains storage pools.
 func (p *powerFlexClient) getProtectionDomainStoragePools(domainID string) ([]powerFlexProtectionDomainStoragePool, error) {
 	var actualResponse []powerFlexProtectionDomainStoragePool
-	err := p.requestAuthenticated(http.MethodGet, fmt.Sprintf("/api/instances/ProtectionDomain::%s/relationships/StoragePool", domainID), nil, &actualResponse)
+	err := p.requestAuthenticated(http.MethodGet, "/api/instances/ProtectionDomain::"+domainID+"/relationships/StoragePool", nil, &actualResponse)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get protection domain storage pools: %q: %w", domainID, err)
 	}
@@ -377,7 +377,7 @@ func (p *powerFlexClient) getProtectionDomainStoragePools(domainID string) ([]po
 // getProtectionDomainSDTRelations returns the protection domains SDT relations.
 func (p *powerFlexClient) getProtectionDomainSDTRelations(domainID string) ([]powerFlexProtectionDomainSDTRelation, error) {
 	var actualResponse []powerFlexProtectionDomainSDTRelation
-	err := p.requestAuthenticated(http.MethodGet, fmt.Sprintf("/api/instances/ProtectionDomain::%s/relationships/Sdt", domainID), nil, &actualResponse)
+	err := p.requestAuthenticated(http.MethodGet, "/api/instances/ProtectionDomain::"+domainID+"/relationships/Sdt", nil, &actualResponse)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get protection domain SDT relations: %q: %w", domainID, err)
 	}
@@ -773,7 +773,7 @@ func (d *powerflex) client() *powerFlexClient {
 // A custom one is generated from the servers UUID since getting the nqn from /etc/nvme/hostnqn
 // requires the nvme-cli package to be installed on the host.
 func (d *powerflex) getHostNQN() string {
-	return fmt.Sprintf("nqn.2014-08.org.nvmexpress:uuid:%s", d.state.ServerUUID)
+	return "nqn.2014-08.org.nvmexpress:uuid:" + d.state.ServerUUID
 }
 
 // getHostGUID returns the SDC GUID.
@@ -1301,8 +1301,8 @@ func (d *powerflex) getVolumeName(vol Volume) (string, error) {
 	// If the volume's type is unknown, don't put any prefix to accommodate the volume name size constraint.
 	volumeTypePrefix, ok := powerFlexVolTypePrefixes[vol.volType]
 	if ok {
-		volumeTypePrefix = fmt.Sprintf("%s_", volumeTypePrefix)
+		volumeTypePrefix = volumeTypePrefix + "_"
 	}
 
-	return fmt.Sprintf("%s%s%s", volumeTypePrefix, volName, suffix), nil
+	return volumeTypePrefix + volName + suffix, nil
 }

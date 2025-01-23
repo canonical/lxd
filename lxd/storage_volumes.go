@@ -1808,7 +1808,7 @@ func storageVolumePostClusteringMigrate(s *state.State, r *http.Request, srcPool
 			Source: api.StorageVolumeSource{
 				Type:        api.SourceTypeMigration,
 				Mode:        "pull",
-				Operation:   fmt.Sprintf("https://%s%s", srcMember.Address, srcOp.URL()),
+				Operation:   "https://" + srcMember.Address + srcOp.URL(),
 				Websockets:  sourceSecrets,
 				Certificate: string(networkCert.PublicKey()),
 				Name:        newVolumeName,
@@ -2450,7 +2450,7 @@ func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProj
 	}
 
 	// Create temporary file to store uploaded ISO data.
-	isoFile, err := os.CreateTemp(shared.VarPath("isos"), fmt.Sprintf("%s_", "lxd_iso"))
+	isoFile, err := os.CreateTemp(shared.VarPath("isos"), "lxd_iso_")
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -2503,7 +2503,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 	defer revert.Fail()
 
 	// Create temporary file to store uploaded backup data.
-	backupFile, err := os.CreateTemp(shared.VarPath("backups"), fmt.Sprintf("%s_", backup.WorkingDirPrefix))
+	backupFile, err := os.CreateTemp(shared.VarPath("backups"), backup.WorkingDirPrefix+"_")
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -2533,7 +2533,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 		decomArgs := append(decomArgs, backupFile.Name())
 
 		// Create temporary file to store the decompressed tarball in.
-		tarFile, err := os.CreateTemp(shared.VarPath("backups"), fmt.Sprintf("%s_decompress_", backup.WorkingDirPrefix))
+		tarFile, err := os.CreateTemp(shared.VarPath("backups"), backup.WorkingDirPrefix+"_decompress_")
 		if err != nil {
 			return response.InternalError(err)
 		}

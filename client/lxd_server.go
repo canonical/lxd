@@ -157,7 +157,7 @@ func (r *ProtocolLXD) GetMetrics() (string, error) {
 	}
 
 	// Prepare the request.
-	requestURL, err := r.setQueryAttributes(fmt.Sprintf("%s/1.0/metrics", r.httpBaseURL.String()))
+	requestURL, err := r.setQueryAttributes(r.httpBaseURL.String() + "/1.0/metrics")
 	if err != nil {
 		return "", err
 	}

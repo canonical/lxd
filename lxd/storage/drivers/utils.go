@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -272,7 +273,7 @@ func GetPoolMountPath(poolName string) string {
 // whether it is a snapshot or not. For VolumeTypeImage the volName is the image fingerprint.
 func GetVolumeMountPath(poolName string, volType VolumeType, volName string) string {
 	if shared.IsSnapshot(volName) {
-		return shared.VarPath("storage-pools", poolName, fmt.Sprintf("%s-snapshots", string(volType)), volName)
+		return shared.VarPath("storage-pools", poolName, string(volType)+"-snapshots", volName)
 	}
 
 	return shared.VarPath("storage-pools", poolName, string(volType), volName)
@@ -281,12 +282,12 @@ func GetVolumeMountPath(poolName string, volType VolumeType, volName string) str
 // GetVolumeSnapshotDir gets the snapshot mount directory for the parent volume.
 func GetVolumeSnapshotDir(poolName string, volType VolumeType, volName string) string {
 	parent, _, _ := api.GetParentAndSnapshotName(volName)
-	return shared.VarPath("storage-pools", poolName, fmt.Sprintf("%s-snapshots", string(volType)), parent)
+	return shared.VarPath("storage-pools", poolName, string(volType)+"-snapshots", parent)
 }
 
 // GetSnapshotVolumeName returns the full volume name for a parent volume and snapshot name.
 func GetSnapshotVolumeName(parentName, snapshotName string) string {
-	return fmt.Sprintf("%s%s%s", parentName, shared.SnapshotDelimiter, snapshotName)
+	return parentName + shared.SnapshotDelimiter + snapshotName
 }
 
 // createParentSnapshotDirIfMissing creates the parent directory for volume snapshots.
@@ -425,13 +426,13 @@ func makeFSType(path string, fsType string, options *mkfsOptions) (string, error
 		fsOptions = &mkfsOptions{}
 	}
 
-	cmd := []string{fmt.Sprintf("mkfs.%s", fsType)}
+	cmd := []string{"mkfs." + fsType}
 	if fsOptions.Label != "" {
 		cmd = append(cmd, "-L", fsOptions.Label)
 	}
 
 	if fsType == "ext4" {
-		cmd = append(cmd, "-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0")
+		cmd = append(cmd, "-E", "lazy_itable_init=0,lazy_journal_init=0")
 	}
 
 	// Always add the path to the device as the last argument for wider compatibility with versions of mkfs.
@@ -473,7 +474,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 	}
 
 	// The smallest unit that resize2fs accepts in byte size (rather than blocks) is kilobytes.
-	strSize := fmt.Sprintf("%dK", byteSize/1024)
+	strSize := strconv.FormatInt(byteSize/1024, 10) + "K"
 
 	switch fsType {
 	case "ext4":
@@ -629,7 +630,7 @@ func regenerateFilesystemXFSUUID(devPath string) error {
 func copyDevice(inputPath string, outputPath string) error {
 	cmd := []string{
 		"nice", "-n19", // Run dd with low priority to reduce CPU impact on other processes.
-		"dd", fmt.Sprintf("if=%s", inputPath), fmt.Sprintf("of=%s", outputPath),
+		"dd", "if=" + inputPath, "of=" + outputPath,
 		"bs=16M",       // Use large buffer to reduce syscalls and speed up copy.
 		"conv=nocreat", // Don't create output file if missing (expect caller to have created output file).
 	}
@@ -657,7 +658,7 @@ func copyDevice(inputPath string, outputPath string) error {
 
 // loopFilePath returns the loop file path for a storage pool.
 func loopFilePath(poolName string) string {
-	return filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", poolName))
+	return filepath.Join(shared.VarPath("disks"), poolName+".img")
 }
 
 // ShiftBtrfsRootfs shifts the BTRFS root filesystem.
@@ -792,7 +793,7 @@ func ShiftZFSSkipper(dir string, absPath string, fi os.FileInfo) bool {
 
 // OperationLockName returns the storage specific lock name to use with locking package.
 func OperationLockName(operationName string, poolName string, volType VolumeType, contentType ContentType, volName string) string {
-	return fmt.Sprintf("%s/%s/%s/%s/%s", operationName, poolName, volType, contentType, volName)
+	return operationName + "/" + poolName + "/" + string(volType) + "/" + string(contentType) + "/" + volName
 }
 
 // loopFileSizeDefault returns the size in GiB to use as the default size for a pool loop file.

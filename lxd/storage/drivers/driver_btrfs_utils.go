@@ -402,7 +402,7 @@ func (d *btrfs) setSubvolumeReadonlyProperty(path string, readonly bool) error {
 		args = append(args, "-f")
 	}
 
-	args = append(args, "-ts", path, "ro", fmt.Sprintf("%t", readonly))
+	args = append(args, "-ts", path, "ro", fmt.Sprint(readonly))
 
 	_, err := shared.RunCommand("btrfs", args...)
 	return err
@@ -420,19 +420,10 @@ type BTRFSSubVolume struct {
 // getSubvolumesMetaData retrieves subvolume meta data with paths relative to the root volume.
 // The first item in the returned list is the root subvolume itself.
 func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
-	var subVols []BTRFSSubVolume
-
 	snapName := ""
 	if vol.IsSnapshot() {
 		_, snapName, _ = api.GetParentAndSnapshotName(vol.name)
 	}
-
-	// Add main root volume to subvolumes list first.
-	subVols = append(subVols, BTRFSSubVolume{
-		Snapshot: snapName,
-		Path:     string(filepath.Separator),
-		Readonly: BTRFSSubVolumeIsRo(vol.MountPath()),
-	})
 
 	// Find any subvolumes in volume.
 	subVolPaths, err := d.getSubvolumes(vol.MountPath())
@@ -442,11 +433,19 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 
 	sort.Strings(subVolPaths)
 
+	// Add main root volume to subvolumes list first.
+	subVols := make([]BTRFSSubVolume, 0, len(subVolPaths)+1)
+	subVols = append(subVols, BTRFSSubVolume{
+		Snapshot: snapName,
+		Path:     string(filepath.Separator),
+		Readonly: BTRFSSubVolumeIsRo(vol.MountPath()),
+	})
+
 	// Add any subvolumes under the root subvolume with relative path to root.
 	for _, subVolPath := range subVolPaths {
 		subVols = append(subVols, BTRFSSubVolume{
 			Snapshot: snapName,
-			Path:     fmt.Sprintf("%s%s", string(filepath.Separator), subVolPath),
+			Path:     string(filepath.Separator) + subVolPath,
 			Readonly: BTRFSSubVolumeIsRo(filepath.Join(vol.MountPath(), subVolPath)),
 		})
 	}

@@ -38,20 +38,20 @@ func (d *zfs) dataset(vol Volume, deleted bool) string {
 	name, snapName, _ := api.GetParentAndSnapshotName(vol.name)
 
 	if vol.volType == VolumeTypeImage && vol.contentType == ContentTypeFS && d.isBlockBacked(vol) {
-		name = fmt.Sprintf("%s_%s", name, vol.ConfigBlockFilesystem())
+		name = name + "_" + vol.ConfigBlockFilesystem()
 	}
 
 	if (vol.volType == VolumeTypeVM || vol.volType == VolumeTypeImage) && vol.contentType == ContentTypeBlock {
-		name = fmt.Sprintf("%s%s", name, zfsBlockVolSuffix)
+		name = name + zfsBlockVolSuffix
 	} else if vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeISO {
-		name = fmt.Sprintf("%s%s", name, zfsISOVolSuffix)
+		name = name + zfsISOVolSuffix
 	}
 
 	if snapName != "" {
 		if deleted {
-			name = fmt.Sprintf("%s@deleted-%s", name, uuid.New().String())
+			name = name + "@deleted-" + uuid.New().String()
 		} else {
-			name = fmt.Sprintf("%s@snapshot-%s", name, snapName)
+			name = name + "@snapshot-" + snapName
 		}
 	} else if deleted {
 		if vol.volType != VolumeTypeImage {
@@ -165,7 +165,7 @@ func (d *zfs) getClones(dataset string) ([]string, error) {
 			continue
 		}
 
-		line = strings.TrimPrefix(line, fmt.Sprintf("%s/", dataset))
+		line = strings.TrimPrefix(line, dataset+"/")
 		clones = append(clones, line)
 	}
 
@@ -194,18 +194,18 @@ func (d *zfs) getDatasets(dataset string, types string) ([]string, error) {
 
 // filterRedundantOptions filters out options for setting dataset properties that match with the values already set.
 func (d *zfs) filterRedundantOptions(dataset string, options ...string) ([]string, error) {
-	var keys, values []string
+	keys := make([]string, 0, len(options))
+	values := make([]string, 0, len(options))
 
 	// Extract keys and values from options.
 	for _, option := range options {
-		property := strings.Split(option, "=")
-
-		if len(property) != 2 {
+		key, value, found := strings.Cut(option, "=")
+		if !found {
 			return nil, fmt.Errorf("Wrongly formatted option %q", option)
 		}
 
-		keys = append(keys, property[0])
-		values = append(values, property[1])
+		keys = append(keys, key)
+		values = append(values, value)
 	}
 
 	// Get current values for the keys.
@@ -522,7 +522,7 @@ func (d *zfs) datasetHeader(vol Volume, snapshots []string) (*ZFSMetaDataHeader,
 }
 
 func (d *zfs) randomVolumeName(vol Volume) string {
-	return fmt.Sprintf("%s_%s", vol.name, uuid.New().String())
+	return vol.name + "_" + uuid.New().String()
 }
 
 func (d *zfs) delegateDataset(vol Volume, pid int) error {

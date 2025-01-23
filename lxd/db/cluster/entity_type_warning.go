@@ -21,11 +21,11 @@ LEFT JOIN nodes ON warnings.node_id = nodes.id`, e.code())
 }
 
 func (e entityTypeWarning) urlsByProjectQuery() string {
-	return fmt.Sprintf(`%s WHERE projects.name = ?`, strings.Replace(e.allURLsQuery(), "LEFT JOIN projects", "JOIN projects", 1))
+	return strings.Replace(e.allURLsQuery(), "LEFT JOIN projects", "JOIN projects", 1) + " WHERE projects.name = ?"
 }
 
 func (e entityTypeWarning) urlByIDQuery() string {
-	return fmt.Sprintf(`%s WHERE warnings.id = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " WHERE warnings.id = ?"
 }
 
 func (e entityTypeWarning) idFromURLQuery() string {

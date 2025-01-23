@@ -1339,7 +1339,7 @@ func (d *nicBridged) networkClearLease(name string, network string, hwaddr strin
 
 // networkDHCPv4Release sends a DHCPv4 release packet to a DHCP server.
 func (d *nicBridged) networkDHCPv4Release(srcMAC net.HardwareAddr, srcIP net.IP, dstIP net.IP) error {
-	dstAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:67", dstIP.String()))
+	dstAddr, err := net.ResolveUDPAddr("udp", dstIP.String()+":67")
 	if err != nil {
 		return err
 	}
@@ -1390,7 +1390,7 @@ func (d *nicBridged) networkDHCPv4Release(srcMAC net.HardwareAddr, srcIP net.IP,
 
 // networkDHCPv6Release sends a DHCPv6 release packet to a DHCP server.
 func (d *nicBridged) networkDHCPv6Release(srcDUID string, srcIAID string, srcIP net.IP, dstIP net.IP, dstDUID string) error {
-	dstAddr, err := net.ResolveUDPAddr("udp6", fmt.Sprintf("[%s]:547", dstIP.String()))
+	dstAddr, err := net.ResolveUDPAddr("udp6", "["+dstIP.String()+"]:547")
 	if err != nil {
 		return err
 	}
@@ -1563,7 +1563,7 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 		// Order is important here, as vlan_mode is set to "access", assuming that vlan.tagged is not used.
 		// If vlan.tagged is specified, then we expect it to also change the vlan_mode as needed.
 		if d.config["vlan"] != "none" {
-			err := ovs.BridgePortSet(hostName, "vlan_mode=access", fmt.Sprintf("tag=%s", d.config["vlan"]))
+			err := ovs.BridgePortSet(hostName, "vlan_mode=access", "tag="+string(d.config["vlan"]))
 			if err != nil {
 				return err
 			}

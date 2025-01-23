@@ -20,7 +20,7 @@ func (e entityTypeAuthGroup) urlsByProjectQuery() string {
 }
 
 func (e entityTypeAuthGroup) urlByIDQuery() string {
-	return fmt.Sprintf(`%s WHERE auth_groups.id = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " WHERE auth_groups.id = ?"
 }
 
 func (e entityTypeAuthGroup) idFromURLQuery() string {

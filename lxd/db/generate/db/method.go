@@ -176,7 +176,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		stmtVar := stmtCodeVar(m.entity, "objects")
 		stmtLocal := stmtVar + "Local"
-		buf.L("%s := strings.Replace(%s, \"%%s_id\", fmt.Sprintf(\"%%s_id\", parent), -1)", stmtLocal, stmtVar)
+		buf.L("%s := strings.Replace(%s, \"%%s_id\", parent+\"_id\", -1)", stmtLocal, stmtVar)
 		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
 		buf.L("mangledParent := strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
 		buf.L("for i := range fillParent {")
@@ -270,9 +270,9 @@ func (m *Method) getMany(buf *file.Buffer) error {
 					if name == field.Name && shared.IsTrue(field.Config.Get("marshal")) {
 						buf.L("marshaledFilter%s, err := query.Marshal(filter.%s)", name, name)
 						m.ifErrNotNil(buf, true, "nil", "err")
-						args += fmt.Sprintf("marshaledFilter%s,", name)
+						args += "marshaledFilter" + name + ","
 					} else if name == field.Name {
-						args += fmt.Sprintf("filter.%s,", name)
+						args += "filter." + name + ","
 					}
 				}
 			}
@@ -701,7 +701,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		stmtVar := stmtCodeVar(m.entity, "create")
 		stmtLocal := stmtVar + "Local"
-		buf.L("%s := strings.Replace(%s, \"%%s_id\", fmt.Sprintf(\"%%s_id\", parent), -1)", stmtLocal, stmtVar)
+		buf.L("%s := strings.Replace(%s, \"%%s_id\", parent+\"_id\", -1)", stmtLocal, stmtVar)
 		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
 		buf.L("for i := range fillParent {")
 		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
@@ -832,7 +832,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		}
 
 		if mapping.Type != EntityTable {
-			buf.L("err = %sCreate%s(ctx, tx, parent + \"_%s\", insert)", m.db, refStruct, m.entity)
+			buf.L("err = %sCreate%s(ctx, tx, parent+\"_%s\", insert)", m.db, refStruct, m.entity)
 			m.ifErrNotNil(buf, false, fmt.Sprintf("fmt.Errorf(\"Insert %s failed for %s: %%w\", err)", field.Name, mapping.Name))
 		} else {
 			buf.L("err = %sCreate%s(ctx, tx, \"%s\", insert)", m.db, refStruct, m.entity)
@@ -1150,7 +1150,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 	} else if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		stmtVar := stmtCodeVar(m.entity, "delete")
 		stmtLocal := stmtVar + "Local"
-		buf.L("%s := strings.Replace(%s, \"%%s_id\", fmt.Sprintf(\"%%s_id\", parent), -1)", stmtLocal, stmtVar)
+		buf.L("%s := strings.Replace(%s, \"%%s_id\", parent+\"_id\", -1)", stmtLocal, stmtVar)
 		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
 		buf.L("for i := range fillParent {")
 		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
@@ -1426,53 +1426,53 @@ func (m *Method) begin(buf *file.Buffer, comment string, args string, rets strin
 		ref := strings.Replace(entity, parent, "", -1)
 		switch operation(m.kind) {
 		case "GetMany":
-			name = fmt.Sprintf("Get%s%s", parent, lex.Plural(ref))
+			name = "Get" + parent + lex.Plural(ref)
 		case "Create":
-			name = fmt.Sprintf("Create%s%s", parent, lex.Plural(ref))
+			name = "Create" + parent + lex.Plural(ref)
 		case "Update":
-			name = fmt.Sprintf("Update%s%s", parent, lex.Plural(ref))
+			name = "Update" + parent + lex.Plural(ref)
 		case "DeleteMany":
-			name = fmt.Sprintf("Delete%s%s", parent, lex.Plural(ref))
+			name = "Delete" + parent + lex.Plural(ref)
 		}
 	} else {
 		entity = entity + m.ref
 		switch operation(m.kind) {
 		case "URIs":
-			name = fmt.Sprintf("Get%sURIs", entity)
+			name = "Get" + entity + "URIs"
 		case "GetMany":
-			name = fmt.Sprintf("Get%s", lex.Plural(entity))
+			name = "Get" + lex.Plural(entity)
 		case "GetOne":
-			name = fmt.Sprintf("Get%s", entity)
+			name = "Get" + entity
 		case "ID":
-			name = fmt.Sprintf("Get%sID", entity)
+			name = "Get" + entity + "ID"
 		case "Exists":
-			name = fmt.Sprintf("%sExists", entity)
+			name = entity + "Exists"
 		case "Create":
 			if mapping.Type == ReferenceTable || m.ref != "" {
 				entity = lex.Plural(entity)
 			}
 
-			name = fmt.Sprintf("Create%s", entity)
+			name = "Create" + entity
 		case "CreateOrReplace":
 			if mapping.Type == ReferenceTable || m.ref != "" {
 				entity = lex.Plural(entity)
 			}
 
-			name = fmt.Sprintf("CreateOrReplace%s", entity)
+			name = "CreateOrReplace" + entity
 		case "Rename":
-			name = fmt.Sprintf("Rename%s", entity)
+			name = "Rename" + entity
 		case "Update":
 			if mapping.Type == ReferenceTable || m.ref != "" {
 				entity = lex.Plural(entity)
 			}
 
-			name = fmt.Sprintf("Update%s", entity)
+			name = "Update" + entity
 		case "DeleteOne":
-			name = fmt.Sprintf("Delete%s", entity)
+			name = "Delete" + entity
 		case "DeleteMany":
-			name = fmt.Sprintf("Delete%s", lex.Plural(entity))
+			name = "Delete" + lex.Plural(entity)
 		default:
-			name = fmt.Sprintf("%s%s", entity, m.kind)
+			name = entity + m.kind
 		}
 	}
 

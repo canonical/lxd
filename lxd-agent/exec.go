@@ -71,7 +71,7 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.PathExists("/snap/bin") {
-		env["PATH"] = fmt.Sprintf("%s:/snap/bin", env["PATH"])
+		env["PATH"] = env["PATH"] + ":/snap/bin"
 	}
 
 	// If running as root, set some env variables
@@ -163,6 +163,7 @@ type execWs struct {
 	cwd                   string
 }
 
+// Metadata returns the metadata for the operation.
 func (s *execWs) Metadata() any {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
@@ -181,6 +182,7 @@ func (s *execWs) Metadata() any {
 	}
 }
 
+// Connect establishes the websocket connections.
 func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
@@ -209,11 +211,13 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 
 				s.requiredConnectedDone() // All required connections now connected.
 				return nil
-			} else if !found {
-				return fmt.Errorf("Unknown websocket number")
-			} else {
-				return fmt.Errorf("Websocket number already connected")
 			}
+
+			if !found {
+				return fmt.Errorf("Unknown websocket number")
+			}
+
+			return fmt.Errorf("Websocket number already connected")
 		}
 	}
 
@@ -222,6 +226,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 	return os.ErrPermission
 }
 
+// Do executes the operation.
 func (s *execWs) Do(op *operations.Operation) error {
 	// Once this function ends ensure that any connected websockets are closed.
 	defer func() {
@@ -239,7 +244,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 	logger.Debug("Waiting for exec websockets to connect")
 	select {
 	case <-s.requiredConnectedCtx.Done():
-		break
 	case <-time.After(time.Second * 5):
 		return fmt.Errorf("Timed out waiting for websockets to connect")
 	}
@@ -326,7 +330,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 	// Prepare the environment
 	for k, v := range s.env {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+		cmd.Env = append(cmd.Env, k+"="+v)
 	}
 
 	cmd.Stdin = stdin
