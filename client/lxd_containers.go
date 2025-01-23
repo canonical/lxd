@@ -21,10 +21,12 @@ import (
 
 // Container handling functions
 //
+//
 // Deprecated: Those functions are deprecated and won't be updated anymore.
 // Please use the equivalent Instance function instead.
 
 // GetContainerNames returns a list of container names.
+//
 // Deprecated: Use GetInstanceNames instead.
 func (r *ProtocolLXD) GetContainerNames() ([]string, error) {
 	// Fetch the raw URL values.
@@ -40,6 +42,7 @@ func (r *ProtocolLXD) GetContainerNames() ([]string, error) {
 }
 
 // GetContainers returns a list of containers.
+//
 // Deprecated: Use GetInstances instead.
 func (r *ProtocolLXD) GetContainers() ([]api.Container, error) {
 	containers := []api.Container{}
@@ -54,6 +57,7 @@ func (r *ProtocolLXD) GetContainers() ([]api.Container, error) {
 }
 
 // GetContainersFull returns a list of containers including snapshots, backups and state.
+//
 // Deprecated: Use GetInstancesFull instead.
 func (r *ProtocolLXD) GetContainersFull() ([]api.ContainerFull, error) {
 	containers := []api.ContainerFull{}
@@ -73,6 +77,7 @@ func (r *ProtocolLXD) GetContainersFull() ([]api.ContainerFull, error) {
 }
 
 // GetContainer returns the container entry for the provided name.
+//
 // Deprecated: Use GetInstance instead.
 func (r *ProtocolLXD) GetContainer(name string) (*api.Container, string, error) {
 	container := api.Container{}
@@ -88,6 +93,7 @@ func (r *ProtocolLXD) GetContainer(name string) (*api.Container, string, error) 
 
 // CreateContainerFromBackup is a convenience function to make it easier to
 // create a container from a backup.
+//
 // Deprecated: Use CreateInstanceFromBackup instead.
 func (r *ProtocolLXD) CreateContainerFromBackup(args ContainerBackupArgs) (Operation, error) {
 	err := r.CheckExtension("container_backup")
@@ -155,6 +161,7 @@ func (r *ProtocolLXD) CreateContainerFromBackup(args ContainerBackupArgs) (Opera
 }
 
 // CreateContainer requests that LXD creates a new container.
+//
 // Deprecated: Use CreateInstance instead.
 func (r *ProtocolLXD) CreateContainer(container api.ContainersPost) (Operation, error) {
 	if container.Source.ContainerOnly {
@@ -233,6 +240,7 @@ func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) 
 }
 
 // CreateContainerFromImage is a convenience function to make it easier to create a container from an existing image.
+//
 // Deprecated: Use CreateInstanceFromImage instead.
 func (r *ProtocolLXD) CreateContainerFromImage(source ImageServer, image api.Image, req api.ContainersPost) (RemoteOperation, error) {
 	// Set the minimal source fields
@@ -297,6 +305,7 @@ func (r *ProtocolLXD) CreateContainerFromImage(source ImageServer, image api.Ima
 }
 
 // CopyContainer copies a container from a remote server. Additional options can be passed using ContainerCopyArgs.
+//
 // Deprecated: Use CopyInstance instead.
 func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Container, args *ContainerCopyArgs) (RemoteOperation, error) {
 	// Base request
@@ -525,6 +534,7 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 }
 
 // UpdateContainer updates the container definition.
+//
 // Deprecated: Use UpdateInstance instead.
 func (r *ProtocolLXD) UpdateContainer(name string, container api.ContainerPut, ETag string) (Operation, error) {
 	// Send the request
@@ -537,6 +547,7 @@ func (r *ProtocolLXD) UpdateContainer(name string, container api.ContainerPut, E
 }
 
 // RenameContainer requests that LXD renames the container.
+//
 // Deprecated: Use RenameInstance instead.
 func (r *ProtocolLXD) RenameContainer(name string, container api.ContainerPost) (Operation, error) {
 	// Quick check.
@@ -609,6 +620,7 @@ func (r *ProtocolLXD) tryMigrateContainer(source InstanceServer, name string, re
 }
 
 // MigrateContainer requests that LXD prepares for a container migration.
+//
 // Deprecated: Use MigrateInstance instead.
 func (r *ProtocolLXD) MigrateContainer(name string, container api.ContainerPost) (Operation, error) {
 	if container.ContainerOnly {
@@ -633,6 +645,7 @@ func (r *ProtocolLXD) MigrateContainer(name string, container api.ContainerPost)
 }
 
 // DeleteContainer requests that LXD deletes the container.
+//
 // Deprecated: Use DeleteInstance instead.
 func (r *ProtocolLXD) DeleteContainer(name string) (Operation, error) {
 	// Send the request
@@ -645,6 +658,7 @@ func (r *ProtocolLXD) DeleteContainer(name string) (Operation, error) {
 }
 
 // ExecContainer requests that LXD spawns a command inside the container.
+//
 // Deprecated: Use ExecInstance instead.
 func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExecPost, args *ContainerExecArgs) (Operation, error) {
 	if exec.RecordOutput {
@@ -800,6 +814,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 }
 
 // GetContainerFile retrieves the provided path from the container.
+//
 // Deprecated: Use GetInstanceFile instead.
 func (r *ProtocolLXD) GetContainerFile(containerName string, path string) (io.ReadCloser, *ContainerFileResponse, error) {
 	// Prepare the HTTP request
@@ -873,6 +888,7 @@ func (r *ProtocolLXD) GetContainerFile(containerName string, path string) (io.Re
 }
 
 // CreateContainerFile tells LXD to create a file in the container.
+//
 // Deprecated: Use CreateInstanceFile instead.
 func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, args ContainerFileArgs) error {
 	if args.Type == "directory" {
@@ -946,6 +962,7 @@ func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, arg
 }
 
 // DeleteContainerFile deletes a file in the container.
+//
 // Deprecated: Use DeleteInstanceFile instead.
 func (r *ProtocolLXD) DeleteContainerFile(containerName string, path string) error {
 	err := r.CheckExtension("file_delete")
@@ -963,6 +980,7 @@ func (r *ProtocolLXD) DeleteContainerFile(containerName string, path string) err
 }
 
 // GetContainerSnapshotNames returns a list of snapshot names for the container.
+//
 // Deprecated: Use GetInstanceSnapshotNames instead.
 func (r *ProtocolLXD) GetContainerSnapshotNames(containerName string) ([]string, error) {
 	// Fetch the raw URL values.
@@ -978,6 +996,7 @@ func (r *ProtocolLXD) GetContainerSnapshotNames(containerName string) ([]string,
 }
 
 // GetContainerSnapshots returns a list of snapshots for the container.
+//
 // Deprecated: Use GetInstanceSnapshots instead.
 func (r *ProtocolLXD) GetContainerSnapshots(containerName string) ([]api.ContainerSnapshot, error) {
 	snapshots := []api.ContainerSnapshot{}
@@ -992,6 +1011,7 @@ func (r *ProtocolLXD) GetContainerSnapshots(containerName string) ([]api.Contain
 }
 
 // GetContainerSnapshot returns a Snapshot struct for the provided container and snapshot names.
+//
 // Deprecated: Use GetInstanceSnapshot instead.
 func (r *ProtocolLXD) GetContainerSnapshot(containerName string, name string) (*api.ContainerSnapshot, string, error) {
 	snapshot := api.ContainerSnapshot{}
@@ -1006,6 +1026,7 @@ func (r *ProtocolLXD) GetContainerSnapshot(containerName string, name string) (*
 }
 
 // CreateContainerSnapshot requests that LXD creates a new snapshot for the container.
+//
 // Deprecated: Use CreateInstanceSnapshot instead.
 func (r *ProtocolLXD) CreateContainerSnapshot(containerName string, snapshot api.ContainerSnapshotsPost) (Operation, error) {
 	// Validate the request
@@ -1026,6 +1047,7 @@ func (r *ProtocolLXD) CreateContainerSnapshot(containerName string, snapshot api
 }
 
 // CopyContainerSnapshot copies a snapshot from a remote server into a new container. Additional options can be passed using ContainerCopyArgs.
+//
 // Deprecated: Use CopyInstanceSnapshot instead.
 func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName string, snapshot api.ContainerSnapshot, args *ContainerSnapshotCopyArgs) (RemoteOperation, error) {
 	// Backward compatibility (with broken Name field)
@@ -1254,6 +1276,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 }
 
 // RenameContainerSnapshot requests that LXD renames the snapshot.
+//
 // Deprecated: Use RenameInstanceSnapshot instead.
 func (r *ProtocolLXD) RenameContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (Operation, error) {
 	// Quick check.
@@ -1328,6 +1351,7 @@ func (r *ProtocolLXD) tryMigrateContainerSnapshot(source InstanceServer, contain
 }
 
 // MigrateContainerSnapshot requests that LXD prepares for a snapshot migration.
+//
 // Deprecated: Use MigrateInstanceSnapshot instead.
 func (r *ProtocolLXD) MigrateContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (Operation, error) {
 	// Quick check.
@@ -1345,6 +1369,7 @@ func (r *ProtocolLXD) MigrateContainerSnapshot(containerName string, name string
 }
 
 // DeleteContainerSnapshot requests that LXD deletes the container snapshot.
+//
 // Deprecated: Use DeleteInstanceSnapshot instead.
 func (r *ProtocolLXD) DeleteContainerSnapshot(containerName string, name string) (Operation, error) {
 	// Send the request
@@ -1357,6 +1382,7 @@ func (r *ProtocolLXD) DeleteContainerSnapshot(containerName string, name string)
 }
 
 // UpdateContainerSnapshot requests that LXD updates the container snapshot.
+//
 // Deprecated: Use UpdateInstanceSnapshot instead.
 func (r *ProtocolLXD) UpdateContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPut, ETag string) (Operation, error) {
 	err := r.CheckExtension("snapshot_expiry")
@@ -1374,6 +1400,7 @@ func (r *ProtocolLXD) UpdateContainerSnapshot(containerName string, name string,
 }
 
 // GetContainerState returns a ContainerState entry for the provided container name.
+//
 // Deprecated: Use GetInstanceState instead.
 func (r *ProtocolLXD) GetContainerState(name string) (*api.ContainerState, string, error) {
 	state := api.ContainerState{}
@@ -1388,6 +1415,7 @@ func (r *ProtocolLXD) GetContainerState(name string) (*api.ContainerState, strin
 }
 
 // UpdateContainerState updates the container to match the requested state.
+//
 // Deprecated: Use UpdateInstanceState instead.
 func (r *ProtocolLXD) UpdateContainerState(name string, state api.ContainerStatePut, ETag string) (Operation, error) {
 	// Send the request
@@ -1400,6 +1428,7 @@ func (r *ProtocolLXD) UpdateContainerState(name string, state api.ContainerState
 }
 
 // GetContainerLogfiles returns a list of logfiles for the container.
+//
 // Deprecated: Use GetInstanceLogfiles instead.
 func (r *ProtocolLXD) GetContainerLogfiles(name string) ([]string, error) {
 	// Fetch the raw URL values.
@@ -1415,6 +1444,7 @@ func (r *ProtocolLXD) GetContainerLogfiles(name string) ([]string, error) {
 }
 
 // GetContainerLogfile returns the content of the requested logfile
+//
 // Deprecated: Use GetInstanceLogfile instead.
 //
 // Note that it's the caller's responsibility to close the returned ReadCloser.
@@ -1450,6 +1480,7 @@ func (r *ProtocolLXD) GetContainerLogfile(name string, filename string) (io.Read
 }
 
 // DeleteContainerLogfile deletes the requested logfile.
+//
 // Deprecated: Use DeleteInstanceLogfile instead.
 func (r *ProtocolLXD) DeleteContainerLogfile(name string, filename string) error {
 	// Send the request
@@ -1462,6 +1493,7 @@ func (r *ProtocolLXD) DeleteContainerLogfile(name string, filename string) error
 }
 
 // GetContainerMetadata returns container metadata.
+//
 // Deprecated: Use GetInstanceMetadata instead.
 func (r *ProtocolLXD) GetContainerMetadata(name string) (*api.ImageMetadata, string, error) {
 	err := r.CheckExtension("container_edit_metadata")
@@ -1481,6 +1513,7 @@ func (r *ProtocolLXD) GetContainerMetadata(name string) (*api.ImageMetadata, str
 }
 
 // SetContainerMetadata sets the content of the container metadata file.
+//
 // Deprecated: Use SetInstanceMetadata instead.
 func (r *ProtocolLXD) SetContainerMetadata(name string, metadata api.ImageMetadata, ETag string) error {
 	err := r.CheckExtension("container_edit_metadata")
@@ -1498,6 +1531,7 @@ func (r *ProtocolLXD) SetContainerMetadata(name string, metadata api.ImageMetada
 }
 
 // GetContainerTemplateFiles returns the list of names of template files for a container.
+//
 // Deprecated: Use GetInstanceTemplateFiles instead.
 func (r *ProtocolLXD) GetContainerTemplateFiles(containerName string) ([]string, error) {
 	err := r.CheckExtension("container_edit_metadata")
@@ -1517,6 +1551,7 @@ func (r *ProtocolLXD) GetContainerTemplateFiles(containerName string) ([]string,
 }
 
 // GetContainerTemplateFile returns the content of a template file for a container.
+//
 // Deprecated: Use GetInstanceTemplateFile instead.
 func (r *ProtocolLXD) GetContainerTemplateFile(containerName string, templateName string) (io.ReadCloser, error) {
 	err := r.CheckExtension("container_edit_metadata")
@@ -1554,6 +1589,7 @@ func (r *ProtocolLXD) GetContainerTemplateFile(containerName string, templateNam
 }
 
 // CreateContainerTemplateFile creates an a template for a container.
+//
 // Deprecated: Use CreateInstanceTemplateFile instead.
 func (r *ProtocolLXD) CreateContainerTemplateFile(containerName string, templateName string, content io.ReadSeeker) error {
 	err := r.CheckExtension("container_edit_metadata")
@@ -1588,12 +1624,14 @@ func (r *ProtocolLXD) CreateContainerTemplateFile(containerName string, template
 }
 
 // UpdateContainerTemplateFile updates the content for a container template file.
+//
 // Deprecated: Use UpdateInstanceTemplateFile instead.
 func (r *ProtocolLXD) UpdateContainerTemplateFile(containerName string, templateName string, content io.ReadSeeker) error {
 	return r.CreateContainerTemplateFile(containerName, templateName, content)
 }
 
 // DeleteContainerTemplateFile deletes a template file for a container.
+//
 // Deprecated: Use DeleteInstanceTemplateFile instead.
 func (r *ProtocolLXD) DeleteContainerTemplateFile(name string, templateName string) error {
 	err := r.CheckExtension("container_edit_metadata")
@@ -1606,6 +1644,7 @@ func (r *ProtocolLXD) DeleteContainerTemplateFile(name string, templateName stri
 }
 
 // ConsoleContainer requests that LXD attaches to the console device of a container.
+//
 // Deprecated: Use ConsoleInstance instead.
 func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.ContainerConsolePost, args *ContainerConsoleArgs) (Operation, error) {
 	err := r.CheckExtension("console")
@@ -1681,6 +1720,7 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 }
 
 // GetContainerConsoleLog requests that LXD attaches to the console device of a container.
+//
 // Deprecated: Use GetInstanceConsoleLog instead.
 //
 // Note that it's the caller's responsibility to close the returned ReadCloser.
@@ -1721,6 +1761,7 @@ func (r *ProtocolLXD) GetContainerConsoleLog(containerName string, args *Contain
 }
 
 // DeleteContainerConsoleLog deletes the requested container's console log.
+//
 // Deprecated: Use DeleteInstanceConsoleLog instead.
 func (r *ProtocolLXD) DeleteContainerConsoleLog(containerName string, args *ContainerConsoleLogArgs) error {
 	err := r.CheckExtension("console")
@@ -1738,6 +1779,7 @@ func (r *ProtocolLXD) DeleteContainerConsoleLog(containerName string, args *Cont
 }
 
 // GetContainerBackupNames returns a list of backup names for the container.
+//
 // Deprecated: Use GetInstanceBackupNames instead.
 func (r *ProtocolLXD) GetContainerBackupNames(containerName string) ([]string, error) {
 	err := r.CheckExtension("container_backup")
@@ -1758,6 +1800,7 @@ func (r *ProtocolLXD) GetContainerBackupNames(containerName string) ([]string, e
 }
 
 // GetContainerBackups returns a list of backups for the container.
+//
 // Deprecated: Use GetInstanceBackups instead.
 func (r *ProtocolLXD) GetContainerBackups(containerName string) ([]api.ContainerBackup, error) {
 	err := r.CheckExtension("container_backup")
@@ -1777,6 +1820,7 @@ func (r *ProtocolLXD) GetContainerBackups(containerName string) ([]api.Container
 }
 
 // GetContainerBackup returns a Backup struct for the provided container and backup names.
+//
 // Deprecated: Use GetInstanceBackup instead.
 func (r *ProtocolLXD) GetContainerBackup(containerName string, name string) (*api.ContainerBackup, string, error) {
 	err := r.CheckExtension("container_backup")
@@ -1795,6 +1839,7 @@ func (r *ProtocolLXD) GetContainerBackup(containerName string, name string) (*ap
 }
 
 // CreateContainerBackup requests that LXD creates a new backup for the container.
+//
 // Deprecated: Use CreateInstanceBackup instead.
 func (r *ProtocolLXD) CreateContainerBackup(containerName string, backup api.ContainerBackupsPost) (Operation, error) {
 	err := r.CheckExtension("container_backup")
@@ -1812,6 +1857,7 @@ func (r *ProtocolLXD) CreateContainerBackup(containerName string, backup api.Con
 }
 
 // RenameContainerBackup requests that LXD renames the backup.
+//
 // Deprecated: Use RenameInstanceBackup instead.
 func (r *ProtocolLXD) RenameContainerBackup(containerName string, name string, backup api.ContainerBackupPost) (Operation, error) {
 	err := r.CheckExtension("container_backup")
@@ -1829,6 +1875,7 @@ func (r *ProtocolLXD) RenameContainerBackup(containerName string, name string, b
 }
 
 // DeleteContainerBackup requests that LXD deletes the container backup.
+//
 // Deprecated: Use DeleteInstanceBackup instead.
 func (r *ProtocolLXD) DeleteContainerBackup(containerName string, name string) (Operation, error) {
 	err := r.CheckExtension("container_backup")
@@ -1846,6 +1893,7 @@ func (r *ProtocolLXD) DeleteContainerBackup(containerName string, name string) (
 }
 
 // GetContainerBackupFile requests the container backup content.
+//
 // Deprecated: Use GetInstanceBackupFile instead.
 func (r *ProtocolLXD) GetContainerBackupFile(containerName string, name string, req *BackupFileRequest) (*BackupFileResponse, error) {
 	err := r.CheckExtension("container_backup")
