@@ -209,6 +209,7 @@ jobs:
       LXD_OVN_NB_CLIENT_CRT_FILE: "/var/snap/microovn/common/data/pki/client-cert.pem"
       LXD_OVN_NB_CLIENT_KEY_FILE: "/var/snap/microovn/common/data/pki/client-privkey.pem"
       LXD_OVN_NB_CA_CRT_FILE: "/var/snap/microovn/common/data/pki/cacert.pem"
+      LXD_OVS_CONNECTION: "unix:///var/snap/microovn/common/run/switch/db.sock"
       LXD_CONCURRENT: "1"
       LXD_VERBOSE: "1"
       LXD_OFFLINE: "1"
@@ -283,7 +284,7 @@ jobs:
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
           export PATH="$PATH:/snap/microovn/current/commands"
-          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_OVS_CONNECTION,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
 
       - name: Upload crash dumps
         if: always()
