@@ -28,5 +28,5 @@ test_container_devices_tpm() {
   ! lxc exec "${ctName}" -- stat /dev/tpmrm0
 
   # Clean up
-  lxc rm -f "${ctName}"
+  lxc delete -f "${ctName}"
 }
