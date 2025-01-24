@@ -2315,6 +2315,72 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// handleStoragePoolVolumeDelete provides the logic for deleting a storage pool volume.
+func handleStoragePoolVolumeDelete(s *state.State, details storageVolumeDetails, requestProjectName, effectiveProjectName string) (*operations.Operation, error) {
+	if shared.IsSnapshot(details.volumeName) {
+		return nil, fmt.Errorf("Invalid storage volume %q", details.volumeName)
+	}
+
+	// Check that the storage volume type is valid.
+	if !shared.ValueInSlice(details.volumeType, supportedVolumeTypes) {
+		return nil, fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName)
+	}
+
+	if details.volumeType != cluster.StoragePoolVolumeTypeCustom && details.volumeType != cluster.StoragePoolVolumeTypeImage {
+		return nil, fmt.Errorf("Storage volumes of type %q cannot be deleted with the storage API", details.volumeTypeName)
+	}
+
+	// Get the storage volume.
+	var dbVolume *db.StorageVolume
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, details.pool.ID(), effectiveProjectName, details.volumeType, details.volumeName, true)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	volumeUsedBy, err := storagePoolVolumeUsedByGet(s, requestProjectName, dbVolume)
+	if err != nil {
+		return nil, err
+	}
+
+	// isImageURL checks whether the provided usedByURL represents an image resource for the fingerprint.
+	isImageURL := func(usedByURL string, fingerprint string) bool {
+		usedBy, _ := url.Parse(usedByURL)
+		if usedBy == nil {
+			return false
+		}
+
+		img := api.NewURL().Path(version.APIVersion, "images", fingerprint)
+		return usedBy.Path == img.URL.Path
+	}
+
+	if len(volumeUsedBy) > 0 {
+		if len(volumeUsedBy) != 1 || details.volumeType != cluster.StoragePoolVolumeTypeImage || !isImageURL(volumeUsedBy[0], dbVolume.Name) {
+			return nil, fmt.Errorf("The storage volume is still in use")
+		}
+	}
+
+	op := &operations.Operation{}
+
+	switch details.volumeType {
+	case cluster.StoragePoolVolumeTypeCustom:
+		err = details.pool.DeleteCustomVolume(effectiveProjectName, details.volumeName, op)
+	case cluster.StoragePoolVolumeTypeImage:
+		err = details.pool.DeleteImage(details.volumeName, op)
+	default:
+		return nil, fmt.Errorf(`Storage volumes of type %q cannot be deleted with the storage API`, details.volumeTypeName)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
 // swagger:operation DELETE /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName} storage storage_pool_volume_type_delete
 //
 //	Delete the storage volume
@@ -2352,15 +2418,6 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if shared.IsSnapshot(details.volumeName) {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume %q", details.volumeName))
-	}
-
-	// Check that the storage volume type is valid.
-	if !shared.ValueInSlice(details.volumeType, supportedVolumeTypes) {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
-	}
-
 	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
@@ -2377,59 +2434,12 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if details.volumeType != cluster.StoragePoolVolumeTypeCustom && details.volumeType != cluster.StoragePoolVolumeTypeImage {
-		return response.BadRequest(fmt.Errorf("Storage volumes of type %q cannot be deleted with the storage API", details.volumeTypeName))
-	}
-
-	// Get the storage volume.
-	var dbVolume *db.StorageVolume
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(ctx, details.pool.ID(), effectiveProjectName, details.volumeType, details.volumeName, true)
-		return err
-	})
+	op, err := handleStoragePoolVolumeDelete(s, details, requestProjectName, effectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	volumeUsedBy, err := storagePoolVolumeUsedByGet(s, requestProjectName, dbVolume)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// isImageURL checks whether the provided usedByURL represents an image resource for the fingerprint.
-	isImageURL := func(usedByURL string, fingerprint string) bool {
-		usedBy, _ := url.Parse(usedByURL)
-		if usedBy == nil {
-			return false
-		}
-
-		img := api.NewURL().Path(version.APIVersion, "images", fingerprint)
-		return usedBy.Path == img.URL.Path
-	}
-
-	if len(volumeUsedBy) > 0 {
-		if len(volumeUsedBy) != 1 || details.volumeType != cluster.StoragePoolVolumeTypeImage || !isImageURL(volumeUsedBy[0], dbVolume.Name) {
-			return response.BadRequest(fmt.Errorf("The storage volume is still in use"))
-		}
-	}
-
-	// Use an empty operation for this sync response to pass the requestor
-	op := &operations.Operation{}
 	op.SetRequestor(r)
-
-	switch details.volumeType {
-	case cluster.StoragePoolVolumeTypeCustom:
-		err = details.pool.DeleteCustomVolume(effectiveProjectName, details.volumeName, op)
-	case cluster.StoragePoolVolumeTypeImage:
-		err = details.pool.DeleteImage(details.volumeName, op)
-	default:
-		return response.BadRequest(fmt.Errorf(`Storage volumes of type %q cannot be deleted with the storage API`, details.volumeTypeName))
-	}
-
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	return response.EmptySyncResponse
 }
 
