@@ -589,6 +589,7 @@ func (d *Daemon) State() *state.State {
 		Proxy:               d.proxy,
 		ServerCert:          d.serverCert,
 		UpdateIdentityCache: func() { updateIdentityCache(d) },
+		IdentityCache:       d.identityCache,
 		InstanceTypes:       instanceTypes,
 		DevMonitor:          d.devmonitor,
 		GlobalConfig:        globalConfig,
