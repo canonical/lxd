@@ -35,6 +35,13 @@ const (
 // It is returned by Authorizer.GetPermissionChecker.
 type PermissionChecker func(entityURL *api.URL) bool
 
+// EntitlementReporter is an interface for adding entitlements to an entity.
+type EntitlementReporter interface {
+	// ReportEntitlements adds entitlements to the entity.
+	// Note: this needs to be a list of string because the implementations of this method will be for the API types.
+	ReportEntitlements([]string)
+}
+
 // Authorizer is the primary external API for this package.
 type Authorizer interface {
 	// Driver returns the driver name.
