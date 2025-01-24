@@ -46,6 +46,11 @@ type WithEntitlements struct {
 	AccessEntitlements []string `json:"access_entitlements" yaml:"access_entitlements"`
 }
 
+// ReportEntitlements adds entitlements to the identity.
+func (e *WithEntitlements) ReportEntitlements(entitlements []string) {
+	e.AccessEntitlements = entitlements
+}
+
 // Identity is the type for an authenticated party that can make requests to the HTTPS API.
 //
 // swagger:model
