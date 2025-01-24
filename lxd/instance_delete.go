@@ -13,10 +13,45 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
 )
+
+// handleInstanceDelete provides the logic for deleting an instance.
+func handleInstanceDelete(s *state.State, projectName, instanceName string) (*operations.Operation, error) {
+	if shared.IsSnapshot(instanceName) {
+		return nil, fmt.Errorf("Invalid instance name")
+	}
+
+	inst, err := instance.LoadByProjectAndName(s, projectName, instanceName)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load instance: %w", err)
+	}
+
+	if inst.IsRunning() {
+		return nil, fmt.Errorf("Instance is running")
+	}
+
+	rmct := func(op *operations.Operation) error {
+		return inst.Delete(false)
+	}
+
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", instanceName)}
+
+	if inst.Type() == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
+
+	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceDelete, resources, nil, rmct, nil, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
 
 // swagger:operation DELETE /1.0/instances/{name} instances instance_delete
 //
@@ -61,11 +96,7 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
-	}
-
-	// Handle requests targeted to a container on a different node
+	// Handle requests targeted to a container on a different node.
 	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
@@ -75,30 +106,12 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
+	op, err := handleInstanceDelete(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	if inst.IsRunning() {
-		return response.BadRequest(fmt.Errorf("Instance is running"))
-	}
-
-	rmct := func(op *operations.Operation) error {
-		return inst.Delete(false)
-	}
-
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-
-	if inst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
-	}
-
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceDelete, resources, nil, rmct, nil, nil, r)
-	if err != nil {
-		return response.InternalError(err)
-	}
+	op.SetRequestor(r)
 
 	return operations.OperationResponse(op)
 }
