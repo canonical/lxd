@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/firewall"
 	"github.com/canonical/lxd/lxd/fsmonitor"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/maas"
 	"github.com/canonical/lxd/lxd/node"
@@ -59,6 +60,9 @@ type State struct {
 
 	// Server certificate
 	ServerCert func() *shared.CertInfo
+
+	// Identity cache
+	IdentityCache *identity.Cache
 
 	// UpdateIdentityCache refreshes the local cache of identities.
 	// This should be called whenever an identity is added, modified, or removed.
