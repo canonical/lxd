@@ -830,6 +830,31 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
+// handleProfileDelete provides the logic for deleting a profile.
+func handleProfileDelete(ctx context.Context, s *state.State, projectName, profileName string) error {
+	if profileName == "default" {
+		return fmt.Errorf(`The "default" profile cannot be deleted`)
+	}
+
+	return s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		profile, err := dbCluster.GetProfile(ctx, tx.Tx(), projectName, profileName)
+		if err != nil {
+			return err
+		}
+
+		usedBy, err := profileUsedBy(ctx, tx, *profile)
+		if err != nil {
+			return err
+		}
+
+		if len(usedBy) > 0 {
+			return fmt.Errorf("Profile is currently in use")
+		}
+
+		return dbCluster.DeleteProfile(ctx, tx.Tx(), projectName, profileName)
+	})
+}
+
 // swagger:operation DELETE /1.0/profiles/{name} profiles profile_delete
 //
 //	Delete the profile
@@ -862,27 +887,7 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if details.profileName == "default" {
-		return response.Forbidden(errors.New(`The "default" profile cannot be deleted`))
-	}
-
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profile, err := dbCluster.GetProfile(ctx, tx.Tx(), details.effectiveProject.Name, details.profileName)
-		if err != nil {
-			return err
-		}
-
-		usedBy, err := profileUsedBy(ctx, tx, *profile)
-		if err != nil {
-			return err
-		}
-
-		if len(usedBy) > 0 {
-			return fmt.Errorf("Profile is currently in use")
-		}
-
-		return dbCluster.DeleteProfile(ctx, tx.Tx(), details.effectiveProject.Name, details.profileName)
-	})
+	err = handleProfileDelete(context.TODO(), s, details.effectiveProject.Name, details.profileName)
 	if err != nil {
 		return response.SmartError(err)
 	}
