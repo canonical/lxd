@@ -212,6 +212,10 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	recursion := util.IsRecursionRequest(r)
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeProfile, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	request.SetCtxValue(r, request.CtxEffectiveProjectName, p.Name)
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeProfile)
@@ -221,6 +225,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 
 	var apiProfiles []*api.Profile
 	var profileURLs []string
+	urlToProfile := make(map[*api.URL]auth.EntitlementReporter)
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.ProfileFilter{
 			Project: &p.Name,
@@ -259,6 +264,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 				}
 
 				apiProfiles = append(apiProfiles, apiProfile)
+				urlToProfile[entity.ProfileURL(requestProjectName, profile.Name)] = apiProfile
 			}
 		} else {
 			profileURLs = make([]string, 0, len(profiles))
@@ -282,6 +288,13 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 
 	for _, apiProfile := range apiProfiles {
 		apiProfile.UsedBy = project.FilterUsedBy(s.Authorizer, r, apiProfile.UsedBy)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProfile, withEntitlements, urlToProfile)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponse(true, apiProfiles)
@@ -467,6 +480,11 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeProfile, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var resp *api.Profile
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -502,6 +520,13 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resp.UsedBy = project.FilterUsedBy(s.Authorizer, r, resp.UsedBy)
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProfile, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ProfileURL(details.effectiveProject.Name, details.profileName): resp})
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
 
 	etag := []any{resp.Config, resp.Description, resp.Devices}
 	return response.SyncResponseETag(true, resp, etag)
