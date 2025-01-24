@@ -2599,3 +2599,9 @@ The following pool level configuration keys have been added:
 1. {config:option}`storage-pure-pool-conf:pure.api.token`
 1. {config:option}`storage-pure-pool-conf:pure.mode`
 1. {config:option}`storage-pure-pool-conf:pure.target`
+
+## `oidc_additional_scopes`
+
+This API extension enables setting an {config:option}`server-oidc:oidc.additional_scopes` configuration key.
+This configuration option can be used to request additional scopes that might be required for retrieving {ref}`identity provider groups <identity-provider-groups>` from the identity provider.
+Additionally, the optional scopes `profile` and `offline_access` can be unset via this setting.
