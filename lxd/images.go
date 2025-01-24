@@ -440,11 +440,19 @@ func imgPostInstanceInfo(s *state.State, r *http.Request, req api.ImagesPost, op
 		writer = io.MultiWriter(imageProgressWriter, sha256)
 	}
 
+	// Tracker instance for the export phase.
+	tracker := &ioprogress.ProgressTracker{
+		Handler: func(value, speed int64) {
+			shared.SetProgressMetadata(metadata, "create_image_from_container_pack", "Exporting", value, 0, 0)
+			_ = op.UpdateMetadata(metadata)
+		},
+	}
+
 	// Export instance to writer.
 	var meta api.ImageMetadata
 
 	writer = shared.NewQuotaWriter(writer, budget)
-	meta, err = c.Export(writer, req.Properties, req.ExpiresAt)
+	meta, err = c.Export(writer, req.Properties, req.ExpiresAt, tracker)
 
 	// Get ExpiresAt
 	if meta.ExpiryDate != 0 {
