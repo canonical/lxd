@@ -2020,59 +2020,11 @@ func (n *ovn) Create(clientType request.ClientType) error {
 	return nil
 }
 
-// allowedUplinkNetworks returns a list of allowed networks to use as uplinks based on project restrictions.
-func (n *ovn) allowedUplinkNetworks(p *api.Project) ([]string, error) {
-	var uplinkNetworkNames []string
-
-	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Uplink networks are always from the default project.
-		networks, err := tx.GetCreatedNetworksByProject(ctx, api.ProjectDefaultName)
-		if err != nil {
-			return fmt.Errorf("Failed getting uplink networks: %w", err)
-		}
-
-		// Add any compatible networks to the uplink network list.
-		for _, network := range networks {
-			if network.Type == "bridge" || network.Type == "physical" {
-				uplinkNetworkNames = append(uplinkNetworkNames, network.Name)
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// If project is not restricted, return full network list.
-	if shared.IsFalseOrEmpty(p.Config["restricted"]) {
-		return uplinkNetworkNames, nil
-	}
-
-	allowedUplinkNetworkNames := []string{}
-
-	// There are no allowed networks if restricted.networks.uplinks is not set.
-	if p.Config["restricted.networks.uplinks"] == "" {
-		return allowedUplinkNetworkNames, nil
-	}
-
-	// Parse the allowed uplinks and return any that are present in the actual defined networks.
-	allowedRestrictedUplinks := shared.SplitNTrimSpace(p.Config["restricted.networks.uplinks"], ",", -1, false)
-
-	for _, allowedRestrictedUplink := range allowedRestrictedUplinks {
-		if shared.ValueInSlice(allowedRestrictedUplink, uplinkNetworkNames) {
-			allowedUplinkNetworkNames = append(allowedUplinkNetworkNames, allowedRestrictedUplink)
-		}
-	}
-
-	return allowedUplinkNetworkNames, nil
-}
-
 // validateUplinkNetwork checks if uplink network is allowed, and if empty string is supplied then tries to select
 // an uplink network from the allowedUplinkNetworks() list if there is only one allowed network.
 // Returns chosen uplink network name to use.
 func (n *ovn) validateUplinkNetwork(p *api.Project, uplinkNetworkName string) (string, error) {
-	allowedUplinkNetworks, err := n.allowedUplinkNetworks(p)
+	allowedUplinkNetworks, err := AllowedUplinkNetworks(n.state, p.Config)
 	if err != nil {
 		return "", err
 	}
