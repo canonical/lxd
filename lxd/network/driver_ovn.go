@@ -216,7 +216,7 @@ func (n *ovn) projectRestrictedSubnets(p *api.Project, uplinkNetworkName string)
 	return projectRestrictedSubnets, nil
 }
 
-func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRoutes []*net.IPNet, projectRestrictedSubnets []*net.IPNet, validator func(*net.IPNet) (bool, error)) (*net.IPNet, error) {
+func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRoutes []*net.IPNet, projectRestrictedSubnets []*net.IPNet, validator func(*net.IPNet) (bool, error)) (net.IP, error) {
 	// Ensure a sensible deadline is set.
 	_, hasDeadline := ctx.Deadline()
 	var cancel context.CancelFunc = func() {}
@@ -291,7 +291,7 @@ func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRo
 			return nil, fmt.Errorf("Failed to determine an available external address: %w", err)
 		}
 
-		return ParseIPToNet(addressInSubnet.String())
+		return addressInSubnet, nil
 	}
 
 	return nil, fmt.Errorf("Failed to determine an available external address: %w", context.DeadlineExceeded)
@@ -4725,93 +4725,118 @@ func (n *ovn) forwardFlattenVIPs(listenAddress net.IP, defaultTargetAddress net.
 	return vips
 }
 
+// allocateUplinkAddress performs common steps between creating network forwards and load balancers.
+// This includes validating the provided listen address or auto-allocating one if needed.
+func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
+	// Load the project to get uplink network restrictions.
+	var p *api.Project
+	var uplink *api.Network
+
+	err := n.state.DB.Cluster.Transaction(n.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
+		if err != nil {
+			return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
+		}
+
+		p, err = project.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
+		}
+
+		// Get uplink routes.
+		_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, n.config["network"])
+		if err != nil {
+			return fmt.Errorf("Failed to load uplink network %q: %w", n.config["network"], err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	uplinkRoutes, err := n.uplinkRoutes(uplink)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get project restricted routes.
+	projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, n.config["network"])
+	if err != nil {
+		return nil, err
+	}
+
+	// We're auto-allocating the external IP address if the given listen address is unspecified.
+	if listenIPAddress.IsUnspecified() {
+		// Retrieve the raw address from listenAddressNet.
+		proposedAddress := listenIPAddress.String()
+
+		ipVersion := 4
+		if proposedAddress == net.IPv6zero.String() {
+			ipVersion = 6
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		listenIPAddress, err = n.randomExternalAddress(ctx, ipVersion, uplinkRoutes, projectRestrictedSubnets, n.checkAddressNotInUse)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to allocate an IPv%d address: %w", ipVersion, err)
+		}
+
+		return listenIPAddress, nil
+	}
+
+	// Use subnet instead of address to use validateExternalSubnet.
+	listenAddressNet, err := ParseIPToNet(listenIPAddress.String())
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the listen address subnet is allowed within both the uplink's external routes and any
+	// project restricted subnets.
+	err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, listenAddressNet)
+	if err != nil {
+		return nil, err
+	}
+
+	isValid, err := n.checkAddressNotInUse(listenAddressNet)
+	if err != nil {
+		return nil, err
+	} else if !isValid {
+		// This error is purposefully vague so that it doesn't reveal any names of
+		// resources potentially outside of the network's project.
+		return nil, fmt.Errorf("Listen address %q overlaps with another network or NIC", listenIPAddress.String())
+	}
+
+	return listenIPAddress, nil
+}
+
 // ForwardCreate creates a network forward.
 func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) (net.IP, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Convert listen address to subnet so we can check its valid and can be used.
-	listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
-	if err != nil {
-		return nil, fmt.Errorf("Failed parsing %q: %w", forward.ListenAddress, err)
+	var err error
+
+	// Convert listen address to net.IP.
+	listenIPAddress := net.ParseIP(forward.ListenAddress)
+	if listenIPAddress == nil {
+		return nil, fmt.Errorf("Failed parsing %q: Invalid IP representation", forward.ListenAddress)
 	}
 
 	if clientType == request.ClientTypeNormal {
 		memberSpecific := false // OVN doesn't support per-member forwards.
 
-		// Load the project to get uplink network restrictions.
-		var p *api.Project
-		var uplink *api.Network
-
-		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
-			if err != nil {
-				return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
-			}
-
-			p, err = project.ToAPI(ctx, tx.Tx())
-			if err != nil {
-				return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
-			}
-
-			// Get uplink routes.
-			_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, n.config["network"])
-			if err != nil {
-				return fmt.Errorf("Failed to load uplink network %q: %w", n.config["network"], err)
-			}
-
-			return nil
-		})
+		listenIPAddress, err = n.allocateUplinkAddress(listenIPAddress)
 		if err != nil {
 			return nil, err
 		}
 
-		uplinkRoutes, err := n.uplinkRoutes(uplink)
-		if err != nil {
-			return nil, err
-		}
+		// If address was automatically allocated, update the forward's listen address.
+		forward.ListenAddress = listenIPAddress.String()
 
-		// Get project restricted routes.
-		projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, n.config["network"])
-		if err != nil {
-			return nil, err
-		}
-
-		// We're auto-allocating the external IP address if the given listen address is unspecified.
-		if listenAddressNet.IP.IsUnspecified() {
-			ipVersion := 4
-			if forward.ListenAddress == net.IPv6zero.String() {
-				ipVersion = 6
-			}
-
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-
-			listenAddressNet, err = n.randomExternalAddress(ctx, ipVersion, uplinkRoutes, projectRestrictedSubnets, n.checkAddressNotInUse)
-			if err != nil {
-				return nil, fmt.Errorf("Failed to allocate an IPv%d address: %w", ipVersion, err)
-			}
-
-			forward.ListenAddress = listenAddressNet.IP.String()
-		} else {
-			// Check the listen address subnet is allowed within both the uplink's external routes and any
-			// project restricted subnets.
-			err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, listenAddressNet)
-			if err != nil {
-				return nil, err
-			}
-
-			isValid, err := n.checkAddressNotInUse(listenAddressNet)
-			if err != nil {
-				return nil, err
-			} else if !isValid {
-				// This error is purposefully vague so that it doesn't reveal any names of
-				// resources potentially outside of the network's project.
-				return nil, fmt.Errorf("Forward listen address %q overlaps with another network or NIC", listenAddressNet.String())
-			}
-		}
-
-		portMaps, err := n.forwardValidate(listenAddressNet.IP, forward.NetworkForwardPut)
+		portMaps, err := n.forwardValidate(listenIPAddress, forward.NetworkForwardPut)
 		if err != nil {
 			return nil, err
 		}
@@ -4870,7 +4895,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 	}
 
 	revert.Success()
-	return listenAddressNet.IP, nil
+	return listenIPAddress, nil
 }
 
 // ForwardUpdate updates a network forward.
@@ -5080,88 +5105,26 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Convert listen address to subnet so we can check its valid and can be used.
-	listenAddressNet, err := ParseIPToNet(loadBalancer.ListenAddress)
-	if err != nil {
-		return nil, fmt.Errorf("Failed parsing %q: %w", loadBalancer.ListenAddress, err)
+	var err error
+
+	// Convert listen address to net.IP.
+	listenIPAddress := net.ParseIP(loadBalancer.ListenAddress)
+	if listenIPAddress == nil {
+		return nil, fmt.Errorf("Failed parsing %q: Invalid IP representation", loadBalancer.ListenAddress)
 	}
 
 	if clientType == request.ClientTypeNormal {
 		memberSpecific := false // OVN doesn't support per-member load balancers.
 
-		// Load the project to get uplink network restrictions.
-		var p *api.Project
-		var uplink *api.Network
-
-		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
-			if err != nil {
-				return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
-			}
-
-			p, err = project.ToAPI(ctx, tx.Tx())
-			if err != nil {
-				return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
-			}
-
-			// Get uplink routes.
-			_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, n.config["network"])
-			if err != nil {
-				return fmt.Errorf("Failed to load uplink network %q: %w", n.config["network"], err)
-			}
-
-			return nil
-		})
+		listenIPAddress, err = n.allocateUplinkAddress(listenIPAddress)
 		if err != nil {
 			return nil, err
 		}
 
-		uplinkRoutes, err := n.uplinkRoutes(uplink)
-		if err != nil {
-			return nil, err
-		}
+		// If address was automatically allocated, update the load balancer's listen address.
+		loadBalancer.ListenAddress = listenIPAddress.String()
 
-		// Get project restricted routes.
-		projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, n.config["network"])
-		if err != nil {
-			return nil, err
-		}
-
-		// We're auto-allocating the external IP address if the given listen address is unspecified.
-		if listenAddressNet.IP.IsUnspecified() {
-			ipVersion := 4
-			if loadBalancer.ListenAddress == net.IPv6zero.String() {
-				ipVersion = 6
-			}
-
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-
-			listenAddressNet, err = n.randomExternalAddress(ctx, ipVersion, uplinkRoutes, projectRestrictedSubnets, n.checkAddressNotInUse)
-			if err != nil {
-				return nil, fmt.Errorf("Failed to allocate an IPv%d address: %w", ipVersion, err)
-			}
-
-			loadBalancer.ListenAddress = listenAddressNet.IP.String()
-		} else {
-			// Check the listen address subnet is allowed within both the uplink's external routes and any
-			// project restricted subnets.
-			err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, listenAddressNet)
-			if err != nil {
-				return nil, err
-			}
-
-			isValid, err := n.checkAddressNotInUse(listenAddressNet)
-			if err != nil {
-				return nil, err
-			} else if !isValid {
-				// This error is purposefully vague so that it doesn't reveal any names of
-				// resources potentially outside of the network's project.
-				return nil, fmt.Errorf("Load balancer listen address %q overlaps with another network or NIC", listenAddressNet.String())
-			}
-		}
-
-		portMaps, err := n.loadBalancerValidate(listenAddressNet.IP, loadBalancer.NetworkLoadBalancerPut)
+		portMaps, err := n.loadBalancerValidate(listenIPAddress, loadBalancer.NetworkLoadBalancerPut)
 		if err != nil {
 			return nil, err
 		}
@@ -5220,7 +5183,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 	}
 
 	revert.Success()
-	return listenAddressNet.IP, nil
+	return listenIPAddress, nil
 }
 
 // LoadBalancerUpdate updates a network load balancer.
