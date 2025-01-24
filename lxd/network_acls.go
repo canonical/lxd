@@ -19,6 +19,7 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -276,6 +277,18 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
+// handleNetworkACLDelete provides the logic for deleting a network zone.
+func handleNetworkACLDelete(s *state.State, projectName string, netACL acl.NetworkACL, requestor *api.EventLifecycleRequestor) error {
+	err := netACL.Delete()
+	if err != nil {
+		return err
+	}
+
+	s.Events.SendLifecycle(projectName, lifecycle.NetworkACLDeleted.Event(netACL, requestor, nil))
+
+	return nil
+}
+
 // swagger:operation DELETE /1.0/network-acls/{name} network-acls network_acl_delete
 //
 //	Delete the network ACL
@@ -318,7 +331,7 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = netACL.Delete()
+	err = handleNetworkACLDelete(s, projectName, netACL, request.CreateRequestor(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
