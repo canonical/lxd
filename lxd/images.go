@@ -1723,9 +1723,20 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := request.ProjectParam(r)
 	filterStr := r.FormValue("filter")
 
+	recursion := util.IsRecursionRequest(r)
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeImage, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// ProjectParam returns default if not set
+	if allProjects && projectName != api.ProjectDefaultName {
+		return response.BadRequest(fmt.Errorf("Cannot specify a project when requesting all projects"))
+	}
+
 	s := d.State()
 	var effectiveProjectName string
-	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
 		return err
@@ -1754,7 +1765,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	var result any
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		result, err = doImagesGet(ctx, tx, util.IsRecursionRequest(r), projectName, publicOnly, clauses, canViewImage)
+		result, err = doImagesGet(ctx, tx, recursion, projectName, publicOnly, clauses, canViewImage, allProjects)
 		if err != nil {
 			return err
 		}
@@ -1763,6 +1774,27 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if len(withEntitlements) > 0 {
+		// We need to get each image project and fingerprint to construct its entity URL,
+		// so we need to cast the result to a slice of `api.Image` pointers.
+		// This cast should work as we would have never entered this if block if the request was not set with recursion=1,
+		// thanks to the `extractEntitlementsFromQuery` function passed with `allowRecursion=true`.
+		images, ok := result.([]*api.Image)
+		if !ok {
+			return response.InternalError(fmt.Errorf("Images response is not a slice of Image pointer structs"))
+		}
+
+		urlToImage := make(map[*api.URL]auth.EntitlementReporter, len(images))
+		for _, image := range images {
+			urlToImage[entity.ImageURL(image.Project, image.Fingerprint)] = image
+		}
+
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImage, withEntitlements, urlToImage)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponse(true, result)
@@ -3079,6 +3111,11 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeImage, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	trusted := auth.IsTrusted(r.Context())
 	secret := r.FormValue("secret")
 
@@ -3146,6 +3183,13 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	// If the client still cannot view the image, return a generic not found error.
 	if !userCanViewImage {
 		return response.NotFound(nil)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImage, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageURL(projectName, fingerprint): info})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	etag := []any{info.Public, info.AutoUpdate, info.Properties}
