@@ -3,6 +3,7 @@ package lxd
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -234,7 +235,23 @@ func (o *oidcClient) authenticate(issuer string, clientID string, audience strin
 		return err
 	}
 
-	u, _ := url.Parse(resp.VerificationURIComplete)
+	// Check if `verification_uri_complete` is present (this auto fills the code in the browser but is marked as optional https://www.rfc-editor.org/rfc/rfc8628#section-3.2)
+	var u *url.URL
+	if resp.VerificationURIComplete != "" {
+		u, _ = url.Parse(resp.VerificationURIComplete)
+	}
+
+	// Fall back to `verification_uri` (marked as required in specification).
+	if u == nil {
+		if resp.VerificationURI == "" {
+			return errors.New("Identity provider did not return a verification URI")
+		}
+
+		u, err = url.Parse(resp.VerificationURI)
+		if err != nil {
+			return fmt.Errorf("Identity provider returned an invalid verification URI %q: %w", resp.VerificationURI, err)
+		}
+	}
 
 	fmt.Printf("URL: %s\n", u.String())
 	fmt.Printf("Code: %s\n\n", resp.UserCode)
