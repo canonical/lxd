@@ -350,6 +350,72 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// reportEntitlements takes a map of entity URLs to EntitlementReporters (in practice, API types that implement the ReportEntitlements method), and
+// reports the entitlements that the caller has on each entity URL to the corresponding EntitlementReporter.
+func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, identityCache *identity.Cache, entityType entity.Type, requestedEntitlements []auth.Entitlement, entityURLToEntitlementReporter map[*api.URL]auth.EntitlementReporter) error {
+	// Nothing to do
+	if len(entityURLToEntitlementReporter) == 0 {
+		return nil
+	}
+
+	id, err := auth.GetIdentityFromCtx(ctx, identityCache)
+	if err != nil {
+		return fmt.Errorf("Failed to get caller identity: %w", err)
+	}
+
+	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
+		return fmt.Errorf("Not fine grained")
+	}
+
+	// In the case where we have only one entity URL, we'll use the authorizer's CheckPermission method
+	// whereas if we have multiple entity URLs, we'll use the authorizer's GetPermissionChecker method that
+	// is more efficient for returning entitlements for a batch of entities.
+	if len(entityURLToEntitlementReporter) == 1 {
+		for u, r := range entityURLToEntitlementReporter {
+			entitlements := make([]string, 0, len(requestedEntitlements))
+			for _, entitlement := range requestedEntitlements {
+				err = authorizer.CheckPermission(ctx, u, entitlement)
+				if err != nil {
+					if auth.IsDeniedError(err) {
+						continue
+					}
+
+					return fmt.Errorf("Failed to check entitlement %q for entity URL %q: %w", entitlement, u, err)
+				}
+
+				entitlements = append(entitlements, string(entitlement))
+			}
+
+			r.ReportEntitlements(entitlements)
+		}
+
+		return nil
+	}
+
+	checkersByEntitlement := make(map[auth.Entitlement]auth.PermissionChecker)
+	for _, entitlement := range requestedEntitlements {
+		checker, err := authorizer.GetPermissionChecker(ctx, entitlement, entityType)
+		if err != nil {
+			return fmt.Errorf("Failed to get a permission checker for entitlement %q and for entity type %q: %w", entitlement, entityType, err)
+		}
+
+		checkersByEntitlement[entitlement] = checker
+	}
+
+	for u, reporter := range entityURLToEntitlementReporter {
+		entitlements := make([]string, 0, len(requestedEntitlements))
+		for entitlement, checker := range checkersByEntitlement {
+			if checker(u) {
+				entitlements = append(entitlements, string(entitlement))
+			}
+		}
+
+		reporter.ReportEntitlements(entitlements)
+	}
+
+	return nil
+}
+
 // Authenticate validates an incoming http Request
 // It will check over what protocol it came, what type of request it is and
 // will validate the TLS certificate or OIDC token.
