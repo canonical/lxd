@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/zitadel/oidc/v3/pkg/oidc"
 
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
@@ -689,6 +690,21 @@ var ConfigSchema = config.Schema{
 	//  scope: global
 	//  shortdesc: A claim used for mapping identity provider groups to LXD groups.
 	"oidc.groups.claim": {},
+
+	// lxdmeta:generate(entities=server; group=oidc; key=oidc.additional_scopes)
+	// Specify additional scopes to be requested when performing OIDC flows.
+	// Additional scopes might be required if managing access control in the Identity Provider (see: {ref}`identity-provider-groups`).
+	// The default value for this configuration option contains two scopes which are optional, but will degrade LXD OIDC functionality if removed.
+	// These are:
+	//   - `profile`: This is requested by LXD to present display names for the identification of end users. If it is removed, only email addresses are displayed.
+	//   - `offline_access`: This is requested by LXD to request refresh tokens from the identity provider. However, not all identity providers support this optional scope. If it is removed, end users might be required to log in more frequently.
+	// ---
+	//  type: space-delimited string list
+	//  scope: global
+	//  shortdesc: Additional scopes to be requested during OIDC flows.
+	//  defaultdesc: `profile offline_access`
+	"oidc.additional_scopes": {Default: strings.Join([]string{oidc.ScopeProfile, oidc.ScopeOfflineAccess}, " ")},
+
 	// OVN networking global keys.
 
 	// lxdmeta:generate(entities=server; group=miscellaneous; key=network.ovn.integration_bridge)
