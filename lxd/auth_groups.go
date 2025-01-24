@@ -163,7 +163,7 @@ func validateGroupName(name string) error {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func getAuthGroups(d *Daemon, r *http.Request) response.Response {
-	recursion := request.QueryParam(r, "recursion")
+	recursion := util.IsRecursionRequest(r)
 	s := d.State()
 
 	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
@@ -179,6 +179,11 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+	}
+
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeAuthGroup, true)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	var groups []dbCluster.AuthGroup
@@ -203,7 +208,7 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 
-		if recursion == "1" {
+		if recursion {
 			// If recursing, we need all identities for all groups, all IDP groups for all groups,
 			// all permissions for all groups, and finally the URLs that those permissions apply to.
 			groupsIdentities, err = dbCluster.GetAllIdentitiesByAuthGroupIDs(ctx, tx.Tx())
@@ -234,13 +239,14 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if recursion == "1" {
+	if recursion {
 		authGroupPermissionsByGroupID := make(map[int][]dbCluster.Permission, len(groups))
 		for _, permission := range authGroupPermissions {
 			authGroupPermissionsByGroupID[permission.GroupID] = append(authGroupPermissionsByGroupID[permission.GroupID], permission)
 		}
 
 		apiGroups := make([]api.AuthGroup, 0, len(groups))
+		urlToGroup := make(map[*api.URL]auth.EntitlementReporter, len(groups))
 		for _, group := range groups {
 			var apiPermissions []api.Permission
 
@@ -272,13 +278,23 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-			apiGroups = append(apiGroups, api.AuthGroup{
+			group := api.AuthGroup{
 				Name:                   group.Name,
 				Description:            group.Description,
 				Permissions:            apiPermissions,
 				Identities:             apiIdentities,
 				IdentityProviderGroups: idpGroups,
-			})
+			}
+
+			apiGroups = append(apiGroups, group)
+			urlToGroup[entity.AuthGroupURL(group.Name)] = &group
+		}
+
+		if len(withEntitlements) > 0 {
+			err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeAuthGroup, withEntitlements, urlToGroup)
+			if err != nil {
+				return response.SmartError(err)
+			}
 		}
 
 		return response.SyncResponse(true, apiGroups)
@@ -406,6 +422,11 @@ func getAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeAuthGroup, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
@@ -436,6 +457,13 @@ func getAuthGroup(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeAuthGroup, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.AuthGroupURL(groupName): apiGroup})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponseETag(true, *apiGroup, *apiGroup)
