@@ -145,9 +145,15 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeCertificate, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	if recursion {
 		var certResponses []api.Certificate
 		var baseCerts []dbCluster.Certificate
+		urlToCertificate := make(map[*api.URL]auth.EntitlementReporter)
 		var err error
 		err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			baseCerts, err = dbCluster.GetCertificates(ctx, tx.Tx())
@@ -167,12 +173,20 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 				}
 
 				certResponses = append(certResponses, *apiCert)
+				urlToCertificate[entity.CertificateURL(apiCert.Fingerprint)] = apiCert
 			}
 
 			return nil
 		})
 		if err != nil {
 			return response.SmartError(err)
+		}
+
+		if len(withEntitlements) > 0 {
+			err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeCertificate, withEntitlements, urlToCertificate)
+			if err != nil {
+				return response.SmartError(err)
+			}
 		}
 
 		return response.SyncResponse(true, certResponses)
@@ -794,6 +808,11 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeCertificate, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var cert *api.Certificate
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbCertInfo, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
@@ -811,6 +830,13 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 	err = s.Authorizer.CheckPermission(r.Context(), entity.CertificateURL(cert.Fingerprint), auth.EntitlementCanView)
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeCertificate, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.CertificateURL(cert.Fingerprint): cert})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponseETag(true, cert, cert)
