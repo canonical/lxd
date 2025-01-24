@@ -18,7 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/device/pci"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/ip"
-	"github.com/canonical/lxd/lxd/network/openvswitch"
+	"github.com/canonical/lxd/lxd/network/ovs"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -383,10 +383,13 @@ func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (po
 		return "", "", "", -1, fmt.Errorf("Failed to read directory %q: %w", sysClassNet, err)
 	}
 
-	ovs := openvswitch.NewOVS()
+	vswitch, err := ovs.NewVSwitch(state.LocalConfig.NetworkOVSConnection())
+	if err != nil {
+		return "", "", "", -1, fmt.Errorf("Failed to connect to OVS: %w", err)
+	}
 
 	// Get all ports on the integration bridge.
-	ports, err := ovs.BridgePortList(ovsBridgeName)
+	ports, err := vswitch.BridgePortList(ovsBridgeName)
 	if err != nil {
 		return "", "", "", -1, fmt.Errorf("Failed to get port list: %w", err)
 	}

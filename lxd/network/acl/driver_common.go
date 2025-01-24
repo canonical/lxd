@@ -15,7 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
-	"github.com/canonical/lxd/lxd/network/openvswitch"
+	"github.com/canonical/lxd/lxd/network/ovn"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -640,7 +640,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 	// If there are affected OVN networks, then apply the changes, but only if the request type is normal.
 	// This way we won't apply the same changes multiple times for each LXD cluster member.
 	if len(aclOVNNets) > 0 && clientType == request.ClientTypeNormal {
-		client, err := openvswitch.NewOVN(d.state)
+		ovnnb, err := ovn.NewNB(d.state)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -663,7 +663,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 		// apply those rules to each network affected by the ACL, so pass the full list of OVN networks
 		// affected by this ACL (either because the ACL is assigned directly or because it is assigned to
 		// an OVN NIC in an instance or profile).
-		cleanup, err := OVNEnsureACLs(d.state, d.logger, client, d.projectName, aclNameIDs, aclOVNNets, []string{d.info.Name}, true)
+		cleanup, err := OVNEnsureACLs(d.state, d.logger, ovnnb, d.projectName, aclNameIDs, aclOVNNets, []string{d.info.Name}, true)
 		if err != nil {
 			return fmt.Errorf("Failed ensuring ACL is configured in OVN: %w", err)
 		}
@@ -672,7 +672,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 
 		// Run unused port group cleanup in case any formerly referenced ACL in this ACL's rules means that
 		// an ACL port group is now considered unused.
-		err = OVNPortGroupDeleteIfUnused(d.state, d.logger, client, d.projectName, nil, "", d.info.Name)
+		err = OVNPortGroupDeleteIfUnused(d.state, d.logger, ovnnb, d.projectName, nil, "", d.info.Name)
 		if err != nil {
 			return fmt.Errorf("Failed removing unused OVN port groups: %w", err)
 		}

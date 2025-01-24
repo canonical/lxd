@@ -2552,3 +2552,7 @@ This adds support for listing network zones across all projects using the `all-p
 Adds support for instance root volumes to be attached to other instances as disk
 devices. Introduces the `<type>/<volume>` syntax for the `source` property of
 disk devices.
+
+## `network_ovs_connection`
+
+Introduces a new global configuration key {config:option}`server-miscellaneous:network.ovs.connection` which can be used to override the Open vSwitch connection string.

@@ -21,7 +21,8 @@ import (
 	"github.com/canonical/lxd/lxd/ip"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/network/acl"
-	"github.com/canonical/lxd/lxd/network/openvswitch"
+	"github.com/canonical/lxd/lxd/network/ovn"
+	"github.com/canonical/lxd/lxd/network/ovs"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/util"
@@ -37,7 +38,7 @@ type ovnNet interface {
 
 	InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, externalRoutes []*net.IPNet) error
 	InstanceDevicePortAdd(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
-	InstanceDevicePortStart(opts *network.OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error)
+	InstanceDevicePortStart(opts *network.OVNInstanceNICSetupOpts, securityACLsRemove []string) (ovn.OVNSwitchPort, error)
 	InstanceDevicePortRemove(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
 	InstanceDevicePortIPs(instanceUUID string, deviceName string) ([]net.IP, error)
 }
@@ -448,8 +449,12 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		delete(saveData, "host_name") // Nested NICs don't have a host side interface.
 	} else {
 		if d.config["acceleration"] == "sriov" {
-			ovs := openvswitch.NewOVS()
-			if !ovs.HardwareOffloadingEnabled() {
+			vswitch, err := ovs.NewVSwitch(d.state.LocalConfig.NetworkOVSConnection())
+			if err != nil {
+				return nil, fmt.Errorf("Failed to connect to OVS: %w", err)
+			}
+
+			if !vswitch.HardwareOffloadingEnabled() {
 				return nil, fmt.Errorf("SR-IOV acceleration requires hardware offloading be enabled in OVS")
 			}
 
@@ -495,12 +500,16 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 			integrationBridgeNICName = vfRepresentor
 			peerName = vfDev
 		} else if d.config["acceleration"] == "vdpa" {
-			ovs := openvswitch.NewOVS()
-			if !ovs.HardwareOffloadingEnabled() {
+			vswitch, err := ovs.NewVSwitch(d.state.LocalConfig.NetworkOVSConnection())
+			if err != nil {
+				return nil, fmt.Errorf("Failed to connect to OVS: %w", err)
+			}
+
+			if !vswitch.HardwareOffloadingEnabled() {
 				return nil, fmt.Errorf("SR-IOV acceleration requires hardware offloading be enabled in OVS")
 			}
 
-			err := util.LoadModule("vdpa")
+			err = util.LoadModule("vdpa")
 			if err != nil {
 				return nil, fmt.Errorf("Error loading %q module: %w", "vdpa", err)
 			}
@@ -613,13 +622,17 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
 
 	// Get local chassis ID for chassis group.
-	ovs := openvswitch.NewOVS()
-	chassisID, err := ovs.ChassisID()
+	vswitch, err := ovs.NewVSwitch(d.state.LocalConfig.NetworkOVSConnection())
+	if err != nil {
+		return nil, fmt.Errorf("Failed to connect to OVS: %w", err)
+	}
+
+	chassisID, err := vswitch.ChassisID()
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting OVS Chassis ID: %w", err)
 	}
 
-	ovnClient, err := openvswitch.NewOVN(d.state)
+	ovnClient, err := ovn.NewNB(d.state)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -771,7 +784,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		}
 
 		if len(removedACLs) > 0 {
-			client, err := openvswitch.NewOVN(d.state)
+			client, err := ovn.NewNB(d.state)
 			if err != nil {
 				return fmt.Errorf("Failed to get OVN client: %w", err)
 			}
@@ -834,7 +847,10 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	var err error
 
 	networkVethFillFromVolatile(d.config, v)
-	ovs := openvswitch.NewOVS()
+	vswitch, err := ovs.NewVSwitch(d.state.LocalConfig.NetworkOVSConnection())
+	if err != nil {
+		d.logger.Error("Failed to connect to OVS", logger.Ctx{"err": err})
+	}
 
 	integrationBridgeNICName := d.config["host_name"]
 	if d.config["acceleration"] == "sriov" || d.config["acceleration"] == "vdpa" {
@@ -852,7 +868,7 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 		integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
 		// Detach host-side end of veth pair from OVS integration bridge.
-		err = ovs.BridgePortDelete(integrationBridge, integrationBridgeNICName)
+		err = vswitch.BridgePortDelete(integrationBridge, integrationBridgeNICName)
 		if err != nil {
 			// Don't fail here as we want the postStop hook to run to clean up the local veth pair.
 			d.logger.Error("Failed detaching interface from OVS integration bridge", logger.Ctx{"interface": integrationBridgeNICName, "bridge": integrationBridge, "err": err})
@@ -953,7 +969,7 @@ func (d *nicOVN) Remove() error {
 	// Check for port groups that will become unused (and need deleting) as this NIC is deleted.
 	securityACLs := shared.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
 	if len(securityACLs) > 0 {
-		client, err := openvswitch.NewOVN(d.state)
+		client, err := ovn.NewNB(d.state)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -1098,7 +1114,7 @@ func (d *nicOVN) Register() error {
 	return nil
 }
 
-func (d *nicOVN) setupHostNIC(hostName string, ovnPortName openvswitch.OVNSwitchPort) (revert.Hook, error) {
+func (d *nicOVN) setupHostNIC(hostName string, ovnPortName ovn.OVNSwitchPort) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -1118,16 +1134,20 @@ func (d *nicOVN) setupHostNIC(hostName string, ovnPortName openvswitch.OVNSwitch
 	// Attach host side veth interface to bridge.
 	integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
-	ovs := openvswitch.NewOVS()
-	err = ovs.BridgePortAdd(integrationBridge, hostName, true)
+	vswitch, err := ovs.NewVSwitch(d.state.LocalConfig.NetworkOVSConnection())
+	if err != nil {
+		return nil, fmt.Errorf("Failed to connect to OVS: %w", err)
+	}
+
+	err = vswitch.BridgePortAdd(integrationBridge, hostName, true)
 	if err != nil {
 		return nil, err
 	}
 
-	revert.Add(func() { _ = ovs.BridgePortDelete(integrationBridge, hostName) })
+	revert.Add(func() { _ = vswitch.BridgePortDelete(integrationBridge, hostName) })
 
 	// Link OVS port to OVN logical port.
-	err = ovs.InterfaceAssociateOVNSwitchPort(hostName, ovnPortName)
+	err = vswitch.InterfaceAssociateOVNSwitchPort(hostName, string(ovnPortName))
 	if err != nil {
 		return nil, err
 	}

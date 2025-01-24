@@ -98,6 +98,11 @@ func (c *Config) MAASMachine() string {
 	return c.m.GetString("maas.machine")
 }
 
+// NetworkOVSConnection returns the OVS socket path.
+func (c *Config) NetworkOVSConnection() string {
+	return c.m.GetString("network.ovs.connection")
+}
+
 // StorageBucketsAddress returns the address and port to setup the storage buckets listener on.
 func (c *Config) StorageBucketsAddress() string {
 	objectAddress := c.m.GetString("core.storage_buckets_address")
@@ -261,6 +266,15 @@ var ConfigSchema = config.Schema{
 	//  defaultdesc: host name
 	//  shortdesc: Name of this LXD host in MAAS
 	"maas.machine": {},
+
+	// lxdmeta:generate(entities=server; group=miscellaneous; key=network.ovs.connection)
+	//
+	// ---
+	//  type: string
+	//  scope: local
+	//  defaultdesc: `unix:/run/openvswitch/db.sock`
+	//  shortdesc: OVS socket path
+	"network.ovs.connection": {Default: "unix:/run/openvswitch/db.sock"},
 
 	// Storage volumes to store backups/images on
 

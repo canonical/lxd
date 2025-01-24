@@ -54,6 +54,10 @@ test_network_ovn() {
   reset_row_count
   assert_row_count
 
+  # This assertions tests that the "BridgeExists" function works correctly and can find the integration bridge.
+  # If the OVS package is not able to find the bridge, the "type" field is "unknown" instead of "bridge".
+  [ "$(lxc query /1.0/networks/br-int | jq -er '.type')" = "bridge" ]
+
   lxc config set network.ovn.northbound_connection "${LXD_OVN_NB_CONNECTION}"
 
   # If the connection uses SSL we have more required environment variables.
