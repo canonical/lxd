@@ -372,6 +372,18 @@ func networkZonesPost(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
+// handleNetworkZoneDelete provides the logic for deleting a network zone.
+func handleNetworkZoneDelete(s *state.State, effectiveProjectName string, netzone zone.NetworkZone, requestor *api.EventLifecycleRequestor) error {
+	err := netzone.Delete()
+	if err != nil {
+		return err
+	}
+
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneDeleted.Event(netzone, requestor, nil))
+
+	return nil
+}
+
 // swagger:operation DELETE /1.0/network-zones/{zone} network-zones network_zone_delete
 //
 //	Delete the network zone
@@ -414,12 +426,10 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = netzone.Delete()
+	err = handleNetworkZoneDelete(s, effectiveProjectName, netzone, request.CreateRequestor(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
-
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneDeleted.Event(netzone, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
