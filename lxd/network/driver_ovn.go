@@ -216,7 +216,7 @@ func (n *ovn) projectRestrictedSubnets(p *api.Project, uplinkNetworkName string)
 	return projectRestrictedSubnets, nil
 }
 
-func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRoutes []*net.IPNet, projectRestrictedSubnets []*net.IPNet, validator func(*net.IPNet) (bool, error)) (*net.IPNet, error) {
+func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRoutes []*net.IPNet, projectRestrictedSubnets []*net.IPNet, validator func(*net.IPNet) (bool, error)) (net.IP, error) {
 	// Ensure a sensible deadline is set.
 	_, hasDeadline := ctx.Deadline()
 	var cancel context.CancelFunc = func() {}
@@ -291,7 +291,7 @@ func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRo
 			return nil, fmt.Errorf("Failed to determine an available external address: %w", err)
 		}
 
-		return ParseIPToNet(addressInSubnet.String())
+		return addressInSubnet, nil
 	}
 
 	return nil, fmt.Errorf("Failed to determine an available external address: %w", context.DeadlineExceeded)
