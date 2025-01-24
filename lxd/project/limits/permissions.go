@@ -470,9 +470,10 @@ func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 
 // parseHostIDMapRange parse the supplied list of host ID map ranges into a idmap.IdmapEntry slice.
 func parseHostIDMapRange(isUID bool, isGID bool, listValue string) ([]idmap.IdmapEntry, error) {
-	var idmaps []idmap.IdmapEntry
+	mapRanges := shared.SplitNTrimSpace(listValue, ",", -1, true)
+	idmaps := make([]idmap.IdmapEntry, 0, len(mapRanges))
 
-	for _, listItem := range shared.SplitNTrimSpace(listValue, ",", -1, true) {
+	for _, listItem := range mapRanges {
 		rangeStart, rangeSize, err := validate.ParseUint32Range(listItem)
 		if err != nil {
 			return nil, err
