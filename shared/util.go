@@ -927,6 +927,8 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 			return []byte{}, err
 		}
 
+		path = f.Name()
+
 		revert.Success()
 		revert.Add(func() { _ = os.Remove(path) })
 	} else {
