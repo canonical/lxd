@@ -1148,8 +1148,8 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	// Possibly set a quota on the amount of disk space this project is
 	// allowed to use.
 	var budget int64
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		budget, err = limits.GetImageSpaceBudget(s.GlobalConfig, tx, projectName)
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		budget, err = limits.GetImageSpaceBudget(ctx, s.GlobalConfig, tx, projectName)
 		return err
 	})
 	if err != nil {

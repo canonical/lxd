@@ -294,13 +294,13 @@ func AllowVolumeCreation(ctx context.Context, globalConfig *clusterConfig.Config
 // for writing images.
 //
 // If no limit is in place, return -1.
-func GetImageSpaceBudget(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string) (int64, error) {
+func GetImageSpaceBudget(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string) (int64, error) {
 	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
 	}
 
-	info, err := fetchProject(tx, projectName, true)
+	info, err := fetchProject(ctx, tx, projectName, true)
 	if err != nil {
 		return -1, err
 	}
