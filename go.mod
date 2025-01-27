@@ -3,7 +3,7 @@ module github.com/canonical/lxd
 go 1.23.3
 
 require (
-	github.com/NVIDIA/nvidia-container-toolkit v1.17.3
+	github.com/NVIDIA/nvidia-container-toolkit v1.17.4
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.1.0
 	github.com/canonical/go-dqlite/v3 v3.0.0
@@ -73,7 +73,7 @@ require (
 require (
 	cel.dev/expr v0.19.1 // indirect
 	github.com/NVIDIA/go-nvlib v0.7.0 // indirect
-	github.com/NVIDIA/go-nvml v0.12.4-0 // indirect
+	github.com/NVIDIA/go-nvml v0.12.4-1 // indirect
 	github.com/Yiling-J/theine-go v0.6.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
