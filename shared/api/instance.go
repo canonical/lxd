@@ -108,7 +108,9 @@ type InstancePost struct {
 
 	// Whether snapshots should be discarded (migration only, deprecated, use instance_only)
 	// Example: false
-	ContainerOnly bool `json:"container_only" yaml:"container_only"` // Deprecated, use InstanceOnly.
+	//
+	// Deprecated: use InstanceOnly.
+	ContainerOnly bool `json:"container_only" yaml:"container_only"`
 
 	// Target for the migration, will use pull mode if not set (migration only)
 	Target *InstancePostTarget `json:"target" yaml:"target"`
