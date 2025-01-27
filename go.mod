@@ -3,7 +3,7 @@ module github.com/canonical/lxd
 go 1.23.3
 
 require (
-	github.com/NVIDIA/nvidia-container-toolkit v1.17.3
+	github.com/NVIDIA/nvidia-container-toolkit v1.17.4
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.1.0
 	github.com/canonical/go-dqlite/v2 v2.0.0
