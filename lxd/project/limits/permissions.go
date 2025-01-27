@@ -1005,6 +1005,31 @@ func AllowProfileUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 	return nil
 }
 
+// checkUplinkUse checks if an uplink that is not allowed by project restrictions is in use.
+func checkUplinkUse(ctx context.Context, tx *db.ClusterTx, projectName string, config map[string]string) error {
+	// If project is not restricted or does not have its own networks, no further checks are needed.
+	if shared.IsFalseOrEmpty(config["restricted"]) || shared.IsFalseOrEmpty(config["features.networks"]) {
+		return nil
+	}
+
+	allowedNets := shared.SplitNTrimSpace(config["restricted.networks.uplinks"], ",", -1, false)
+
+	projectNetworks, err := tx.GetCreatedNetworksByProject(ctx, projectName)
+	if err != nil {
+		return err
+	}
+
+	for _, network := range projectNetworks {
+		// Check if uplink in use is allowed.
+		uplinkInUse := network.Config["network"]
+		if uplinkInUse != "" && !shared.ValueInSlice(uplinkInUse, allowedNets) {
+			return fmt.Errorf("Restrictions cannot be enforced as project is already using %q as uplink", uplinkInUse)
+		}
+	}
+
+	return nil
+}
+
 // AllowProjectUpdate checks the new config to be set on a project is valid.
 func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, config map[string]string, changed []string) error {
 	var globalConfigDump map[string]any
