@@ -134,7 +134,7 @@ func devlxdMetadataGetHandler(d *Daemon, inst instance.Instance, w http.Response
 
 	value := inst.ExpandedConfig()["user.meta-data"]
 
-	return response.DevLxdResponse(http.StatusOK, fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", inst.CloudInitID(), inst.Name(), value), "raw", inst.Type() == instancetype.VM)
+	return response.DevLxdResponse(http.StatusOK, fmt.Sprintf("instance-id: %s\nlocal-hostname: %s\n%s", inst.CloudInitID(), inst.Name(), value), "raw", inst.Type() == instancetype.VM)
 }
 
 var devlxdEventsGet = devLxdHandler{
