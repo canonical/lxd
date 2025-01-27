@@ -62,7 +62,7 @@ type Client struct {
 }
 
 // NewClient returns a Client.
-func NewClient(ctx context.Context, u *url.URL, username string, password string, caCert string, instance string, location string, logLevel string, labels []string, types []string) *Client {
+func NewClient(ctx context.Context, u *url.URL, username string, password string, caCert string, instance string, location string, logLevel string, labels []string, types []string) (*Client, error) {
 	client := Client{
 		cfg: config{
 			batchSize: 10 * 1024,
@@ -86,7 +86,7 @@ func NewClient(ctx context.Context, u *url.URL, username string, password string
 	if caCert != "" {
 		tlsConfig, err := shared.GetTLSConfigMem("", "", caCert, "", false)
 		if err != nil {
-			return nil
+			return nil, err
 		}
 
 		client.client.Transport = &http.Transport{
@@ -96,10 +96,22 @@ func NewClient(ctx context.Context, u *url.URL, username string, password string
 		client.client = http.DefaultClient
 	}
 
+	_, ok := ctx.Deadline()
+	if !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, client.cfg.timeout)
+		defer cancel()
+	}
+
+	err := client.checkLoki(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	client.wg.Add(1)
 	go client.run()
 
-	return &client
+	return &client, nil
 }
 
 func (c *Client) run() {
@@ -146,6 +158,36 @@ func (c *Client) run() {
 			batch = newBatch()
 		}
 	}
+}
+
+func (c *Client) checkLoki(ctx context.Context) error {
+	req, err := http.NewRequest("GET", c.cfg.url.String()+"/ready", nil)
+	if err != nil {
+		return err
+	}
+
+	req = req.WithContext(ctx)
+	req.Header.Set("Content-Type", contentType)
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to connect to Loki")
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode/100 != 2 {
+		scanner := bufio.NewScanner(io.LimitReader(resp.Body, maxErrMsgLen))
+		line := ""
+
+		if scanner.Scan() {
+			line = scanner.Text()
+		}
+
+		return fmt.Errorf("Loki is not ready, server returned HTTP status %s (%d): %s", resp.Status, resp.StatusCode, line)
+	}
+
+	return nil
 }
 
 func (c *Client) sendBatch(batch *batch) {
