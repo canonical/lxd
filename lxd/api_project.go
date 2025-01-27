@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -294,7 +295,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the configuration.
-	err = projectValidateConfig(s, project.Config)
+	err = projectValidateConfig(s, project.Config, project.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -682,7 +683,7 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 	}
 
 	// Validate the configuration.
-	err := projectValidateConfig(s, req.Config)
+	err := projectValidateConfig(s, req.Config, project.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -952,6 +953,54 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, &state)
 }
 
+// uplinkIPLimitValidator returns a validator function for uplink IP limits.
+// The protocol argument specifies whether we should validate ipv4 or ipv6.
+func uplinkIPLimitValidator(s *state.State, projectName string, networkName string, protocol string) func(string) error {
+	return func(value string) error {
+		// Perform cheaper checks on the value first.
+		providedIPQuota, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+
+		if providedIPQuota < 0 {
+			return fmt.Errorf("Value must be non-negative")
+		}
+
+		// The results for the quota we are not interested in will be ignored in the end, so
+		// here -1 is used to prevent the quota that is not relevant from stopping UplinkAddressQuotasExceeded
+		// from returning early.
+		IPV4AddressQuota := -1
+		IPV6AddressQuota := -1
+
+		if protocol == "ipv6" {
+			IPV6AddressQuota = providedIPQuota
+		}
+
+		if protocol == "ipv4" {
+			IPV4AddressQuota = providedIPQuota
+		}
+
+		// Check if the provided value is equal or lower to the number of uplink addresses currently in use
+		// on the provided project and in the specified network.
+		// We are only interested on the result for the desired protocol, the other will always come out as true.
+		err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			invalidIPV4Quota, invalidIPV6Quota, err := limits.UplinkAddressQuotasExceeded(ctx, tx, projectName, networkName, IPV4AddressQuota, IPV6AddressQuota)
+			if err != nil {
+				return err
+			}
+
+			if protocol == "ipv4" && invalidIPV4Quota || protocol == "ipv6" && invalidIPV6Quota {
+				return fmt.Errorf("Uplink %s limit %q is below current number of used uplink addresses", protocol, value)
+			}
+
+			return nil
+		})
+
+		return err
+	}
+}
+
 // Check if a project is empty.
 func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.ClusterTx) (bool, error) {
 	instances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: &project.Name})
@@ -1024,7 +1073,7 @@ func isEitherAllowOrBlockOrManaged(value string) error {
 	return validate.Optional(validate.IsOneOf("block", "allow", "managed"))(value)
 }
 
-func projectValidateConfig(s *state.State, config map[string]string) error {
+func projectValidateConfig(s *state.State, config map[string]string, projectName string) error {
 	// Validate the project configuration.
 	projectConfigKeys := map[string]func(value string) error{
 		// lxdmeta:generate(entities=project; group=specific; key=backups.compression_algorithm)
@@ -1412,6 +1461,36 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 	})
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return fmt.Errorf("Failed loading storage pool names: %w", err)
+	}
+
+	// Per-network project limits for uplink IPs only make sense for projects with their own networks.
+	if shared.IsTrue(config["features.networks"]) {
+		// Get networks that are allowed to be used as uplinks by this project.
+		allowedUplinkNetworks, err := network.AllowedUplinkNetworks(s, config)
+		if err != nil {
+			return err
+		}
+
+		// Add network-specific config keys.
+		for _, networkName := range allowedUplinkNetworks {
+			// lxdmeta:generate(entities=project; group=limits; key=limits.networks.uplink_ips.ipv4.NETWORK_NAME)
+			// Maximum number of IPv4 addresses that this project can consume from the specified uplink network.
+			// This number of IPs can be consumed by networks, forwards and load balancers in this project.
+			//
+			// ---
+			//  type: string
+			//  shortdesc: Quota of IPv4 addresses from a specified uplink network that can be used by entities in this project
+			projectConfigKeys["limits.networks.uplink_ips.ipv4."+networkName] = validate.Optional(uplinkIPLimitValidator(s, projectName, networkName, "ipv4"))
+
+			// lxdmeta:generate(entities=project; group=limits; key=limits.networks.uplink_ips.ipv6.NETWORK_NAME)
+			// Maximum number of IPv6 addresses that this project can consume from the specified uplink network.
+			// This number of IPs can be consumed by networks, forwards and load balancers in this project.
+			//
+			// ---
+			//  type: string
+			//  shortdesc: Quota of IPv4 addresses from a specified uplink network that can be used by entities in this project
+			projectConfigKeys["limits.networks.uplink_ips.ipv6."+networkName] = validate.Optional(uplinkIPLimitValidator(s, projectName, networkName, "ipv6"))
+		}
 	}
 
 	for k, v := range config {

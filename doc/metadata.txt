@@ -4053,6 +4053,22 @@ The value is the maximum value for the sum of the individual {config:option}`ins
 
 ```
 
+```{config:option} limits.networks.uplink_ips.ipv4.NETWORK_NAME project-limits
+:shortdesc: "Quota of IPv4 addresses from a specified uplink network that can be used by entities in this project"
+:type: "string"
+Maximum number of IPv4 addresses that this project can consume from the specified uplink network.
+This number of IPs can be consumed by networks, forwards and load balancers in this project.
+
+```
+
+```{config:option} limits.networks.uplink_ips.ipv6.NETWORK_NAME project-limits
+:shortdesc: "Quota of IPv4 addresses from a specified uplink network that can be used by entities in this project"
+:type: "string"
+Maximum number of IPv6 addresses that this project can consume from the specified uplink network.
+This number of IPs can be consumed by networks, forwards and load balancers in this project.
+
+```
+
 ```{config:option} limits.processes project-limits
 :shortdesc: "Maximum number of processes within the project"
 :type: "integer"

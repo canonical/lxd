@@ -4604,6 +4604,20 @@
 						}
 					},
 					{
+						"limits.networks.uplink_ips.ipv4.NETWORK_NAME": {
+							"longdesc": "Maximum number of IPv4 addresses that this project can consume from the specified uplink network.\nThis number of IPs can be consumed by networks, forwards and load balancers in this project.\n",
+							"shortdesc": "Quota of IPv4 addresses from a specified uplink network that can be used by entities in this project",
+							"type": "string"
+						}
+					},
+					{
+						"limits.networks.uplink_ips.ipv6.NETWORK_NAME": {
+							"longdesc": "Maximum number of IPv6 addresses that this project can consume from the specified uplink network.\nThis number of IPs can be consumed by networks, forwards and load balancers in this project.\n",
+							"shortdesc": "Quota of IPv4 addresses from a specified uplink network that can be used by entities in this project",
+							"type": "string"
+						}
+					},
+					{
 						"limits.processes": {
 							"longdesc": "This value is the maximum value for the sum of the individual {config:option}`instance-resource-limits:limits.processes` configurations set on the instances of the project.",
 							"shortdesc": "Maximum number of processes within the project",
