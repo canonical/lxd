@@ -977,8 +977,8 @@ func AllowVolumeUpdate(ctx context.Context, globalConfig *clusterConfig.Config, 
 
 // AllowProfileUpdate checks that project limits and restrictions are not
 // violated when changing a profile.
-func AllowProfileUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, profileName string, req api.ProfilePut) error {
-	info, err := fetchProject(tx, projectName, true)
+func AllowProfileUpdate(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, profileName string, req api.ProfilePut) error {
+	info, err := fetchProject(ctx, tx, projectName, true)
 	if err != nil {
 		return err
 	}
