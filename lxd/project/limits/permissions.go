@@ -1051,6 +1051,14 @@ func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 	// instances.
 	aggregateKeys := []string{}
 
+	// This checks if restricted uplinks are used within this project.
+	// This is done separately because this may require getting network info from the database and
+	// restricted.networks.uplinks is an allowlist, so restrictions are enforced even if it is not set.
+	err = checkUplinkUse(ctx, tx, projectName, config)
+	if err != nil {
+		return err
+	}
+
 	for _, key := range changed {
 		if strings.HasPrefix(key, "restricted.") {
 			project := api.Project{
