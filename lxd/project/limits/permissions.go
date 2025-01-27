@@ -1211,8 +1211,7 @@ type projectInfo struct {
 // If the skipIfNoLimits flag is true, then profiles, instances and volumes
 // won't be loaded if the profile has no limits set on it, and nil will be
 // returned.
-func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
-	ctx := context.Background()
+func fetchProject(ctx context.Context, tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
 	dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
 	if err != nil {
 		return nil, fmt.Errorf("Fetch project database object: %w", err)
