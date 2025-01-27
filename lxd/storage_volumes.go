@@ -2161,7 +2161,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		if req.Config != nil || req.Restore == "" {
 			// Possibly check if project limits are honored.
 			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return limits.AllowVolumeUpdate(s.GlobalConfig, tx, effectiveProjectName, details.volumeName, req, dbVolume.Config)
+				return limits.AllowVolumeUpdate(ctx, s.GlobalConfig, tx, effectiveProjectName, details.volumeName, req, dbVolume.Config)
 			})
 			if err != nil {
 				return response.SmartError(err)
