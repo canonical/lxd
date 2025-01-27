@@ -740,7 +740,9 @@ func BTRFSSubVolumeMakeRo(path string) error {
 	return err
 }
 
-// BTRFSSubVolumeMakeRw makes a sub volume read/write. Deprecated use btrfs.setSubvolumeReadonlyProperty().
+// BTRFSSubVolumeMakeRw makes a sub volume read/write.
+//
+// Deprecated: Use btrfs.setSubvolumeReadonlyProperty().
 func BTRFSSubVolumeMakeRw(path string) error {
 	_, err := shared.RunCommand("btrfs", "property", "set", "-ts", path, "ro", "false")
 	return err
