@@ -82,12 +82,6 @@ type ClusterPut struct {
 	// API extension: clustering_join
 	ServerAddress string `json:"server_address" yaml:"server_address"`
 
-	// The trust password of the cluster you're trying to join (deprecated, use cluster_token)
-	// Example: blah
-	//
-	// API extension: clustering_join
-	ClusterPassword string `json:"cluster_password" yaml:"cluster_password"` // Deprecated, use ClusterToken.
-
 	// The cluster join token for the cluster you're trying to join
 	// Example: blah
 	//
