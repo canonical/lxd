@@ -272,7 +272,15 @@ test_network_ovn() {
   ! lxc project set testovn restricted true || false
   lxc project unset testovn limits.networks.uplink_ips.ipv4."${uplink_network}"
   lxc project unset testovn limits.networks.uplink_ips.ipv6."${uplink_network}"
+
+  # Cannot restrict a project that is using a forbidden uplink.
+  lxc network create restriction-test network="${uplink_network}" --project testovn
+  ! lxc project set testovn restricted true || false
+  lxc project set testovn restricted.networks.uplinks="${uplink_network}"
   lxc project set testovn restricted true
+  ! lxc project unset testovn restricted.networks.uplinks="${uplink_network}" || false
+  lxc network delete restriction-test --project testovn
+  lxc project unset testovn restricted.networks.uplinks
 
   # We cannot set uplink IP limits on a restricted project unless the target network is in its allowed uplinks.
   ! lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}" 1 || false
