@@ -165,11 +165,12 @@ func (d *btrfs) getSubvolumes(path string) ([]string, error) {
 				continue
 			}
 
-			if !strings.HasPrefix(fields[8], path) {
+			subvolPath, found := strings.CutPrefix(fields[8], path)
+			if !found {
 				continue
 			}
 
-			result = append(result, strings.TrimPrefix(fields[8], path))
+			result = append(result, subvolPath)
 		}
 	}
 
