@@ -430,7 +430,9 @@ type InstanceSource struct {
 
 	// Whether the copy should skip the snapshots (for copy, deprecated, use instance_only)
 	// Example: false
-	ContainerOnly bool `json:"container_only,omitempty" yaml:"container_only,omitempty"` // Deprecated, use InstanceOnly.
+	//
+	// Deprecated: Use InstanceOnly.
+	ContainerOnly bool `json:"container_only,omitempty" yaml:"container_only,omitempty"`
 
 	// Whether this is refreshing an existing instance (for migration and copy)
 	// Example: false
