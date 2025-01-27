@@ -1661,3 +1661,100 @@ func CheckTarget(ctx context.Context, authorizer auth.Authorizer, r *http.Reques
 
 	return nil, "", nil
 }
+
+// uplinkIPLimits is a type used to help check uplink IP quota usage.
+type uplinkIPLimits struct {
+	quotaIPV4         int
+	quotaIPV6         int
+	usedIPV4Addresses int
+	usedIPV6Addresses int
+}
+
+func (q *uplinkIPLimits) increment(incrementIPV4 bool, incrementIPV6 bool) {
+	if incrementIPV4 {
+		q.usedIPV4Addresses++
+	}
+
+	if incrementIPV6 {
+		q.usedIPV6Addresses++
+	}
+}
+
+func (q *uplinkIPLimits) hasExceeded() bool {
+	return q.usedIPV4Addresses > q.quotaIPV4 && q.usedIPV6Addresses > q.quotaIPV6
+}
+
+// UplinkAddressQuotasExceeded checks whether the number of current uplink addresses used in project
+// projectName on network networkName is higher than their provided quota for each IP protocol.
+// Uplink addresses can be consumed by load balancers, network forwards and networks.
+// For simplicity, this function assumes both limits are provided and returns early if both provided
+// quotas are exceeded. So if one of the limits is not of the caller's interest, -1 should be provided
+// and the result for that protocol should be ignored.
+func UplinkAddressQuotasExceeded(ctx context.Context, tx *db.ClusterTx, projectName string, networkName string, uplinkIPV4Quota int, uplinkIPV6Quota int) (V4QuotaExceeded bool, V6QuotaExceeded bool, err error) {
+	quotas := uplinkIPLimits{
+		quotaIPV4: uplinkIPV4Quota,
+		quotaIPV6: uplinkIPV6Quota,
+	}
+
+	// If both provided quotas are below 0, return right away.
+	if quotas.hasExceeded() {
+		return true, true, nil
+	}
+
+	// First count uplink addresses for other networks.
+	projectNetworks, err := tx.GetCreatedNetworksByProject(ctx, projectName)
+	if err != nil {
+		return false, false, nil
+	}
+
+	for _, network := range projectNetworks {
+		// Check if each network is using our target network as an uplink.
+		if network.Config["network"] == networkName {
+			_, hasIPV6 := network.Config["volatile.network.ipv6.address"]
+			_, hasIPV4 := network.Config["volatile.network.ipv4.address"]
+			quotas.increment(hasIPV4, hasIPV6)
+			if quotas.hasExceeded() {
+				return true, true, nil
+			}
+		}
+	}
+
+	// Count listen addresses for network forwards.
+	forwardListenAddressesMap, err := tx.GetProjectNetworkForwardListenAddressesByUplink(ctx, networkName, false)
+	if err != nil {
+		return false, false, err
+	}
+
+	// Iterate through each network on the provided project while counting the uplink addresses used by their
+	// network forwards.
+	for _, addresses := range forwardListenAddressesMap[projectName] {
+		for _, address := range addresses {
+			isIPV6 := validate.IsNetworkAddressV6(address) == nil
+			quotas.increment(!isIPV6, isIPV6)
+			if quotas.hasExceeded() {
+				return true, true, nil
+			}
+		}
+	}
+
+	// Count listen addresses for load balancers.
+	loadBalancerAddressesMap, err := tx.GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx, networkName, false)
+	if err != nil {
+		return false, false, err
+	}
+
+	// Iterate through each network on the provided project while counting the uplink addresses used by their
+	// load balancers.
+	for _, addresses := range loadBalancerAddressesMap[projectName] {
+		for _, address := range addresses {
+			isIPV6 := validate.IsNetworkAddressV6(address) == nil
+			quotas.increment(!isIPV6, isIPV6)
+			if quotas.hasExceeded() {
+				return true, true, nil
+			}
+		}
+	}
+
+	// At least one of the quotas were not exceeded.
+	return quotas.usedIPV4Addresses > quotas.quotaIPV4, quotas.usedIPV6Addresses > quotas.quotaIPV6, err
+}
