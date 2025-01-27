@@ -56,8 +56,8 @@ func HiddenStoragePools(ctx context.Context, tx *db.ClusterTx, projectName strin
 
 // AllowInstanceCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new instance.
-func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
-	info, err := fetchProject(tx, projectName, true)
+func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
+	info, err := fetchProject(ctx, tx, projectName, true)
 	if err != nil {
 		return err
 	}
