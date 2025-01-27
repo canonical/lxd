@@ -260,8 +260,8 @@ func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instanc
 
 // AllowVolumeCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new custom volume in a project.
-func AllowVolumeCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, poolName string, req api.StorageVolumesPost) error {
-	info, err := fetchProject(tx, projectName, true)
+func AllowVolumeCreation(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, poolName string, req api.StorageVolumesPost) error {
+	info, err := fetchProject(ctx, tx, projectName, true)
 	if err != nil {
 		return err
 	}
