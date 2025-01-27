@@ -1006,13 +1006,13 @@ func AllowProfileUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 }
 
 // AllowProjectUpdate checks the new config to be set on a project is valid.
-func AllowProjectUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, config map[string]string, changed []string) error {
+func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, config map[string]string, changed []string) error {
 	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
 	}
 
-	info, err := fetchProject(tx, projectName, false)
+	info, err := fetchProject(ctx, tx, projectName, false)
 	if err != nil {
 		return err
 	}
