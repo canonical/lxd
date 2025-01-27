@@ -711,7 +711,8 @@ func BTRFSSubVolumesGet(path string) ([]string, error) {
 		}
 
 		// Check if a btrfs subvolume.
-		if btrfsIsSubVolume(fpath) {
+		d := &btrfs{}
+		if d.isSubvolume(fpath) {
 			result = append(result, strings.TrimPrefix(fpath, path))
 		}
 
@@ -719,24 +720,6 @@ func BTRFSSubVolumesGet(path string) ([]string, error) {
 	})
 
 	return result, nil
-}
-
-// btrfsIsSubvolume checks if a given path is a subvolume.
-//
-// Deprecated: Use IsSubvolume from the Btrfs driver instead.
-func btrfsIsSubVolume(subvolPath string) bool {
-	fs := unix.Stat_t{}
-	err := unix.Lstat(subvolPath, &fs)
-	if err != nil {
-		return false
-	}
-
-	// Check if BTRFS_FIRST_FREE_OBJECTID
-	if fs.Ino != 256 {
-		return false
-	}
-
-	return true
 }
 
 // BTRFSSubVolumeIsRo returns if subvolume is read only.
