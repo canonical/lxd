@@ -513,7 +513,7 @@ func (o *Verifier) getCookies(r *http.Request) (sessionIDPtr *uuid.UUID, idToken
 
 // setCookies encrypts the session, ID, and refresh tokens and sets them in the HTTP response. Cookies are only set if they are
 // non-empty. If delete is true, the values are set to empty strings and the cookie expiry is set to unix zero time.
-func (*Verifier) setCookies(w http.ResponseWriter, secureCookie *securecookie.SecureCookie, sessionID uuid.UUID, idToken string, refreshToken string, delete bool) error {
+func (*Verifier) setCookies(w http.ResponseWriter, secureCookie *securecookie.SecureCookie, sessionID uuid.UUID, idToken string, refreshToken string, deleteCookies bool) error {
 	idTokenCookie := http.Cookie{
 		Name:     cookieNameIDToken,
 		Path:     "/",
@@ -538,7 +538,7 @@ func (*Verifier) setCookies(w http.ResponseWriter, secureCookie *securecookie.Se
 		SameSite: http.SameSiteStrictMode,
 	}
 
-	if delete {
+	if deleteCookies {
 		idTokenCookie.Expires = time.Unix(0, 0)
 		refreshTokenCookie.Expires = time.Unix(0, 0)
 		sessionIDCookie.Expires = time.Unix(0, 0)
