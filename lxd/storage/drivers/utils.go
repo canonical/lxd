@@ -659,7 +659,7 @@ func UnshiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet) error {
 func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error {
 	var err error
 	roSubvols := []string{}
-	subvols, _ := BTRFSSubVolumesGet(path)
+	subvols, _ := btrfsSubVolumesGet(path)
 	sort.Strings(subvols)
 	for _, subvol := range subvols {
 		subvol = filepath.Join(path, subvol)
@@ -685,8 +685,8 @@ func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error 
 	return err
 }
 
-// BTRFSSubVolumesGet gets subvolumes.
-func BTRFSSubVolumesGet(path string) ([]string, error) {
+// btrfsSubVolumesGet gets subvolumes.
+func btrfsSubVolumesGet(path string) ([]string, error) {
 	result := []string{}
 
 	if !strings.HasSuffix(path, "/") {
