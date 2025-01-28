@@ -41,7 +41,10 @@ Example:
 
     lxc config set cluster.max_voters 5
 
-Keep in mind that some {ref}`server configuration options <server>` are global and others are local.
+All LXD {ref}`server configuration options <server>` can be applied to cluster members. 
+
+Keep in mind that some options are global in scope, and others are local. When you configure an option with global scope on any cluster member, the changes are propagated to the other cluster members through the distributed database. The locally scoped options are set only on the cluster member where you configure them, unless you use the `--target` flag to specify a different cluster member.
+
 In addition to the server configuration, there are {ref}`cluster member configuration options <cluster-member-config>` that are specific to each cluster member. To set these configuration values, use [`lxc cluster set`](lxc_cluster_set.md):
 
     lxc cluster set <member-name> <member-config-option> <value>
