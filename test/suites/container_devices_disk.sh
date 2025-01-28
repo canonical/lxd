@@ -85,6 +85,42 @@ _container_devices_disk_shift() {
   [ "$(lxc exec foo-isol1 -- stat /mnt/a -c '%u:%g')" = "123:456" ]
   [ "$(lxc exec foo-isol2 -- stat /mnt/a -c '%u:%g')" = "123:456" ]
 
+  mkdir -p "${TEST_DIR}/empty-dir"
+  lxc exec foo -- mkdir /opt
+  lxc config device add foo empty-dir disk source="${TEST_DIR}/empty-dir" path=/opt
+  # Check that no `volatile.<deviceName>.last_state.created` has been set.
+  if [ -n "$(lxc config get foo volatile.empty-dir.last_state.created)" ]; then
+    echo "==> volatile.<deviceName>.last_state.created should not be set"
+    false
+  fi
+
+  lxc config device remove foo empty-dir
+  lxc exec foo -- stat /opt # /opt is not removed as it was not created by LXD.
+
+  lxc exec foo -- mkdir -p /tmp/empty-dir # Create a new directory to check that it is not removed when unmounting the disk.
+  lxc config device add foo empty-dir disk source="${TEST_DIR}/empty-dir" path=/tmp/empty-dir
+  # Check that no `volatile.<deviceName>.last_state.created` has been set.
+  if [ -n "$(lxc config get foo volatile.empty-dir.last_state.created)" ]; then
+    echo "==> volatile.<deviceName>.last_state.created should not be set"
+    false
+  fi
+
+  lxc config device remove foo empty-dir
+  lxc exec foo -- stat /tmp/empty-dir
+
+  lxc config device add foo empty-dir disk source="${TEST_DIR}/empty-dir" path=/tmp/new-dir-parent/new-dir-child # /tmp/new-dir-parent/new-dir-child is created by LXD.
+  # Check that the volatile.<deviceName>.last_state.created is set.
+  targetPath=$(lxc config get foo volatile.empty-dir.last_state.created)
+  if [ "${targetPath}" != "/tmp/./new-dir-parent/new-dir-child" ]; then
+    echo "==> volatile.<deviceName>.last_state.created is not set to the correct value"
+    false
+  fi
+
+  lxc config device remove foo empty-dir
+  ! lxc exec foo -- stat /tmp/new-dir-parent/new-dir-child || false # /tmp/new-dir-parent/new-dir-child is removed as it was created by LXD.
+  ! lxc exec foo -- stat /tmp/new-dir-parent || false # /tmp/new-dir-parent is removed as it was created by LXD.
+  rm -rf "${TEST_DIR}/empty-dir"
+
   lxc delete -f foo-priv foo-isol1 foo-isol2
   lxc config device remove foo shifted
   lxc storage volume delete "${POOL}" foo-shift

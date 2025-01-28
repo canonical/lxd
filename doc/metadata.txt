@@ -2425,6 +2425,14 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 
 <!-- config group instance-snapshots end -->
 <!-- config group instance-volatile start -->
+```{config:option} volatile.<disk_dev_name>.last_state.created instance-volatile
+:shortdesc: "Path of the directory created from mounting a `disk` device"
+:type: "string"
+If mounting a host directory through a `disk` device creates the target directory, this option contains the path of this newly created target directory.
+For example, if the target directory is `/opt` and `/opt` already exists in the instance, this key is not set.
+However, if the target directory is `/opt/foo` and `/opt/foo` doesn't exist in the instance, this key is set to `/opt/foo`.
+```
+
 ```{config:option} volatile.<name>.apply_quota instance-volatile
 :shortdesc: "Disk quota"
 :type: "string"

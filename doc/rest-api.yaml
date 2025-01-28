@@ -1,4 +1,29 @@
 definitions:
+    AgentDeviceRemove:
+        properties:
+            config:
+                additionalProperties:
+                    type: string
+                description: Device configuration map
+                type: object
+                x-go-name: Config
+            name:
+                description: Device name
+                type: string
+                x-go-name: Name
+            type:
+                description: Type of device ('disk', 'nic', etc.)
+                type: string
+                x-go-name: Type
+            volatile:
+                additionalProperties:
+                    type: string
+                description: Optional device volatile configuration keys
+                type: object
+                x-go-name: Volatile
+        title: AgentDeviceRemove represents the fields of an device removal request that needs to occur inside the VM agent.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     AuthGroup:
         properties:
             description:

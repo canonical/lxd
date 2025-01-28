@@ -2557,3 +2557,7 @@ disk devices.
 
 Introduces per-project uplink IP limits for each available uplink network, adding `limits.networks.uplink_ips.ipv4.NETWORK_NAME` and `limits.networks.uplink_ips.ipv6.NETWORK_NAME` configuration keys for projects with `features.networks` enabled.
 These keys define the maximum value of IPs made available on a network named NETWORK_NAME to be assigned as uplink IPs for entities inside a certain project. These entities can be other networks, network forwards or load balancers.
+
+## `disk_state_created`
+
+This API extension provides the ability to check if a target directory was created within the instance file system at mount time. If a host directory is mounted to an existing container directory (e.g., `/opt`), the target directory won't be removed upon unmounting. However, if LXD creates a target directory during the mount, like `/new_dir`, it will be deleted when the device is unmounted.
