@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -604,6 +605,15 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 
 			defer cleanup()
 
+			// Always wait for the disk to reflect the new size.
+			// In case SetVolumeQuota is called on an already mapped volume,
+			// it might take some time until the actual size of the device is reflected on the host.
+			// This is for example the case when creating a volume and the filler performs a resize in case the image exceeds the volume's size.
+			err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+			if err != nil {
+				return fmt.Errorf("Failed waiting for volume %q to change its size: %w", vol.name, err)
+			}
+
 			// Grow the filesystem to fill block device.
 			err = growFileSystem(fsType, devPath, vol)
 			if err != nil {
@@ -632,6 +642,11 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 		}
 
 		defer cleanup()
+
+		err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+		if err != nil {
+			return fmt.Errorf("Failed waiting for volume %q to change its size: %w", vol.name, err)
+		}
 
 		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
 		// expected the caller will do all necessary post resize actions themselves).
