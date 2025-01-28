@@ -77,7 +77,7 @@ To configure `cloud-init` for an instance, add the corresponding configuration o
 When configuring `cloud-init` directly for an instance, keep in mind that `cloud-init` runs only on instance start.
 That means any changes to `cloud-init` configuration will only take effect after the next instance start.
 Some configuration options only take effect on the first boot of an instance. If `cloud-init` notices that an
-instance's `instance-id` has changed, it behaves as it this was the instance's first boot. For more information, see
+instance's `instance-id` has changed, it behaves as if this was the instance's first boot. For more information, see
 the [cloud-init docs](https://docs.cloud-init.io/en/latest/explanation/first_boot.html#first-boot-determination)
 If you are using the CLI client, create the instance with [`lxc init`](lxc_init.md) instead of [`lxc launch`](lxc_launch.md), and then start it after completing the configuration.
 
