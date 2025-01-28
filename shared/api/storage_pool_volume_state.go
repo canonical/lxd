@@ -18,7 +18,7 @@ type StorageVolumeState struct {
 type StorageVolumeStateUsage struct {
 	// Used space in bytes. Uses 0 to indicate that the storage driver for the pool does not support retrieving volume usage.
 	// Example: 1693552640
-	Used uint64 `json:"used,omitempty" yaml:"used,omitempty"`
+	Used uint64 `json:"used" yaml:"used"`
 
 	// Storage volume size in bytes. Uses 0 to convey that the volume has access to the entire pool's storage.
 	// Example: 5189222192
