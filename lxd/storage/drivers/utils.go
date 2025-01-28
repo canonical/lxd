@@ -665,7 +665,7 @@ func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error 
 	for _, subvol := range subvols {
 		subvol = filepath.Join(path, subvol)
 
-		if !BTRFSSubVolumeIsRo(subvol) {
+		if !btrfsSubVolumeIsRo(subvol) {
 			continue
 		}
 
@@ -724,8 +724,8 @@ func btrfsSubVolumesGet(path string) ([]string, error) {
 	return result, nil
 }
 
-// BTRFSSubVolumeIsRo returns if subvolume is read only.
-func BTRFSSubVolumeIsRo(path string) bool {
+// btrfsSubVolumeIsRo returns if subvolume is read only.
+func btrfsSubVolumeIsRo(path string) bool {
 	output, err := shared.RunCommand("btrfs", "property", "get", "-ts", path)
 	if err != nil {
 		return false
