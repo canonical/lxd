@@ -16,7 +16,7 @@ func GetCurrentAllocations(globalConfig map[string]any, ctx context.Context, tx 
 	result := map[string]api.ProjectStateResource{}
 
 	// Get the project.
-	info, err := fetchProject(tx, projectName, false)
+	info, err := fetchProject(ctx, tx, projectName, false)
 	if err != nil {
 		return nil, err
 	}
