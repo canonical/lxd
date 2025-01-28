@@ -1289,7 +1289,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 				parentPath = filepath.Join(parentPrefix, subVolume.Path)
 
 				// Set parent subvolume readonly if needed so we can send the subvolume.
-				if !BTRFSSubVolumeIsRo(parentPath) {
+				if !btrfsSubVolumeIsRo(parentPath) {
 					err := d.setSubvolumeReadonlyProperty(parentPath, true)
 					if err != nil {
 						return err
@@ -1301,7 +1301,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 
 			// Set subvolume readonly if needed so we can send it.
 			sourcePath := filepath.Join(sourcePrefix, subVolume.Path)
-			if !BTRFSSubVolumeIsRo(sourcePath) {
+			if !btrfsSubVolumeIsRo(sourcePath) {
 				err := d.setSubvolumeReadonlyProperty(sourcePath, true)
 				if err != nil {
 					return err
@@ -1524,7 +1524,7 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 				parentPath = filepath.Join(parentPrefix, subVolume.Path)
 
 				// Set parent subvolume readonly if needed so we can add the subvolume.
-				if !BTRFSSubVolumeIsRo(parentPath) {
+				if !btrfsSubVolumeIsRo(parentPath) {
 					err = d.setSubvolumeReadonlyProperty(parentPath, true)
 					if err != nil {
 						return err
@@ -1536,7 +1536,7 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 
 			// Set subvolume readonly if needed so we can add it.
 			sourcePath := filepath.Join(sourcePrefix, subVolume.Path)
-			if !BTRFSSubVolumeIsRo(sourcePath) {
+			if !btrfsSubVolumeIsRo(sourcePath) {
 				err = d.setSubvolumeReadonlyProperty(sourcePath, true)
 				if err != nil {
 					return err
