@@ -227,7 +227,7 @@ sudo apt install btrfs-progs
 To run the test suite, you'll also need:
 
 ```bash
-sudo apt install busybox-static curl gettext jq sqlite3 socat bind9-dnsutils
+sudo apt install busybox-static curl gettext jq sqlite3 socat swtpm bind9-dnsutils
 ```
 
 ### From source: Build the latest version
