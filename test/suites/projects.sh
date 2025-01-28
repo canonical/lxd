@@ -307,6 +307,9 @@ test_projects_profiles() {
   lxc project switch default
   ! lxc profile list | grep -q 'p1' || false
 
+  # The profile is visible in the default project when --all-projects is used
+  lxc profile list --all-projects | grep -q 'p1'
+
   # A profile with the same name can be created in the default project
   lxc profile create p1
 
