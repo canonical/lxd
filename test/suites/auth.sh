@@ -688,6 +688,7 @@ user_is_not_project_operator() {
 
   # Should not be able to see or create profiles.
   [ "$(lxc_remote profile list "${remote}:" -f csv | wc -l)" = 0 ]
+  [ "$(lxc_remote profile list "${remote}:" -f csv --all-projects)" = "" ]
   ! lxc_remote profile create "${remote}:test-profile" || false
 
   # Should not be able to see or create image aliases
@@ -776,6 +777,7 @@ auth_project_features() {
   # the lists should be empty
   [ "$(lxc_remote list "${remote}:" --project default --format csv)" = "" ]
   [ "$(lxc_remote profile list "${remote}:" --project default --format csv)" = "" ]
+  [ "$(lxc_remote profile list "${remote}:" --all-projects --format csv)" = "" ]
   [ "$(lxc_remote network list "${remote}:" --project default --format csv)" = "" ]
   [ "$(lxc_remote operation list "${remote}:" --project default --format csv)" = "" ]
   [ "$(lxc_remote network zone list "${remote}:" --project default --format csv)" = "" ]
@@ -979,6 +981,9 @@ auth_project_features() {
   # The profile we created in the default project is not visible in project blah.
   ! lxc_remote profile show "${remote}:${profileName}" --project blah || false
   ! lxc_remote profile list "${remote}:" --project blah | grep -F "${profileName}" || false
+  lxc project switch blah
+  ! lxc_remote profile list "${remote}:" --all-projects | grep -F "${profileName}" || false
+  lxc project switch default
 
   # Grant members of test-group permission to view profiles in the default project
   lxc auth group permission add test-group project default can_view_profiles
