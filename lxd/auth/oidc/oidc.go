@@ -440,16 +440,21 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 // setAccessTokenVerifier sets the accessTokenVerifier on the Verifier. It uses the oidc.KeySet from the relyingParty if
 // it is set, otherwise it calls the discovery endpoint (/.well-known/openid-configuration).
 func (o *Verifier) setAccessTokenVerifier(ctx context.Context) error {
+	httpClient, err := o.httpClientFunc()
+	if err != nil {
+		return err
+	}
+
 	var keySet oidc.KeySet
 	if o.relyingParty != nil {
 		keySet = o.relyingParty.IDTokenVerifier().KeySet
 	} else {
-		discoveryConfig, err := client.Discover(ctx, o.issuer, http.DefaultClient)
+		discoveryConfig, err := client.Discover(ctx, o.issuer, httpClient)
 		if err != nil {
 			return fmt.Errorf("Failed calling OIDC discovery endpoint: %w", err)
 		}
 
-		keySet = rp.NewRemoteKeySet(http.DefaultClient, discoveryConfig.JwksURI)
+		keySet = rp.NewRemoteKeySet(httpClient, discoveryConfig.JwksURI)
 	}
 
 	o.accessTokenVerifier = op.NewAccessTokenVerifier(o.issuer, keySet)
