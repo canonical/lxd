@@ -102,6 +102,8 @@ type CertificatePut struct {
 //
 // swagger:model
 type Certificate struct {
+	WithEntitlements `yaml:",inline"`
+
 	// Name associated with the certificate
 	// Example: castiana
 	Name string `json:"name" yaml:"name"`

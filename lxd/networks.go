@@ -251,6 +251,10 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 
 	recursion := util.IsRecursionRequest(r)
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeNetwork, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// networks holds the network names of the managed and unmanaged networks. They are in two different slices so that
 	// we can perform access control checks differently.
@@ -308,6 +312,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 
 	resultString := []string{}
 	resultMap := []api.Network{}
+	urlToNetwork := make(map[*api.URL]auth.EntitlementReporter)
 	for kind, networkNames := range networks {
 		for _, networkName := range networkNames {
 			// Filter out managed networks that the caller doesn't have permission to view.
@@ -324,12 +329,20 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 				}
 
 				resultMap = append(resultMap, net)
+				urlToNetwork[entity.NetworkURL(requestProjectName, networkName)] = &net
 			}
 		}
 	}
 
 	if !recursion {
 		return response.SyncResponse(true, resultString)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeNetwork, withEntitlements, urlToNetwork)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponse(true, resultMap)
@@ -892,6 +905,11 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeNetwork, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -905,6 +923,13 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 	n, err := doNetworkGet(s, r, allNodes, details.requestProject.Name, details.requestProject.Config, details.networkName)
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeNetwork, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.NetworkURL(details.requestProject.Name, details.networkName): &n})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	etag := []any{n.Name, n.Managed, n.Type, n.Description, n.Config}

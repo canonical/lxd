@@ -250,6 +250,12 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := request.QueryParam(r, "project")
 	allProjects := shared.IsTrue(r.FormValue("all-projects"))
 
+	// Detect if we want to also return entitlements for each instance.
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeInstance, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	if allProjects && projectName != "" {
 		return response.BadRequest(fmt.Errorf("Cannot specify a project when requesting all projects"))
 	} else if !allProjects && projectName == "" {
@@ -508,6 +514,19 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		return response.SyncResponse(true, resultList)
+	}
+
+	if len(withEntitlements) > 0 {
+		urlToInstance := make(map[*api.URL]auth.EntitlementReporter, len(resultFullList))
+		for _, res := range resultFullList {
+			u := entity.InstanceURL(res.Project, res.Name)
+			urlToInstance[u] = res
+		}
+
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeInstance, withEntitlements, urlToInstance)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	if recursion == 1 {

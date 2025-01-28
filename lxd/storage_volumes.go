@@ -623,6 +623,12 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Detect if we want to also return entitlements for each volume.
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStorageVolume, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Check if current route is in /1.0/storage-volumes
 	allPools := poolName == ""
 
@@ -814,6 +820,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 	if util.IsRecursionRequest(r) {
 		volumes := make([]*api.StorageVolume, 0, len(dbVolumes))
+		urlToVolume := make(map[*api.URL]auth.EntitlementReporter)
 		for _, dbVol := range dbVolumes {
 			vol := &dbVol.StorageVolume
 
@@ -833,6 +840,14 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			volumes = append(volumes, vol)
+			urlToVolume[entity.StorageVolumeURL(vol.Project, vol.Location, vol.Pool, vol.Type, vol.Name)] = vol
+		}
+
+		if len(withEntitlements) > 0 {
+			err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStorageVolume, withEntitlements, urlToVolume)
+			if err != nil {
+				return response.SmartError(err)
+			}
 		}
 
 		return response.SyncResponse(true, volumes)
@@ -2016,6 +2031,12 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Detect if we want to also return entitlements for each volume.
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStorageVolume, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
@@ -2043,6 +2064,13 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	dbVolume.UsedBy = project.FilterUsedBy(s.Authorizer, r, volumeUsedBy)
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStorageVolume, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.StorageVolumeURL(dbVolume.Project, dbVolume.Location, dbVolume.Pool, dbVolume.Type, dbVolume.Name): dbVolume})
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
 
 	etag := []any{details.volumeName, dbVolume.Type, dbVolume.Config}
 

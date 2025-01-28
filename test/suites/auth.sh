@@ -138,7 +138,8 @@ test_authorization() {
   lxc auth identity list --format csv | grep -Fq "tls,Client certificate,test-user,${tls_identity_fingerprint},test-group"
 
   # Test `lxc auth identity info`
-  expectedOIDCInfo='authentication_method: oidc
+  expectedOIDCInfo='access_entitlements: []
+authentication_method: oidc
 type: OIDC client
 id: test-user@example.com
 name: '"'"' '"'"'
@@ -147,10 +148,13 @@ groups:
 tls_certificate: ""
 effective_groups:
 - test-group
-effective_permissions: []'
+effective_permissions: []
+fine_grained: true'
+
   [ "$(lxc auth identity info oidc:)" = "${expectedOIDCInfo}" ]
 
-  expectedTLSInfo="authentication_method: tls
+  expectedTLSInfo="access_entitlements: []
+authentication_method: tls
 type: Client certificate
 id: ${tls_identity_fingerprint}
 name: test-user
@@ -160,9 +164,10 @@ tls_certificate: |
 $(awk '{printf "  %s\n", $0}' "${LXD_CONF2}/client.crt")
 effective_groups:
 - test-group
-effective_permissions: []"
-  [ "$(LXD_CONF="${LXD_CONF2}" lxc auth identity info tls:)" = "${expectedTLSInfo}" ]
+effective_permissions: []
+fine_grained: true"
 
+  [ "$(LXD_CONF="${LXD_CONF2}" lxc auth identity info tls:)" = "${expectedTLSInfo}" ]
 
   # Identity permissions.
   ! lxc auth group permission add test-group identity test-user@example.com can_view || false # Missing authentication method
@@ -274,6 +279,46 @@ effective_permissions: []"
   [ "$(LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "trusted" ]
   [ "$(LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "untrusted" ]
 
+  # Check that an unrestricted client certificate is not fine grained.
+  LXD_CONF6=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF6}" gen_cert_and_key "unrestricted"
+  lxdconf6_fingerprint_short="$(cert_fingerprint "${LXD_CONF6}/unrestricted.crt" | head -c12)"
+  lxc config trust add "${LXD_CONF6}/unrestricted.crt"
+  lxc config trust show "${lxdconf6_fingerprint_short}" | grep -xF "restricted: false"
+  [ "$(LXD_CONF="${LXD_CONF6}" CERTNAME=unrestricted my_curl -X GET "https://${LXD_ADDR}/1.0/auth/identities/current" | jq -r .metadata.fine_grained)" = "false" ]
+  lxc config trust remove "${lxdconf6_fingerprint_short}"
+
+  lxc auth identity group add oidc/test-user@example.com test-group
+  # Create a new test project, add some entitlements on it and check that these are reflected in the 'access_entitlements' field returned from the API.
+  lxc project create test-project
+  lxc auth group permission add test-group project test-project can_view
+  lxc auth group permission add test-group project test-project can_edit
+  lxc auth group permission add test-group project test-project can_delete
+
+  # Check the created project entitlements given a list of candidate entitlements (some are wrong: `can_create_instances` and `can_create_networks`. These should not be returned).
+  [ "$(lxc_remote query "oidc:/1.0/projects/test-project?recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_create_instances,can_create_networks" | jq -r '.access_entitlements | sort | @csv')" = '"can_delete","can_edit","can_view"' ]
+  lxc project delete test-project
+
+  # Repeat the same test for other entity types.
+  # Instance
+  ensure_import_testimage
+  lxc init testimage test-foo
+  lxc auth group permission add test-group instance test-foo can_view project=default
+  lxc auth group permission add test-group instance test-foo can_edit project=default
+  lxc auth group permission add test-group instance test-foo can_delete project=default
+  [ "$(lxc_remote query "oidc:/1.0/instances/test-foo?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_exec" | jq -r '.access_entitlements | sort | @csv')" = '"can_delete","can_edit","can_view"' ]
+  lxc delete test-foo -f
+
+  # Storage volume
+  # Storage volume entitlements test
+  pool_name="$(lxc storage list -f csv | cut -d, -f1)"
+  lxc storage volume create "${pool_name}" test-volume
+  lxc auth group permission add test-group storage_volume test-volume can_view project=default pool="${pool_name}" type=custom
+  lxc auth group permission add test-group storage_volume test-volume can_edit project=default pool="${pool_name}" type=custom
+  lxc auth group permission add test-group storage_volume test-volume can_delete project=default pool="${pool_name}" type=custom
+  [ "$(lxc_remote query "oidc:/1.0/storage-pools/${pool_name}/volumes/custom/test-volume?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_manage_backups,can_manage_snapshots" | jq -r '.access_entitlements | sort | @csv')" = '"can_delete","can_edit","can_view"' ]
+  lxc storage volume delete "${pool_name}" test-volume
+
   # Cleanup
   lxc auth group delete test-group
   lxc auth identity-provider-group delete test-idp-group
@@ -284,11 +329,11 @@ effective_permissions: []"
   rm -r "${LXD_CONF3}"
   rm -r "${LXD_CONF4}"
   rm -r "${LXD_CONF5}"
+  rm -r "${LXD_CONF6}"
   lxc config unset core.remote_token_expiry
   lxc config unset oidc.issuer
   lxc config unset oidc.client.id
 }
-
 
 storage_pool_used_by() {
   remote="${1}"
