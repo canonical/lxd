@@ -386,7 +386,7 @@ func checkRestrictionsAndAggregateLimits(globalConfig *clusterConfig.Config, tx 
 	}
 
 	if isRestricted {
-		err = checkRestrictions(info.Project, info.Instances, info.Profiles)
+		err = checkInstanceRestrictions(info.Project, info.Instances, info.Profiles)
 		if err != nil {
 			return err
 		}
@@ -493,7 +493,7 @@ func parseHostIDMapRange(isUID bool, isGID bool, listValue string) ([]idmap.Idma
 
 // Check that the project's restrictions are not violated across the given
 // instances and profiles.
-func checkRestrictions(proj api.Project, instances []api.Instance, profiles []api.Profile) error {
+func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profiles []api.Profile) error {
 	containerConfigChecks := map[string]func(value string) error{}
 	devicesChecks := map[string]func(value map[string]string) error{}
 
@@ -1033,7 +1033,7 @@ func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 				Config: config,
 			}
 
-			err := checkRestrictions(project, info.Instances, info.Profiles)
+			err := checkInstanceRestrictions(project, info.Instances, info.Profiles)
 			if err != nil {
 				return fmt.Errorf("Conflict detected when changing %q in project %q: %w", key, projectName, err)
 			}
