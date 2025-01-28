@@ -49,12 +49,6 @@ func InstanceImportingFilePath(instanceType instancetype.Type, poolName, project
 	return shared.VarPath("storage-pools", poolName, typeDir, fullName, ".importing")
 }
 
-// GetStoragePoolVolumeSnapshotMountPoint returns the mountpoint of the given pool volume snapshot.
-// ${LXD_DIR}/storage-pools/<pool>/custom-snapshots/<custom volume name>/<snapshot name>.
-func GetStoragePoolVolumeSnapshotMountPoint(poolName string, snapshotName string) string {
-	return shared.VarPath("storage-pools", poolName, "custom-snapshots", snapshotName)
-}
-
 // CreateContainerMountpoint creates the provided container mountpoint and symlink.
 func CreateContainerMountpoint(mountPoint string, mountPointSymlink string, privileged bool) error {
 	mntPointSymlinkExist := shared.PathExists(mountPointSymlink)
