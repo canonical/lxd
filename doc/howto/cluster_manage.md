@@ -33,27 +33,32 @@ To see state and usage information for a cluster member, run the following comma
 
 ## Configure your cluster
 
-To configure your cluster, use [`lxc config`](lxc_config.md).
-For example:
+To configure your cluster, use [`lxc config`](lxc_config.md):
+
+    lxc config set <server-config-option> <value>
+
+Example:
 
     lxc config set cluster.max_voters 5
 
 Keep in mind that some {ref}`server configuration options <server>` are global and others are local.
-You can configure the global options on any cluster member, and the changes are propagated to the other cluster members through the distributed database.
-The local options are set only on the server where you configure them (or alternatively on the server that you target with `--target`).
+In addition to the server configuration, there are {ref}`cluster member configuration options <cluster-member-config>` that are specific to each cluster member. To set these configuration values, use [`lxc cluster set`](lxc_cluster_set.md):
 
-In addition to the server configuration, there are a few cluster configurations that are specific to each cluster member.
-See {ref}`cluster-member-config` for all available configurations.
+    lxc cluster set <member-name> <member-config-option> <value>
 
-To set these configuration options, use [`lxc cluster set`](lxc_cluster_set.md) or [`lxc cluster edit`](lxc_cluster_edit.md).
-For example:
+Example:
 
     lxc cluster set server1 scheduler.instance manual
 
+Alternatively, you can use the {ref}`use the edit command <cluster-edit>`.
+
 ### Assign member roles
 
-To add or remove a {ref}`member role <clustering-member-roles>` for a cluster member, use the [`lxc cluster role`](lxc_cluster_role.md) command.
-For example:
+To add or remove a {ref}`member role <clustering-member-roles>` for a cluster member, use the [`lxc cluster role`](lxc_cluster_role.md) command:
+
+    lxc cluster role add <member-name> <role>
+
+Example:
 
     lxc cluster role add server1 event-hub
 
@@ -61,9 +66,14 @@ For example:
 You can add or remove only those roles that are not assigned automatically by LXD.
 ```
 
+(cluster-edit)=
 ### Edit the cluster member configuration
 
-To edit all properties of a cluster member, including the member-specific configuration, the member roles, the failure domain and the cluster groups, use the [`lxc cluster edit`](lxc_cluster_edit.md) command.
+To edit all properties of a cluster member, including the member-specific configuration, the member roles, the failure domain and the cluster groups, use the following command:
+
+    lxc cluster edit
+
+For more information, see: [`lxc cluster edit`](lxc_cluster_edit.md).
 
 (cluster-evacuate-restore)=
 ## Evacuate and restore cluster members
@@ -162,6 +172,10 @@ In a LXD cluster, the API on all servers responds with the same shared certifica
 
 The certificate is stored at `/var/snap/lxd/common/lxd/cluster.crt` (if you use the snap) or `/var/lib/lxd/cluster.crt` (otherwise) and is the same on all cluster members.
 
-You can replace the standard certificate with another one, for example, a valid certificate obtained through ACME services (see {ref}`authentication-server-certificate` for more information).
-To do so, use the [`lxc cluster update-certificate`](lxc_cluster_update-certificate.md) command.
-This command replaces the certificate on all servers in your cluster.
+You can replace the standard certificate with another one, such as a valid certificate obtained through ACME services (see {ref}`authentication-server-certificate` for more information).
+To do so, run the following command on any cluster member:
+
+    lxc cluster update-certificate
+
+This command replaces the certificate on all cluster members. For more information, see: [`lxc cluster update-certificate`](lxc_cluster_update-certificate.md).
+
