@@ -244,7 +244,7 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var filteredDBBuckets []*db.StorageBucket
+	filteredDBBuckets := make([]*db.StorageBucket, 0)
 
 	for _, bucket := range dbBuckets {
 		if !userHasPermission(entity.StorageBucketURL(requestProjectName, bucket.Location, poolName, bucket.Name)) {
