@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-01-10 14:44-0600\n"
+"POT-Creation-Date: 2025-01-28 15:43-0700\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -233,7 +233,7 @@ msgid ""
 "### - operations\n"
 msgstr ""
 
-#: lxc/auth.go:1791
+#: lxc/auth.go:1793
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the identity provider group.\n"
@@ -568,7 +568,7 @@ msgstr ""
 "###\n"
 "### Note that only the configuration can be changed."
 
-#: lxc/profile.go:513
+#: lxc/profile.go:518
 msgid ""
 "### This is a YAML representation of the profile.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -664,17 +664,17 @@ msgstr "%s (他%d個)"
 msgid "%s (%s) (%d available)"
 msgstr "%s (%d個使用可能)"
 
-#: lxc/file.go:1177
+#: lxc/file.go:1175
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s はディレクトリではありません"
 
-#: lxc/file.go:1067
+#: lxc/file.go:1065
 #, c-format
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' はサポートされないタイプのファイルです"
 
-#: lxc/cluster_group.go:149 lxc/profile.go:247
+#: lxc/cluster_group.go:149 lxc/profile.go:252
 msgid "(none)"
 msgstr "(none)"
 
@@ -758,7 +758,7 @@ msgstr "<remote> <URL>"
 msgid "<remote> <new-name>"
 msgstr "<remote> <new-name>"
 
-#: lxc/file.go:700
+#: lxc/file.go:699
 msgid "<source path>... [<remote>:]<instance>/<path>"
 msgstr "<source path>... [<remote>:]<instance>/<path>"
 
@@ -836,7 +836,7 @@ msgstr "クラスタグループからメンバを削除します"
 msgid "Add a group to an identity"
 msgstr ""
 
-#: lxc/auth.go:2080 lxc/auth.go:2081
+#: lxc/auth.go:2082 lxc/auth.go:2083
 msgid "Add a group to an identity provider group"
 msgstr ""
 
@@ -937,7 +937,7 @@ msgstr "フォワードにポートを追加します"
 msgid "Add ports to a load balancer"
 msgstr "ロードバランサーにポートを追加します"
 
-#: lxc/profile.go:104 lxc/profile.go:105
+#: lxc/profile.go:109 lxc/profile.go:110
 msgid "Add profiles to instances"
 msgstr "インスタンスにプロファイルを追加します"
 
@@ -1032,7 +1032,7 @@ msgstr "VMを要求しましたが、イメージタイプがコンテナです"
 msgid "Assign sets of groups to cluster members"
 msgstr "クラスターメンバーにグループの組を割り当てます"
 
-#: lxc/profile.go:179 lxc/profile.go:180
+#: lxc/profile.go:184 lxc/profile.go:185
 msgid "Assign sets of profiles to instances"
 msgstr "インスタンスにプロファイルを割り当てます"
 
@@ -1287,7 +1287,7 @@ msgstr "リネームの場合は異なるリモートを指定できません"
 msgid "Can't specify column L when not clustered"
 msgstr "クラスタでない場合はカラムとして L は指定できません"
 
-#: lxc/file.go:790
+#: lxc/file.go:789
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
 
@@ -1453,8 +1453,8 @@ msgstr ""
 msgid "Clustering enabled"
 msgstr "クラスタリングが有効になりました"
 
-#: lxc/image.go:1117 lxc/list.go:132 lxc/storage_volume.go:1608
-#: lxc/warning.go:93
+#: lxc/image.go:1117 lxc/list.go:132 lxc/profile.go:724
+#: lxc/storage_volume.go:1608 lxc/warning.go:93
 msgid "Columns"
 msgstr "カラムレイアウト"
 
@@ -1499,7 +1499,7 @@ msgstr "移動先のインスタンスに適用するキー/値の設定"
 #: lxc/config_trust.go:314 lxc/image.go:491 lxc/network.go:759
 #: lxc/network_acl.go:698 lxc/network_forward.go:775
 #: lxc/network_load_balancer.go:738 lxc/network_peer.go:698
-#: lxc/network_zone.go:639 lxc/network_zone.go:1334 lxc/profile.go:595
+#: lxc/network_zone.go:639 lxc/network_zone.go:1334 lxc/profile.go:600
 #: lxc/project.go:364 lxc/storage.go:359 lxc/storage_bucket.go:349
 #: lxc/storage_bucket.go:1126 lxc/storage_volume.go:1169
 #: lxc/storage_volume.go:1201
@@ -1585,7 +1585,7 @@ msgstr ""
 msgid "Copy profile inherited devices and override configuration keys"
 msgstr "プロファイルに継承されたデバイスをコピーし、設定キーを上書きします"
 
-#: lxc/profile.go:270 lxc/profile.go:271
+#: lxc/profile.go:275 lxc/profile.go:276
 msgid "Copy profiles"
 msgstr "プロファイルをコピーします"
 
@@ -1601,7 +1601,7 @@ msgstr "インスタンスをコピーします。スナップショットはコ
 msgid "Copy the volume without its snapshots"
 msgstr "ボリュームをコピーします (スナップショットはコピーしません)"
 
-#: lxc/copy.go:63 lxc/image.go:171 lxc/move.go:68 lxc/profile.go:273
+#: lxc/copy.go:63 lxc/image.go:171 lxc/move.go:68 lxc/profile.go:278
 #: lxc/storage_volume.go:402
 msgid "Copy to a project different from the source"
 msgstr "コピー／移動元とは異なるプロジェクトにコピーします"
@@ -1648,7 +1648,7 @@ msgstr "証明書のファイルパスが見つかりません: %s"
 msgid "Could not find certificate key file path: %s"
 msgstr "証明書の鍵のパスが見つかりません: %s"
 
-#: lxc/auth.go:304 lxc/auth.go:1866
+#: lxc/auth.go:304 lxc/auth.go:1868
 #, fuzzy, c-format
 msgid "Could not parse group: %s"
 msgstr "設定の構文エラー: %s"
@@ -1712,7 +1712,7 @@ msgstr "警告を削除します"
 msgid "Create and start instances from images"
 msgstr "イメージからインスタンスを作成し、起動します"
 
-#: lxc/file.go:143 lxc/file.go:474 lxc/file.go:709
+#: lxc/file.go:143 lxc/file.go:474 lxc/file.go:708
 msgid "Create any directories necessary"
 msgstr "必要なディレクトリをすべて作成します"
 
@@ -1726,7 +1726,7 @@ msgstr "必要なディレクトリをすべて作成します"
 msgid "Create groups"
 msgstr "プロファイルを作成します"
 
-#: lxc/auth.go:1677 lxc/auth.go:1678
+#: lxc/auth.go:1679 lxc/auth.go:1680
 #, fuzzy
 msgid "Create identity provider groups"
 msgstr "新たにクラスターグループを作成します"
@@ -1795,7 +1795,7 @@ msgstr "新たにネットワークゾーンを作成します"
 msgid "Create new networks"
 msgstr "新たにネットワークを作成します"
 
-#: lxc/profile.go:352 lxc/profile.go:353
+#: lxc/profile.go:357 lxc/profile.go:358
 msgid "Create profiles"
 msgstr "プロファイルを作成します"
 
@@ -1844,7 +1844,7 @@ msgstr "DEFAULT TARGET ADDRESS"
 #: lxc/network_acl.go:157 lxc/network_forward.go:157
 #: lxc/network_load_balancer.go:160 lxc/network_peer.go:149
 #: lxc/network_zone.go:162 lxc/network_zone.go:846 lxc/operation.go:173
-#: lxc/profile.go:756 lxc/project.go:574 lxc/storage.go:723
+#: lxc/profile.go:750 lxc/project.go:574 lxc/storage.go:723
 #: lxc/storage_bucket.go:513 lxc/storage_bucket.go:833
 #: lxc/storage_volume.go:1751
 msgid "DESCRIPTION"
@@ -1896,7 +1896,7 @@ msgstr "インスタンス内のファイルを削除します"
 msgid "Delete groups"
 msgstr "プロファイルを削除します"
 
-#: lxc/auth.go:1729 lxc/auth.go:1730
+#: lxc/auth.go:1731 lxc/auth.go:1732
 #, fuzzy
 msgid "Delete identity provider groups"
 msgstr "クラスタグループを削除します"
@@ -1949,7 +1949,7 @@ msgstr "ネットワークゾーンを削除します"
 msgid "Delete networks"
 msgstr "ネットワークを削除します"
 
-#: lxc/profile.go:434 lxc/profile.go:435
+#: lxc/profile.go:439 lxc/profile.go:440
 msgid "Delete profiles"
 msgstr "プロファイルを削除します"
 
@@ -1981,9 +1981,9 @@ msgstr "警告を削除します"
 #: lxc/auth.go:735 lxc/auth.go:774 lxc/auth.go:916 lxc/auth.go:983
 #: lxc/auth.go:1046 lxc/auth.go:1107 lxc/auth.go:1236 lxc/auth.go:1290
 #: lxc/auth.go:1313 lxc/auth.go:1371 lxc/auth.go:1440 lxc/auth.go:1462
-#: lxc/auth.go:1640 lxc/auth.go:1678 lxc/auth.go:1730 lxc/auth.go:1779
-#: lxc/auth.go:1898 lxc/auth.go:1958 lxc/auth.go:2007 lxc/auth.go:2058
-#: lxc/auth.go:2081 lxc/auth.go:2134 lxc/cluster.go:30 lxc/cluster.go:123
+#: lxc/auth.go:1642 lxc/auth.go:1680 lxc/auth.go:1732 lxc/auth.go:1781
+#: lxc/auth.go:1900 lxc/auth.go:1960 lxc/auth.go:2009 lxc/auth.go:2060
+#: lxc/auth.go:2083 lxc/auth.go:2136 lxc/cluster.go:30 lxc/cluster.go:123
 #: lxc/cluster.go:215 lxc/cluster.go:272 lxc/cluster.go:331 lxc/cluster.go:404
 #: lxc/cluster.go:484 lxc/cluster.go:528 lxc/cluster.go:586 lxc/cluster.go:677
 #: lxc/cluster.go:771 lxc/cluster.go:894 lxc/cluster.go:978 lxc/cluster.go:1088
@@ -2007,11 +2007,11 @@ msgstr "警告を削除します"
 #: lxc/config_trust.go:432 lxc/config_trust.go:534 lxc/config_trust.go:580
 #: lxc/config_trust.go:651 lxc/console.go:40 lxc/copy.go:42 lxc/delete.go:32
 #: lxc/exec.go:41 lxc/export.go:32 lxc/file.go:88 lxc/file.go:135
-#: lxc/file.go:321 lxc/file.go:382 lxc/file.go:468 lxc/file.go:702
-#: lxc/file.go:1228 lxc/image.go:38 lxc/image.go:159 lxc/image.go:337
+#: lxc/file.go:321 lxc/file.go:382 lxc/file.go:468 lxc/file.go:701
+#: lxc/file.go:1226 lxc/image.go:38 lxc/image.go:159 lxc/image.go:337
 #: lxc/image.go:396 lxc/image.go:525 lxc/image.go:697 lxc/image.go:948
-#: lxc/image.go:1091 lxc/image.go:1446 lxc/image.go:1537 lxc/image.go:1603
-#: lxc/image.go:1667 lxc/image.go:1730 lxc/image_alias.go:24
+#: lxc/image.go:1091 lxc/image.go:1451 lxc/image.go:1542 lxc/image.go:1608
+#: lxc/image.go:1672 lxc/image.go:1735 lxc/image_alias.go:24
 #: lxc/image_alias.go:60 lxc/image_alias.go:124 lxc/image_alias.go:177
 #: lxc/image_alias.go:288 lxc/import.go:29 lxc/info.go:33 lxc/init.go:44
 #: lxc/launch.go:24 lxc/list.go:49 lxc/main.go:83 lxc/manpage.go:22
@@ -2050,10 +2050,10 @@ msgstr "警告を削除します"
 #: lxc/network_zone.go:1237 lxc/network_zone.go:1367 lxc/network_zone.go:1428
 #: lxc/network_zone.go:1443 lxc/network_zone.go:1501 lxc/operation.go:25
 #: lxc/operation.go:57 lxc/operation.go:107 lxc/operation.go:194
-#: lxc/profile.go:30 lxc/profile.go:105 lxc/profile.go:180 lxc/profile.go:271
-#: lxc/profile.go:353 lxc/profile.go:435 lxc/profile.go:493 lxc/profile.go:629
-#: lxc/profile.go:703 lxc/profile.go:772 lxc/profile.go:860 lxc/profile.go:920
-#: lxc/profile.go:1009 lxc/profile.go:1073 lxc/project.go:31 lxc/project.go:95
+#: lxc/profile.go:35 lxc/profile.go:110 lxc/profile.go:185 lxc/profile.go:276
+#: lxc/profile.go:358 lxc/profile.go:440 lxc/profile.go:498 lxc/profile.go:634
+#: lxc/profile.go:710 lxc/profile.go:867 lxc/profile.go:955 lxc/profile.go:1015
+#: lxc/profile.go:1104 lxc/profile.go:1168 lxc/project.go:31 lxc/project.go:95
 #: lxc/project.go:191 lxc/project.go:262 lxc/project.go:398 lxc/project.go:472
 #: lxc/project.go:592 lxc/project.go:657 lxc/project.go:745 lxc/project.go:789
 #: lxc/project.go:850 lxc/project.go:917 lxc/publish.go:34 lxc/query.go:34
@@ -2174,7 +2174,7 @@ msgstr "このプラットフォーム上ではディレクトリのインポー
 msgid "Directory to run the command in (default /root)"
 msgstr "コマンドを実行するディレクトリ (デフォルト /root)"
 
-#: lxc/file.go:1236
+#: lxc/file.go:1234
 msgid "Disable authentication when using SSH SFTP listener"
 msgstr "SSH SFTP リスナーを使う際に認証を無効化します"
 
@@ -2220,6 +2220,11 @@ msgstr "すべてのプロジェクトのインスタンスを表示します"
 #: lxc/network_zone.go:91
 #, fuzzy
 msgid "Display network zones from all projects"
+msgstr "すべてのプロジェクトのインスタンスを表示します"
+
+#: lxc/profile.go:728
+#, fuzzy
+msgid "Display profiles from all projects"
 msgstr "すべてのプロジェクトのインスタンスを表示します"
 
 #: lxc/cluster.go:591
@@ -2285,7 +2290,7 @@ msgstr "インスタンス内のファイルを編集します"
 msgid "Edit groups as YAML"
 msgstr "信頼済みクライアント設定をYAMLで編集します"
 
-#: lxc/auth.go:1778 lxc/auth.go:1779
+#: lxc/auth.go:1780 lxc/auth.go:1781
 #, fuzzy
 msgid "Edit identity provider groups as YAML"
 msgstr "プロファイル設定をYAMLで編集します"
@@ -2339,7 +2344,7 @@ msgstr "ネットワークゾーン設定をYAMLで編集します"
 msgid "Edit network zone record configurations as YAML"
 msgstr "ネットワークゾーンレコードをYAMLで編集します"
 
-#: lxc/profile.go:492 lxc/profile.go:493
+#: lxc/profile.go:497 lxc/profile.go:498
 msgid "Edit profile configurations as YAML"
 msgstr "プロファイル設定をYAMLで編集します"
 
@@ -2367,8 +2372,8 @@ msgstr "ストレージボリュームの設定をYAMLで編集します"
 msgid "Edit trust configurations as YAML"
 msgstr "信頼済みクライアント設定をYAMLで編集します"
 
-#: lxc/image.go:1161 lxc/list.go:622 lxc/storage_volume.go:1785
-#: lxc/warning.go:236
+#: lxc/image.go:1161 lxc/list.go:622 lxc/profile.go:766
+#: lxc/storage_volume.go:1785 lxc/warning.go:236
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
@@ -2435,7 +2440,7 @@ msgstr "イメージの取得中: %s"
 #: lxc/cluster.go:459 lxc/config.go:662 lxc/config.go:694 lxc/network.go:1328
 #: lxc/network_acl.go:524 lxc/network_forward.go:580
 #: lxc/network_load_balancer.go:559 lxc/network_peer.go:522
-#: lxc/network_zone.go:477 lxc/network_zone.go:1165 lxc/profile.go:987
+#: lxc/network_zone.go:477 lxc/network_zone.go:1165 lxc/profile.go:1082
 #: lxc/project.go:720 lxc/storage.go:812 lxc/storage_bucket.go:603
 #: lxc/storage_volume.go:2180 lxc/storage_volume.go:2218
 #, fuzzy, c-format
@@ -2450,7 +2455,7 @@ msgstr "イメージのプロパティを削除します"
 #: lxc/cluster.go:453 lxc/network.go:1322 lxc/network_acl.go:518
 #: lxc/network_forward.go:574 lxc/network_load_balancer.go:553
 #: lxc/network_peer.go:516 lxc/network_zone.go:471 lxc/network_zone.go:1159
-#: lxc/profile.go:981 lxc/project.go:714 lxc/storage.go:806
+#: lxc/profile.go:1076 lxc/project.go:714 lxc/storage.go:806
 #: lxc/storage_bucket.go:597 lxc/storage_volume.go:2174
 #: lxc/storage_volume.go:2212
 #, c-format
@@ -2577,12 +2582,12 @@ msgstr "FINGERPRINT"
 msgid "FIRST SEEN"
 msgstr "FIRST SEEN"
 
-#: lxc/file.go:1491
+#: lxc/file.go:1489
 #, c-format
 msgid "Failed SSH handshake with client %q: %v"
 msgstr "クライアント %q との SSH ハンドシェイクに失敗しました: %v"
 
-#: lxc/file.go:1514
+#: lxc/file.go:1512
 #, c-format
 msgid "Failed accepting channel client %q: %v"
 msgstr "クライアント %q のチャンネルの受け入れに失敗しました: %v"
@@ -2597,12 +2602,12 @@ msgstr "インスタンスの存在確認に失敗しました \"%s:%s\": %w"
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr "インスタンスのスナップショットの存在確認に失敗しました \"%s:%s\": %w"
 
-#: lxc/file.go:1541
+#: lxc/file.go:1539
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
 msgstr "クライアント %q に対する SFTP インスタンスの接続に失敗しました: %v"
 
-#: lxc/file.go:1326
+#: lxc/file.go:1324
 #, c-format
 msgid "Failed connecting to instance SFTP: %w"
 msgstr "インスタンスの SFTP への接続に失敗しました: %w"
@@ -2632,7 +2637,7 @@ msgstr "クライアント %q のチャンネルの受け入れに失敗しま�
 msgid "Failed fetching fingerprint %q: %w"
 msgstr "クライアント %q のチャンネルの受け入れに失敗しました: %v"
 
-#: lxc/file.go:1447
+#: lxc/file.go:1445
 #, c-format
 msgid "Failed generating SSH host key: %w"
 msgstr "SSH ホスト鍵の生成に失敗しました: %w"
@@ -2647,7 +2652,7 @@ msgstr "ピアのステータスの取得に失敗しました: %w"
 msgid "Failed loading profile %q: %w"
 msgstr "デバイス上書きのためのプロファイル %q のロードに失敗しました: %w"
 
-#: lxc/file.go:1452
+#: lxc/file.go:1450
 #, c-format
 msgid "Failed parsing SSH host key: %w"
 msgstr "SSH ホスト鍵の読み取りに失敗しました: %w"
@@ -2657,12 +2662,12 @@ msgstr "SSH ホスト鍵の読み取りに失敗しました: %w"
 msgid "Failed starting command: %w"
 msgstr "コマンドの実行に失敗しました: %w"
 
-#: lxc/file.go:1352
+#: lxc/file.go:1350
 #, c-format
 msgid "Failed starting sshfs: %w"
 msgstr "sshfs の起動に失敗しました: %w"
 
-#: lxc/file.go:1479
+#: lxc/file.go:1477
 #, c-format
 msgid "Failed to accept incoming connection: %w"
 msgstr "受信接続の受け入れに失敗しました: %w"
@@ -2701,7 +2706,7 @@ msgstr "クラスタメンバへの接続に失敗しました: %w"
 msgid "Failed to find project: %w"
 msgstr "プロジェクトが見つけられませんでした: %w"
 
-#: lxc/file.go:1464
+#: lxc/file.go:1462
 #, c-format
 msgid "Failed to listen for connection: %w"
 msgstr "コネクションのリッスンに失敗しました: %w"
@@ -2716,7 +2721,7 @@ msgstr "コピー先のインスタンス '%s' のリフレッシュに失敗し
 msgid "Failed to remove alias %s: %w"
 msgstr "エイリアス %s の削除に失敗しました: %w"
 
-#: lxc/file.go:1062
+#: lxc/file.go:1060
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr "パス %s にアクセスできませんでした: %s"
@@ -2816,14 +2821,14 @@ msgstr ""
 "\n"
 "本当に強制的に %s を削除してもよろしいですか? (yes/no): "
 
-#: lxc/alias.go:112 lxc/auth.go:340 lxc/auth.go:920 lxc/auth.go:1902
+#: lxc/alias.go:112 lxc/auth.go:340 lxc/auth.go:920 lxc/auth.go:1904
 #: lxc/cluster.go:125 lxc/cluster.go:979 lxc/cluster_group.go:442
 #: lxc/config_template.go:275 lxc/config_trust.go:352 lxc/config_trust.go:434
 #: lxc/image.go:1118 lxc/image_alias.go:182 lxc/list.go:133 lxc/network.go:1010
 #: lxc/network.go:1117 lxc/network_acl.go:98 lxc/network_allocations.go:59
 #: lxc/network_forward.go:93 lxc/network_load_balancer.go:97
 #: lxc/network_peer.go:85 lxc/network_zone.go:90 lxc/network_zone.go:788
-#: lxc/operation.go:109 lxc/profile.go:707 lxc/project.go:474
+#: lxc/operation.go:109 lxc/profile.go:727 lxc/project.go:474
 #: lxc/project.go:919 lxc/remote.go:791 lxc/storage.go:657
 #: lxc/storage_bucket.go:460 lxc/storage_bucket.go:775
 #: lxc/storage_volume.go:1627 lxc/warning.go:94
@@ -2874,7 +2879,7 @@ msgstr "GPU:"
 msgid "GPUs:"
 msgstr "GPUs:"
 
-#: lxc/auth.go:968 lxc/auth.go:1942
+#: lxc/auth.go:968 lxc/auth.go:1944
 msgid "GROUPS"
 msgstr ""
 
@@ -2895,7 +2900,7 @@ msgstr "インスタンスからファイルをマウントします"
 msgid "Get a summary of resource allocations"
 msgstr "リソース割当の状況を表示します"
 
-#: lxc/image.go:1602 lxc/image.go:1603
+#: lxc/image.go:1607 lxc/image.go:1608
 msgid "Get image properties"
 msgstr "イメージのプロパティを取得します"
 
@@ -2941,7 +2946,7 @@ msgstr "新たにネットワークゾーンレコードを作成します"
 msgid "Get the key as a network zone record property"
 msgstr "ネットワークゾーンレコードエントリを削除します"
 
-#: lxc/profile.go:634
+#: lxc/profile.go:639
 msgid "Get the key as a profile property"
 msgstr ""
 
@@ -3008,7 +3013,7 @@ msgstr "ネットワークゾーンの設定値を取得します"
 msgid "Get values for network zone record configuration keys"
 msgstr "ネットワークゾーンレコードの設定値を取得します"
 
-#: lxc/profile.go:628 lxc/profile.go:629
+#: lxc/profile.go:633 lxc/profile.go:634
 msgid "Get values for profile configuration keys"
 msgstr "プロファイルの設定値を取得します"
 
@@ -3043,7 +3048,7 @@ msgstr "プロファイル %s を作成しました"
 msgid "Group %s deleted"
 msgstr "プロファイル %s を削除しました"
 
-#: lxc/auth.go:430 lxc/auth.go:1992
+#: lxc/auth.go:430 lxc/auth.go:1994
 #, fuzzy, c-format
 msgid "Group %s renamed to %s"
 msgstr "プロファイル名 %s を %s に変更しました"
@@ -3069,22 +3074,22 @@ msgstr "ホストインターフェース"
 msgid "Hugepages:\n"
 msgstr "Hugepages:\n"
 
-#: lxc/file.go:1564
+#: lxc/file.go:1562
 #, c-format
 msgid "I/O copy from SSH to instance failed: %v"
 msgstr "SSH 経由のインスタンスへの I/O コピーが失敗しました: %v"
 
-#: lxc/file.go:1553
+#: lxc/file.go:1551
 #, c-format
 msgid "I/O copy from instance to SSH failed: %v"
 msgstr "インスタンスから SSH 経由の I/O コピーに失敗しました: %v"
 
-#: lxc/file.go:1376
+#: lxc/file.go:1374
 #, c-format
 msgid "I/O copy from instance to sshfs failed: %v"
 msgstr "インスタンスから sshfs への I/O コピーに失敗しました: %v"
 
-#: lxc/file.go:1386
+#: lxc/file.go:1384
 #, c-format
 msgid "I/O copy from sshfs to instance failed: %v"
 msgstr "sshfs からインスタンスへの I/O コピーに失敗しました: %v"
@@ -3139,12 +3144,12 @@ msgstr "ISSUE DATE"
 msgid "Identity creation only supported for TLS identities"
 msgstr ""
 
-#: lxc/auth.go:1714
+#: lxc/auth.go:1716
 #, fuzzy, c-format
 msgid "Identity provider group %s created"
 msgstr "クラスターグループ %s を作成しました"
 
-#: lxc/auth.go:1764
+#: lxc/auth.go:1766
 #, fuzzy, c-format
 msgid "Identity provider group %s deleted"
 msgstr "クラスターグループ %s を作成しました"
@@ -3188,7 +3193,7 @@ msgstr "コピー中にファイルが更新された場合のエラーを無視
 msgid "Ignore the instance state"
 msgstr "インスタンスの状態を無視します"
 
-#: lxc/image.go:1518
+#: lxc/image.go:1523
 msgid "Image already up to date."
 msgstr "イメージは更新済みです。"
 
@@ -3204,11 +3209,11 @@ msgstr "イメージの失効日（フォーマット: rfc3339）"
 msgid "Image exported successfully!"
 msgstr "イメージのエクスポートが成功しました!"
 
-#: lxc/image.go:364 lxc/image.go:1473
+#: lxc/image.go:364 lxc/image.go:1478
 msgid "Image identifier missing"
 msgstr "イメージ名を指定してください"
 
-#: lxc/image.go:444 lxc/image.go:1699
+#: lxc/image.go:444 lxc/image.go:1704
 #, c-format
 msgid "Image identifier missing: %s"
 msgstr "イメージ名を指定してください: %s"
@@ -3218,7 +3223,7 @@ msgstr "イメージ名を指定してください: %s"
 msgid "Image imported with fingerprint: %s"
 msgstr "イメージは以下のフィンガープリントでインポートされました: %s"
 
-#: lxc/image.go:1516
+#: lxc/image.go:1521
 msgid "Image refreshed successfully!"
 msgstr "イメージの更新が成功しました!"
 
@@ -3294,11 +3299,11 @@ msgstr ""
 msgid "Instance Only"
 msgstr "インスタンスのみ"
 
-#: lxc/file.go:1378
+#: lxc/file.go:1376
 msgid "Instance disconnected"
 msgstr "インスタンスが切断されました"
 
-#: lxc/file.go:1555
+#: lxc/file.go:1553
 #, c-format
 msgid "Instance disconnected for client %q"
 msgstr "クライアント %q に対するインスタンスが切断されました"
@@ -3317,7 +3322,7 @@ msgstr "インスタンス名: %s"
 msgid "Instance name must be specified"
 msgstr "インスタンス名: %s"
 
-#: lxc/file.go:1298
+#: lxc/file.go:1296
 msgid "Instance path cannot be used in SSH SFTP listener mode"
 msgstr "SSH SFTP リスナーモードではインスタンスのパスを使用できません"
 
@@ -3370,7 +3375,7 @@ msgstr "不正なフォーマット %s"
 msgid "Invalid instance name: %s"
 msgstr "不正なインスタンス名: %s"
 
-#: lxc/file.go:1293
+#: lxc/file.go:1291
 #, c-format
 msgid "Invalid instance path: %q"
 msgstr "不正なインスタンスのパス: %q"
@@ -3440,7 +3445,7 @@ msgstr "不正なスナップショット名"
 msgid "Invalid source %s"
 msgstr "不正なソース %s"
 
-#: lxc/file.go:185 lxc/file.go:739
+#: lxc/file.go:185 lxc/file.go:738
 #, c-format
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
@@ -3612,7 +3617,7 @@ msgstr "プロファイルを一覧表示します"
 msgid "List identities"
 msgstr "インスタンスを一覧表示します"
 
-#: lxc/auth.go:1897 lxc/auth.go:1898
+#: lxc/auth.go:1899 lxc/auth.go:1900
 msgid "List identity provider groups"
 msgstr ""
 
@@ -3880,9 +3885,44 @@ msgstr "すべてのプロジェクトのインスタンスを表示します"
 msgid "List permissions"
 msgstr "プロファイルを一覧表示します"
 
-#: lxc/profile.go:702 lxc/profile.go:703
+#: lxc/profile.go:709
 msgid "List profiles"
 msgstr "プロファイルを一覧表示します"
+
+#: lxc/profile.go:710
+#, fuzzy
+msgid ""
+"List profiles\n"
+"\n"
+"The -c option takes a (optionally comma-separated) list of arguments\n"
+"that control which profile attributes to output when displaying in table\n"
+"or csv format.\n"
+"\n"
+"Default column layout is: ndu\n"
+"\n"
+"Column shorthand chars:\n"
+"n - Profile Name\n"
+"d - Description\n"
+"u - Used By"
+msgstr ""
+"警告をリスト表示します\n"
+"\n"
+"-c オプションは、表もしくは csv 形式で表示する際の、出力する警告の\n"
+"属性を指定する引数のリスト (カンマ区切りでも OK) を指定します。\n"
+"\n"
+"デフォルトのカラムレイアウトは utSscpLl です。\n"
+"\n"
+"カラムの指定文字:\n"
+"\n"
+"    c - 数\n"
+"    l - 最後の確認日時\n"
+"    L - 場所\n"
+"    f - 最初の確認日時\n"
+"    p - プロジェクト\n"
+"    s - 重大度 (Severity)\n"
+"    S - 状態\n"
+"    u - UUID\n"
+"    t - タイプ"
 
 #: lxc/project.go:471 lxc/project.go:472
 msgid "List projects"
@@ -4111,7 +4151,7 @@ msgstr "デバイスを管理します"
 msgid "Manage files in instances"
 msgstr "インスタンス内のファイルを管理します"
 
-#: lxc/auth.go:64 lxc/auth.go:65 lxc/auth.go:1639 lxc/auth.go:1640
+#: lxc/auth.go:64 lxc/auth.go:65 lxc/auth.go:1641 lxc/auth.go:1642
 #, fuzzy
 msgid "Manage groups"
 msgstr "クラスタグループを管理します"
@@ -4126,7 +4166,7 @@ msgstr "信頼済みのクライアントを管理します"
 msgid "Manage identities"
 msgstr "デバイスを管理します"
 
-#: lxc/auth.go:2057 lxc/auth.go:2058
+#: lxc/auth.go:2059 lxc/auth.go:2060
 msgid "Manage identity provider group mappings"
 msgstr ""
 
@@ -4236,7 +4276,7 @@ msgstr "ネットワークゾーンを管理します"
 msgid "Manage permissions"
 msgstr "プロファイルを管理します"
 
-#: lxc/profile.go:29 lxc/profile.go:30
+#: lxc/profile.go:34 lxc/profile.go:35
 msgid "Manage profiles"
 msgstr "プロファイルを管理します"
 
@@ -4387,7 +4427,7 @@ msgid "Missing cluster member name"
 msgstr "クラスターメンバー名がありません"
 
 #: lxc/auth.go:128 lxc/auth.go:182 lxc/auth.go:258 lxc/auth.go:420
-#: lxc/auth.go:469 lxc/auth.go:544 lxc/auth.go:603 lxc/auth.go:2031
+#: lxc/auth.go:469 lxc/auth.go:544 lxc/auth.go:603 lxc/auth.go:2033
 #, fuzzy
 msgid "Missing group name"
 msgstr "クラスターグループ名がありません"
@@ -4398,12 +4438,12 @@ msgstr "クラスターグループ名がありません"
 msgid "Missing identity argument"
 msgstr "鍵の名前を指定する必要があります"
 
-#: lxc/auth.go:1701 lxc/auth.go:1754 lxc/auth.go:1820 lxc/auth.go:1982
+#: lxc/auth.go:1703 lxc/auth.go:1756 lxc/auth.go:1822 lxc/auth.go:1984
 #, fuzzy
 msgid "Missing identity provider group name"
 msgstr "クラスターグループ名がありません"
 
-#: lxc/auth.go:2105 lxc/auth.go:2158
+#: lxc/auth.go:2107 lxc/auth.go:2160
 #, fuzzy
 msgid "Missing identity provider group name argument"
 msgstr "クラスターグループ名がありません"
@@ -4411,8 +4451,8 @@ msgstr "クラスターグループ名がありません"
 #: lxc/config_metadata.go:112 lxc/config_metadata.go:221
 #: lxc/config_template.go:100 lxc/config_template.go:155
 #: lxc/config_template.go:209 lxc/config_template.go:306
-#: lxc/config_template.go:377 lxc/profile.go:141 lxc/profile.go:222
-#: lxc/profile.go:808 lxc/rebuild.go:61
+#: lxc/config_template.go:377 lxc/profile.go:146 lxc/profile.go:227
+#: lxc/profile.go:903 lxc/rebuild.go:61
 msgid "Missing instance name"
 msgstr "インスタンス名を指定する必要があります"
 
@@ -4498,18 +4538,18 @@ msgstr "ピア名を指定する必要があります"
 msgid "Missing pool name"
 msgstr "ストレージプール名を指定する必要があります"
 
-#: lxc/profile.go:467 lxc/profile.go:549 lxc/profile.go:667 lxc/profile.go:892
-#: lxc/profile.go:960 lxc/profile.go:1041
+#: lxc/profile.go:472 lxc/profile.go:554 lxc/profile.go:672 lxc/profile.go:987
+#: lxc/profile.go:1055 lxc/profile.go:1136
 msgid "Missing profile name"
 msgstr "プロファイル名を指定する必要があります"
 
-#: lxc/profile.go:404 lxc/project.go:148 lxc/project.go:228 lxc/project.go:318
+#: lxc/profile.go:409 lxc/project.go:148 lxc/project.go:228 lxc/project.go:318
 #: lxc/project.go:435 lxc/project.go:624 lxc/project.go:693 lxc/project.go:821
 #: lxc/project.go:950
 msgid "Missing project name"
 msgstr "プロジェクト名を指定する必要があります"
 
-#: lxc/profile.go:310
+#: lxc/profile.go:315
 msgid "Missing source profile name"
 msgstr "コピー元のプロファイル名を指定する必要があります"
 
@@ -4521,7 +4561,7 @@ msgstr "コピー元のボリューム名を指定する必要があります"
 msgid "Missing storage pool name"
 msgstr "ストレージプール名を指定する必要があります"
 
-#: lxc/file.go:842
+#: lxc/file.go:841
 msgid "Missing target directory"
 msgstr "コピー先のディレクトリを指定する必要があります"
 
@@ -4568,7 +4608,7 @@ msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
 "せん"
 
-#: lxc/file.go:1227 lxc/file.go:1228
+#: lxc/file.go:1225 lxc/file.go:1226
 msgid "Mount files from instances"
 msgstr "インスタンスからファイルをマウントします"
 
@@ -4643,11 +4683,11 @@ msgstr "ディレクトリからのインポートは root で実行する必要
 msgid "Must supply instance name for: "
 msgstr "インスタンス名を指定する必要があります: "
 
-#: lxc/auth.go:379 lxc/auth.go:966 lxc/auth.go:1941 lxc/cluster.go:192
+#: lxc/auth.go:379 lxc/auth.go:966 lxc/auth.go:1943 lxc/cluster.go:192
 #: lxc/cluster.go:1070 lxc/cluster_group.go:503 lxc/config_trust.go:409
 #: lxc/config_trust.go:514 lxc/list.go:573 lxc/network.go:1090
 #: lxc/network_acl.go:156 lxc/network_peer.go:148 lxc/network_zone.go:161
-#: lxc/network_zone.go:845 lxc/profile.go:755 lxc/project.go:567
+#: lxc/network_zone.go:845 lxc/profile.go:748 lxc/project.go:567
 #: lxc/remote.go:849 lxc/storage.go:715 lxc/storage_bucket.go:512
 #: lxc/storage_bucket.go:832 lxc/storage_volume.go:1750
 msgid "NAME"
@@ -4993,7 +5033,7 @@ msgstr "PROCESSES"
 msgid "PROFILES"
 msgstr "PROFILES"
 
-#: lxc/image.go:1140 lxc/list.go:567 lxc/network_zone.go:167
+#: lxc/image.go:1140 lxc/list.go:567 lxc/network_zone.go:167 lxc/profile.go:749
 #: lxc/storage_volume.go:1775 lxc/warning.go:213
 msgid "PROJECT"
 msgstr "PROJECT"
@@ -5057,17 +5097,17 @@ msgstr "ポートタイプ: %s"
 msgid "Ports:"
 msgstr "ポート:"
 
-#: lxc/file.go:1356
+#: lxc/file.go:1354
 msgid "Press ctrl+c to finish"
 msgstr "終了するには ctrl+c を押してください"
 
-#: lxc/auth.go:305 lxc/auth.go:1206 lxc/auth.go:1867 lxc/cluster.go:861
+#: lxc/auth.go:305 lxc/auth.go:1206 lxc/auth.go:1869 lxc/cluster.go:861
 #: lxc/cluster_group.go:398 lxc/config.go:282 lxc/config.go:357
 #: lxc/config.go:1342 lxc/config_metadata.go:157 lxc/config_template.go:239
 #: lxc/config_trust.go:315 lxc/image.go:492 lxc/network.go:760
 #: lxc/network_acl.go:699 lxc/network_forward.go:776
 #: lxc/network_load_balancer.go:739 lxc/network_peer.go:699
-#: lxc/network_zone.go:640 lxc/network_zone.go:1335 lxc/profile.go:596
+#: lxc/network_zone.go:640 lxc/network_zone.go:1335 lxc/profile.go:601
 #: lxc/project.go:365 lxc/storage.go:360 lxc/storage_bucket.go:350
 #: lxc/storage_bucket.go:1127 lxc/storage_volume.go:1170
 #: lxc/storage_volume.go:1202
@@ -5107,32 +5147,32 @@ msgstr "エイリアスの処理が失敗しました: %s"
 msgid "Product: %v (%v)"
 msgstr "製品名: %v (%v)"
 
-#: lxc/profile.go:163
+#: lxc/profile.go:168
 #, c-format
 msgid "Profile %s added to %s"
 msgstr "プロファイル %s が %s に追加されました"
 
-#: lxc/profile.go:418
+#: lxc/profile.go:423
 #, c-format
 msgid "Profile %s created"
 msgstr "プロファイル %s を作成しました"
 
-#: lxc/profile.go:477
+#: lxc/profile.go:482
 #, c-format
 msgid "Profile %s deleted"
 msgstr "プロファイル %s を削除しました"
 
-#: lxc/profile.go:818
+#: lxc/profile.go:913
 #, c-format
 msgid "Profile %s isn't currently applied to %s"
 msgstr "プロファイル %s は %s に適用されていません"
 
-#: lxc/profile.go:843
+#: lxc/profile.go:938
 #, c-format
 msgid "Profile %s removed from %s"
 msgstr "プロファイル %s が %s から削除されました"
 
-#: lxc/profile.go:902
+#: lxc/profile.go:997
 #, c-format
 msgid "Profile %s renamed to %s"
 msgstr "プロファイル名 %s を %s に変更しました"
@@ -5149,7 +5189,7 @@ msgstr "新しいインスタンスに適用するプロファイル"
 msgid "Profile to apply to the target instance"
 msgstr "移動先のインスタンスに適用するプロファイル"
 
-#: lxc/profile.go:251
+#: lxc/profile.go:256
 #, c-format
 msgid "Profiles %s applied to %s"
 msgstr "プロファイル %s が %s に追加されました"
@@ -5185,7 +5225,7 @@ msgstr "リモートで使用するプロジェクト"
 msgid "Properties:"
 msgstr "プロパティ:"
 
-#: lxc/image.go:1650
+#: lxc/image.go:1655
 msgid "Property not found"
 msgstr "プロパティが見つかりません"
 
@@ -5303,16 +5343,16 @@ msgstr "インスタンスの出力中: %s"
 msgid "Pull files from instances"
 msgstr "インスタンスからファイルを取得します"
 
-#: lxc/file.go:651 lxc/file.go:1009
+#: lxc/file.go:651 lxc/file.go:1008
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr "ファイル %s を %s から取得します: %%s"
 
-#: lxc/file.go:701 lxc/file.go:702
+#: lxc/file.go:700 lxc/file.go:701
 msgid "Push files into instances"
 msgstr "インスタンス内にファイルをコピーします"
 
-#: lxc/file.go:943 lxc/file.go:1109
+#: lxc/file.go:942 lxc/file.go:1107
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr "ファイル %s をコンテナ %s 内にコピーします: %%s"
@@ -5321,7 +5361,7 @@ msgstr "ファイル %s をコンテナ %s 内にコピーします: %%s"
 msgid "Query path must start with /"
 msgstr "query のパスは / で始める必要があります"
 
-#: lxc/image.go:530 lxc/image.go:951 lxc/image.go:1540
+#: lxc/image.go:530 lxc/image.go:951 lxc/image.go:1545
 msgid "Query virtual machine images"
 msgstr "仮想マシンイメージを対象にします"
 
@@ -5352,7 +5392,7 @@ msgstr "空のインスタンスを作成"
 msgid "Rebuild instances"
 msgstr "インスタンスを一覧表示します"
 
-#: lxc/file.go:475 lxc/file.go:708
+#: lxc/file.go:475 lxc/file.go:707
 msgid "Recursively transfer files"
 msgstr "再帰的にファイルを転送します"
 
@@ -5360,7 +5400,7 @@ msgstr "再帰的にファイルを転送します"
 msgid "Refresh and update the existing storage volume copies"
 msgstr "既存のストレージボリュームのコピーの再読込と更新"
 
-#: lxc/image.go:1445 lxc/image.go:1446
+#: lxc/image.go:1450 lxc/image.go:1451
 msgid "Refresh images"
 msgstr "イメージを更新します"
 
@@ -5369,7 +5409,7 @@ msgstr "イメージを更新します"
 msgid "Refreshing instance: %s"
 msgstr "インスタンスの更新中: %s"
 
-#: lxc/image.go:1482
+#: lxc/image.go:1487
 #, c-format
 msgid "Refreshing the image: %s"
 msgstr "イメージの更新中: %s"
@@ -5468,7 +5508,7 @@ msgstr "ロードバランサーからバックエンドを削除します"
 msgid "Remove entries from a network zone record"
 msgstr "ネットワークゾーンレコードからエントリを削除します"
 
-#: lxc/auth.go:2133 lxc/auth.go:2134
+#: lxc/auth.go:2135 lxc/auth.go:2136
 #, fuzzy
 msgid "Remove identities from groups"
 msgstr "グループからメンバーを削除します"
@@ -5494,7 +5534,7 @@ msgstr "フォワードからポートを削除します"
 msgid "Remove ports from a load balancer"
 msgstr "ロードバランサーからポートを削除します"
 
-#: lxc/profile.go:771 lxc/profile.go:772
+#: lxc/profile.go:866 lxc/profile.go:867
 msgid "Remove profiles from instances"
 msgstr "インスタンスからプロファイルを削除します"
 
@@ -5532,7 +5572,7 @@ msgstr "エイリアスの名前を変更します"
 msgid "Rename groups"
 msgstr "リモートサーバ名を変更します"
 
-#: lxc/auth.go:1957 lxc/auth.go:1958
+#: lxc/auth.go:1959 lxc/auth.go:1960
 #, fuzzy
 msgid "Rename identity provider groups"
 msgstr "クラスタグループの名前を変更します"
@@ -5549,7 +5589,7 @@ msgstr "ネットワーク ACL 名を変更します"
 msgid "Rename networks"
 msgstr "ネットワーク名を変更します"
 
-#: lxc/profile.go:859 lxc/profile.go:860
+#: lxc/profile.go:954 lxc/profile.go:955
 msgid "Rename profiles"
 msgstr "プロファイル名を変更します"
 
@@ -5696,12 +5736,12 @@ msgstr "SOURCE"
 msgid "SR-IOV information:"
 msgstr "SR-IOV 情報:"
 
-#: lxc/file.go:1484
+#: lxc/file.go:1482
 #, c-format
 msgid "SSH client connected %q"
 msgstr "SSH クライアントが %q に接続されました"
 
-#: lxc/file.go:1485
+#: lxc/file.go:1483
 #, c-format
 msgid "SSH client disconnected %q"
 msgstr "SSH クライアントが切断されました %q"
@@ -5779,7 +5819,7 @@ msgstr "インスタンスからファイルをマウントします"
 msgid "Set a cluster member's configuration keys"
 msgstr "クラスターメンバーの設定を行います"
 
-#: lxc/file.go:1237
+#: lxc/file.go:1235
 msgid "Set authentication user when using SSH SFTP listener"
 msgstr "SSH SFTP リスナーを使う際の認証ユーザーを設定する"
 
@@ -5813,7 +5853,7 @@ msgstr ""
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
 "    lxc profile device set [<remote>:]<profile> <device> <key> <value>"
 
-#: lxc/image.go:1666 lxc/image.go:1667
+#: lxc/image.go:1671 lxc/image.go:1672
 msgid "Set image properties"
 msgstr "イメージのプロパティを設定します"
 
@@ -5940,11 +5980,11 @@ msgstr ""
 msgid "Set network zone record configuration keys"
 msgstr "ネットワークゾーンレコードの設定を行います"
 
-#: lxc/profile.go:919
+#: lxc/profile.go:1014
 msgid "Set profile configuration keys"
 msgstr "プロファイルの設定項目を設定します"
 
-#: lxc/profile.go:920
+#: lxc/profile.go:1015
 msgid ""
 "Set profile configuration keys\n"
 "\n"
@@ -6035,7 +6075,7 @@ msgstr "リモートの URL を設定します"
 msgid "Set the file's gid on create"
 msgstr "プッシュ時にファイルのgidを設定します"
 
-#: lxc/file.go:711
+#: lxc/file.go:710
 msgid "Set the file's gid on push"
 msgstr "プッシュ時にファイルのgidを設定します"
 
@@ -6044,7 +6084,7 @@ msgstr "プッシュ時にファイルのgidを設定します"
 msgid "Set the file's perms on create"
 msgstr "プッシュ時にファイルのパーミションを設定します"
 
-#: lxc/file.go:712
+#: lxc/file.go:711
 msgid "Set the file's perms on push"
 msgstr "プッシュ時にファイルのパーミションを設定します"
 
@@ -6053,7 +6093,7 @@ msgstr "プッシュ時にファイルのパーミションを設定します"
 msgid "Set the file's uid on create"
 msgstr "プッシュ時にファイルのuidを設定します"
 
-#: lxc/file.go:710
+#: lxc/file.go:709
 msgid "Set the file's uid on push"
 msgstr "プッシュ時にファイルのuidを設定します"
 
@@ -6095,7 +6135,7 @@ msgstr "新たにネットワークゾーンレコードを作成します"
 msgid "Set the key as a network zone record property"
 msgstr "ネットワークゾーンレコードエントリを削除します"
 
-#: lxc/profile.go:927
+#: lxc/profile.go:1022
 msgid "Set the key as a profile property"
 msgstr ""
 
@@ -6122,7 +6162,7 @@ msgstr "新しいストレージボリュームをプロファイルに追加し
 msgid "Set the key as an instance property"
 msgstr ""
 
-#: lxc/file.go:1235
+#: lxc/file.go:1233
 msgid "Setup SSH SFTP listener on address:port instead of mounting"
 msgstr ""
 "マウントの代わりに address:port で SSH SFTP リスナーをセットアップします"
@@ -6135,7 +6175,7 @@ msgstr "デバッグメッセージをすべて表示します"
 msgid "Show all information messages"
 msgstr "詳細な情報を出力します"
 
-#: lxc/auth.go:2006 lxc/auth.go:2007
+#: lxc/auth.go:2008 lxc/auth.go:2009
 msgid "Show an identity provider group"
 msgstr ""
 
@@ -6181,7 +6221,7 @@ msgid ""
 "method. Use the identifier instead if this occurs.\n"
 msgstr ""
 
-#: lxc/image.go:1536 lxc/image.go:1537
+#: lxc/image.go:1541 lxc/image.go:1542
 msgid "Show image properties"
 msgstr "イメージのプロパティを表示します"
 
@@ -6246,7 +6286,7 @@ msgstr "ネットワークゾーンレコードの設定を表示します"
 msgid "Show network zone record configurations"
 msgstr "ネットワークゾーンレコードの設定を表示します"
 
-#: lxc/profile.go:1008 lxc/profile.go:1009
+#: lxc/profile.go:1103 lxc/profile.go:1104
 msgid "Show profile configurations"
 msgstr "プロファイルの設定を表示します"
 
@@ -6538,11 +6578,11 @@ msgstr "TYPE"
 msgid "Taken at"
 msgstr "取得日時"
 
-#: lxc/file.go:1286
+#: lxc/file.go:1284
 msgid "Target path and --listen flag cannot be used together"
 msgstr "ターゲットのパスと --listen オプションは同時に指定できません"
 
-#: lxc/file.go:1280
+#: lxc/file.go:1278
 msgid "Target path must be a directory"
 msgstr "ターゲットのパスはディレクトリでなければなりません"
 
@@ -6677,7 +6717,7 @@ msgstr "設定 %q はクラスタメンバー %q には存在しません"
 msgid "The property %q does not exist on the network zone record %q: %v"
 msgstr "設定 %q はクラスタメンバー %q には存在しません"
 
-#: lxc/profile.go:680
+#: lxc/profile.go:685
 #, fuzzy, c-format
 msgid "The property %q does not exist on the profile %q: %v"
 msgstr "設定 %q はクラスタメンバー %q には存在しません"
@@ -6932,7 +6972,7 @@ msgid "USAGE"
 msgstr "USAGE"
 
 #: lxc/network.go:1096 lxc/network_acl.go:158 lxc/network_allocations.go:24
-#: lxc/network_zone.go:163 lxc/profile.go:757 lxc/project.go:575
+#: lxc/network_zone.go:163 lxc/profile.go:751 lxc/project.go:575
 #: lxc/storage.go:724 lxc/storage_volume.go:1753
 msgid "USED BY"
 msgstr "USED BY"
@@ -6960,13 +7000,13 @@ msgstr "リモートサーバーが利用できません"
 msgid "Unknown certificate type %q"
 msgstr "未知の証明書タイプ %q"
 
-#: lxc/file.go:1507
+#: lxc/file.go:1505
 #, c-format
 msgid "Unknown channel type for client %q: %s"
 msgstr "クライアント %q の未知のチャンネルタイプ: %s"
 
-#: lxc/image.go:1167 lxc/list.go:631 lxc/storage_volume.go:1791
-#: lxc/warning.go:242
+#: lxc/image.go:1167 lxc/list.go:631 lxc/profile.go:772
+#: lxc/storage_volume.go:1791 lxc/warning.go:242
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
@@ -6976,7 +7016,7 @@ msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
 msgid "Unknown console type %q"
 msgstr "未知のコンソールタイプ %q"
 
-#: lxc/file.go:1049
+#: lxc/file.go:1047
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr "未知のファイルタイプ '%s'"
@@ -7008,7 +7048,7 @@ msgstr "移動先のインスタンスのすべてのプロファイルを削除
 msgid "Unset device configuration keys"
 msgstr "デバイスの設定を削除します"
 
-#: lxc/image.go:1729 lxc/image.go:1730
+#: lxc/image.go:1734 lxc/image.go:1735
 msgid "Unset image properties"
 msgstr "イメージのプロパティを削除します"
 
@@ -7056,7 +7096,7 @@ msgstr "ネットワークゾーンの設定を削除します"
 msgid "Unset network zone record configuration keys"
 msgstr "ネットワークゾーンレコードの設定を削除します"
 
-#: lxc/profile.go:1072 lxc/profile.go:1073
+#: lxc/profile.go:1167 lxc/profile.go:1168
 msgid "Unset profile configuration keys"
 msgstr "プロファイルの設定を削除します"
 
@@ -7114,7 +7154,7 @@ msgstr "新たにネットワークゾーンレコードを作成します"
 msgid "Unset the key as a network zone record property"
 msgstr "ネットワークゾーンレコードエントリを削除します"
 
-#: lxc/profile.go:1077
+#: lxc/profile.go:1172
 msgid "Unset the key as a profile property"
 msgstr ""
 
@@ -7165,7 +7205,7 @@ msgid ""
 msgstr ""
 "入力ファイルから読み込んだ PEM 証明書と鍵でクラスター証明書を更新します。"
 
-#: lxc/profile.go:274
+#: lxc/profile.go:279
 #, fuzzy
 msgid "Update the target profile from the source if it already exists"
 msgstr "コピー元の全てのプロファイルがターゲットに存在しません"
@@ -7330,11 +7370,11 @@ msgstr "[<remote:>]<pool> <volume> <profile> [<device name>]"
 msgid "[<remote:>]<pool> [<type>/]<volume> <profile> [<device name>] [<path>]"
 msgstr "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 
-#: lxc/auth.go:333 lxc/auth.go:913 lxc/auth.go:1044 lxc/auth.go:1895
+#: lxc/auth.go:333 lxc/auth.go:913 lxc/auth.go:1044 lxc/auth.go:1897
 #: lxc/cluster.go:120 lxc/cluster.go:976 lxc/cluster_group.go:437
 #: lxc/config_trust.go:347 lxc/config_trust.go:430 lxc/monitor.go:32
 #: lxc/network.go:1003 lxc/network_acl.go:92 lxc/network_zone.go:84
-#: lxc/operation.go:104 lxc/profile.go:700 lxc/project.go:469
+#: lxc/operation.go:104 lxc/profile.go:707 lxc/project.go:469
 #: lxc/storage.go:652 lxc/version.go:20 lxc/warning.go:69
 msgid "[<remote>:]"
 msgstr "[<remote>:]"
@@ -7434,7 +7474,7 @@ msgstr ""
 msgid "[<remote>:]<authentication_method>/<name_or_identifier>"
 msgstr ""
 
-#: lxc/auth.go:1311 lxc/auth.go:1369 lxc/auth.go:2132
+#: lxc/auth.go:1311 lxc/auth.go:1369 lxc/auth.go:2134
 msgid "[<remote>:]<authentication_method>/<name_or_identifier> <group>"
 msgstr ""
 
@@ -7443,7 +7483,7 @@ msgid "[<remote>:]<fingerprint>"
 msgstr "[<remote>:]<fingerprint>"
 
 #: lxc/auth.go:102 lxc/auth.go:155 lxc/auth.go:205 lxc/auth.go:443
-#: lxc/auth.go:1105 lxc/auth.go:1676 lxc/cluster_group.go:168
+#: lxc/auth.go:1105 lxc/auth.go:1678 lxc/cluster_group.go:168
 #: lxc/cluster_group.go:253 lxc/cluster_group.go:314 lxc/cluster_group.go:661
 msgid "[<remote>:]<group>"
 msgstr "[<remote>:]<group>"
@@ -7464,30 +7504,30 @@ msgstr "[<remote>:]<group> <new-name>"
 msgid "[<remote>:]<group> <new_name>"
 msgstr "[<remote>:]<group> <new-name>"
 
-#: lxc/auth.go:1727 lxc/auth.go:1777 lxc/auth.go:2005
+#: lxc/auth.go:1729 lxc/auth.go:1779 lxc/auth.go:2007
 #, fuzzy
 msgid "[<remote>:]<identity_provider_group>"
 msgstr "[<remote>:]<group>"
 
-#: lxc/auth.go:2079
+#: lxc/auth.go:2081
 #, fuzzy
 msgid "[<remote>:]<identity_provider_group> <group>"
 msgstr "[<remote>:]<member> <group>"
 
-#: lxc/auth.go:1955
+#: lxc/auth.go:1957
 #, fuzzy
 msgid "[<remote>:]<identity_provider_group> <new_name>"
 msgstr "[<remote>:]<group> <new-name>"
 
-#: lxc/image.go:394 lxc/image.go:946 lxc/image.go:1535
+#: lxc/image.go:394 lxc/image.go:946 lxc/image.go:1540
 msgid "[<remote>:]<image>"
 msgstr "[<remote>:]<image>"
 
-#: lxc/image.go:1601 lxc/image.go:1728
+#: lxc/image.go:1606 lxc/image.go:1733
 msgid "[<remote>:]<image> <key>"
 msgstr "[<remote>:]<image> <key>"
 
-#: lxc/image.go:1665
+#: lxc/image.go:1670
 msgid "[<remote>:]<image> <key> <value>"
 msgstr "[<remote>:]<image> <key> <value>"
 
@@ -7508,7 +7548,7 @@ msgstr "[<remote>:]<image> [<remote>:][<name>]"
 msgid "[<remote>:]<image> [<target>]"
 msgstr "[<remote>:]<image> [<target>]"
 
-#: lxc/image.go:334 lxc/image.go:1444
+#: lxc/image.go:334 lxc/image.go:1449
 msgid "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr "[<remote>:]<image> [[<remote>:]<image>...]"
 
@@ -7548,11 +7588,11 @@ msgstr "[<remote>:][<instance>] <key>=<value>..."
 msgid "[<remote>:]<instance> <name>..."
 msgstr "[<remote>:]<instance> <name>..."
 
-#: lxc/profile.go:103 lxc/profile.go:770
+#: lxc/profile.go:108 lxc/profile.go:865
 msgid "[<remote>:]<instance> <profile>"
 msgstr "[<remote>:]<instance> <profile>"
 
-#: lxc/profile.go:177
+#: lxc/profile.go:182
 msgid "[<remote>:]<instance> <profiles>"
 msgstr "[<remote>:]<instance> <profiles>"
 
@@ -7600,7 +7640,7 @@ msgid ""
 msgstr ""
 "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"
 
-#: lxc/file.go:1226
+#: lxc/file.go:1224
 msgid "[<remote>:]<instance>[/<path>] [<target path>]"
 msgstr "[<remote>:]<instance>[/<path>] [<target path>]"
 
@@ -7877,8 +7917,8 @@ msgstr "[<remote>:]<pool>/<volume> [<remote>:]<pool>/<volume>"
 msgid "[<remote>:]<pool>/<volume>[/<snapshot>] [<remote>:]<pool>/<volume>"
 msgstr "[<remote>:]<pool>/<volume>[/<snapshot>] [<remote>:]<pool>/<volume>"
 
-#: lxc/config_device.go:331 lxc/config_device.go:763 lxc/profile.go:351
-#: lxc/profile.go:432 lxc/profile.go:491 lxc/profile.go:1007
+#: lxc/config_device.go:331 lxc/config_device.go:763 lxc/profile.go:356
+#: lxc/profile.go:437 lxc/profile.go:496 lxc/profile.go:1102
 msgid "[<remote>:]<profile>"
 msgstr "[<remote>:]<profile>"
 
@@ -7894,11 +7934,11 @@ msgstr "[<remote>:]<profile> <device> <key>=<value>..."
 msgid "[<remote>:]<profile> <device> <type> [key=value...]"
 msgstr "[<remote>:]<profile> <device> <type> [key=value...]"
 
-#: lxc/profile.go:627 lxc/profile.go:1071
+#: lxc/profile.go:632 lxc/profile.go:1166
 msgid "[<remote>:]<profile> <key>"
 msgstr "[<remote>:]<profile> <key>"
 
-#: lxc/profile.go:918
+#: lxc/profile.go:1013
 #, fuzzy
 msgid "[<remote>:]<profile> <key>=<value>..."
 msgstr "[<remote>:]<profile> <key><value>..."
@@ -7907,11 +7947,11 @@ msgstr "[<remote>:]<profile> <key><value>..."
 msgid "[<remote>:]<profile> <name>..."
 msgstr "[<remote>:]<profile> <name>..."
 
-#: lxc/profile.go:857
+#: lxc/profile.go:952
 msgid "[<remote>:]<profile> <new-name>"
 msgstr "[<remote>:]<profile> <new-name>"
 
-#: lxc/profile.go:268
+#: lxc/profile.go:273
 msgid "[<remote>:]<profile> [<remote>:]<profile>"
 msgstr "[<remote>:]<profile> [<remote>:]<profile>"
 
@@ -8071,7 +8111,7 @@ msgstr ""
 "lxc profile edit <profile> < profile.yaml\n"
 "    profile.yaml の内容でプロファイルを更新します"
 
-#: lxc/auth.go:1781
+#: lxc/auth.go:1783
 #, fuzzy
 msgid ""
 "lxc auth identity-provider-group edit <identity_provider_group> < identity-"
@@ -8196,7 +8236,7 @@ msgid ""
 "\t   To create a symlink /bar in instance foo whose target is baz."
 msgstr ""
 
-#: lxc/file.go:1230
+#: lxc/file.go:1228
 msgid ""
 "lxc file mount foo/root fooroot\n"
 "   To mount /root from the instance foo onto the local fooroot directory."
@@ -8215,7 +8255,7 @@ msgstr ""
 "   インスタンスの /etc/hosts ファイルを取得し、カレントディレクトリにコピーし"
 "ます。"
 
-#: lxc/file.go:704
+#: lxc/file.go:703
 msgid ""
 "lxc file push /etc/hosts foo/etc/hosts\n"
 "   To push /etc/hosts into the instance \"foo\"."
@@ -8466,7 +8506,7 @@ msgstr ""
 "lxc operation show 344a79e4-d88a-45bf-9c39-c72c26f6ab8a\n"
 "    上記のオペレーション UUID の詳細を表示します"
 
-#: lxc/profile.go:182
+#: lxc/profile.go:187
 msgid ""
 "lxc profile assign foo default,bar\n"
 "    Set the profiles for \"foo\" to \"default\" and \"bar\".\n"
@@ -8487,7 +8527,7 @@ msgstr ""
 "lxc profile assign foo ''\n"
 "    \"foo\" からすべてのプロファイルを削除します。"
 
-#: lxc/profile.go:355
+#: lxc/profile.go:360
 #, fuzzy
 msgid ""
 "lxc profile create p1\n"
@@ -8519,7 +8559,7 @@ msgstr ""
 "    some-pool 上の some-volume ボリュームをインスタンスの /opt にマウントしま"
 "す。"
 
-#: lxc/profile.go:495
+#: lxc/profile.go:500
 msgid ""
 "lxc profile edit <profile> < profile.yaml\n"
 "    Update a profile using the content of profile.yaml"
@@ -8722,16 +8762,16 @@ msgstr "`lxc profile` コマンドを使ってください"
 msgid "space used"
 msgstr "使用量"
 
-#: lxc/file.go:1396
+#: lxc/file.go:1394
 msgid "sshfs has stopped"
 msgstr "sshfs が停止しました"
 
-#: lxc/file.go:1355
+#: lxc/file.go:1353
 #, c-format
 msgid "sshfs mounting %q on %q"
 msgstr "sshfs で %q を %q にマウントします"
 
-#: lxc/file.go:1308
+#: lxc/file.go:1306
 msgid "sshfs not found. Try SSH SFTP mode using the --listen flag"
 msgstr ""
 "sshfs が見つかりません。--listen オプションを使って SSH SFTP モードを試してみ"
