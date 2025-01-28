@@ -234,6 +234,10 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	recursion := util.IsRecursionRequest(r)
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeNetworkZone, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	var zoneNamesMap map[string]string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -266,6 +270,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 
 	resultString := []string{}
 	resultMap := []api.NetworkZone{}
+	urlToNetworkZone := make(map[*api.URL]auth.EntitlementReporter)
 	for zoneName, projectName := range zoneNamesMap {
 		// Check permission for each network zone against the requested project.
 		if !userHasPermission(entity.NetworkZoneURL(projectName, zoneName)) {
@@ -292,11 +297,19 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 			netzoneInfo.Project = projectName
 
 			resultMap = append(resultMap, *netzoneInfo)
+			urlToNetworkZone[entity.NetworkZoneURL(projectName, zoneName)] = netzoneInfo
 		}
 	}
 
 	if !recursion {
 		return response.SyncResponse(true, resultString)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeNetworkZone, withEntitlements, urlToNetworkZone)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponse(true, resultMap)
@@ -477,6 +490,11 @@ func networkZoneGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeNetworkZone, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, details.zoneName)
 	if err != nil {
 		return response.SmartError(err)
@@ -489,6 +507,13 @@ func networkZoneGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	info.UsedBy = project.FilterUsedBy(s.Authorizer, r, info.UsedBy)
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeNetworkZone, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.NetworkZoneURL(effectiveProjectName, details.zoneName): info})
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
 
 	return response.SyncResponseETag(true, info, netzone.Etag())
 }

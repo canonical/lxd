@@ -34,12 +34,31 @@ const (
 	IdentityTypeOIDCClient = "OIDC client"
 )
 
+// WithEntitlements is meant to be an embedded struct to API types eligible for entitlement enrichment,
+// that is, entities that can have access entitlements granted to the requesting user.
+//
+// swagger:model
+//
+// API extension: entities_with_entitlements.
+type WithEntitlements struct {
+	// AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+	// Example: ["can_view", "can_edit"]
+	AccessEntitlements []string `json:"access_entitlements" yaml:"access_entitlements"`
+}
+
+// ReportEntitlements adds entitlements to the identity.
+func (e *WithEntitlements) ReportEntitlements(entitlements []string) {
+	e.AccessEntitlements = entitlements
+}
+
 // Identity is the type for an authenticated party that can make requests to the HTTPS API.
 //
 // swagger:model
 //
 // API extension: access_management.
 type Identity struct {
+	WithEntitlements `yaml:",inline"`
+
 	// AuthenticationMethod is the authentication method that the identity
 	// authenticates to LXD with.
 	// Example: tls
@@ -99,6 +118,10 @@ type IdentityInfo struct {
 	// Effective permissions is the combined and deduplicated list of permissions that the identity has by virtue of
 	// direct membership to a LXD group, or effective membership of a LXD group via identity provider group mappings.
 	EffectivePermissions []Permission `json:"effective_permissions" yaml:"effective_permissions"`
+
+	// FineGrained is a boolean indicating whether the identity is fine-grained,
+	// meaning that permissions are managed via group membership.
+	FineGrained bool `json:"fine_grained" yaml:"fine_grained"`
 }
 
 // IdentityPut contains the editable fields of an IdentityInfo.
@@ -149,6 +172,8 @@ type IdentitiesTLSPost struct {
 //
 // API extension: access_management.
 type AuthGroup struct {
+	WithEntitlements `yaml:",inline"`
+
 	// Name is the name of the group.
 	// Example: default-c1-viewers
 	Name string `json:"name" yaml:"name"`
@@ -224,6 +249,8 @@ type AuthGroupPut struct {
 //
 // API extension: access_management.
 type IdentityProviderGroup struct {
+	WithEntitlements `yaml:",inline"`
+
 	// Name is the name of the IdP group.
 	Name string `json:"name" yaml:"name"`
 
