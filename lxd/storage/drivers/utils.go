@@ -661,6 +661,7 @@ func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error 
 	roSubvols := []string{}
 	subvols, _ := btrfsSubVolumesGet(path)
 	sort.Strings(subvols)
+	d := &btrfs{}
 	for _, subvol := range subvols {
 		subvol = filepath.Join(path, subvol)
 
@@ -669,7 +670,8 @@ func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error 
 		}
 
 		roSubvols = append(roSubvols, subvol)
-		_ = BTRFSSubVolumeMakeRw(subvol)
+
+		_ = d.setSubvolumeReadonlyProperty(subvol, false)
 	}
 
 	if shift {
@@ -679,7 +681,7 @@ func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error 
 	}
 
 	for _, subvol := range roSubvols {
-		_ = BTRFSSubVolumeMakeRo(subvol)
+		_ = d.setSubvolumeReadonlyProperty(subvol, true)
 	}
 
 	return err
@@ -730,22 +732,6 @@ func BTRFSSubVolumeIsRo(path string) bool {
 	}
 
 	return strings.HasPrefix(string(output), "ro=true")
-}
-
-// BTRFSSubVolumeMakeRo makes a subvolume read only.
-//
-// Deprecated: Use btrfs.setSubvolumeReadonlyProperty().
-func BTRFSSubVolumeMakeRo(path string) error {
-	_, err := shared.RunCommand("btrfs", "property", "set", "-ts", path, "ro", "true")
-	return err
-}
-
-// BTRFSSubVolumeMakeRw makes a sub volume read/write.
-//
-// Deprecated: Use btrfs.setSubvolumeReadonlyProperty().
-func BTRFSSubVolumeMakeRw(path string) error {
-	_, err := shared.RunCommand("btrfs", "property", "set", "-ts", path, "ro", "false")
-	return err
 }
 
 // ShiftZFSSkipper indicates which files not to shift for ZFS.
