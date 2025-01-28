@@ -439,7 +439,7 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 	subVols = append(subVols, BTRFSSubVolume{
 		Snapshot: snapName,
 		Path:     string(filepath.Separator),
-		Readonly: BTRFSSubVolumeIsRo(vol.MountPath()),
+		Readonly: btrfsSubVolumeIsRo(vol.MountPath()),
 	})
 
 	// Add any subvolumes under the root subvolume with relative path to root.
@@ -447,7 +447,7 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 		subVols = append(subVols, BTRFSSubVolume{
 			Snapshot: snapName,
 			Path:     string(filepath.Separator) + subVolPath,
-			Readonly: BTRFSSubVolumeIsRo(filepath.Join(vol.MountPath(), subVolPath)),
+			Readonly: btrfsSubVolumeIsRo(filepath.Join(vol.MountPath(), subVolPath)),
 		})
 	}
 
