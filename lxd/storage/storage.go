@@ -49,12 +49,6 @@ func InstanceImportingFilePath(instanceType instancetype.Type, poolName, project
 	return shared.VarPath("storage-pools", poolName, typeDir, fullName, ".importing")
 }
 
-// GetSnapshotMountPoint returns the mountpoint of the given container snapshot.
-// ${LXD_DIR}/storage-pools/<pool>/containers-snapshots/<snapshot_name>.
-func GetSnapshotMountPoint(projectName, poolName string, snapshotName string) string {
-	return shared.VarPath("storage-pools", poolName, "containers-snapshots", project.Instance(projectName, snapshotName))
-}
-
 // GetImageMountPoint returns the mountpoint of the given image.
 // ${LXD_DIR}/storage-pools/<pool>/images/<fingerprint>.
 func GetImageMountPoint(poolName string, fingerprint string) string {
