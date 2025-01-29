@@ -929,12 +929,19 @@ EOF
 
     # Launch container.
     lxc launch -s "${pool_name}" testimage c1
+    lxc storage volume create "${pool_name}" fsvol
 
     # Disable quotas. The usage should be 0.
     # shellcheck disable=SC2031
     btrfs quota disable "${LXD_DIR}/storage-pools/${pool_name}"
-    # Usage -1 indicates the driver does not support getting instance usage.
-    [ "$(lxc query /1.0/instances/c1/state | jq '.disk.root.usage')" = "-1" ]
+    # Usage 0 indicates the driver does not support getting volume usage.
+    [ "$(lxc query /1.0/instances/c1/state | jq '.disk.root.usage')" = "0" ]
+    [ "$(lxc query "/1.0/storage-pools/${pool_name}/volumes/custom/fsvol/state" | jq '.usage.used')" = "0" ]
+    # Total 0 indicates the volume is unbound.
+    [ "$(lxc query /1.0/instances/c1/state | jq '.disk.root.total')" = "0" ]
+    [ "$(lxc query "/1.0/storage-pools/${pool_name}/volumes/custom/fsvol/state" | jq '.usage.total')" = "0" ]
+
+    lxc storage volume delete "${pool_name}" fsvol
 
     # Enable quotas. The usage should then be > 0.
     # shellcheck disable=SC2031

@@ -1484,7 +1484,10 @@ func (c *cmdStorageVolumeInfo) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if volState != nil && volState.Usage != nil {
-		fmt.Printf(i18n.G("Usage: %s")+"\n", units.GetByteSizeStringIEC(int64(volState.Usage.Used), 2))
+		if volState.Usage.Used > 0 {
+			fmt.Printf(i18n.G("Usage: %s")+"\n", units.GetByteSizeStringIEC(int64(volState.Usage.Used), 2))
+		}
+
 		if volState.Usage.Total > 0 {
 			fmt.Printf(i18n.G("Total: %s")+"\n", units.GetByteSizeStringIEC(int64(volState.Usage.Total), 2))
 		}
