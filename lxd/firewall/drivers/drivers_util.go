@@ -117,7 +117,7 @@ func subnetMask(ipNet *net.IPNet) string {
 		return fmt.Sprint(ipNet.Mask[0], ".", ipNet.Mask[1], ".", ipNet.Mask[2], ".", ipNet.Mask[3])
 	}
 
-	var hexMask []rune
+	hexMask := make([]rune, 0, len(ipNet.Mask)*2)
 	for i, r := range ipNet.Mask.String() {
 		if i%4 == 0 && i != 0 {
 			hexMask = append(hexMask, ':')
