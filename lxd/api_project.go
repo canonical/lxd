@@ -312,7 +312,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the configuration.
-	err = projectValidateConfig(s, project.Config, project.Name)
+	err = projectValidateConfig(s, project.Config)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -712,7 +712,7 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 	}
 
 	// Validate the configuration.
-	err := projectValidateConfig(s, req.Config, project.Name)
+	err := projectValidateConfig(s, req.Config)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -1105,7 +1105,7 @@ func isEitherAllowOrBlockOrManaged(value string) error {
 // projectValidateConfig validates whether project config keys follow the expected format.
 // Any value checks that rely on the state of the database should be performed on AllowProjectUpdate,
 // so that we are performing these checks and updating the project in a single transaction.
-func projectValidateConfig(s *state.State, config map[string]string, projectName string) error {
+func projectValidateConfig(s *state.State, config map[string]string) error {
 	// Validate the project configuration.
 	projectConfigKeys := map[string]func(value string) error{
 		// lxdmeta:generate(entities=project; group=specific; key=backups.compression_algorithm)
