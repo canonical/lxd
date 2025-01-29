@@ -1215,7 +1215,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// virtfs-proxy-helper 9p share. The 9p share will only be used as a fallback.
 				err = func() error {
 					sockPath, pidPath := d.vmVirtiofsdPaths()
-					logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", filesystem.PathNameEncode(d.name)))
+					logPath := filepath.Join(d.inst.LogPath(), "disk."+filesystem.PathNameEncode(d.name)+".log")
 					_ = os.Remove(logPath) // Remove old log if needed.
 
 					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.state.OS.KernelVersion, d.inst, sockPath, pidPath, logPath, mount.DevPath, rawIDMaps)
