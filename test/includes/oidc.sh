@@ -1,6 +1,9 @@
 # mini-oidc related test helpers.
 
 spawn_oidc() {
+  # Return if OIDC is already set up.
+  [ -e "${TEST_DIR}/oidc.pid" ] && return
+
   (
     cd mini-oidc || return
     # Use -buildvcs=false here to prevent git complaining about untrusted directory when tests are run as root.
