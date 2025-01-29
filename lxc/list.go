@@ -866,15 +866,16 @@ func (c *cmdList) diskUsageColumnData(cInfo api.InstanceFull) string {
 }
 
 func (c *cmdList) typeColumnData(cInfo api.InstanceFull) string {
-	if cInfo.Type == "" {
-		cInfo.Type = "container"
+	instType := "CONTAINER"
+	if cInfo.Type == string(api.InstanceTypeVM) {
+		instType = "VIRTUAL-MACHINE"
 	}
 
 	if cInfo.Ephemeral {
-		return strings.ToUpper(cInfo.Type) + " (" + i18n.G("EPHEMERAL") + ")"
+		return instType + " (" + i18n.G("EPHEMERAL") + ")"
 	}
 
-	return strings.ToUpper(cInfo.Type)
+	return instType
 }
 
 func (c *cmdList) numberSnapshotsColumnData(cInfo api.InstanceFull) string {
