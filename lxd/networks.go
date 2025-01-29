@@ -311,7 +311,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resultString := []string{}
-	resultMap := []api.Network{}
+	resultMap := []*api.Network{}
 	urlToNetwork := make(map[*api.URL]auth.EntitlementReporter)
 	for kind, networkNames := range networks {
 		for _, networkName := range networkNames {
@@ -328,7 +328,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 					continue
 				}
 
-				resultMap = append(resultMap, net)
+				resultMap = append(resultMap, &net)
 				urlToNetwork[entity.NetworkURL(requestProjectName, networkName)] = &net
 			}
 		}
