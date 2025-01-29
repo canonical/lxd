@@ -3265,13 +3265,15 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (*VolumeUsage, err
 
 	// Get the usage
 	// If storage driver does not support getting the volume usage, proceed getting the total.
-	size, err := b.driver.GetVolumeUsage(vol)
+	usedBytes, err := b.driver.GetVolumeUsage(vol)
 	if err != nil && !errors.Is(err, drivers.ErrNotSupported) {
 		return nil, err
 	}
 
-	// If driver does not support getting volume usage, this value would be -1.
-	val.Used = size
+	// If driver does not support getting volume usage, this value should be 0.
+	if usedBytes > 0 {
+		val.Used = usedBytes
+	}
 
 	// Get the total size.
 	_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
@@ -3289,14 +3291,6 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (*VolumeUsage, err
 		if total >= 0 {
 			val.Total = total
 		}
-	}
-
-	// If the instance volume is neither block based/typed nor bound by the device's size config key,
-	// this means it is only bound by the pool limits and has access to the entire pool storage.
-	// So instead of showing the entire pool size for each instance disk, we return -1 to signify the root disk
-	// is unbounded below the pool level.
-	if val.Total == 0 {
-		val.Total = -1
 	}
 
 	return &val, nil
@@ -6257,12 +6251,15 @@ func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (*VolumeU
 	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
 	// Get the usage.
-	size, err := b.driver.GetVolumeUsage(vol)
-	if err != nil {
+	usedBytes, err := b.driver.GetVolumeUsage(vol)
+	if err != nil && !errors.Is(err, drivers.ErrNotSupported) {
 		return nil, err
 	}
 
-	val.Used = size
+	// If retrieving usage is unsupported, Used should be 0.
+	if usedBytes > 0 {
+		val.Used = usedBytes
+	}
 
 	// Get the total size.
 	sizeStr, ok := vol.Config()["size"]
