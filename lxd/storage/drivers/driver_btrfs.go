@@ -212,7 +212,7 @@ func (d *btrfs) Create() error {
 		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 10*time.Second)
 		defer cancel()
 
-		if tryExists(ctx, fmt.Sprintf("/dev/disk/by-uuid/%s", devUUID)) {
+		if tryExists(ctx, "/dev/disk/by-uuid/"+devUUID) {
 			// Override the config to use the UUID.
 			d.config["source"] = devUUID
 		} else {
@@ -455,7 +455,7 @@ func (d *btrfs) Mount() (bool, error) {
 		}
 	} else {
 		// Mount using UUID.
-		mntSrc = fmt.Sprintf("/dev/disk/by-uuid/%s", d.config["source"])
+		mntSrc = "/dev/disk/by-uuid/" + d.config["source"]
 	}
 
 	// Get the custom mount flags/options.
