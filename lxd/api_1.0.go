@@ -142,6 +142,9 @@ var api10 = []APIEndpoint{
 	permissionsCmd,
 	storageVolumesCmd,
 	storageVolumesTypeCmd,
+	sitesCmd,
+	siteCmd,
+	siteJoinCmd,
 }
 
 // swagger:operation GET /1.0?public server server_get_untrusted
