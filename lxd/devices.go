@@ -127,7 +127,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 
 			if udevEvent {
 				// The kernel always prepends this and udev expects it.
-				kernelPrefix := fmt.Sprintf("%s@%s", props["ACTION"], props["DEVPATH"])
+				kernelPrefix := props["ACTION"] + "@" + props["DEVPATH"]
 				ueventParts = append([]string{kernelPrefix}, ueventParts...)
 				ueventLen += len(kernelPrefix)
 			}
@@ -154,7 +154,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 					continue
 				}
 
-				if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", props["INTERFACE"])) {
+				if !shared.PathExists("/sys/class/net/" + props["INTERFACE"]) {
 					continue
 				}
 
