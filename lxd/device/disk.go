@@ -74,7 +74,7 @@ type diskSourceNotFoundError struct {
 }
 
 func (e diskSourceNotFoundError) Error() string {
-	return fmt.Sprintf("%s: %v", e.msg, e.err)
+	return fmt.Sprint(e.msg, ": ", e.err)
 }
 
 func (e diskSourceNotFoundError) Unwrap() error {
@@ -1281,7 +1281,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						runConf.PostHooks = append(runConf.PostHooks, unixListener.Close)
 
 						// Use 9p socket FD number as dev path so qemu can connect to the proxy.
-						mount.DevPath = fmt.Sprintf("%d", unixListener.Fd())
+						mount.DevPath = fmt.Sprint(unixListener.Fd())
 
 						return nil
 					}()
@@ -1752,7 +1752,7 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 
 			defer func() { _ = f.Close() }()
 
-			srcPath = fmt.Sprintf("/proc/self/fd/%d", f.Fd())
+			srcPath = fmt.Sprint("/proc/self/fd/", f.Fd())
 		}
 	}
 
@@ -2410,7 +2410,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 					continue
 				}
 
-				devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
+				devices = append(devices, fmt.Sprint(major, ":", minor))
 			}
 		}
 
@@ -2427,7 +2427,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 				return nil, fmt.Errorf("Failed to query btrfs filesystem information for %q: %w", dev[1], err)
 			}
 
-			devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
+			devices = append(devices, fmt.Sprint(major, ":", minor))
 		}
 
 		for _, line := range strings.Split(output, "\n") {
@@ -2441,7 +2441,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 				return nil, err
 			}
 
-			devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
+			devices = append(devices, fmt.Sprint(major, ":", minor))
 		}
 	} else if shared.PathExists(dev[1]) {
 		// Anything else with a valid path
@@ -2450,7 +2450,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 			return nil, err
 		}
 
-		devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
+		devices = append(devices, fmt.Sprint(major, ":", minor))
 	} else {
 		return nil, fmt.Errorf("Invalid block device %q", dev[1])
 	}
