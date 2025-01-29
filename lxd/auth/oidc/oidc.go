@@ -51,7 +51,7 @@ type Verifier struct {
 	clientID       string
 	issuer         string
 	audience       string
-	groupsClaim    string
+	opts           Opts
 	clusterCert    func() *shared.CertInfo
 	httpClientFunc func() (*http.Client, error)
 
@@ -273,26 +273,26 @@ func (o *Verifier) getEmailFromClaims(claims map[string]any) (string, error) {
 // getGroupsFromClaims attempts to get the configured groups claim from the token claims and warns if it is not present
 // or is not a valid type. The custom claims are an unmarshalled JSON object.
 func (o *Verifier) getGroupsFromClaims(customClaims map[string]any) []string {
-	if o.groupsClaim == "" {
+	if o.opts.GroupsClaim == "" {
 		return nil
 	}
 
-	groupsClaimAny, ok := customClaims[o.groupsClaim]
+	groupsClaimAny, ok := customClaims[o.opts.GroupsClaim]
 	if !ok {
-		logger.Warn("OIDC groups custom claim not found", logger.Ctx{"claim_name": o.groupsClaim})
+		logger.Warn("OIDC groups custom claim not found", logger.Ctx{"claim_name": o.opts.GroupsClaim})
 		return nil
 	}
 
 	groupsArr, ok := groupsClaimAny.([]any)
 	if !ok {
-		logger.Warn("Unexpected type for OIDC groups custom claim", logger.Ctx{"claim_name": o.groupsClaim, "claim_value": groupsClaimAny})
+		logger.Warn("Unexpected type for OIDC groups custom claim", logger.Ctx{"claim_name": o.opts.GroupsClaim, "claim_value": groupsClaimAny})
 	}
 
 	groups := make([]string, 0, len(groupsArr))
 	for _, groupNameAny := range groupsArr {
 		groupName, ok := groupNameAny.(string)
 		if !ok {
-			logger.Warn("Unexpected type for OIDC groups custom claim", logger.Ctx{"claim_name": o.groupsClaim, "claim_value": groupsClaimAny})
+			logger.Warn("Unexpected type for OIDC groups custom claim", logger.Ctx{"claim_name": o.opts.GroupsClaim, "claim_value": groupsClaimAny})
 		}
 
 		groups = append(groups, groupName)
@@ -359,7 +359,7 @@ func (o *Verifier) WriteHeaders(w http.ResponseWriter) error {
 	w.Header().Set("X-LXD-OIDC-issuer", o.issuer)
 	w.Header().Set("X-LXD-OIDC-clientid", o.clientID)
 	w.Header().Set("X-LXD-OIDC-audience", o.audience)
-	w.Header().Set("X-LXD-OIDC-groups-claim", o.groupsClaim)
+	w.Header().Set("X-LXD-OIDC-groups-claim", o.opts.GroupsClaim)
 
 	return nil
 }
@@ -454,8 +454,8 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 	}
 
 	oidcScopes := []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail, oidc.ScopeProfile}
-	if o.groupsClaim != "" {
-		oidcScopes = append(oidcScopes, o.groupsClaim)
+	if o.opts.GroupsClaim != "" {
+		oidcScopes = append(oidcScopes, o.opts.GroupsClaim)
 	}
 
 	relyingParty, err := rp.NewRelyingPartyOIDC(ctx, o.issuer, o.clientID, "", fmt.Sprintf("https://%s/oidc/callback", host), oidcScopes, options...)
@@ -646,25 +646,26 @@ func (o *Verifier) secureCookieFromSession(sessionID uuid.UUID) (*securecookie.S
 	return securecookie.New(cookieHashKey, cookieBlockKey), nil
 }
 
+// NewOpts returns an Opts.
+func NewOpts(groupsClaim string) Opts {
+	return Opts{
+		GroupsClaim: groupsClaim,
+	}
+}
+
 // Opts contains optional configurable fields for the Verifier.
 type Opts struct {
 	GroupsClaim string
 }
 
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientID string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
-	opts := &Opts{}
-
-	if options != nil && options.GroupsClaim != "" {
-		opts.GroupsClaim = options.GroupsClaim
-	}
-
+func NewVerifier(issuer string, clientID string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options Opts) (*Verifier, error) {
 	verifier := &Verifier{
 		issuer:               issuer,
 		clientID:             clientID,
 		audience:             audience,
 		identityCache:        identityCache,
-		groupsClaim:          opts.GroupsClaim,
+		opts:                 options,
 		clusterCert:          clusterCert,
 		configExpiryInterval: defaultConfigExpiryInterval,
 		httpClientFunc:       httpClientFunc,
