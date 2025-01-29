@@ -3,6 +3,7 @@ package lxd
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -65,7 +66,7 @@ func (o *oidcTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 }
 
 var errRefreshAccessToken = fmt.Errorf("Failed refreshing access token")
-var oidcScopes = []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail, oidc.ScopeProfile}
+var oidcScopes = []string{oidc.ScopeOpenID, oidc.ScopeEmail}
 
 type oidcClient struct {
 	httpClient    *http.Client
@@ -115,11 +116,19 @@ func (o *oidcClient) do(req *http.Request) (*http.Response, error) {
 	issuer := resp.Header.Get("X-LXD-OIDC-issuer")
 	clientID := resp.Header.Get("X-LXD-OIDC-clientid")
 	audience := resp.Header.Get("X-LXD-OIDC-audience")
-	groupsClaim := resp.Header.Get("X-LXD-OIDC-groups-claim")
+	var additionalScopes []string
+	additionalScopesJSON := resp.Header.Get("X-LXD-OIDC-additional-scopes")
+	if additionalScopesJSON != "" {
+		err = json.Unmarshal([]byte(additionalScopesJSON), &additionalScopes)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse additional OIDC scopes: %w", err)
+		}
+	}
 
-	err = o.refresh(issuer, clientID, groupsClaim)
+	scopes := append(oidcScopes, additionalScopes...)
+	err = o.refresh(issuer, clientID, scopes)
 	if err != nil {
-		err = o.authenticate(issuer, clientID, audience, groupsClaim)
+		err = o.authenticate(issuer, clientID, audience, scopes)
 		if err != nil {
 			return nil, err
 		}
@@ -138,7 +147,7 @@ func (o *oidcClient) do(req *http.Request) (*http.Response, error) {
 
 // getProvider initializes a new OpenID Connect Relying Party for a given issuer and clientID.
 // The function also creates a secure CookieHandler with random encryption and hash keys, and applies a series of configurations on the Relying Party.
-func (o *oidcClient) getProvider(issuer string, clientID string, groupsClaim string) (rp.RelyingParty, error) {
+func (o *oidcClient) getProvider(issuer string, clientID string, scopes []string) (rp.RelyingParty, error) {
 	hashKey := make([]byte, 16)
 	encryptKey := make([]byte, 16)
 
@@ -160,11 +169,6 @@ func (o *oidcClient) getProvider(issuer string, clientID string, groupsClaim str
 		rp.WithHTTPClient(o.httpClient),
 	}
 
-	scopes := oidcScopes
-	if groupsClaim != "" {
-		scopes = append(oidcScopes, groupsClaim)
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -178,12 +182,12 @@ func (o *oidcClient) getProvider(issuer string, clientID string, groupsClaim str
 
 // refresh attempts to refresh the OpenID Connect access token for the client using the refresh token.
 // If no token is present or the refresh token is empty, it returns an error. If successful, it updates the access token and other relevant token fields.
-func (o *oidcClient) refresh(issuer string, clientID string, groupsClaim string) error {
+func (o *oidcClient) refresh(issuer string, clientID string, scopes []string) error {
 	if o.tokens.Token == nil || o.tokens.RefreshToken == "" {
 		return errRefreshAccessToken
 	}
 
-	provider, err := o.getProvider(issuer, clientID, groupsClaim)
+	provider, err := o.getProvider(issuer, clientID, scopes)
 	if err != nil {
 		return errRefreshAccessToken
 	}
@@ -210,7 +214,7 @@ func (o *oidcClient) refresh(issuer string, clientID string, groupsClaim string)
 // authenticate initiates the OpenID Connect device flow authentication process for the client.
 // It presents a user code for the end user to input in the device that has web access and waits for them to complete the authentication,
 // subsequently updating the client's tokens upon successful authentication.
-func (o *oidcClient) authenticate(issuer string, clientID string, audience string, groupsClaim string) error {
+func (o *oidcClient) authenticate(issuer string, clientID string, audience string, scopes []string) error {
 	// Store the old transport and restore it in the end.
 	oldTransport := o.httpClient.Transport
 	o.oidcTransport.audience = audience
@@ -220,7 +224,7 @@ func (o *oidcClient) authenticate(issuer string, clientID string, audience strin
 		o.httpClient.Transport = oldTransport
 	}()
 
-	provider, err := o.getProvider(issuer, clientID, groupsClaim)
+	provider, err := o.getProvider(issuer, clientID, scopes)
 	if err != nil {
 		return err
 	}
@@ -230,7 +234,7 @@ func (o *oidcClient) authenticate(issuer string, clientID string, audience strin
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT)
 	defer stop()
 
-	resp, err := rp.DeviceAuthorization(ctx, oidcScopes, provider, nil)
+	resp, err := rp.DeviceAuthorization(ctx, scopes, provider, nil)
 	if err != nil {
 		return err
 	}
