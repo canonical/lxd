@@ -29,6 +29,20 @@ The difference is that network forwards are applied on a network level, while a 
 In addition, proxy devices can be used to proxy traffic between different connection types (for example, TCP and Unix sockets).
 ```
 
+## View network forwards
+
+View a list of forwards configured on a network:
+
+```
+lxc network forward list <network_name>
+```
+
+Example:
+
+```
+lxc network forward list lxdbr0
+```
+
 ## Create a network forward
 
 Use the following command to create a network forward:
