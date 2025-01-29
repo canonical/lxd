@@ -1102,6 +1102,9 @@ func isEitherAllowOrBlockOrManaged(value string) error {
 	return validate.Optional(validate.IsOneOf("block", "allow", "managed"))(value)
 }
 
+// projectValidateConfig validates whether project config keys follow the expected format.
+// Any value checks that rely on the state of the database should be performed on AllowProjectUpdate,
+// so that we are performing these checks and updating the project in a single transaction.
 func projectValidateConfig(s *state.State, config map[string]string, projectName string) error {
 	// Validate the project configuration.
 	projectConfigKeys := map[string]func(value string) error{
