@@ -3,6 +3,7 @@ package oidc
 import (
 	"context"
 	"crypto/sha512"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -362,7 +363,16 @@ func (o *Verifier) WriteHeaders(w http.ResponseWriter) error {
 	w.Header().Set("X-LXD-OIDC-issuer", o.issuer)
 	w.Header().Set("X-LXD-OIDC-clientid", o.clientID)
 	w.Header().Set("X-LXD-OIDC-audience", o.audience)
+
+	// Continue to sent groups claim header for compatibility with older clients
 	w.Header().Set("X-LXD-OIDC-groups-claim", o.groupsClaim)
+
+	scopesJSON, err := json.Marshal(o.scopes)
+	if err != nil {
+		return fmt.Errorf("Failed to marshal OIDC scopes: %w", err)
+	}
+
+	w.Header().Set("X-LXD-OIDC-scopes", string(scopesJSON))
 
 	return nil
 }
