@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
+	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
@@ -94,6 +95,7 @@ var patches = []patch{
 	{name: "entity_type_instance_snapshot_on_delete_trigger_typo_fix", stage: patchPreLoadClusterConfig, run: patchEntityTypeInstanceSnapshotOnDeleteTriggerTypoFix},
 	{name: "instance_remove_volatile_last_state_ip_addresses", stage: patchPostDaemonStorage, run: patchInstanceRemoveVolatileLastStateIPAddresses},
 	{name: "entity_type_identity_certificate_split", stage: patchPreLoadClusterConfig, run: patchSplitIdentityCertificateEntityTypes},
+	{name: "oidc_groups_claim_additional_scope", stage: patchPreLoadClusterConfig, run: patchOIDCGroupsClaimAdditionalScope},
 }
 
 type patch struct {
@@ -1427,6 +1429,38 @@ UPDATE OR REPLACE auth_groups_permissions
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to redefine certificate and identity entity types: %w", err)
+	}
+
+	return nil
+}
+
+func patchOIDCGroupsClaimAdditionalScope(_ string, d *Daemon) error {
+	s := d.State()
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get current configuration.
+		globalConfig, err := clusterConfig.Load(ctx, tx)
+		if err != nil {
+			return err
+		}
+
+		// Get the groups claim and additional scopes (these will just be the default values at the time of the patch)
+		_, _, _, groupsClaim, additionalScopes := globalConfig.OIDCServer()
+		if groupsClaim == "" {
+			// If the groups claim is not set, there's nothing to do.
+			return nil
+		}
+
+		// Unset the groups claim and add the groups claim as an additional scope instead.
+		oidcScopes := append(additionalScopes, groupsClaim)
+		_, err = globalConfig.Patch(map[string]any{
+			"oidc.groups.claim":      "",
+			"oidc.additional_scopes": strings.Join(oidcScopes, ","),
+		})
+
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to configure oidc.groups.claim as an additional scope: %w", err)
 	}
 
 	return nil
