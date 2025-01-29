@@ -681,10 +681,9 @@ var ConfigSchema = config.Schema{
 	"oidc.audience": {},
 
 	// lxdmeta:generate(entities=server; group=oidc; key=oidc.groups.claim)
-	// Specify a custom claim to be requested when performing OIDC flows.
-	// Configure a corresponding custom claim in your identity provider and
-	// add organization level groups to it. These can be mapped to LXD groups
-	// for automatic access control.
+	// Specify a custom token claim to denote groups defined at the identity provider.
+	// The contents of this claim can be mapped to LXD groups for managing access control.
+	// The value of the claim is expected to be a JSON string array.
 	// ---
 	//  type: string
 	//  scope: global
