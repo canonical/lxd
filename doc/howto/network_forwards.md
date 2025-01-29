@@ -143,21 +143,37 @@ Network forwards have the following properties:
 (network-forwards-port-specifications)=
 ## Configure ports
 
-You can add port specifications to the network forward to forward traffic from specific ports on the listen address to specific ports on the target address.
-This target address must be different from the default target address.
-It must be within the same subnet as the network that the forward is associated to.
+Once a forward is created on a network (whether bridge or OVN), it can be configured with port specifications. These specifications allow forwarding traffic from ports on the listen address to ports on a target address. This target address must be within the network's subnet, and it must be different from the network forward's default target address.
 
-Use the following command to add a port specification:
+Use the following command to add port specifications on a network forward:
 
-```bash
+```
 lxc network forward port add <network_name> <listen_address> <protocol> <listen_ports> <target_address> [<target_ports>]
 ```
 
-You can specify a single listen port or a set of ports.
-If you want to forward the traffic to different ports, you have two options:
+- You can specify a single listen port or a set of ports. 
+- Use either `tcp` or `udp` as the protocol.
+- Optionally specify a target port or ports. You can:
+   - Specify a single target port to forward traffic from all listen ports to this target port.
+   - Specify a set of target ports with the same number of ports as the listen ports to forward traffic from the first listen port to the first target port, the second listen port to the second target port, and so on.
 
-- Specify a single target port to forward traffic from all listen ports to this target port.
-- Specify a set of target ports with the same number of ports as the listen ports to forward traffic from the first listen port to the first target port, the second listen port to the second target port, and so on.
+This example shows how to configure a forward with a single listen port mapped to a single target port:
+
+```
+lxc network forward port add network1 192.0.2.1 tcp 22 10.41.211.2 22
+```
+
+This example shows how to configure a forward with a set of listen ports (including a range) mapped to a single target port:
+
+```
+lxc network forward port add network1 192.0.2.1 tcp 80,90-100 10.41.211.2 80
+```
+
+This example shows how to configure a forward with a set of listen ports mapped to a set of target ports:
+
+```
+lxc network forward port add network1 192.0.2.1 tcp 22,80 10.41.211.2 22,80
+```
 
 ### Port properties
 
