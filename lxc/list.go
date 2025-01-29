@@ -778,7 +778,7 @@ func (c *cmdList) ipv4ColumnData(cInfo api.InstanceFull) string {
 				}
 
 				if addr.Family == "inet" {
-					ipv4s = append(ipv4s, fmt.Sprintf("%s (%s)", addr.Address, netName))
+					ipv4s = append(ipv4s, addr.Address+" ("+netName+")")
 				}
 			}
 		}
@@ -804,7 +804,7 @@ func (c *cmdList) ipv6ColumnData(cInfo api.InstanceFull) string {
 				}
 
 				if addr.Family == "inet6" {
-					ipv6s = append(ipv6s, fmt.Sprintf("%s (%s)", addr.Address, netName))
+					ipv6s = append(ipv6s, addr.Address+" ("+netName+")")
 				}
 			}
 		}
