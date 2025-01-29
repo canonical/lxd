@@ -459,10 +459,7 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 		rp.WithHTTPClient(httpClient),
 	}
 
-	oidcScopes := []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail, oidc.ScopeProfile}
-	if o.opts.GroupsClaim != "" {
-		oidcScopes = append(oidcScopes, o.opts.GroupsClaim)
-	}
+	oidcScopes := append(requiredScopes, o.opts.AdditionalScopes...)
 
 	relyingParty, err := rp.NewRelyingPartyOIDC(ctx, o.issuer, o.clientID, "", fmt.Sprintf("https://%s/oidc/callback", host), oidcScopes, options...)
 	if err != nil {
