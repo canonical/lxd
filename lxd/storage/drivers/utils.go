@@ -458,6 +458,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 	}
 
 	// The smallest unit that resize2fs accepts in byte size (rather than blocks) is kilobytes.
+	// btrfs filesystem resize also accepts kilobytes.
 	strSize := strconv.FormatInt(byteSize/1024, 10) + "K"
 
 	switch fsType {
