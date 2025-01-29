@@ -156,7 +156,7 @@ func networkSnapshotPhysicalNIC(hostName string, volatile map[string]string) err
 		return err
 	}
 
-	volatile["last_state.mtu"] = fmt.Sprintf("%d", mtu)
+	volatile["last_state.mtu"] = fmt.Sprint(mtu)
 
 	// Store current MAC for restoration on detach
 	mac, err := NetworkGetDevMAC(hostName)
@@ -532,7 +532,7 @@ func networkSetupHostVethLimits(d *deviceCommon, oldConfig deviceConfig.Device, 
 			return fmt.Errorf("Failed to create root tc qdisc: %s", err)
 		}
 
-		classHTB := &ip.ClassHTB{Class: ip.Class{Dev: veth, Parent: "1:0", Classid: "1:10"}, Rate: fmt.Sprintf("%dbit", ingressInt)}
+		classHTB := &ip.ClassHTB{Class: ip.Class{Dev: veth, Parent: "1:0", Classid: "1:10"}, Rate: fmt.Sprint(ingressInt, "bit")}
 		err = classHTB.Add()
 		if err != nil {
 			return fmt.Errorf("Failed to create limit tc class: %s", err)
@@ -552,7 +552,7 @@ func networkSetupHostVethLimits(d *deviceCommon, oldConfig deviceConfig.Device, 
 			return fmt.Errorf("Failed to create ingress tc qdisc: %s", err)
 		}
 
-		police := &ip.ActionPolice{Rate: fmt.Sprintf("%dbit", egressInt), Burst: "1024k", Mtu: "64kb", Drop: true}
+		police := &ip.ActionPolice{Rate: fmt.Sprint(egressInt, "bit"), Burst: "1024k", Mtu: "64kb", Drop: true}
 		filter := &ip.U32Filter{Filter: ip.Filter{Dev: veth, Parent: "ffff:0", Protocol: "all"}, Value: "0", Mask: "0", Actions: []ip.Action{police}}
 		err = filter.Add()
 		if err != nil {
@@ -635,7 +635,7 @@ func bgpAddPrefix(d *deviceCommon, n network.Network, config map[string]string) 
 	}
 
 	// Add the prefixes.
-	bgpOwner := fmt.Sprintf("instance_%d_%s", d.inst.ID(), d.name)
+	bgpOwner := fmt.Sprint("instance_", d.inst.ID(), "_", d.name)
 	if config["ipv4.routes.external"] != "" {
 		for _, prefix := range shared.SplitNTrimSpace(config["ipv4.routes.external"], ",", -1, true) {
 			_, prefixNet, err := net.ParseCIDR(prefix)
@@ -674,7 +674,7 @@ func bgpRemovePrefix(d *deviceCommon, config map[string]string) error {
 	}
 
 	// Load the network configuration.
-	err := d.state.BGP.RemovePrefixByOwner(fmt.Sprintf("instance_%d_%s", d.inst.ID(), d.name))
+	err := d.state.BGP.RemovePrefixByOwner(fmt.Sprint("instance_", d.inst.ID(), "_", d.name))
 	if err != nil {
 		return err
 	}
@@ -709,9 +709,9 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 	// Record properties of VF settings on the parent device.
 	volatile["last_state.vf.parent"] = vfParent
 	volatile["last_state.vf.hwaddr"] = vfInfo.Address
-	volatile["last_state.vf.id"] = fmt.Sprintf("%d", vfID)
-	volatile["last_state.vf.vlan"] = fmt.Sprintf("%d", vfInfo.VLANs[0]["vlan"])
-	volatile["last_state.vf.spoofcheck"] = fmt.Sprintf("%t", vfInfo.SpoofCheck)
+	volatile["last_state.vf.id"] = fmt.Sprint(vfID)
+	volatile["last_state.vf.vlan"] = fmt.Sprint(vfInfo.VLANs[0]["vlan"])
+	volatile["last_state.vf.spoofcheck"] = fmt.Sprint(vfInfo.SpoofCheck)
 
 	// Record the host interface we represents the VF device which we will move into instance.
 	volatile["host_name"] = vfDevice
