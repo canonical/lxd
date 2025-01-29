@@ -182,7 +182,7 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	suite.Req.Nil(err)
 
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		_, err = tx.CreateStoragePoolVolume(ctx, c.Project().Name, c.Name(), "", cluster.StoragePoolVolumeContentTypeFS, pool.ID(), nil, cluster.StoragePoolVolumeContentTypeFS, time.Now())
+		_, err = tx.CreateStoragePoolVolume(ctx, c.Project().Name, c.Name(), "", cluster.StoragePoolVolumeTypeContainer, pool.ID(), nil, cluster.StoragePoolVolumeContentTypeFS, time.Now())
 
 		return err
 	})
