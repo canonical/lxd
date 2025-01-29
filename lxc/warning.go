@@ -170,7 +170,7 @@ func (c *cmdWarningList) run(cmd *cobra.Command, args []string) error {
 }
 
 func (c *cmdWarningList) countColumnData(warning api.Warning) string {
-	return fmt.Sprintf("%d", warning.Count)
+	return fmt.Sprint(warning.Count)
 }
 
 func (c *cmdWarningList) firstSeenColumnData(warning api.Warning) string {
