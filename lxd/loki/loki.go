@@ -55,7 +55,6 @@ type entry struct {
 type Client struct {
 	cfg     config
 	client  *http.Client
-	ctx     context.Context
 	quit    chan struct{}
 	once    sync.Once
 	entries chan entry
@@ -80,7 +79,6 @@ func NewClient(ctx context.Context, u *url.URL, username string, password string
 			url:       u,
 		},
 		client:  &http.Client{},
-		ctx:     ctx,
 		entries: make(chan entry),
 		quit:    make(chan struct{}),
 	}
@@ -117,16 +115,11 @@ func (c *Client) run() {
 	maxWaitCheck := time.NewTicker(maxWaitCheckFrequency)
 
 	defer func() {
-		// Send all pending batches
-		c.sendBatch(batch)
 		c.wg.Done()
 	}()
 
 	for {
 		select {
-		case <-c.ctx.Done():
-			return
-
 		case <-c.quit:
 			return
 
@@ -168,9 +161,11 @@ func (c *Client) sendBatch(batch *batch) {
 	var status int
 
 	for i := 0; i < 30; i++ {
-		// Try to send the message.
-		status, err = c.send(c.ctx, buf)
-		if err == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), c.cfg.timeout)
+		status, err = c.send(ctx, buf)
+		cancel()
+
+		if err != nil {
 			return
 		}
 
@@ -179,15 +174,16 @@ func (c *Client) sendBatch(batch *batch) {
 			return
 		}
 
-		// Retry every 10s.
-		time.Sleep(10 * time.Second)
+		// Retry every 10s, but exit if Stop() is called.
+		select {
+		case <-c.quit:
+			return
+		case <-time.After(c.cfg.timeout):
+		}
 	}
 }
 
 func (c *Client) send(ctx context.Context, buf []byte) (int, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.cfg.timeout)
-	defer cancel()
-
 	req, err := http.NewRequest("POST", c.cfg.url.String()+"/loki/api/v1/push", bytes.NewReader(buf))
 	if err != nil {
 		return -1, err
