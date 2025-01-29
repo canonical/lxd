@@ -88,7 +88,7 @@ A bridge network does not require you to define allowed listen addresses. Use an
 ### Create a forward in an OVN network
 
 ```{note}
-You must configure the {ref}`allowed listen addresses <network-forwards-listen-addresses>` before you can create a forward in an OVN network. 
+You must configure the {ref}`allowed listen addresses <network-forwards-listen-addresses>` before you can create a forward in an OVN network.
 ```
 
 Use the following command to create a forward in an OVN network:
@@ -107,7 +107,7 @@ lxc network forward create <ovn_network_name> [<listen_address>|--allocate=ipv{4
 This example shows how to create a network forward on a network named `ovn1` with an allocated listen address and no default target address:
 
 ```
-lxd network forward create ovn1 --allocate=ipv4 
+lxd network forward create ovn1 --allocate=ipv4
 ```
 
 This example shows how to create a network forward on a network named `ovn1` with a specific listen address and a target address:
@@ -117,7 +117,7 @@ lxd network forward create ovn1 192.0.2.1 target_address=10.41.211.2
 ```
 
 ```{note}
-The IP addresses shown in the example above are only examples. It is up to you to choose the allowed and available addresses on your setup.  
+The IP addresses shown in the example above are only examples. It is up to you to choose the allowed and available addresses on your setup.
 ```
 
 ### Create a forward in a bridge network
@@ -125,7 +125,7 @@ The IP addresses shown in the example above are only examples. It is up to you t
 Use the following command to create a forward in a bridge network:
 
 ```
-lxc network forward create <bridge_network_name> <listen_address> [target_address=<target_address>] [user.<key>=<value>] 
+lxc network forward create <bridge_network_name> <listen_address> [target_address=<target_address>] [user.<key>=<value>]
 ```
 
 - For `<bridge_network_name>`, specify the name of the bridge network on which to create the forward.
@@ -141,7 +141,7 @@ lxd network forward create bridge1 192.0.2.1 target_address=10.41.211.2
 ```
 
 ```{note}
-The IP addresses shown in the example above are only examples. It is up to you to choose the allowed and available addresses on your setup.  
+The IP addresses shown in the example above are only examples. It is up to you to choose the allowed and available addresses on your setup.
 ```
 
 ### Forward properties
@@ -165,7 +165,7 @@ Use the following command to add port specifications on a network forward:
 lxc network forward port add <network_name> <listen_address> <protocol> <listen_ports> <target_address> [<target_ports>]
 ```
 
-- You can specify a single listen port or a set of ports. 
+- You can specify a single listen port or a set of ports.
 - Use either `tcp` or `udp` as the protocol.
 - Optionally specify a target port or ports. You can:
    - Specify a single target port to forward traffic from all listen ports to this target port.
