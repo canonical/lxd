@@ -185,7 +185,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resultString := []string{}
-	resultMap := []api.StoragePool{}
+	resultMap := []*api.StoragePool{}
 	urlToPool := make(map[*api.URL]auth.EntitlementReporter)
 	for _, poolName := range poolNames {
 		// Hide storage pools with a 0 project limit.
@@ -225,7 +225,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 				poolAPI.Status = pool.LocalStatus()
 			}
 
-			resultMap = append(resultMap, poolAPI)
+			resultMap = append(resultMap, &poolAPI)
 			urlToPool[entity.StoragePoolURL(poolName)] = &poolAPI
 		}
 	}
