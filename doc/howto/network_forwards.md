@@ -45,6 +45,32 @@ lxc network forward list lxdbr0
 
 ## Create a network forward
 
+(network-forwards-listen-addresses)=
+### Requirements for listen addresses
+
+Before you can create a network forward, you must understand the requirements for listen addresses.
+
+For both OVN and bridge networks, the listen addresses must not overlap with any subnet in use by other networks on the host. Otherwise, the listen address requirements differ by network type.
+
+`````{tabs}
+
+````{group-tab} OVN network
+
+For an OVN network, the allowed listen addresses must be defined in at least one of the following configuration options, using [CIDR notation](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing):
+
+- {config:option}`network-bridge-network-conf:ipv4.routes` or {config:option}`network-bridge-network-conf:ipv6.routes` in the OVN network's uplink network configuration
+- {config:option}`project-restricted:restricted.networks.subnets` in the OVN network's project configuration
+
+````
+
+````{group-tab} Bridge network
+
+A bridge network does not require you to define allowed listen addresses. Use any non-conflicting IP address available on the host.
+
+````
+
+`````
+
 Use the following command to create a network forward:
 
 ```bash
@@ -70,20 +96,8 @@ Network forwards have the following properties:
     :end-before: <!-- config group network-forward-forward-properties end -->
 ```
 
-(network-forwards-listen-addresses)=
-### Requirements for listen addresses
 
-The requirements for valid listen addresses vary depending on which network type the forward is associated to.
 
-Bridge network
-: - Any non-conflicting listen address is allowed.
-  - The listen address must not overlap with a subnet that is in use with another network.
-  - The `--allocate` flag is not supported.
-
-OVN network
-: - Allowed listen addresses must be defined in the uplink network's `ipv{n}.routes` settings or the project's {config:option}`project-restricted:restricted.networks.subnets` setting (if set).
-  - The listen address must not overlap with a subnet that is in use with another network.
-  - The `--allocate` flag is supported. If used, the OVN network driver will allocate an IP address from the uplink network's `ipv{n}.routes` or the project's {config:option}`project-restricted:restricted.networks.subnets` setting (if set).
 
 (network-forwards-port-specifications)=
 ## Configure ports
