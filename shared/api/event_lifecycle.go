@@ -130,4 +130,7 @@ const (
 	EventLifecycleIdentityProviderGroupUpdated      = "identity-provider-group-updated"
 	EventLifecycleIdentityProviderGroupRenamed      = "identity-provider-group-renamed"
 	EventLifecycleIdentityProviderGroupDeleted      = "identity-provider-group-deleted"
+	EventLifecycleServiceCreated                    = "service-created"
+	EventLifecycleServiceDeleted                    = "service-deleted"
+	EventLifecycleServiceUpdated                    = "service-updated"
 )
