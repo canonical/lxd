@@ -7236,7 +7236,7 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		return fmt.Errorf("Instance %q in project %q has a different volume name in its backup file (%q)", instName, projectName, backupConf.Volume.Name)
 	}
 
-	instVolDBType, err := VolumeTypeNameToDBType(backupConf.Volume.Type)
+	instVolDBType, err := cluster.StoragePoolVolumeTypeFromName(backupConf.Volume.Type)
 	if err != nil {
 		return fmt.Errorf("Failed checking instance volume type for instance %q in project %q: %w", instName, projectName, err)
 	}
