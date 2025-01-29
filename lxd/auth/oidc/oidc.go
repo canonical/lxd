@@ -42,6 +42,10 @@ const (
 	defaultConfigExpiryInterval = 5 * time.Minute
 )
 
+// requiredScopes are always requested. We need the `openid` scope to perform the OIDC flow, and `email` to retrieve
+// an email identifier for the identity.
+var requiredScopes = []string{oidc.ScopeOpenID, oidc.ScopeEmail}
+
 // Verifier holds all information needed to verify an access token offline.
 type Verifier struct {
 	accessTokenVerifier *op.AccessTokenVerifier
@@ -647,15 +651,17 @@ func (o *Verifier) secureCookieFromSession(sessionID uuid.UUID) (*securecookie.S
 }
 
 // NewOpts returns an Opts.
-func NewOpts(groupsClaim string) Opts {
+func NewOpts(groupsClaim string, additionalScopes []string) Opts {
 	return Opts{
-		GroupsClaim: groupsClaim,
+		GroupsClaim:      groupsClaim,
+		AdditionalScopes: additionalScopes,
 	}
 }
 
 // Opts contains optional configurable fields for the Verifier.
 type Opts struct {
-	GroupsClaim string
+	GroupsClaim      string
+	AdditionalScopes []string
 }
 
 // NewVerifier returns a Verifier.
