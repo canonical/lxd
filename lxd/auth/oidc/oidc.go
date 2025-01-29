@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/mail"
 	"strings"
 	"time"
 
@@ -170,17 +171,7 @@ func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken stri
 		return nil, AuthError{Err: fmt.Errorf("Failed to call user info endpoint with given access token: %w", err)}
 	}
 
-	if userInfo.Email == "" {
-		return nil, AuthError{Err: fmt.Errorf("Could not get email address of oidc user with subject %q", claims.Subject)}
-	}
-
-	return &AuthenticationResult{
-		IdentityType:           api.IdentityTypeOIDCClient,
-		Email:                  userInfo.Email,
-		Name:                   userInfo.Name,
-		Subject:                claims.Subject,
-		IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
-	}, nil
+	return o.getResultFromClaims(userInfo, userInfo.Claims)
 }
 
 // authenticateIDToken verifies the identity token and returns the ID token subject. If no identity token is given (or
@@ -196,13 +187,7 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 		// Try to verify the ID token.
 		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParty.IDTokenVerifier())
 		if err == nil {
-			return &AuthenticationResult{
-				IdentityType:           api.IdentityTypeOIDCClient,
-				Subject:                claims.Subject,
-				Email:                  claims.Email,
-				Name:                   claims.Name,
-				IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
-			}, nil
+			return o.getResultFromClaims(claims, claims.Claims)
 		}
 	}
 
@@ -240,13 +225,58 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 		return nil, AuthError{fmt.Errorf("Failed to update login cookies: %w", err)}
 	}
 
+	return o.getResultFromClaims(claims, claims.Claims)
+}
+
+// getResultFromClaims gets an AuthenticationResult from the given rp.SubjectGetter and claim map.
+// It returns an error if any required values are not present or are invalid.
+func (o *Verifier) getResultFromClaims(sg rp.SubjectGetter, claims map[string]any) (*AuthenticationResult, error) {
+	email, err := o.getEmailFromClaims(claims)
+	if err != nil {
+		return nil, err
+	}
+
+	subject := sg.GetSubject()
+	if subject == "" {
+		return nil, fmt.Errorf("Token does not contain a subject")
+	}
+
+	var name string
+	nameAny, ok := claims["name"]
+	if ok {
+		nameStr, ok := nameAny.(string)
+		if ok {
+			name = nameStr
+		}
+	}
+
 	return &AuthenticationResult{
 		IdentityType:           api.IdentityTypeOIDCClient,
-		Subject:                claims.Subject,
-		Email:                  claims.Email,
-		Name:                   claims.Name,
-		IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
+		Subject:                subject,
+		Email:                  email,
+		Name:                   name,
+		IdentityProviderGroups: o.getGroupsFromClaims(claims),
 	}, nil
+}
+
+// getEmailFromClaims gets a valid email address from the claims or returns an error.
+func (o *Verifier) getEmailFromClaims(claims map[string]any) (string, error) {
+	emailAny, ok := claims[oidc.ScopeEmail]
+	if !ok {
+		return "", fmt.Errorf("Token does not contain an email address")
+	}
+
+	email, ok := emailAny.(string)
+	if !ok {
+		return "", fmt.Errorf("Token claim %q has incorrect type (expected %T, got %T)", "email", "", emailAny)
+	}
+
+	_, err := mail.ParseAddress(email)
+	if err != nil {
+		return "", fmt.Errorf("Token claim %q contains a value %q that is not a valid email address: %w", "email", email, err)
+	}
+
+	return email, nil
 }
 
 // getGroupsFromClaims attempts to get the configured groups claim from the token claims and warns if it is not present
