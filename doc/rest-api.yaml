@@ -383,6 +383,129 @@ definitions:
         title: ClusterGroupsPost represents the fields available for a new cluster group.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    ClusterLink:
+        properties:
+            addresses:
+                description: The cluster endpoint addresses
+                example: '[10.0.0.1:8443, 10.0.0.2:8443]'
+                items:
+                    type: string
+                type: array
+                x-go-name: Addresses
+            config:
+                additionalProperties:
+                    type: string
+                description: Cluster link configuration map (refer to doc/cluster_link.md)
+                example:
+                    addresses:
+                        - 10.0.0.1:8443
+                        - 10.0.0.1:8443
+                type: object
+                x-go-name: Config
+            description:
+                description: Description of the cluster
+                example: Backup LXD cluster
+                type: string
+                x-go-name: Description
+            name:
+                description: The name of the cluster
+                example: lxd02
+                type: string
+                x-go-name: Name
+        title: ClusterLink represents high-level information about a cluster link.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    ClusterLinkConfigKey:
+        properties:
+            key:
+                description: The name of the key
+                type: string
+                x-go-name: Key
+            name:
+                description: The name of the object requiring this key
+                example: local
+                type: string
+                x-go-name: Name
+            value:
+                description: The value on the cluster
+                type: string
+                x-go-name: Value
+        title: ClusterLinkConfigKey represents a single config key.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    ClusterLinkPost:
+        properties:
+            address:
+                description: Optional address to use for connecting to the cluster (overrides addresses in the trust token)
+                example: 198.51.100.2
+                type: string
+                x-go-name: Address
+            addresses:
+                description: The cluster endpoint addresses
+                example: '[10.0.0.1:8443, 10.0.0.2:8443]'
+                items:
+                    type: string
+                type: array
+                x-go-name: Addresses
+            config:
+                additionalProperties:
+                    type: string
+                description: Cluster link configuration map (refer to doc/cluster_link.md)
+                example:
+                    addresses:
+                        - 10.0.0.1:8443
+                        - 10.0.0.1:8443
+                type: object
+                x-go-name: Config
+            description:
+                description: Cluster description
+                example: My backup service
+                type: string
+                x-go-name: Description
+            identity_name:
+                description: The name of the created identity for the cluster
+                example: tls/cluster_b
+                type: string
+                x-go-name: IdentityName
+            name:
+                description: The name of the cluster
+                example: lxd02
+                type: string
+                x-go-name: Name
+            trust_token:
+                description: 'API extension: explicit_trust_token'
+                type: string
+                x-go-name: TrustToken
+        title: ClusterLinkPost represents the fields required to add a cluster link using a join token to establish trust.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    ClusterLinkPut:
+        properties:
+            addresses:
+                description: The cluster endpoint addresses
+                example: '[10.0.0.1:8443, 10.0.0.2:8443]'
+                items:
+                    type: string
+                type: array
+                x-go-name: Addresses
+            config:
+                additionalProperties:
+                    type: string
+                description: Cluster link configuration map (refer to doc/cluster_link.md)
+                example:
+                    addresses:
+                        - 10.0.0.1:8443
+                        - 10.0.0.1:8443
+                type: object
+                x-go-name: Config
+            description:
+                description: Description of the cluster
+                example: Backup LXD cluster
+                type: string
+                x-go-name: Description
+        title: ClusterLinkPut represents the modifiable fields of a cluster link.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterMember:
         properties:
             architecture:
@@ -8905,6 +9028,171 @@ paths:
             summary: Get the cluster groups
             tags:
                 - cluster-groups
+    /1.0/cluster/links:
+        get:
+            description: Gets linked clusters.
+            operationId: cluster_links_get
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Cluster links
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/ClusterLink'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get cluster links
+            tags:
+                - cluster-links
+    /1.0/cluster/links/{name}:
+        delete:
+            description: Delete a linked cluster.
+            operationId: cluster_link_delete
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Delete cluster link request
+                    schema:
+                        description: Sync response
+                        properties:
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Delete cluster link
+            tags:
+                - cluster-links
+        get:
+            description: Get information on a linked cluster.
+            operationId: cluster_link_get
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Cluster link
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/ClusterLink'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get cluster link
+            tags:
+                - cluster-links
+        post:
+            description: Link a cluster.
+            operationId: cluster_link_post
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Link cluster request
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/ClusterLinkPost'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Post cluster link
+            tags:
+                - cluster-links
+        put:
+            description: Update a cluster link.
+            operationId: cluster_link_put
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Update cluster link request
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/ClusterLinkPut'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Update cluster link
+            tags:
+                - cluster-links
     /1.0/cluster/members:
         get:
             description: Returns a list of cluster members (URLs).
