@@ -1,6 +1,8 @@
 package lxd
 
 import (
+	"net/http"
+
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -331,4 +333,86 @@ func (r *ProtocolLXD) GetClusterGroup(name string) (*api.ClusterGroup, string, e
 	}
 
 	return &group, etag, nil
+}
+
+// GetClusterLinks returns all cluster links.
+func (r *ProtocolLXD) GetClusterLinks() ([]api.ClusterLink, error) {
+	err := r.CheckExtension("cluster_links")
+	if err != nil {
+		return nil, err
+	}
+
+	clusterLinks := []api.ClusterLink{}
+	u := api.NewURL().Path("cluster", "links")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &clusterLinks)
+	if err != nil {
+		return nil, err
+	}
+
+	return clusterLinks, nil
+}
+
+// GetClusterLink returns information about a cluster link.
+func (r *ProtocolLXD) GetClusterLink(name string) (*api.ClusterLink, string, error) {
+	err := r.CheckExtension("cluster_links")
+	if err != nil {
+		return nil, "", err
+	}
+
+	clusterLink := &api.ClusterLink{}
+	u := api.NewURL().Path("cluster", "links", name)
+	etag, err := r.queryStruct(http.MethodGet, u.String(), nil, "", &clusterLink)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return clusterLink, etag, nil
+}
+
+// AddClusterLink requests to add a new cluster link.
+func (r *ProtocolLXD) AddClusterLink(name string, clusterLink api.ClusterLinkPost) error {
+	err := r.CheckExtension("cluster_links")
+	if err != nil {
+		return err
+	}
+
+	u := api.NewURL().Path("cluster", "links", "add", name)
+	_, _, err = r.query(http.MethodPost, u.String(), clusterLink, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UpdateClusterLink updates a cluster link.
+func (r *ProtocolLXD) UpdateClusterLink(name string, clusterLink api.ClusterLinkPut, ETag string) error {
+	err := r.CheckExtension("cluster_links")
+	if err != nil {
+		return err
+	}
+
+	u := api.NewURL().Path("cluster", "links", name)
+	_, _, err = r.query(http.MethodPut, u.String(), clusterLink, ETag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteClusterLink deletes a cluster link.
+func (r *ProtocolLXD) DeleteClusterLink(name string) error {
+	err := r.CheckExtension("cluster_links")
+	if err != nil {
+		return err
+	}
+
+	u := api.NewURL().Path("cluster", "links", name)
+	_, _, err = r.query(http.MethodDelete, u.String(), nil, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
