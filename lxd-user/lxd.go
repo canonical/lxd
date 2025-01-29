@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"os"
@@ -71,7 +72,7 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 			pool.Driver = "zfs"
 
 			// Check if zsys.
-			poolName, _ := shared.RunCommand("zpool", "get", "-H", "-o", "value", "name", "rpool")
+			poolName, _ := shared.RunCommandContext(context.TODO(), "zpool", "get", "-H", "-o", "value", "name", "rpool")
 			if strings.TrimSpace(poolName) == "rpool" {
 				pool.Config["source"] = "rpool/lxd"
 			}
@@ -143,7 +144,7 @@ func lxdSetupUser(uid uint32) error {
 	userPath := filepath.Join("users", fmt.Sprintf("%d", uid))
 
 	// User account.
-	out, err := shared.RunCommand("getent", "passwd", fmt.Sprintf("%d", uid))
+	out, err := shared.RunCommandContext(context.TODO(), "getent", "passwd", fmt.Sprintf("%d", uid))
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve user information: %w", err)
 	}
