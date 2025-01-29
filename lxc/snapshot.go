@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
@@ -123,7 +122,7 @@ func (c *cmdSnapshot) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.flagNoExpiry {
-		req.ExpiresAt = &time.Time{}
+		req.ExpiresAt = nil
 	}
 
 	op, err := d.CreateInstanceSnapshot(name, req)
