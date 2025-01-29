@@ -554,7 +554,7 @@ func (c *cmdProjectList) run(cmd *cobra.Command, args []string) error {
 
 		name := project.Name
 		if name == info.Project {
-			name = fmt.Sprintf("%s (%s)", name, i18n.G("current"))
+			name = name + " (" + i18n.G("current") + ")"
 		}
 
 		strUsedBy := fmt.Sprint(len(project.UsedBy))
@@ -981,7 +981,7 @@ func (c *cmdProjectInfo) run(cmd *cobra.Command, args []string) error {
 		columnName := strings.ToUpper(k)
 		before, after, found := strings.Cut(columnName, ".")
 		if found {
-			columnName = fmt.Sprintf("%s (%s)", before, after)
+			columnName = before + " (" + after + ")"
 		}
 
 		data = append(data, []string{columnName, limit, usage})
