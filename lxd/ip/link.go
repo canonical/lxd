@@ -39,7 +39,7 @@ func (l *Link) args() []string {
 	}
 
 	if l.MTU > 0 {
-		result = append(result, "mtu", fmt.Sprintf("%d", l.MTU))
+		result = append(result, "mtu", fmt.Sprint(l.MTU))
 	}
 
 	if l.Address != nil {
@@ -47,7 +47,7 @@ func (l *Link) args() []string {
 	}
 
 	if l.TXQueueLength > 0 {
-		result = append(result, "txqueuelen", fmt.Sprintf("%d", l.TXQueueLength))
+		result = append(result, "txqueuelen", fmt.Sprint(l.TXQueueLength))
 	}
 
 	if l.AllMutlicast {
@@ -101,7 +101,7 @@ func (l *Link) SetDown() error {
 
 // SetMTU sets the MTU of the link device.
 func (l *Link) SetMTU(mtu uint32) error {
-	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "mtu", fmt.Sprintf("%d", mtu))
+	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "mtu", fmt.Sprint(mtu))
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (l *Link) SetMTU(mtu uint32) error {
 
 // SetTXQueueLength sets the txqueuelen of the link device.
 func (l *Link) SetTXQueueLength(queueLength uint32) error {
-	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "txqueuelen", fmt.Sprintf("%d", queueLength))
+	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "txqueuelen", fmt.Sprint(queueLength))
 	if err != nil {
 		return err
 	}
@@ -248,14 +248,14 @@ func (l *Link) GetVFInfo(vfID int) (VirtFuncInfo, error) {
 		defer func() { _ = cmd.Wait() }()
 
 		// Try and match: "vf 1 MAC 00:00:00:00:00:00, vlan 4095, spoof checking off"
-		reVlan, err := regexp.Compile(fmt.Sprintf(`vf %d MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, vlan (\d+), spoof checking (\w+)`, vfID))
+		reVlan, err := regexp.Compile(`vf ` + fmt.Sprint(vfID) + ` MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, vlan (\d+), spoof checking (\w+)`)
 		if err != nil {
 			return vf, err
 		}
 
 		// IP link command doesn't show the vlan property if its set to 0, so we need to detect that.
 		// Try and match: "vf 1 MAC 00:00:00:00:00:00, spoof checking off"
-		reNoVlan, err := regexp.Compile(fmt.Sprintf(`vf %d MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, spoof checking (\w+)`, vfID))
+		reNoVlan, err := regexp.Compile(`vf ` + fmt.Sprint(vfID) + ` MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, spoof checking (\w+)`)
 		if err != nil {
 			return vf, err
 		}
