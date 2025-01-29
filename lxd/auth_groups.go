@@ -244,8 +244,10 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 		for _, permission := range authGroupPermissions {
 			authGroupPermissionsByGroupID[permission.GroupID] = append(authGroupPermissionsByGroupID[permission.GroupID], permission)
 		}
-
-		apiGroups := make([]api.AuthGroup, 0, len(groups))
+		// We need to allocate a slice of pointer to api.AuthGroup because
+		// these records will be modified in place by the reportEntitlements function.
+		// We'll then return a slice of api.AuthGroup as an API response.
+		apiGroups := make([]*api.AuthGroup, 0, len(groups))
 		urlToGroup := make(map[*api.URL]auth.EntitlementReporter, len(groups))
 		for _, group := range groups {
 			var apiPermissions []api.Permission
@@ -278,7 +280,7 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-			group := api.AuthGroup{
+			group := &api.AuthGroup{
 				Name:                   group.Name,
 				Description:            group.Description,
 				Permissions:            apiPermissions,
@@ -287,7 +289,7 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 			}
 
 			apiGroups = append(apiGroups, group)
-			urlToGroup[entity.AuthGroupURL(group.Name)] = &group
+			urlToGroup[entity.AuthGroupURL(group.Name)] = group
 		}
 
 		if len(withEntitlements) > 0 {
