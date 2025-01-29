@@ -641,7 +641,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	// Convert volume type name to internal integer representation if requested.
 	var volumeType cluster.StoragePoolVolumeType
 	if volumeTypeName != "" {
-		volumeType, err = storagePools.VolumeTypeNameToDBType(volumeTypeName)
+		volumeType, err = cluster.StoragePoolVolumeTypeFromName(volumeTypeName)
 		if err != nil {
 			return response.BadRequest(err)
 		}
@@ -2756,7 +2756,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 	details.volumeTypeName = volumeTypeName
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
+	volumeType, err := cluster.StoragePoolVolumeTypeFromName(volumeTypeName)
 	if err != nil {
 		return api.StatusErrorf(http.StatusBadRequest, "Failed to get storage volume type: %w", err)
 	}
