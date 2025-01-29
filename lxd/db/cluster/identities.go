@@ -519,6 +519,30 @@ func ActivateClusterLinkIdentity(ctx context.Context, tx *sql.Tx, identifier uui
 	return nil
 }
 
+var getPendingClusterLinkIdentityByTokenSecretStmt = fmt.Sprintf(`
+SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
+	FROM identities
+	WHERE identities.type = %d
+	AND json_extract(identities.metadata, '$.secret') = ?
+`, identityTypeCertificateClusterLinkPending)
+
+// GetPendingClusterLinkIdentityByTokenSecret gets a single identity of type identityTypeCertificateClusterLinkPending with the given
+// secret in its metadata. If no pending identity is found, an api.StatusError is returned with http.StatusNotFound.
+func GetPendingClusterLinkIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*Identity, error) {
+	identities, err := getIdentitysRaw(ctx, tx, getPendingClusterLinkIdentityByTokenSecretStmt, secret)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(identities) == 0 {
+		return nil, api.NewStatusError(http.StatusNotFound, "No pending identities found with given secret")
+	} else if len(identities) > 1 {
+		return nil, errors.New("Multiple pending identities found with given secret")
+	}
+
+	return &identities[0], nil
+}
+
 // GetAuthGroupsByIdentityID returns a slice of groups that the identity with the given ID is a member of.
 func GetAuthGroupsByIdentityID(ctx context.Context, tx *sql.Tx, identityID int) ([]AuthGroup, error) {
 	stmt := `
