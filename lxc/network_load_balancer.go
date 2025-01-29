@@ -143,7 +143,7 @@ func (c *cmdNetworkLoadBalancerList) run(cmd *cobra.Command, args []string) erro
 		details := []string{
 			loadBalancer.ListenAddress,
 			loadBalancer.Description,
-			fmt.Sprintf("%d", len(loadBalancer.Ports)),
+			fmt.Sprint(len(loadBalancer.Ports)),
 		}
 
 		if clustered {
