@@ -5356,7 +5356,7 @@ func allowRemoveSecurityProtectionStart(state *state.State, poolName string, vol
 		return err
 	})
 	if err != nil {
-		volumeTypeName := dbCluster.StoragePoolVolumeTypeNames[volumeType]
+		volumeTypeName := volumeType.Name()
 		return fmt.Errorf(`Failed loading "%s/%s" from project %q: %w`, volumeTypeName, volumeName, volumeProject, err)
 	}
 
