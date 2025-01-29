@@ -140,7 +140,7 @@ func (c *cmdNetworkACLList) run(cmd *cobra.Command, args []string) error {
 
 	data := [][]string{}
 	for _, acl := range acls {
-		strUsedBy := fmt.Sprintf("%d", len(acl.UsedBy))
+		strUsedBy := fmt.Sprint(len(acl.UsedBy))
 		details := []string{
 			acl.Name,
 			acl.Description,
