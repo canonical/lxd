@@ -120,7 +120,7 @@ func (d *btrfs) FillConfig() error {
 				return err
 			}
 
-			d.config["size"] = fmt.Sprintf("%dGiB", defaultSize)
+			d.config["size"] = fmt.Sprint(defaultSize, "GiB")
 		}
 	} else {
 		// Unset size property since it's irrelevant.
