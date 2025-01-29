@@ -43,6 +43,20 @@ Example:
 lxc network forward list lxdbr0
 ```
 
+## View a network forward
+
+View information about a specific network forward:
+
+```
+lxc network forward show <network_name> <listen_address>
+```
+
+Example:
+
+```
+lxc network forward list lxdbr0 192.0.2.1
+```
+
 ## Create a network forward
 
 (network-forwards-listen-addresses)=
