@@ -428,6 +428,13 @@ type InstanceServer interface {
 	UpdateClusterGroup(name string, group api.ClusterGroupPut, ETag string) error
 	GetClusterGroup(name string) (*api.ClusterGroup, string, error)
 
+	// Service functions ("services" API extension)
+	GetService(name string) (service *api.Service, ETag string, err error)
+	GetServices() (services []api.Service, err error)
+	AddService(service api.ServicePost) error
+	UpdateService(name string, service api.ServicePut, ETag string) error
+	DeleteService(name string) error
+
 	// Warning functions
 	GetWarningUUIDs() (uuids []string, err error)
 	GetWarnings() (warnings []api.Warning, err error)
