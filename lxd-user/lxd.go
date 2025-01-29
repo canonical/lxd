@@ -139,12 +139,12 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 }
 
 func lxdSetupUser(uid uint32) error {
-	projectName := fmt.Sprintf("user-%d", uid)
-	networkName := fmt.Sprintf("lxdbr-%d", uid)
-	userPath := filepath.Join("users", fmt.Sprintf("%d", uid))
+	projectName := fmt.Sprint("user-", uid)
+	networkName := fmt.Sprint("lxdbr-", uid)
+	userPath := filepath.Join("users", fmt.Sprint(uid))
 
 	// User account.
-	out, err := shared.RunCommandContext(context.TODO(), "getent", "passwd", fmt.Sprintf("%d", uid))
+	out, err := shared.RunCommandContext(context.TODO(), "getent", "passwd", fmt.Sprint(uid))
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve user information: %w", err)
 	}
@@ -225,7 +225,7 @@ func lxdSetupUser(uid uint32) error {
 
 	// Add the certificate to the trust store.
 	err = client.CreateCertificate(api.CertificatesPost{
-		Name:        fmt.Sprintf("lxd-user-%d", uid),
+		Name:        fmt.Sprint("lxd-user-", uid),
 		Type:        "client",
 		Restricted:  true,
 		Projects:    []string{projectName},
@@ -242,7 +242,7 @@ func lxdSetupUser(uid uint32) error {
 	network.Config = map[string]string{}
 	network.Type = "bridge"
 	network.Name = networkName
-	network.Description = fmt.Sprintf("Network for user restricted project user-%s", projectName)
+	network.Description = fmt.Sprint("Network for user restricted project user-", projectName)
 
 	err = client.CreateNetwork(network)
 	if err != nil {
