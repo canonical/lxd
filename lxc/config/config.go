@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -64,15 +63,15 @@ func (c *Config) ConfigPath(paths ...string) string {
 // ServerCertPath returns the path for the remote's server certificate.
 func (c *Config) ServerCertPath(remote string) string {
 	if c.Remotes[remote].Global {
-		return c.GlobalConfigPath("servercerts", fmt.Sprintf("%s.crt", remote))
+		return c.GlobalConfigPath("servercerts", remote+".crt")
 	}
 
-	return c.ConfigPath("servercerts", fmt.Sprintf("%s.crt", remote))
+	return c.ConfigPath("servercerts", remote+".crt")
 }
 
 // OIDCTokenPath returns the path for the remote's OIDC tokens.
 func (c *Config) OIDCTokenPath(remote string) string {
-	return c.ConfigPath("oidctokens", fmt.Sprintf("%s.json", remote))
+	return c.ConfigPath("oidctokens", remote+".json")
 }
 
 // SaveOIDCTokens saves OIDC tokens to disk.
