@@ -766,7 +766,7 @@ func (d Xtables) aclRulePortToACLMatch(direction string, portCriteria ...string)
 
 // NetworkClear removes network rules from filter, mangle and nat tables.
 // If delete is true then network-specific chains are also removed.
-func (d Xtables) NetworkClear(networkName string, delete bool, ipVersions []uint) error {
+func (d Xtables) NetworkClear(networkName string, remove bool, ipVersions []uint) error {
 	comments := []string{
 		d.networkIPTablesComment(networkName),
 		d.networkForwardIPTablesComment(networkName),
@@ -794,7 +794,7 @@ func (d Xtables) NetworkClear(networkName string, delete bool, ipVersions []uint
 		}
 
 		// Remove network specific chains (and any rules in them) if deleting.
-		if delete {
+		if remove {
 			// Remove the NIC filter chain if it exists.
 			nicFilterChain := fmt.Sprintf("%s_%s", iptablesChainNICFilterPrefix, networkName)
 			exists, hasRules, err := d.iptablesChainExists(ipVersion, "filter", nicFilterChain)
