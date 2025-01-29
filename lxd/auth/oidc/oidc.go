@@ -290,6 +290,7 @@ func (o *Verifier) getGroupsFromClaims(customClaims map[string]any) []string {
 	groupsArr, ok := groupsClaimAny.([]any)
 	if !ok {
 		logger.Warn("Unexpected type for OIDC groups custom claim", logger.Ctx{"claim_name": o.opts.GroupsClaim, "claim_value": groupsClaimAny})
+		return nil
 	}
 
 	groups := make([]string, 0, len(groupsArr))
@@ -297,6 +298,7 @@ func (o *Verifier) getGroupsFromClaims(customClaims map[string]any) []string {
 		groupName, ok := groupNameAny.(string)
 		if !ok {
 			logger.Warn("Unexpected type for OIDC groups custom claim", logger.Ctx{"claim_name": o.opts.GroupsClaim, "claim_value": groupsClaimAny})
+			return nil
 		}
 
 		groups = append(groups, groupName)
