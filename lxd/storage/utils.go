@@ -72,22 +72,6 @@ func ConfigDiff(oldConfig map[string]string, newConfig map[string]string) ([]str
 	return changedConfig, userOnly
 }
 
-// VolumeTypeNameToDBType converts a volume type string to internal volume type DB code.
-func VolumeTypeNameToDBType(volumeTypeName string) (cluster.StoragePoolVolumeType, error) {
-	switch volumeTypeName {
-	case cluster.StoragePoolVolumeTypeNameContainer:
-		return cluster.StoragePoolVolumeTypeContainer, nil
-	case cluster.StoragePoolVolumeTypeNameVM:
-		return cluster.StoragePoolVolumeTypeVM, nil
-	case cluster.StoragePoolVolumeTypeNameImage:
-		return cluster.StoragePoolVolumeTypeImage, nil
-	case cluster.StoragePoolVolumeTypeNameCustom:
-		return cluster.StoragePoolVolumeTypeCustom, nil
-	}
-
-	return -1, fmt.Errorf("Invalid storage volume type name")
-}
-
 // VolumeTypeToDBType converts volume type to internal volume type DB code.
 func VolumeTypeToDBType(volType drivers.VolumeType) (cluster.StoragePoolVolumeType, error) {
 	switch volType {
@@ -219,7 +203,7 @@ func DiskVolumeSourceParse(source string) (volType drivers.VolumeType, dbVolType
 		return volType, dbVolType, "", "", err
 	}
 
-	dbVolType, err = VolumeTypeNameToDBType(volTypeName)
+	dbVolType, err = cluster.StoragePoolVolumeTypeFromName(volTypeName)
 	if err != nil {
 		return volType, dbVolType, "", "", err
 	}
@@ -1018,7 +1002,7 @@ func volumeIsUsedByDevice(vol api.StorageVolume, inst *db.InstanceArgs, dev map[
 // the volume.
 func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, profileFunc func(profileID int64, profile api.Profile, project api.Project, usedByDevices []string) error) error {
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := VolumeTypeNameToDBType(vol.Type)
+	volumeType, err := cluster.StoragePoolVolumeTypeFromName(vol.Type)
 	if err != nil {
 		return err
 	}
@@ -1125,7 +1109,7 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 // names that are using the volume.
 func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, expandDevices bool, instanceFunc func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error) error {
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := VolumeTypeNameToDBType(vol.Type)
+	volumeType, err := cluster.StoragePoolVolumeTypeFromName(vol.Type)
 	if err != nil {
 		return err
 	}
