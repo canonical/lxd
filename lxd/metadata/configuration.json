@@ -5446,6 +5446,15 @@
 			"oidc": {
 				"keys": [
 					{
+						"oidc.additional_scopes": {
+							"defaultdesc": "`profile offline_access`",
+							"longdesc": "Specify additional scopes to be requested when performing OIDC flows.\nAdditional scopes might be required if managing access control in the Identity Provider (see {ref}`identity-provider-groups`).\nThe default value for this configuration option contains two scopes which are optional, but will degrade LXD OIDC functionality if removed.\nThese are:\n  - `profile`: This is requested by LXD to present display names for the identification of end users. If it is removed, only email addresses will be displayed.\n  - `offline_access`: This is requested by LXD to request refresh tokens from the identity provider. However, not all identity providers support this optional scope. If it is removed, end users might be required to log in more frequently.",
+							"scope": "global",
+							"shortdesc": "Additional scopes to be requested during OIDC flows.",
+							"type": "space-delimited string list"
+						}
+					},
+					{
 						"oidc.audience": {
 							"longdesc": "This value is required by some providers.",
 							"scope": "global",
@@ -5463,7 +5472,7 @@
 					},
 					{
 						"oidc.groups.claim": {
-							"longdesc": "Specify a custom claim to be requested when performing OIDC flows.\nConfigure a corresponding custom claim in your identity provider and\nadd organization level groups to it. These can be mapped to LXD groups\nfor automatic access control.",
+							"longdesc": "Specify a custom token claim to denote groups defined at the identity provider.\nThe contents of this claim can be mapped to LXD groups for managing access control.\nThe value of the claim is expected to be a JSON string array.",
 							"scope": "global",
 							"shortdesc": "A claim used for mapping identity provider groups to LXD groups.",
 							"type": "string"

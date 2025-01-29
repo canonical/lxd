@@ -4825,6 +4825,19 @@ Specify the volume using the syntax `POOL/VOLUME`.
 
 <!-- config group server-miscellaneous end -->
 <!-- config group server-oidc start -->
+```{config:option} oidc.additional_scopes server-oidc
+:defaultdesc: "`profile offline_access`"
+:scope: "global"
+:shortdesc: "Additional scopes to be requested during OIDC flows."
+:type: "space-delimited string list"
+Specify additional scopes to be requested when performing OIDC flows.
+Additional scopes might be required if managing access control in the Identity Provider (see {ref}`identity-provider-groups`).
+The default value for this configuration option contains two scopes which are optional, but will degrade LXD OIDC functionality if removed.
+These are:
+  - `profile`: This is requested by LXD to present display names for the identification of end users. If it is removed, only email addresses will be displayed.
+  - `offline_access`: This is requested by LXD to request refresh tokens from the identity provider. However, not all identity providers support this optional scope. If it is removed, end users might be required to log in more frequently.
+```
+
 ```{config:option} oidc.audience server-oidc
 :scope: "global"
 :shortdesc: "Expected audience value for the application"
@@ -4843,10 +4856,9 @@ This value is required by some providers.
 :scope: "global"
 :shortdesc: "A claim used for mapping identity provider groups to LXD groups."
 :type: "string"
-Specify a custom claim to be requested when performing OIDC flows.
-Configure a corresponding custom claim in your identity provider and
-add organization level groups to it. These can be mapped to LXD groups
-for automatic access control.
+Specify a custom token claim to denote groups defined at the identity provider.
+The contents of this claim can be mapped to LXD groups for managing access control.
+The value of the claim is expected to be a JSON string array.
 ```
 
 ```{config:option} oidc.issuer server-oidc
