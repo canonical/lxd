@@ -3264,13 +3264,15 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (*VolumeUsage, err
 
 	// Get the usage
 	// If storage driver does not support getting the volume usage, proceed getting the total.
-	size, err := b.driver.GetVolumeUsage(vol)
+	usedBytes, err := b.driver.GetVolumeUsage(vol)
 	if err != nil && !errors.Is(err, drivers.ErrNotSupported) {
 		return nil, err
 	}
 
-	// If driver does not support getting volume usage, this value would be -1.
-	val.Used = size
+	// If driver does not support getting volume usage, this value should be 0.
+	if usedBytes > 0 {
+		val.Used = usedBytes
+	}
 
 	// Get the total size.
 	_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
