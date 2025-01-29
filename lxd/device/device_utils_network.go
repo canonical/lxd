@@ -53,7 +53,7 @@ func NetworkSetDevMTU(devName string, mtu uint32) error {
 
 // NetworkGetDevMAC retrieves the current MAC setting for a named network device.
 func NetworkGetDevMAC(devName string) (string, error) {
-	content, err := os.ReadFile(fmt.Sprintf("/sys/class/net/%s/address", devName))
+	content, err := os.ReadFile("/sys/class/net/" + devName + "/address")
 	if err != nil {
 		return "", err
 	}
@@ -104,7 +104,7 @@ func networkRemoveInterfaceIfNeeded(state *state.State, nic string, current inst
 			}
 
 			// Check if another running instance created the device, if so, don't touch it.
-			if shared.IsTrue(inst.ExpandedConfig()[fmt.Sprintf("volatile.%s.last_state.created", devName)]) {
+			if shared.IsTrue(inst.ExpandedConfig()["volatile."+devName+".last_state.created"]) {
 				return nil
 			}
 		}
@@ -138,7 +138,7 @@ func networkCreateVlanDeviceIfNeeded(state *state.State, parent string, vlanDevi
 				}
 
 				// Check if another running instance created the device, if so, mark it as created.
-				if shared.IsTrue(inst.ExpandedConfig()[fmt.Sprintf("volatile.%s.last_state.created", devName)]) {
+				if shared.IsTrue(inst.ExpandedConfig()["volatile."+devName+".last_state.created"]) {
 					return "reused", nil
 				}
 			}
