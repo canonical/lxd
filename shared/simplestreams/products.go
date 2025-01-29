@@ -233,11 +233,11 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				// Set the file list
 				var imgDownloads [][]string
 				if root == nil {
-					imgDownloads = [][]string{{meta.Path, meta.HashSha256, "meta", fmt.Sprintf("%d", meta.Size)}}
+					imgDownloads = [][]string{{meta.Path, meta.HashSha256, "meta", fmt.Sprint(meta.Size)}}
 				} else {
 					imgDownloads = [][]string{
-						{meta.Path, meta.HashSha256, "meta", fmt.Sprintf("%d", meta.Size)},
-						{root.Path, root.HashSha256, "root", fmt.Sprintf("%d", root.Size)}}
+						{meta.Path, meta.HashSha256, "meta", fmt.Sprint(meta.Size)},
+						{root.Path, root.HashSha256, "root", fmt.Sprint(root.Size)}}
 				}
 
 				// Add the deltas
@@ -276,7 +276,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 						delta.Path,
 						delta.HashSha256,
 						"root.delta-" + srcFingerprint,
-						fmt.Sprintf("%d", delta.Size)})
+						fmt.Sprint(delta.Size)})
 				}
 
 				// Add the image
