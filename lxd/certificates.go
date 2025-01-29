@@ -149,7 +149,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if recursion {
-		var certResponses []api.Certificate
+		var certResponses []*api.Certificate
 		var baseCerts []dbCluster.Certificate
 		urlToCertificate := make(map[*api.URL]auth.EntitlementReporter)
 		var err error
@@ -159,7 +159,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			certResponses = make([]api.Certificate, 0, len(baseCerts))
+			certResponses = make([]*api.Certificate, 0, len(baseCerts))
 			for _, baseCert := range baseCerts {
 				if !userHasPermission(entity.CertificateURL(baseCert.Fingerprint)) {
 					continue
@@ -170,7 +170,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 					return err
 				}
 
-				certResponses = append(certResponses, *apiCert)
+				certResponses = append(certResponses, apiCert)
 				urlToCertificate[entity.CertificateURL(apiCert.Fingerprint)] = apiCert
 			}
 
