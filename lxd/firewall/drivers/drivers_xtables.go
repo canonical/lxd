@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"bufio"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -560,20 +561,20 @@ func (d Xtables) NetworkApplyACLRules(networkName string, rules []ACLRule) error
 
 	applyACLRules := func(cmd string, iptRules [][]string) error {
 		// Attempt to flush chain in table.
-		_, err := shared.RunCommand(cmd, "-w", "-t", "filter", "-F", chain)
+		_, err := shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", "filter", "-F", chain)
 		if err != nil {
 			return fmt.Errorf("Failed flushing %q chain %q in table %q: %w", cmd, chain, "filter", err)
 		}
 
 		// Allow connection tracking.
-		_, err = shared.RunCommand(cmd, "-w", "-t", "filter", "-A", chain, "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT")
+		_, err = shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", "filter", "-A", chain, "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT")
 		if err != nil {
 			return fmt.Errorf("Failed adding connection tracking rules to %q chain %q in table %q: %w", cmd, chain, "filter", err)
 		}
 
 		// Add rules to chain in table.
 		for _, iptRule := range iptRules {
-			_, err := shared.RunCommand(cmd, append([]string{"-w", "-t", "filter", "-A", chain}, iptRule...)...)
+			_, err := shared.RunCommandContext(context.TODO(), cmd, append([]string{"-w", "-t", "filter", "-A", chain}, iptRule...)...)
 			if err != nil {
 				return fmt.Errorf("Failed adding rule to %q chain %q in table %q: %w", cmd, chain, "filter", err)
 			}
