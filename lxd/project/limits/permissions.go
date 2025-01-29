@@ -1005,25 +1005,71 @@ func AllowProfileUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 	return nil
 }
 
-// checkUplinkUse checks if an uplink that is not allowed by project restrictions is in use.
+// checkUplinkUse checks if an uplink that is not allowed by project restrictions is in use and
+// if limits for uplink IP consumption are respected.
 func checkUplinkUse(ctx context.Context, tx *db.ClusterTx, projectName string, config map[string]string) error {
-	// If project is not restricted or does not have its own networks, no further checks are needed.
-	if shared.IsFalseOrEmpty(config["restricted"]) || shared.IsFalseOrEmpty(config["features.networks"]) {
+	// If project does not have its own networks, no further checks are needed.
+	if shared.IsFalseOrEmpty(config["features.networks"]) {
 		return nil
 	}
-
-	allowedNets := shared.SplitNTrimSpace(config["restricted.networks.uplinks"], ",", -1, false)
 
 	projectNetworks, err := tx.GetCreatedNetworksByProject(ctx, projectName)
 	if err != nil {
 		return err
 	}
 
+	uplinksInUseSet := make(map[string]struct{})
+
 	for _, network := range projectNetworks {
 		// Check if uplink in use is allowed.
 		uplinkInUse := network.Config["network"]
-		if uplinkInUse != "" && !shared.ValueInSlice(uplinkInUse, allowedNets) {
-			return fmt.Errorf("Restrictions cannot be enforced as project is already using %q as uplink", uplinkInUse)
+		if uplinkInUse != "" {
+			uplinksInUseSet[uplinkInUse] = struct{}{}
+		}
+	}
+
+	// Check uplink IP quota limits.
+	for uplink := range uplinksInUseSet {
+		ivp4LimitsRaw, hasIPV4Limits := config["limits.networks.uplink_ips.ipv4."+uplink]
+		ivp6LimitsRaw, hasIPV6Limits := config["limits.networks.uplink_ips.ipv6."+uplink]
+
+		ivp4Limits, err := strconv.Atoi(ivp4LimitsRaw)
+		if err != nil {
+			// Limit for this protocol is not defined
+			hasIPV4Limits = false
+			ivp4Limits = -1
+		}
+
+		ivp6Limits, err := strconv.Atoi(ivp6LimitsRaw)
+		if err != nil {
+			// Limit for this protocol is not defined
+			hasIPV6Limits = false
+			ivp6Limits = -1
+		}
+
+		// Check if the provided value is equal or lower to the number of uplink addresses currently in use
+		// on the provided project and in the specified network.
+		// We are only interested on the result for protocols with limits defined.
+		invalidIPV4Quota, invalidIPV6Quota, err := UplinkAddressQuotasExceeded(ctx, tx, projectName, uplink, ivp4Limits, ivp6Limits, projectNetworks)
+		if err != nil {
+			return err
+		}
+
+		if hasIPV4Limits && invalidIPV4Quota || hasIPV6Limits && invalidIPV6Quota {
+			return fmt.Errorf("Uplink IP limit is below current number of used uplink addresses")
+		}
+	}
+
+	// If project is not restricted, no further checks are needed.
+	if shared.IsFalseOrEmpty(config["restricted"]) {
+		return nil
+	}
+
+	allowedNets := shared.SplitNTrimSpace(config["restricted.networks.uplinks"], ",", -1, false)
+
+	for network := range uplinksInUseSet {
+		if !shared.ValueInSlice(network, allowedNets) {
+			return fmt.Errorf("Restrictions cannot be enforced as project is already using %q as uplink", network)
 		}
 	}
 
