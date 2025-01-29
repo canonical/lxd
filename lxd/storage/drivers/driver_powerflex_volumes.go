@@ -241,7 +241,7 @@ func (d *powerflex) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allo
 		return nil
 	}
 
-	var srcVolumeSnapshots []string
+	srcVolumeSnapshots := make([]string, 0, len(vol.Snapshots))
 	for _, snapshot := range vol.Snapshots {
 		_, snapshotName, _ := api.GetParentAndSnapshotName(snapshot.name)
 		srcVolumeSnapshots = append(srcVolumeSnapshots, snapshotName)
@@ -984,7 +984,7 @@ func (d *powerflex) VolumeSnapshots(vol Volume, op *operations.Operation) ([]str
 		return nil, err
 	}
 
-	var snapshotNames []string
+	snapshotNames := make([]string, 0, len(volumeSnapshots))
 	for _, snapshot := range volumeSnapshots {
 		snapshotNames = append(snapshotNames, snapshot.Name)
 	}
