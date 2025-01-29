@@ -192,7 +192,8 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 		mem, err := shared.DeviceTotalMemory()
 		mem = mem / 1024 / 1024 / 10
 		if err == nil && mem < 256 {
-			args = append(args, "-da", fmt.Sprintf("%d", mem), "-fr", fmt.Sprintf("%d", mem), "-p", "1")
+			memString := fmt.Sprint(mem)
+			args = append(args, "-da", memString, "-fr", memString, "-p", "1")
 		}
 
 		args = append(args, file)
