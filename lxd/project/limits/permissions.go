@@ -1722,7 +1722,8 @@ func (q *uplinkIPLimits) hasExceeded() bool {
 // For simplicity, this function assumes both limits are provided and returns early if both provided
 // quotas are exceeded. So if one of the limits is not of the caller's interest, -1 should be provided
 // and the result for that protocol should be ignored.
-func UplinkAddressQuotasExceeded(ctx context.Context, tx *db.ClusterTx, projectName string, networkName string, uplinkIPV4Quota int, uplinkIPV6Quota int) (V4QuotaExceeded bool, V6QuotaExceeded bool, err error) {
+// The projectNetworks argument accepts cached networks for the provided project to avoid redundant DB queries.
+func UplinkAddressQuotasExceeded(ctx context.Context, tx *db.ClusterTx, projectName string, networkName string, uplinkIPV4Quota int, uplinkIPV6Quota int, projectNetworks map[int64]api.Network) (V4QuotaExceeded bool, V6QuotaExceeded bool, err error) {
 	quotas := uplinkIPLimits{
 		quotaIPV4: uplinkIPV4Quota,
 		quotaIPV6: uplinkIPV6Quota,
@@ -1733,10 +1734,13 @@ func UplinkAddressQuotasExceeded(ctx context.Context, tx *db.ClusterTx, projectN
 		return true, true, nil
 	}
 
-	// First count uplink addresses for other networks.
-	projectNetworks, err := tx.GetCreatedNetworksByProject(ctx, projectName)
-	if err != nil {
-		return false, false, nil
+	// If cached networks were not provided, retrieve them from the database.
+	if projectNetworks == nil {
+		// First count uplink addresses for other networks.
+		projectNetworks, err = tx.GetCreatedNetworksByProject(ctx, projectName)
+		if err != nil {
+			return false, false, nil
+		}
 	}
 
 	for _, network := range projectNetworks {
