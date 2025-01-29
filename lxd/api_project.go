@@ -718,8 +718,8 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 	}
 
 	// Update the database entry.
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		err := limits.AllowProjectUpdate(s.GlobalConfig, tx, project.Name, req.Config, configChanged)
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		err := limits.AllowProjectUpdate(ctx, s.GlobalConfig, tx, project.Name, req.Config, configChanged)
 		if err != nil {
 			return err
 		}
@@ -965,8 +965,8 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	state := api.ProjectState{}
 
 	// Get current limits and usage.
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		result, err := limits.GetCurrentAllocations(s.GlobalConfig.Dump(), ctx, tx, name)
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		result, err := limits.GetCurrentAllocations(ctx, s.GlobalConfig.Dump(), tx, name)
 		if err != nil {
 			return err
 		}

@@ -53,8 +53,8 @@ func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *o
 	}
 
 	var budget int64
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		budget, err = limits.GetImageSpaceBudget(s.GlobalConfig, tx, p.Name)
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		budget, err = limits.GetImageSpaceBudget(ctx, s.GlobalConfig, tx, p.Name)
 		return err
 	})
 	if err != nil {
@@ -730,7 +730,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			Type:        api.InstanceType(bInfo.Config.Container.Type),
 		}
 
-		return limits.AllowInstanceCreation(s.GlobalConfig, tx, projectName, req)
+		return limits.AllowInstanceCreation(ctx, s.GlobalConfig, tx, projectName, req)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -1261,7 +1261,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		if !clusterNotification {
 			// Check that the project's limits are not violated. Note this check is performed after
 			// automatically generated config values (such as ones from an InstanceType) have been set.
-			err = limits.AllowInstanceCreation(s.GlobalConfig, tx, targetProjectName, req)
+			err = limits.AllowInstanceCreation(ctx, s.GlobalConfig, tx, targetProjectName, req)
 			if err != nil {
 				return err
 			}
