@@ -695,7 +695,7 @@ func validatePoolCommonRules() map[string]func(string) error {
 
 	// Add to pool config rules (prefixed with volume.*) which are common for pool and volume.
 	for volRule, volValidator := range poolAndVolumeCommonRules(nil) {
-		rules[fmt.Sprintf("volume.%s", volRule)] = volValidator
+		rules["volume."+volRule] = volValidator
 	}
 
 	return rules
@@ -1233,7 +1233,7 @@ func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (boo
 		return false, err
 	}
 
-	fullName := fmt.Sprintf("%s/%s", poolName, volumeName)
+	fullName := poolName + "/" + volumeName
 	if storageBackups == fullName || storageImages == fullName {
 		return true, nil
 	}
