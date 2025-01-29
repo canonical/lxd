@@ -1512,7 +1512,7 @@ func projectValidateConfig(s *state.State, config map[string]string, projectName
 			// ---
 			//  type: string
 			//  shortdesc: Quota of IPv4 addresses from a specified uplink network that can be used by entities in this project
-			projectConfigKeys["limits.networks.uplink_ips.ipv4."+networkName] = validate.Optional(uplinkIPLimitValidator(s, projectName, networkName, "ipv4"))
+			projectConfigKeys["limits.networks.uplink_ips.ipv4."+networkName] = validate.Optional(validate.IsUint32)
 
 			// lxdmeta:generate(entities=project; group=limits; key=limits.networks.uplink_ips.ipv6.NETWORK_NAME)
 			// Maximum number of IPv6 addresses that this project can consume from the specified uplink network.
@@ -1521,7 +1521,7 @@ func projectValidateConfig(s *state.State, config map[string]string, projectName
 			// ---
 			//  type: string
 			//  shortdesc: Quota of IPv4 addresses from a specified uplink network that can be used by entities in this project
-			projectConfigKeys["limits.networks.uplink_ips.ipv6."+networkName] = validate.Optional(uplinkIPLimitValidator(s, projectName, networkName, "ipv6"))
+			projectConfigKeys["limits.networks.uplink_ips.ipv6."+networkName] = validate.Optional(validate.IsUint32)
 		}
 	}
 
