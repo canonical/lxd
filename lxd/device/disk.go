@@ -738,7 +738,7 @@ func (d *disk) Register() error {
 			return err
 		}
 	} else if d.config["path"] != "/" && d.config["source"] != "" && d.config["pool"] != "" {
-		volumeName, volumeType, dbVolumeType, volumeTypeName, err := d.sourceVolumeFields()
+		volumeName, _, dbVolumeType, volumeTypeName, err := d.sourceVolumeFields()
 		if err != nil {
 			return err
 		}
@@ -747,7 +747,7 @@ func (d *disk) Register() error {
 		storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
 
 		// Try to mount the volume that should already be mounted to reinitialise the ref counter.
-		_, err = d.pool.MountVolume(storageProjectName, volumeName, volumeType, nil)
+		_, err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
 		if err != nil {
 			return fmt.Errorf(`Failed mounting storage volume "%s/%s": %w`, volumeTypeName, volumeName, err)
 		}
@@ -1636,7 +1636,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	instProj := d.inst.Project()
 	storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
 
-	mountInfo, err = d.pool.MountVolume(storageProjectName, volumeName, volumeType, nil)
+	mountInfo, err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf(`Failed mounting storage volume "%s/%s" from storage pool %q: %w`, volumeTypeName, volumeName, d.pool.Name(), err)
 	}
