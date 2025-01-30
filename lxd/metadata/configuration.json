@@ -2860,29 +2860,33 @@
 					},
 					{
 						"volatile.idmap.base": {
+							"condition": "container",
 							"longdesc": "",
-							"shortdesc": "The first ID in the instance's primary idmap range",
+							"shortdesc": "The first ID in the container's primary idmap range",
 							"type": "integer"
 						}
 					},
 					{
 						"volatile.idmap.current": {
+							"condition": "container",
 							"longdesc": "",
-							"shortdesc": "The idmap currently in use by the instance",
+							"shortdesc": "The idmap currently in use by the container",
 							"type": "string"
 						}
 					},
 					{
 						"volatile.idmap.next": {
+							"condition": "container",
 							"longdesc": "",
-							"shortdesc": "The idmap to use the next time the instance starts",
+							"shortdesc": "The idmap to use the next time the container starts",
 							"type": "string"
 						}
 					},
 					{
 						"volatile.last_state.idmap": {
-							"longdesc": "",
-							"shortdesc": "Serialized instance UID/GID map",
+							"condition": "container",
+							"longdesc": "The UID/GID map that has been applied to the container's underlying storage.\nThis is usually set for containers created on older kernels that don't\nsupport idmapped mounts.",
+							"shortdesc": "On-disk UID/GID map for the container's rootfs",
 							"type": "string"
 						}
 					},
@@ -5611,6 +5615,22 @@
 						}
 					},
 					{
+						"volatile.idmap.last": {
+							"condition": "filesystem",
+							"longdesc": "",
+							"shortdesc": "JSON-serialized UID/GID map that has been applied to the volume",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.idmap.next": {
+							"condition": "filesystem",
+							"longdesc": "",
+							"shortdesc": "JSON-serialized UID/GID map that has been applied to the volume",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.uuid": {
 							"defaultdesc": "random UUID",
 							"longdesc": "",
@@ -5816,6 +5836,22 @@
 						}
 					},
 					{
+						"volatile.idmap.last": {
+							"condition": "filesystem",
+							"longdesc": "",
+							"shortdesc": "JSON-serialized UID/GID map that has been applied to the volume",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.idmap.next": {
+							"condition": "filesystem",
+							"longdesc": "",
+							"shortdesc": "JSON-serialized UID/GID map that has been applied to the volume",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.uuid": {
 							"defaultdesc": "random UUID",
 							"longdesc": "",
@@ -5985,6 +6021,22 @@
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
 							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.idmap.last": {
+							"condition": "filesystem",
+							"longdesc": "",
+							"shortdesc": "JSON-serialized UID/GID map that has been applied to the volume",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.idmap.next": {
+							"condition": "filesystem",
+							"longdesc": "",
+							"shortdesc": "JSON-serialized UID/GID map that has been applied to the volume",
 							"type": "string"
 						}
 					},
@@ -6168,6 +6220,22 @@
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
 							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.idmap.last": {
+							"condition": "filesystem",
+							"longdesc": "",
+							"shortdesc": "JSON-serialized UID/GID map that has been applied to the volume",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.idmap.next": {
+							"condition": "filesystem",
+							"longdesc": "",
+							"shortdesc": "JSON-serialized UID/GID map that has been applied to the volume",
 							"type": "string"
 						}
 					},
@@ -6402,6 +6470,22 @@
 						}
 					},
 					{
+						"volatile.idmap.last": {
+							"condition": "filesystem",
+							"longdesc": "",
+							"shortdesc": "JSON-serialized UID/GID map that has been applied to the volume",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.idmap.next": {
+							"condition": "filesystem",
+							"longdesc": "",
+							"shortdesc": "JSON-serialized UID/GID map that has been applied to the volume",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.uuid": {
 							"defaultdesc": "random UUID",
 							"longdesc": "",
@@ -6619,6 +6703,22 @@
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
 							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.idmap.last": {
+							"condition": "filesystem",
+							"longdesc": "",
+							"shortdesc": "JSON-serialized UID/GID map that has been applied to the volume",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.idmap.next": {
+							"condition": "filesystem",
+							"longdesc": "",
+							"shortdesc": "JSON-serialized UID/GID map that has been applied to the volume",
 							"type": "string"
 						}
 					},
@@ -6916,6 +7016,22 @@
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
 							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.idmap.last": {
+							"condition": "filesystem",
+							"longdesc": "",
+							"shortdesc": "JSON-serialized UID/GID map that has been applied to the volume",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.idmap.next": {
+							"condition": "filesystem",
+							"longdesc": "",
+							"shortdesc": "JSON-serialized UID/GID map that has been applied to the volume",
 							"type": "string"
 						}
 					},
