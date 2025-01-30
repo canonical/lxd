@@ -440,16 +440,21 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 // setAccessTokenVerifier sets the accessTokenVerifier on the Verifier. It uses the oidc.KeySet from the relyingParty if
 // it is set, otherwise it calls the discovery endpoint (/.well-known/openid-configuration).
 func (o *Verifier) setAccessTokenVerifier(ctx context.Context) error {
+	httpClient, err := o.httpClientFunc()
+	if err != nil {
+		return err
+	}
+
 	var keySet oidc.KeySet
 	if o.relyingParty != nil {
 		keySet = o.relyingParty.IDTokenVerifier().KeySet
 	} else {
-		discoveryConfig, err := client.Discover(ctx, o.issuer, http.DefaultClient)
+		discoveryConfig, err := client.Discover(ctx, o.issuer, httpClient)
 		if err != nil {
 			return fmt.Errorf("Failed calling OIDC discovery endpoint: %w", err)
 		}
 
-		keySet = rp.NewRemoteKeySet(http.DefaultClient, discoveryConfig.JwksURI)
+		keySet = rp.NewRemoteKeySet(httpClient, discoveryConfig.JwksURI)
 	}
 
 	o.accessTokenVerifier = op.NewAccessTokenVerifier(o.issuer, keySet)
@@ -504,7 +509,7 @@ func (o *Verifier) getCookies(r *http.Request) (sessionIDPtr *uuid.UUID, idToken
 
 // setCookies encrypts the session, ID, and refresh tokens and sets them in the HTTP response. Cookies are only set if they are
 // non-empty. If delete is true, the values are set to empty strings and the cookie expiry is set to unix zero time.
-func (*Verifier) setCookies(w http.ResponseWriter, secureCookie *securecookie.SecureCookie, sessionID uuid.UUID, idToken string, refreshToken string, delete bool) error {
+func (*Verifier) setCookies(w http.ResponseWriter, secureCookie *securecookie.SecureCookie, sessionID uuid.UUID, idToken string, refreshToken string, deleteCookies bool) error {
 	idTokenCookie := http.Cookie{
 		Name:     cookieNameIDToken,
 		Path:     "/",
@@ -529,7 +534,7 @@ func (*Verifier) setCookies(w http.ResponseWriter, secureCookie *securecookie.Se
 		SameSite: http.SameSiteStrictMode,
 	}
 
-	if delete {
+	if deleteCookies {
 		idTokenCookie.Expires = time.Unix(0, 0)
 		refreshTokenCookie.Expires = time.Unix(0, 0)
 		sessionIDCookie.Expires = time.Unix(0, 0)
