@@ -3,6 +3,8 @@ package lxd
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -90,13 +92,121 @@ func newOIDCClient(tokens *oidc.Tokens[*oidc.IDTokenClaims]) *oidcClient {
 	return &client
 }
 
-// getAccessToken returns the Access Token from the oidcClient's tokens, or an empty string if no tokens are present.
-func (o *oidcClient) getAccessToken() string {
+// setHeaders sets the `Authorization: Bearer <token>` header on the request.
+// It parses the tokens locally to send either the ID token or Access token if we know the server will be unable to
+// accept it. This is due to Entra ID issuing access tokens from a different issuer that are intended for the Microsoft
+// graph API. These access tokens contain a "nonce" header that prevent them from being validated by standard OIDC libraries.
+func (o *oidcClient) setHeaders(r *http.Request) {
+	// Always set the Authorization header. This tells the server that we're trying to authenticate with OIDC.
+	// The server then knows to return OIDC configuration headers to the client, which we need to perform the device flow.
+	var token string
+	defer func() {
+		r.Header.Set("Authorization", "Bearer "+token)
+	}()
+
 	if o.tokens == nil || o.tokens.Token == nil {
-		return ""
+		return
 	}
 
-	return o.tokens.AccessToken
+	// We should really be using the access token, so we'll set that as a default.
+	token = o.tokens.AccessToken
+
+	// If there's no ID token, we have to send the access token.
+	if o.tokens.IDToken == "" {
+		return
+	}
+
+	// Return now if there is nothing to send.
+	if o.tokens.AccessToken == "" {
+		return
+	}
+
+	_, idTokenPayload, err := getTokenHeaderAndPayload(o.tokens.IDToken)
+	if err != nil {
+		return
+	}
+
+	// If the ID token doesn't contain an email, the server cannot use it.
+	if getMapValue[string](idTokenPayload, "email") == "" {
+		return
+	}
+
+	accessTokenHeader, accessTokenPayload, err := getTokenHeaderAndPayload(o.tokens.AccessToken)
+	if err != nil {
+		return
+	}
+
+	// If the access token contains a "nonce" key, we can't validate it on the server side.
+	// Send the ID token instead.
+	if getMapValue[string](accessTokenHeader, "nonce") != "" {
+		token = o.tokens.IDToken
+		return
+	}
+
+	// If the issuer does not match, we can't validate the access token on the server side.
+	// Send the ID token instead.
+	if getMapValue[string](accessTokenPayload, "iss") != getMapValue[string](idTokenPayload, "iss") {
+		token = o.tokens.IDToken
+		return
+	}
+
+	// If the subject does not match, we'll conflict with the subject that is set when using the UI.
+	// Send the ID token instead.
+	if getMapValue[string](accessTokenPayload, "sub") != getMapValue[string](idTokenPayload, "sub") {
+		token = o.tokens.IDToken
+		return
+	}
+}
+
+// getMapValue gets the value with the given key, from the given map, of the given type.
+func getMapValue[T any](m map[string]any, key string) T {
+	var empty T
+	valueAny, ok := m[key]
+	if !ok {
+		return empty
+	}
+
+	value, ok := valueAny.(T)
+	if !ok {
+		return empty
+	}
+
+	return value
+}
+
+// getTokenHeaderAndPayload parses a JWT and returns the header and payload as maps.
+func getTokenHeaderAndPayload(token string) (header map[string]any, payload map[string]any, err error) {
+	getMap := func(inBase64 string) (map[string]any, error) {
+		inJSON, err := base64.RawURLEncoding.DecodeString(inBase64)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse access token payload: %w", err)
+		}
+
+		var inMap map[string]any
+		err = json.Unmarshal(inJSON, &inMap)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse access token payload: %w", err)
+		}
+
+		return inMap, nil
+	}
+
+	fields := strings.Split(token, ".")
+	if len(fields) != 3 {
+		return nil, nil, fmt.Errorf("Failed to parse access token, expected 3 fields delimited by a '.'")
+	}
+
+	header, err = getMap(fields[0])
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to parse access token header: %w", err)
+	}
+
+	payload, err = getMap(fields[1])
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to parse access token payload: %w", err)
+	}
+
+	return header, payload, nil
 }
 
 // do function executes an HTTP request using the oidcClient's http client, and manages authorization by refreshing or authenticating as needed.
@@ -125,8 +235,8 @@ func (o *oidcClient) do(req *http.Request) (*http.Response, error) {
 		}
 	}
 
-	// Set the new access token in the header.
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", o.tokens.AccessToken))
+	// Set the new token in the header.
+	o.setHeaders(req)
 
 	resp, err = o.httpClient.Do(req)
 	if err != nil {

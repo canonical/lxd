@@ -168,7 +168,7 @@ func (r *ProtocolLXD) addClientHeaders(req *http.Request) {
 	}
 
 	if r.oidcClient != nil {
-		req.Header.Set("Authorization", "Bearer "+r.oidcClient.getAccessToken())
+		r.oidcClient.setHeaders(req)
 	}
 }
 
