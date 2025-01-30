@@ -116,10 +116,15 @@ func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Requ
 			return nil, AuthError{fmt.Errorf("Bad authorization token, expected a Bearer token")}
 		}
 
-		// Bearer tokens should always be access tokens.
-		result, err = o.authenticateAccessToken(ctx, parts[1])
+		// A bearer tokens will usually be an access token, BUT Entra ID access tokens can't be verified locally so the
+		// client sends an ID token instead. ID token validation is more strict than access token validation, so we need
+		// to check this first and then fall back to verifying it as an access token.
+		result, err = o.authenticateIDToken(ctx, w, parts[1], "")
 		if err != nil {
-			return nil, err
+			result, err = o.authenticateAccessToken(ctx, parts[1])
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else if idToken != "" || refreshToken != "" {
 		// When authenticating via the UI, we expect that there will be ID and refresh tokens present in the request cookies.
