@@ -1641,9 +1641,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		return nil, "", nil, fmt.Errorf(`Failed mounting storage volume "%s/%s" from storage pool %q: %w`, volumeTypeName, volumeName, d.pool.Name(), err)
 	}
 
-	revert.Add(func() {
-		_, _ = d.pool.UnmountVolume(storageProjectName, volumeName, volumeType, nil)
-	})
+	revert.Add(func() { _, _ = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
 
 	var dbVolume *db.StorageVolume
 	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -2109,7 +2107,7 @@ func (d *disk) postStop() error {
 
 	// Check if pool-specific action should be taken to unmount custom volume disks.
 	if d.config["pool"] != "" && d.config["path"] != "/" {
-		volumeName, volumeType, dbVolumeType, _, err := d.sourceVolumeFields()
+		volumeName, _, dbVolumeType, _, err := d.sourceVolumeFields()
 		if err != nil {
 			return err
 		}
@@ -2118,7 +2116,7 @@ func (d *disk) postStop() error {
 		instProj := d.inst.Project()
 		storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
 
-		_, err = d.pool.UnmountVolume(storageProjectName, volumeName, volumeType, nil)
+		_, err = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil)
 		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 			return err
 		}
