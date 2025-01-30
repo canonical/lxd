@@ -14,7 +14,6 @@ import (
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
-	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -549,17 +548,27 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 		return nil
 	}
 
-	devPath, cleanup, err := d.getMappedDevPath(vol, true)
+	volName, err := d.getVolumeName(vol)
 	if err != nil {
 		return err
 	}
 
-	defer cleanup()
-
-	oldSizeBytes, err := block.DiskSizeBytes(devPath)
+	client := d.client()
+	volumeID, err := client.getVolumeID(volName)
 	if err != nil {
-		return fmt.Errorf("Error getting current size: %w", err)
+		return err
 	}
+
+	volume, err := d.client().getVolume(volumeID)
+	if err != nil {
+		return err
+	}
+
+	// Try to fetch the current size of the volume from the PowerFlex API.
+	// If the volume is not yet mapped to the system this speeds up the
+	// process as the volume doesn't have to be mapped to get its size
+	// from the actual block device.
+	oldSizeBytes := volume.SizeInKiB * 1024
 
 	// Do nothing if volume is already specified size (+/- 512 bytes).
 	if oldSizeBytes+512 > sizeBytes && oldSizeBytes-512 < sizeBytes {
@@ -578,17 +587,6 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 		return ErrNotSupported
 	}
 
-	volName, err := d.getVolumeName(vol)
-	if err != nil {
-		return err
-	}
-
-	client := d.client()
-	volumeID, err := client.getVolumeID(volName)
-	if err != nil {
-		return err
-	}
-
 	// Resize filesystem if needed.
 	if vol.contentType == ContentTypeFS {
 		fsType := vol.ConfigBlockFilesystem()
@@ -599,6 +597,13 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 			if err != nil {
 				return err
 			}
+
+			devPath, cleanup, err := d.getMappedDevPath(vol, true)
+			if err != nil {
+				return err
+			}
+
+			defer cleanup()
 
 			// Grow the filesystem to fill block device.
 			err = growFileSystem(fsType, devPath, vol)
@@ -621,6 +626,13 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 		if err != nil {
 			return err
 		}
+
+		devPath, cleanup, err := d.getMappedDevPath(vol, true)
+		if err != nil {
+			return err
+		}
+
+		defer cleanup()
 
 		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
 		// expected the caller will do all necessary post resize actions themselves).
