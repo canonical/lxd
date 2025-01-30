@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -44,6 +45,12 @@ func (d *powerflex) CreateVolume(vol Volume, filler *VolumeFiller, op *operation
 	pool, err := d.resolvePool()
 	if err != nil {
 		return err
+	}
+
+	// The pool isn't configured to use zero-padding which might yield non pristine data when reading from the volume.
+	// Don't allow the creation of new volumes.
+	if !pool.ZeroPaddingEnabled {
+		return errors.New("The pool doesn't have zero-padding enabled")
 	}
 
 	volName, err := d.getVolumeName(vol)

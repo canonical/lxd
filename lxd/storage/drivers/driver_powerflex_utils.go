@@ -98,6 +98,7 @@ type powerFlexStoragePool struct {
 	ID                 string `json:"id"`
 	Name               string `json:"name"`
 	ProtectionDomainID string `json:"protectionDomainId"`
+	ZeroPaddingEnabled bool   `json:"zeroPaddingEnabled"`
 }
 
 // powerFlexStoragePoolStatistics represents the statistics of a storage pool in PowerFlex.
