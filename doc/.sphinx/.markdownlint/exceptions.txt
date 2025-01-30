@@ -1,14 +1,6 @@
 .tmp/doc/howto/access_ui.md:31: MD029 Ordered list item prefix
 .tmp/doc/howto/import_machines_to_instances.md:128: MD034 Bare URL used
 .tmp/doc/howto/import_machines_to_instances.md:232: MD034 Bare URL used
-.tmp/doc/howto/network_forwards.md:66: MD004 Unordered list style
-.tmp/doc/howto/network_forwards.md:71: MD004 Unordered list style
-.tmp/doc/howto/network_forwards.md:67: MD005 Inconsistent indentation for list items at the same level
-.tmp/doc/howto/network_forwards.md:68: MD005 Inconsistent indentation for list items at the same level
-.tmp/doc/howto/network_forwards.md:72: MD005 Inconsistent indentation for list items at the same level
-.tmp/doc/howto/network_forwards.md:73: MD005 Inconsistent indentation for list items at the same level
-.tmp/doc/howto/network_forwards.md:67: MD032 Lists should be surrounded by blank lines
-.tmp/doc/howto/network_forwards.md:72: MD032 Lists should be surrounded by blank lines
 .tmp/doc/doc-cheat-sheet-myst.md:171: MD034 Bare URL used
 .tmp/doc/contributing.md:124: MD004 Unordered list style
 .tmp/doc/contributing.md:129: MD004 Unordered list style
