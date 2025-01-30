@@ -29,22 +29,120 @@ The difference is that network forwards are applied on a network level, while a 
 In addition, proxy devices can be used to proxy traffic between different connection types (for example, TCP and Unix sockets).
 ```
 
-## Create a network forward
+## View network forwards
 
-Use the following command to create a network forward:
+View a list of forwards configured on a network:
 
-```bash
-lxc network forward create <network_name> [<listen_address>] [--allocate=ipv{4,6}] [configuration_options...]
+```
+lxc network forward list <network_name>
 ```
 
-Each forward is assigned to a network.
-Specify a single external listen address (see {ref}`network-forwards-listen-addresses` for more information about which addresses can be forwarded, depending on the network that you are using).
-If the network type supports IP allocation, you don't need to specify a listen address.
-If you leave it out, you must provide the `--allocate` flag.
+Example:
 
-You can specify an optional default target address by adding the `target_address=<IP_address>` configuration option.
-If you do, any traffic that does not match a port specification is forwarded to this address.
-Note that this target address must be within the same subnet as the network that the forward is associated to.
+```
+lxc network forward list lxdbr0
+```
+
+## View a network forward
+
+View information about a specific network forward:
+
+```
+lxc network forward show <network_name> <listen_address>
+```
+
+Example:
+
+```
+lxc network forward list lxdbr0 192.0.2.1
+```
+
+## Create a network forward
+
+(network-forwards-listen-addresses)=
+### Requirements for listen addresses
+
+Before you can create a network forward, you must understand the requirements for listen addresses.
+
+For both OVN and bridge networks, the listen addresses must not overlap with any subnet in use by other networks on the host. Otherwise, the listen address requirements differ by network type.
+
+`````{tabs}
+
+````{group-tab} OVN network
+
+For an OVN network, the allowed listen addresses must be defined in at least one of the following configuration options, using [CIDR notation](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing):
+
+- {config:option}`network-bridge-network-conf:ipv4.routes` or {config:option}`network-bridge-network-conf:ipv6.routes` in the OVN network's uplink network configuration
+- {config:option}`project-restricted:restricted.networks.subnets` in the OVN network's project configuration
+
+````
+
+````{group-tab} Bridge network
+
+A bridge network does not require you to define allowed listen addresses. Use any non-conflicting IP address available on the host.
+
+````
+
+`````
+
+### Create a forward in an OVN network
+
+```{note}
+You must configure the {ref}`allowed listen addresses <network-forwards-listen-addresses>` before you can create a forward in an OVN network.
+```
+
+Use the following command to create a forward in an OVN network:
+
+```
+lxc network forward create <ovn_network_name> [<listen_address>|--allocate=ipv{4,6}] [target_address=<target_address>] [user.<key>=<value>]
+```
+
+- For `<ovn_network_name>`, specify the name of the OVN network on which to create the forward.
+- Immediately following the network name, provide only one of the following for the listen address:
+   - A listen IP address allowed by the {ref}`network-forwards-listen-addresses` (no port number)
+   - The `--allocate=` flag with a value of either `ipv4` or `ipv6` for automatic allocation of an allowed IP address
+- Optionally provide a default `target_address` (no port number). Any traffic that does not match a port specification is forwarded to this address. This must be an IP range within the OVN network's subnet.
+- Optionally provide custom user.* keys to be stored in the network forward's configuration.
+
+This example shows how to create a network forward on a network named `ovn1` with an allocated listen address and no default target address:
+
+```
+lxd network forward create ovn1 --allocate=ipv4
+```
+
+This example shows how to create a network forward on a network named `ovn1` with a specific listen address and a target address:
+
+```
+lxd network forward create ovn1 192.0.2.1 target_address=10.41.211.2
+```
+
+```{note}
+The IP addresses shown in the example above are only examples. It is up to you to choose the allowed and available addresses on your setup.
+```
+
+### Create a forward in a bridge network
+
+Use the following command to create a forward in a bridge network:
+
+```
+lxc network forward create <bridge_network_name> <listen_address> [target_address=<target_address>] [user.<key>=<value>]
+```
+
+- For `<bridge_network_name>`, specify the name of the bridge network on which to create the forward.
+- Immediately following the network name, provide a listen IP address allowed by the {ref}`network-forwards-listen-addresses` (no port number).
+- Optionally provide a default `target_address` (no port number). Any traffic that does not match a port specification is forwarded to this address. This must be an IP address within the bridge network's subnet.
+- Optionally provide custom user.* keys to be stored in the network forward's configuration.
+- You cannot use the `--allocate` flag with bridge networks.
+
+This example shows how to create a network forward on a network named `ovn1` with a specific listen address and a target address:
+
+```
+lxd network forward create bridge1 192.0.2.1 target_address=10.41.211.2
+```
+
+```{note}
+The IP addresses shown in the example above are only examples. It is up to you to choose the allowed and available addresses on your setup.
+```
 
 ### Forward properties
 
@@ -56,39 +154,40 @@ Network forwards have the following properties:
     :end-before: <!-- config group network-forward-forward-properties end -->
 ```
 
-(network-forwards-listen-addresses)=
-### Requirements for listen addresses
-
-The requirements for valid listen addresses vary depending on which network type the forward is associated to.
-
-Bridge network
-: - Any non-conflicting listen address is allowed.
-  - The listen address must not overlap with a subnet that is in use with another network.
-  - The `--allocate` flag is not supported.
-
-OVN network
-: - Allowed listen addresses must be defined in the uplink network's `ipv{n}.routes` settings or the project's {config:option}`project-restricted:restricted.networks.subnets` setting (if set).
-  - The listen address must not overlap with a subnet that is in use with another network.
-  - The `--allocate` flag is supported. If used, the OVN network driver will allocate an IP address from the uplink network's `ipv{n}.routes` or the project's {config:option}`project-restricted:restricted.networks.subnets` setting (if set).
-
 (network-forwards-port-specifications)=
 ## Configure ports
 
-You can add port specifications to the network forward to forward traffic from specific ports on the listen address to specific ports on the target address.
-This target address must be different from the default target address.
-It must be within the same subnet as the network that the forward is associated to.
+Once a forward is created on a network (whether bridge or OVN), it can be configured with port specifications. These specifications allow forwarding traffic from ports on the listen address to ports on a target address. This target address must be within the network's subnet, and it must be different from the network forward's default target address.
 
-Use the following command to add a port specification:
+Use the following command to add port specifications on a network forward:
 
-```bash
+```
 lxc network forward port add <network_name> <listen_address> <protocol> <listen_ports> <target_address> [<target_ports>]
 ```
 
-You can specify a single listen port or a set of ports.
-If you want to forward the traffic to different ports, you have two options:
+- You can specify a single listen port or a set of ports.
+- Use either `tcp` or `udp` as the protocol.
+- Optionally specify a target port or ports. You can:
+   - Specify a single target port to forward traffic from all listen ports to this target port.
+   - Specify a set of target ports with the same number of ports as the listen ports to forward traffic from the first listen port to the first target port, the second listen port to the second target port, and so on.
 
-- Specify a single target port to forward traffic from all listen ports to this target port.
-- Specify a set of target ports with the same number of ports as the listen ports to forward traffic from the first listen port to the first target port, the second listen port to the second target port, and so on.
+This example shows how to configure a forward with a single listen port mapped to a single target port:
+
+```
+lxc network forward port add network1 192.0.2.1 tcp 22 10.41.211.2 22
+```
+
+This example shows how to configure a forward with a set of listen ports (including a range) mapped to a single target port:
+
+```
+lxc network forward port add network1 192.0.2.1 tcp 80,90-100 10.41.211.2 80
+```
+
+This example shows how to configure a forward with a set of listen ports mapped to a set of target ports:
+
+```
+lxc network forward port add network1 192.0.2.1 tcp 22,80 10.41.211.2 22,80
+```
 
 ### Port properties
 
