@@ -26,9 +26,7 @@ The supported connection types are:
 - `unix <-> unix`
 - `tcp <-> unix`
 - `unix <-> tcp`
-- `udp <-> tcp`
 - `tcp <-> udp`
-- `udp <-> unix`
 - `unix <-> udp`
 
 To add a `proxy` device, use the following command:
