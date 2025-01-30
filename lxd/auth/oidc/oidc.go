@@ -186,6 +186,10 @@ func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken stri
 // authenticateIDToken verifies the identity token and returns the ID token subject. If no identity token is given (or
 // verification fails) it will attempt to refresh the ID token.
 func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWriter, idToken string, refreshToken string) (*AuthenticationResult, error) {
+	if idToken == "" && refreshToken == "" {
+		return nil, AuthError{Err: fmt.Errorf("No ID or refresh token provided")}
+	}
+
 	var claims *oidc.IDTokenClaims
 	var err error
 	if idToken != "" {
