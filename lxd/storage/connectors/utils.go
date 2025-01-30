@@ -46,8 +46,14 @@ func WaitDiskDevicePath(ctx context.Context, diskNamePrefix string, diskPathFilt
 	var err error
 	var diskPath string
 
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
+	_, ok := ctx.Deadline()
+	if !ok {
+		// Set a default timeout of 30 seconds for the context
+		// if no deadline is already configured.
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+	}
 
 	for {
 		// Check if the device is already present.
@@ -114,10 +120,14 @@ func findDiskDevicePath(diskNamePrefix string, diskPathFilter devicePathFilterFu
 // It periodically checks for the device to disappear and returns once the device
 // is gone. If the device does not disappear within the timeout, an error is returned.
 func WaitDiskDeviceGone(ctx context.Context, diskPath string) bool {
-	// Set upper boundary for the timeout to ensure this function does not run
-	// indefinitely. The caller can set a shorter timeout if necessary.
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
+	_, ok := ctx.Deadline()
+	if !ok {
+		// Set a default timeout of 30 seconds for the context
+		// if no deadline is already configured.
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+	}
 
 	for {
 		if !shared.PathExists(diskPath) {
