@@ -87,6 +87,54 @@ func (g *cmdGlobal) cmpClusterGroups(toComplete string) ([]string, cobra.ShellCo
 	return results, cmpDirectives
 }
 
+// cmpClusterMemberAllConfigKeys provides shell completion for all cluster member configuration keys.
+// It takes a partial input string and returns a list of all cluster member configuration keys along with a shell completion directive.
+func (g *cmdGlobal) cmpClusterMemberAllConfigKeys(memberName string) ([]string, cobra.ShellCompDirective) {
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
+
+	// Parse remote
+	resources, err := g.ParseServers(memberName)
+	if err != nil || len(resources) == 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	cluster, _, err := client.GetCluster()
+	if err != nil || !cluster.Enabled {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	metadataConfiguration, err := client.GetMetadataConfiguration()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	clusterConfig, ok := metadataConfiguration.Configs["cluster"]
+	if !ok {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	// Pre-allocate configKeys slice capacity.
+	keyCount := 0
+	for _, field := range clusterConfig {
+		keyCount += len(field.Keys)
+	}
+
+	configKeys := make([]string, 0, keyCount)
+
+	for _, field := range clusterConfig {
+		for _, key := range field.Keys {
+			for configKey := range key {
+				configKeys = append(configKeys, configKey)
+			}
+		}
+	}
+
+	return configKeys, cmpDirectives
+}
+
 // cmpClusterMemberConfigs provides shell completion for cluster member configs.
 // It takes a partial input string (member name) and returns a list of matching cluster member configs along with a shell completion directive.
 func (g *cmdGlobal) cmpClusterMemberConfigs(memberName string) ([]string, cobra.ShellCompDirective) {
