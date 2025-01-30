@@ -46,8 +46,14 @@ func WaitDiskDevicePath(ctx context.Context, diskNamePrefix string, diskPathFilt
 	var err error
 	var diskPath string
 
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
+	_, ok := ctx.Deadline()
+	if !ok {
+		// Set a default timeout of 30 seconds for the context
+		// if no deadline is already configured.
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+	}
 
 	for {
 		// Check if the device is already present.
@@ -114,10 +120,14 @@ func findDiskDevicePath(diskNamePrefix string, diskPathFilter devicePathFilterFu
 // It periodically checks for the device to disappear and returns once the device
 // is gone. If the device does not disappear within the timeout, an error is returned.
 func WaitDiskDeviceGone(ctx context.Context, diskPath string) bool {
-	// Set upper boundary for the timeout to ensure this function does not run
-	// indefinitely. The caller can set a shorter timeout if necessary.
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
+	_, ok := ctx.Deadline()
+	if !ok {
+		// Set a default timeout of 30 seconds for the context
+		// if no deadline is already configured.
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+	}
 
 	for {
 		if !shared.PathExists(diskPath) {
@@ -172,12 +182,19 @@ func connect(ctx context.Context, c Connector, targetQN string, targetAddrs []st
 		return nil, err
 	}
 
-	// Set a maximum timeout of 30 seconds for connection attempts.
-	// The caller can override this with a shorter timeout if needed.
-	//
-	// Context cancellation is not deferred here to ensure connection attempts
-	// continue even if the function exits before all attempts are completed.
-	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	// Context cancellation is not deferred to allow connection attempts to
+	// continue after the first successful connection (which causes the function
+	// to exit). The context is manually cancelled once all attempts complete.
+	var cancel context.CancelFunc
+	_, ok := ctx.Deadline()
+	if !ok {
+		// Set a default timeout of 30 seconds for the context
+		// if no deadline is already configured.
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+	} else {
+		// Otherwise, wrap the context to allow manual cancellation.
+		ctx, cancel = context.WithCancel(ctx)
+	}
 
 	var wg sync.WaitGroup
 	resChan := make(chan bool, len(targetAddrs))
@@ -193,7 +210,7 @@ func connect(ctx context.Context, c Connector, targetQN string, targetAddrs []st
 			go func(addr string) {
 				defer wg.Done()
 
-				err := connectFunc(timeoutCtx, session, addr)
+				err := connectFunc(ctx, session, addr)
 				if err != nil {
 					// Log warning for each failed connection attempt.
 					logger.Warn("Failed connecting to target", logger.Ctx{"target_qualified_name": targetQN, "target_address": addr, "err": err})
