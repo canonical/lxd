@@ -6421,20 +6421,20 @@ func (b *lxdBackend) MountVolume(projectName string, volName string, volType dri
 	return mountInfo, nil
 }
 
-// UnmountVolume unmounts a custom volume.
-func (b *lxdBackend) UnmountVolume(projectName, volName string, volType drivers.VolumeType, op *operations.Operation) (bool, error) {
+// UnmountCustomVolume unmounts a custom volume.
+func (b *lxdBackend) UnmountCustomVolume(projectName, volName string, op *operations.Operation) (bool, error) {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volName": volName})
-	l.Debug("UnmountVolume started")
-	defer l.Debug("UnmountVolume finished")
+	l.Debug("UnmountCustomVolume started")
+	defer l.Debug("UnmountCustomVolume finished")
 
-	volume, err := VolumeDBGet(b, projectName, volName, volType)
+	volume, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
 		return false, err
 	}
 
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
-	vol := b.GetVolume(volType, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
+	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
 	return b.driver.UnmountVolume(vol, false, op)
 }
