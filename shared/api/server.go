@@ -202,8 +202,9 @@ type ServerUntrusted struct {
 //
 // swagger:model
 type Server struct {
-	ServerPut       `yaml:",inline"`
-	ServerUntrusted `yaml:",inline"`
+	WithEntitlements `yaml:",inline"`
+	ServerPut        `yaml:",inline"`
+	ServerUntrusted  `yaml:",inline"`
 
 	// The current user username as seen by LXD
 	// Read only: true
