@@ -228,6 +228,7 @@ SDN
 SDNs
 SDS
 SDT
+SDTs
 SeaBIOS
 Seccomp
 SELinux
