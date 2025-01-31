@@ -137,6 +137,8 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 	// pciIOMMUGroup, used for VM physical passthrough.
 	var pciIOMMUGroup uint64
 
+	var hwaddr string
+
 	// If VM, then try and load the vfio-pci module first.
 	if d.inst.Type() == instancetype.VM {
 		err = util.LoadModule("vfio-pci")
@@ -200,6 +202,12 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 			}
 		}
 	} else if d.inst.Type() == instancetype.VM {
+		// Try to get MAC address of the parent interface.
+		hwaddr, err = NetworkGetDevMAC(saveData["host_name"])
+		if err != nil {
+			return nil, err
+		}
+
 		// Try to get PCI information about the network interface.
 		ueventPath := fmt.Sprintf("/sys/class/net/%s/device/uevent", saveData["host_name"])
 		pciDev, err := pcidev.ParseUeventFile(ueventPath)
@@ -245,6 +253,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 				{Key: "devName", Value: d.name},
 				{Key: "pciSlotName", Value: saveData["last_state.pci.slot.name"]},
 				{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
+				{Key: "hwaddr", Value: hwaddr},
 			}...)
 	}
 
