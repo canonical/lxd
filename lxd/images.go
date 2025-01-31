@@ -3628,9 +3628,14 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeImageAlias, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	projectName := request.ProjectParam(r)
 	var effectiveProjectName string
-	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
 		return err
@@ -3646,7 +3651,8 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var responseStr []string
-	var responseMap []api.ImageAliasesEntry
+	var responseMap []*api.ImageAliasesEntry
+	urlToImageAlias := make(map[*api.URL]auth.EntitlementReporter)
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		names, err := tx.GetImageAliases(ctx, projectName)
 		if err != nil {
@@ -3654,7 +3660,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if recursion {
-			responseMap = make([]api.ImageAliasesEntry, 0, len(names))
+			responseMap = make([]*api.ImageAliasesEntry, 0, len(names))
 		} else {
 			responseStr = make([]string, 0, len(names))
 		}
@@ -3672,7 +3678,8 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 					continue
 				}
 
-				responseMap = append(responseMap, alias)
+				responseMap = append(responseMap, &alias)
+				urlToImageAlias[entity.ImageAliasURL(projectName, name)] = &alias
 			}
 		}
 
@@ -3684,6 +3691,13 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 
 	if !recursion {
 		return response.SyncResponse(true, responseStr)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImageAlias, withEntitlements, urlToImageAlias)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponse(true, responseMap)
@@ -3779,6 +3793,12 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
+
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeImageAlias, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var effectiveProjectName string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
@@ -3810,7 +3830,14 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 		return response.NotFound(nil)
 	}
 
-	return response.SyncResponseETag(true, alias, alias)
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImageAlias, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageAliasURL(projectName, name): &alias})
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	return response.SyncResponseETag(true, &alias, alias)
 }
 
 // swagger:operation DELETE /1.0/images/aliases/{name} images image_alias_delete

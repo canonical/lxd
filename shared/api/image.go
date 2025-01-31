@@ -309,6 +309,8 @@ type ImageAliasesEntryPut struct {
 //
 // swagger:model
 type ImageAliasesEntry struct {
+	WithEntitlements `yaml:",inline"`
+
 	// Alias name
 	// Example: ubuntu-24.04
 	Name string `json:"name" yaml:"name"`
