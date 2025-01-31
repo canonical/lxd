@@ -163,14 +163,10 @@ func (d *powerflex) Create() error {
 		return fmt.Errorf("The powerflex.gateway cannot be empty")
 	}
 
-	switch d.config["powerflex.mode"] {
-	case connectors.TypeSDC:
+	if d.config["powerflex.mode"] == connectors.TypeSDC {
+		// In case the SDC mode is used the SDTs cannot be set.
 		if d.config["powerflex.sdt"] != "" {
 			return fmt.Errorf("The powerflex.sdt config key is specific to the NVMe/TCP mode")
-		}
-
-		if !goscaleio.DrvCfgIsSDCInstalled() {
-			return fmt.Errorf("PowerFlex SDC is not available on the host")
 		}
 	}
 
@@ -297,6 +293,8 @@ func (d *powerflex) Validate(config map[string]string) error {
 			return fmt.Errorf("PowerFlex mode %q is not supported: %w", newMode, err)
 		}
 
+		// In case of NVMe this will actually try to load the respective kernel modules.
+		// In case of SDC it will check if the kernel module got loaded outside of LXD.
 		err = connector.LoadModules()
 		if err != nil {
 			return fmt.Errorf("PowerFlex mode %q is not supported due to missing kernel modules: %w", newMode, err)
