@@ -272,10 +272,9 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//
 		// ---
 		//  type: string
-		//  defaultdesc: one of the SDT
-		//  shortdesc: PowerFlex NVMe/TCP SDT
+		//  shortdesc: Comma separated list of PowerFlex NVMe/TCP SDTs
 		//  scope: global
-		"powerflex.sdt": validate.Optional(validate.IsNetworkAddress),
+		"powerflex.sdt": validate.Optional(validate.IsListOf(validate.IsNetworkAddress)),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.clone_copy)
 		// If this option is set to `true`, PowerFlex makes a non-sparse copy when creating a snapshot of an instance or custom volume.
 		// See {ref}`storage-powerflex-limitations` for more information.
