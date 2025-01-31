@@ -695,7 +695,7 @@ func validatePoolCommonRules() map[string]func(string) error {
 
 	// Add to pool config rules (prefixed with volume.*) which are common for pool and volume.
 	for volRule, volValidator := range poolAndVolumeCommonRules(nil) {
-		rules[fmt.Sprintf("volume.%s", volRule)] = volValidator
+		rules["volume."+volRule] = volValidator
 	}
 
 	return rules
@@ -812,7 +812,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sys
 		// Check whether image is allowed to be unpacked into pool volume. Create a partial image volume
 		// struct and then use it to check that target volume size can be set as needed.
 		imgVolConfig := map[string]string{
-			"volatile.rootfs.size": fmt.Sprintf("%d", imgVirtualSize),
+			"volatile.rootfs.size": fmt.Sprint(imgVirtualSize),
 		}
 
 		imgVol := drivers.NewVolume(nil, "", drivers.VolumeTypeImage, drivers.ContentTypeBlock, "", imgVolConfig, nil)
@@ -1233,7 +1233,7 @@ func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (boo
 		return false, err
 	}
 
-	fullName := fmt.Sprintf("%s/%s", poolName, volumeName)
+	fullName := poolName + "/" + volumeName
 	if storageBackups == fullName || storageImages == fullName {
 		return true, nil
 	}

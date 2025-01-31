@@ -247,7 +247,7 @@ func GetMountinfo(path string) ([]string, error) {
 			continue
 		}
 
-		if tokens[0] == fmt.Sprintf("%d", stat.Mnt_id) {
+		if tokens[0] == fmt.Sprint(stat.Mnt_id) {
 			return tokens, nil
 		}
 	}

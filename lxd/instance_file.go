@@ -180,8 +180,8 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 
 	// Prepare the response.
 	headers := map[string]string{
-		"X-LXD-uid":      fmt.Sprintf("%d", fs.UID),
-		"X-LXD-gid":      fmt.Sprintf("%d", fs.GID),
+		"X-LXD-uid":      fmt.Sprint(fs.UID),
+		"X-LXD-gid":      fmt.Sprint(fs.GID),
 		"X-LXD-mode":     fmt.Sprintf("%04o", stat.Mode().Perm()),
 		"X-LXD-modified": stat.ModTime().UTC().String(),
 		"X-LXD-type":     fileType,
@@ -343,8 +343,8 @@ func instanceFileHead(inst instance.Instance, path string) response.Response {
 
 	// Prepare the response.
 	headers := map[string]string{
-		"X-LXD-uid":      fmt.Sprintf("%d", fs.UID),
-		"X-LXD-gid":      fmt.Sprintf("%d", fs.GID),
+		"X-LXD-uid":      fmt.Sprint(fs.UID),
+		"X-LXD-gid":      fmt.Sprint(fs.GID),
 		"X-LXD-mode":     fmt.Sprintf("%04o", stat.Mode().Perm()),
 		"X-LXD-modified": stat.ModTime().UTC().String(),
 		"X-LXD-type":     fileType,
@@ -352,7 +352,7 @@ func instanceFileHead(inst instance.Instance, path string) response.Response {
 
 	if fileType == "file" {
 		headers["Content-Type"] = "application/octet-stream"
-		headers["Content-Length"] = fmt.Sprintf("%d", stat.Size())
+		headers["Content-Length"] = fmt.Sprint(stat.Size())
 	}
 
 	// Return an empty body (per RFC for HEAD).

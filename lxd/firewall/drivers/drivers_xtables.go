@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"bufio"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -159,19 +160,19 @@ func (d Xtables) ebtablesInUse() bool {
 
 // networkIPTablesComment returns the iptables comment that is added to each network related rule.
 func (d Xtables) networkIPTablesComment(networkName string) string {
-	return fmt.Sprintf("LXD network %s", networkName)
+	return "LXD network " + networkName
 }
 
 // networkForwardIPTablesComment returns the iptables comment that is added to each network forward related rule.
 func (d Xtables) networkForwardIPTablesComment(networkName string) string {
-	return fmt.Sprintf("LXD network-forward %s", networkName)
+	return "LXD network-forward " + networkName
 }
 
 // networkSetupNICFilteringChain creates the NIC filtering chain if it doesn't exist, and adds the jump rules to
 // the INPUT and FORWARD filter chains. Must be called after networkSetupForwardingPolicy so that the rules are
 // prepended before the default fowarding policy rules.
 func (d Xtables) networkSetupNICFilteringChain(networkName string, ipVersion uint) error {
-	chain := fmt.Sprintf("%s_%s", iptablesChainNICFilterPrefix, networkName)
+	chain := iptablesChainNICFilterPrefix + "_" + networkName
 
 	// Create the NIC filter chain if it doesn't exist.
 	exists, _, err := d.iptablesChainExists(ipVersion, "filter", chain)
@@ -202,7 +203,7 @@ func (d Xtables) networkSetupNICFilteringChain(networkName string, ipVersion uin
 
 // networkSetupACLFilteringChains creates any missing ACL chains and adds jump rules.
 func (d Xtables) networkSetupACLFilteringChains(networkName string) error {
-	chain := fmt.Sprintf("%s_%s", iptablesChainACLFilterPrefix, networkName)
+	chain := iptablesChainACLFilterPrefix + "_" + networkName
 
 	for _, ipVersion := range []uint{4, 6} {
 		// Create the ACL filter chain if it doesn't exist.
@@ -261,12 +262,12 @@ func (d Xtables) networkSetupACLFilteringChains(networkName string) error {
 
 			// Allow core ICMPv4 to/from LXD host.
 			for _, icmpType := range []int{3, 11, 12} {
-				err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprintf("%d", icmpType), "-j", "ACCEPT")
+				err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprint(icmpType), "-j", "ACCEPT")
 				if err != nil {
 					return err
 				}
 
-				err = d.iptablesPrepend(ipVersion, comment, "filter", "OUTPUT", "-o", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprintf("%d", icmpType), "-j", "ACCEPT")
+				err = d.iptablesPrepend(ipVersion, comment, "filter", "OUTPUT", "-o", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprint(icmpType), "-j", "ACCEPT")
 				if err != nil {
 					return err
 				}
@@ -287,7 +288,7 @@ func (d Xtables) networkSetupACLFilteringChains(networkName string) error {
 
 			// Allow core ICMPv6 to/from LXD host.
 			for _, icmpType := range []int{1, 2, 3, 4, 133, 135, 136, 143} {
-				err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprintf("%d", icmpType), "-j", "ACCEPT")
+				err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprint(icmpType), "-j", "ACCEPT")
 				if err != nil {
 					return err
 				}
@@ -295,7 +296,7 @@ func (d Xtables) networkSetupACLFilteringChains(networkName string) error {
 
 			// Allow ICMPv6 ping from host into network as dnsmasq uses this to probe IP allocations.
 			for _, icmpType := range []int{1, 2, 3, 4, 128, 134, 135, 136, 143} {
-				err = d.iptablesPrepend(ipVersion, comment, "filter", "OUTPUT", "-o", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprintf("%d", icmpType), "-j", "ACCEPT")
+				err = d.iptablesPrepend(ipVersion, comment, "filter", "OUTPUT", "-o", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprint(icmpType), "-j", "ACCEPT")
 				if err != nil {
 					return err
 				}
@@ -403,8 +404,8 @@ func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, networkAddres
 
 		// Allow core ICMPv4 to/from LXD host.
 		for _, icmpType := range []int{3, 11, 12} {
-			rules = append(rules, []string{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprintf("%d", icmpType), "-j", "ACCEPT"})
-			rules = append(rules, []string{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprintf("%d", icmpType), "-j", "ACCEPT"})
+			rules = append(rules, []string{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprint(icmpType), "-j", "ACCEPT"})
+			rules = append(rules, []string{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprint(icmpType), "-j", "ACCEPT"})
 		}
 	} else if ipVersion == 6 {
 		rules = [][]string{
@@ -421,12 +422,12 @@ func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, networkAddres
 
 		// Allow core ICMPv6 to/from LXD host.
 		for _, icmpType := range []int{1, 2, 3, 4, 133, 135, 136, 143} {
-			rules = append(rules, []string{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprintf("%d", icmpType), "-j", "ACCEPT"})
+			rules = append(rules, []string{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprint(icmpType), "-j", "ACCEPT"})
 		}
 
 		// Allow ICMPv6 ping from host into network as dnsmasq uses this to probe IP allocations.
 		for _, icmpType := range []int{1, 2, 3, 4, 128, 134, 135, 136, 143} {
-			rules = append(rules, []string{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprintf("%d", icmpType), "-j", "ACCEPT"})
+			rules = append(rules, []string{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprint(icmpType), "-j", "ACCEPT"})
 		}
 	} else {
 		return fmt.Errorf("Invalid IP version")
@@ -527,7 +528,7 @@ func (d Xtables) NetworkSetup(networkName string, ipv4Address net.IP, ipv6Addres
 
 // NetworkApplyACLRules applies ACL rules to the existing firewall chains.
 func (d Xtables) NetworkApplyACLRules(networkName string, rules []ACLRule) error {
-	chain := fmt.Sprintf("%s_%s", iptablesChainACLFilterPrefix, networkName)
+	chain := iptablesChainACLFilterPrefix + "_" + networkName
 
 	// Parse rules for both IP families before applying either family of rules.
 	iptCmdRules := make(map[string][][]string)
@@ -560,20 +561,20 @@ func (d Xtables) NetworkApplyACLRules(networkName string, rules []ACLRule) error
 
 	applyACLRules := func(cmd string, iptRules [][]string) error {
 		// Attempt to flush chain in table.
-		_, err := shared.RunCommand(cmd, "-w", "-t", "filter", "-F", chain)
+		_, err := shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", "filter", "-F", chain)
 		if err != nil {
 			return fmt.Errorf("Failed flushing %q chain %q in table %q: %w", cmd, chain, "filter", err)
 		}
 
 		// Allow connection tracking.
-		_, err = shared.RunCommand(cmd, "-w", "-t", "filter", "-A", chain, "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT")
+		_, err = shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", "filter", "-A", chain, "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT")
 		if err != nil {
 			return fmt.Errorf("Failed adding connection tracking rules to %q chain %q in table %q: %w", cmd, chain, "filter", err)
 		}
 
 		// Add rules to chain in table.
 		for _, iptRule := range iptRules {
-			_, err := shared.RunCommand(cmd, append([]string{"-w", "-t", "filter", "-A", chain}, iptRule...)...)
+			_, err := shared.RunCommandContext(context.TODO(), cmd, append([]string{"-w", "-t", "filter", "-A", chain}, iptRule...)...)
 			if err != nil {
 				return fmt.Errorf("Failed adding rule to %q chain %q in table %q: %w", cmd, chain, "filter", err)
 			}
@@ -683,9 +684,9 @@ func (d Xtables) aclRuleCriteriaToArgs(networkName string, ipVersion uint, rule 
 			args = append(args, "-m", extName)
 
 			if rule.ICMPCode == "" {
-				args = append(args, fmt.Sprintf("--%s-type", protoName), rule.ICMPType)
+				args = append(args, "--"+protoName+"-type", rule.ICMPType)
 			} else {
-				args = append(args, fmt.Sprintf("--%s-type", protoName), fmt.Sprintf("%s/%s", rule.ICMPType, rule.ICMPCode))
+				args = append(args, "--"+protoName+"-type", rule.ICMPType+"/"+rule.ICMPCode)
 			}
 		}
 	}
@@ -705,7 +706,7 @@ func (d Xtables) aclRuleCriteriaToArgs(networkName string, ipVersion uint, rule 
 
 		if rule.LogName != "" {
 			// Add a trailing space to prefix for readability in logs.
-			logArgs = append(logArgs, "--log-prefix", fmt.Sprintf("%s ", rule.LogName))
+			logArgs = append(logArgs, "--log-prefix", rule.LogName+" ")
 		}
 	}
 
@@ -741,7 +742,7 @@ func (d Xtables) aclRuleSubjectToACLMatch(direction string, ipVersion uint, subj
 	}
 
 	if len(fieldParts) > 0 {
-		return []string{fmt.Sprintf("--%s", direction), strings.Join(fieldParts, ",")}, nil
+		return []string{"--" + direction, strings.Join(fieldParts, ",")}, nil
 	}
 
 	return nil, nil // No subjects suitable for ipVersion.
@@ -755,18 +756,18 @@ func (d Xtables) aclRulePortToACLMatch(direction string, portCriteria ...string)
 	for _, portCriterion := range portCriteria {
 		criterionParts := strings.SplitN(portCriterion, "-", 2)
 		if len(criterionParts) > 1 {
-			fieldParts = append(fieldParts, fmt.Sprintf("%s:%s", criterionParts[0], criterionParts[1]))
+			fieldParts = append(fieldParts, criterionParts[0]+":"+criterionParts[1])
 		} else {
 			fieldParts = append(fieldParts, criterionParts[0])
 		}
 	}
 
-	return []string{"-m", "multiport", fmt.Sprintf("--%s", direction), strings.Join(fieldParts, ",")}
+	return []string{"-m", "multiport", "--" + direction, strings.Join(fieldParts, ",")}
 }
 
 // NetworkClear removes network rules from filter, mangle and nat tables.
 // If delete is true then network-specific chains are also removed.
-func (d Xtables) NetworkClear(networkName string, delete bool, ipVersions []uint) error {
+func (d Xtables) NetworkClear(networkName string, remove bool, ipVersions []uint) error {
 	comments := []string{
 		d.networkIPTablesComment(networkName),
 		d.networkForwardIPTablesComment(networkName),
@@ -780,7 +781,7 @@ func (d Xtables) NetworkClear(networkName string, delete bool, ipVersions []uint
 		}
 
 		// Remove ACL chain and rules.
-		aclFilterChain := fmt.Sprintf("%s_%s", iptablesChainACLFilterPrefix, networkName)
+		aclFilterChain := iptablesChainACLFilterPrefix + "_" + networkName
 		exists, hasRules, err := d.iptablesChainExists(ipVersion, "filter", aclFilterChain)
 		if err != nil {
 			return err
@@ -794,9 +795,9 @@ func (d Xtables) NetworkClear(networkName string, delete bool, ipVersions []uint
 		}
 
 		// Remove network specific chains (and any rules in them) if deleting.
-		if delete {
+		if remove {
 			// Remove the NIC filter chain if it exists.
-			nicFilterChain := fmt.Sprintf("%s_%s", iptablesChainNICFilterPrefix, networkName)
+			nicFilterChain := iptablesChainNICFilterPrefix + "_" + networkName
 			exists, hasRules, err := d.iptablesChainExists(ipVersion, "filter", nicFilterChain)
 			if err != nil {
 				return err
@@ -816,7 +817,7 @@ func (d Xtables) NetworkClear(networkName string, delete bool, ipVersions []uint
 
 // instanceDeviceIPTablesComment returns the iptables comment that is added to each instance device related rule.
 func (d Xtables) instanceDeviceIPTablesComment(projectName string, instanceName string, deviceName string) string {
-	return fmt.Sprintf("LXD container %s (%s)", project.Instance(projectName, instanceName), deviceName)
+	return "LXD container " + project.Instance(projectName, instanceName) + " (" + deviceName + ")"
 }
 
 // InstanceSetupBridgeFilter sets up the filter rules to apply bridged device IP filtering.
@@ -830,7 +831,7 @@ func (d Xtables) InstanceSetupBridgeFilter(projectName string, instanceName stri
 
 	ebtablesMu.Lock()
 	for _, rule := range rules {
-		_, err := shared.RunCommand(rule[0], rule[1:]...)
+		_, err := shared.RunCommandContext(context.TODO(), rule[0], rule[1:]...)
 		if err != nil {
 			ebtablesMu.Unlock()
 			return err
@@ -868,7 +869,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 	ebtablesMu.Lock()
 
 	// Get a current list of rules active on the host.
-	out, err := shared.RunCommand("ebtables", "-L", "--Lmac2", "--Lx")
+	out, err := shared.RunCommandContext(context.TODO(), "ebtables", "-L", "--Lmac2", "--Lx")
 	if err != nil {
 		ebtablesMu.Unlock()
 		return fmt.Errorf("Failed to get a list of network filters to for %q: %w", deviceName, err)
@@ -894,7 +895,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 
 			// If we get this far, then the current host rule matches one of our LXD
 			// rules, so we should run the modified command to delete it.
-			_, err = shared.RunCommand(fields[0], fields[1:]...)
+			_, err = shared.RunCommandContext(context.TODO(), fields[0], fields[1:]...)
 			if err != nil {
 				errs = append(errs, err)
 			}
@@ -971,9 +972,10 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 
 		if targetPortRange[1] == 1 {
 			targetPortStr := portRangeStr(targetPortRange, ":")
-			targetDest = fmt.Sprintf("%s:%s", targetAddressStr, targetPortStr)
 			if ipVersion == 6 {
-				targetDest = fmt.Sprintf("[%s]:%s", targetAddressStr, targetPortStr)
+				targetDest = "[" + targetDest + "]:" + targetPortStr
+			} else {
+				targetDest = targetAddressStr + ":" + targetPortStr
 			}
 		}
 
@@ -1038,11 +1040,11 @@ func (d Xtables) generateFilterEbtablesRules(hostName string, hwAddr string, IPv
 			for _, IPv4Net := range IPv4Nets {
 				rules = append(rules,
 					// Allow ARP IP redirection (allows the instance to redirect traffic for IPs in the range).
-					[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", hostName, "--arp-ip-src", fmt.Sprintf("%s/%s", IPv4Net.IP.String(), subnetMask(IPv4Net)), "-j", "ACCEPT"},
-					[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", hostName, "--arp-ip-src", fmt.Sprintf("%s/%s", IPv4Net.IP.String(), subnetMask(IPv4Net)), "-j", "ACCEPT"},
+					[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", hostName, "--arp-ip-src", IPv4Net.IP.String() + "/" + subnetMask(IPv4Net), "-j", "ACCEPT"},
+					[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", hostName, "--arp-ip-src", IPv4Net.IP.String() + "/" + subnetMask(IPv4Net), "-j", "ACCEPT"},
 					// IP source filtering rules. Allows any packet coming from instance with a correct IP source address.
-					[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-i", hostName, "--ip-src", fmt.Sprintf("%s/%s", IPv4Net.IP.String(), subnetMask(IPv4Net)), "-j", "ACCEPT"},
-					[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv4", "-i", hostName, "--ip-src", fmt.Sprintf("%s/%s", IPv4Net.IP.String(), subnetMask(IPv4Net)), "-j", "ACCEPT"},
+					[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-i", hostName, "--ip-src", IPv4Net.IP.String() + "/" + subnetMask(IPv4Net), "-j", "ACCEPT"},
+					[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv4", "-i", hostName, "--ip-src", IPv4Net.IP.String() + "/" + subnetMask(IPv4Net), "-j", "ACCEPT"},
 				)
 			}
 		}
@@ -1076,8 +1078,8 @@ func (d Xtables) generateFilterEbtablesRules(hostName string, hwAddr string, IPv
 			for _, IPv6Net := range IPv6Nets {
 				rules = append(rules,
 					// IP source filtering rules. Allows any packet coming from instance with a correct IP source address.
-					[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-i", hostName, "--ip6-src", fmt.Sprintf("%s/%s", IPv6Net.IP.String(), subnetMask(IPv6Net)), "-j", "ACCEPT"},
-					[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv6", "-i", hostName, "--ip6-src", fmt.Sprintf("%s/%s", IPv6Net.IP.String(), subnetMask(IPv6Net)), "-j", "ACCEPT"},
+					[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-i", hostName, "--ip6-src", IPv6Net.IP.String() + "/" + subnetMask(IPv6Net), "-j", "ACCEPT"},
+					[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv6", "-i", hostName, "--ip6-src", IPv6Net.IP.String() + "/" + subnetMask(IPv6Net), "-j", "ACCEPT"},
 				)
 			}
 		}
@@ -1132,7 +1134,7 @@ func (d Xtables) generateFilterIptablesRules(parentName string, hostName string,
 			// Managed networks should have setup the iptablesChainNICFilterPrefix chain and added the
 			// jump rules to INPUT and FORWARD already, so reduce the overhead of adding the rules to
 			// both chains and just add it to the iptablesChainNICFilterPrefix chain instead.
-			chains = append(chains, fmt.Sprintf("%s_%s", iptablesChainNICFilterPrefix, parentName))
+			chains = append(chains, iptablesChainNICFilterPrefix+"_"+parentName)
 		} else {
 			// We add the NIC rules to both the INPUT and FORWARD chain as there is no managed network
 			// setup step that could have created the iptablesChainNICFilterPrefix chain and added the
@@ -1154,14 +1156,14 @@ func (d Xtables) generateFilterIptablesRules(parentName string, hostName string,
 
 				rules = append(rules,
 					// Prevent Neighbor Advertisement IP spoofing (prevents the instance redirecting traffic for IPs that are not its own).
-					[]string{"6", chain, "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "--hex-string", fmt.Sprintf("|%s|", hexPrefix), "--algo", "bm", "--from", "48", "--to", strconv.Itoa(48 + len(hexPrefix)/2), "-j", "ACCEPT"},
+					[]string{"6", chain, "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "--hex-string", "|" + hexPrefix + "|", "--algo", "bm", "--from", "48", "--to", strconv.Itoa(48 + len(hexPrefix)/2), "-j", "ACCEPT"},
 				)
 			}
 
 			if len(IPv6Nets) > 0 {
 				rules = append(rules,
 					// Prevent Neighbor Advertisement MAC spoofing (prevents the instance poisoning the NDP cache of its neighbours with a MAC address that isn't its own).
-					[]string{"6", chain, "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", macHex), "--algo", "bm", "--from", "66", "--to", "72", "-j", "DROP"},
+					[]string{"6", chain, "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", "|" + macHex + "|", "--algo", "bm", "--from", "66", "--to", "72", "-j", "DROP"},
 				)
 			}
 		}
@@ -1241,7 +1243,7 @@ func (d Xtables) iptablesAdd(ipVersion uint, comment string, table string, metho
 
 	args := []string{"-w", "-t", table, method, chain}
 	args = append(args, rule...)
-	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("%s %s", iptablesCommentPrefix, comment))
+	args = append(args, "-m", "comment", "--comment", iptablesCommentPrefix+" "+comment)
 
 	_, err = shared.TryRunCommand(cmd, args...)
 	if err != nil {
@@ -1321,7 +1323,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 
 		for _, line := range strings.Split(output, "\n") {
 			for _, comment := range comments {
-				if !strings.Contains(line, fmt.Sprintf("%s %s", iptablesCommentPrefix, comment)) {
+				if !strings.Contains(line, iptablesCommentPrefix+" "+comment) {
 					continue
 				}
 
@@ -1330,7 +1332,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 				fields[0] = "-D"
 
 				args = append(baseArgs, fields...)
-				_, err = shared.TryRunCommand("sh", "-c", fmt.Sprintf("%s %s", cmd, strings.Join(args, " ")))
+				_, err = shared.TryRunCommand("sh", "-c", cmd+" "+strings.Join(args, " "))
 				if err != nil {
 					return err
 				}
@@ -1343,7 +1345,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 
 // InstanceSetupRPFilter activates reverse path filtering for the specified instance device on the host interface.
 func (d Xtables) InstanceSetupRPFilter(projectName string, instanceName string, deviceName string, hostName string) error {
-	comment := fmt.Sprintf("%s rpfilter", d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName))
+	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName) + " rpfilter"
 	args := []string{
 		"-m", "rpfilter",
 		"--invert",
@@ -1370,7 +1372,7 @@ func (d Xtables) InstanceSetupRPFilter(projectName string, instanceName string, 
 
 // InstanceClearRPFilter removes reverse path filtering for the specified instance device on the host interface.
 func (d Xtables) InstanceClearRPFilter(projectName string, instanceName string, deviceName string) error {
-	comment := fmt.Sprintf("%s rpfilter", d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName))
+	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName) + " rpfilter"
 	errs := []error{}
 
 	for _, ipVersion := range []uint{4, 6} {
@@ -1389,7 +1391,7 @@ func (d Xtables) InstanceClearRPFilter(projectName string, instanceName string, 
 
 // InstanceSetupNetPrio activates setting of skb->priority for the specified instance device on the host interface.
 func (d Xtables) InstanceSetupNetPrio(projectName string, instanceName string, deviceName string, netPrio uint32) error {
-	comment := fmt.Sprintf("%s netprio", d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName))
+	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName) + " netprio"
 	class := fmt.Sprintf("%x:%x", uint16(uint32(netPrio)>>16), uint16(uint32(netPrio)&0xFFFF))
 	args := []string{
 		"-i", deviceName,
@@ -1420,7 +1422,7 @@ func (d Xtables) InstanceClearNetPrio(projectName string, instanceName string, d
 		return fmt.Errorf("Failed clearing netprio rules for instance %q in project %q: device name is empty", instanceName, projectName)
 	}
 
-	comment := fmt.Sprintf("%s netprio", d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName))
+	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName) + " netprio"
 	errs := []error{}
 
 	for _, ipVersion := range []uint{4, 6} {
@@ -1454,7 +1456,7 @@ func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string)
 	}
 
 	// Attempt to dump the rules of the chain, if this fails then chain doesn't exist.
-	rules, err := shared.RunCommand(cmd, "-w", "-t", table, "-S", chain)
+	rules, err := shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", table, "-S", chain)
 	if err != nil {
 		return false, false, nil
 	}
@@ -1480,7 +1482,7 @@ func (d Xtables) iptablesChainCreate(ipVersion uint, table string, chain string)
 	}
 
 	// Attempt to create chain in table.
-	_, err := shared.RunCommand(cmd, "-w", "-t", table, "-N", chain)
+	_, err := shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", table, "-N", chain)
 	if err != nil {
 		return fmt.Errorf("Failed creating %q chain %q in table %q: %w", cmd, chain, table, err)
 	}
@@ -1501,14 +1503,14 @@ func (d Xtables) iptablesChainDelete(ipVersion uint, table string, chain string,
 
 	// Attempt to flush rules from chain in table.
 	if flushFirst {
-		_, err := shared.RunCommand(cmd, "-w", "-t", table, "-F", chain)
+		_, err := shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", table, "-F", chain)
 		if err != nil {
 			return fmt.Errorf("Failed flushing %q chain %q in table %q: %w", cmd, chain, table, err)
 		}
 	}
 
 	// Attempt to delete chain in table.
-	_, err := shared.RunCommand(cmd, "-w", "-t", table, "-X", chain)
+	_, err := shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", table, "-X", chain)
 	if err != nil {
 		return fmt.Errorf("Failed deleting %q chain %q in table %q: %w", cmd, chain, table, err)
 	}
@@ -1612,9 +1614,10 @@ func (d Xtables) NetworkApplyForwards(networkName string, rules []AddressForward
 
 					if targetPortRange[1] == 1 {
 						targetPortStr := portRangeStr(targetPortRange, ":")
-						targetDest = fmt.Sprintf("%s:%s", targetAddressStr, targetPortStr)
 						if ipVersion == 6 {
-							targetDest = fmt.Sprintf("[%s]:%s", targetAddressStr, targetPortStr)
+							targetDest = "[" + targetAddressStr + "]:" + targetPortStr
+						} else {
+							targetDest = targetAddressStr + ":" + targetPortStr
 						}
 					}
 
@@ -1634,7 +1637,7 @@ func (d Xtables) NetworkApplyForwards(networkName string, rules []AddressForward
 				// Format the destination host/port as appropriate.
 				targetDest := targetAddressStr
 				if ipVersion == 6 {
-					targetDest = fmt.Sprintf("[%s]", targetAddressStr)
+					targetDest = "[" + targetAddressStr + "]"
 				}
 
 				// outbound <-> instance.

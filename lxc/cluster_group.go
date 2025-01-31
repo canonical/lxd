@@ -493,7 +493,7 @@ func (c *cmdClusterGroupList) run(cmd *cobra.Command, args []string) error {
 	// Render the table
 	data := [][]string{}
 	for _, group := range groups {
-		line := []string{group.Name, group.Description, fmt.Sprintf("%d", len(group.Members))}
+		line := []string{group.Name, group.Description, fmt.Sprint(len(group.Members))}
 		data = append(data, line)
 	}
 

@@ -39,7 +39,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 	defer revert.Fail()
 
 	// Create the volume itself.
-	_, err := shared.RunCommand("btrfs", "subvolume", "create", volPath)
+	_, err := shared.RunCommandContext(context.TODO(), "btrfs", "subvolume", "create", volPath)
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		//
 		// An exception is made for when compression is enabled on the underlying storage.
 		if !shared.ValueInSlice("datacow", mountOptions) && !strings.Contains(mountinfo[len(mountinfo)-1], "compress") {
-			_, err = shared.RunCommand("chattr", "+C", volPath)
+			_, err = shared.RunCommandContext(context.TODO(), "chattr", "+C", volPath)
 			if err != nil {
 				return fmt.Errorf("Failed setting nodatacow on %q: %w", volPath, err)
 			}
@@ -960,7 +960,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 
 			path := GetPoolMountPath(d.name)
 
-			_, err = shared.RunCommand("btrfs", "quota", "enable", path)
+			_, err = shared.RunCommandContext(context.TODO(), "btrfs", "quota", "enable", path)
 			if err != nil {
 				return err
 			}
@@ -973,17 +973,16 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 		if err == errBtrfsNoQGroup {
 			// Find the volume ID.
 			var output string
-			output, err = shared.RunCommand("btrfs", "subvolume", "show", volPath)
+			output, err = shared.RunCommandContext(context.TODO(), "btrfs", "subvolume", "show", volPath)
 			if err != nil {
 				return fmt.Errorf("Failed to get subvol information: %w", err)
 			}
 
 			id := ""
 			for _, line := range strings.Split(output, "\n") {
-				line = strings.TrimSpace(line)
-				if strings.HasPrefix(line, "Subvolume ID:") {
-					fields := strings.Split(line, ":")
-					id = strings.TrimSpace(fields[len(fields)-1])
+				_, value, found := strings.Cut(line, "Subvolume ID:")
+				if found {
+					id = strings.TrimSpace(value)
 				}
 			}
 
@@ -992,7 +991,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 			}
 
 			// Create a qgroup.
-			_, err = shared.RunCommand("btrfs", "qgroup", "create", "0/"+id, volPath)
+			_, err = shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "create", "0/"+id, volPath)
 			if err != nil {
 				return err
 			}
@@ -1022,24 +1021,24 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 		}
 
 		// Apply the limit to referenced data in qgroup.
-		_, err = shared.RunCommand("btrfs", "qgroup", "limit", fmt.Sprintf("%d", sizeBytes), qgroup, volPath)
+		_, err = shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "limit", fmt.Sprint(sizeBytes), qgroup, volPath)
 		if err != nil {
 			return err
 		}
 
 		// Remove any former exclusive data limit.
-		_, err = shared.RunCommand("btrfs", "qgroup", "limit", "-e", "none", qgroup, volPath)
+		_, err = shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "limit", "-e", "none", qgroup, volPath)
 		if err != nil {
 			return err
 		}
 	} else if qgroup != "" {
 		// Remove all limits.
-		_, err = shared.RunCommand("btrfs", "qgroup", "limit", "none", qgroup, volPath)
+		_, err = shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "limit", "none", qgroup, volPath)
 		if err != nil {
 			return err
 		}
 
-		_, err = shared.RunCommand("btrfs", "qgroup", "limit", "-e", "none", qgroup, volPath)
+		_, err = shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "limit", "-e", "none", qgroup, volPath)
 		if err != nil {
 			return err
 		}
@@ -1289,7 +1288,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 				parentPath = filepath.Join(parentPrefix, subVolume.Path)
 
 				// Set parent subvolume readonly if needed so we can send the subvolume.
-				if !BTRFSSubVolumeIsRo(parentPath) {
+				if !btrfsSubVolumeIsRo(parentPath) {
 					err := d.setSubvolumeReadonlyProperty(parentPath, true)
 					if err != nil {
 						return err
@@ -1301,7 +1300,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 
 			// Set subvolume readonly if needed so we can send it.
 			sourcePath := filepath.Join(sourcePrefix, subVolume.Path)
-			if !BTRFSSubVolumeIsRo(sourcePath) {
+			if !btrfsSubVolumeIsRo(sourcePath) {
 				err := d.setSubvolumeReadonlyProperty(sourcePath, true)
 				if err != nil {
 					return err
@@ -1524,7 +1523,7 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 				parentPath = filepath.Join(parentPrefix, subVolume.Path)
 
 				// Set parent subvolume readonly if needed so we can add the subvolume.
-				if !BTRFSSubVolumeIsRo(parentPath) {
+				if !btrfsSubVolumeIsRo(parentPath) {
 					err = d.setSubvolumeReadonlyProperty(parentPath, true)
 					if err != nil {
 						return err
@@ -1536,7 +1535,7 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 
 			// Set subvolume readonly if needed so we can add it.
 			sourcePath := filepath.Join(sourcePrefix, subVolume.Path)
-			if !BTRFSSubVolumeIsRo(sourcePath) {
+			if !btrfsSubVolumeIsRo(sourcePath) {
 				err = d.setSubvolumeReadonlyProperty(sourcePath, true)
 				if err != nil {
 					return err

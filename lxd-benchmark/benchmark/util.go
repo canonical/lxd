@@ -6,7 +6,7 @@ import (
 )
 
 func getContainerName(count int, index int) string {
-	nameFormat := "benchmark-%." + fmt.Sprintf("%d", len(fmt.Sprintf("%d", count))) + "d"
+	nameFormat := "benchmark-%." + fmt.Sprint(len(fmt.Sprint(count))) + "d"
 	return fmt.Sprintf(nameFormat, index+1)
 }
 

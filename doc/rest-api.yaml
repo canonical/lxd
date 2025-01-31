@@ -672,11 +672,6 @@ definitions:
                 example: X509 PEM certificate
                 type: string
                 x-go-name: ClusterCertificate
-            cluster_password:
-                description: The trust password of the cluster you're trying to join (deprecated, use cluster_token)
-                example: blah
-                type: string
-                x-go-name: ClusterPassword
             cluster_token:
                 description: The cluster join token for the cluster you're trying to join
                 example: blah
@@ -1496,11 +1491,6 @@ definitions:
                 example: /tmp/cluster.crt
                 type: string
                 x-go-name: ClusterCertificatePath
-            cluster_password:
-                description: The trust password of the cluster you're trying to join (deprecated, use cluster_token)
-                example: blah
-                type: string
-                x-go-name: ClusterPassword
             cluster_token:
                 description: The cluster join token for the cluster you're trying to join
                 example: blah
