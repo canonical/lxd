@@ -920,7 +920,7 @@ func patchZfsSetContentTypeUserProperty(name string, d *Daemon) error {
 
 			zfsVolName := fmt.Sprintf("%s/%s/%s", poolName, storageDrivers.VolumeTypeCustom, project.StorageVolume(vol.Project, vol.Name))
 
-			_, err = shared.RunCommand("zfs", "set", fmt.Sprintf("lxd:content_type=%s", vol.ContentType), zfsVolName)
+			_, err = shared.RunCommandContext(d.shutdownCtx, "zfs", "set", fmt.Sprintf("lxd:content_type=%s", vol.ContentType), zfsVolName)
 			if err != nil {
 				logger.Debug("Failed setting lxd:content_type property", logger.Ctx{"name": zfsVolName, "err": err})
 			}
