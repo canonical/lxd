@@ -1,7 +1,6 @@
 package lxd
 
 import (
-	"fmt"
 	"net/url"
 
 	"github.com/canonical/lxd/shared/api"
@@ -58,7 +57,7 @@ func (r *ProtocolLXD) GetProfile(name string) (*api.Profile, string, error) {
 	profile := api.Profile{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/profiles/%s", url.PathEscape(name)), nil, "", &profile)
+	etag, err := r.queryStruct("GET", "/profiles/"+url.PathEscape(name), nil, "", &profile)
 	if err != nil {
 		return nil, "", err
 	}
@@ -80,7 +79,7 @@ func (r *ProtocolLXD) CreateProfile(profile api.ProfilesPost) error {
 // UpdateProfile updates the profile to match the provided Profile struct.
 func (r *ProtocolLXD) UpdateProfile(name string, profile api.ProfilePut, ETag string) error {
 	// Send the request
-	_, _, err := r.query("PUT", fmt.Sprintf("/profiles/%s", url.PathEscape(name)), profile, ETag)
+	_, _, err := r.query("PUT", "/profiles/"+url.PathEscape(name), profile, ETag)
 	if err != nil {
 		return err
 	}
@@ -91,7 +90,7 @@ func (r *ProtocolLXD) UpdateProfile(name string, profile api.ProfilePut, ETag st
 // RenameProfile renames an existing profile entry.
 func (r *ProtocolLXD) RenameProfile(name string, profile api.ProfilePost) error {
 	// Send the request
-	_, _, err := r.query("POST", fmt.Sprintf("/profiles/%s", url.PathEscape(name)), profile, "")
+	_, _, err := r.query("POST", "/profiles/"+url.PathEscape(name), profile, "")
 	if err != nil {
 		return err
 	}
@@ -102,7 +101,7 @@ func (r *ProtocolLXD) RenameProfile(name string, profile api.ProfilePost) error 
 // DeleteProfile deletes a profile.
 func (r *ProtocolLXD) DeleteProfile(name string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/profiles/%s", url.PathEscape(name)), nil, "")
+	_, _, err := r.query("DELETE", "/profiles/"+url.PathEscape(name), nil, "")
 	if err != nil {
 		return err
 	}
