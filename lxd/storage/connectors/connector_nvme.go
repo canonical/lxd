@@ -85,21 +85,6 @@ func (c *connectorNVMe) Connect(ctx context.Context, targetQN string, targetAddr
 	return connect(ctx, c, targetQN, targetAddresses, connectFunc)
 }
 
-// ConnectAll establishes a connection with all targets available on the given address.
-func (c *connectorNVMe) ConnectAll(ctx context.Context, targetAddr string) error {
-	hostNQN, err := c.QualifiedName()
-	if err != nil {
-		return err
-	}
-
-	_, err = shared.RunCommandContext(ctx, "nvme", "connect-all", "--transport", "tcp", "--traddr", targetAddr, "--hostnqn", hostNQN, "--hostid", c.serverUUID)
-	if err != nil {
-		return fmt.Errorf("Failed to connect to any target on %q via NVMe: %w", targetAddr, err)
-	}
-
-	return nil
-}
-
 // Disconnect terminates a connection with the target.
 func (c *connectorNVMe) Disconnect(targetQN string) error {
 	// Find an existing NVMe session.
@@ -117,16 +102,6 @@ func (c *connectorNVMe) Disconnect(targetQN string) error {
 		if err != nil {
 			return fmt.Errorf("Failed disconnecting from NVMe target %q: %w", targetQN, err)
 		}
-	}
-
-	return nil
-}
-
-// DisconnectAll terminates all connections with all targets.
-func (c *connectorNVMe) DisconnectAll() error {
-	_, err := shared.RunCommand("nvme", "disconnect-all")
-	if err != nil {
-		return fmt.Errorf("Failed disconnecting from NVMe targets: %w", err)
 	}
 
 	return nil
