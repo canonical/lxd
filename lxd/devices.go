@@ -127,7 +127,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 
 			if udevEvent {
 				// The kernel always prepends this and udev expects it.
-				kernelPrefix := fmt.Sprintf("%s@%s", props["ACTION"], props["DEVPATH"])
+				kernelPrefix := props["ACTION"] + "@" + props["DEVPATH"]
 				ueventParts = append([]string{kernelPrefix}, ueventParts...)
 				ueventLen += len(kernelPrefix)
 			}
@@ -154,7 +154,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 					continue
 				}
 
-				if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", props["INTERFACE"])) {
+				if !shared.PathExists("/sys/class/net/" + props["INTERFACE"]) {
 					continue
 				}
 
@@ -345,7 +345,7 @@ func fillFixedInstances(fixedInstances map[int64][]instance.Instance, inst insta
 	for _, id := range targetCPUPool {
 		cpu := deviceTaskCPU{}
 		cpu.id = id
-		cpu.strID = fmt.Sprintf("%d", id)
+		cpu.strID = fmt.Sprint(id)
 
 		count := 0
 		_, ok := fixedInstances[id]
@@ -415,7 +415,7 @@ func getCPULists() (cpus []int64, isolCPUs []int64, err error) {
 			continue
 		}
 
-		effectiveCPUsSlice = append(effectiveCPUsSlice, fmt.Sprintf("%d", id))
+		effectiveCPUsSlice = append(effectiveCPUsSlice, fmt.Sprint(id))
 	}
 
 	effectiveCPUs = strings.Join(effectiveCPUsSlice, ",")

@@ -470,9 +470,9 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 				return false, "", "", nil, err
 			}
 
-			u, err := user.LookupId(fmt.Sprintf("%d", cred.Uid))
+			u, err := user.LookupId(fmt.Sprint(cred.Uid))
 			if err != nil {
-				return true, fmt.Sprintf("uid=%d", cred.Uid), auth.AuthenticationMethodUnix, nil, nil
+				return true, fmt.Sprint("uid=", cred.Uid), auth.AuthenticationMethodUnix, nil, nil
 			}
 
 			return true, u.Username, auth.AuthenticationMethodUnix, nil, nil
@@ -2181,7 +2181,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	if n > 0 {
 		format := "%v"
 		if n > 1 {
-			format += fmt.Sprintf(" (and %d more errors)", n)
+			format += fmt.Sprint(" (and ", n, " more errors)")
 		}
 
 		err = fmt.Errorf(format, errs[0])

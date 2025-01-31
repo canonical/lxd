@@ -67,7 +67,7 @@ func DiskGetRBDFormat(clusterName string, userName string, cephPoolName string, 
 
 // BlockFsDetect detects the type of block device.
 func BlockFsDetect(dev string) (string, error) {
-	out, err := shared.RunCommand("blkid", "-s", "TYPE", "-o", "value", dev)
+	out, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "TYPE", "-o", "value", dev)
 	if err != nil {
 		return "", err
 	}
@@ -162,7 +162,8 @@ func DiskMountClear(mntPath string) error {
 }
 
 func diskCephRbdMap(clusterName string, userName string, poolName string, volumeName string) (string, error) {
-	devPath, err := shared.RunCommand(
+	devPath, err := shared.RunCommandContext(
+		context.TODO(),
 		"rbd",
 		"--id", userName,
 		"--cluster", clusterName,
@@ -186,7 +187,8 @@ func diskCephRbdUnmap(deviceName string) error {
 	unmapImageName := deviceName
 	busyCount := 0
 again:
-	_, err := shared.RunCommand(
+	_, err := shared.RunCommandContext(
+		context.TODO(),
 		"rbd",
 		"unmap",
 		unmapImageName)

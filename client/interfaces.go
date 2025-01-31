@@ -79,6 +79,7 @@ type InstanceServer interface {
 	GetServerResources() (resources *api.Resources, err error)
 	UpdateServer(server api.ServerPut, ETag string) (err error)
 	HasExtension(extension string) (exists bool)
+	CheckExtension(extension string) (err error)
 	RequireAuthenticated(authenticated bool)
 	IsClustered() (clustered bool)
 	UseTarget(name string) (client InstanceServer)

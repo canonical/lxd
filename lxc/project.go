@@ -554,10 +554,10 @@ func (c *cmdProjectList) run(cmd *cobra.Command, args []string) error {
 
 		name := project.Name
 		if name == info.Project {
-			name = fmt.Sprintf("%s (%s)", name, i18n.G("current"))
+			name = name + " (" + i18n.G("current") + ")"
 		}
 
-		strUsedBy := fmt.Sprintf("%d", len(project.UsedBy))
+		strUsedBy := fmt.Sprint(len(project.UsedBy))
 		data = append(data, []string{name, images, profiles, storageVolumes, storageBuckets, networks, networkZones, project.Description, strUsedBy})
 	}
 
@@ -967,7 +967,7 @@ func (c *cmdProjectInfo) run(cmd *cobra.Command, args []string) error {
 			if slices.Contains(byteLimits, shortKey) {
 				limit = units.GetByteSizeStringIEC(v.Limit, 2)
 			} else {
-				limit = fmt.Sprintf("%d", v.Limit)
+				limit = fmt.Sprint(v.Limit)
 			}
 		}
 
@@ -975,13 +975,13 @@ func (c *cmdProjectInfo) run(cmd *cobra.Command, args []string) error {
 		if slices.Contains(byteLimits, shortKey) {
 			usage = units.GetByteSizeStringIEC(v.Usage, 2)
 		} else {
-			usage = fmt.Sprintf("%d", v.Usage)
+			usage = fmt.Sprint(v.Usage)
 		}
 
 		columnName := strings.ToUpper(k)
 		before, after, found := strings.Cut(columnName, ".")
 		if found {
-			columnName = fmt.Sprintf("%s (%s)", before, after)
+			columnName = before + " (" + after + ")"
 		}
 
 		data = append(data, []string{columnName, limit, usage})

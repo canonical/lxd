@@ -1076,7 +1076,8 @@ func RunCommandContext(ctx context.Context, name string, arg ...string) (string,
 
 // RunCommand runs a command with optional arguments and returns stdout. If the command fails to
 // start or returns a non-zero exit code then an error is returned containing the output of stderr.
-// Deprecated: Use RunCommandContext.
+//
+// Deprecated: Use RunCommandContext().
 func RunCommand(name string, arg ...string) (string, error) {
 	stdout, _, err := RunCommandSplit(context.TODO(), nil, nil, name, arg...)
 	return stdout, err

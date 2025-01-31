@@ -61,7 +61,7 @@ func wipeDirectory(path string) error {
 func forceRemoveAll(path string) error {
 	err := os.RemoveAll(path)
 	if err != nil {
-		_, _ = shared.RunCommand("chattr", "-ai", "-R", path)
+		_, _ = shared.RunCommandContext(context.TODO(), "chattr", "-ai", "-R", path)
 		err = os.RemoveAll(path)
 		if err != nil {
 			return err
@@ -223,7 +223,7 @@ func tryExists(ctx context.Context, path string) bool {
 // fsUUID returns the filesystem UUID for the given block path.
 // error is returned if the given block device exists but has no UUID.
 func fsUUID(path string) (string, error) {
-	val, err := shared.RunCommand("blkid", "-s", "UUID", "-o", "value", path)
+	val, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "UUID", "-o", "value", path)
 	if err != nil {
 		return "", err
 	}
@@ -239,7 +239,7 @@ func fsUUID(path string) (string, error) {
 
 // fsProbe returns the filesystem type for the given block path.
 func fsProbe(path string) (string, error) {
-	val, err := shared.RunCommand("blkid", "-s", "TYPE", "-o", "value", path)
+	val, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "TYPE", "-o", "value", path)
 	if err != nil {
 		return "", err
 	}
@@ -458,12 +458,13 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 	}
 
 	// The smallest unit that resize2fs accepts in byte size (rather than blocks) is kilobytes.
+	// btrfs filesystem resize also accepts kilobytes.
 	strSize := strconv.FormatInt(byteSize/1024, 10) + "K"
 
 	switch fsType {
 	case "ext4":
 		return vol.UnmountTask(func(op *operations.Operation) error {
-			output, err := shared.RunCommand("e2fsck", "-f", "-y", devPath)
+			output, err := shared.RunCommandContext(context.TODO(), "e2fsck", "-f", "-y", devPath)
 			if err != nil {
 				exitCodeFSModified := false
 				runErr, ok := err.(shared.RunError)
@@ -494,7 +495,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 			}
 
 			args = append(args, devPath, strSize)
-			_, err = shared.RunCommand("resize2fs", args...)
+			_, err = shared.RunCommandContext(context.TODO(), "resize2fs", args...)
 			if err != nil {
 				return err
 			}
@@ -503,7 +504,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 		}, true, nil)
 	case "btrfs":
 		return vol.MountTask(func(mountPath string, op *operations.Operation) error {
-			_, err := shared.RunCommand("btrfs", "filesystem", "resize", strSize, mountPath)
+			_, err := shared.RunCommandContext(context.TODO(), "btrfs", "filesystem", "resize", strSize, mountPath)
 			if err != nil {
 				return err
 			}
@@ -571,12 +572,12 @@ func regenerateFilesystemUUID(fsType string, devPath string) error {
 func regenerateFilesystemBTRFSUUID(devPath string) error {
 	// If the snapshot was taken whilst instance was running there may be outstanding transactions that will
 	// cause btrfstune to corrupt superblock, so ensure these are cleared out first.
-	_, err := shared.RunCommand("btrfs", "rescue", "zero-log", devPath)
+	_, err := shared.RunCommandContext(context.TODO(), "btrfs", "rescue", "zero-log", devPath)
 	if err != nil {
 		return err
 	}
 
-	_, err = shared.RunCommand("btrfstune", "-f", "-u", devPath)
+	_, err = shared.RunCommandContext(context.TODO(), "btrfstune", "-f", "-u", devPath)
 	if err != nil {
 		return err
 	}
@@ -587,20 +588,20 @@ func regenerateFilesystemBTRFSUUID(devPath string) error {
 // regenerateFilesystemXFSUUID changes the XFS filesystem UUID to a new randomly generated one.
 func regenerateFilesystemXFSUUID(devPath string) error {
 	// Attempt to generate a new UUID.
-	msg, err := shared.RunCommand("xfs_admin", "-U", "generate", devPath)
+	msg, err := shared.RunCommandContext(context.TODO(), "xfs_admin", "-U", "generate", devPath)
 	if err != nil {
 		return err
 	}
 
 	if msg != "" {
 		// Exit 0 with a msg usually means some log entry getting in the way.
-		_, err = shared.RunCommand("xfs_repair", "-o", "force_geometry", "-L", devPath)
+		_, err = shared.RunCommandContext(context.TODO(), "xfs_repair", "-o", "force_geometry", "-L", devPath)
 		if err != nil {
 			return err
 		}
 
 		// Attempt to generate a new UUID again.
-		_, err = shared.RunCommand("xfs_admin", "-U", "generate", devPath)
+		_, err = shared.RunCommandContext(context.TODO(), "xfs_admin", "-U", "generate", devPath)
 		if err != nil {
 			return err
 		}
@@ -632,7 +633,7 @@ func copyDevice(inputPath string, outputPath string) error {
 		_ = to.Close()
 	}
 
-	_, err = shared.RunCommand(cmd[0], cmd[1:]...)
+	_, err = shared.RunCommandContext(context.TODO(), cmd[0], cmd[1:]...)
 	if err != nil {
 		return err
 	}
@@ -659,17 +660,19 @@ func UnshiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet) error {
 func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error {
 	var err error
 	roSubvols := []string{}
-	subvols, _ := BTRFSSubVolumesGet(path)
+	subvols, _ := btrfsSubVolumesGet(path)
 	sort.Strings(subvols)
+	d := &btrfs{}
 	for _, subvol := range subvols {
 		subvol = filepath.Join(path, subvol)
 
-		if !BTRFSSubVolumeIsRo(subvol) {
+		if !btrfsSubVolumeIsRo(subvol) {
 			continue
 		}
 
 		roSubvols = append(roSubvols, subvol)
-		_ = BTRFSSubVolumeMakeRw(subvol)
+
+		_ = d.setSubvolumeReadonlyProperty(subvol, false)
 	}
 
 	if shift {
@@ -679,14 +682,14 @@ func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error 
 	}
 
 	for _, subvol := range roSubvols {
-		_ = BTRFSSubVolumeMakeRo(subvol)
+		_ = d.setSubvolumeReadonlyProperty(subvol, true)
 	}
 
 	return err
 }
 
-// BTRFSSubVolumesGet gets subvolumes.
-func BTRFSSubVolumesGet(path string) ([]string, error) {
+// btrfsSubVolumesGet gets subvolumes.
+func btrfsSubVolumesGet(path string) ([]string, error) {
 	result := []string{}
 
 	if !strings.HasSuffix(path, "/") {
@@ -711,7 +714,8 @@ func BTRFSSubVolumesGet(path string) ([]string, error) {
 		}
 
 		// Check if a btrfs subvolume.
-		if btrfsIsSubVolume(fpath) {
+		d := &btrfs{}
+		if d.isSubvolume(fpath) {
 			result = append(result, strings.TrimPrefix(fpath, path))
 		}
 
@@ -721,44 +725,14 @@ func BTRFSSubVolumesGet(path string) ([]string, error) {
 	return result, nil
 }
 
-// btrfsIsSubvolume checks if a given path is a subvolume.
-//
-// Deprecated: Use IsSubvolume from the Btrfs driver instead.
-func btrfsIsSubVolume(subvolPath string) bool {
-	fs := unix.Stat_t{}
-	err := unix.Lstat(subvolPath, &fs)
-	if err != nil {
-		return false
-	}
-
-	// Check if BTRFS_FIRST_FREE_OBJECTID
-	if fs.Ino != 256 {
-		return false
-	}
-
-	return true
-}
-
-// BTRFSSubVolumeIsRo returns if subvolume is read only.
-func BTRFSSubVolumeIsRo(path string) bool {
-	output, err := shared.RunCommand("btrfs", "property", "get", "-ts", path)
+// btrfsSubVolumeIsRo returns if subvolume is read only.
+func btrfsSubVolumeIsRo(path string) bool {
+	output, err := shared.RunCommandContext(context.TODO(), "btrfs", "property", "get", "-ts", path)
 	if err != nil {
 		return false
 	}
 
 	return strings.HasPrefix(string(output), "ro=true")
-}
-
-// BTRFSSubVolumeMakeRo makes a subvolume read only. Deprecated use btrfs.setSubvolumeReadonlyProperty().
-func BTRFSSubVolumeMakeRo(path string) error {
-	_, err := shared.RunCommand("btrfs", "property", "set", "-ts", path, "ro", "true")
-	return err
-}
-
-// BTRFSSubVolumeMakeRw makes a sub volume read/write. Deprecated use btrfs.setSubvolumeReadonlyProperty().
-func BTRFSSubVolumeMakeRw(path string) error {
-	_, err := shared.RunCommand("btrfs", "property", "set", "-ts", path, "ro", "false")
-	return err
 }
 
 // ShiftZFSSkipper indicates which files not to shift for ZFS.
@@ -804,7 +778,7 @@ func loopFileSizeDefault() (uint64, error) {
 // loopFileSetup sets up a loop device for the provided sourcePath.
 // It tries to enable direct I/O if supported.
 func loopDeviceSetup(sourcePath string) (string, error) {
-	out, err := shared.RunCommand("losetup", "--find", "--nooverlap", "--direct-io=on", "--show", sourcePath)
+	out, err := shared.RunCommandContext(context.TODO(), "losetup", "--find", "--nooverlap", "--direct-io=on", "--show", sourcePath)
 	if err == nil {
 		return strings.TrimSpace(out), nil
 	}
@@ -813,7 +787,7 @@ func loopDeviceSetup(sourcePath string) (string, error) {
 		return "", err
 	}
 
-	out, err = shared.RunCommand("losetup", "--find", "--nooverlap", "--show", sourcePath)
+	out, err = shared.RunCommandContext(context.TODO(), "losetup", "--find", "--nooverlap", "--show", sourcePath)
 	if err == nil {
 		return strings.TrimSpace(out), nil
 	}
@@ -823,13 +797,13 @@ func loopDeviceSetup(sourcePath string) (string, error) {
 
 // loopFileAutoDetach enables auto detach mode for a loop device.
 func loopDeviceAutoDetach(loopDevPath string) error {
-	_, err := shared.RunCommand("losetup", "--detach", loopDevPath)
+	_, err := shared.RunCommandContext(context.TODO(), "losetup", "--detach", loopDevPath)
 	return err
 }
 
 // loopDeviceSetCapacity forces the loop driver to reread the size of the file associated with the specified loop device.
 func loopDeviceSetCapacity(loopDevPath string) error {
-	_, err := shared.RunCommand("losetup", "--set-capacity", loopDevPath)
+	_, err := shared.RunCommandContext(context.TODO(), "losetup", "--set-capacity", loopDevPath)
 	return err
 }
 

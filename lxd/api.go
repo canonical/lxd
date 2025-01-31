@@ -186,7 +186,7 @@ func restServer(d *Daemon) *http.Server {
 	for _, c := range api10 {
 		// Every 1.0 endpoint should have a type for the API metrics.
 		if !shared.ValueInSlice(c.MetricsType, entity.APIMetricsEntityTypes()) {
-			panic(fmt.Sprintf(`Endpoint "/1.0/%s" has invalid MetricsType: %s`, c.Path, c.MetricsType))
+			panic(`Endpoint "/1.0/` + c.Path + `" has invalid MetricsType: ` + string(c.MetricsType))
 		}
 
 		d.createCmd(mux, "1.0", c)

@@ -34,46 +34,6 @@ func InstancePath(instanceType instancetype.Type, projectName, instanceName stri
 	return shared.VarPath("containers", fullName)
 }
 
-// InstanceImportingFilePath returns the file path used to indicate an instance import is in progress.
-// This marker file is created when using `lxd import` to import an instance that exists on the storage device
-// but does not exist in the LXD database. The presence of this file causes the instance not to be removed from
-// the storage device if the import should fail for some reason.
-func InstanceImportingFilePath(instanceType instancetype.Type, poolName, projectName, instanceName string) string {
-	fullName := project.Instance(projectName, instanceName)
-
-	typeDir := "containers"
-	if instanceType == instancetype.VM {
-		typeDir = "virtual-machines"
-	}
-
-	return shared.VarPath("storage-pools", poolName, typeDir, fullName, ".importing")
-}
-
-// GetStoragePoolMountPoint returns the mountpoint of the given pool.
-// {LXD_DIR}/storage-pools/<pool>
-// Deprecated, use GetPoolMountPath in storage/drivers package.
-func GetStoragePoolMountPoint(poolName string) string {
-	return shared.VarPath("storage-pools", poolName)
-}
-
-// GetSnapshotMountPoint returns the mountpoint of the given container snapshot.
-// ${LXD_DIR}/storage-pools/<pool>/containers-snapshots/<snapshot_name>.
-func GetSnapshotMountPoint(projectName, poolName string, snapshotName string) string {
-	return shared.VarPath("storage-pools", poolName, "containers-snapshots", project.Instance(projectName, snapshotName))
-}
-
-// GetImageMountPoint returns the mountpoint of the given image.
-// ${LXD_DIR}/storage-pools/<pool>/images/<fingerprint>.
-func GetImageMountPoint(poolName string, fingerprint string) string {
-	return shared.VarPath("storage-pools", poolName, "images", fingerprint)
-}
-
-// GetStoragePoolVolumeSnapshotMountPoint returns the mountpoint of the given pool volume snapshot.
-// ${LXD_DIR}/storage-pools/<pool>/custom-snapshots/<custom volume name>/<snapshot name>.
-func GetStoragePoolVolumeSnapshotMountPoint(poolName string, snapshotName string) string {
-	return shared.VarPath("storage-pools", poolName, "custom-snapshots", snapshotName)
-}
-
 // CreateContainerMountpoint creates the provided container mountpoint and symlink.
 func CreateContainerMountpoint(mountPoint string, mountPointSymlink string, privileged bool) error {
 	mntPointSymlinkExist := shared.PathExists(mountPointSymlink)

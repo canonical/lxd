@@ -74,7 +74,7 @@ type diskSourceNotFoundError struct {
 }
 
 func (e diskSourceNotFoundError) Error() string {
-	return fmt.Sprintf("%s: %v", e.msg, e.err)
+	return fmt.Sprint(e.msg, ": ", e.err)
 }
 
 func (e diskSourceNotFoundError) Unwrap() error {
@@ -1215,7 +1215,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// virtfs-proxy-helper 9p share. The 9p share will only be used as a fallback.
 				err = func() error {
 					sockPath, pidPath := d.vmVirtiofsdPaths()
-					logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", filesystem.PathNameEncode(d.name)))
+					logPath := filepath.Join(d.inst.LogPath(), "disk."+filesystem.PathNameEncode(d.name)+".log")
 					_ = os.Remove(logPath) // Remove old log if needed.
 
 					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.state.OS.KernelVersion, d.inst, sockPath, pidPath, logPath, mount.DevPath, rawIDMaps)
@@ -1281,7 +1281,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						runConf.PostHooks = append(runConf.PostHooks, unixListener.Close)
 
 						// Use 9p socket FD number as dev path so qemu can connect to the proxy.
-						mount.DevPath = fmt.Sprintf("%d", unixListener.Fd())
+						mount.DevPath = fmt.Sprint(unixListener.Fd())
 
 						return nil
 					}()
@@ -1752,7 +1752,7 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 
 			defer func() { _ = f.Close() }()
 
-			srcPath = fmt.Sprintf("/proc/self/fd/%d", f.Fd())
+			srcPath = fmt.Sprint("/proc/self/fd/", f.Fd())
 		}
 	}
 
@@ -2367,7 +2367,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 		// Accessible zfs filesystems
 		poolName := strings.Split(dev[1], "/")[0]
 
-		output, err := shared.RunCommand("zpool", "status", "-P", "-L", poolName)
+		output, err := shared.RunCommandContext(context.TODO(), "zpool", "status", "-P", "-L", poolName)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to query zfs filesystem information for %q: %w", dev[1], err)
 		}
@@ -2410,7 +2410,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 					continue
 				}
 
-				devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
+				devices = append(devices, fmt.Sprint(major, ":", minor))
 			}
 		}
 
@@ -2419,7 +2419,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 		}
 	} else if fs == "btrfs" && shared.PathExists(dev[1]) {
 		// Accessible btrfs filesystems
-		output, err := shared.RunCommand("btrfs", "filesystem", "show", dev[1])
+		output, err := shared.RunCommandContext(context.TODO(), "btrfs", "filesystem", "show", dev[1])
 		if err != nil {
 			// Fallback to using device path to support BTRFS on block volumes (like LVM).
 			_, major, minor, errFallback := unixDeviceAttributes(dev[1])
@@ -2427,7 +2427,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 				return nil, fmt.Errorf("Failed to query btrfs filesystem information for %q: %w", dev[1], err)
 			}
 
-			devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
+			devices = append(devices, fmt.Sprint(major, ":", minor))
 		}
 
 		for _, line := range strings.Split(output, "\n") {
@@ -2441,7 +2441,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 				return nil, err
 			}
 
-			devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
+			devices = append(devices, fmt.Sprint(major, ":", minor))
 		}
 	} else if shared.PathExists(dev[1]) {
 		// Anything else with a valid path
@@ -2450,7 +2450,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 			return nil, err
 		}
 
-		devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
+		devices = append(devices, fmt.Sprint(major, ":", minor))
 	} else {
 		return nil, fmt.Errorf("Invalid block device %q", dev[1])
 	}
@@ -2534,7 +2534,7 @@ local-hostname: %s
 	// templates on first boot. The vendor-data template then modifies the system so that the
 	// config drive is mounted and the agent is started on subsequent boots.
 	isoPath := filepath.Join(d.inst.Path(), "config.iso")
-	_, err = shared.RunCommand(mkisofsPath, "-joliet", "-rock", "-input-charset", "utf8", "-output-charset", "utf8", "-volid", "cidata", "-o", isoPath, scratchDir)
+	_, err = shared.RunCommandContext(context.TODO(), mkisofsPath, "-joliet", "-rock", "-input-charset", "utf8", "-output-charset", "utf8", "-volid", "cidata", "-o", isoPath, scratchDir)
 	if err != nil {
 		return "", err
 	}

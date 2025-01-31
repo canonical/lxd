@@ -1069,7 +1069,7 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 			strManaged = i18n.G("YES")
 		}
 
-		strUsedBy := fmt.Sprintf("%d", len(network.UsedBy))
+		strUsedBy := fmt.Sprint(len(network.UsedBy))
 		details := []string{
 			network.Name,
 			network.Type,
