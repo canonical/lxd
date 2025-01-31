@@ -386,7 +386,7 @@ func checkRestrictionsAndAggregateLimits(globalConfig *clusterConfig.Config, tx 
 	}
 
 	if isRestricted {
-		err = checkRestrictions(info.Project, info.Instances, info.Profiles)
+		err = checkInstanceRestrictions(info.Project, info.Instances, info.Profiles)
 		if err != nil {
 			return err
 		}
@@ -493,7 +493,7 @@ func parseHostIDMapRange(isUID bool, isGID bool, listValue string) ([]idmap.Idma
 
 // Check that the project's restrictions are not violated across the given
 // instances and profiles.
-func checkRestrictions(proj api.Project, instances []api.Instance, profiles []api.Profile) error {
+func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profiles []api.Profile) error {
 	containerConfigChecks := map[string]func(value string) error{}
 	devicesChecks := map[string]func(value map[string]string) error{}
 
@@ -1005,6 +1005,31 @@ func AllowProfileUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 	return nil
 }
 
+// checkUplinkUse checks if an uplink that is not allowed by project restrictions is in use.
+func checkUplinkUse(ctx context.Context, tx *db.ClusterTx, projectName string, config map[string]string) error {
+	// If project is not restricted or does not have its own networks, no further checks are needed.
+	if shared.IsFalseOrEmpty(config["restricted"]) || shared.IsFalseOrEmpty(config["features.networks"]) {
+		return nil
+	}
+
+	allowedNets := shared.SplitNTrimSpace(config["restricted.networks.uplinks"], ",", -1, false)
+
+	projectNetworks, err := tx.GetCreatedNetworksByProject(ctx, projectName)
+	if err != nil {
+		return err
+	}
+
+	for _, network := range projectNetworks {
+		// Check if uplink in use is allowed.
+		uplinkInUse := network.Config["network"]
+		if uplinkInUse != "" && !shared.ValueInSlice(uplinkInUse, allowedNets) {
+			return fmt.Errorf("Restrictions cannot be enforced as project is already using %q as uplink", uplinkInUse)
+		}
+	}
+
+	return nil
+}
+
 // AllowProjectUpdate checks the new config to be set on a project is valid.
 func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, config map[string]string, changed []string) error {
 	var globalConfigDump map[string]any
@@ -1026,6 +1051,14 @@ func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 	// instances.
 	aggregateKeys := []string{}
 
+	// This checks if restricted uplinks are used within this project.
+	// This is done separately because this may require getting network info from the database and
+	// restricted.networks.uplinks is an allowlist, so restrictions are enforced even if it is not set.
+	err = checkUplinkUse(ctx, tx, projectName, config)
+	if err != nil {
+		return err
+	}
+
 	for _, key := range changed {
 		if strings.HasPrefix(key, "restricted.") {
 			project := api.Project{
@@ -1033,7 +1066,7 @@ func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 				Config: config,
 			}
 
-			err := checkRestrictions(project, info.Instances, info.Profiles)
+			err := checkInstanceRestrictions(project, info.Instances, info.Profiles)
 			if err != nil {
 				return fmt.Errorf("Conflict detected when changing %q in project %q: %w", key, projectName, err)
 			}
