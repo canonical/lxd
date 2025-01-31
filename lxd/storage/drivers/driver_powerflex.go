@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -132,7 +133,7 @@ func (d *powerflex) FillConfig() error {
 			d.config["powerflex.mode"] = connectors.TypeSDC
 		} else {
 			// Fail if no PowerFlex mode can be discovered.
-			return fmt.Errorf("Failed to discover PowerFlex mode")
+			return errors.New("Failed to discover PowerFlex mode")
 		}
 	}
 
@@ -156,17 +157,17 @@ func (d *powerflex) Create() error {
 	// Since those aren't any cluster member specific keys the general validation
 	// rules allow empty strings in order to create the pending storage pools.
 	if d.config["powerflex.pool"] == "" {
-		return fmt.Errorf("The powerflex.pool cannot be empty")
+		return errors.New("The powerflex.pool cannot be empty")
 	}
 
 	if d.config["powerflex.gateway"] == "" {
-		return fmt.Errorf("The powerflex.gateway cannot be empty")
+		return errors.New("The powerflex.gateway cannot be empty")
 	}
 
 	if d.config["powerflex.mode"] == connectors.TypeSDC {
 		// In case the SDC mode is used the SDTs cannot be set.
 		if d.config["powerflex.sdt"] != "" {
-			return fmt.Errorf("The powerflex.sdt config key is specific to the NVMe/TCP mode")
+			return fmt.Errorf("The %q config key is specific to the %q mode", "powerflex.sdt", connectors.TypeNVME)
 		}
 	}
 
@@ -278,7 +279,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 	// Ensure powerflex.mode cannot be changed to avoid leaving volume mappings
 	// and to prevent disturbing running instances.
 	if oldMode != "" && oldMode != newMode {
-		return fmt.Errorf("PowerFlex mode cannot be changed")
+		return errors.New("PowerFlex mode cannot be changed")
 	}
 
 	// Check if the selected PowerFlex mode is supported on this node.
