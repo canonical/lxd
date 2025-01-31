@@ -5858,9 +5858,8 @@ If you want to specify the storage pool via its name, also set {config:option}`s
 ```
 
 ```{config:option} powerflex.sdt storage-powerflex-pool-conf
-:defaultdesc: "one of the SDT"
 :scope: "global"
-:shortdesc: "PowerFlex NVMe/TCP SDT"
+:shortdesc: "Comma separated list of PowerFlex NVMe/TCP SDTs"
 :type: "string"
 
 ```
