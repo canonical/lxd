@@ -1575,12 +1575,25 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 
 			if runConf != nil && len(runConf.Mounts) > 0 {
 				for _, opt := range runConf.Mounts[0].Opts {
-					if strings.HasPrefix(opt, "mountTag=") {
-						parts := strings.SplitN(opt, "=", 2)
-						event["mount"] = instancetype.VMAgentMount{
-							Source: parts[1],
-						}
+					key, value, _ := strings.Cut(opt, "=")
+					if key != "mountTag" {
+						continue
 					}
+
+					if value == "" {
+						return nil, errors.New(`Empty "mountTag" on device's mount options`)
+					}
+
+					agentMount := instancetype.VMAgentMount{
+						Source: value,
+					}
+
+					if shared.IsTrue(dev.Config()["readonly"]) {
+						// Tell the agent to mount with "ro" option for consistency.
+						agentMount.Options = []string{"ro"}
+					}
+
+					event["mount"] = agentMount
 				}
 			}
 
