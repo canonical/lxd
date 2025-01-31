@@ -141,6 +141,31 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 		}
 	}()
 
+	hooksFilePath := d.generateCDIHooksFilePath()
+	deviceConfigFilePath := d.generateCDIConfigDevicesFilePath()
+
+	// Check if there are any remaining CDI devices in the instance devices directory.
+	// If there are, we need to remove them. These can be present in the case where the device stop hook was not called
+	// (e.g. due to an abrupt host shutdown).
+	err := filepath.WalkDir(d.inst.DevicesPath(), func(path string, e fs.DirEntry, _ error) error {
+		if e.IsDir() {
+			return nil
+		}
+
+		// Remove the CDI device files (both unix-char and disk devices as long as JSON CDI metadata files).
+		if strings.HasPrefix(e.Name(), cdi.CDIUnixPrefix) || strings.HasPrefix(e.Name(), cdi.CDIDiskPrefix) || path == hooksFilePath || path == deviceConfigFilePath {
+			err := os.Remove(path)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	for _, conf := range configDevices.UnixCharDevs {
 		if conf["source"] == "" {
 			return fmt.Errorf("The source of the unix-char device %v used for CDI is empty", conf)
@@ -158,27 +183,6 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 		minor, err := strconv.ParseUint(conf["minor"], 10, 32)
 		if err != nil {
 			return fmt.Errorf("Failed to parse minor number %q when starting CDI device: %w", conf["minor"], err)
-		}
-
-		// Check if there are any remaining CDI devices in the instance devices directory.
-		// If there are, we need to remove them. These can be present in the case where the device stop hook was not called
-		// (e.g. due to an abrupt host shutdown).
-		err = filepath.WalkDir(d.inst.DevicesPath(), func(path string, e fs.DirEntry, _ error) error {
-			if e.IsDir() {
-				return nil
-			}
-
-			if strings.HasPrefix(e.Name(), cdi.CDIUnixPrefix+"."+d.name) {
-				err := os.Remove(path)
-				if err != nil {
-					return err
-				}
-			}
-
-			return nil
-		})
-		if err != nil {
-			return err
 		}
 
 		// Here putting a `cdi.CDIUnixPrefix` prefix with 'd.name' as a device name will create an directory entry like:
