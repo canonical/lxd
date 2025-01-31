@@ -1147,7 +1147,7 @@
 					},
 					{
 						"hwaddr": {
-							"defaultdesc": "randomly assigned",
+							"defaultdesc": "parent MAC address",
 							"longdesc": "",
 							"managed": "no",
 							"shortdesc": "MAC address of the new interface",
