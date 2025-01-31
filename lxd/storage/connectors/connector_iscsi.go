@@ -170,11 +170,6 @@ func (c *connectorISCSI) Disconnect(targetQN string) error {
 	return nil
 }
 
-// SessionID returns the ID of an existing session.
-func (c *connectorISCSI) SessionID(targetQN string) (string, error) {
-	return "", fmt.Errorf("SessionID not implemented")
-}
-
 // findSession returns an active iSCSI session that matches the given targetQN.
 // If the session is not found, nil session is returned.
 //

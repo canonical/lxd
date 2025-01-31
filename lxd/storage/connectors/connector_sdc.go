@@ -41,11 +41,6 @@ func (c *connectorSDC) QualifiedName() (string, error) {
 	return "", nil
 }
 
-// SessionID returns an empty string and no error, as connections are handled by SDC.
-func (c *connectorSDC) SessionID(targetQN string) (string, error) {
-	return "", nil
-}
-
 // Connect does nothing. Connections are fully handled by SDC.
 func (c *connectorSDC) Connect(ctx context.Context, targetQN string, targetAddresses ...string) (revert.Hook, error) {
 	// Nothing to do. Connection is handled by Dell SDC.
