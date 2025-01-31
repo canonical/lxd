@@ -17,6 +17,7 @@ import (
 	"github.com/dell/goscaleio"
 	"github.com/google/uuid"
 
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -997,10 +998,10 @@ func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert
 	var devicePath string
 	if mapVolume {
 		// Wait for the device path to appear as the volume has been just mapped to the host.
-		devicePath, err = connectors.WaitDiskDevicePath(d.state.ShutdownCtx, prefix, devicePathFilter)
+		devicePath, err = block.WaitDiskDevicePath(d.state.ShutdownCtx, prefix, devicePathFilter)
 	} else {
 		// Get the the device path without waiting.
-		devicePath, err = connectors.GetDiskDevicePath(prefix, devicePathFilter)
+		devicePath, err = block.GetDiskDevicePath(prefix, devicePathFilter)
 	}
 
 	if err != nil {
@@ -1071,7 +1072,7 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 	defer cancel()
 
 	volumePath, _, _ := d.getMappedDevPath(vol, false)
-	if volumePath != "" && !connectors.WaitDiskDeviceGone(ctx, volumePath) {
+	if volumePath != "" && !block.WaitDiskDeviceGone(ctx, volumePath) {
 		return fmt.Errorf("Timeout whilst waiting for PowerFlex volume to disappear: %q", vol.name)
 	}
 
