@@ -160,33 +160,7 @@ func (d *powerflex) Create() error {
 		return fmt.Errorf("The powerflex.gateway cannot be empty")
 	}
 
-	client := d.client()
-
 	switch d.config["powerflex.mode"] {
-	case connectors.TypeNVME:
-		// Discover one of the storage pools SDT services.
-		if d.config["powerflex.sdt"] == "" {
-			pool, err := d.resolvePool()
-			if err != nil {
-				return err
-			}
-
-			relations, err := client.getProtectionDomainSDTRelations(pool.ProtectionDomainID)
-			if err != nil {
-				return err
-			}
-
-			if len(relations) == 0 {
-				return fmt.Errorf("Failed to retrieve at least one SDT for the given storage pool: %q", pool.ID)
-			}
-
-			if len(relations[0].IPList) == 0 {
-				return fmt.Errorf("Failed to retrieve IP from SDT: %q", relations[0].Name)
-			}
-
-			d.config["powerflex.sdt"] = relations[0].IPList[0].IP
-		}
-
 	case connectors.TypeSDC:
 		if d.config["powerflex.sdt"] != "" {
 			return fmt.Errorf("The powerflex.sdt config key is specific to the NVMe/TCP mode")
