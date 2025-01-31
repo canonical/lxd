@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -45,6 +46,12 @@ func (d *powerflex) CreateVolume(vol Volume, filler *VolumeFiller, op *operation
 	pool, err := d.resolvePool()
 	if err != nil {
 		return err
+	}
+
+	// The pool isn't configured to use zero-padding which might yield non pristine data when reading from the volume.
+	// Don't allow the creation of new volumes.
+	if !pool.ZeroPaddingEnabled {
+		return errors.New("The pool doesn't have zero-padding enabled")
 	}
 
 	volName, err := d.getVolumeName(vol)
@@ -102,23 +109,15 @@ func (d *powerflex) CreateVolume(vol Volume, filler *VolumeFiller, op *operation
 				}
 			}
 
-			allowUnsafeResize := false
-			if vol.volType == VolumeTypeImage {
-				// Allow filler to resize initial image volume as needed.
-				// Some storage drivers don't normally allow image volumes to be resized due to
-				// them having read-only snapshots that cannot be resized. However when creating
-				// the initial image volume and filling it before the snapshot is taken resizing
-				// can be allowed and is required in order to support unpacking images larger than
-				// the default volume size. The filler function is still expected to obey any
-				// volume size restrictions configured on the pool.
-				// Unsafe resize is also needed to disable filesystem resize safety checks.
-				// This is safe because if for some reason an error occurs the volume will be
-				// discarded rather than leaving a corrupt filesystem.
-				allowUnsafeResize = true
-			}
-
 			// Run the filler.
-			err = d.runFiller(vol, devPath, filler, allowUnsafeResize)
+			// Allow the filler to resize the volume in case its size doesn't fit the
+			// to be filled contents.
+			// As PowerFlex does not support optimized image storage we cannot check for the
+			// same condition as on the other remote storage drivers.
+			// When creating an instance from image the volume will never be of type image.
+			// Instead we always deal with the actual device so perform the same action
+			// as in case of LVM when thinpool is disabled.
+			err = d.runFiller(vol, devPath, filler, true)
 			if err != nil {
 				return err
 			}
@@ -549,17 +548,27 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 		return nil
 	}
 
-	devPath, cleanup, err := d.getMappedDevPath(vol, true)
+	volName, err := d.getVolumeName(vol)
 	if err != nil {
 		return err
 	}
 
-	defer cleanup()
-
-	oldSizeBytes, err := block.DiskSizeBytes(devPath)
+	client := d.client()
+	volumeID, err := client.getVolumeID(volName)
 	if err != nil {
-		return fmt.Errorf("Error getting current size: %w", err)
+		return err
 	}
+
+	volume, err := d.client().getVolume(volumeID)
+	if err != nil {
+		return err
+	}
+
+	// Try to fetch the current size of the volume from the PowerFlex API.
+	// If the volume is not yet mapped to the system this speeds up the
+	// process as the volume doesn't have to be mapped to get its size
+	// from the actual block device.
+	oldSizeBytes := volume.SizeInKiB * 1024
 
 	// Do nothing if volume is already specified size (+/- 512 bytes).
 	if oldSizeBytes+512 > sizeBytes && oldSizeBytes-512 < sizeBytes {
@@ -578,17 +587,6 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 		return ErrNotSupported
 	}
 
-	volName, err := d.getVolumeName(vol)
-	if err != nil {
-		return err
-	}
-
-	client := d.client()
-	volumeID, err := client.getVolumeID(volName)
-	if err != nil {
-		return err
-	}
-
 	// Resize filesystem if needed.
 	if vol.contentType == ContentTypeFS {
 		fsType := vol.ConfigBlockFilesystem()
@@ -598,6 +596,22 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 			err = client.setVolumeSize(volumeID, sizeBytes/factorGiB)
 			if err != nil {
 				return err
+			}
+
+			devPath, cleanup, err := d.getMappedDevPath(vol, true)
+			if err != nil {
+				return err
+			}
+
+			defer cleanup()
+
+			// Always wait for the disk to reflect the new size.
+			// In case SetVolumeQuota is called on an already mapped volume,
+			// it might take some time until the actual size of the device is reflected on the host.
+			// This is for example the case when creating a volume and the filler performs a resize in case the image exceeds the volume's size.
+			err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+			if err != nil {
+				return fmt.Errorf("Failed waiting for volume %q to change its size: %w", vol.name, err)
 			}
 
 			// Grow the filesystem to fill block device.
@@ -620,6 +634,18 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 		err = client.setVolumeSize(volumeID, sizeBytes/factorGiB)
 		if err != nil {
 			return err
+		}
+
+		devPath, cleanup, err := d.getMappedDevPath(vol, true)
+		if err != nil {
+			return err
+		}
+
+		defer cleanup()
+
+		err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+		if err != nil {
+			return fmt.Errorf("Failed waiting for volume %q to change its size: %w", vol.name, err)
 		}
 
 		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
