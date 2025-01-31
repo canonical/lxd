@@ -126,7 +126,7 @@ func (o *oidcClient) do(req *http.Request) (*http.Response, error) {
 	}
 
 	// Set the new access token in the header.
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", o.tokens.AccessToken))
+	req.Header.Set("Authorization", "Bearer "+o.tokens.AccessToken)
 
 	resp, err = o.httpClient.Do(req)
 	if err != nil {
