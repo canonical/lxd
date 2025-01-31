@@ -174,6 +174,11 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStorageVolumeBackup, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Check that the storage volume type is valid.
 	if details.volumeType != cluster.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
@@ -205,6 +210,7 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 
 	resultString := []string{}
 	resultMap := []*api.StoragePoolVolumeBackup{}
+	urlToBackup := make(map[*api.URL]auth.EntitlementReporter)
 
 	canView, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeStorageVolumeBackup)
 	if err != nil {
@@ -228,11 +234,19 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 		} else {
 			render := backup.Render()
 			resultMap = append(resultMap, render)
+			urlToBackup[entity.StorageVolumeBackupURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, backupName)] = render
 		}
 	}
 
 	if !recursion {
 		return response.SyncResponse(true, resultString)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStorageVolumeBackup, withEntitlements, urlToBackup)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponse(true, resultMap)
@@ -479,6 +493,11 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStorageVolumeBackup, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get backup name.
 	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
 	if err != nil {
@@ -512,7 +531,15 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 		return response.SmartError(err)
 	}
 
-	return response.SyncResponse(true, backup.Render())
+	renderedBackup := backup.Render()
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStorageVolumeBackup, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.StorageVolumeBackupURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, backupName): renderedBackup})
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	return response.SyncResponse(true, renderedBackup)
 }
 
 // swagger:operation POST /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName} storage storage_pool_volumes_type_backup_post

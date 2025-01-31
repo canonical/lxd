@@ -43,7 +43,7 @@ const (
 type WithEntitlements struct {
 	// AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
 	// Example: ["can_view", "can_edit"]
-	AccessEntitlements []string `json:"access_entitlements" yaml:"access_entitlements"`
+	AccessEntitlements []string `json:"access_entitlements,omitempty" yaml:"access_entitlements,omitempty"`
 }
 
 // ReportEntitlements adds entitlements to the identity.

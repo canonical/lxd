@@ -45,6 +45,8 @@ type InstanceBackupsPost struct {
 //
 // API extension: instances.
 type InstanceBackup struct {
+	WithEntitlements `yaml:",inline"`
+
 	// Backup name
 	// Example: backup0
 	Name string `json:"name" yaml:"name"`

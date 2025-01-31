@@ -894,7 +894,7 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 				}
 			}
 
-			apiIdentities := make([]api.Identity, 0, len(identities))
+			apiIdentities := make([]*api.Identity, 0, len(identities))
 			urlToIdentity := make(map[*api.URL]auth.EntitlementReporter, len(identities))
 			for _, id := range identities {
 				var certificate string
@@ -907,7 +907,7 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 					certificate = metadata.Certificate
 				}
 
-				identity := api.Identity{
+				identity := &api.Identity{
 					AuthenticationMethod: string(id.AuthMethod),
 					Type:                 string(id.Type),
 					Identifier:           id.Identifier,
@@ -917,7 +917,7 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 				}
 
 				apiIdentities = append(apiIdentities, identity)
-				urlToIdentity[entity.IdentityURL(string(id.AuthMethod), id.Identifier)] = &identity
+				urlToIdentity[entity.IdentityURL(string(id.AuthMethod), id.Identifier)] = identity
 			}
 
 			if len(withEntitlements) > 0 {

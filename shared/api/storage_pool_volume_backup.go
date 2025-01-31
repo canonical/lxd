@@ -10,6 +10,8 @@ import (
 //
 // API extension: custom_volume_backup.
 type StoragePoolVolumeBackup struct {
+	WithEntitlements `yaml:",inline"`
+
 	// Backup name
 	// Example: backup0
 	Name string `json:"name" yaml:"name"`
