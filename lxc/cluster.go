@@ -411,6 +411,10 @@ func (c *cmdClusterSet) command() *cobra.Command {
 			return c.global.cmpClusterMembers(toComplete)
 		}
 
+		if len(args) == 1 {
+			return c.global.cmpClusterMemberAllConfigKeys(args[0])
+		}
+
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
