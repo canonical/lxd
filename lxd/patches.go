@@ -93,6 +93,7 @@ var patches = []patch{
 	{name: "entity_type_instance_snapshot_on_delete_trigger_typo_fix", stage: patchPreLoadClusterConfig, run: patchEntityTypeInstanceSnapshotOnDeleteTriggerTypoFix},
 	{name: "instance_remove_volatile_last_state_ip_addresses", stage: patchPostDaemonStorage, run: patchInstanceRemoveVolatileLastStateIPAddresses},
 	{name: "entity_type_identity_certificate_split", stage: patchPreLoadClusterConfig, run: patchSplitIdentityCertificateEntityTypes},
+	{name: "storage_unset_powerflex_sdt_setting", stage: patchPostDaemonStorage, run: patchUnsetPowerFlexSDTSetting},
 }
 
 type patch struct {
@@ -1414,6 +1415,18 @@ UPDATE OR REPLACE auth_groups_permissions
 	}
 
 	return nil
+}
+
+// patchUnsetPowerFlexSDTSetting unsets the powerflex.sdt setting from all storage pools configs.
+// The address used inside the config key was populated for all PowerFlex storage pools using the nvme mode.
+// The single address was used together with the "nvme connect-all" command to discover the remaining SDTs to connect to all of them.
+// Unsetting this key, discovering all SDTs from PowerFlex REST API and connecting to all of them using
+// the "nvme connect" command has the exact same effect.
+func patchUnsetPowerFlexSDTSetting(_ string, d *Daemon) error {
+	_, err := d.State().DB.Cluster.DB().ExecContext(d.shutdownCtx, `
+DELETE FROM storage_pools_config WHERE key = "powerflex.sdt"
+	`)
+	return err
 }
 
 // Patches end here
