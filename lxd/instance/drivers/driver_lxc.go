@@ -84,57 +84,6 @@ func lxcSetConfigItem(c *liblxc.Container, key string, value string) error {
 		return fmt.Errorf("Uninitialized go-lxc struct")
 	}
 
-	if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
-		switch key {
-		case "lxc.uts.name":
-			key = "lxc.utsname"
-		case "lxc.pty.max":
-			key = "lxc.pts"
-		case "lxc.tty.dir":
-			key = "lxc.devttydir"
-		case "lxc.tty.max":
-			key = "lxc.tty"
-		case "lxc.apparmor.profile":
-			key = "lxc.aa_profile"
-		case "lxc.apparmor.allow_incomplete":
-			key = "lxc.aa_allow_incomplete"
-		case "lxc.selinux.context":
-			key = "lxc.se_context"
-		case "lxc.mount.fstab":
-			key = "lxc.mount"
-		case "lxc.console.path":
-			key = "lxc.console"
-		case "lxc.seccomp.profile":
-			key = "lxc.seccomp"
-		case "lxc.signal.halt":
-			key = "lxc.haltsignal"
-		case "lxc.signal.reboot":
-			key = "lxc.rebootsignal"
-		case "lxc.signal.stop":
-			key = "lxc.stopsignal"
-		case "lxc.log.syslog":
-			key = "lxc.syslog"
-		case "lxc.log.level":
-			key = "lxc.loglevel"
-		case "lxc.log.file":
-			key = "lxc.logfile"
-		case "lxc.init.cmd":
-			key = "lxc.init_cmd"
-		case "lxc.init.uid":
-			key = "lxc.init_uid"
-		case "lxc.init.gid":
-			key = "lxc.init_gid"
-		case "lxc.idmap":
-			key = "lxc.id_map"
-		}
-	}
-
-	if strings.HasPrefix(key, "lxc.prlimit.") {
-		if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
-			return fmt.Errorf(`Process limits require liblxc >= 2.1`)
-		}
-	}
-
 	err := c.SetConfigItem(key, value)
 	if err != nil {
 		return fmt.Errorf("Failed to set LXC config: %s=%s", key, value)
@@ -693,25 +642,23 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		return nil, err
 	}
 
-	if liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
-		// Default size log buffer
-		err = lxcSetConfigItem(cc, "lxc.console.buffer.size", "auto")
-		if err != nil {
-			return nil, err
-		}
+	// Default size log buffer
+	err = lxcSetConfigItem(cc, "lxc.console.buffer.size", "auto")
+	if err != nil {
+		return nil, err
+	}
 
-		err = lxcSetConfigItem(cc, "lxc.console.size", "auto")
-		if err != nil {
-			return nil, err
-		}
+	err = lxcSetConfigItem(cc, "lxc.console.size", "auto")
+	if err != nil {
+		return nil, err
+	}
 
-		// File to dump ringbuffer contents to when requested or
-		// container shutdown.
-		consoleBufferLogFile := d.ConsoleBufferLogPath()
-		err = lxcSetConfigItem(cc, "lxc.console.logfile", consoleBufferLogFile)
-		if err != nil {
-			return nil, err
-		}
+	// File to dump ringbuffer contents to when requested or
+	// container shutdown.
+	consoleBufferLogFile := d.ConsoleBufferLogPath()
+	err = lxcSetConfigItem(cc, "lxc.console.logfile", consoleBufferLogFile)
+	if err != nil {
+		return nil, err
 	}
 
 	if d.state.OS.ContainerCoreScheduling {
@@ -2123,30 +2070,14 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 
 		// Process rootfs setup.
 		if runConf.RootFS.Path != "" {
-			if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
-				// Set the rootfs backend type if supported (must happen before any other lxc.rootfs)
-				err := lxcSetConfigItem(cc, "lxc.rootfs.backend", "dir")
-				if err == nil {
-					value := cc.ConfigItem("lxc.rootfs.backend")
-					if len(value) == 0 || value[0] != "dir" {
-						_ = lxcSetConfigItem(cc, "lxc.rootfs.backend", "")
-					}
-				}
-			}
-
 			// Get an absolute path for the rootfs (avoid constantly traversing the symlink).
 			absoluteRootfs, err := filepath.EvalSymlinks(runConf.RootFS.Path)
 			if err != nil {
 				return "", nil, fmt.Errorf("Unable to resolve container rootfs: %w", err)
 			}
 
-			if liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
-				rootfsPath := fmt.Sprintf("dir:%s", absoluteRootfs)
-				err = lxcSetConfigItem(cc, "lxc.rootfs.path", rootfsPath)
-			} else {
-				err = lxcSetConfigItem(cc, "lxc.rootfs", absoluteRootfs)
-			}
-
+			rootfsPath := fmt.Sprintf("dir:%s", absoluteRootfs)
+			err = lxcSetConfigItem(cc, "lxc.rootfs.path", rootfsPath)
 			if err != nil {
 				return "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
 			}
@@ -2188,10 +2119,6 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		// Pass any mounts into LXC.
 		if len(runConf.Mounts) > 0 {
 			for _, mount := range runConf.Mounts {
-				if shared.ValueInSlice("propagation", mount.Opts) && !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
-					return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), fmt.Errorf("liblxc 3.0 is required for mount propagation configuration"))
-				}
-
 				mntOptions := strings.Join(mount.Opts, ",")
 
 				if !d.IsPrivileged() && mount.OwnerShift == deviceConfig.MountOwnerShiftDynamic {
@@ -2216,13 +2143,8 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			// Increment nicID so that LXC network index is unique per device.
 			nicID++
 
-			networkKeyPrefix := "lxc.net"
-			if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
-				networkKeyPrefix = "lxc.network"
-			}
-
 			for _, nicItem := range runConf.NetworkInterface {
-				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.%s", networkKeyPrefix, nicID, nicItem.Key), nicItem.Value)
+				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.net.%d.%s", nicID, nicItem.Key), nicItem.Value)
 				if err != nil {
 					return "", nil, fmt.Errorf("Failed to setup device network interface %q: %w", dev.Name(), err)
 				}
@@ -5470,163 +5392,144 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 				return err
 			}
 
-			if liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 0, 4) {
-				// What happens below is slightly convoluted. Due to various complications
-				// with networking, there's no easy way for criu to exit and leave the
-				// container in a frozen state for us to somehow resume later.
-				// Instead, we use what criu calls an "action-script", which is basically a
-				// callback that lets us know when the dump is done. (Unfortunately, we
-				// can't pass arguments, just an executable path, so we write a custom
-				// action script with the real command we want to run.)
-				// This script then blocks until the migration operation either finishes
-				// successfully or fails, and exits 1 or 0, which causes criu to either
-				// leave the container running or kill it as we asked.
-				dumpDone := make(chan bool, 1)
-				actionScriptOpSecret, err := shared.RandomCryptoString()
-				if err != nil {
-					_ = os.RemoveAll(checkpointDir)
-					return err
-				}
+			// What happens below is slightly convoluted. Due to various complications
+			// with networking, there's no easy way for criu to exit and leave the
+			// container in a frozen state for us to somehow resume later.
+			// Instead, we use what criu calls an "action-script", which is basically a
+			// callback that lets us know when the dump is done. (Unfortunately, we
+			// can't pass arguments, just an executable path, so we write a custom
+			// action script with the real command we want to run.)
+			// This script then blocks until the migration operation either finishes
+			// successfully or fails, and exits 1 or 0, which causes criu to either
+			// leave the container running or kill it as we asked.
+			dumpDone := make(chan bool, 1)
+			actionScriptOpSecret, err := shared.RandomCryptoString()
+			if err != nil {
+				_ = os.RemoveAll(checkpointDir)
+				return err
+			}
 
-				actionScriptOp, err := operations.OperationCreate(
-					d.state,
-					d.Project().Name,
-					operations.OperationClassWebsocket,
-					operationtype.InstanceLiveMigrate,
-					nil,
-					nil,
-					func(op *operations.Operation) error {
-						result := <-restoreSuccess
-						if !result {
-							return fmt.Errorf("restore failed, failing CRIU")
-						}
-
-						return nil
-					},
-					nil,
-					func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
-						secret := r.FormValue("secret")
-						if secret == "" {
-							return fmt.Errorf("Missing action script secret")
-						}
-
-						if secret != actionScriptOpSecret {
-							return os.ErrPermission
-						}
-
-						c, err := ws.Upgrader.Upgrade(w, r, nil)
-						if err != nil {
-							return err
-						}
-
-						dumpDone <- true
-
-						closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-						return c.WriteMessage(websocket.CloseMessage, closeMsg)
-					},
-					nil,
-				)
-				if err != nil {
-					_ = os.RemoveAll(checkpointDir)
-					return err
-				}
-
-				err = d.migrationSendWriteActionScript(checkpointDir, actionScriptOp.URL(), actionScriptOpSecret, d.state.OS.ExecPath)
-				if err != nil {
-					_ = os.RemoveAll(checkpointDir)
-					return err
-				}
-
-				preDumpCounter := 0
-				preDumpDir := ""
-
-				// Check if the other side knows about pre-dumping and the associated
-				// rsync protocol.
-				if respHeader.GetPredump() {
-					d.logger.Debug("The other side does support pre-copy")
-					final := false
-					for !final {
-						preDumpCounter++
-						if preDumpCounter < maxDumpIterations {
-							final = false
-						} else {
-							final = true
-						}
-
-						dumpDir := fmt.Sprintf("%03d", preDumpCounter)
-						loopArgs := preDumpLoopArgs{
-							stateConn:     stateConn,
-							checkpointDir: checkpointDir,
-							bwlimit:       rsyncBwlimit,
-							preDumpDir:    preDumpDir,
-							dumpDir:       dumpDir,
-							final:         final,
-							rsyncFeatures: rsyncFeatures,
-						}
-
-						final, err = d.migrateSendPreDumpLoop(&loopArgs)
-						if err != nil {
-							_ = os.RemoveAll(checkpointDir)
-							return err
-						}
-
-						preDumpDir = fmt.Sprintf("%03d", preDumpCounter)
-						preDumpCounter++
-					}
-				} else {
-					d.logger.Debug("The other side does not support pre-copy")
-				}
-
-				err = actionScriptOp.Start()
-				if err != nil {
-					_ = os.RemoveAll(checkpointDir)
-					return err
-				}
-
-				go func() {
-					d.logger.Debug("Final CRIU dump started")
-					defer d.logger.Debug("Final CRIU dump stopped")
-					criuMigrationArgs := instance.CriuMigrationArgs{
-						Cmd:          liblxc.MIGRATE_DUMP,
-						Stop:         true,
-						ActionScript: true,
-						PreDumpDir:   preDumpDir,
-						DumpDir:      "final",
-						StateDir:     checkpointDir,
-						Function:     "migration",
+			actionScriptOp, err := operations.OperationCreate(
+				d.state,
+				d.Project().Name,
+				operations.OperationClassWebsocket,
+				operationtype.InstanceLiveMigrate,
+				nil,
+				nil,
+				func(op *operations.Operation) error {
+					result := <-restoreSuccess
+					if !result {
+						return fmt.Errorf("restore failed, failing CRIU")
 					}
 
-					// Do the final CRIU dump. This is needs no special handling if
-					// pre-dumps are used or not.
-					dumpSuccess <- d.migrate(&criuMigrationArgs)
-					_ = os.RemoveAll(checkpointDir)
-				}()
+					return nil
+				},
+				nil,
+				func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+					secret := r.FormValue("secret")
+					if secret == "" {
+						return fmt.Errorf("Missing action script secret")
+					}
 
-				select {
-				// The checkpoint failed, let's just abort.
-				case err = <-dumpSuccess:
-					return err
-				// The dump finished, let's continue on to the restore.
-				case <-dumpDone:
-					d.logger.Debug("Dump finished, continuing with restore...")
+					if secret != actionScriptOpSecret {
+						return os.ErrPermission
+					}
+
+					c, err := ws.Upgrader.Upgrade(w, r, nil)
+					if err != nil {
+						return err
+					}
+
+					dumpDone <- true
+
+					closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+					return c.WriteMessage(websocket.CloseMessage, closeMsg)
+				},
+				nil,
+			)
+			if err != nil {
+				_ = os.RemoveAll(checkpointDir)
+				return err
+			}
+
+			err = d.migrationSendWriteActionScript(checkpointDir, actionScriptOp.URL(), actionScriptOpSecret, d.state.OS.ExecPath)
+			if err != nil {
+				_ = os.RemoveAll(checkpointDir)
+				return err
+			}
+
+			preDumpCounter := 0
+			preDumpDir := ""
+
+			// Check if the other side knows about pre-dumping and the associated
+			// rsync protocol.
+			if respHeader.GetPredump() {
+				d.logger.Debug("The other side does support pre-copy")
+				final := false
+				for !final {
+					preDumpCounter++
+					if preDumpCounter < maxDumpIterations {
+						final = false
+					} else {
+						final = true
+					}
+
+					dumpDir := fmt.Sprintf("%03d", preDumpCounter)
+					loopArgs := preDumpLoopArgs{
+						stateConn:     stateConn,
+						checkpointDir: checkpointDir,
+						bwlimit:       rsyncBwlimit,
+						preDumpDir:    preDumpDir,
+						dumpDir:       dumpDir,
+						final:         final,
+						rsyncFeatures: rsyncFeatures,
+					}
+
+					final, err = d.migrateSendPreDumpLoop(&loopArgs)
+					if err != nil {
+						_ = os.RemoveAll(checkpointDir)
+						return err
+					}
+
+					preDumpDir = fmt.Sprintf("%03d", preDumpCounter)
+					preDumpCounter++
 				}
 			} else {
-				d.logger.Debug("The version of liblxc is older than 2.0.4 and the live migration will probably fail")
-				defer func() { _ = os.RemoveAll(checkpointDir) }()
+				d.logger.Debug("The other side does not support pre-copy")
+			}
+
+			err = actionScriptOp.Start()
+			if err != nil {
+				_ = os.RemoveAll(checkpointDir)
+				return err
+			}
+
+			go func() {
+				d.logger.Debug("Final CRIU dump started")
+				defer d.logger.Debug("Final CRIU dump stopped")
 				criuMigrationArgs := instance.CriuMigrationArgs{
 					Cmd:          liblxc.MIGRATE_DUMP,
+					Stop:         true,
+					ActionScript: true,
+					PreDumpDir:   preDumpDir,
+					DumpDir:      "final",
 					StateDir:     checkpointDir,
 					Function:     "migration",
-					Stop:         true,
-					ActionScript: false,
-					DumpDir:      "final",
-					PreDumpDir:   "",
 				}
 
-				err = d.migrate(&criuMigrationArgs)
-				if err != nil {
-					return err
-				}
+				// Do the final CRIU dump. This is needs no special handling if
+				// pre-dumps are used or not.
+				dumpSuccess <- d.migrate(&criuMigrationArgs)
+				_ = os.RemoveAll(checkpointDir)
+			}()
+
+			select {
+			// The checkpoint failed, let's just abort.
+			case err = <-dumpSuccess:
+				return err
+			// The dump finished, let's continue on to the restore.
+			case <-dumpDone:
+				d.logger.Debug("Dump finished, continuing with restore...")
 			}
 
 			// We do the transfer serially right now, but there's really no reason for us to;
@@ -6448,14 +6351,6 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 	}
 
 	preservesInodes := pool.Driver().Info().PreservesInodes
-
-	/* This feature was only added in 2.0.1, let's not ask for it
-	 * before then or migrations will fail.
-	 */
-	if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 0, 1) {
-		preservesInodes = false
-	}
-
 	finalStateDir := args.StateDir
 	var migrateErr error
 
