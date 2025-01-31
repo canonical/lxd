@@ -1241,12 +1241,12 @@ func (d *powerflex) resolvePool() (*powerFlexStoragePool, error) {
 func (d *powerflex) getVolumeName(vol Volume) (string, error) {
 	volUUID, err := uuid.Parse(vol.config["volatile.uuid"])
 	if err != nil {
-		return "", fmt.Errorf(`Failed parsing "volatile.uuid" from volume %q: %w`, vol.name, err)
+		return "", fmt.Errorf("Failed parsing %q from volume %q: %w", "volatile.uuid", vol.name, err)
 	}
 
 	binUUID, err := volUUID.MarshalBinary()
 	if err != nil {
-		return "", fmt.Errorf(`Failed marshalling the "volatile.uuid" of volume %q to binary format: %w`, vol.name, err)
+		return "", fmt.Errorf("Failed marshalling the %q of volume %q to binary format: %w", "volatile.uuid", vol.name, err)
 	}
 
 	// The volume's name in base64 encoded format.

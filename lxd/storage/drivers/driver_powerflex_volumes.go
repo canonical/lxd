@@ -349,7 +349,7 @@ func (d *powerflex) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 		err = os.Remove(mountPath)
 		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove '%s': %w", mountPath, err)
+			return fmt.Errorf("Failed to remove %q: %w", mountPath, err)
 		}
 	}
 
@@ -577,7 +577,7 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 
 	// PowerFlex supports increasing of size only.
 	if sizeBytes < oldSizeBytes {
-		return fmt.Errorf("Volume capacity can only be increased")
+		return errors.New("Volume capacity can only be increased")
 	}
 
 	// Block image volumes cannot be resized because they have a readonly snapshot that doesn't get
