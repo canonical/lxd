@@ -52,7 +52,7 @@ func (d *ceph) load() error {
 
 	// Detect and record the version.
 	if cephVersion == "" {
-		out, err := shared.RunCommand("rbd", "--version")
+		out, err := shared.RunCommandContext(d.state.ShutdownCtx, "rbd", "--version")
 		if err != nil {
 			return err
 		}
@@ -250,7 +250,7 @@ func (d *ceph) Create() error {
 		}
 
 		// Use existing OSD pool.
-		msg, err := shared.RunCommand("ceph",
+		msg, err := shared.RunCommandContext(d.state.ShutdownCtx, "ceph",
 			"--name", "client."+d.config["ceph.user.name"],
 			"--cluster", d.config["ceph.cluster_name"],
 			"osd",
