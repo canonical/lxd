@@ -107,17 +107,6 @@ func (c *connectorNVMe) Disconnect(targetQN string) error {
 	return nil
 }
 
-// SessionID returns the identifier of a session that matches the targetQN.
-// If no session is found, an empty string is returned.
-func (c *connectorNVMe) SessionID(targetQN string) (string, error) {
-	session, err := c.findSession(targetQN)
-	if err != nil || session == nil {
-		return "", err
-	}
-
-	return session.id, nil
-}
-
 // findSession returns an active NVMe subsystem (referred to as session for
 // consistency across connectors) that matches the given targetQN.
 // If the session is not found, nil is returned.
