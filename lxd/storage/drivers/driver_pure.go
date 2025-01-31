@@ -146,6 +146,15 @@ func (d *pure) Validate(config map[string]string) error {
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to verify the Pure Storage gateway's certificate
 		"pure.gateway.verify": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.target)
+		// A comma-separated list of target addresses. If empty, LXD discovers and
+		// connects to all available targets. Otherwise, it only connects to the
+		// specified addresses.
+		// ---
+		//  type: string
+		//  defaultdesc: the discovered mode
+		//  shortdesc: List of target addresses.
+		"pure.target": validate.Optional(validate.IsListOf(validate.IsNetworkAddress)),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.mode)
 		// The mode to use to map Pure Storage volumes to the local server.
 		// Supported values are `iscsi` and `nvme`.
