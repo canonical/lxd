@@ -130,6 +130,9 @@ func (d *powerflex) FillConfig() error {
 			d.config["powerflex.mode"] = connectors.TypeNVME
 		} else if goscaleio.DrvCfgIsSDCInstalled() {
 			d.config["powerflex.mode"] = connectors.TypeSDC
+		} else {
+			// Fail if no PowerFlex mode can be discovered.
+			return fmt.Errorf("Failed to discover PowerFlex mode")
 		}
 	}
 
@@ -169,10 +172,6 @@ func (d *powerflex) Create() error {
 		if !goscaleio.DrvCfgIsSDCInstalled() {
 			return fmt.Errorf("PowerFlex SDC is not available on the host")
 		}
-
-	default:
-		// Fail if no PowerFlex mode can be discovered.
-		return fmt.Errorf("Failed to discover PowerFlex mode")
 	}
 
 	return nil
