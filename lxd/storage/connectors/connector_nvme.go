@@ -29,7 +29,7 @@ func (c *connectorNVMe) Type() string {
 // Version returns the version of the NVMe CLI.
 func (c *connectorNVMe) Version() (string, error) {
 	// Detect and record the version of the NVMe CLI.
-	out, err := shared.RunCommand("nvme", "version")
+	out, err := shared.RunCommandContext(context.Background(), "nvme", "version")
 	if err != nil {
 		return "", fmt.Errorf("Failed to get nvme-cli version: %w", err)
 	}
