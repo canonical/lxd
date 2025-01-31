@@ -64,6 +64,8 @@ type InstanceSnapshotPut struct {
 //
 // API extension: instances.
 type InstanceSnapshot struct {
+	WithEntitlements `yaml:",inline"`
+
 	// Architecture name
 	// Example: x86_64
 	Architecture string `json:"architecture" yaml:"architecture"`
