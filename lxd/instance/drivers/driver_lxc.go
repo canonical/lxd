@@ -2076,7 +2076,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 				return "", nil, fmt.Errorf("Unable to resolve container rootfs: %w", err)
 			}
 
-			rootfsPath := fmt.Sprintf("dir:%s", absoluteRootfs)
+			rootfsPath := "dir:" + absoluteRootfs
 			err = lxcSetConfigItem(cc, "lxc.rootfs.path", rootfsPath)
 			if err != nil {
 				return "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
@@ -2105,9 +2105,9 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 				}
 
 				if d.state.OS.CGInfo.Layout == cgroup.CgroupsUnified {
-					err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.cgroup2.%s", rule.Key), rule.Value)
+					err = lxcSetConfigItem(cc, "lxc.cgroup2."+rule.Key, rule.Value)
 				} else {
-					err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.cgroup.%s", rule.Key), rule.Value)
+					err = lxcSetConfigItem(cc, "lxc.cgroup."+rule.Key, rule.Value)
 				}
 
 				if err != nil {
@@ -2130,7 +2130,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 					}
 				}
 
-				mntVal := fmt.Sprintf("%s %s %s %s %d %d", shared.EscapePathFstab(mount.DevPath), shared.EscapePathFstab(mount.TargetPath), mount.FSType, mntOptions, mount.Freq, mount.PassNo)
+				mntVal := shared.EscapePathFstab(mount.DevPath) + " " + shared.EscapePathFstab(mount.TargetPath) + " " + mount.FSType + " " + mntOptions + " " + fmt.Sprint(mount.Freq, " ", mount.PassNo)
 				err = lxcSetConfigItem(cc, "lxc.mount.entry", mntVal)
 				if err != nil {
 					return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), err)
@@ -2144,7 +2144,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			nicID++
 
 			for _, nicItem := range runConf.NetworkInterface {
-				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.net.%d.%s", nicID, nicItem.Key), nicItem.Value)
+				err = lxcSetConfigItem(cc, "lxc.net."+fmt.Sprint(nicID)+"."+nicItem.Key, nicItem.Value)
 				if err != nil {
 					return "", nil, fmt.Errorf("Failed to setup device network interface %q: %w", dev.Name(), err)
 				}
@@ -2172,14 +2172,14 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 
 	// Override NVIDIA_VISIBLE_DEVICES if we have devices that need it.
 	if len(nvidiaDevices) > 0 {
-		err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_VISIBLE_DEVICES=%s", strings.Join(nvidiaDevices, ",")))
+		err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_VISIBLE_DEVICES="+strings.Join(nvidiaDevices, ","))
 		if err != nil {
 			return "", nil, fmt.Errorf("Unable to set NVIDIA_VISIBLE_DEVICES in LXC environment: %w", err)
 		}
 	}
 
 	if len(cdiConfigFiles) > 0 {
-		err = lxcSetConfigItem(cc, "lxc.hook.mount", fmt.Sprintf("%s callhook %s %s %s startmountns --devicesRootFolder %s %s", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name()), d.DevicesPath(), strings.Join(cdiConfigFiles, " ")))
+		err = lxcSetConfigItem(cc, "lxc.hook.mount", d.state.OS.ExecPath+" callhook "+shared.VarPath("")+" "+strconv.Quote(d.Project().Name)+" "+strconv.Quote(d.Name())+" startmountns --devicesRootFolder "+d.DevicesPath()+" "+strings.Join(cdiConfigFiles, " "))
 		if err != nil {
 			return "", nil, fmt.Errorf("Unable to set the startmountns callhook to process CDI hooks files (%q) for instance %q in project %q: %w", strings.Join(cdiConfigFiles, ","), d.Name(), d.Project().Name, err)
 		}
@@ -2263,7 +2263,7 @@ func (d *lxc) detachInterfaceRename(netns string, ifName string, hostName string
 		"detach",
 		"--",
 		netns,
-		fmt.Sprintf("%d", lxdPID),
+		fmt.Sprint(lxdPID),
 		ifName,
 		hostName,
 	)
@@ -2426,7 +2426,7 @@ func (d *lxc) Start(stateful bool) error {
 						lxcLog += "\n"
 					}
 
-					lxcLog += fmt.Sprintf("  %s\n", strings.Join(fields[0:], " "))
+					lxcLog += "  " + strings.Join(fields[0:], " ") + "\n"
 				}
 			}
 		}
@@ -3933,7 +3933,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 		b := backup
 		oldName := b.Name()
 		backupName := strings.Split(oldName, "/")[1]
-		newName := fmt.Sprintf("%s/%s", newName, backupName)
+		newName := newName + "/" + backupName
 
 		err = b.Rename(newName)
 		if err != nil {
@@ -5063,12 +5063,12 @@ func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.
 
 func collectCRIULogFile(d instance.Instance, imagesDir string, function string, method string) error {
 	t := time.Now().Format(time.RFC3339)
-	newPath := filepath.Join(d.LogPath(), fmt.Sprintf("%s_%s_%s.log", function, method, t))
-	return shared.FileCopy(filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)), newPath)
+	newPath := filepath.Join(d.LogPath(), function+"_"+method+"_"+t+".log")
+	return shared.FileCopy(filepath.Join(imagesDir, method+".log"), newPath)
 }
 
 func getCRIULogErrors(imagesDir string, method string) (string, error) {
-	f, err := os.Open(path.Join(imagesDir, fmt.Sprintf("%s.log", method)))
+	f, err := os.Open(path.Join(imagesDir, method+".log"))
 	if err != nil {
 		return "", err
 	}
@@ -6701,7 +6701,7 @@ func (d *lxc) inheritInitPidFd() (int, *os.File) {
 // FileSFTPConn returns a connection to the forkfile handler.
 func (d *lxc) FileSFTPConn() (net.Conn, error) {
 	// Lock to avoid concurrent spawning.
-	spawnUnlock, err := locking.Lock(context.TODO(), fmt.Sprintf("forkfile_%d", d.id))
+	spawnUnlock, err := locking.Lock(context.TODO(), fmt.Sprint("forkfile_", d.id))
 	if err != nil {
 		return nil, err
 	}
@@ -6830,7 +6830,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		}
 
 		// Finalize the args.
-		args = append(args, fmt.Sprintf("%d", d.InitPID()))
+		args = append(args, fmt.Sprint(d.InitPID()))
 
 		// Prepare sftp server.
 		forkfile := exec.Cmd{
@@ -6872,7 +6872,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 
 		// Write PID file.
 		pidFile := filepath.Join(d.LogPath(), "forkfile.pid")
-		err = os.WriteFile(pidFile, []byte(fmt.Sprintf("%d\n", forkfile.Process.Pid)), 0600)
+		err = os.WriteFile(pidFile, []byte(fmt.Sprint(forkfile.Process.Pid, "\n")), 0600)
 		if err != nil {
 			chReady <- fmt.Errorf("Failed to write forkfile PID: %w", err)
 			return
@@ -7102,8 +7102,8 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 		d.state.OS.LxcPath,
 		filepath.Join(d.LogPath(), "lxc.conf"),
 		req.Cwd,
-		fmt.Sprintf("%d", req.User),
-		fmt.Sprintf("%d", req.Group),
+		fmt.Sprint(req.User),
+		fmt.Sprint(req.Group),
 	}
 
 	if d.state.OS.CoreScheduling && !d.state.OS.ContainerCoreScheduling {
@@ -7355,8 +7355,8 @@ func (d *lxc) networkState(hostInterfaces []net.Interface) map[string]api.Instan
 			"forknet",
 			"info",
 			"--",
-			fmt.Sprintf("%d", pid),
-			fmt.Sprintf("%d", pidFdNr))
+			fmt.Sprint(pid),
+			fmt.Sprint(pidFdNr))
 
 		// Process forkgetnet response
 		if err != nil {
@@ -7382,7 +7382,7 @@ func (d *lxc) networkState(hostInterfaces []net.Interface) map[string]api.Instan
 	// Get host_name from volatile data if not set already.
 	for name, dev := range result {
 		if dev.HostName == "" {
-			dev.HostName = d.localConfig[fmt.Sprintf("volatile.%s.host_name", name)]
+			dev.HostName = d.localConfig["volatile."+name+".host_name"]
 			result[name] = dev
 		}
 	}
@@ -7559,7 +7559,7 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 
 	// Move the mount inside the container
 	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
-	pidStr := fmt.Sprintf("%d", pid)
+	pidStr := fmt.Sprint(pid)
 
 	pidFdNr, pidFd := seccomp.MakePidFd(pid, d.state)
 	if pidFdNr >= 0 {
@@ -7578,11 +7578,11 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 		"lxd-mount",
 		"--",
 		pidStr,
-		fmt.Sprintf("%d", pidFdNr),
+		fmt.Sprint(pidFdNr),
 		mntsrc,
 		target,
 		string(idmapType),
-		fmt.Sprintf("%d", shiftfsFlags))
+		fmt.Sprint(shiftfsFlags))
 	if err != nil {
 		return err
 	}
@@ -7612,7 +7612,7 @@ func (d *lxc) insertMountLXC(source, target, fstype string, flags int) error {
 		source,
 		target,
 		fstype,
-		fmt.Sprintf("%d", flags))
+		fmt.Sprint(flags))
 	if err != nil {
 		return err
 	}
@@ -7640,7 +7640,7 @@ func (d *lxc) moveMount(source, target, fstype string, flags int, idmapType idma
 		defer func() { _ = pidFd.Close() }()
 	}
 
-	pidStr := fmt.Sprintf("%d", pid)
+	pidStr := fmt.Sprint(pid)
 
 	if !strings.HasPrefix(target, "/") {
 		target = "/" + target
@@ -7654,12 +7654,12 @@ func (d *lxc) moveMount(source, target, fstype string, flags int, idmapType idma
 		"move-mount",
 		"--",
 		pidStr,
-		fmt.Sprintf("%d", pidFdNr),
+		fmt.Sprint(pidFdNr),
 		fstype,
 		source,
 		target,
 		string(idmapType),
-		fmt.Sprintf("%d", flags))
+		fmt.Sprint(flags))
 	if err != nil {
 		return err
 	}
@@ -7721,8 +7721,8 @@ func (d *lxc) removeMount(mount string) error {
 			"forkmount",
 			"lxd-umount",
 			"--",
-			fmt.Sprintf("%d", pid),
-			fmt.Sprintf("%d", pidFdNr),
+			fmt.Sprint(pid),
+			fmt.Sprint(pidFdNr),
 			mount)
 		if err != nil {
 			return err
@@ -7755,8 +7755,8 @@ func (d *lxc) InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid 
 	}
 
 	nsuid, nsgid := idmapset.ShiftFromNs(uid, gid)
-	m["uid"] = fmt.Sprintf("%d", nsuid)
-	m["gid"] = fmt.Sprintf("%d", nsgid)
+	m["uid"] = fmt.Sprint(nsuid)
+	m["gid"] = fmt.Sprint(nsgid)
 
 	if !path.IsAbs(m["path"]) {
 		cwdLink := fmt.Sprintf("/proc/%d/cwd", pid)
@@ -7846,9 +7846,9 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 		name := ""
 		for {
 			if m["type"] == "infiniband" {
-				name = fmt.Sprintf("ib%d", i)
+				name = fmt.Sprint("ib", i)
 			} else {
-				name = fmt.Sprintf("eth%d", i)
+				name = fmt.Sprint("eth", i)
 			}
 
 			// Find a free device name
@@ -7867,7 +7867,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 
 	// Fill in the MAC address.
 	if !shared.ValueInSlice(nicType, []string{"physical", "ipvlan", "sriov"}) && m["hwaddr"] == "" {
-		configKey := fmt.Sprintf("volatile.%s.hwaddr", name)
+		configKey := "volatile." + name + ".hwaddr"
 		volatileHwaddr := d.localConfig[configKey]
 		if volatileHwaddr == "" {
 			// Generate a new MAC address.
@@ -7896,7 +7896,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 
 	// Fill in the interface name.
 	if m["name"] == "" {
-		configKey := fmt.Sprintf("volatile.%s.name", name)
+		configKey := "volatile." + name + ".name"
 		volatileName := d.localConfig[configKey]
 		if volatileName == "" {
 			// Generate a new interface name.
@@ -8154,10 +8154,10 @@ type lxcCgroupReadWriter struct {
 // Get retrieves the value of a cgroup key for a specific controller and version.
 func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, key string) (string, error) {
 	if !rw.running {
-		lxcKey := fmt.Sprintf("lxc.cgroup.%s", key)
+		lxcKey := "lxc.cgroup." + key
 
 		if version == cgroup.V2 {
-			lxcKey = fmt.Sprintf("lxc.cgroup2.%s", key)
+			lxcKey = "lxc.cgroup2." + key
 		}
 
 		return strings.Join(rw.cc.ConfigItem(lxcKey), "\n"), nil
