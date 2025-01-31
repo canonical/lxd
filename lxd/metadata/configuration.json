@@ -6545,10 +6545,9 @@
 					},
 					{
 						"powerflex.sdt": {
-							"defaultdesc": "one of the SDT",
 							"longdesc": "",
 							"scope": "global",
-							"shortdesc": "PowerFlex NVMe/TCP SDT",
+							"shortdesc": "Comma separated list of PowerFlex NVMe/TCP SDTs",
 							"type": "string"
 						}
 					},
