@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"strconv"
 
 	"github.com/canonical/lxd/lxd/cluster/request"
@@ -536,7 +537,7 @@ func (n *physical) State() (*api.NetworkState, error) {
 	state, err := resources.GetNetworkState(GetHostDevice(n.config["parent"], n.config["vlan"]))
 	if err != nil {
 		// If the parent is not found, return a response indicating the network is unavailable.
-		if api.StatusErrorCheck(err, 404) {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			return &api.NetworkState{
 				State: "unavailable",
 				Type:  "unknown",
