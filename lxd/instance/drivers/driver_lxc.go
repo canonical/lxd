@@ -2257,7 +2257,8 @@ func (d *lxc) detachInterfaceRename(netns string, ifName string, hostName string
 	lxdPID := os.Getpid()
 
 	// Run forknet detach
-	_, err := shared.RunCommand(
+	_, err := shared.RunCommandContext(
+		context.TODO(),
 		d.state.OS.ExecPath,
 		"forknet",
 		"detach",
@@ -2397,7 +2398,8 @@ func (d *lxc) Start(stateful bool) error {
 	name := project.Instance(d.Project().Name, d.name)
 
 	// Start the LXC container
-	_, err = shared.RunCommand(
+	_, err = shared.RunCommandContext(
+		context.TODO(),
 		d.state.OS.ExecPath,
 		"forkstart",
 		name,
@@ -5090,7 +5092,7 @@ func getCRIULogErrors(imagesDir string, method string) (string, error) {
 // Check if CRIU supports pre-dumping and number of pre-dump iterations.
 func (d *lxc) migrationSendCheckForPreDumpSupport() (bool, int) {
 	// Check if this architecture/kernel/criu combination supports pre-copy dirty memory tracking feature.
-	_, err := shared.RunCommand("criu", "check", "--feature", "mem_dirty_track")
+	_, err := shared.RunCommandContext(context.TODO(), "criu", "check", "--feature", "mem_dirty_track")
 	if err != nil {
 		// CRIU says it does not know about dirty memory tracking.
 		// This means the rest of this function is irrelevant.
@@ -6408,7 +6410,8 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 			finalStateDir = args.StateDir + "/" + args.DumpDir
 		}
 
-		_, migrateErr = shared.RunCommand(
+		_, migrateErr = shared.RunCommandContext(
+			context.TODO(),
 			d.state.OS.ExecPath,
 			"forkmigrate",
 			d.name,
@@ -7601,7 +7604,8 @@ func (d *lxc) insertMountLXC(source, target, fstype string, flags int) error {
 		target = "/" + target
 	}
 
-	_, err := shared.RunCommand(
+	_, err := shared.RunCommandContext(
+		context.TODO(),
 		d.state.OS.ExecPath,
 		"forkmount",
 		"lxc-mount",
@@ -7695,7 +7699,8 @@ func (d *lxc) removeMount(mount string) error {
 			mount = "/" + mount
 		}
 
-		_, err := shared.RunCommand(
+		_, err := shared.RunCommandContext(
+			context.TODO(),
 			d.state.OS.ExecPath,
 			"forkmount",
 			"lxc-umount",
