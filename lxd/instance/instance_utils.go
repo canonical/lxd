@@ -16,7 +16,6 @@ import (
 
 	"github.com/flosch/pongo2"
 	"github.com/google/uuid"
-	liblxc "github.com/lxc/go-lxc"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/backup"
@@ -252,33 +251,17 @@ func lxcValidConfig(rawLxc string) error {
 		}
 
 		networkKeyPrefix := "lxc.net."
-		if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
-			networkKeyPrefix = "lxc.network."
-		}
-
 		if strings.HasPrefix(key, networkKeyPrefix) {
 			fields := strings.Split(key, ".")
 
-			if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
-				// lxc.network.X.ipv4 or lxc.network.X.ipv6
-				if len(fields) == 4 && shared.ValueInSlice(fields[3], []string{"ipv4", "ipv6"}) {
-					continue
-				}
+			// lxc.net.X.ipv4.address or lxc.net.X.ipv6.address
+			if len(fields) == 5 && shared.ValueInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "address" {
+				continue
+			}
 
-				// lxc.network.X.ipv4.gateway or lxc.network.X.ipv6.gateway
-				if len(fields) == 5 && shared.ValueInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "gateway" {
-					continue
-				}
-			} else {
-				// lxc.net.X.ipv4.address or lxc.net.X.ipv6.address
-				if len(fields) == 5 && shared.ValueInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "address" {
-					continue
-				}
-
-				// lxc.net.X.ipv4.gateway or lxc.net.X.ipv6.gateway
-				if len(fields) == 5 && shared.ValueInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "gateway" {
-					continue
-				}
+			// lxc.net.X.ipv4.gateway or lxc.net.X.ipv6.gateway
+			if len(fields) == 5 && shared.ValueInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "gateway" {
+				continue
 			}
 
 			return fmt.Errorf("Only interface-specific ipv4/ipv6 %s keys are allowed", networkKeyPrefix)
