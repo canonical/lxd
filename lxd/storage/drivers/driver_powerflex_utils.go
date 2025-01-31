@@ -996,15 +996,28 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 		reverter.Add(func() { _ = client.deleteHostVolumeMapping(hostID, volumeID) })
 	}
 
-	targetAddr := d.config["powerflex.sdt"]
+	var cleanup revert.Hook
+	if d.config["powerflex.mode"] == connectors.TypeNVME {
+		// Discover all SDTs from PowerFlex for the respective storage pool.
+		targetAddresses, err := d.getNVMeTargetAddresses()
+		if err != nil {
+			return nil, err
+		}
 
-	// Connect to the storage subsystem.
-	// In case of NVMe/TCP, we have to connect after the first mapping was established,
-	// as PowerFlex does not offer any discovery log entries until a volume gets mapped
-	// to the host.
-	err = connector.ConnectAll(d.state.ShutdownCtx, targetAddr)
-	if err != nil {
-		return nil, err
+		// Discover the SDT's targetQN from any of the addresses.
+		targetQN, err := d.getNVMeTargetQN(targetAddresses...)
+		if err != nil {
+			return nil, err
+		}
+
+		// Connect to the storage subsystem.
+		// In case of NVMe/TCP, we have to connect after the first mapping was established,
+		// as PowerFlex does not offer any discovery log entries until a volume gets mapped
+		// to the host.
+		cleanup, err = connector.Connect(d.state.ShutdownCtx, targetQN, targetAddresses...)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Reverting mapping or connection outside mapVolume function
@@ -1013,8 +1026,17 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 	// because it ensures the lock is acquired and accounts for
 	// an existing session before unmapping a volume.
 	outerReverter := revert.New()
+
 	if !mapped {
 		outerReverter.Add(func() { _ = d.unmapVolume(vol) })
+	}
+
+	// Add the cleanup hooks of the connection attempt to the outer reverter.
+	// This ensures that ongoing connection attempts that haven't yet finished are cancelled
+	// before potentially running unmap volume.
+	// As the revert hooks are called in reverse order add the connection cleanup after unmap.
+	if d.config["powerflex.mode"] == connectors.TypeNVME {
+		outerReverter.Add(cleanup)
 	}
 
 	reverter.Success()
@@ -1149,9 +1171,19 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 		}
 
 		if len(mappings) == 0 {
+			targetAddresses, err := d.getNVMeTargetAddresses()
+			if err != nil {
+				return err
+			}
+
+			targetQN, err := d.getNVMeTargetQN(targetAddresses...)
+			if err != nil {
+				return err
+			}
+
 			// Disconnect from the NVMe subsystem.
 			// Do this first before removing the host from PowerFlex.
-			err = connector.DisconnectAll()
+			err = connector.Disconnect(targetQN)
 			if err != nil {
 				return err
 			}
