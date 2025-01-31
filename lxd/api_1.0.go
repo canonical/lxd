@@ -249,6 +249,11 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponseETag(true, srv, nil)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeServer, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// If a target was specified, forward the request to the relevant node.
 	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
@@ -396,7 +401,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	env.StorageSupportedDrivers = supportedStorageDrivers
 
-	fullSrv := api.Server{ServerUntrusted: srv}
+	fullSrv := &api.Server{ServerUntrusted: srv}
 	fullSrv.Environment = env
 	requestor := request.CreateRequestor(r)
 	fullSrv.AuthUserName = requestor.Username
@@ -410,6 +415,13 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		fullSrv.Config, err = daemonConfigRender(s)
 		if err != nil {
 			return response.InternalError(err)
+		}
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeServer, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ServerURL(): fullSrv})
+		if err != nil {
+			return response.SmartError(err)
 		}
 	}
 
