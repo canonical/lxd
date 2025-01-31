@@ -41,9 +41,7 @@ type Connector interface {
 	QualifiedName() (string, error)
 	LoadModules() error
 	Connect(ctx context.Context, targetQN string, targetAddrs ...string) (revert.Hook, error)
-	ConnectAll(ctx context.Context, targetAddr string) error
 	Disconnect(targetQN string) error
-	DisconnectAll() error
 	SessionID(targetQN string) (string, error)
 	findSession(targetQN string) (*session, error)
 }

@@ -52,19 +52,8 @@ func (c *connectorSDC) Connect(ctx context.Context, targetQN string, targetAddre
 	return revert.New().Fail, nil
 }
 
-// ConnectAll does nothing. Connections are fully handled by SDC.
-func (c *connectorSDC) ConnectAll(ctx context.Context, targetAddr string) error {
-	// Nothing to do. Connection is handled by Dell SDC.
-	return nil
-}
-
 // Disconnect does nothing. Connections are fully handled by SDC.
 func (c *connectorSDC) Disconnect(targetQN string) error {
-	return nil
-}
-
-// DisconnectAll does nothing. Connections are fully handled by SDC.
-func (c *connectorSDC) DisconnectAll() error {
 	return nil
 }
 
