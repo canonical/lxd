@@ -1106,6 +1106,15 @@ definitions:
     ImageAliasesEntry:
         description: ImageAliasesEntry represents a LXD image alias
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             description:
                 description: Alias description
                 example: Our preferred Ubuntu image
@@ -1156,6 +1165,15 @@ definitions:
     ImageAliasesPost:
         description: ImageAliasesPost represents a new LXD image alias
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             description:
                 description: Alias description
                 example: Our preferred Ubuntu image
@@ -1795,6 +1813,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     InstanceBackup:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             container_only:
                 description: Whether to ignore snapshots (deprecated, use instance_only)
                 example: false
@@ -2264,6 +2291,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     InstanceSnapshot:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             architecture:
                 description: Architecture name
                 example: x86_64
@@ -5856,6 +5892,15 @@ definitions:
     Server:
         description: Server represents a LXD server
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             api_extensions:
                 description: List of supported API extensions
                 example:
@@ -6432,6 +6477,15 @@ definitions:
     StoragePoolVolumeBackup:
         description: StoragePoolVolumeBackup represents a LXD volume backup
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             created_at:
                 description: When the backup was created
                 example: "2021-03-23T16:38:37.753398689-04:00"
@@ -6687,6 +6741,15 @@ definitions:
     StorageVolumeSnapshot:
         description: StorageVolumeSnapshot represents a LXD storage volume snapshot
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
