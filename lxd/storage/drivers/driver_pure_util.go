@@ -1140,9 +1140,13 @@ func (p *pureClient) getTarget() (targetQN string, targetAddrs []string, err err
 		return "", nil, api.StatusErrorf(http.StatusNotFound, "Enabled network interface with %q service not found", service)
 	}
 
-	targetAddrs = make([]string, 0, len(interfaces))
-	for _, iface := range interfaces {
-		targetAddrs = append(targetAddrs, iface.Ethernet.Address)
+	// First check if target addresses are configured, otherwise, use the discovered ones.
+	targetAddrs = shared.SplitNTrimSpace(p.driver.config["pure.target"], ",", -1, true)
+	if len(targetAddrs) == 0 {
+		targetAddrs = make([]string, 0, len(interfaces))
+		for _, iface := range interfaces {
+			targetAddrs = append(targetAddrs, iface.Ethernet.Address)
+		}
 	}
 
 	// Get the qualified name of the target by iterating over the available
