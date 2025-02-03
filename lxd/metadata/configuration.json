@@ -199,6 +199,15 @@
 							"shortdesc": "Source of a file system or block device",
 							"type": "string"
 						}
+					},
+					{
+						"source-type": {
+							"defaultdesc": "`custom`",
+							"longdesc": "Possible values are `custom` (the default) or `virtual-machine`. This\nkey is only valid when `source` is the name of a storage volume.",
+							"required": "no",
+							"shortdesc": "Type of the backing storage volume",
+							"type": "string"
+						}
 					}
 				]
 			}
