@@ -1007,6 +1007,7 @@ This option specifies whether to register the VLAN using the GARP VLAN Registrat
 ```
 
 ```{config:option} hwaddr device-nic-physical-device-conf
+:condition: "container"
 :defaultdesc: "parent MAC address"
 :managed: "no"
 :shortdesc: "MAC address of the new interface"
@@ -1029,6 +1030,7 @@ This option specifies whether to register the VLAN using the GARP VLAN Registrat
 ```
 
 ```{config:option} mtu device-nic-physical-device-conf
+:condition: "container"
 :defaultdesc: "parent MTU"
 :managed: "no"
 :shortdesc: "MTU of the new interface"
@@ -1060,6 +1062,7 @@ You can specify this option instead of specifying the `nictype` directly.
 ```
 
 ```{config:option} vlan device-nic-physical-device-conf
+:condition: "container"
 :managed: "no"
 :shortdesc: "VLAN ID to attach to"
 :type: "integer"
@@ -1795,8 +1798,7 @@ Enabling this option prevents the use of some features that are incompatible wit
 :liveupdate: "no"
 :shortdesc: "Whether to use the name and MTU of the default network interfaces"
 :type: "bool"
-For containers, the name and MTU of the default network interfaces is used for the instance devices.
-For virtual machines, set this option to `true` to set the name and MTU of the default network interfaces to be the same as the instance devices.
+When set to true, the name and MTU of the default network interfaces inside the virtual machine will match those of the instance devices.
 ```
 
 ```{config:option} cluster.evacuate instance-miscellaneous
