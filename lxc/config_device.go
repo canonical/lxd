@@ -107,12 +107,13 @@ lxc profile device add [<remote>:]profile1 <device-name> disk pool=some-pool sou
 			}
 		}
 
-		if len(args) == 1 {
+		// The second positional argument is used for the device name, so we provide device completions for the third positional argument.
+		if len(args) == 2 {
 			return c.global.cmpInstanceAllDevices(toComplete)
 		}
 
-		if len(args) == 2 {
-			return c.global.cmpInstanceAllDeviceOptions(args[0], args[1])
+		if len(args) == 3 {
+			return c.global.cmpInstanceAllDeviceOptions(args[0], args[2])
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp

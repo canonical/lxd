@@ -161,11 +161,19 @@ func nicValidationRules(requiredFields []string, optionalFields []string, instCo
 		//  defaultdesc: `false`
 		//  shortdesc: Whether to use GARP VLAN Registration Protocol
 		"gvrp": validate.Optional(validate.IsBool),
-		// lxdmeta:generate(entities=device-nic-{bridged+macvlan+sriov+physical+ovn}; group=device-conf; key=hwaddr)
+		// lxdmeta:generate(entities=device-nic-{bridged+macvlan+sriov+ovn}; group=device-conf; key=hwaddr)
 		//
 		// ---
 		//  type: string
 		//  defaultdesc: randomly assigned
+		//  managed: no
+		//  shortdesc: MAC address of the new interface
+
+		// lxdmeta:generate(entities=device-nic-physical; group=device-conf; key=hwaddr)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: parent MAC address
 		//  managed: no
 		//  shortdesc: MAC address of the new interface
 
