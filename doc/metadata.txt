@@ -1007,7 +1007,7 @@ This option specifies whether to register the VLAN using the GARP VLAN Registrat
 ```
 
 ```{config:option} hwaddr device-nic-physical-device-conf
-:defaultdesc: "randomly assigned"
+:defaultdesc: "parent MAC address"
 :managed: "no"
 :shortdesc: "MAC address of the new interface"
 :type: "string"
