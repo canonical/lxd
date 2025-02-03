@@ -526,10 +526,8 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 				}
 
 				// Derive the effective storage project name from the instance config's project.
-				storageProjectName, err = project.StorageVolumeProject(d.state.DB.Cluster, instConf.Project().Name, dbVolumeType)
-				if err != nil {
-					return err
-				}
+				instProj := instConf.Project()
+				storageProjectName = project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
 
 				// GetStoragePoolVolume returns a volume with an empty Location field for remote drivers.
 				err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -745,10 +743,8 @@ func (d *disk) Register() error {
 			return err
 		}
 
-		storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, dbVolumeType)
-		if err != nil {
-			return err
-		}
+		instProj := d.inst.Project()
+		storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
 
 		// Try to mount the volume that should already be mounted to reinitialise the ref counter.
 		_, err = d.pool.MountVolume(storageProjectName, volumeName, volumeType, nil)
@@ -876,10 +872,8 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			}
 
 			// Only custom volumes can be attached currently.
-			storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, dbVolumeType)
-			if err != nil {
-				return nil, err
-			}
+			instProj := d.inst.Project()
+			storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
 
 			var dbVolume *db.StorageVolume
 			err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -1128,10 +1122,8 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				}
 
 				// Derive the effective storage project name from the instance config's project.
-				storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, dbVolumeType)
-				if err != nil {
-					return nil, err
-				}
+				instProj := d.inst.Project()
+				storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
 
 				// GetStoragePoolVolume returns a volume with an empty Location field for remote drivers.
 				var dbVolume *db.StorageVolume
@@ -1641,10 +1633,8 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	}
 
 	// Only custom volumes can be attached currently.
-	storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, dbVolumeType)
-	if err != nil {
-		return nil, "", nil, err
-	}
+	instProj := d.inst.Project()
+	storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
 
 	mountInfo, err = d.pool.MountVolume(storageProjectName, volumeName, volumeType, nil)
 	if err != nil {
@@ -2125,10 +2115,8 @@ func (d *disk) postStop() error {
 		}
 
 		// Only custom volumes can be attached currently.
-		storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, dbVolumeType)
-		if err != nil {
-			return err
-		}
+		instProj := d.inst.Project()
+		storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
 
 		_, err = d.pool.UnmountVolume(storageProjectName, volumeName, volumeType, nil)
 		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
