@@ -2564,3 +2564,22 @@ GET request to fetch the LXD entities has the `with-access-entitlements=<comma_s
 ## `profiles_all_projects`
 
 This adds support for listing profiles across all projects using the `all-projects` parameter in `GET /1.0/profiles` requests.
+
+## `storage_driver_powerflex`
+
+Adds a new `powerflex` storage driver which allows the consumption of storage volumes from a Dell PowerFlex storage array using NVMe/TCP and SDC.
+The following new pool level configuration keys have been added:
+
+1. {config:option}`storage-powerflex-pool-conf:powerflex.clone_copy`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.domain`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.gateway`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.gateway.verify`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.mode`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.pool`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.sdt`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.user.name`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.user.password`
+
+The following configuration keys have been added for volumes backed by PowerFlex:
+
+1. {config:option}`storage-powerflex-volume-conf:block.type`
