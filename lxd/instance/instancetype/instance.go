@@ -1073,8 +1073,7 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  shortdesc: Free-form user key/value storage
 
 	// lxdmeta:generate(entities=instance; group=miscellaneous; key=agent.nic_config)
-	// For containers, the name and MTU of the default network interfaces is used for the instance devices.
-	// For virtual machines, set this option to `true` to set the name and MTU of the default network interfaces to be the same as the instance devices.
+	// When set to true, the name and MTU of the default network interfaces inside the virtual machine will match those of the instance devices.
 	// ---
 	//  type: bool
 	//  defaultdesc: `false`
