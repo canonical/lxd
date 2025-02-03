@@ -565,6 +565,16 @@ func (v *Volume) SetParentUUID(parentUUID string) {
 	v.parentUUID = parentUUID
 }
 
+// GetParent returns a parent volume that has volatile.uuid set to the current's volume parent UUID.
+func (v *Volume) GetParent() Volume {
+	parentName, _, _ := api.GetParentAndSnapshotName(v.name)
+	parentVolConfig := map[string]string{
+		"volatile.uuid": v.parentUUID,
+	}
+
+	return NewVolume(v.driver, v.pool, v.volType, v.contentType, parentName, parentVolConfig, nil)
+}
+
 // Clone returns a copy of the volume.
 func (v Volume) Clone() Volume {
 	// Copy the config map to avoid internal modifications affecting external state.
