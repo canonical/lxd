@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"strconv"
 
 	"github.com/canonical/lxd/lxd/cluster/request"
@@ -362,7 +363,7 @@ func (n *physical) setup(oldConfig map[string]string) error {
 	// Record if we created this device or not (if we have not already recorded that we created it previously),
 	// so it can be removed on stop. This way we won't overwrite the setting on LXD restart.
 	if shared.IsFalseOrEmpty(n.config["volatile.last_state.created"]) {
-		n.config["volatile.last_state.created"] = fmt.Sprintf("%t", created)
+		n.config["volatile.last_state.created"] = fmt.Sprint(created)
 		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpdateNetwork(ctx, n.project, n.name, n.description, n.config)
 		})
@@ -536,7 +537,7 @@ func (n *physical) State() (*api.NetworkState, error) {
 	state, err := resources.GetNetworkState(GetHostDevice(n.config["parent"], n.config["vlan"]))
 	if err != nil {
 		// If the parent is not found, return a response indicating the network is unavailable.
-		if api.StatusErrorCheck(err, 404) {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			return &api.NetworkState{
 				State: "unavailable",
 				Type:  "unknown",
