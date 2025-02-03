@@ -1052,7 +1052,7 @@ func (r *ProtocolLXD) ExportImage(fingerprint string, image api.ImageExportPost)
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", "/images/"+url.PathEscape(fingerprint)+"/export", image, "", true)
+	op, _, err := r.queryOperation("POST", "/images/"+url.PathEscape(fingerprint)+"/export", &image, "", true)
 	if err != nil {
 		return nil, err
 	}

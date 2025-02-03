@@ -129,7 +129,7 @@ func (c *cmdNetworkPeerList) run(cmd *cobra.Command, args []string) error {
 		targetPeer := "Unknown"
 
 		if peer.TargetProject != "" && peer.TargetNetwork != "" {
-			targetPeer = fmt.Sprintf("%s/%s", peer.TargetProject, peer.TargetNetwork)
+			targetPeer = peer.TargetProject + "/" + peer.TargetNetwork
 		}
 
 		details := []string{
