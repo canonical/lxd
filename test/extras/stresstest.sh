@@ -21,7 +21,6 @@ fi
 
 echo "==> Running the LXD testsuite"
 
-BASEURL=https://127.0.0.1:18443
 my_curl() {
   curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" "${@}"
 }
