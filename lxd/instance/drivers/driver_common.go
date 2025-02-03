@@ -1201,7 +1201,7 @@ func (d *common) setCoreSched(pids []int) error {
 		args = append(args, strconv.Itoa(pid))
 	}
 
-	_, err := shared.RunCommand(d.state.OS.ExecPath, args...)
+	_, err := shared.RunCommandContext(context.Background(), d.state.OS.ExecPath, args...)
 	return err
 }
 
