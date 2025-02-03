@@ -1471,7 +1471,7 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 			//
 			// ---
 			//  type: string
-			//  shortdesc: Quota of IPv4 addresses from a specified uplink network that can be used by entities in this project
+			//  shortdesc: Quota of IPv6 addresses from a specified uplink network that can be used by entities in this project
 			projectConfigKeys["limits.networks.uplink_ips.ipv6."+networkName] = validate.Optional(validate.IsUint32)
 		}
 	}
