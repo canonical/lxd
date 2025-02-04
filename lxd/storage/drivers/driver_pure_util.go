@@ -1488,7 +1488,7 @@ func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook
 		// - "00"             - Padding
 		// - "8726b5033af243" - First 14 characters of serial number
 		// - "24a937"         - OUI (Organizationally Unique Identifier)
-		// - "3d00014196"     - Last 10 characters of serail number
+		// - "3d00014196"     - Last 10 characters of serial number
 		diskSuffix = "00" + pureVol.Serial[0:14] + "24a937" + pureVol.Serial[14:]
 	default:
 		return "", nil, fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
