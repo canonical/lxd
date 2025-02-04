@@ -950,7 +950,7 @@ func (p *pureClient) restoreVolumeSnapshot(poolName string, volName string, snap
 // copyVolumeSnapshot copies the volume snapshot into destination volume. Destination volume is overwritten
 // if already exists.
 func (p *pureClient) copyVolumeSnapshot(srcPoolName string, srcVolName string, srcSnapshotName string, dstPoolName string, dstVolName string) error {
-	return p.copyVolume(srcPoolName, fmt.Sprintf("%s.%s", srcVolName, srcSnapshotName), dstPoolName, dstVolName, true)
+	return p.copyVolume(srcPoolName, srcVolName+"."+srcSnapshotName, dstPoolName, dstVolName, true)
 }
 
 // getHosts retrieves an existing Pure Storage host.
@@ -1365,7 +1365,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 		if connector.Type() == connectors.TypeISCSI {
 			// removeDevice removes device from the system if the device is removable.
 			removeDevice := func(devName string) error {
-				path := fmt.Sprintf("/sys/block/%s/device/delete", devName)
+				path := "/sys/block/" + devName + "/device/delete"
 				if shared.PathExists(path) {
 					// Delete device.
 					err := os.WriteFile(path, []byte("1"), 0400)
@@ -1381,7 +1381,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 			if strings.HasPrefix(devName, "dm-") {
 				// Multipath device (/dev/dm-*) itself is not removable.
 				// Therefore, we remove its slaves instead.
-				slaves, err := filepath.Glob(fmt.Sprintf("/sys/block/%s/slaves/*", devName))
+				slaves, err := filepath.Glob("/sys/block/" + devName + "/slaves/*")
 				if err != nil {
 					return fmt.Errorf("Failed to unmap volume %q: Failed to list slaves for device %q: %w", vol.name, devName, err)
 				}
@@ -1532,18 +1532,18 @@ func (d *pure) getVolumeName(vol Volume) (string, error) {
 	// Search for the volume type prefix, and if found, prepend it to the volume name.
 	volumeTypePrefix, ok := pureVolTypePrefixes[vol.volType]
 	if ok {
-		volName = fmt.Sprintf("%s-%s", volumeTypePrefix, volName)
+		volName = volumeTypePrefix + "-" + volName
 	}
 
 	// Search for the content type suffix, and if found, append it to the volume name.
 	contentTypeSuffix, ok := pureContentTypeSuffixes[vol.contentType]
 	if ok {
-		volName = fmt.Sprintf("%s-%s", volName, contentTypeSuffix)
+		volName = volName + "-" + contentTypeSuffix
 	}
 
 	// If volume is snapshot, prepend snapshot prefix to its name.
 	if vol.IsSnapshot() {
-		volName = fmt.Sprintf("%s%s", pureSnapshotPrefix, volName)
+		volName = pureSnapshotPrefix + volName
 	}
 
 	return volName, nil
