@@ -130,6 +130,7 @@ func (d *zfs) Info() Info {
 		DirectIO:                     zfsDirectIO,
 		MountedRoot:                  false,
 		Buckets:                      true,
+		PopulateParentVolumeUUID:     false,
 	}
 
 	return info

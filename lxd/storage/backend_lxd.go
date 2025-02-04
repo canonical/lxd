@@ -1155,6 +1155,16 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		srcVolStorageName := project.Instance(src.Project().Name, src.Name())
 		srcVol := b.GetVolume(volType, contentType, srcVolStorageName, srcConfig.Volume.Config)
 
+		// Set the parent volume's UUID.
+		if b.driver.Info().PopulateParentVolumeUUID {
+			parentUUID, err := b.getParentVolumeUUID(srcVol, src.Project().Name)
+			if err != nil {
+				return err
+			}
+
+			srcVol.SetParentUUID(parentUUID)
+		}
+
 		volCopy := drivers.NewVolumeCopy(vol, targetSnapshots...)
 		srcVolCopy := drivers.NewVolumeCopy(srcVol, sourceSnapshots...)
 
@@ -2016,6 +2026,16 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 	// will cause a non matching configuration which will always fall back to non optimized storage.
 	vol := b.GetNewVolume(volType, contentType, volStorageName, volumeConfig)
 
+	// Set the parent volume UUID.
+	if b.driver.Info().PopulateParentVolumeUUID {
+		parentUUID, err := b.getParentVolumeUUID(vol, inst.Project().Name)
+		if err != nil {
+			return err
+		}
+
+		vol.SetParentUUID(parentUUID)
+	}
+
 	// Validate config and create database entry for new storage volume.
 	err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", volType, false, vol.Config(), inst.CreationDate(), time.Time{}, contentType, true, false)
 	if err != nil {
@@ -2364,6 +2384,16 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 		snapshotStorageName := project.Instance(inst.Project().Name, instSnapshot.Name())
 		targetSnapshots = append(targetSnapshots, b.GetVolume(volType, contentType, snapshotStorageName, snap.Config))
+	}
+
+	// Set the parent volume's UUID.
+	if b.driver.Info().PopulateParentVolumeUUID {
+		parentUUID, err := b.getParentVolumeUUID(vol, projectName)
+		if err != nil {
+			return err
+		}
+
+		vol.SetParentUUID(parentUUID)
 	}
 
 	volCopy := drivers.NewVolumeCopy(vol, targetSnapshots...)
@@ -3078,6 +3108,16 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 		_ = filesystem.SyncFS(inst.RootfsPath())
 	}
 
+	// Set the parent volume UUID.
+	if b.driver.Info().PopulateParentVolumeUUID {
+		parentUUID, err := b.getParentVolumeUUID(vol, inst.Project().Name)
+		if err != nil {
+			return err
+		}
+
+		vol.SetParentUUID(parentUUID)
+	}
+
 	volCopy := drivers.NewVolumeCopy(vol, sourceSnapshots...)
 
 	err = b.driver.MigrateVolume(volCopy, conn, args, op)
@@ -3710,6 +3750,16 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 
 	vol := b.GetVolume(volType, contentType, snapVolName, dbVol.Config)
 
+	// Set the parent volume UUID.
+	if b.driver.Info().PopulateParentVolumeUUID {
+		parentUUID, err := b.getParentVolumeUUID(vol, inst.Project().Name)
+		if err != nil {
+			return err
+		}
+
+		vol.SetParentUUID(parentUUID)
+	}
+
 	volExists, err := b.driver.HasVolume(vol)
 	if err != nil {
 		return err
@@ -3911,6 +3961,17 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 		return nil, err
 	}
 
+	// Set the parent volume UUID.
+	if b.driver.Info().PopulateParentVolumeUUID {
+		parentUUID, err := b.getParentVolumeUUID(vol, inst.Project().Name)
+		if err != nil {
+			return nil, err
+		}
+
+		vol.SetParentUUID(parentUUID)
+	}
+
+	// Mount the snapshot.
 	err = b.driver.MountVolumeSnapshot(vol, op)
 	if err != nil {
 		return nil, err
@@ -3960,6 +4021,17 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operati
 		return err
 	}
 
+	// Set the parent volume UUID.
+	if b.driver.Info().PopulateParentVolumeUUID {
+		parentUUID, err := b.getParentVolumeUUID(vol, inst.Project().Name)
+		if err != nil {
+			return err
+		}
+
+		vol.SetParentUUID(parentUUID)
+	}
+
+	// Unmount volume.
 	_, err = b.driver.UnmountVolumeSnapshot(vol, op)
 
 	return err
@@ -4103,8 +4175,10 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 				}
 
 				// Reset img volume variables as we just deleted the old one.
+				// Since the old volume has been removed, ensure the new volume
+				// is instantiated with its own UUID.
 				imgDBVol = nil
-				imgVol = b.GetVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, nil)
+				imgVol = b.GetNewVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, nil)
 			} else if err != nil {
 				return err
 			} else {
@@ -5726,6 +5800,15 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		return err
 	}
 
+	if b.driver.Info().PopulateParentVolumeUUID {
+		parentUUID, err := b.getParentVolumeUUID(vol, projectName)
+		if err != nil {
+			return err
+		}
+
+		vol.SetParentUUID(parentUUID)
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -6615,6 +6698,16 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 	volStorageName := project.StorageVolume(projectName, volName)
 
 	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, volume.Config)
+
+	// Set the parent volume's UUID.
+	if b.driver.Info().PopulateParentVolumeUUID {
+		parentUUID, err := b.getParentVolumeUUID(vol, projectName)
+		if err != nil {
+			return err
+		}
+
+		vol.SetParentUUID(parentUUID)
+	}
 
 	// Delete the snapshot from the storage device.
 	// Must come before DB VolumeDBDelete so that the volume ID is still available.
@@ -7797,4 +7890,31 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 
 	revert.Success()
 	return nil
+}
+
+// getParentVolumeUUID returns the UUID of the parent's volume.
+// If the volume has no parent, an empty string is returned.
+func (b *lxdBackend) getParentVolumeUUID(vol drivers.Volume, projectName string) (string, error) {
+	parentName, _, isSnapshot := api.GetParentAndSnapshotName(vol.Name())
+	if !isSnapshot {
+		// Volume has no parent.
+		return "", nil
+	}
+
+	// Ensure the parent name does not contain a project prefix.
+	_, parentName = project.StorageVolumeParts(parentName)
+
+	// Load storage volume from the database.
+	parentDBVol, err := VolumeDBGet(b, projectName, parentName, vol.Type())
+	if err != nil {
+		return "", fmt.Errorf("Failed to extract parent UUID from snapshot %q in project %q: %w", vol.Name(), projectName, err)
+	}
+
+	// Extract parent volume UUID.
+	parentUUID := parentDBVol.Config["volatile.uuid"]
+	if parentUUID == "" {
+		return "", fmt.Errorf("Parent volume %q of snapshot %q in project %q does not have UUID set)", parentName, projectName, vol.Name())
+	}
+
+	return parentUUID, nil
 }

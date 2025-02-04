@@ -36,6 +36,10 @@ test_storage_local_volume_handling() {
       lxc storage create "${pool_base}-zfs" zfs size=1GiB
     fi
 
+    if storage_backend_available "pure"; then
+      configure_pure_pool "${pool_base}-pure"
+    fi
+
     # Test all combinations of our storage drivers
 
     driver="${lxd_backend}"
@@ -51,11 +55,13 @@ test_storage_local_volume_handling() {
       pool_opts="volume.size=25MiB ceph.osd.pg_num=16"
     fi
 
-    if [ "$driver" = "lvm" ]; then
+    if [ "$driver" = "lvm" ] || [ "$driver" = "pure" ]; then
       pool_opts="volume.size=25MiB"
     fi
 
-    if [ -n "${pool_opts}" ]; then
+    if [ "$driver" = "pure" ]; then
+      configure_pure_pool "${pool}1" "${pool_opts}"
+    elif [ -n "${pool_opts}" ]; then
       # shellcheck disable=SC2086
       lxc storage create "${pool}1" "${driver}" $pool_opts
     else
@@ -179,8 +185,8 @@ test_storage_local_volume_handling() {
     lxc storage volume delete "${pool}1" vol1
     lxc storage delete "${pool}1"
 
-    for source_driver in "btrfs" "ceph" "cephfs" "dir" "lvm" "zfs"; do
-      for target_driver in "btrfs" "ceph" "cephfs" "dir" "lvm" "zfs"; do
+    for source_driver in "btrfs" "ceph" "cephfs" "dir" "lvm" "zfs" "pure"; do
+      for target_driver in "btrfs" "ceph" "cephfs" "dir" "lvm" "zfs" "pure"; do
         # shellcheck disable=SC2235
         if [ "$source_driver" != "$target_driver" ] \
             && ([ "$lxd_backend" = "$source_driver" ] || ([ "$lxd_backend" = "ceph" ] && [ "$source_driver" = "cephfs" ] && [ -n "${LXD_CEPH_CEPHFS:-}" ])) \
