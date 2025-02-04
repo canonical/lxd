@@ -1,5 +1,13 @@
 package cluster
 
+import (
+	"context"
+	"database/sql"
+	"strings"
+
+	"github.com/canonical/lxd/shared/api"
+)
+
 // Code generation directives.
 //
 //go:generate -command mapper lxd-generate db mapper -t sites.mapper.go
@@ -40,4 +48,16 @@ type Site struct {
 type SiteFilter struct {
 	ID   *int
 	Name *string
+}
+
+// ToAPI converts the database Site to API type.
+func (r *Site) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Site, error) {
+	apiSite := &api.Site{
+		Name:        r.Name,
+		Addresses:   strings.Split(r.Addresses, ","),
+		Type:        r.Type,
+		Description: r.Description,
+	}
+
+	return apiSite, nil
 }
