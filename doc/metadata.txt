@@ -186,6 +186,15 @@ See {ref}`devices-disk-types` for details.
 
 ```
 
+```{config:option} source-type device-disk-device-conf
+:defaultdesc: "`custom`"
+:required: "no"
+:shortdesc: "Type of the backing storage volume"
+:type: "string"
+Possible values are `custom` (the default) or `virtual-machine`. This
+key is only valid when `source` is the name of a storage volume.
+```
+
 <!-- config group device-disk-device-conf end -->
 <!-- config group device-gpu-mdev-device-conf start -->
 ```{config:option} id device-gpu-mdev-device-conf

@@ -38,12 +38,7 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 			_, exists := newDevices[devName]
 			if exists {
 				newDevices[devName]["pool"] = newPoolName
-
-				if strings.Contains(localDevices[devName]["source"], "/") {
-					newDevices[devName]["source"] = newVol.Type + "/" + newVol.Name
-				} else {
-					newDevices[devName]["source"] = newVol.Name
-				}
+				newDevices[devName]["source"] = newVol.Name
 			}
 		}
 
@@ -93,12 +88,7 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 
 			if shared.ValueInSlice(devName, usedByDevices) {
 				newDevices[devName]["pool"] = newPoolName
-
-				if strings.Contains(dev["source"], "/") {
-					newDevices[devName]["source"] = newVol.Type + "/" + newVol.Name
-				} else {
-					newDevices[devName]["source"] = newVol.Name
-				}
+				newDevices[devName]["source"] = newVol.Name
 			}
 		}
 
