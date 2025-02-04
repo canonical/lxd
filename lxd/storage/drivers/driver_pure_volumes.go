@@ -1221,6 +1221,23 @@ func (d *pure) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 		return err
 	}
 
+	// Snapshots cannot be mounted directly, so when this is needed, the snapshot is copied
+	// into a temporary volume. In case LXD was abruptly stopped in the moment when
+	// temporary volume was created, it is possible that the volume was not removed.
+	tmpVol, err := d.client().getVolume(snapVol.pool, snapVolName)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return fmt.Errorf("Failed retrieving temporary snapshot volume: %w", err)
+	}
+
+	if tmpVol != nil {
+		// Temporary volume found, delete it.
+		err = d.client().deleteVolume(snapVol.pool, snapVolName)
+		if err != nil {
+			return fmt.Errorf("Failed deleting temporary snapshot volume: %w", err)
+		}
+	}
+
+	// Delete snapshot.
 	err = d.client().deleteVolumeSnapshot(snapVol.pool, parentVolName, snapVolName)
 	if err != nil {
 		return err
