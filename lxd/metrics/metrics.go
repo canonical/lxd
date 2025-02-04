@@ -105,14 +105,9 @@ func (m *MetricSet) String() string {
 			return ""
 		}
 
-		metricTypeName := "counter"
-
 		// ProcsTotal is a gauge according to the OpenMetrics spec as its value can decrease.
-		if shared.ValueInSlice(metricType, gaugeMetrics) {
-			metricTypeName = "gauge"
-		} else if strings.HasSuffix(MetricNames[metricType], "_total") || strings.HasSuffix(MetricNames[metricType], "_seconds") {
-			metricTypeName = "counter"
-		} else if strings.HasSuffix(MetricNames[metricType], "_bytes") {
+		metricTypeName := "counter"
+		if shared.ValueInSlice(metricType, gaugeMetrics) || strings.HasSuffix(MetricNames[metricType], "_bytes") {
 			metricTypeName = "gauge"
 		}
 
