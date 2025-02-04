@@ -395,13 +395,10 @@ func BucketDBCreate(ctx context.Context, pool Pool, projectName string, memberSp
 	bucketVol := drivers.NewVolume(pool.Driver(), pool.Name(), drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, bucket.Config, pool.Driver().Config())
 
 	// Fill default config.
-	err := pool.Driver().FillVolumeConfig(bucketVol)
-	if err != nil {
-		return -1, err
-	}
+	pool.Driver().FillVolumeConfig(bucketVol)
 
 	// Validate bucket name.
-	err = pool.Driver().ValidateBucket(bucketVol)
+	err := pool.Driver().ValidateBucket(bucketVol)
 	if err != nil {
 		return -1, err
 	}
