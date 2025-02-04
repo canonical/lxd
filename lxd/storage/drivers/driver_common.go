@@ -105,7 +105,7 @@ func (d *common) validatePool(config map[string]string, driverRules map[string]f
 // excludeKeys allow exclude some keys from copying to volume config.
 // Sometimes that can be useful when copying is dependant from specific conditions
 // and shouldn't be done in generic way.
-func (d *common) fillVolumeConfig(vol *Volume, excludedKeys ...string) error {
+func (d *common) fillVolumeConfig(vol *Volume, excludedKeys ...string) {
 	for k := range d.config {
 		if !strings.HasPrefix(k, "volume.") {
 			continue
@@ -144,13 +144,11 @@ func (d *common) fillVolumeConfig(vol *Volume, excludedKeys ...string) error {
 			vol.config[volKey] = d.config[k]
 		}
 	}
-
-	return nil
 }
 
 // FillVolumeConfig populate volume with default config.
-func (d *common) FillVolumeConfig(vol Volume) error {
-	return d.fillVolumeConfig(&vol)
+func (d *common) FillVolumeConfig(vol Volume) {
+	d.fillVolumeConfig(&vol)
 }
 
 // validateVolume validates a volume config against common rules and optional driver specific rules.
