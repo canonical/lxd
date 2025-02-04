@@ -63,7 +63,7 @@ type Driver interface {
 	DeleteBucketKey(bucket Volume, keyName string, op *operations.Operation) error
 
 	// Volumes.
-	FillVolumeConfig(vol Volume) error
+	FillVolumeConfig(vol Volume)
 	ValidateVolume(vol Volume, removeUnknownKeys bool) error
 	CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error
 	CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error
