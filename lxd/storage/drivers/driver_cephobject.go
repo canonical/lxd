@@ -78,18 +78,19 @@ func (d *cephobject) isRemote() bool {
 // Info returns the pool driver information.
 func (d *cephobject) Info() Info {
 	return Info{
-		Name:              "cephobject",
-		Version:           cephobjectVersion,
-		OptimizedImages:   false,
-		PreservesInodes:   false,
-		Remote:            d.isRemote(),
-		Buckets:           true,
-		VolumeTypes:       []VolumeType{},
-		VolumeMultiNode:   false,
-		BlockBacking:      false,
-		RunningCopyFreeze: false,
-		DirectIO:          false,
-		MountedRoot:       false,
+		Name:                     "cephobject",
+		Version:                  cephobjectVersion,
+		OptimizedImages:          false,
+		PreservesInodes:          false,
+		Remote:                   d.isRemote(),
+		Buckets:                  true,
+		VolumeTypes:              []VolumeType{},
+		VolumeMultiNode:          false,
+		BlockBacking:             false,
+		RunningCopyFreeze:        false,
+		DirectIO:                 false,
+		MountedRoot:              false,
+		PopulateParentVolumeUUID: false,
 	}
 }
 

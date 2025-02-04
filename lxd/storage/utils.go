@@ -533,7 +533,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  shortdesc: Size/quota of the storage bucket
 		//  scope: local
 		"size": validate.Optional(validate.IsSize),
-		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=snapshots.expiry)
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-pure; group=volume-conf; key=snapshots.expiry)
 		// Specify an expression like `1M 2H 3d 4w 5m 6y`.
 		// ---
 		//  type: string
@@ -546,7 +546,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 			_, err := shared.GetExpiry(time.Time{}, value)
 			return err
 		},
-		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=snapshots.schedule)
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-pure; group=volume-conf; key=snapshots.schedule)
 		// Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
 		// ---
 		//  type: string
@@ -555,7 +555,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  shortdesc: Schedule for automatic volume snapshots
 		//  scope: global
 		"snapshots.schedule": validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly"})),
-		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=snapshots.pattern)
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-pure; group=volume-conf; key=snapshots.pattern)
 		// You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.
 		//
 		// {{snapshot_pattern_detail}}
@@ -606,7 +606,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 
 	// Those keys are only valid for volumes.
 	if vol != nil {
-		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=volatile.uuid)
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-pure; group=volume-conf; key=volatile.uuid)
 		//
 		// ---
 		//  type: string
