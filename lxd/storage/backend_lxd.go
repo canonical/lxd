@@ -2203,10 +2203,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	if args.MigrationType.FSType == migration.MigrationFSType_RSYNC || args.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
 		vol.SetHasSource(false)
 
-		err = b.driver.FillVolumeConfig(vol)
-		if err != nil {
-			return fmt.Errorf("Failed filling volume config: %w", err)
-		}
+		b.driver.FillVolumeConfig(vol)
 	}
 
 	// Check if the volume exists on storage.
@@ -2462,10 +2459,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 
 	// Ensure storage volume settings are honored when doing conversion.
 	vol.SetHasSource(false)
-	err = b.driver.FillVolumeConfig(vol)
-	if err != nil {
-		return fmt.Errorf("Failed filling volume config: %w", err)
-	}
+	b.driver.FillVolumeConfig(vol)
 
 	// Check if the volume exists in database
 	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
@@ -4111,10 +4105,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		// Generate a temporary volume instance that represents how a new volume using pool defaults would
 		// be configured.
 		tmpImgVol := imgVol.Clone()
-		err := b.Driver().FillVolumeConfig(tmpImgVol)
-		if err != nil {
-			return err
-		}
+		b.Driver().FillVolumeConfig(tmpImgVol)
 
 		// Add existing image volume's config to imgVol.
 		imgVol = b.GetVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, imgDBVol.Config)
@@ -4258,17 +4249,11 @@ func (b *lxdBackend) shouldUseOptimizedImage(fingerprint string, contentType dri
 
 	// Create the image volume with the provided volume config.
 	newImgVol := b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, volConfig)
-	err := b.Driver().FillVolumeConfig(newImgVol)
-	if err != nil {
-		return false, err
-	}
+	b.Driver().FillVolumeConfig(newImgVol)
 
 	// Create the image volume with pool's default settings.
 	poolDefaultImgVol := b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
-	err = b.Driver().FillVolumeConfig(poolDefaultImgVol)
-	if err != nil {
-		return false, err
-	}
+	b.Driver().FillVolumeConfig(poolDefaultImgVol)
 
 	// If the new volume's config doesn't match the pool's default configuration, don't use an optimized image.
 	if !volumeConfigsMatch(newImgVol, poolDefaultImgVol) {
@@ -7315,10 +7300,7 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 
 	// This may not always be the correct thing to do, but seeing as we don't know what the volume's config
 	// was lets take a best guess that it was the default config.
-	err = b.driver.FillVolumeConfig(*vol)
-	if err != nil {
-		return fmt.Errorf("Failed filling custom volume default config: %w", err)
-	}
+	b.driver.FillVolumeConfig(*vol)
 
 	// Check the filesystem detected is valid for the storage driver.
 	err = b.driver.ValidateVolume(*vol, false)
@@ -7375,10 +7357,7 @@ func (b *lxdBackend) detectUnknownBuckets(vol *drivers.Volume, projectVols map[s
 
 	// This may not always be the correct thing to do, but seeing as we don't know what the volume's config
 	// was lets take a best guess that it was the default config.
-	err = b.driver.FillVolumeConfig(*vol)
-	if err != nil {
-		return fmt.Errorf("Failed filling bucket default config: %w", err)
-	}
+	b.driver.FillVolumeConfig(*vol)
 
 	// Check the detected filesystem is valid for the storage driver.
 	err = b.driver.ValidateVolume(*vol, false)
