@@ -265,14 +265,11 @@ func (d *lvm) HasVolume(vol Volume) (bool, error) {
 }
 
 // FillVolumeConfig populate volume with default config.
-func (d *lvm) FillVolumeConfig(vol Volume) error {
+func (d *lvm) FillVolumeConfig(vol Volume) {
 	// Copy volume.* configuration options from pool.
 	// Exclude "block.filesystem" and "block.mount_options" as they depend on volume type (handled below).
 	// Exclude "lvm.stripes", "lvm.stripes.size" as they only work on non-thin storage pools (handled below).
-	err := d.fillVolumeConfig(&vol, "block.filesystem", "block.mount_options", "lvm.stripes", "lvm.stripes.size")
-	if err != nil {
-		return err
-	}
+	d.fillVolumeConfig(&vol, "block.filesystem", "block.mount_options", "lvm.stripes", "lvm.stripes.size")
 
 	// Only validate filesystem config keys for filesystem volumes or VM block volumes (which have an
 	// associated filesystem volume).
@@ -315,8 +312,6 @@ func (d *lvm) FillVolumeConfig(vol Volume) error {
 			vol.config["lvm.stripes.size"] = d.config["lvm.stripes.size"]
 		}
 	}
-
-	return nil
 }
 
 // commonVolumeRules returns validation rules which are common for pool and volume.
