@@ -376,14 +376,11 @@ func (d *powerflex) HasVolume(vol Volume) (bool, error) {
 }
 
 // FillVolumeConfig populate volume with default config.
-func (d *powerflex) FillVolumeConfig(vol Volume) error {
+func (d *powerflex) FillVolumeConfig(vol Volume) {
 	// Copy volume.* configuration options from pool.
 	// Exclude 'block.filesystem' and 'block.mount_options'
 	// as these ones are handled below in this function and depend on the volume's type.
-	err := d.fillVolumeConfig(&vol, "block.filesystem", "block.mount_options")
-	if err != nil {
-		return err
-	}
+	d.fillVolumeConfig(&vol, "block.filesystem", "block.mount_options")
 
 	// Only validate filesystem config keys for filesystem volumes or VM block volumes (which have an
 	// associated filesystem volume).
@@ -415,8 +412,6 @@ func (d *powerflex) FillVolumeConfig(vol Volume) error {
 			vol.config["block.mount_options"] = "discard"
 		}
 	}
-
-	return nil
 }
 
 // commonVolumeRules returns validation rules which are common for pool and volume.
