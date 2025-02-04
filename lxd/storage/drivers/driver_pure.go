@@ -147,9 +147,7 @@ func (d *pure) Validate(config map[string]string) error {
 		//  shortdesc: Whether to verify the Pure Storage gateway's certificate
 		"pure.gateway.verify": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.target)
-		// A comma-separated list of target addresses. If empty, LXD discovers and
-		// connects to all available targets. Otherwise, it only connects to the
-		// specified addresses.
+		// A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
 		// ---
 		//  type: string
 		//  defaultdesc: the discovered mode
