@@ -747,9 +747,21 @@ func (d *disk) Register() error {
 		storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
 
 		// Try to mount the volume that should already be mounted to reinitialise the ref counter.
-		_, err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
-		if err != nil {
-			return fmt.Errorf(`Failed mounting storage volume "%s/%s": %w`, volumeTypeName, volumeName, err)
+		if dbVolumeType == cluster.StoragePoolVolumeTypeVM {
+			diskInst, err := instance.LoadByProjectAndName(d.state, d.inst.Project().Name, volumeName)
+			if err != nil {
+				return err
+			}
+
+			_, err = d.pool.MountInstance(diskInst, nil)
+			if err != nil {
+				return err
+			}
+		} else {
+			_, err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
+			if err != nil {
+				return fmt.Errorf(`Failed mounting storage volume "%s/%s": %w`, volumeTypeName, volumeName, err)
+			}
 		}
 	}
 
@@ -1636,12 +1648,26 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	instProj := d.inst.Project()
 	storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
 
-	mountInfo, err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
-	if err != nil {
-		return nil, "", nil, fmt.Errorf(`Failed mounting storage volume "%s/%s" from storage pool %q: %w`, volumeTypeName, volumeName, d.pool.Name(), err)
-	}
+	if dbVolumeType == cluster.StoragePoolVolumeTypeVM {
+		diskInst, err := instance.LoadByProjectAndName(d.state, d.inst.Project().Name, volumeName)
+		if err != nil {
+			return nil, "", nil, err
+		}
 
-	revert.Add(func() { _, _ = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
+		mountInfo, err = d.pool.MountInstance(diskInst, nil)
+		if err != nil {
+			return nil, "", nil, err
+		}
+
+		revert.Add(func() { _ = d.pool.UnmountInstance(diskInst, nil) })
+	} else {
+		mountInfo, err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
+		if err != nil {
+			return nil, "", nil, fmt.Errorf(`Failed mounting storage volume "%s/%s" from storage pool %q: %w`, volumeTypeName, volumeName, d.pool.Name(), err)
+		}
+
+		revert.Add(func() { _, _ = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
+	}
 
 	var dbVolume *db.StorageVolume
 	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
