@@ -226,21 +226,16 @@ func (d *dir) HasVolume(vol Volume) (bool, error) {
 }
 
 // FillVolumeConfig populate volume with default config.
-func (d *dir) FillVolumeConfig(vol Volume) error {
+func (d *dir) FillVolumeConfig(vol Volume) {
 	initialSize := vol.config["size"]
 
-	err := d.fillVolumeConfig(&vol)
-	if err != nil {
-		return err
-	}
+	d.fillVolumeConfig(&vol)
 
 	// Buckets do not support default volume size.
 	// If size is specified manually, do not remove, so it triggers validation failure and an error to user.
 	if vol.volType == VolumeTypeBucket && initialSize == "" {
 		delete(vol.config, "size")
 	}
-
-	return nil
 }
 
 // ValidateVolume validates the supplied volume config. Optionally removes invalid keys from the volume's config.
