@@ -108,23 +108,8 @@ EOF
   lxc restart --force c2
   lxc exec c2 -- stat -c '%a' /testvolume | grep 700
 
-  # check specifying volumes with source=custom/c1 syntax
-  lxc storage volume detach "${pool}" testvolume c1
-  lxc storage volume detach "${pool}" testvolume c2
-
-  lxc config device add c1 testvolume disk pool="${pool}" source=custom/testvolume path=/testvolume
-
-  lxc storage volume show "${pool}" testvolume | grep -q '/1.0/instances/c1'
-
-  # rename should preserve source=custom/testvolume syntax
-  lxc stop c1
-
-  lxc storage volume rename "${pool}" testvolume testvolume2
-
-  [ "$(lxc config device get c1 testvolume source)" = "custom/testvolume2" ]
-
   # delete containers
   lxc delete -f c1
   lxc delete -f c2
-  lxc storage volume delete "${pool}" testvolume2
+  lxc storage volume delete "${pool}" testvolume
 }
