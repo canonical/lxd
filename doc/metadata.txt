@@ -5966,9 +5966,7 @@ Supported values are `iscsi` and `nvme`.
 :defaultdesc: "the discovered mode"
 :shortdesc: "List of target addresses."
 :type: "string"
-A comma-separated list of target addresses. If empty, LXD discovers and
-connects to all available targets. Otherwise, it only connects to the
-specified addresses.
+A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
 ```
 
 ```{config:option} volume.size storage-pure-pool-conf

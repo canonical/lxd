@@ -6661,7 +6661,7 @@
 					{
 						"pure.target": {
 							"defaultdesc": "the discovered mode",
-							"longdesc": "A comma-separated list of target addresses. If empty, LXD discovers and\nconnects to all available targets. Otherwise, it only connects to the\nspecified addresses.",
+							"longdesc": "A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.",
 							"shortdesc": "List of target addresses.",
 							"type": "string"
 						}
