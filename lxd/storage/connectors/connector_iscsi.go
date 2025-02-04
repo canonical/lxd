@@ -50,7 +50,7 @@ func (c *connectorISCSI) Version() (string, error) {
 
 	fields := strings.Split(strings.TrimSpace(out), " ")
 	if strings.HasPrefix(out, "iscsiadm version ") && len(fields) > 2 {
-		version := fmt.Sprintf("%s (iscsiadm)", fields[2])
+		version := fields[2] + " (iscsiadm)"
 		return version, nil
 	}
 
