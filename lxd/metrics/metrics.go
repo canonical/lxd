@@ -99,20 +99,14 @@ func (m *MetricSet) String() string {
 	}
 
 	for _, metricType := range metricTypes {
-		// Add HELP message as specified by OpenMetrics
-		_, err := out.WriteString(MetricHeaders[metricType] + "\n")
-		if err != nil {
-			return ""
-		}
-
 		// ProcsTotal is a gauge according to the OpenMetrics spec as its value can decrease.
 		metricTypeName := "counter"
 		if shared.ValueInSlice(metricType, gaugeMetrics) || strings.HasSuffix(MetricNames[metricType], "_bytes") {
 			metricTypeName = "gauge"
 		}
 
-		// Add TYPE message as specified by OpenMetrics
-		_, err = out.WriteString("# TYPE " + MetricNames[metricType] + " " + metricTypeName + "\n")
+		// Add HELP and TYPE messages as specified by OpenMetrics
+		_, err := out.WriteString(MetricHeaders[metricType] + "\n# TYPE " + MetricNames[metricType] + " " + metricTypeName + "\n")
 		if err != nil {
 			return ""
 		}
