@@ -250,10 +250,14 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 }
 
 // GetNewVolume returns a drivers.Volume that doesn't yet exist in the database.
-// It contains copies of the supplied volume config, including a new UUID, and the pools config.
+// It contains copies of the supplied volume config, including a new UUID and
+// default configuration for the poo driver, as well as the pool's config.
 // Use the returned drivers.Volume as the base for actions performed on the new volume.
 func (b *lxdBackend) GetNewVolume(volType drivers.VolumeType, contentType drivers.ContentType, volName string, volConfig map[string]string) drivers.Volume {
 	newVol := b.GetVolume(volType, contentType, volName, volConfig)
+
+	// Fill default config.
+	b.Driver().FillVolumeConfig(newVol)
 
 	// Set a new UUID.
 	newVol.Config()["volatile.uuid"] = uuid.New().String()
