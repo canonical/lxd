@@ -1467,6 +1467,13 @@ func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook
 		return "", nil, err
 	}
 
+	// Ensure the serial number is exactly 24 characters long, as it uniquely
+	// identifies the device. This check should never succeed, but prevents
+	// out-of-bounds errors when slicing the string later.
+	if len(pureVol.Serial) != 24 {
+		return "", nil, fmt.Errorf("Failed to locate device for volume %q: Unexpected length of serial number %q (%d)", vol.name, pureVol.Serial, len(pureVol.Serial))
+	}
+
 	var diskPrefix string
 	var diskSuffix string
 
@@ -1477,16 +1484,12 @@ func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook
 	case connectors.TypeNVME:
 		diskPrefix = "nvme-eui."
 
-		// The serial number is used to identify the device. The last 10 characters
-		// of the serial number appear as a disk device suffix. This check ensures
-		// we do not panic if the reported serial number is too short for parsing.
-		if len(pureVol.Serial) <= 10 {
-			// Serial number is too short.
-			return "", nil, fmt.Errorf("Failed to locate device for volume %q: Invalid serial number %q", vol.name, pureVol.Serial)
-		}
-
-		// Extract the last 10 characters of the serial number.
-		diskSuffix = pureVol.Serial[len(pureVol.Serial)-10:]
+		// The disk device ID (e.g. "008726b5033af24324a9373d00014196") is constructed as:
+		// - "00"             - Padding
+		// - "8726b5033af243" - First 14 characters of serial number
+		// - "24a937"         - OUI (Organizationally Unique Identifier)
+		// - "3d00014196"     - Last 10 characters of serail number
+		diskSuffix = "00" + pureVol.Serial[0:14] + "24a937" + pureVol.Serial[14:]
 	default:
 		return "", nil, fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
 	}

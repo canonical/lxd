@@ -1286,7 +1286,7 @@ func (d *pure) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 		return err
 	}
 
-	// Ensure temporary snapshot volume is remooved in case of an error.
+	// Ensure temporary snapshot volume is removed in case of an error.
 	revert.Add(func() { _ = d.client().deleteVolume(snapVol.pool, snapVolName) })
 
 	// For VMs, also create the temporary filesystem volume snapshot.
