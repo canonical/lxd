@@ -843,7 +843,7 @@ func (n *common) projectUplinkIPQuotaAvailable(ctx context.Context, tx *db.Clust
 	var ipv6QuotaMet bool
 
 	// If limit-1 is exceeded, than that means we have no quota available.
-	ipv4QuotaMet, ipv6QuotaMet, err = limits.UplinkAddressQuotasExceeded(ctx, tx, p.Name, uplinkName, ipv4AddressLimit-1, ipv6AddressLimit-1)
+	ipv4QuotaMet, ipv6QuotaMet, err = limits.UplinkAddressQuotasExceeded(ctx, tx, p.Name, uplinkName, ipv4AddressLimit-1, ipv6AddressLimit-1, nil)
 	if err != nil {
 		return false, false, err
 	}

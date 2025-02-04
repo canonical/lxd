@@ -4613,7 +4613,7 @@
 					{
 						"limits.networks.uplink_ips.ipv6.NETWORK_NAME": {
 							"longdesc": "Maximum number of IPv6 addresses that this project can consume from the specified uplink network.\nThis number of IPs can be consumed by networks, forwards and load balancers in this project.\n",
-							"shortdesc": "Quota of IPv4 addresses from a specified uplink network that can be used by entities in this project",
+							"shortdesc": "Quota of IPv6 addresses from a specified uplink network that can be used by entities in this project",
 							"type": "string"
 						}
 					},
