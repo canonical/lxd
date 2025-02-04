@@ -105,7 +105,7 @@ func (m *MetricSet) String() string {
 			return ""
 		}
 
-		metricTypeName := ""
+		metricTypeName := "counter"
 
 		// ProcsTotal is a gauge according to the OpenMetrics spec as its value can decrease.
 		if shared.ValueInSlice(metricType, gaugeMetrics) {
