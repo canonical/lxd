@@ -97,8 +97,7 @@ func (c *connectorISCSI) QualifiedName() (string, error) {
 
 // discoverTargets discovers the available iSCSI targets on a given address.
 func (c *connectorISCSI) discoverTargets(ctx context.Context, targetAddr string) error {
-	// Discover the available iSCSI targets on a given address.
-	_, _, err := shared.RunCommandSplit(ctx, nil, nil, "iscsiadm", "--mode", "discovery", "--type", "sendtargets", "--portal", targetAddr)
+	_, err := shared.RunCommandContext(ctx, "iscsiadm", "--mode", "discovery", "--type", "sendtargets", "--portal", targetAddr)
 	if err != nil {
 		return fmt.Errorf("Failed to discover available iSCSI targets on %q: %w", targetAddr, err)
 	}
