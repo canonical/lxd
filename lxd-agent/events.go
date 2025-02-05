@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -161,8 +162,16 @@ func eventsProcess(event api.Event) {
 
 	_ = os.MkdirAll(e.Config["path"], 0755)
 
+	// Parse mount options, if provided.
+	var args []string
+	if len(e.Mount.Options) > 0 {
+		args = append(args, "-o", strings.Join(e.Mount.Options, ","))
+	}
+
+	args = append(args, "-t", "virtiofs", mntSource, e.Config["path"])
+
 	for i := 0; i < 5; i++ {
-		_, err = shared.RunCommand("mount", "-t", "virtiofs", mntSource, e.Config["path"])
+		_, err = shared.RunCommandContext(context.Background(), "mount", args...)
 		if err == nil {
 			l.Info("Mounted hotplug")
 			return
