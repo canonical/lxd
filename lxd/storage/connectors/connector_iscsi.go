@@ -126,7 +126,7 @@ func (c *connectorISCSI) Connect(ctx context.Context, targetQN string, targetAdd
 		}
 
 		// Attempt to login into iSCSI target.
-		_, stderr, err := shared.RunCommandSplit(ctx, nil, nil, "iscsiadm", "--mode", "node", "--targetname", targetQN, "--portal", targetAddr, "--login")
+		_, err = shared.RunCommandContext(ctx, "iscsiadm", "--mode", "node", "--targetname", targetQN, "--portal", targetAddr, "--login")
 		if err != nil {
 			exitCode, _ := shared.ExitStatus(err)
 			if exitCode == iscsiErrCodeSessionExists {
@@ -136,10 +136,6 @@ func (c *connectorISCSI) Connect(ctx context.Context, targetQN string, targetAdd
 			}
 
 			return fmt.Errorf("Failed to connect to target %q on %q via iSCSI: %w", targetQN, targetAddr, err)
-		}
-
-		if stderr != "" {
-			return fmt.Errorf("Failed to connect to target %q on %q via iSCSI: %s", targetQN, targetAddr, stderr)
 		}
 
 		return nil
