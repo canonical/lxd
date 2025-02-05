@@ -10,6 +10,7 @@ The following how-to guides cover common operations related to the LXD server:
 
 :diataxis:Expose LXD to the network </howto/server_expose>
 :diataxis:Configure the LXD server </howto/server_configure>
+:diataxis:Configure OIDC authentication with Microsoft Entra ID </howto/oidc_entra_id>
 ```
 
 ```{only} diataxis
