@@ -6447,8 +6447,7 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 	for _, poolVolSnap := range poolVol.VolumeSnapshots {
 		fullSnapName := drivers.GetSnapshotVolumeName(poolVol.Volume.Name, poolVolSnap.Name)
 
-		// Copy volume config from backup file if present
-		// (so VolumeDBCreate can safely modify the copy if needed).
+		// Create new volume object to get a proper configuration for the driver in use.
 		snapVol := b.GetNewVolume(drivers.VolumeTypeCustom, drivers.ContentType(poolVolSnap.ContentType), fullSnapName, poolVolSnap.Config)
 
 		// Validate config and create database entry for restored storage volume.
@@ -6556,7 +6555,6 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	}
 
 	// Validate config and create database entry for new storage volume.
-	// Copy volume config from parent.
 	err = VolumeDBCreate(b, projectName, fullSnapshotName, description, drivers.VolumeTypeCustom, true, vol.Config(), time.Now().UTC(), newExpiryDate, drivers.ContentType(parentVol.ContentType), false, true)
 	if err != nil {
 		return err
@@ -7455,7 +7453,6 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 	// Generate the effective root device volume for instance.
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
-	// Copy the volume's config so VolumeDBCreate can safely modify the copy if needed.
 	vol := b.GetNewVolume(volType, contentType, volStorageName, volumeConfig)
 
 	// Create storage volume database records if in recover mode.
@@ -7481,8 +7478,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 			for _, poolVolSnap := range poolVol.VolumeSnapshots {
 				fullSnapName := drivers.GetSnapshotVolumeName(inst.Name(), poolVolSnap.Name)
 
-				// Copy volume config from backup file if present,
-				// so VolumeDBCreate can safely modify the copy if needed.
+				// Create new volume object to get a proper configuration for the driver in use.
 				snapVol := b.GetNewVolume(volType, contentType, fullSnapName, poolVolSnap.Config)
 
 				// Validate config and create database entry for recovered storage volume.
@@ -7503,8 +7499,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 			for _, i := range snapshots {
 				fullSnapName := i // Local var for revert.
 
-				// Copy the parent volume's config,
-				// so VolumeDBCreate can safely modify the copy if needed.
+				// Create new volume object to get a proper configuration for the driver in use.
 				snapVol := b.GetNewVolume(volType, contentType, fullSnapName, volumeConfig)
 
 				// Validate config and create database entry for new storage volume.
