@@ -100,3 +100,9 @@ With this configuration, LXD instructs CRIU to perform a series of memory dumps 
 After each dump, LXD sends the memory dump to the specified remote.
 In an ideal scenario, each memory dump will decrease the delta to the previous memory dump, thereby increasing the percentage of memory that is already synced.
 When the percentage of synced memory is equal to or greater than the threshold specified via {config:option}`instance-migration:migration.incremental.memory.goal`, or the maximum number of allowed iterations specified via {config:option}`instance-migration:migration.incremental.memory.iterations` is reached, LXD instructs CRIU to perform a final memory dump and transfers it.
+
+## Temporarily move all instances from a cluster member
+
+For LXD servers that are members of a cluster, you can use the evacuate and restore operations to temporarily move all instances from one cluster member to another. These operations can live-migrate eligible instances.
+
+For more information, see: {ref}`cluster-evacuate-restore`.
