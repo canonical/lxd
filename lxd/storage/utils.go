@@ -661,7 +661,19 @@ func validatePoolCommonRules() map[string]func(string) error {
 func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error {
 	rules := poolAndVolumeCommonRules(&vol)
 
-	// volatile.idmap settings only make sense for filesystem volumes.
+	// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=volatile.idmap.last)
+	//
+	// ---
+	//   type: string
+	//   shortdesc: JSON-serialized UID/GID map that has been applied to the volume
+	//   condition: filesystem
+
+	// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=volatile.idmap.next)
+	//
+	// ---
+	//   type: string
+	//   shortdesc: JSON-serialized UID/GID map that has been applied to the volume
+	//   condition: filesystem
 	if vol.ContentType() == drivers.ContentTypeFS {
 		rules["volatile.idmap.last"] = validate.IsAny
 		rules["volatile.idmap.next"] = validate.IsAny

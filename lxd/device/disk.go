@@ -875,7 +875,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			ownerShift = deviceConfig.MountOwnerShiftDynamic
 		}
 
-		// If ownerShift is none and pool is specified then check whether the pool itself
+		// If ownerShift is none and pool is specified then check whether the volume
 		// has owner shifting enabled, and if so enable shifting on this device too.
 		if ownerShift == deviceConfig.MountOwnerShiftNone && d.config["pool"] != "" {
 			volumeName, _, dbVolumeType, _, err := d.sourceVolumeFields()
@@ -883,7 +883,6 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 				return nil, err
 			}
 
-			// Only custom volumes can be attached currently.
 			instProj := d.inst.Project()
 			storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
 
@@ -897,7 +896,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			}
 
 			if shared.IsTrue(dbVolume.Config["security.shifted"]) {
-				ownerShift = "dynamic"
+				ownerShift = deviceConfig.MountOwnerShiftDynamic
 			}
 		}
 
@@ -1620,21 +1619,19 @@ func (w *cgroupWriter) Set(version cgroup.Backend, controller string, key string
 	return nil
 }
 
-// mountPoolVolume mounts the pool volume specified in d.config["source"] from pool specified in d.config["pool"]
-// and return the mount path and MountInfo struct. If the instance type is container volume will be shifted if needed.
+// mountPoolVolume mounts storage volumes created via the storage api. Config keys:
+//   - d.config["pool"] : pool name
+//   - d.config["source"] : volume name
+//   - d.config["source-type"] : volume type
+//
+// Returns the mount path and MountInfo struct. If d.inst type is container the
+// volume will be shifted if needed.
 func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
 	var mountInfo *storagePools.MountInfo
 
-	// Deal with mounting storage volumes created via the storage api. Extract the name of the storage volume
-	// that we are supposed to attach. We assume that the only syntactically valid ways of specifying a
-	// storage volume are:
-	// - <volume_name>
-	// - <type>/<volume_name>
-	// Currently, <type> must either be empty or "custom".
-	// We do not yet support instance mounts.
 	if filepath.IsAbs(d.config["source"]) {
 		return nil, "", nil, fmt.Errorf(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
 	}
@@ -1644,7 +1641,6 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		return nil, "", nil, err
 	}
 
-	// Only custom volumes can be attached currently.
 	instProj := d.inst.Project()
 	storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
 
@@ -1930,6 +1926,15 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 		}
 	}
 
+	// Only custom volumes can use security.shifted.
+	// Custom volumes are not shifted by default, so the on-disk IDs will be the
+	// unprivileged IDs (100000, etc) when security.shifted is false.
+	// If security.shifted is true, it means that the user will mount the volume
+	// in more than one container. In order to allow the two containers to have
+	// different idmaps (see security.idmap.isolated), the on-disk IDs need to
+	// be mapped to the host IDs so that both idmapped mounts map the IDs the
+	// way the user expects.
+	// Therefore, when security.shifted is false/unset, nextIdmap is nil.
 	var nextIdmap *idmap.IdmapSet
 	nextJSONMap := "[]"
 	if shared.IsFalseOrEmpty(poolVolumePut.Config["security.shifted"]) {
