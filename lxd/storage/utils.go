@@ -2,7 +2,9 @@ package storage
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -235,6 +237,18 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volume dri
 
 	// Set source indicator.
 	vol.SetHasSource(hasSource)
+
+	bytes, _ := json.Marshal(vol.Config()) // Convert map to JSON
+	old := sha256.Sum256(bytes)
+
+	pool.Driver().FillVolumeConfig(vol)
+
+	bytes, _ = json.Marshal(vol.Config()) // Convert map to JSON
+	newHash := sha256.Sum256(bytes)
+
+	if old != newHash {
+		return errors.New("Volume fill not previously performed")
+	}
 
 	// Validate config.
 	err = pool.Driver().ValidateVolume(vol, removeUnknownKeys)

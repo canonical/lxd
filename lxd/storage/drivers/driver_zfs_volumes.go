@@ -2570,6 +2570,7 @@ func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs 
 
 	// If we haven't negotiated zvol support, ensure volume is not a zvol.
 	if !shared.ValueInSlice(migration.ZFSFeatureZvolFilesystems, volSrcArgs.MigrationType.Features) && d.isBlockBacked(vol.Volume) {
+		fmt.Println(shared.ValueInSlice(migration.ZFSFeatureZvolFilesystems, volSrcArgs.MigrationType.Features), d.isBlockBacked(vol.Volume))
 		return fmt.Errorf("Filesystem zvol detected in source but target does not support receiving zvols")
 	}
 
