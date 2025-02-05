@@ -1,0 +1,35 @@
+commit 9d5f77121a2f2469ba3a9f473ee2a00ecf97c059 (HEAD)
+Author: Simon Deziel <simon.deziel@canonical.com>
+Date:   2025-02-05 17:56:48 -0500
+
+    Revert "ArmVirtPkg: make EFI_LOADER_DATA non-executable"
+    
+    This reverts commit 2997ae38739756ecba9b0de19e86032ebc689ef9.
+
+diff --git a/ArmVirtPkg/ArmVirt.dsc.inc b/ArmVirtPkg/ArmVirt.dsc.inc
+index fe6488ee99..c0f69a26c2 100644
+--- a/ArmVirtPkg/ArmVirt.dsc.inc
++++ b/ArmVirtPkg/ArmVirt.dsc.inc
+@@ -368,21 +368,21 @@
+   # Enable strict image permissions for all images. (This applies
+   # only to images that were built with >= 4 KB section alignment.)
+   #
+   gEfiMdeModulePkgTokenSpaceGuid.PcdImageProtectionPolicy|0x3
+ 
+   #
+   # Enable NX memory protection for all non-code regions, including OEM and OS
+   # reserved ones, with the exception of LoaderData regions, of which OS loaders
+   # (i.e., GRUB) may assume that its contents are executable.
+   #
+-  gEfiMdeModulePkgTokenSpaceGuid.PcdDxeNxMemoryProtectionPolicy|0xC000000000007FD5
++  gEfiMdeModulePkgTokenSpaceGuid.PcdDxeNxMemoryProtectionPolicy|0xC000000000007FD1
+ 
+   gEfiMdeModulePkgTokenSpaceGuid.PcdCpuStackGuard|TRUE
+ 
+ [Components.common]
+   #
+   # Ramdisk support
+   #
+   MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
+ 
+   ShellPkg/DynamicCommand/TftpDynamicCommand/TftpDynamicCommand.inf {
