@@ -915,9 +915,12 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 
 			newSnapshotName := drivers.GetSnapshotVolumeName(inst.Name(), backupFileSnap)
 
+			// Ensure driver specific config is filled in new volume.
+			snapVol := b.GetNewVolume(volType, contentType, newSnapshotName, volumeSnapConfig)
+
 			// Validate config and create database entry for new storage volume.
 			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, volumeSnapDescription, volType, true, volumeSnapConfig, volumeSnapCreationDate, volumeSnapExpiryDate, contentType, true, true)
+			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, volumeSnapDescription, volType, true, snapVol.Config(), volumeSnapCreationDate, volumeSnapExpiryDate, contentType, true, true)
 			if err != nil {
 				return err
 			}
