@@ -2484,7 +2484,6 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 
 	// Ensure storage volume settings are honored when doing conversion.
 	vol.SetHasSource(false)
-	b.driver.FillVolumeConfig(vol)
 
 	// Check if the volume exists in database
 	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
