@@ -50,6 +50,15 @@ fi
 # Workaround for systemd nuking our cgroups on refreshes
 nsenter -t 1 -m systemd-run -u snap."${SNAP_INSTANCE_NAME}".workaround -p Delegate=yes -r /bin/true >/dev/null 2>&1 || true
 
+# Workaround to ensure LXD is stopped before MicroCeph/MicroOVN
+SYSTEMD_OVERRIDE_DIR="/run/systemd/system/snap.lxd.daemon.service.d"
+if [ ! -e "${SYSTEMD_OVERRIDE_DIR}/lxd-shutdown.conf" ]; then
+    mkdir -p "${SYSTEMD_OVERRIDE_DIR}"
+    echo "[Unit]
+After=snap.microceph.daemon.service snap.microovn.daemon.service" > "${SYSTEMD_OVERRIDE_DIR}/lxd-shutdown.conf"
+    nsenter -t 1 -m systemctl daemon-reload
+fi
+
 # Cleanup last state
 true > "${SNAP_COMMON}/state"
 
