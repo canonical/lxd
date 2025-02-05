@@ -29,9 +29,9 @@ The difference is that network forwards are applied on a network level, while a 
 In addition, proxy devices can be used to proxy traffic between different connection types (for example, TCP and Unix sockets).
 ```
 
-## View network forwards
+## List network forwards
 
-View a list of forwards configured on a network:
+View a list of all forwards configured on a network:
 
 ```
 lxc network forward list <network_name>
@@ -43,9 +43,14 @@ Example:
 lxc network forward list lxdbr0
 ```
 
-## View a network forward
+```{note}
+This list displays the listen address of the network forward and its default target address, if set. To view the target addresses for a network forward's ports {ref}`set in its port specifications <network-forwards-port-specifications>`, you can {ref}`show details about the network forward <network-forward-show>` or {ref}`edit the network forward <network-forward-edit>`.
+```
 
-View information about a specific network forward:
+(network-forward-show)=
+## Show a network forward
+
+Show details about a specific network forward:
 
 ```
 lxc network forward show <network_name> <listen_address>
@@ -199,6 +204,7 @@ Network forward ports have the following properties:
     :end-before: <!-- config group network-forward-port-properties end -->
 ```
 
+(network-forward-edit)=
 ## Edit a network forward
 
 Use the following command to edit a network forward:
