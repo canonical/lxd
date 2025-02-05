@@ -435,7 +435,7 @@ func sitePost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		// Site addresses are stored as a string containing a comma separated list.
+		// Site addresses are stored as a string containing a comma-separated list.
 		siteAddresses := strings.Join(joinToken.Addresses, ",")
 
 		// Update DB entry for site.
