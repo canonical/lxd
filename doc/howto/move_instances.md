@@ -53,28 +53,32 @@ If you need to adapt the configuration for the instance to run on the target ser
 (live-migration)=
 ## Live migration
 
-Live migration means migrating an instance while it is running.
-This method is supported for virtual machines.
-For containers, there is limited support.
+Live migration means moving an instance to another server while it is running. This method is supported for virtual machines. For containers, there is limited support.
 
 (live-migration-vms)=
 ### Live migration for virtual machines
 
-Virtual machines can be moved to another server while they are running, thus without any downtime.
+Virtual machines can be moved to another server while they are running, thus avoiding any downtime.
 
-To allow for live migration, you must enable support for stateful migration.
-To do so, ensure the following configuration:
+For a virtual machine to be eligible for live migration, it must meet the following criteria:
 
-* Set {config:option}`instance-migration:migration.stateful` to `true` on the instance.
-* Set {config:option}`device-disk-device-conf:size.state` of the virtual machine's root disk device to at least the size of the virtual machine's {config:option}`instance-resource-limits:limits.memory` setting.
+- It must have support for stateful migration enabled. To enable this, set {config:option}`instance-migration:migration.stateful` to `true` on the virtual machine. This setting can only be updated when the machine is stopped. Thus, be sure to configure this setting before you need to live-migrate:
 
-```{note}
-If you are using a shared storage pool like Ceph RBD to back your instance, you don't need to set {config:option}`device-disk-device-conf:size.state` to perform live migration.
-```
+  ```
+  lxc config set <instance-name> migration.stateful=true
+  ```
 
-```{note}
-When {config:option}`instance-migration:migration.stateful` is enabled in LXD, virtiofs shares are disabled, and files are only shared via the 9P protocol. Consequently, guest OSes lacking 9P support, such as CentOS 8, cannot share files with the host unless stateful migration is disabled. Additionally, the `lxd-agent` will not function for these guests under these conditions.
-```
+  ```{note}
+  When {config:option}`instance-migration:migration.stateful` is enabled in LXD, virtiofs shares are disabled, and files are only shared via the 9P protocol. Consequently, guest OSes lacking 9P support, such as CentOS 8, cannot share files with the host unless stateful migration is disabled. Additionally, the `lxd-agent` will not function for these guests under these conditions.
+  ```
+
+- When using a local pool, the {config:option}`device-disk-device-conf:size.state` of the virtual machine's root disk device must be set to at least the size of the virtual machine's {config:option}`instance-resource-limits:limits.memory` setting.
+
+  ```{note}
+  If you are using a remote storage pool like Ceph RBD to back your instance, you don't need to set {config:option}`device-disk-device-conf:size.state` to perform live migration.
+  ```
+
+- The virtual machine must not depend on any resources specific to its current host, such as local storage or a local (non-OVN) bridge network.
 
 (live-migration-containers)=
 ### Live migration for containers
