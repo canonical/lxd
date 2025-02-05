@@ -1392,6 +1392,8 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.networks.subnets)
 		// Specify a comma-delimited list of CIDR network routes from the uplink network's {config:option}`network-physical-network-conf:ipv4.routes` {config:option}`network-physical-network-conf:ipv6.routes` that are allowed for use in this project.
 		// Use the form `<uplink>:<subnet>`.
+		//
+		// Example value: `lxdbr0:192.0.168.0/24,lxdbr0:10.1.19.5/32`
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
