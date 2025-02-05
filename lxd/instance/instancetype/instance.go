@@ -1137,6 +1137,21 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		}
 	}
 
+	// lxdmeta:generate(entities=instance; group=cloud-init; key=cloud-init.ssh-keys.KEYNAME)
+	// Represents an additional SSH public key to be merged into existing `cloud-init` seed data
+	// and injected into an instance. Has the format `{user}:{key}`, where {user} is a Linux username and
+	// {key} can be either a pure SSH public key or an import ID for a key hosted elsewhere.
+	// // For example: `root:gh:githubUser`, `myUser:ssh-keyAlg publicKeyHash`
+	// ---
+	//  type: string
+	//  liveupdate: no
+	//  condition: If supported by image
+	//  shortdesc: Additional SSH key to be injected on the instance by `cloud-init`
+	sshKeyName := strings.TrimPrefix(key, "cloud-init.ssh-keys.")
+	if sshKeyName != key && sshKeyName != "" {
+		return validate.Optional(validate.IsUserSSHKey), nil
+	}
+
 	if strings.HasPrefix(key, ConfigVolatilePrefix) {
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.hwaddr)
 		// The original MAC that was used when moving a physical device into an instance.
