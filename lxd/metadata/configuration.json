@@ -4825,7 +4825,7 @@
 					{
 						"restricted.networks.subnets": {
 							"defaultdesc": "`block`",
-							"longdesc": "Specify a comma-delimited list of CIDR network routes from the uplink network's {config:option}`network-physical-network-conf:ipv4.routes` {config:option}`network-physical-network-conf:ipv6.routes` that are allowed for use in this project.\nUse the form `\u003cuplink\u003e:\u003csubnet\u003e`.",
+							"longdesc": "Specify a comma-delimited list of CIDR network routes from the uplink network's {config:option}`network-physical-network-conf:ipv4.routes` {config:option}`network-physical-network-conf:ipv6.routes` that are allowed for use in this project.\nUse the form `\u003cuplink\u003e:\u003csubnet\u003e`.\n\nExample value: `lxdbr0:192.0.168.0/24,lxdbr0:10.1.19.5/32`",
 							"shortdesc": "Which network subnets are allocated for use in this project",
 							"type": "string"
 						}
