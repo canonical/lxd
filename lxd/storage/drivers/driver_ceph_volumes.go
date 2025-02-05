@@ -2162,7 +2162,7 @@ func (d *ceph) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, 
 		return nil, err
 	}
 
-	var ret []string
+	ret := make([]string, 0, len(snapshots))
 
 	for _, snap := range snapshots {
 		// Ignore zombie snapshots as these are only used internally and
