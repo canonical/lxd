@@ -14,27 +14,30 @@ Therefore, there is no direct equivalent for moving instances in the API or the 
 However, you can {ref}`export an instance <instances-backup-export-instance>` from one server and {ref}`import it <instances-backup-import-instance>` to another server.
 ```
 
+## Move instances
+
 To move an instance from one LXD server to another, use the [`lxc move`](lxc_move.md) command:
 
     lxc move [<source_remote>:]<source_instance_name> <target_remote>:[<target_instance_name>]
 
-```{note}
 When moving a container, you must stop it first.
 See {ref}`live-migration-containers` for more information.
 
 When moving a virtual machine, you must either enable {ref}`live-migration-vms` or stop it first.
-```
 
-Alternatively, you can use the [`lxc copy`](lxc_copy.md) command if you want to duplicate the instance:
+## Copy instances
+
+Use the [`lxc copy`](lxc_copy.md) command if you want to duplicate the instance instead of moving it:
 
     lxc copy [<source_remote>:]<source_instance_name> <target_remote>:[<target_instance_name>]
 
-```{tip}
-If the volume already exists in the target location, use the `--refresh` flag to update the copy (see {ref}`storage-optimized-volume-transfer` for the benefits).
-```
+If the volume already exists in the target location, use the `--refresh` flag to update the copy. To learn about the benefits, see: {ref}`storage-optimized-volume-transfer`.
 
-In both cases, you don't need to specify the source remote if it is your default remote, and you can leave out the target instance name if you want to use the same instance name.
-If you want to move the instance to a specific cluster member, specify it with the `--target` flag.
+## Move and copy options
+
+For both moving and copying instances, you don't need to specify the source remote if it is your default remote, and you can leave out the target instance name if you want to use the same instance name on the target remote server.
+
+If you want to move the instance to a specific cluster member, specify that member's name with the `--target` flag.
 In this case, do not specify the source and target remote.
 
 You can add the `--mode` flag to choose a transfer mode, depending on your network setup:
@@ -103,6 +106,6 @@ When the percentage of synced memory is equal to or greater than the threshold s
 
 ## Temporarily move all instances from a cluster member
 
-For LXD servers that are members of a cluster, you can use the evacuate and restore operations to temporarily move all instances from one cluster member to another. These operations can live-migrate eligible instances.
+For LXD servers that are members of a cluster, you can use the evacuate and restore operations to temporarily move all instances from one cluster member to another. These operations can also live-migrate eligible instances.
 
 For more information, see: {ref}`cluster-evacuate-restore`.
