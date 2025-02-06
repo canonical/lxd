@@ -638,11 +638,14 @@ func (n *ovn) Validate(config map[string]string) error {
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get uplink routes.
 		_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkNetworkName)
+		if err != nil {
+			return fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
+		}
 
-		return err
+		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
+		return err
 	}
 
 	uplinkRoutes, err := n.uplinkRoutes(uplink)
