@@ -612,7 +612,8 @@ func (n *ovn) Validate(config map[string]string) error {
 
 	// Load the project to get uplink network restrictions.
 	var p *api.Project
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+
+	err = n.state.DB.Cluster.Transaction(n.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
 		if err != nil {
 			return err
