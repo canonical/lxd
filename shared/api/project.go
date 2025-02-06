@@ -14,6 +14,14 @@ type ProjectsPost struct {
 	// The name of the new project
 	// Example: foo
 	Name string `json:"name" yaml:"name"`
+
+	// Add a root disk device using the specified storage pool to the default profile
+	// Example: default
+	StoragePool string `json:"storage" yaml:"storage"`
+
+	// Add a network device connected to the specified network to the default profile
+	// Example: lxdbr0
+	Network string `json:"network" yaml:"network"`
 }
 
 // ProjectPost represents the fields required to rename a LXD project
