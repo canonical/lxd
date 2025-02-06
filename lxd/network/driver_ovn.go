@@ -610,8 +610,9 @@ func (n *ovn) Validate(config map[string]string) error {
 		}
 	}
 
-	// Load the project to get uplink network restrictions.
+	// Load the project and uplink network to validate restrictions.
 	var p *api.Project
+	var uplink *api.Network
 
 	err = n.state.DB.Cluster.Transaction(n.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
@@ -620,23 +621,17 @@ func (n *ovn) Validate(config map[string]string) error {
 		}
 
 		p, err = project.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
 
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
-	}
+		// Check uplink network is valid and allowed in project.
+		uplinkNetworkName, err := n.validateUplinkNetwork(ctx, tx, p, config["network"])
+		if err != nil {
+			return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
+		}
 
-	// Check uplink network is valid and allowed in project.
-	uplinkNetworkName, err := n.validateUplinkNetwork(p, config["network"])
-	if err != nil {
-		return err
-	}
-
-	var uplink *api.Network
-
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Get uplink routes.
+		// Get uplink network for routes.
 		_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkNetworkName)
 		if err != nil {
 			return fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
@@ -648,13 +643,14 @@ func (n *ovn) Validate(config map[string]string) error {
 		return err
 	}
 
+	// Get uplink routes.
 	uplinkRoutes, err := n.uplinkRoutes(uplink)
 	if err != nil {
 		return err
 	}
 
 	// Get project restricted routes.
-	projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, uplinkNetworkName)
+	projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, uplink.Name)
 	if err != nil {
 		return err
 	}
@@ -2056,8 +2052,8 @@ func (n *ovn) Create(clientType request.ClientType) error {
 // validateUplinkNetwork checks if uplink network is allowed, and if empty string is supplied then tries to select
 // an uplink network from the allowedUplinkNetworks() list if there is only one allowed network.
 // Returns chosen uplink network name to use.
-func (n *ovn) validateUplinkNetwork(p *api.Project, uplinkNetworkName string) (string, error) {
-	allowedUplinkNetworks, err := AllowedUplinkNetworks(n.state, p.Config)
+func (n *ovn) validateUplinkNetwork(ctx context.Context, tx *db.ClusterTx, p *api.Project, uplinkNetworkName string) (string, error) {
+	allowedUplinkNetworks, err := AllowedUplinkNetworks(ctx, tx, p.Config)
 	if err != nil {
 		return "", err
 	}
@@ -2134,6 +2130,8 @@ func (n *ovn) setup(update bool) error {
 	// Load the project to get uplink network restrictions.
 	var p *api.Project
 	var projectID int64
+	var uplinkNetwork string
+
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
 		if err != nil {
@@ -2143,15 +2141,18 @@ func (n *ovn) setup(update bool) error {
 		projectID = int64(project.ID)
 
 		p, err = project.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
 
-		return err
+		// Check project restrictions and get uplink network to use.
+		uplinkNetwork, err = n.validateUplinkNetwork(ctx, tx, p, n.config["network"])
+		if err != nil {
+			return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
+		}
+
+		return nil
 	})
-	if err != nil {
-		return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
-	}
-
-	// Check project restrictions and get uplink network to use.
-	uplinkNetwork, err := n.validateUplinkNetwork(p, n.config["network"])
 	if err != nil {
 		return err
 	}
