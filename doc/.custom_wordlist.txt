@@ -66,6 +66,7 @@ ECDSA
 EiB
 Eibit
 endian
+Entra
 EOL
 ES
 ESA
@@ -114,6 +115,7 @@ IPs
 IPv
 IPVLAN
 JIT
+JWT
 jq
 kB
 kbit
