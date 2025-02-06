@@ -613,6 +613,8 @@ func (n *ovn) Validate(config map[string]string) error {
 	// Load the project and uplink network to validate restrictions.
 	var p *api.Project
 	var uplink *api.Network
+	var forwards map[int64]*api.NetworkForward
+	var loadBalancers map[int64]*api.NetworkLoadBalancer
 
 	err = n.state.DB.Cluster.Transaction(n.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
@@ -635,6 +637,20 @@ func (n *ovn) Validate(config map[string]string) error {
 		_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkNetworkName)
 		if err != nil {
 			return fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
+		}
+
+		memberSpecific := false // OVN doesn't support per-member forwards or load-balancers.
+
+		// Get network forwards for validation later.
+		forwards, err = tx.GetNetworkForwards(ctx, n.ID(), memberSpecific)
+		if err != nil {
+			return fmt.Errorf("Failed loading network forwards: %w", err)
+		}
+
+		// Get network load-balancers for validation later.
+		loadBalancers, err = tx.GetNetworkLoadBalancers(ctx, n.ID(), memberSpecific)
+		if err != nil {
+			return fmt.Errorf("Failed loading network load balancers: %w", err)
 		}
 
 		return nil
@@ -783,19 +799,6 @@ func (n *ovn) Validate(config map[string]string) error {
 	}
 
 	// Check any existing network forward target addresses are suitable for this network's subnet.
-	memberSpecific := false // OVN doesn't support per-member forwards.
-
-	var forwards map[int64]*api.NetworkForward
-
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		forwards, err = tx.GetNetworkForwards(ctx, n.ID(), memberSpecific)
-
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("Failed loading network forwards: %w", err)
-	}
-
 	for _, forward := range forwards {
 		if forward.Config["target_address"] != "" {
 			defaultTargetIP := net.ParseIP(forward.Config["target_address"])
@@ -824,18 +827,7 @@ func (n *ovn) Validate(config map[string]string) error {
 		}
 	}
 
-	var loadBalancers map[int64]*api.NetworkLoadBalancer
-
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Check any existing network load balancer backend addresses are suitable for this network's subnet.
-		loadBalancers, err = tx.GetNetworkLoadBalancers(ctx, n.ID(), memberSpecific)
-
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("Failed loading network load balancers: %w", err)
-	}
-
+	// Check any existing network load balancer backend addresses are suitable for this network's subnet.
 	for _, loadBalancer := range loadBalancers {
 		for _, port := range loadBalancer.Backends {
 			targetIP := net.ParseIP(port.TargetAddress)
