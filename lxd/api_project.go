@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -29,6 +30,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -311,7 +313,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the configuration.
-	err = projectValidateConfig(s, project.Config)
+	err = projectValidateConfig(s, project.Config, project.Network)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -329,7 +331,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if shared.IsTrue(project.Config["features.profiles"]) {
-			err = projectCreateDefaultProfile(tx, project.Name)
+			err = projectCreateDefaultProfile(tx, project.Name, project.StoragePool, project.Network)
 			if err != nil {
 				return err
 			}
@@ -356,16 +358,49 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 }
 
 // Create the default profile of a project.
-func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
+func projectCreateDefaultProfile(tx *db.ClusterTx, project string, storagePool string, network string) error {
 	// Create a default profile
 	profile := cluster.Profile{}
 	profile.Project = project
 	profile.Name = api.ProjectDefaultName
 	profile.Description = "Default LXD profile for project " + project
 
-	_, err := cluster.CreateProfile(context.TODO(), tx.Tx(), profile)
+	profileID, err := cluster.CreateProfile(context.TODO(), tx.Tx(), profile)
 	if err != nil {
 		return fmt.Errorf("Add default profile to database: %w", err)
+	}
+
+	devices := map[string]cluster.Device{}
+	if storagePool != "" {
+		rootDev := map[string]string{}
+		rootDev["path"] = "/"
+		rootDev["pool"] = storagePool
+		device := cluster.Device{
+			Name:   "root",
+			Type:   cluster.TypeDisk,
+			Config: rootDev,
+		}
+
+		devices["root"] = device
+	}
+
+	if network != "" {
+		networkDev := map[string]string{}
+		networkDev["network"] = network
+		device := cluster.Device{
+			Name:   "eth0",
+			Type:   cluster.TypeNIC,
+			Config: networkDev,
+		}
+
+		devices["eth0"] = device
+	}
+
+	if len(devices) > 0 {
+		err = cluster.CreateProfileDevices(context.TODO(), tx.Tx(), profileID, devices)
+		if err != nil {
+			return fmt.Errorf("Add root device to default profile of new project: %w", err)
+		}
 	}
 
 	return nil
@@ -711,7 +746,7 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 	}
 
 	// Validate the configuration.
-	err := projectValidateConfig(s, req.Config)
+	err := projectValidateConfig(s, req.Config, "")
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -730,7 +765,7 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 
 		if shared.ValueInSlice("features.profiles", configChanged) {
 			if shared.IsTrue(req.Config["features.profiles"]) {
-				err = projectCreateDefaultProfile(tx, project.Name)
+				err = projectCreateDefaultProfile(tx, project.Name, "", "")
 				if err != nil {
 					return err
 				}
@@ -1056,7 +1091,7 @@ func isEitherAllowOrBlockOrManaged(value string) error {
 // projectValidateConfig validates whether project config keys follow the expected format.
 // Any value checks that rely on the state of the database should be performed on AllowProjectUpdate,
 // so that we are performing these checks and updating the project in a single transaction.
-func projectValidateConfig(s *state.State, config map[string]string) error {
+func projectValidateConfig(s *state.State, config map[string]string, defaultNetwork string) error {
 	// Validate the project configuration.
 	projectConfigKeys := map[string]func(value string) error{
 		// lxdmeta:generate(entities=project; group=specific; key=backups.compression_algorithm)
@@ -1444,6 +1479,10 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 
 		// Per-network project limits for uplink IPs only make sense for projects with their own networks.
 		if shared.IsTrue(config["features.networks"]) {
+			if defaultNetwork != "" {
+				return errors.New(i18n.G("A default network device cannot be specified if the networks feature is enabled"))
+			}
+
 			// Get networks that are allowed to be used as uplinks by this project.
 			allowedUplinkNetworks, err := network.AllowedUplinkNetworks(ctx, tx, config)
 			if err != nil {
