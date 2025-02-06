@@ -922,7 +922,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		}
 
 		options := []string{}
-		if isReadOnly {
+		if isReadOnly || d.config["source.snapshot"] != "" {
 			options = append(options, "ro")
 		}
 
@@ -1228,7 +1228,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				mount.Opts = append(mount.Opts, d.detectVMPoolMountOpts()...)
 			}
 
-			if shared.IsTrue(d.config["readonly"]) {
+			if shared.IsTrue(d.config["readonly"]) || d.config["source.snapshot"] != "" {
 				mount.Opts = append(mount.Opts, "ro")
 			}
 
