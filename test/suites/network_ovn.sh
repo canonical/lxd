@@ -193,6 +193,10 @@ test_network_ovn() {
   ! lxc network unset "${ovn_network}" volatile.network.ipv4.address || false
   ! lxc network unset "${ovn_network}" volatile.network.ipv6.address || false
 
+  # Check that volatile uplink IPs must be in the allowed ranges specified on the uplink.
+  ! lxc network set "${ovn_network}" volatile.network.ipv4.address=10.10.10.199 || false
+  ! lxc network set "${ovn_network}" volatile.network.ipv6.address=fd42:4242:4242:1010::199 || false
+
   # Launch an instance on the OVN network and assert configuration changes.
   ensure_import_testimage
   lxc launch testimage c1 --network "${ovn_network}"
