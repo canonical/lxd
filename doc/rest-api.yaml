@@ -4636,6 +4636,16 @@ definitions:
                 example: foo
                 type: string
                 x-go-name: Name
+            network:
+                description: Add a network device connected to the specified network to the default profile
+                example: lxdbr0
+                type: string
+                x-go-name: Network
+            storage:
+                description: Add a root disk device using the specified storage pool to the default profile
+                example: default
+                type: string
+                x-go-name: StoragePool
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     Resources:
