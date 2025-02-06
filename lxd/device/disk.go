@@ -2147,7 +2147,18 @@ func (d *disk) postStop() error {
 		instProj := d.inst.Project()
 		storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
 
-		_, err = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil)
+		if dbVolumeType == cluster.StoragePoolVolumeTypeVM {
+			var diskInst instance.Instance
+			diskInst, err = instance.LoadByProjectAndName(d.state, d.inst.Project().Name, volumeName)
+			if err != nil {
+				return err
+			}
+
+			err = d.pool.UnmountInstance(diskInst, nil)
+		} else {
+			_, err = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil)
+		}
+
 		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 			return err
 		}
