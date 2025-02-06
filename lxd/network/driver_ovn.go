@@ -659,6 +659,42 @@ func (n *ovn) Validate(config map[string]string) error {
 		return err
 	}
 
+	// Check that if volatile.network.ipv4.address or volatile.network.ipv6.address are specified that they
+	// are within the allowed range from the uplink network.
+	for _, key := range []string{ovnVolatileUplinkIPv4, ovnVolatileUplinkIPv6} {
+		uplinkIP := net.ParseIP(config[key])
+		if uplinkIP == nil {
+			continue // Unspecified (validity is checked above in the non-composite checks).
+		}
+
+		rangeKey := "ipv6.ovn.ranges"
+		if uplinkIP.To4() != nil {
+			rangeKey = "ipv4.ovn.ranges"
+		}
+
+		uplinkRangesList := uplink.Config[rangeKey]
+		if uplinkRangesList == "" {
+			continue // Skip if no allowed ranges specified.
+		}
+
+		uplinkRanges, err := shared.ParseIPRanges(uplinkRangesList)
+		if err != nil {
+			return fmt.Errorf("Failed parsing %s: %w", rangeKey, err)
+		}
+
+		allowedInUplinkRanges := false
+		for _, uplinkRange := range uplinkRanges {
+			if uplinkRange.ContainsIP(uplinkIP) {
+				allowedInUplinkRanges = true
+				break
+			}
+		}
+
+		if !allowedInUplinkRanges {
+			return fmt.Errorf("Uplink IP %q not within allowed ranges specified by uplink network", uplinkIP.String())
+		}
+	}
+
 	// Get project restricted routes.
 	projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, uplink.Name)
 	if err != nil {
