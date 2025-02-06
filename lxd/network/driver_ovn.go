@@ -667,6 +667,10 @@ func (n *ovn) Validate(config map[string]string) error {
 
 	// Parse the network's address subnets for further checks.
 	netSubnets := make(map[string]*net.IPNet)
+
+	// Subnets to check for conflicts with other networks/NICs.
+	var externalSubnets []*net.IPNet
+
 	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
 		addressKey := fmt.Sprintf("%s.address", keyPrefix)
 		if validate.IsOneOf("", "none", "auto")(config[addressKey]) != nil {
@@ -676,18 +680,12 @@ func (n *ovn) Validate(config map[string]string) error {
 			}
 
 			netSubnets[addressKey] = ipNet
-		}
-	}
 
-	// If NAT disabled, parse the external subnets that are being requested.
-	var externalSubnets []*net.IPNet // Subnets to check for conflicts with other networks/NICs.
-	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
-		addressKey := fmt.Sprintf("%s.address", keyPrefix)
-		netSubnet := netSubnets[addressKey]
-
-		if shared.IsFalseOrEmpty(config[fmt.Sprintf("%s.nat", keyPrefix)]) && netSubnet != nil {
-			// Add to list to check for conflicts.
-			externalSubnets = append(externalSubnets, netSubnet)
+			// If NAT disabled, record the external subnets that are being requested.
+			if shared.IsFalseOrEmpty(config[fmt.Sprintf("%s.nat", keyPrefix)]) {
+				// Add to list to check for conflicts.
+				externalSubnets = append(externalSubnets, ipNet)
+			}
 		}
 	}
 
