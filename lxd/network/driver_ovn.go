@@ -610,74 +610,120 @@ func (n *ovn) Validate(config map[string]string) error {
 		}
 	}
 
-	// Load the project to get uplink network restrictions.
+	// Load the project and uplink network to validate restrictions.
 	var p *api.Project
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	var uplink *api.Network
+	var forwards map[int64]*api.NetworkForward
+	var loadBalancers map[int64]*api.NetworkLoadBalancer
+
+	err = n.state.DB.Cluster.Transaction(n.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
 		if err != nil {
 			return err
 		}
 
 		p, err = project.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
 
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
-	}
+		// Check uplink network is valid and allowed in project.
+		uplinkNetworkName, err := n.validateUplinkNetwork(ctx, tx, p, config["network"])
+		if err != nil {
+			return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
+		}
 
-	// Check uplink network is valid and allowed in project.
-	uplinkNetworkName, err := n.validateUplinkNetwork(p, config["network"])
-	if err != nil {
-		return err
-	}
-
-	var uplink *api.Network
-
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Get uplink routes.
+		// Get uplink network for routes.
 		_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkNetworkName)
+		if err != nil {
+			return fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
+		}
 
-		return err
+		memberSpecific := false // OVN doesn't support per-member forwards or load-balancers.
+
+		// Get network forwards for validation later.
+		forwards, err = tx.GetNetworkForwards(ctx, n.ID(), memberSpecific)
+		if err != nil {
+			return fmt.Errorf("Failed loading network forwards: %w", err)
+		}
+
+		// Get network load-balancers for validation later.
+		loadBalancers, err = tx.GetNetworkLoadBalancers(ctx, n.ID(), memberSpecific)
+		if err != nil {
+			return fmt.Errorf("Failed loading network load balancers: %w", err)
+		}
+
+		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
+		return err
 	}
 
-	uplinkRoutes, err := n.uplinkRoutes(uplink)
-	if err != nil {
-		return err
+	// Check that if volatile.network.ipv4.address or volatile.network.ipv6.address are specified that they
+	// are within the allowed range from the uplink network.
+	for _, key := range []string{ovnVolatileUplinkIPv4, ovnVolatileUplinkIPv6} {
+		uplinkIP := net.ParseIP(config[key])
+		if uplinkIP == nil {
+			continue // Unspecified (validity is checked above in the non-composite checks).
+		}
+
+		rangeKey := "ipv6.ovn.ranges"
+		if uplinkIP.To4() != nil {
+			rangeKey = "ipv4.ovn.ranges"
+		}
+
+		uplinkRangesList := uplink.Config[rangeKey]
+		if uplinkRangesList == "" {
+			continue // Skip if no allowed ranges specified.
+		}
+
+		uplinkRanges, err := shared.ParseIPRanges(uplinkRangesList)
+		if err != nil {
+			return fmt.Errorf("Failed parsing %s: %w", rangeKey, err)
+		}
+
+		allowedInUplinkRanges := false
+		for _, uplinkRange := range uplinkRanges {
+			if uplinkRange.ContainsIP(uplinkIP) {
+				allowedInUplinkRanges = true
+				break
+			}
+		}
+
+		if !allowedInUplinkRanges {
+			return fmt.Errorf("Uplink IP %q not within allowed ranges specified by uplink network", uplinkIP.String())
+		}
 	}
 
 	// Get project restricted routes.
-	projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, uplinkNetworkName)
+	projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, uplink.Name)
 	if err != nil {
 		return err
 	}
 
 	// Parse the network's address subnets for further checks.
 	netSubnets := make(map[string]*net.IPNet)
-	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
-		addressKey := fmt.Sprintf("%s.address", keyPrefix)
-		if validate.IsOneOf("", "none", "auto")(config[addressKey]) != nil {
-			_, ipNet, err := net.ParseCIDR(config[addressKey])
-			if err != nil {
-				return fmt.Errorf("Failed parsing %q: %w", addressKey, err)
-			}
 
-			netSubnets[addressKey] = ipNet
+	// Subnets to check for conflicts with other networks/NICs.
+	var externalSubnets []*net.IPNet
+
+	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+		addressKey := keyPrefix + ".address"
+		if validate.IsOneOf("", "none", "auto")(config[addressKey]) == nil {
+			continue // Explicit subnet not specified.
 		}
-	}
 
-	// If NAT disabled, parse the external subnets that are being requested.
-	var externalSubnets []*net.IPNet // Subnets to check for conflicts with other networks/NICs.
-	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
-		addressKey := fmt.Sprintf("%s.address", keyPrefix)
-		netSubnet := netSubnets[addressKey]
+		_, ipNet, err := net.ParseCIDR(config[addressKey])
+		if err != nil {
+			return fmt.Errorf("Failed parsing %q: %w", addressKey, err)
+		}
 
-		if shared.IsFalseOrEmpty(config[fmt.Sprintf("%s.nat", keyPrefix)]) && netSubnet != nil {
+		netSubnets[addressKey] = ipNet
+
+		// If NAT disabled, record the external subnets that are being requested.
+		if shared.IsFalseOrEmpty(config[keyPrefix+".nat"]) {
 			// Add to list to check for conflicts.
-			externalSubnets = append(externalSubnets, netSubnet)
+			externalSubnets = append(externalSubnets, ipNet)
 		}
 	}
 
@@ -714,6 +760,12 @@ func (n *ovn) Validate(config map[string]string) error {
 		// Check if uplink has routed ingress anycast mode enabled, as this relaxes the overlap checks.
 		ipv4UplinkAnycast := n.uplinkHasIngressRoutedAnycastIPv4(uplink)
 		ipv6UplinkAnycast := n.uplinkHasIngressRoutedAnycastIPv6(uplink)
+
+		// Get uplink routes.
+		uplinkRoutes, err := n.uplinkRoutes(uplink)
+		if err != nil {
+			return err
+		}
 
 		for _, externalSubnet := range externalSubnets {
 			// Check the external subnet is allowed within both the uplink's external routes and any
@@ -783,19 +835,6 @@ func (n *ovn) Validate(config map[string]string) error {
 	}
 
 	// Check any existing network forward target addresses are suitable for this network's subnet.
-	memberSpecific := false // OVN doesn't support per-member forwards.
-
-	var forwards map[int64]*api.NetworkForward
-
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		forwards, err = tx.GetNetworkForwards(ctx, n.ID(), memberSpecific)
-
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("Failed loading network forwards: %w", err)
-	}
-
 	for _, forward := range forwards {
 		if forward.Config["target_address"] != "" {
 			defaultTargetIP := net.ParseIP(forward.Config["target_address"])
@@ -824,18 +863,7 @@ func (n *ovn) Validate(config map[string]string) error {
 		}
 	}
 
-	var loadBalancers map[int64]*api.NetworkLoadBalancer
-
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Check any existing network load balancer backend addresses are suitable for this network's subnet.
-		loadBalancers, err = tx.GetNetworkLoadBalancers(ctx, n.ID(), memberSpecific)
-
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("Failed loading network load balancers: %w", err)
-	}
-
+	// Check any existing network load balancer backend addresses are suitable for this network's subnet.
 	for _, loadBalancer := range loadBalancers {
 		for _, port := range loadBalancer.Backends {
 			targetIP := net.ParseIP(port.TargetAddress)
@@ -2055,8 +2083,8 @@ func (n *ovn) Create(clientType request.ClientType) error {
 // validateUplinkNetwork checks if uplink network is allowed, and if empty string is supplied then tries to select
 // an uplink network from the allowedUplinkNetworks() list if there is only one allowed network.
 // Returns chosen uplink network name to use.
-func (n *ovn) validateUplinkNetwork(p *api.Project, uplinkNetworkName string) (string, error) {
-	allowedUplinkNetworks, err := AllowedUplinkNetworks(n.state, p.Config)
+func (n *ovn) validateUplinkNetwork(ctx context.Context, tx *db.ClusterTx, p *api.Project, uplinkNetworkName string) (string, error) {
+	allowedUplinkNetworks, err := AllowedUplinkNetworks(ctx, tx, p.Config)
 	if err != nil {
 		return "", err
 	}
@@ -2133,6 +2161,8 @@ func (n *ovn) setup(update bool) error {
 	// Load the project to get uplink network restrictions.
 	var p *api.Project
 	var projectID int64
+	var uplinkNetwork string
+
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
 		if err != nil {
@@ -2142,15 +2172,18 @@ func (n *ovn) setup(update bool) error {
 		projectID = int64(project.ID)
 
 		p, err = project.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
 
-		return err
+		// Check project restrictions and get uplink network to use.
+		uplinkNetwork, err = n.validateUplinkNetwork(ctx, tx, p, n.config["network"])
+		if err != nil {
+			return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
+		}
+
+		return nil
 	})
-	if err != nil {
-		return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
-	}
-
-	// Check project restrictions and get uplink network to use.
-	uplinkNetwork, err := n.validateUplinkNetwork(p, n.config["network"])
 	if err != nil {
 		return err
 	}

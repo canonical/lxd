@@ -1460,7 +1460,7 @@ func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 }
 
 // AllowedUplinkNetworks returns a list of allowed networks to use as uplinks based on project restrictions.
-func AllowedUplinkNetworks(s *state.State, projectConfig map[string]string) ([]string, error) {
+func AllowedUplinkNetworks(ctx context.Context, tx *db.ClusterTx, projectConfig map[string]string) ([]string, error) {
 	var uplinkNetworkNames []string
 
 	// There are no allowed networks if project is restricted and restricted.networks.uplinks is not set.
@@ -1468,24 +1468,17 @@ func AllowedUplinkNetworks(s *state.State, projectConfig map[string]string) ([]s
 		return []string{}, nil
 	}
 
-	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		// Uplink networks are always from the default project.
-		networks, err := tx.GetCreatedNetworksByProject(ctx, api.ProjectDefaultName)
-		if err != nil {
-			return fmt.Errorf("Failed getting uplink networks: %w", err)
-		}
-
-		// Add any compatible networks to the uplink network list.
-		for _, network := range networks {
-			if network.Type == "bridge" || network.Type == "physical" {
-				uplinkNetworkNames = append(uplinkNetworkNames, network.Name)
-			}
-		}
-
-		return nil
-	})
+	// Uplink networks are always from the default project.
+	networks, err := tx.GetCreatedNetworksByProject(ctx, api.ProjectDefaultName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed getting uplink networks: %w", err)
+	}
+
+	// Add any compatible networks to the uplink network list.
+	for _, network := range networks {
+		if network.Type == "bridge" || network.Type == "physical" {
+			uplinkNetworkNames = append(uplinkNetworkNames, network.Name)
+		}
 	}
 
 	// If project is not restricted, return full network list.
