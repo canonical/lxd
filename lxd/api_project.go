@@ -1416,7 +1416,7 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 	}
 
 	// Add the storage pool keys.
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Load all the pools.
