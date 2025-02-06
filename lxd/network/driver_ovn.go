@@ -659,12 +659,6 @@ func (n *ovn) Validate(config map[string]string) error {
 		return err
 	}
 
-	// Get uplink routes.
-	uplinkRoutes, err := n.uplinkRoutes(uplink)
-	if err != nil {
-		return err
-	}
-
 	// Get project restricted routes.
 	projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, uplink.Name)
 	if err != nil {
@@ -730,6 +724,12 @@ func (n *ovn) Validate(config map[string]string) error {
 		// Check if uplink has routed ingress anycast mode enabled, as this relaxes the overlap checks.
 		ipv4UplinkAnycast := n.uplinkHasIngressRoutedAnycastIPv4(uplink)
 		ipv6UplinkAnycast := n.uplinkHasIngressRoutedAnycastIPv6(uplink)
+
+		// Get uplink routes.
+		uplinkRoutes, err := n.uplinkRoutes(uplink)
+		if err != nil {
+			return err
+		}
 
 		for _, externalSubnet := range externalSubnets {
 			// Check the external subnet is allowed within both the uplink's external routes and any
