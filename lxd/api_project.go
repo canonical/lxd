@@ -1416,13 +1416,13 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 	}
 
 	// Add the storage pool keys.
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Load all the pools.
 		pools, err := tx.GetStoragePoolNames(ctx)
-		if err != nil {
-			return err
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return fmt.Errorf("Failed loading storage pool names: %w", err)
 		}
 
 		// Add the storage-pool specific config keys.
@@ -1440,40 +1440,40 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 			projectConfigKeys["limits.disk.pool."+poolName] = validate.Optional(validate.IsSize)
 		}
 
+		// Per-network project limits for uplink IPs only make sense for projects with their own networks.
+		if shared.IsTrue(config["features.networks"]) {
+			// Get networks that are allowed to be used as uplinks by this project.
+			allowedUplinkNetworks, err := network.AllowedUplinkNetworks(ctx, tx, config)
+			if err != nil {
+				return err
+			}
+
+			// Add network-specific config keys.
+			for _, networkName := range allowedUplinkNetworks {
+				// lxdmeta:generate(entities=project; group=limits; key=limits.networks.uplink_ips.ipv4.NETWORK_NAME)
+				// Maximum number of IPv4 addresses that this project can consume from the specified uplink network.
+				// This number of IPs can be consumed by networks, forwards and load balancers in this project.
+				//
+				// ---
+				//  type: string
+				//  shortdesc: Quota of IPv4 addresses from a specified uplink network that can be used by entities in this project
+				projectConfigKeys["limits.networks.uplink_ips.ipv4."+networkName] = validate.Optional(validate.IsUint32)
+
+				// lxdmeta:generate(entities=project; group=limits; key=limits.networks.uplink_ips.ipv6.NETWORK_NAME)
+				// Maximum number of IPv6 addresses that this project can consume from the specified uplink network.
+				// This number of IPs can be consumed by networks, forwards and load balancers in this project.
+				//
+				// ---
+				//  type: string
+				//  shortdesc: Quota of IPv6 addresses from a specified uplink network that can be used by entities in this project
+				projectConfigKeys["limits.networks.uplink_ips.ipv6."+networkName] = validate.Optional(validate.IsUint32)
+			}
+		}
+
 		return nil
 	})
-	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-		return fmt.Errorf("Failed loading storage pool names: %w", err)
-	}
-
-	// Per-network project limits for uplink IPs only make sense for projects with their own networks.
-	if shared.IsTrue(config["features.networks"]) {
-		// Get networks that are allowed to be used as uplinks by this project.
-		allowedUplinkNetworks, err := network.AllowedUplinkNetworks(s, config)
-		if err != nil {
-			return err
-		}
-
-		// Add network-specific config keys.
-		for _, networkName := range allowedUplinkNetworks {
-			// lxdmeta:generate(entities=project; group=limits; key=limits.networks.uplink_ips.ipv4.NETWORK_NAME)
-			// Maximum number of IPv4 addresses that this project can consume from the specified uplink network.
-			// This number of IPs can be consumed by networks, forwards and load balancers in this project.
-			//
-			// ---
-			//  type: string
-			//  shortdesc: Quota of IPv4 addresses from a specified uplink network that can be used by entities in this project
-			projectConfigKeys["limits.networks.uplink_ips.ipv4."+networkName] = validate.Optional(validate.IsUint32)
-
-			// lxdmeta:generate(entities=project; group=limits; key=limits.networks.uplink_ips.ipv6.NETWORK_NAME)
-			// Maximum number of IPv6 addresses that this project can consume from the specified uplink network.
-			// This number of IPs can be consumed by networks, forwards and load balancers in this project.
-			//
-			// ---
-			//  type: string
-			//  shortdesc: Quota of IPv6 addresses from a specified uplink network that can be used by entities in this project
-			projectConfigKeys["limits.networks.uplink_ips.ipv6."+networkName] = validate.Optional(validate.IsUint32)
-		}
+	if err != nil {
+		return err
 	}
 
 	for k, v := range config {
