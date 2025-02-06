@@ -673,19 +673,21 @@ func (n *ovn) Validate(config map[string]string) error {
 
 	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
 		addressKey := fmt.Sprintf("%s.address", keyPrefix)
-		if validate.IsOneOf("", "none", "auto")(config[addressKey]) != nil {
-			_, ipNet, err := net.ParseCIDR(config[addressKey])
-			if err != nil {
-				return fmt.Errorf("Failed parsing %q: %w", addressKey, err)
-			}
+		if validate.IsOneOf("", "none", "auto")(config[addressKey]) == nil {
+			continue // Explicit subnet not specified.
+		}
 
-			netSubnets[addressKey] = ipNet
+		_, ipNet, err := net.ParseCIDR(config[addressKey])
+		if err != nil {
+			return fmt.Errorf("Failed parsing %q: %w", addressKey, err)
+		}
 
-			// If NAT disabled, record the external subnets that are being requested.
-			if shared.IsFalseOrEmpty(config[fmt.Sprintf("%s.nat", keyPrefix)]) {
-				// Add to list to check for conflicts.
-				externalSubnets = append(externalSubnets, ipNet)
-			}
+		netSubnets[addressKey] = ipNet
+
+		// If NAT disabled, record the external subnets that are being requested.
+		if shared.IsFalseOrEmpty(config[fmt.Sprintf("%s.nat", keyPrefix)]) {
+			// Add to list to check for conflicts.
+			externalSubnets = append(externalSubnets, ipNet)
 		}
 	}
 
