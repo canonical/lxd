@@ -1421,8 +1421,8 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 
 		// Load all the pools.
 		pools, err := tx.GetStoragePoolNames(ctx)
-		if err != nil {
-			return err
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return fmt.Errorf("Failed loading storage pool names: %w", err)
 		}
 
 		// Add the storage-pool specific config keys.
@@ -1442,8 +1442,8 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 
 		return nil
 	})
-	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-		return fmt.Errorf("Failed loading storage pool names: %w", err)
+	if err != nil {
+		return err
 	}
 
 	// Per-network project limits for uplink IPs only make sense for projects with their own networks.
