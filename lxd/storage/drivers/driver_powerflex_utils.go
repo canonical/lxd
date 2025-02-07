@@ -791,6 +791,39 @@ func (d *powerflex) getNVMeTargetQN(targetAddresses ...string) (string, error) {
 	return d.nvmeTargetQN, nil
 }
 
+// getNVMeTargetAddresses discovers all SDTs (targets) from PowerFlex for the respective storage pool.
+// If the pool has one ore more SDTs defined using the powerflex.sdt config keys, use them instead.
+// This allows overriding the list defined in PowerFlex.
+func (d *powerflex) getNVMeTargetAddresses() ([]string, error) {
+	targetAddresses := shared.SplitNTrimSpace(d.config["powerflex.sdt"], ",", -1, true)
+
+	client := d.client()
+	pool, err := d.resolvePool()
+	if err != nil {
+		return nil, err
+	}
+
+	if targetAddresses == nil {
+		// Do not cache the fetched addresses to allow coping with administrative address changes performed in PowerFlex.
+		relations, err := client.getProtectionDomainSDTRelations(pool.ProtectionDomainID)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, relation := range relations {
+			for _, ip := range relation.IPList {
+				targetAddresses = append(targetAddresses, ip.IP)
+			}
+		}
+
+		if len(targetAddresses) == 0 {
+			return nil, fmt.Errorf("Failed to retrieve at least one SDT for the given storage pool: %q", pool.ID)
+		}
+	}
+
+	return targetAddresses, nil
+}
+
 // getVolumeType returns the selected provisioning type of the volume.
 // As a default it returns type thin.
 func (d *powerflex) getVolumeType(vol Volume) powerFlexVolumeType {
