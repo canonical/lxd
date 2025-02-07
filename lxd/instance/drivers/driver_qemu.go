@@ -1243,17 +1243,25 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	if d.architectureSupportsUEFI(d.architecture) {
 		// ovmfNeedsUpdate checks if nvram file needs to be regenerated using new template.
 		ovmfNeedsUpdate := func(nvramTarget string) bool {
-			if shared.InSnap() && strings.Contains(nvramTarget, "OVMF") {
-				// The 2MB firmware was deprecated in the LXD snap.
-				// Detect this by the absence of "4MB" in the nvram file target.
-				if !strings.Contains(nvramTarget, "4MB") {
+			if shared.InSnap() {
+				if filepath.Base(nvramTarget) == "qemu.nvram" {
+					// Older versions of LXD didn't setup a symlink from qemu.nvram to a named
+					// firmware variant specific file, but rather copied the template directly.
+					// So if the resolved target is infact still just the qemu.nvram file we
+					// know its an older version of the firmware and it needs regenerating.
 					return true
-				}
+				} else if strings.Contains(nvramTarget, "OVMF") {
+					// The 2MB firmware was deprecated in the LXD snap.
+					// Detect this by the absence of "4MB" in the nvram file target.
+					if !strings.Contains(nvramTarget, "4MB") {
+						return true
+					}
 
-				// The EDK2-based CSM firmwares were replaced with Seabios in the LXD snap.
-				// Detect this by the presence of "CSM" in the nvram file target.
-				if strings.Contains(nvramTarget, "CSM") {
-					return true
+					// The EDK2-based CSM firmwares were replaced with Seabios in the LXD snap.
+					// Detect this by the presence of "CSM" in the nvram file target.
+					if strings.Contains(nvramTarget, "CSM") {
+						return true
+					}
 				}
 			}
 
