@@ -159,3 +159,91 @@ EOF
 
   delete_object_storage_pool "${poolName}"
 }
+
+test_storage_bucket_export() {
+  local lxd_backend
+
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  if [ "$lxd_backend" = "ceph" ]; then
+    if [ -z "${LXD_CEPH_CEPHOBJECT_RADOSGW:-}" ]; then
+      # Check LXD_CEPH_CEPHOBJECT_RADOSGW specified for ceph bucket tests.
+      export TEST_UNMET_REQUIREMENT="LXD_CEPH_CEPHOBJECT_RADOSGW not specified"
+      return
+    fi
+  elif ! command -v minio ; then
+    # Check minio is installed for local storage pool buckets.
+    export TEST_UNMET_REQUIREMENT="minio command not found"
+    return
+  fi
+
+  poolName=$(lxc profile device get default root pool)
+  bucketPrefix="lxd$$"
+
+  create_object_storage_pool "${poolName}"
+
+  # Check cephobject.radosgw.endpoint is required for cephobject pools.
+  if [ "$lxd_backend" = "ceph" ]; then
+    s3Endpoint="${LXD_CEPH_CEPHOBJECT_RADOSGW}"
+  else
+    s3Endpoint="https://$(lxc config get core.storage_buckets_address)"
+  fi
+
+  # Create test bucket
+  initCreds=$(lxc storage bucket create "${poolName}" "${bucketPrefix}.foo" user.foo=comment)
+  initAccessKey=$(echo "${initCreds}" | awk '{ if ($2 == "access" && $3 == "key:") {print $4}}')
+  initSecretKey=$(echo "${initCreds}" | awk '{ if ($2 == "secret" && $3 == "key:") {print $4}}')
+  s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${initAccessKey}" "${initSecretKey}" ls | grep -F "${bucketPrefix}.foo"
+
+  # Test putting a file into a bucket.
+  lxdTestFile="bucketfile_${bucketPrefix}.txt"
+  echo "hello world"> "${lxdTestFile}"
+  s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${initAccessKey}" "${initSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo"
+
+  # Export test bucket
+  lxc storage bucket export "${poolName}" "${bucketPrefix}.foo" "${LXD_DIR}/testbucket.tar.gz"
+  [ -f "${LXD_DIR}/testbucket.tar.gz" ]
+
+  # Extract storage backup tarball.
+  mkdir "${LXD_DIR}/storage-bucket-export"
+  tar -xzf "${LXD_DIR}/testbucket.tar.gz" -C "${LXD_DIR}/storage-bucket-export"
+
+  # Check tarball content.
+  [ -f "${LXD_DIR}/storage-bucket-export/backup/index.yaml" ]
+  [ -f "${LXD_DIR}/storage-bucket-export/backup/bucket/${lxdTestFile}" ]
+  [ "$(cat "${LXD_DIR}/storage-bucket-export/backup/bucket/${lxdTestFile}")" = "hello world" ]
+
+  # Note original bucket size.
+  orig_size="$(lxc storage bucket get "${poolName}" "${bucketPrefix}.foo" size)"
+  orig_md5sum="$(s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${initAccessKey}" "${initSecretKey}" info "s3://${bucketPrefix}.foo/${lxdTestFile}" | awk '{ if ($1 == "MD5") {print $3}}')  -"
+
+
+  # Delete bucket and import exported bucket.
+  lxc storage bucket delete "${poolName}" "${bucketPrefix}.foo"
+  lxc storage bucket import "${poolName}" "${LXD_DIR}/testbucket.tar.gz" "${bucketPrefix}.bar"
+  rm "${LXD_DIR}/testbucket.tar.gz"
+
+  # Note imported bucket size and md5sum
+  imported_size="$(lxc storage bucket get "${poolName}" "${bucketPrefix}.bar" size)"
+  imported_md5sum="$(s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${initAccessKey}" "${initSecretKey}" info "s3://${bucketPrefix}.bar/${lxdTestFile}" | awk '{ if ($1 == "MD5") {print $3}}')  -"
+
+  # Ensure original size and md5sum equivalent to imported.
+  [ "${orig_size}" = "${imported_size}" ]
+  [ "${orig_md5sum}" = "${imported_md5sum}" ]
+
+  # Test listing bucket files via S3.
+  s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${initAccessKey}" "${initSecretKey}" ls "s3://${bucketPrefix}.bar" | grep -F "${lxdTestFile}"
+
+  # Test getting admin key from bucket.
+  lxc storage bucket key list "${poolName}" "${bucketPrefix}.bar" | grep -F "admin"
+
+  # Clean up.
+  lxc storage bucket delete "${poolName}" "${bucketPrefix}.bar"
+  ! lxc storage bucket list "${poolName}" | grep -F "${bucketPrefix}.bar" || false
+  ! lxc storage bucket show "${poolName}" "${bucketPrefix}.bar" || false
+
+  delete_object_storage_pool "${poolName}"
+
+  rm -rf "${LXD_DIR}/storage-bucket-export/"*
+  rmdir "${LXD_DIR}/storage-bucket-export"
+}
