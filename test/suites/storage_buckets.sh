@@ -1,30 +1,3 @@
-s3cmdrun () {
-  local backend accessKey secreyKey
-  backend="${1}"
-  accessKey="${2}"
-  secreyKey="${3}"
-  shift 3
-
-  if [ "$backend" = "ceph" ]; then
-    timeout -k 5 5 s3cmd \
-      --access_key="${accessKey}" \
-      --secret_key="${secreyKey}" \
-      --host="${s3Endpoint}" \
-      --host-bucket="${s3Endpoint}" \
-      --no-ssl \
-      "$@"
-  else
-    timeout -k 5 5 s3cmd \
-      --access_key="${accessKey}" \
-      --secret_key="${secreyKey}" \
-      --host="${s3Endpoint}" \
-      --host-bucket="${s3Endpoint}" \
-      --ssl \
-      --no-check-certificate \
-      "$@"
-  fi
-}
-
 test_storage_buckets() {
   local lxd_backend
 
@@ -64,7 +37,7 @@ test_storage_buckets() {
   initCreds=$(lxc storage bucket create "${poolName}" "${bucketPrefix}.foo" user.foo=comment)
   initAccessKey=$(echo "${initCreds}" | awk '{ if ($2 == "access" && $3 == "key:") {print $4}}')
   initSecretKey=$(echo "${initCreds}" | awk '{ if ($2 == "secret" && $3 == "key:") {print $4}}')
-  s3cmdrun "${lxd_backend}" "${initAccessKey}" "${initSecretKey}" ls | grep -F "${bucketPrefix}.foo"
+  s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${initAccessKey}" "${initSecretKey}" ls | grep -F "${bucketPrefix}.foo"
 
   # Check if the storage bucket has an UUID.
   [ -n "$(lxc storage bucket get "${poolName}" "${bucketPrefix}.foo" volatile.uuid)" ]
@@ -100,33 +73,33 @@ EOF
   lxc storage bucket key show "${poolName}" "${bucketPrefix}.foo" yaml-key | grep "description: yaml-key-desc"
 
   # Test listing buckets via S3.
-  s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" ls | grep -F "${bucketPrefix}.foo"
-  s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" ls | grep -F "${bucketPrefix}.foo"
-  s3cmdrun "${lxd_backend}" "${roYamlAccessKey}" "${roYamlSecretKey}" ls | grep -F "${bucketPrefix}.foo"
+  s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" ls | grep -F "${bucketPrefix}.foo"
+  s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" ls | grep -F "${bucketPrefix}.foo"
+  s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${roYamlAccessKey}" "${roYamlSecretKey}" ls | grep -F "${bucketPrefix}.foo"
 
   # Test making buckets via S3 is blocked.
-  ! s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" mb "s3://${bucketPrefix}.foo2" || false
-  ! s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" mb "s3://${bucketPrefix}.foo2" || false
+  ! s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" mb "s3://${bucketPrefix}.foo2" || false
+  ! s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" mb "s3://${bucketPrefix}.foo2" || false
 
   # Test putting a file into a bucket.
   lxdTestFile="bucketfile_${bucketPrefix}.txt"
   head -c 5M /dev/urandom > "${lxdTestFile}"
   ORIG_MD5SUM="$(md5sum < "${lxdTestFile}")"
-  s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo"
-  ! s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo" || false
+  s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo"
+  ! s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo" || false
 
   # Test listing bucket files via S3.
-  s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" ls "s3://${bucketPrefix}.foo" | grep -F "${lxdTestFile}"
-  s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" ls "s3://${bucketPrefix}.foo" | grep -F "${lxdTestFile}"
+  s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" ls "s3://${bucketPrefix}.foo" | grep -F "${lxdTestFile}"
+  s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" ls "s3://${bucketPrefix}.foo" | grep -F "${lxdTestFile}"
 
   # Test getting a file from a bucket.
-  INFO_MD5SUM="$(s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" info "s3://${bucketPrefix}.foo/${lxdTestFile}" | awk '{ if ($1 == "MD5") {print $3}}')  -"
-  s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" get "s3://${bucketPrefix}.foo/${lxdTestFile}" "${lxdTestFile}.get"
+  INFO_MD5SUM="$(s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" info "s3://${bucketPrefix}.foo/${lxdTestFile}" | awk '{ if ($1 == "MD5") {print $3}}')  -"
+  s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" get "s3://${bucketPrefix}.foo/${lxdTestFile}" "${lxdTestFile}.get"
   [ "${ORIG_MD5SUM}" = "${INFO_MD5SUM}" ]
   [ "${ORIG_MD5SUM}" = "$(md5sum < "${lxdTestFile}.get")" ]
   rm "${lxdTestFile}.get"
-  INFO_MD5SUM="$(s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" info "s3://${bucketPrefix}.foo/${lxdTestFile}" | awk '{ if ($1 == "MD5") {print $3}}')  -"
-  s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" get "s3://${bucketPrefix}.foo/${lxdTestFile}" "${lxdTestFile}.get"
+  INFO_MD5SUM="$(s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" info "s3://${bucketPrefix}.foo/${lxdTestFile}" | awk '{ if ($1 == "MD5") {print $3}}')  -"
+  s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" get "s3://${bucketPrefix}.foo/${lxdTestFile}" "${lxdTestFile}.get"
   [ "${ORIG_MD5SUM}" = "${INFO_MD5SUM}" ]
   [ "${ORIG_MD5SUM}" = "$(md5sum < "${lxdTestFile}.get")" ]
   rm "${lxdTestFile}.get"
@@ -135,16 +108,16 @@ EOF
   bucketURL=$(lxc storage bucket show "${poolName}" "${bucketPrefix}.foo" | awk '{if ($1 == "s3_url:") {print $2}}')
 
   [ "$(curl -sI --insecure -o /dev/null -w "%{http_code}" "${bucketURL}/${lxdTestFile}")" = "403" ]
-  ! s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" setpolicy deps/s3_global_read_policy.json "s3://${bucketPrefix}.foo" || false
-  s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" setpolicy deps/s3_global_read_policy.json "s3://${bucketPrefix}.foo"
+  ! s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" setpolicy deps/s3_global_read_policy.json "s3://${bucketPrefix}.foo" || false
+  s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" setpolicy deps/s3_global_read_policy.json "s3://${bucketPrefix}.foo"
   [ "$(curl -sI --insecure -o /dev/null -w "%{http_code}" "${bucketURL}/${lxdTestFile}")" = "200" ]
-  ! s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" delpolicy "s3://${bucketPrefix}.foo" || false
-  s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" delpolicy "s3://${bucketPrefix}.foo"
+  ! s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" delpolicy "s3://${bucketPrefix}.foo" || false
+  s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" delpolicy "s3://${bucketPrefix}.foo"
   [ "$(curl -sI --insecure -o /dev/null -w "%{http_code}" "${bucketURL}/${lxdTestFile}")" = "403" ]
 
   # Test deleting a file from a bucket.
-  ! s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" del "s3://${bucketPrefix}.foo/${lxdTestFile}" || false
-  s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" del "s3://${bucketPrefix}.foo/${lxdTestFile}"
+  ! s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" del "s3://${bucketPrefix}.foo/${lxdTestFile}" || false
+  s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" del "s3://${bucketPrefix}.foo/${lxdTestFile}"
 
   # Test bucket quota (except dir driver which doesn't support quotas so check that its prevented).
   if [ "$lxd_backend" = "dir" ]; then
@@ -153,12 +126,12 @@ EOF
     initCreds=$(lxc storage bucket create "${poolName}" "${bucketPrefix}.foo2" size=1MiB)
     initAccessKey=$(echo "${initCreds}" | awk '{ if ($2 == "access" && $3 == "key:") {print $4}}')
     initSecretKey=$(echo "${initCreds}" | awk '{ if ($2 == "secret" && $3 == "key:") {print $4}}')
-    ! s3cmdrun "${lxd_backend}" "${initAccessKey}" "${initSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo2" || false
+    ! s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${initAccessKey}" "${initSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo2" || false
 
     # Grow bucket quota (significantly larger in order for MinIO to detect their is sufficient space to continue).
     lxc storage bucket set "${poolName}" "${bucketPrefix}.foo2" size=150MiB
-    s3cmdrun "${lxd_backend}" "${initAccessKey}" "${initSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo2"
-    s3cmdrun "${lxd_backend}" "${initAccessKey}" "${initSecretKey}" del "s3://${bucketPrefix}.foo2/${lxdTestFile}"
+    s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${initAccessKey}" "${initSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo2"
+    s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${initAccessKey}" "${initSecretKey}" del "s3://${bucketPrefix}.foo2/${lxdTestFile}"
     lxc storage bucket delete "${poolName}" "${bucketPrefix}.foo2"
   fi
 
@@ -166,8 +139,8 @@ EOF
   rm "${lxdTestFile}"
 
   # Test deleting bucket via s3.
-  ! s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" rb "s3://${bucketPrefix}.foo" || false
-  s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" rb "s3://${bucketPrefix}.foo"
+  ! s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" rb "s3://${bucketPrefix}.foo" || false
+  s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" rb "s3://${bucketPrefix}.foo"
 
   # Delete bucket keys.
   lxc storage bucket key delete "${poolName}" "${bucketPrefix}.foo" admin-key
@@ -176,8 +149,8 @@ EOF
   ! lxc storage bucket key list "${poolName}" "${bucketPrefix}.foo" | grep -F "ro-key" || false
   ! lxc storage bucket key show "${poolName}" "${bucketPrefix}.foo" admin-key || false
   ! lxc storage bucket key show "${poolName}" "${bucketPrefix}.foo" ro-key || false
-  ! s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" ls || false
-  ! s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" ls || false
+  ! s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" ls || false
+  ! s3cmdrun "${s3Endpoint}" "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" ls || false
 
   # Delete bucket.
   lxc storage bucket delete "${poolName}" "${bucketPrefix}.foo"
