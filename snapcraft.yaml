@@ -970,10 +970,16 @@ parts:
     source: edk2-vars-generator
     plugin: nil
     build-packages:
-      - dosfstools
-      - mtools
-      - python3-pexpect
-      - xorriso
+      - on amd64:
+        - dosfstools
+        - mtools
+        - python3-pexpect
+        - xorriso
+      - on arm64:
+        - dosfstools
+        - mtools
+        - python3-pexpect
+        - xorriso
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
