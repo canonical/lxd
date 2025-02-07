@@ -104,35 +104,40 @@ Before you can create a network forward, you must understand the requirements fo
 
 For both OVN and bridge networks, the listen addresses must not overlap with any subnet in use by other networks on the host. Otherwise, the listen address requirements differ by network type.
 
-`````{tabs}
+````{tabs}
 
-````{group-tab} OVN network
+```{group-tab} OVN network
 
 For an OVN network, the allowed listen addresses must be defined in at least one of the following configuration options, using [CIDR notation](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing):
 
 - {config:option}`network-bridge-network-conf:ipv4.routes` or {config:option}`network-bridge-network-conf:ipv6.routes` in the OVN network's uplink network configuration
 - {config:option}`project-restricted:restricted.networks.subnets` in the OVN network's project configuration
 
-````
+```
 
-````{group-tab} Bridge network
+```{group-tab} Bridge network
 
 A bridge network does not require you to define allowed listen addresses. Use any non-conflicting IP address available on the host.
 
-````
+```
 
-`````
+````
 
 ### Create a forward in an OVN network
 
 ```{note}
 You must configure the {ref}`allowed listen addresses <network-forwards-listen-addresses>` before you can create a forward in an OVN network.
+
+The IP addresses and ports shown in the examples below are only examples. It is up to you to choose the allowed and available addresses and ports for your setup.
 ```
+
+`````{tabs}
+````{group-tab} CLI
 
 Use the following command to create a forward in an OVN network:
 
 ```
-lxc network forward create <ovn_network_name> [<listen_address>|--allocate=ipv{4,6}] [target_address=<target_address>] [user.<key>=<value>]
+lxc network forward create <ovn_network_name> <listen_address>|--allocate=ipv{4,6} [target_address=<target_address>] [user.<key>=<value>]
 ```
 
 - For `<ovn_network_name>`, specify the name of the OVN network on which to create the forward.
@@ -154,9 +159,28 @@ This example shows how to create a network forward on a network named `ovn1` wit
 lxd network forward create ovn1 192.0.2.1 target_address=10.41.211.2
 ```
 
-```{note}
-The IP addresses shown in the example above are only examples. It is up to you to choose the allowed and available addresses on your setup.
+````
+
+````{group-tab} UI
+
+In {ref}`the web UI <access-ui>`, select {guilabel}`Networks` in the left sidebar, then select the desired OVN network. On the resulting screen, view the {guilabel}`Forwards` tab. Click the {guilabel}`Create forward` button.
+
+In the {guilabel}`Create a new forward` panel, only the {guilabel}`Listen address` field is required.
+
+```{figure} /images/UI/forward_create_ovn.png
+:width: 95%
+:alt: Create an OVN network forward
 ```
+
+- For the {guilabel}`Listen address`, provide an IP address allowed by the {ref}`network-forwards-listen-addresses` (no port number).
+- Optionally provide a {guilabel}`Default target address` (no port number). Any traffic that does not match a port specification is forwarded to this address. This must be an IP address within the OVN network's subnet; typically, the static IP address of an instance is used.
+
+You can optionally set up port specifications for the network forward by clicking the {guilabel}`Add port` button. These specifications allow forwarding traffic from specific ports on the listen address to ports on a target address. For details on how to configure this section, see: {ref}`network-forwards-port-specifications`.
+
+Once you have finished setting up the network forward, click the {guilabel}`Create` button.
+
+````
+`````
 
 ### Create a forward in a bridge network
 
@@ -174,7 +198,7 @@ lxc network forward create <bridge_network_name> <listen_address> [target_addres
 ```
 
 - For `<bridge_network_name>`, specify the name of the bridge network on which to create the forward.
-- Immediately following the network name, provide a listen IP address allowed by the {ref}`network-forwards-listen-addresses` (no port number).
+- Immediately following the network name, provide an IP address allowed by the {ref}`network-forwards-listen-addresses` (no port number).
 - Optionally provide a default `target_address` (no port number). Any traffic that does not match a port specification is forwarded to this address. This must be an IP address within the bridge network's subnet; typically, the static IP address of an instance is used.
 - Optionally provide custom user.* keys to be stored in the network forward's configuration.
 - You cannot use the `--allocate` flag with bridge networks.
@@ -221,12 +245,12 @@ Network forwards have the following properties:
 (network-forwards-port-specifications)=
 ## Configure ports
 
-Once a forward is created on a network (whether bridge or OVN), it can be configured with port specifications. These specifications allow forwarding traffic from ports on the listen address to ports on a target address. 
+Once a forward is created on a network (whether bridge or OVN), it can be configured with port specifications. These specifications allow forwarding traffic from ports on the listen address to ports on a target address.
 
 `````{tabs}
 ````{group-tab} CLI
 
-When using the CLI, you must first {ref}`create a network forward <network-forward-create>` before you can add port specifications to it. 
+When using the CLI, you must first {ref}`create a network forward <network-forward-create>` before you can add port specifications to it.
 
 Use the following command to add port specifications on a forward:
 
