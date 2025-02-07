@@ -240,6 +240,9 @@ Network forward ports have the following properties:
 (network-forward-edit)=
 ## Edit a network forward
 
+`````{tabs}
+````{group-tab} CLI
+
 Use the following command to edit a network forward:
 
 ```bash
@@ -248,6 +251,27 @@ lxc network forward edit <network_name> <listen_address>
 
 This command opens the network forward in YAML format for editing.
 You can edit both the general configuration and the port specifications.
+
+````
+
+````{group-tab} UI
+
+In {ref}`the web UI <access-ui>`, select {guilabel}`Networks` in the left sidebar, then select the desired network. On the resulting screen, view the {guilabel}`Forwards` tab. This tab shows you information about all forwards on the network. Click the {guilabel}`Edit` icon next to a forward to edit it:
+
+```{figure} /images/UI/forward_edit_ex1.png
+:width: 95%
+:alt: Choose to edit a forward on a network
+```
+
+In the resulting screen, you can edit the forward's general configuration as well as its port specifications:
+
+```{figure} /images/UI/forward_edit_ex2.png
+:width: 95%
+:alt: Edit a forward on a network
+```
+
+````
+`````
 
 ## Delete a network forward
 
