@@ -33,6 +33,9 @@ In addition, proxy devices can be used to proxy traffic between different connec
 
 View a list of all forwards configured on a network:
 
+`````{tabs}
+````{group-tab} CLI
+
 ```
 lxc network forward list <network_name>
 ```
@@ -46,6 +49,19 @@ lxc network forward list lxdbr0
 ```{note}
 This list displays the listen address of the network forward and its default target address, if set. To view the target addresses for a network forward's ports {ref}`set in its port specifications <network-forwards-port-specifications>`, you can {ref}`show details about the network forward <network-forward-show>` or {ref}`edit the network forward <network-forward-edit>`.
 ```
+````
+
+````{group-tab} UI
+
+In {ref}`the web UI <access-ui>`, select {guilabel}`Networks` in the left sidebar, then select the desired network. On the resulting screen, view the {guilabel}`Forwards` tab:
+
+```{figure} /images/UI/forwards_view.png
+:width: 95%
+:alt: View a list of forwards on a network
+```
+
+````
+`````
 
 (network-forward-show)=
 ## Show a network forward
