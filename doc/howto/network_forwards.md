@@ -78,7 +78,7 @@ lxc network forward show <network_name> <listen_address>
 Example:
 
 ```
-lxc network forward list lxdbr0 192.0.2.1
+lxc network forward show lxdbr0 192.0.2.1
 ```
 ````
 
