@@ -857,22 +857,27 @@ parts:
       - --localstatedir=/var/
       - --disable-install-blobs # Ubuntu sources don't have the ROM blobs in them.
     build-packages:
-      - bison
-      - bzip2
-      - flex
-      - pkg-config
-      - libaio-dev
-      - libcap-ng-dev
-      - libfdt-dev
-      - libglib2.0-dev
-      - libnuma-dev
-      - libpixman-1-dev
-      - libseccomp-dev
-      - liburing-dev
-      - libusb-1.0-0-dev
-      - libusbredirparser-dev
-      - quilt
-      - librbd-dev
+      - on armhf:
+        - "" # do not pull pkg on unsupported arches
+      - on riscv64:
+        - "" # do not pull pkg on unsupported arches
+      - else:
+        - bison
+        - bzip2
+        - flex
+        - pkg-config
+        - libaio-dev
+        - libcap-ng-dev
+        - libfdt-dev
+        - libglib2.0-dev
+        - libnuma-dev
+        - libpixman-1-dev
+        - libseccomp-dev
+        - liburing-dev
+        - libusb-1.0-0-dev
+        - libusbredirparser-dev
+        - quilt
+        - librbd-dev
     stage-packages:
       - genisoimage
       - ipxe-qemu # This is needed due to --disable-install-blobs.
