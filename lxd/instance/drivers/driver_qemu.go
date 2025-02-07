@@ -1243,17 +1243,25 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	if d.architectureSupportsUEFI(d.architecture) {
 		// ovmfNeedsUpdate checks if nvram file needs to be regenerated using new template.
 		ovmfNeedsUpdate := func(nvramTarget string) bool {
-			if shared.InSnap() && strings.Contains(nvramTarget, "OVMF") {
-				// The 2MB firmware was deprecated in the LXD snap.
-				// Detect this by the absence of "4MB" in the nvram file target.
-				if !strings.Contains(nvramTarget, "4MB") {
+			if shared.InSnap() {
+				if filepath.Base(nvramTarget) == "qemu.nvram" {
+					// Older versions of LXD didn't setup a symlink from qemu.nvram to a named
+					// firmware variant specific file, but rather copied the template directly.
+					// So if the resolved target is infact still just the qemu.nvram file we
+					// know its an older version of the firmware and it needs regenerating.
 					return true
-				}
+				} else if strings.Contains(nvramTarget, "OVMF") {
+					// The 2MB firmware was deprecated in the LXD snap.
+					// Detect this by the absence of "4MB" in the nvram file target.
+					if !strings.Contains(nvramTarget, "4MB") {
+						return true
+					}
 
-				// The EDK2-based CSM firmwares were replaced with Seabios in the LXD snap.
-				// Detect this by the presence of "CSM" in the nvram file target.
-				if strings.Contains(nvramTarget, "CSM") {
-					return true
+					// The EDK2-based CSM firmwares were replaced with Seabios in the LXD snap.
+					// Detect this by the presence of "CSM" in the nvram file target.
+					if strings.Contains(nvramTarget, "CSM") {
+						return true
+					}
 				}
 			}
 
@@ -2590,6 +2598,7 @@ func (d *qemu) monitorPath() string {
 	return filepath.Join(d.LogPath(), "qemu.monitor")
 }
 
+// nvramPath returns the path to the UEFI firmware variables file.
 func (d *qemu) nvramPath() string {
 	return filepath.Join(d.Path(), "qemu.nvram")
 }
@@ -6771,15 +6780,16 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 			return err
 		}
 
+		// Always remove the snapshotFile so that if qemu-img fails the partially written file is removed.
+		defer func() { _ = os.Remove(snapshotFile) }()
+
 		// Create qcow2 disk image with the maximum size set to the instance's root disk size for use as
 		// a CoW target for the migration snapshot. This will be used during migration to store writes in
 		// the guest whilst the storage driver is transferring the root disk and snapshots to the taget.
-		_, err = shared.RunCommand("qemu-img", "create", "-f", "qcow2", snapshotFile, fmt.Sprintf("%d", rootDiskSize))
+		_, err = shared.RunCommandContext(d.state.ShutdownCtx, "qemu-img", "create", "-f", "qcow2", snapshotFile, strconv.FormatInt(rootDiskSize, 10))
 		if err != nil {
 			return fmt.Errorf("Failed opening file image for migration storage snapshot %q: %w", snapshotFile, err)
 		}
-
-		defer func() { _ = os.Remove(snapshotFile) }()
 
 		// Pass the snapshot file to the running QEMU process.
 		snapFile, err := os.OpenFile(snapshotFile, unix.O_RDWR, 0)
