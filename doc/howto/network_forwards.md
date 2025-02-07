@@ -251,8 +251,25 @@ You can edit both the general configuration and the port specifications.
 
 ## Delete a network forward
 
+`````{tabs}
+````{group-tab} CLI
+
 Use the following command to delete a network forward:
 
 ```bash
 lxc network forward delete <network_name> <listen_address>
 ```
+
+````
+
+````{group-tab} UI
+
+In {ref}`the web UI <access-ui>`, select {guilabel}`Networks` in the left sidebar, then select the desired network. On the resulting screen, view the {guilabel}`Forwards` tab. This tab shows you information about all forwards on the network. Click the {guilabel}`Delete` icon next to a forward to delete it:
+
+```{figure} /images/UI/forward_delete.png
+:width: 95%
+:alt: Delete a forward on a network
+```
+
+````
+`````
