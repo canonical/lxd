@@ -1164,10 +1164,15 @@ parts:
       - --prefix=/
       - --with-config=user
     build-packages:
-      - libblkid-dev
-      - libssl-dev
-      - uuid-dev
-      - zlib1g-dev
+      - on armhf:
+        - "" # do not pull pkg on unsupported arches
+      - on riscv64:
+        - "" # do not pull pkg on unsupported arches
+      - else:
+        - libblkid-dev
+        - libssl-dev
+        - uuid-dev
+        - zlib1g-dev
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
