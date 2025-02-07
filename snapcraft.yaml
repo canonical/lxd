@@ -290,15 +290,18 @@ parts:
     source-type: git
     plugin: nil
     build-packages:
-      - asciidoc
-      - libcap-dev
-      - libnet1-dev
-      - libnl-3-dev
-      - libprotobuf-c-dev
-      - libprotobuf-dev
-      - protobuf-c-compiler
-      - protobuf-compiler
-      - xmlto
+      - on riscv64:
+        - "" # do not pull pkg on unsupported arches
+      - else:
+        - asciidoc
+        - libcap-dev
+        - libnet1-dev
+        - libnl-3-dev
+        - libprotobuf-c-dev
+        - libprotobuf-dev
+        - protobuf-c-compiler
+        - protobuf-compiler
+        - xmlto
     stage-packages:
       - libnet1
       - libprotobuf-c1
