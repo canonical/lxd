@@ -68,6 +68,9 @@ In {ref}`the web UI <access-ui>`, select {guilabel}`Networks` in the left sideba
 
 Show details about a specific network forward:
 
+`````{tabs}
+````{group-tab} CLI
+
 ```
 lxc network forward show <network_name> <listen_address>
 ```
@@ -77,6 +80,19 @@ Example:
 ```
 lxc network forward list lxdbr0 192.0.2.1
 ```
+````
+
+````{group-tab} UI
+
+In {ref}`the web UI <access-ui>`, select {guilabel}`Networks` in the left sidebar, then select the desired network. On the resulting screen, view the {guilabel}`Forwards` tab. This tab shows you information about all forwards on the network. You can click the {guilabel}`Edit` icon to view details for a specific forward:
+
+```{figure} /images/UI/forward_edit_ex1.png
+:width: 95%
+:alt: View details about a specific forward on a network through its edit screen
+```
+
+````
+`````
 
 ## Create a network forward
 
