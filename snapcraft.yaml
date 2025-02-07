@@ -571,12 +571,20 @@ parts:
     build-environment:
       - GIT_TAG: "1.17.2" # Enables source-depth: 1, should match git tag without "v" prefix.
     build-packages:
-      - bmake
-      - curl
-      - libelf-dev
-      - libseccomp-dev
-      - lsb-release
-      - libtirpc-dev
+      - on amd64:
+        - bmake
+        - curl
+        - libelf-dev
+        - libseccomp-dev
+        - lsb-release
+        - libtirpc-dev
+      - on arm64:
+        - bmake
+        - curl
+        - libelf-dev
+        - libseccomp-dev
+        - lsb-release
+        - libtirpc-dev
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
