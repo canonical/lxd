@@ -62,7 +62,33 @@ runs:
           for flag in nosnaptrim nobackfill norebalance norecover noscrub nodeep-scrub; do
               sudo microceph.ceph osd set $flag
           done
-          sudo microceph disk add --wipe "${{ steps.free_ephemeral_disk.outputs.ephemeral_disk }}"
+
+          # If there is more than one OSD, set up partitions.
+          if [ ${{ inputs.osd-count }} -gt 1 ]; then
+            sudo blkdiscard "${ephemeral_disk}" --force
+            sudo parted "${ephemeral_disk}" --script mklabel gpt
+
+            for i in $(seq 1 "${{ inputs.osd-count }}"); do
+              # Create equal sized partitions for each OSD.
+              min="$(( (${i}-1) *  100 / ${{ inputs.osd-count }} ))"
+              max="$(( ${i} * 100 / ${{ inputs.osd-count }} ))"
+              sudo parted "${ephemeral_disk}" --align optimal --script mkpart primary "${min}%" "${max}%"
+            done
+
+            # Force the detection of the new partitions
+            sudo partx --update "${ephemeral_disk}"
+
+            for i in $(seq 1 "${{ inputs.osd-count }}"); do
+              # MicroCeph does not accept partitions directly.
+              # See: https://github.com/canonical/microceph/issues/251
+              disk="$(sudo losetup --find --nooverlap --direct-io=on --show "${ephemeral_disk}${i}")"
+              sudo microceph disk add "${disk}"
+            done
+          else
+              sudo microceph disk add --wipe "${ephemeral_disk}"
+          fi
+
+
           sudo rm -rf /etc/ceph
           sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
           sudo microceph enable rgw
