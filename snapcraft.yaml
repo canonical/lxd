@@ -736,12 +736,17 @@ parts:
       - -Dsmartcard=disabled
       - -Dtests=false
     build-packages:
-      - libspice-protocol-dev
-      - libjpeg-turbo8-dev
-      - python3-pyparsing
-      - python3-six
-      - meson
-      - ninja-build
+      - on armhf:
+        - "" # do not pull pkg on unsupported arches
+      - on riscv64:
+        - "" # do not pull pkg on unsupported arches
+      - else:
+        - libspice-protocol-dev
+        - libjpeg-turbo8-dev
+        - python3-pyparsing
+        - python3-six
+        - meson
+        - ninja-build
     stage-packages:
       - libjpeg-turbo8
       - libpixman-1-0
