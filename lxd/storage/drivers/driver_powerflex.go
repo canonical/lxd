@@ -42,6 +42,9 @@ type powerflex struct {
 	// Holds the SDC GUID of this specific host.
 	// Use powerflex.getHostGUID() to retrieve the actual value.
 	sdcGUID string
+
+	// Holds the targetQN used by the SDTs.
+	nvmeTargetQN string
 }
 
 // load is used to run one-time action per-driver rather than per-pool.
