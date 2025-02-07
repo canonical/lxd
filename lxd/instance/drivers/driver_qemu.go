@@ -2598,6 +2598,7 @@ func (d *qemu) monitorPath() string {
 	return filepath.Join(d.LogPath(), "qemu.monitor")
 }
 
+// nvramPath returns the path to the UEFI firmware variables file.
 func (d *qemu) nvramPath() string {
 	return filepath.Join(d.Path(), "qemu.nvram")
 }
