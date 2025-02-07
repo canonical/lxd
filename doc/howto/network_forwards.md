@@ -179,7 +179,7 @@ lxc network forward create <bridge_network_name> <listen_address> [target_addres
 - Optionally provide custom user.* keys to be stored in the network forward's configuration.
 - You cannot use the `--allocate` flag with bridge networks.
 
-This example shows how to create a network forward on a network named `ovn1` with a specific listen address and a target address:
+This example shows how to create a forward on a network named `bridge1` with a specific listen address and a target address:
 
 ```
 lxd network forward create bridge1 192.0.2.1 target_address=10.41.211.2
