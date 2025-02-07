@@ -770,6 +770,27 @@ func (d *powerflex) getHostGUID() (string, error) {
 	return d.sdcGUID, nil
 }
 
+// getNVMeTargetQN discovers the targetQN used for the given addresses.
+// The targetQN is unqiue per PowerFlex storage pool.
+// Cache the targetQN as it doesn't change throughout the lifetime of the storage pool.
+func (d *powerflex) getNVMeTargetQN(targetAddresses ...string) (string, error) {
+	if d.nvmeTargetQN == "" {
+		// The discovery log from the first reachable target address is returned.
+		discoveryLogRecords, err := d.discover(d.state.ShutdownCtx, targetAddresses...)
+		if err != nil {
+			return "", fmt.Errorf("Failed to discover SDT NQN: %w", err)
+		}
+
+		for _, record := range discoveryLogRecords {
+			// The targetQN is listed together with every log record.
+			d.nvmeTargetQN = record.SubNQN
+			break
+		}
+	}
+
+	return d.nvmeTargetQN, nil
+}
+
 // getVolumeType returns the selected provisioning type of the volume.
 // As a default it returns type thin.
 func (d *powerflex) getVolumeType(vol Volume) powerFlexVolumeType {
