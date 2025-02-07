@@ -78,7 +78,12 @@ runs:
               min="$(( (${i}-1) *  100 / ${{ inputs.osd-count }} ))"
               max="$(( ${i} * 100 / ${{ inputs.osd-count }} ))"
               sudo parted "${ephemeral_disk}" --align optimal --script mkpart primary "${min}%" "${max}%"
+            done
 
+            # Force the detection of the new partitions
+            sudo partx --update "${ephemeral_disk}"
+
+            for i in $(seq 1 "${{ inputs.osd-count }}"); do
               # MicroCeph does not accept partitions directly.
               # See: https://github.com/canonical/microceph/issues/251
               disk="$(sudo losetup --find --nooverlap --direct-io=on --show "${ephemeral_disk}${i}")"
