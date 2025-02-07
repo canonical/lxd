@@ -365,10 +365,16 @@ parts:
     source-type: git
     plugin: nil
     build-packages:
-      - g++
-      - acpica-tools
-      - nasm
-      - uuid-dev
+      - on amd64:
+        - g++
+        - acpica-tools
+        - nasm
+        - uuid-dev
+      - on arm64:
+        - g++
+        - acpica-tools
+        - nasm
+        - uuid-dev
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
