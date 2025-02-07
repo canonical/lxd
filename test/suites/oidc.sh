@@ -4,6 +4,14 @@ test_oidc() {
   # shellcheck disable=2153
   ensure_has_localhost_remote "${LXD_ADDR}"
 
+  # Check OIDC scopes validation
+  ! lxc config set oidc.scopes "my-scope" || false # Doesn't contain "email" or "openid"
+  ! lxc config set oidc.scopes "my-scope email" || false # Doesn't contain "openid"
+  ! lxc config set oidc.scopes "my-scope openid" || false # Doesn't contain "email"
+
+  lxc config set oidc.scopes "my-scope email openid" # Valid
+  lxc config unset oidc.scopes # Should reset to include profile and offline access claims
+
   # Setup OIDC
   spawn_oidc
   lxc config set "oidc.issuer=http://127.0.0.1:$(cat "${TEST_DIR}/oidc.port")/"
