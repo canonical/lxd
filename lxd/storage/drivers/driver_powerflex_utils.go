@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 )
 
@@ -159,6 +160,14 @@ type powerFlexVolume struct {
 		NQN      string `json:"nqn"`
 		HostType string `json:"hostType"`
 	} `json:"mappedSdcInfo"`
+}
+
+type powerFlexDiscoveryLogRecord struct {
+	SubNQN string `json:"subnqn"`
+}
+
+type powerFlexDiscoveryLog struct {
+	Records []powerFlexDiscoveryLogRecord `json:"records"`
 }
 
 // powerFlexClient holds the PowerFlex HTTP client and an access token factory.
@@ -1226,4 +1235,55 @@ func (d *powerflex) getVolumeName(vol Volume) (string, error) {
 	}
 
 	return volumeTypePrefix + volName + suffix, nil
+}
+
+// discover returns the SDTs (targets) found on the first reachable targetAddr.
+func (d *powerflex) discover(ctx context.Context, targetAddresses ...string) ([]powerFlexDiscoveryLogRecord, error) {
+	connector, err := d.connector()
+	if err != nil {
+		return nil, err
+	}
+
+	hostNQN, err := connector.QualifiedName()
+	if err != nil {
+		return nil, err
+	}
+
+	// Set a deadline for the overall discovery.
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	var discoveryLog powerFlexDiscoveryLog
+	for _, targetAddr := range targetAddresses {
+		stdout, err := shared.RunCommandContext(ctx, "nvme", "discover", "--transport", "tcp", "--traddr", targetAddr, "--hostnqn", hostNQN, "--hostid", d.state.ServerUUID, "--output-format", "json")
+		if err != nil {
+			// Exit code 110 is returned if the target address cannot be reached.
+			logger.Warn("Failed connecting to discovery target", logger.Ctx{"target_address": targetAddr, "err": err})
+			continue
+		}
+
+		// In case no discovery log entries can be fetched the nvme command doesn't return JSON formatted text.
+		if strings.Trim(stdout, "\n") == "No discovery log entries to fetch." {
+			logger.Warn("Failed to find discovery log entries", logger.Ctx{"target_address": targetAddr, "err": err})
+			continue
+		}
+
+		// Try to unmarshal the returned log entries.
+		err = json.Unmarshal([]byte(stdout), &discoveryLog)
+		if err != nil {
+			// Don't just log this error.
+			// Something is clearly wrong with the returned output.
+			return nil, fmt.Errorf("Failed to unmarshal the returned discovery log entries from %q", targetAddr)
+		}
+
+		// Unmarshalling the response from the discovery succeeded, break the loop.
+		break
+	}
+
+	// In case none of the target addresses returned any log records also return an error.
+	if len(discoveryLog.Records) == 0 {
+		return nil, fmt.Errorf("Failed to fetch a discovery log record from any of the target addresses")
+	}
+
+	return discoveryLog.Records, nil
 }
