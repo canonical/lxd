@@ -150,6 +150,10 @@ func (d *disk) sourceIsLocalPath(source string) bool {
 func (d *disk) sourceVolumeFields() (volumeName string, volumeType storageDrivers.VolumeType, dbVolumeType int, volumeTypeName string, err error) {
 	volumeName = d.config["source"]
 
+	if d.config["snapshot"] != "" {
+		volumeName = volumeName + shared.SnapshotDelimiter + d.config["snapshot"]
+	}
+
 	volumeTypeName = cluster.StoragePoolVolumeTypeNameCustom
 	if d.config["source-type"] != "" {
 		volumeTypeName = d.config["source-type"]
@@ -280,6 +284,13 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		//  required: no
 		//  shortdesc: Type of the backing storage volume
 		"source-type": validate.Optional(validate.IsOneOf(cluster.StoragePoolVolumeTypeNameCustom, cluster.StoragePoolVolumeTypeNameVM)),
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=snapshot)
+		// Snapshot of the volume given by `source`.
+		// ---
+		//  type: string
+		//  required: no
+		//  shortdesc: `source` snapshot name
+		"snapshot": validate.IsAny,
 		// lxdmeta:generate(entities=device-disk; group=device-conf; key=limits.read)
 		// You can specify a value in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`).
 		// See also {ref}`storage-configure-io`.
@@ -419,7 +430,11 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		return fmt.Errorf(`Cannot use both "required" and deprecated "optional" properties at the same time`)
 	}
 
-	if d.config["source-type"] != "" && d.config["pool"] == "" {
+	if d.config["snapshot"] != "" && (d.config["pool"] == "" || d.config["path"] == "/") {
+		return fmt.Errorf(`"snapshot" can only be used on storage volume disk devices`)
+	}
+
+	if d.config["source-type"] != "" && (d.config["pool"] == "" || d.config["path"] == "/") {
 		return fmt.Errorf(`"source-type" can only be used on storage volume disk devices`)
 	}
 
@@ -753,7 +768,12 @@ func (d *disk) Register() error {
 				return err
 			}
 
-			_, err = d.pool.MountInstance(diskInst, nil)
+			if d.config["snapshot"] != "" {
+				_, err = d.pool.MountInstanceSnapshot(diskInst, nil)
+			} else {
+				_, err = d.pool.MountInstance(diskInst, nil)
+			}
+
 			if err != nil {
 				return err
 			}
@@ -901,7 +921,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		}
 
 		options := []string{}
-		if isReadOnly {
+		if isReadOnly || d.config["snapshot"] != "" {
 			options = append(options, "ro")
 		}
 
@@ -1207,7 +1227,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				mount.Opts = append(mount.Opts, d.detectVMPoolMountOpts()...)
 			}
 
-			if shared.IsTrue(d.config["readonly"]) {
+			if shared.IsTrue(d.config["readonly"]) || d.config["snapshot"] != "" {
 				mount.Opts = append(mount.Opts, "ro")
 			}
 
@@ -1650,7 +1670,12 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 			return nil, "", nil, err
 		}
 
-		mountInfo, err = d.pool.MountInstance(diskInst, nil)
+		if d.config["snapshot"] != "" {
+			mountInfo, err = d.pool.MountInstanceSnapshot(diskInst, nil)
+		} else {
+			mountInfo, err = d.pool.MountInstance(diskInst, nil)
+		}
+
 		if err != nil {
 			return nil, "", nil, err
 		}
@@ -2154,7 +2179,11 @@ func (d *disk) postStop() error {
 				return err
 			}
 
-			err = d.pool.UnmountInstance(diskInst, nil)
+			if d.config["snapshot"] != "" {
+				err = d.pool.UnmountInstanceSnapshot(diskInst, nil)
+			} else {
+				err = d.pool.UnmountInstance(diskInst, nil)
+			}
 		} else {
 			_, err = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil)
 		}
