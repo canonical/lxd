@@ -3646,7 +3646,7 @@
 				"keys": [
 					{
 						"config": {
-							"longdesc": "The only supported keys are `target_address` and `user.*` custom keys.",
+							"longdesc": "The only supported keys are `target_address` and `user.*` custom keys.\n\nThe `target_address` key is for the default target address of the network forward.\nIt must be an IP address within the subnet of the network the forward belongs to.",
 							"required": "no",
 							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string set"
@@ -3662,7 +3662,7 @@
 					},
 					{
 						"listen_address": {
-							"longdesc": "",
+							"longdesc": "See {ref}`network-forwards-listen-addresses`.",
 							"required": "no",
 							"shortdesc": "IP address to listen on",
 							"type": "string"
@@ -3706,7 +3706,7 @@
 					},
 					{
 						"target_address": {
-							"longdesc": "",
+							"longdesc": "This `target_address` must be within the subnet of the network the forward belongs to.\nAlso, it must be different from the forward’s default target address.",
 							"required": "yes",
 							"shortdesc": "IP address to forward to",
 							"type": "string"
@@ -4825,7 +4825,7 @@
 					{
 						"restricted.networks.subnets": {
 							"defaultdesc": "`block`",
-							"longdesc": "Specify a comma-delimited list of CIDR network routes from the uplink network's {config:option}`network-physical-network-conf:ipv4.routes` {config:option}`network-physical-network-conf:ipv6.routes` that are allowed for use in this project.\nUse the form `\u003cuplink\u003e:\u003csubnet\u003e`.",
+							"longdesc": "Specify a comma-delimited list of CIDR network routes from the uplink network's {config:option}`network-physical-network-conf:ipv4.routes` {config:option}`network-physical-network-conf:ipv6.routes` that are allowed for use in this project.\nUse the form `\u003cuplink\u003e:\u003csubnet\u003e`.\n\nExample value: `lxdbr0:192.0.168.0/24,lxdbr0:10.1.19.5/32`",
 							"shortdesc": "Which network subnets are allocated for use in this project",
 							"type": "string"
 						}

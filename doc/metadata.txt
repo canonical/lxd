@@ -3235,6 +3235,9 @@ Possible values are `vxlan` and `gre`.
 :shortdesc: "User-provided free-form key/value pairs"
 :type: "string set"
 The only supported keys are `target_address` and `user.*` custom keys.
+
+The `target_address` key is for the default target address of the network forward.
+It must be an IP address within the subnet of the network the forward belongs to.
 ```
 
 ```{config:option} description network-forward-forward-properties
@@ -3248,7 +3251,7 @@ The only supported keys are `target_address` and `user.*` custom keys.
 :required: "no"
 :shortdesc: "IP address to listen on"
 :type: "string"
-
+See {ref}`network-forwards-listen-addresses`.
 ```
 
 ```{config:option} ports network-forward-forward-properties
@@ -3285,7 +3288,8 @@ For example: `80,90-100`
 :required: "yes"
 :shortdesc: "IP address to forward to"
 :type: "string"
-
+This `target_address` must be within the subnet of the network the forward belongs to.
+Also, it must be different from the forward’s default target address.
 ```
 
 ```{config:option} target_port network-forward-port-properties
@@ -4281,6 +4285,8 @@ Note that this setting depends on the {config:option}`project-restricted:restric
 :type: "string"
 Specify a comma-delimited list of CIDR network routes from the uplink network's {config:option}`network-physical-network-conf:ipv4.routes` {config:option}`network-physical-network-conf:ipv6.routes` that are allowed for use in this project.
 Use the form `<uplink>:<subnet>`.
+
+Example value: `lxdbr0:192.0.168.0/24,lxdbr0:10.1.19.5/32`
 ```
 
 ```{config:option} restricted.networks.uplinks project-restricted
