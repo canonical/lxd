@@ -57,7 +57,8 @@ type NetworkForwardPort struct {
 	TargetPort string `json:"target_port" yaml:"target_port"`
 
 	// lxdmeta:generate(entities=network-forward; group=port-properties; key=target_address)
-	//
+	// This `target_address` must be within the subnet of the network the forward belongs to.
+	// Also, it must be different from the forward’s default target address.
 	// ---
 	//  type: string
 	//  required: yes
@@ -105,7 +106,7 @@ type NetworkForwardsPost struct {
 	NetworkForwardPut `yaml:",inline"`
 
 	// lxdmeta:generate(entities=network-forward; group=forward-properties; key=listen_address)
-	//
+	// See {ref}`network-forwards-listen-addresses`.
 	// ---
 	//  type: string
 	//  required: no
@@ -145,6 +146,9 @@ type NetworkForwardPut struct {
 
 	// lxdmeta:generate(entities=network-forward; group=forward-properties; key=config)
 	// The only supported keys are `target_address` and `user.*` custom keys.
+	//
+	// The `target_address` key is for the default target address of the network forward.
+	// It must be an IP address within the subnet of the network the forward belongs to.
 	// ---
 	//  type: string set
 	//  required: no
