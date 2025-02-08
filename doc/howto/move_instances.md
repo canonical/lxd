@@ -14,27 +14,30 @@ Therefore, there is no direct equivalent for moving instances in the API or the 
 However, you can {ref}`export an instance <instances-backup-export-instance>` from one server and {ref}`import it <instances-backup-import-instance>` to another server.
 ```
 
+## Move instances
+
 To move an instance from one LXD server to another, use the [`lxc move`](lxc_move.md) command:
 
     lxc move [<source_remote>:]<source_instance_name> <target_remote>:[<target_instance_name>]
 
-```{note}
 When moving a container, you must stop it first.
 See {ref}`live-migration-containers` for more information.
 
 When moving a virtual machine, you must either enable {ref}`live-migration-vms` or stop it first.
-```
 
-Alternatively, you can use the [`lxc copy`](lxc_copy.md) command if you want to duplicate the instance:
+## Copy instances
+
+Use the [`lxc copy`](lxc_copy.md) command if you want to duplicate the instance instead of moving it:
 
     lxc copy [<source_remote>:]<source_instance_name> <target_remote>:[<target_instance_name>]
 
-```{tip}
-If the volume already exists in the target location, use the `--refresh` flag to update the copy (see {ref}`storage-optimized-volume-transfer` for the benefits).
-```
+If the volume already exists in the target location, use the `--refresh` flag to update the copy. To learn about the benefits, see: {ref}`storage-optimized-volume-transfer`.
 
-In both cases, you don't need to specify the source remote if it is your default remote, and you can leave out the target instance name if you want to use the same instance name.
-If you want to move the instance to a specific cluster member, specify it with the `--target` flag.
+## Move and copy options
+
+For both moving and copying instances, you don't need to specify the source remote if it is your default remote, and you can leave out the target instance name if you want to use the same instance name on the target remote server.
+
+If you want to move the instance to a specific cluster member, specify that member's name with the `--target` flag.
 In this case, do not specify the source and target remote.
 
 You can add the `--mode` flag to choose a transfer mode, depending on your network setup:
@@ -53,28 +56,32 @@ If you need to adapt the configuration for the instance to run on the target ser
 (live-migration)=
 ## Live migration
 
-Live migration means migrating an instance while it is running.
-This method is supported for virtual machines.
-For containers, there is limited support.
+Live migration means moving an instance to another server while it is running. This method is supported for virtual machines. For containers, there is limited support.
 
 (live-migration-vms)=
 ### Live migration for virtual machines
 
-Virtual machines can be moved to another server while they are running, thus without any downtime.
+Virtual machines can be moved to another server while they are running, thus avoiding any downtime.
 
-To allow for live migration, you must enable support for stateful migration.
-To do so, ensure the following configuration:
+For a virtual machine to be eligible for live migration, it must meet the following criteria:
 
-* Set {config:option}`instance-migration:migration.stateful` to `true` on the instance.
-* Set {config:option}`device-disk-device-conf:size.state` of the virtual machine's root disk device to at least the size of the virtual machine's {config:option}`instance-resource-limits:limits.memory` setting.
+- It must have support for stateful migration enabled. To enable this, set {config:option}`instance-migration:migration.stateful` to `true` on the virtual machine. This setting can only be updated when the machine is stopped. Thus, be sure to configure this setting before you need to live-migrate:
 
-```{note}
-If you are using a shared storage pool like Ceph RBD to back your instance, you don't need to set {config:option}`device-disk-device-conf:size.state` to perform live migration.
-```
+  ```
+  lxc config set <instance-name> migration.stateful=true
+  ```
 
-```{note}
-When {config:option}`instance-migration:migration.stateful` is enabled in LXD, virtiofs shares are disabled, and files are only shared via the 9P protocol. Consequently, guest OSes lacking 9P support, such as CentOS 8, cannot share files with the host unless stateful migration is disabled. Additionally, the `lxd-agent` will not function for these guests under these conditions.
-```
+  ```{note}
+  When {config:option}`instance-migration:migration.stateful` is enabled in LXD, virtiofs shares are disabled, and files are only shared via the 9P protocol. Consequently, guest OSes lacking 9P support, such as CentOS 8, cannot share files with the host unless stateful migration is disabled. Additionally, the `lxd-agent` will not function for these guests under these conditions.
+  ```
+
+- When using a local pool, the {config:option}`device-disk-device-conf:size.state` of the virtual machine's root disk device must be set to at least the size of the virtual machine's {config:option}`instance-resource-limits:limits.memory` setting.
+
+  ```{note}
+  If you are using a remote storage pool like Ceph RBD to back your instance, you don't need to set {config:option}`device-disk-device-conf:size.state` to perform live migration.
+  ```
+
+- The virtual machine must not depend on any resources specific to its current host, such as local storage or a local (non-OVN) bridge network.
 
 (live-migration-containers)=
 ### Live migration for containers
@@ -96,3 +103,9 @@ With this configuration, LXD instructs CRIU to perform a series of memory dumps 
 After each dump, LXD sends the memory dump to the specified remote.
 In an ideal scenario, each memory dump will decrease the delta to the previous memory dump, thereby increasing the percentage of memory that is already synced.
 When the percentage of synced memory is equal to or greater than the threshold specified via {config:option}`instance-migration:migration.incremental.memory.goal`, or the maximum number of allowed iterations specified via {config:option}`instance-migration:migration.incremental.memory.iterations` is reached, LXD instructs CRIU to perform a final memory dump and transfers it.
+
+## Temporarily move all instances from a cluster member
+
+For LXD servers that are members of a cluster, you can use the evacuate and restore operations to temporarily move all instances from one cluster member to another. These operations can also live-migrate eligible instances.
+
+For more information, see: {ref}`cluster-evacuate-restore`.
