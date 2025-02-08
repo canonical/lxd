@@ -56,5 +56,9 @@ html:
 html-rtd:
 	$(MAKE) -f Makefile.sp sp-html LOCAL_SPHINX_BUILD=False ADDPREREQS='gitpython pyyaml'
 
+.PHONY: run
+run:
+	$(MAKE) -f Makefile.sp sp-run LOCAL_SPHINX_BUILD=True ADDPREREQS='gitpython pyyaml' SPHINXOPTS="--ignore '.sphinx/deps/manpages/*' -c . -d .sphinx/.doctrees -j auto"
+
 %:
 	$(MAKE) -f Makefile.sp sp-$@ LOCAL_SPHINX_BUILD=True ALLFILES='*.md **/*.md' ADDPREREQS='gitpython pyyaml'
