@@ -178,6 +178,13 @@ Specify a value in bytes (various suffixes supported, see {ref}`instances-limit-
 This option is similar to {config:option}`device-disk-device-conf:size`, but applies to the file-system volume used for saving the runtime state in VMs.
 ```
 
+```{config:option} snapshot device-disk-device-conf
+:required: "no"
+:shortdesc: "`source` snapshot name"
+:type: "string"
+Snapshot of the volume given by `source`.
+```
+
 ```{config:option} source device-disk-device-conf
 :required: "yes"
 :shortdesc: "Source of a file system or block device"
