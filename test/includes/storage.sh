@@ -187,3 +187,31 @@ delete_object_storage_pool() {
     deconfigure_loop_device "${loop_file}" "${loop_device}"
   fi
 }
+
+s3cmdrun () {
+  local s3Endpoint backend accessKey secretKey
+  s3Endpoint="${1}"
+  backend="${2}"
+  accessKey="${3}"
+  secretKey="${4}"
+  shift 3
+
+  if [ "$backend" = "ceph" ]; then
+    timeout -k 5 5 s3cmd \
+      --access_key="${accessKey}" \
+      --secret_key="${secretKey}" \
+      --host="${s3Endpoint}" \
+      --host-bucket="${s3Endpoint}" \
+      --no-ssl \
+      "$@"
+  else
+    timeout -k 5 5 s3cmd \
+      --access_key="${accessKey}" \
+      --secret_key="${secretKey}" \
+      --host="${s3Endpoint}" \
+      --host-bucket="${s3Endpoint}" \
+      --ssl \
+      --no-check-certificate \
+      "$@"
+  fi
+}
