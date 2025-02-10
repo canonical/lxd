@@ -290,15 +290,18 @@ parts:
     source-type: git
     plugin: nil
     build-packages:
-      - asciidoc
-      - libcap-dev
-      - libnet1-dev
-      - libnl-3-dev
-      - libprotobuf-c-dev
-      - libprotobuf-dev
-      - protobuf-c-compiler
-      - protobuf-compiler
-      - xmlto
+      - on riscv64:
+        - "" # do not pull pkg on unsupported arches
+      - else:
+        - asciidoc
+        - libcap-dev
+        - libnet1-dev
+        - libnl-3-dev
+        - libprotobuf-c-dev
+        - libprotobuf-dev
+        - protobuf-c-compiler
+        - protobuf-compiler
+        - xmlto
     stage-packages:
       - libnet1
       - libprotobuf-c1
@@ -362,10 +365,16 @@ parts:
     source-type: git
     plugin: nil
     build-packages:
-      - g++
-      - acpica-tools
-      - nasm
-      - uuid-dev
+      - on amd64:
+        - g++
+        - acpica-tools
+        - nasm
+        - uuid-dev
+      - on arm64:
+        - g++
+        - acpica-tools
+        - nasm
+        - uuid-dev
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
@@ -562,12 +571,20 @@ parts:
     build-environment:
       - GIT_TAG: "1.17.4" # Enables source-depth: 1, should match git tag without "v" prefix.
     build-packages:
-      - bmake
-      - curl
-      - libelf-dev
-      - libseccomp-dev
-      - lsb-release
-      - libtirpc-dev
+      - on amd64:
+        - bmake
+        - curl
+        - libelf-dev
+        - libseccomp-dev
+        - lsb-release
+        - libtirpc-dev
+      - on arm64:
+        - bmake
+        - curl
+        - libelf-dev
+        - libseccomp-dev
+        - lsb-release
+        - libtirpc-dev
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
@@ -719,12 +736,17 @@ parts:
       - -Dsmartcard=disabled
       - -Dtests=false
     build-packages:
-      - libspice-protocol-dev
-      - libjpeg-turbo8-dev
-      - python3-pyparsing
-      - python3-six
-      - meson
-      - ninja-build
+      - on armhf:
+        - "" # do not pull pkg on unsupported arches
+      - on riscv64:
+        - "" # do not pull pkg on unsupported arches
+      - else:
+        - libspice-protocol-dev
+        - libjpeg-turbo8-dev
+        - python3-pyparsing
+        - python3-six
+        - meson
+        - ninja-build
     stage-packages:
       - libjpeg-turbo8
       - libpixman-1-0
@@ -835,22 +857,27 @@ parts:
       - --localstatedir=/var/
       - --disable-install-blobs # Ubuntu sources don't have the ROM blobs in them.
     build-packages:
-      - bison
-      - bzip2
-      - flex
-      - pkg-config
-      - libaio-dev
-      - libcap-ng-dev
-      - libfdt-dev
-      - libglib2.0-dev
-      - libnuma-dev
-      - libpixman-1-dev
-      - libseccomp-dev
-      - liburing-dev
-      - libusb-1.0-0-dev
-      - libusbredirparser-dev
-      - quilt
-      - librbd-dev
+      - on armhf:
+        - "" # do not pull pkg on unsupported arches
+      - on riscv64:
+        - "" # do not pull pkg on unsupported arches
+      - else:
+        - bison
+        - bzip2
+        - flex
+        - pkg-config
+        - libaio-dev
+        - libcap-ng-dev
+        - libfdt-dev
+        - libglib2.0-dev
+        - libnuma-dev
+        - libpixman-1-dev
+        - libseccomp-dev
+        - liburing-dev
+        - libusb-1.0-0-dev
+        - libusbredirparser-dev
+        - quilt
+        - librbd-dev
     stage-packages:
       - genisoimage
       - ipxe-qemu # This is needed due to --disable-install-blobs.
@@ -943,10 +970,16 @@ parts:
     source: edk2-vars-generator
     plugin: nil
     build-packages:
-      - dosfstools
-      - mtools
-      - python3-pexpect
-      - xorriso
+      - on amd64:
+        - dosfstools
+        - mtools
+        - python3-pexpect
+        - xorriso
+      - on arm64:
+        - dosfstools
+        - mtools
+        - python3-pexpect
+        - xorriso
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
@@ -1080,10 +1113,15 @@ parts:
       - --prefix=/
       - --with-config=user
     build-packages:
-      - libblkid-dev
-      - libssl-dev
-      - uuid-dev
-      - zlib1g-dev
+      - on armhf:
+        - "" # do not pull pkg on unsupported arches
+      - on riscv64:
+        - "" # do not pull pkg on unsupported arches
+      - else:
+        - libblkid-dev
+        - libssl-dev
+        - uuid-dev
+        - zlib1g-dev
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
@@ -1126,10 +1164,15 @@ parts:
       - --prefix=/
       - --with-config=user
     build-packages:
-      - libblkid-dev
-      - libssl-dev
-      - uuid-dev
-      - zlib1g-dev
+      - on armhf:
+        - "" # do not pull pkg on unsupported arches
+      - on riscv64:
+        - "" # do not pull pkg on unsupported arches
+      - else:
+        - libblkid-dev
+        - libssl-dev
+        - uuid-dev
+        - zlib1g-dev
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
