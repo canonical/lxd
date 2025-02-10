@@ -992,12 +992,12 @@ parts:
     source: edk2-vars-generator
     plugin: nil
     build-packages:
-      - on amd64:
+      - to amd64:
         - dosfstools
         - mtools
         - python3-pexpect
         - xorriso
-      - on arm64:
+      - to arm64:
         - dosfstools
         - mtools
         - python3-pexpect
