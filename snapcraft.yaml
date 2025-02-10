@@ -488,11 +488,18 @@ parts:
 
   libatomic:
     plugin: nil
+    override-stage: |-
+      [ "$(uname -m)" != "s390x" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" != "s390x" ] && exit 0
+      craftctl default
     stage-packages:
       - libatomic1
     organize:
       usr/lib/: lib/
     prime:
+      # XXX: libatomic.so is only needed by Ceph/QEMU on s390x and no other arch.
       - lib/*/libatomic.so*
 
   logrotate:
