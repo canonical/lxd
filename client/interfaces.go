@@ -428,6 +428,13 @@ type InstanceServer interface {
 	UpdateClusterGroup(name string, group api.ClusterGroupPut, ETag string) error
 	GetClusterGroup(name string) (*api.ClusterGroup, string, error)
 
+	// Site functions ("sites" API extension)
+	GetSite(name string) (remote *api.Site, ETag string, err error)
+	GetSites() (remotes []api.Site, err error)
+	JoinSite(remote api.SitePost) (op Operation, err error)
+	UpdateSiteName(name string) (op Operation, err error)
+	DeleteSite(name string) (op Operation, err error)
+
 	// Warning functions
 	GetWarningUUIDs() (uuids []string, err error)
 	GetWarnings() (warnings []api.Warning, err error)

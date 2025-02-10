@@ -2599,3 +2599,17 @@ The following pool level configuration keys have been added:
 1. {config:option}`storage-pure-pool-conf:pure.api.token`
 1. {config:option}`storage-pure-pool-conf:pure.mode`
 1. {config:option}`storage-pure-pool-conf:pure.target`
+
+## sites
+
+This introduces the sites API to enable server-side remotes and remote clusters.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/sites/<name>` - returns information about a specific site.
+* `GET /1.0/sites` - returns a combined view of self-created and delegated sites (if any).
+* `PUT /1.0/sites/<name>` - allows for modification of a specific site.
+* `POST /1.0/site/join` - joins a specific site using a provided trust given token.
+* `DELETE /1.0/sites/<name>` - deletes a site.
+
+This also includes the new `sites` and `sites_config` database tables and their corresponding functions.
