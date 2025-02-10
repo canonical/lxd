@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/dnsutil"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/validate"
@@ -391,9 +392,9 @@ func (d *zone) Content() (*strings.Builder, error) {
 			includeV6 := includeNAT || shared.IsFalseOrEmpty(netConfig["ipv6.nat"])
 
 			// Check if dealing with a reverse zone.
-			isReverse4 := strings.HasSuffix(d.info.Name, ip4Arpa)
-			isReverse6 := strings.HasSuffix(d.info.Name, ip6Arpa)
-			isReverse := isReverse4 || isReverse6
+			isReverse := dnsutil.IsReverse(d.info.Name + ".")
+			isReverse4 := isReverse == 1
+			isReverse6 := isReverse == 2
 
 			genRecord := func(name string, ip net.IP) map[string]string {
 				isV4 := ip.To4() != nil
@@ -409,7 +410,7 @@ func (d *zone) Content() (*strings.Builder, error) {
 
 				record := map[string]string{}
 				record["ttl"] = "300"
-				if !isReverse {
+				if isReverse == 0 {
 					if isV4 {
 						record["type"] = "A"
 					} else {
@@ -429,7 +430,7 @@ func (d *zone) Content() (*strings.Builder, error) {
 					}
 
 					// Get the ARPA record.
-					reverseAddr := reverse(ip)
+					reverseAddr := dnsutil.Reverse(ip)
 					if reverseAddr == "" {
 						return nil
 					}
@@ -442,7 +443,7 @@ func (d *zone) Content() (*strings.Builder, error) {
 				return record
 			}
 
-			if isReverse {
+			if isReverse > 0 {
 				// Load network leases in correct project context for each forward zone referenced.
 				for _, forwardZoneName := range shared.SplitNTrimSpace(n.Config()["dns.zone.forward"], ",", -1, true) {
 					// Get forward zone's project.
