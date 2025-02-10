@@ -31,29 +31,9 @@ type connectFunc func(ctx context.Context, s *session, addr string) error
 // when safe. The returned reverter will only cancel ongoing connection attempts
 // but will **not** attempt disconnection.
 func connect(ctx context.Context, c Connector, targetQN string, targetAddrs []string, connectFunc connectFunc) (revert.Hook, error) {
-	// Acquire a lock to prevent concurrent connection attempts to the same
-	// target.
-	//
-	// The unlock is not deferred here because it must remain held until all
-	// connection attempts are complete. Releasing the lock prematurely after
-	// the first successful connection (when this function exits) could lead
-	// to race conditions if other connection attempts are still ongoing.
-	// For the same reason, relying on a higher-level lock from the caller
-	// (e.g., the storage driver) is insufficient.
-	unlock, err := locking.Lock(ctx, targetQN)
-	if err != nil {
-		return nil, err
-	}
+	reverter := revert.New()
+	defer reverter.Fail()
 
-	// Once the lock is obtained, search for an existing session.
-	session, err := c.findSession(targetQN)
-	if err != nil {
-		return nil, err
-	}
-
-	// Context cancellation is not deferred to allow connection attempts to
-	// continue after the first successful connection (which causes the function
-	// to exit). The context is manually cancelled once all attempts complete.
 	var cancel context.CancelFunc
 	_, ok := ctx.Deadline()
 	if !ok {
@@ -64,6 +44,73 @@ func connect(ctx context.Context, c Connector, targetQN string, targetAddrs []st
 		// Otherwise, wrap the context to allow manual cancellation.
 		ctx, cancel = context.WithCancel(ctx)
 	}
+
+	// Add the context cancellation to the reverter.
+	// In case the caller never starts any connection attempts and returns early
+	// the derived context has to be cancelled too to not leak the deadline's timer.
+	reverter.Add(func() { cancel() })
+
+	// Acquire a lock to prevent concurrent connection attempts to the same
+	// target.
+	//
+	// The unlock is not deferred here because it must remain held until all
+	// connection attempts are complete. Releasing the lock prematurely after
+	// the first successful connection (when this function exits) could lead
+	// to race conditions if other connection attempts are still ongoing.
+	// For the same reason, relying on a higher-level lock from the caller
+	// (e.g., the storage driver) is insufficient.
+	var unlock locking.UnlockFunc
+	for {
+		unlock = locking.TryLock(targetQN)
+		if unlock == nil {
+			// The lock is already taken, which means some other routine is trying
+			// to connect to the same target.
+			// Therefore, search for an existing session and check if we are already connected to any address.
+			session, err := c.findSession(targetQN)
+			if err != nil {
+				return nil, err
+			}
+
+			// Check if there already is a single established connection for the given targetQN.
+			// In this case skip our attempt to connect and return early because the other routine is actively trying
+			// to connect at the moment.
+			// This prevents waiting until a connection has been established with all the target addresses.
+			// A single connection is already sufficient and the behavior is identical to the other routine
+			// which will return after the first connection attempt was successful (without releasing the lock yet).
+			// If there isn't yet any established connection, we will continue to wait for the lock.
+			if session != nil && len(session.addresses) > 0 {
+				// There is at least one established connection, return early.
+				// Return an empty cleanup hook instead of nil to not cause a panic if the caller decides to run the cleanup hook.
+				// If a function returns a cleanup hook it's added to the callers reverter without checking for its actual value.
+				return func() {}, nil
+			}
+
+			select {
+			case <-ctx.Done():
+				return nil, fmt.Errorf("Failed to find any session whilst trying to connect")
+			default:
+				// Sleep a while before trying to acquire the lock another time.
+				time.Sleep(500 * time.Millisecond)
+
+				continue
+			}
+		}
+
+		// The lock was acquired, break the loop and continue to establish connections.
+		break
+	}
+
+	// Once the lock is obtained, search for an existing session.
+	session, err := c.findSession(targetQN)
+	if err != nil {
+		return nil, err
+	}
+
+	// Clean the reverter to remove the context's cancellation.
+	// Context cancellation is not deferred by default to allow connection attempts to
+	// continue after the first successful connection (which causes the connect function
+	// to exit). The context is manually cancelled once all attempts complete.
+	reverter.Success()
 
 	var wg sync.WaitGroup
 	resChan := make(chan bool, len(targetAddrs))
