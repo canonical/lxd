@@ -1228,8 +1228,6 @@ parts:
       rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
 
   zstd:
-    after:
-      - libatomic
     plugin: nil
     stage-packages:
       - zstd
