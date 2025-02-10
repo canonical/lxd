@@ -69,3 +69,23 @@ func Lock(ctx context.Context, lockName string) (UnlockFunc, error) {
 		}
 	}
 }
+
+// TryLock attempts to acquire a lock without blocking.
+// If it succeeds it returns an unlock function and true.
+// If it fails it returns nil and false.
+func TryLock(lockName string) (UnlockFunc, bool) {
+	// Create a new context and cancel it.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// Request lock with an already cancelled context.
+	// If the lock is already acquired we give up.
+	unlock, err := Lock(ctx, lockName)
+	if err != nil {
+		return nil, false
+	}
+
+	// The lock wasn't yet acquired.
+	// Return the respective unlock function.
+	return unlock, true
+}
