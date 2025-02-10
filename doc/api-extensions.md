@@ -2599,3 +2599,7 @@ The following pool level configuration keys have been added:
 1. {config:option}`storage-pure-pool-conf:pure.api.token`
 1. {config:option}`storage-pure-pool-conf:pure.mode`
 1. {config:option}`storage-pure-pool-conf:pure.target`
+
+## `project_default_network_and_storage`
+
+Adds flags --network and --storage. The --network flag adds a network device connected to the specified network to the default profile. The --storage flag adds a root disk device using to the specified storage pool to the default profile.
