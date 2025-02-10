@@ -214,6 +214,8 @@ parts:
       - bin/mkfs.btrfs
 
   ceph:
+    after:
+      - libatomic
     plugin: nil
     stage-packages:
       # XXX: explicitly depend on libsnappy1v5 due to https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2072656
@@ -291,7 +293,7 @@ parts:
     plugin: nil
     build-packages:
       - on riscv64:
-        - "" # do not pull pkg on unsupported arches
+        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - else:
         - asciidoc
         - libcap-dev
@@ -483,6 +485,22 @@ parts:
       rm "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.debug.fd"
     prime:
       - share/qemu/*
+
+  libatomic:
+    plugin: nil
+    override-stage: |-
+      [ "$(uname -m)" != "s390x" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" != "s390x" ] && exit 0
+      craftctl default
+    stage-packages:
+      - libatomic1
+    organize:
+      usr/lib/: lib/
+    prime:
+      # XXX: libatomic.so is only needed by Ceph/QEMU on s390x and no other arch.
+      - lib/*/libatomic.so*
 
   logrotate:
     plugin: nil
@@ -739,9 +757,9 @@ parts:
       - -Dtests=false
     build-packages:
       - on armhf:
-        - "" # do not pull pkg on unsupported arches
+        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - on riscv64:
-        - "" # do not pull pkg on unsupported arches
+        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - else:
         - libspice-protocol-dev
         - libjpeg-turbo8-dev
@@ -797,6 +815,7 @@ parts:
 
   qemu:
     after:
+      - libatomic
       - spice-server
     source: https://git.launchpad.net/ubuntu/+source/qemu
     source-commit: 50a4fe555e21d4b633580d63ae45e807de9e2f91 # import/1%8.2.2+ds-0ubuntu1.5
@@ -860,9 +879,9 @@ parts:
       - --disable-install-blobs # Ubuntu sources don't have the ROM blobs in them.
     build-packages:
       - on armhf:
-        - "" # do not pull pkg on unsupported arches
+        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - on riscv64:
-        - "" # do not pull pkg on unsupported arches
+        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - else:
         - bison
         - bzip2
@@ -945,6 +964,7 @@ parts:
       - bin/qemu-system-*
       - bin/qemu-img*
       - bin/virtfs-proxy-helper*
+      - lib/*/libatomic.so*
       - lib/*/libmagic*so*
       - lib/*/libnuma*so*
       - lib/*/libpixman*so*
@@ -1116,9 +1136,9 @@ parts:
       - --with-config=user
     build-packages:
       - on armhf:
-        - "" # do not pull pkg on unsupported arches
+        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - on riscv64:
-        - "" # do not pull pkg on unsupported arches
+        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - else:
         - libblkid-dev
         - libssl-dev
@@ -1167,9 +1187,9 @@ parts:
       - --with-config=user
     build-packages:
       - on armhf:
-        - "" # do not pull pkg on unsupported arches
+        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - on riscv64:
-        - "" # do not pull pkg on unsupported arches
+        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - else:
         - libblkid-dev
         - libssl-dev
@@ -1208,6 +1228,8 @@ parts:
       rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
 
   zstd:
+    after:
+      - libatomic
     plugin: nil
     stage-packages:
       - zstd
