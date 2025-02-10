@@ -236,6 +236,16 @@ test_network_ovn() {
   [ "$(ovn-nbctl get dns "${dns_entry_uuid}" external_ids:lxd_switch)" = "${internal_switch_name}" ]
   [ "$(ovn-nbctl get dns "${dns_entry_uuid}" records:c1.lxd)" = '"'"${c1_ipv4_address} ${c1_ipv6_address}"'"' ]
 
+  # Test DNS resolution.
+  [ "$(lxc exec c1 -- nslookup c1.lxd 10.10.10.1 | grep -cF "${c1_ipv6_address}")" = 1 ]
+  [ "$(lxc exec c1 -- nslookup c1.lxd fd42:4242:4242:1010::1 | grep -cF "${c1_ipv6_address}")" = 1 ]
+
+  [ "$(lxc exec c1 -- nslookup "${c1_ipv4_address}" 10.10.10.1 | grep -cF c1.lxd)" = 1 ]
+  [ "$(lxc exec c1 -- nslookup "${c1_ipv4_address}" fd42:4242:4242:1010::1 | grep -cF c1.lxd)" = 1 ]
+
+  [ "$(lxc exec c1 -- nslookup "${c1_ipv6_address}" 10.10.10.1 | grep -cF c1.lxd)" = 1 ]
+  [ "$(lxc exec c1 -- nslookup "${c1_ipv6_address}" fd42:4242:4242:1010::1 | grep -cF c1.lxd)" = 1 ]
+
   # Clean up.
   lxc delete c1 --force
   lxc network delete "${ovn_network}"
