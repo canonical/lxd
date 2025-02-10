@@ -291,7 +291,7 @@ parts:
     plugin: nil
     build-packages:
       - on riscv64:
-        - "" # do not pull pkg on unsupported arches
+        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - else:
         - asciidoc
         - libcap-dev
