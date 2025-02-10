@@ -372,6 +372,23 @@ func storageVolumeSnapshotConfig(ctx context.Context, tx *ClusterTx, volumeSnaps
 	}, volumeSnapshotID)
 }
 
+// UpdateStoragePoolVolumeConfig updates a storage volume's config on the database.
+func (c *ClusterTx) UpdateStoragePoolVolumeConfig(volumeName string, volumeID int64, volumeConfig map[string]string) error {
+	isSnapshot := strings.Contains(volumeName, shared.SnapshotDelimiter)
+
+	err := storageVolumeConfigClear(c.tx, volumeID, isSnapshot)
+	if err != nil {
+		return err
+	}
+
+	err = storageVolumeConfigAdd(c.tx, volumeID, volumeConfig, isSnapshot)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // UpdateStoragePoolVolume updates the storage volume attached to a given storage pool.
 func (c *ClusterTx) UpdateStoragePoolVolume(ctx context.Context, projectName string, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
 	isSnapshot := strings.Contains(volumeName, shared.SnapshotDelimiter)
@@ -381,12 +398,7 @@ func (c *ClusterTx) UpdateStoragePoolVolume(ctx context.Context, projectName str
 		return err
 	}
 
-	err = storageVolumeConfigClear(c.tx, volume.ID, isSnapshot)
-	if err != nil {
-		return err
-	}
-
-	err = storageVolumeConfigAdd(c.tx, volume.ID, volumeConfig, isSnapshot)
+	err = c.UpdateStoragePoolVolumeConfig(volume.Name, volume.ID, volumeConfig)
 	if err != nil {
 		return err
 	}

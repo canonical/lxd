@@ -3501,7 +3501,7 @@ func (d *zfs) RenameVolumeSnapshot(vol Volume, newSnapshotName string, op *opera
 }
 
 // FillVolumeConfig populate volume with default config.
-func (d *zfs) FillVolumeConfig(vol Volume) error {
+func (d *zfs) FillVolumeConfig(vol Volume) {
 	var excludedKeys []string
 
 	// Copy volume.* configuration options from pool.
@@ -3512,10 +3512,7 @@ func (d *zfs) FillVolumeConfig(vol Volume) error {
 		excludedKeys = []string{"block.filesystem", "block.mount_options"}
 	}
 
-	err := d.fillVolumeConfig(&vol, excludedKeys...)
-	if err != nil {
-		return err
-	}
+	d.fillVolumeConfig(&vol, excludedKeys...)
 
 	// Only validate filesystem config keys for filesystem volumes.
 	if d.isBlockBacked(vol) && vol.ContentType() == ContentTypeFS {
@@ -3546,8 +3543,6 @@ func (d *zfs) FillVolumeConfig(vol Volume) error {
 			vol.config["block.mount_options"] = "discard"
 		}
 	}
-
-	return nil
 }
 
 func (d *zfs) isBlockBacked(vol Volume) bool {
