@@ -134,11 +134,6 @@ func (c *connectorISCSI) Connect(ctx context.Context, targetQN string, targetAdd
 	return connect(ctx, c, targetQN, targetAddresses, connectFunc)
 }
 
-// ConnectAll establishes a connection with all targets available on the given address.
-func (c *connectorISCSI) ConnectAll(ctx context.Context, targetAddr string) error {
-	return fmt.Errorf("ConnectAll not implemented")
-}
-
 // Disconnect terminates a connection with the target.
 func (c *connectorISCSI) Disconnect(targetQN string) error {
 	// Find an existing iSCSI session.
@@ -173,16 +168,6 @@ func (c *connectorISCSI) Disconnect(targetQN string) error {
 	}
 
 	return nil
-}
-
-// DisconnectAll terminates all connections with all targets.
-func (c *connectorISCSI) DisconnectAll() error {
-	return fmt.Errorf("DisconnectAll not implemented")
-}
-
-// SessionID returns the ID of an existing session.
-func (c *connectorISCSI) SessionID(targetQN string) (string, error) {
-	return "", fmt.Errorf("SessionID not implemented")
 }
 
 // findSession returns an active iSCSI session that matches the given targetQN.
