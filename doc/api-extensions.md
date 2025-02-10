@@ -2610,3 +2610,7 @@ This API extension enables setting an {config:option}`server-oidc:oidc.scopes` c
 This configuration option can be used to request additional scopes that might be required for retrieving {ref}`identity provider groups <identity-provider-groups>` from the identity provider.
 Additionally, the optional scopes `profile` and `offline_access` can be unset via this setting.
 Note that the `openid` and `email` scopes are always required.
+
+## `project_default_network_and_storage`
+
+Adds flags --network and --storage. The --network flag adds a network device connected to the specified network to the default profile. The --storage flag adds a root disk device using the specified storage pool to the default profile.
