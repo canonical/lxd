@@ -878,7 +878,7 @@ parts:
       - --localstatedir=/var/
       - --disable-install-blobs # Ubuntu sources don't have the ROM blobs in them.
     build-packages:
-      - on armhf:
+      - to armhf:
         - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - on riscv64:
         - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
