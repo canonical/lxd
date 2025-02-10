@@ -574,7 +574,7 @@ func (o *OVN) LogicalRouterPortSetIPv6Advertisements(portName OVNRouterPort, opt
 		fmt.Sprintf("ipv6_ra_configs:send_periodic=%t", opts.SendPeriodic),
 	}
 
-	var removeRAConfigKeys []string
+	removeRAConfigKeys := make([]string, 0)
 
 	if opts.AddressMode != "" {
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:address_mode=%s", string(opts.AddressMode)))
@@ -765,7 +765,7 @@ func (o *OVN) logicalSwitchParseExcludeIPs(ips []shared.IPRange) ([]string, erro
 
 // LogicalSwitchSetIPAllocation sets the IP allocation config on the logical switch.
 func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllocationOpts) error {
-	var removeOtherConfigKeys []string
+	removeOtherConfigKeys := make([]string, 0)
 	args := []string{"set", "logical_switch", string(switchName)}
 
 	if opts.PrefixIPv4 != nil {
@@ -813,7 +813,7 @@ func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllo
 
 // LogicalSwitchDHCPv4RevervationsSet sets the DHCPv4 IP reservations.
 func (o *OVN) LogicalSwitchDHCPv4RevervationsSet(switchName OVNSwitch, reservedIPs []shared.IPRange) error {
-	var removeOtherConfigKeys []string
+	removeOtherConfigKeys := make([]string, 0)
 	args := []string{"set", "logical_switch", string(switchName)}
 
 	if len(reservedIPs) > 0 {
@@ -1186,7 +1186,7 @@ func (o *OVN) LogicalSwitchIPs(switchName OVNSwitch) (map[OVNSwitchPort][]net.IP
 	for _, line := range lines {
 		fields := shared.SplitNTrimSpace(line, ",", -1, true)
 		portName := OVNSwitchPort(fields[0])
-		var ips []net.IP
+		ips := make([]net.IP, 0)
 
 		// Parse all IPs mentioned in addresses and dynamic_addresses fields.
 		for i := 1; i < len(fields); i++ {
@@ -1434,7 +1434,7 @@ func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (OVNDNSUUID, strin
 	dnsUUID := strings.TrimSpace(parts[0])
 
 	var dnsName string
-	var ips []net.IP
+	ips := make([]net.IP, 0)
 
 	// Try and parse the DNS name and IPs.
 	if len(parts) > 1 {
@@ -1613,22 +1613,47 @@ func (o *OVN) ChassisGroupChassisAdd(haChassisGroupName OVNChassisGroup, chassis
 
 // ChassisGroupChassisDelete deletes a chassis ID from an HA chassis group.
 func (o *OVN) ChassisGroupChassisDelete(haChassisGroupName OVNChassisGroup, chassisID string) error {
-	// Check if chassis group exists. ovn-nbctl doesn't provide an "--if-exists" option for this.
-	output, err := o.nbctl("--no-headings", "--data=bare", "--colum=name,ha_chassis", "find", "ha_chassis_group", fmt.Sprintf("name=%s", string(haChassisGroupName)))
+	// map uuids with chassis_names
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--column=_uuid,chassis_name", "list", "ha_chassis")
 	if err != nil {
 		return err
 	}
 
 	lines := shared.SplitNTrimSpace(output, "\n", -1, true)
+
+	uuidToChassis := make(map[string]string, len(lines))
+
+	for _, line := range lines {
+		// a74125a8-b580-4763-b389-11ce2c8c5509,node2
+		fields := strings.Split(line, ",")
+
+		if len(fields) == 2 {
+			uuidToChassis[fields[0]] = fields[1]
+		}
+	}
+
+	// Check if chassis group exists. ovn-nbctl doesn't provide an "--if-exists" option for this.
+	output, err = o.nbctl("--no-headings", "--data=bare", "--colum=name,ha_chassis", "find", "ha_chassis_group", "name="+string(haChassisGroupName))
+	if err != nil {
+		return err
+	}
+
+	lines = shared.SplitNTrimSpace(output, "\n", -1, true)
 	if len(lines) > 1 {
 		existingChassisGroup := lines[0]
 		members := shared.SplitNTrimSpace(lines[1], " ", -1, true)
 
 		// Remove chassis from group if exists.
-		if existingChassisGroup == string(haChassisGroupName) && shared.ValueInSlice(chassisID, members) {
-			_, err := o.nbctl("ha-chassis-group-remove-chassis", string(haChassisGroupName), chassisID)
-			if err != nil {
-				return err
+		if existingChassisGroup == string(haChassisGroupName) {
+			for _, member := range members {
+				name, found := uuidToChassis[member]
+				if found && name == chassisID {
+					_, err := o.nbctl("ha-chassis-group-remove-chassis", string(haChassisGroupName), chassisID)
+					if err != nil {
+						return err
+					}
+					break
+				}
 			}
 		}
 	}
@@ -1885,7 +1910,7 @@ func (o *OVN) loadBalancerUUIDs(loadBalancerName OVNLoadBalancer) ([]string, err
 	lbTCPName := fmt.Sprintf("%s-tcp", loadBalancerName)
 	lbUDPName := fmt.Sprintf("%s-udp", loadBalancerName)
 
-	var lbUUIDs []string
+	lbUUIDs := make([]string, 0)
 
 	// Use find command in order to workaround OVN bug where duplicate records of same name can exist.
 	for _, lbName := range []string{lbTCPName, lbUDPName} {
@@ -1914,7 +1939,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 		return fmt.Errorf("Failed getting UUIDs: %w", err)
 	}
 
-	var args []string
+	args := make([]string, 0)
 
 	for _, lbUUID := range lbUUIDs {
 		if len(args) > 0 {
@@ -1991,7 +2016,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 
 	// If there are some VIP rules then associate the load balancer to the requested routers.
 	if len(vips) > 0 {
-		var args []string
+		args := make([]string, 0)
 
 		// Get fresh list of load balancer UUIDs.
 		lbUUIDs, err := o.loadBalancerUUIDs(loadBalancerName)
@@ -2022,7 +2047,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 
 // LoadBalancerDelete deletes the specified load balancer(s).
 func (o *OVN) LoadBalancerDelete(loadBalancerNames ...OVNLoadBalancer) error {
-	var args []string
+	args := make([]string, 0)
 
 	for _, loadBalancerName := range loadBalancerNames {
 		lbUUIDs, err := o.loadBalancerUUIDs(loadBalancerName)
@@ -2084,7 +2109,7 @@ func (o *OVN) AddressSetCreate(addressSetPrefix OVNAddressSet, addresses ...net.
 // AddressSetAdd adds the supplied addresses to the address sets, or creates a new address sets if needed.
 // The address set name used is "<addressSetPrefix>_ip<IP version>", e.g. "foo_ip4".
 func (o *OVN) AddressSetAdd(addressSetPrefix OVNAddressSet, addresses ...net.IPNet) error {
-	var args []string
+	args := make([]string, 0)
 	ipVersions := make(map[uint]struct{})
 
 	for _, address := range addresses {
@@ -2128,7 +2153,7 @@ func (o *OVN) AddressSetAdd(addressSetPrefix OVNAddressSet, addresses ...net.IPN
 // AddressSetRemove removes the supplied addresses from the address set.
 // The address set name used is "<addressSetPrefix>_ip<IP version>", e.g. "foo_ip4".
 func (o *OVN) AddressSetRemove(addressSetPrefix OVNAddressSet, addresses ...net.IPNet) error {
-	var args []string
+	args := make([]string, 0)
 
 	for _, address := range addresses {
 		if len(args) > 0 {
@@ -2268,7 +2293,7 @@ func (o *OVN) LogicalRouterPeeringApply(opts OVNRouterPeering) error {
 	}
 
 	// Start fresh command set.
-	var args []string
+	args := make([]string, 0)
 
 	// Will use the first IP from each family of the router port interfaces.
 	localRouterGatewayIPs := make(map[uint]net.IP, 0)
