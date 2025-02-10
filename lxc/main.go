@@ -239,6 +239,10 @@ For help with any of those, simply call them with --help.`))
 	restoreCmd := cmdRestore{global: &globalCmd}
 	app.AddCommand(restoreCmd.command())
 
+	// service sub-command
+	serviceCmd := cmdService{global: &globalCmd}
+	app.AddCommand(serviceCmd.command())
+
 	// snapshot sub-command
 	snapshotCmd := cmdSnapshot{global: &globalCmd}
 	app.AddCommand(snapshotCmd.command())
