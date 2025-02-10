@@ -54,13 +54,13 @@ require (
 	github.com/zitadel/oidc/v3 v3.34.0
 	go.starlark.net v0.0.0-20241226192728-8dfa5b98479f
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.32.0
+	golang.org/x/crypto v0.33.0
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
 	golang.org/x/oauth2 v0.25.0
 	golang.org/x/sync v0.11.0
 	golang.org/x/sys v0.30.0
-	golang.org/x/term v0.28.0
-	golang.org/x/text v0.21.0
+	golang.org/x/term v0.29.0
+	golang.org/x/text v0.22.0
 	golang.org/x/tools v0.29.0
 	google.golang.org/protobuf v1.36.4
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
