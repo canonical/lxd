@@ -40,9 +40,23 @@ func connect(ctx context.Context, c Connector, targetQN string, targetAddrs []st
 	// to race conditions if other connection attempts are still ongoing.
 	// For the same reason, relying on a higher-level lock from the caller
 	// (e.g., the storage driver) is insufficient.
-	unlock, err := locking.Lock(ctx, targetQN)
+	//
+	// To unblock early in case there already is an ongoing connection attempt,
+	// we acquire a friendly lock.
+	// Any preceding caller can run the unblockFriendly function as soon as the first
+	// successful connection to the target has been made.
+	// In case the preceding caller hasn't yet made any successful connection,
+	// all the subsequent callers will still block trying to acquire the actual lock.
+	friendly, unlock, unlockFriendly, err := locking.LockFriendly(ctx, targetQN)
 	if err != nil {
 		return nil, err
+	}
+
+	// A preceding caller already acquired the lock and has given the friendly permission to continue on.
+	// This unblocks any subsequent callers as they don't anymore have to wait for the lock.
+	if friendly {
+		// We got the friendly lock and can return.
+		return func() {}, nil
 	}
 
 	// Once the lock is obtained, search for an existing session.
@@ -87,6 +101,12 @@ func connect(ctx context.Context, c Connector, targetQN string, targetAddrs []st
 					successLock.Lock()
 					isSuccess = true
 					successLock.Unlock()
+
+					// Friendly unlock the connector lock.
+					// This allows any subsequent caller to unblock as it can make use of the
+					// successful connection we have just made.
+					// This doesn't release the actual connectors lock.
+					unlockFriendly()
 				}
 
 				resChan <- (err == nil)
