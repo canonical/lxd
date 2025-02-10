@@ -638,6 +638,8 @@ parts:
       [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-build: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
       set -ex
 
       make binaries
