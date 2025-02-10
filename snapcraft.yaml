@@ -589,14 +589,14 @@ parts:
     build-environment:
       - GIT_TAG: "1.17.4" # Enables source-depth: 1, should match git tag without "v" prefix.
     build-packages:
-      - on amd64:
+      - to amd64:
         - bmake
         - curl
         - libelf-dev
         - libseccomp-dev
         - lsb-release
         - libtirpc-dev
-      - on arm64:
+      - to arm64:
         - bmake
         - curl
         - libelf-dev
