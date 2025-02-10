@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/dnsutil"
 )
 
 // OVNRouter OVN router name.
@@ -1375,18 +1376,32 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitchPort, portName),
 	}
 
-	// Only include DNS name record if IPs supplied.
+	// Only generate DNS records if IPs are supplied.
 	if len(dnsIPs) > 0 {
-		var dnsIPsStr strings.Builder
+		dnsNameLower := strings.ToLower(dnsName)
+		var dnsRecords strings.Builder
+
+		// Generate A and AAAA records.
+		dnsRecords.WriteString(`records={"` + dnsNameLower + `"="`)
 		for i, dnsIP := range dnsIPs {
 			if i > 0 {
-				dnsIPsStr.WriteString(" ")
+				dnsRecords.WriteString(" ")
 			}
 
-			dnsIPsStr.WriteString(dnsIP.String())
+			dnsRecords.WriteString(dnsIP.String())
 		}
 
-		cmdArgs = append(cmdArgs, fmt.Sprintf(`records={"%s"="%s"}`, strings.ToLower(dnsName), dnsIPsStr.String()))
+		dnsRecords.WriteString(`"`)
+
+		// Generate PTR records.
+		for _, dnsIP := range dnsIPs {
+			// Trim the "." from the end of the PTR record as OVN doesn't like it.
+			dnsRecords.WriteString(` "` + strings.TrimSuffix(dnsutil.Reverse(dnsIP), ".") + `"="` + dnsNameLower + `"`)
+		}
+
+		dnsRecords.WriteString("}")
+
+		cmdArgs = append(cmdArgs, dnsRecords.String())
 	}
 
 	dnsUUID = strings.TrimSpace(dnsUUID)
