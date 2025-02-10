@@ -367,12 +367,12 @@ parts:
     source-type: git
     plugin: nil
     build-packages:
-      - on amd64:
+      - to amd64:
         - g++
         - acpica-tools
         - nasm
         - uuid-dev
-      - on arm64:
+      - to arm64:
         - g++
         - acpica-tools
         - nasm
