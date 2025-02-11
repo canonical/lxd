@@ -296,3 +296,33 @@ config:
       - type: nameserver
         address: 10.10.10.254
 ```
+
+## How to inject SSH keys into instances
+
+To inject SSH keys into LXD instances for an arbitrary user, use the configuration key `cloud-init.ssh-keys.<keyName>`.
+
+Use the format `<user>:<key>` for its value, where `<user>` is a Linux username and `<key>` can be either a pure SSH public key or an import ID for a key hosted elsewhere. For example, `root:gh:githubUser` and `myUser:ssh-keyAlg publicKeyHash` are valid values.
+
+`cloud-init.ssh-keys.<keyName>` cannot be applied if LXD is unable to parse both the existing `cloud-config.vendor-data` and `cloud-config.user-data` for that instance. This could happen, for example, if those keys contain badly formatted YAML.
+
+You can define SSH keys via `cloud-init.vendor-data` or `cloud-init.user-data` directly. Keys defined using `cloud-init.ssh-keys.<keyName>` do not conflict with those defined with either `cloud-init.vendor-data` or `cloud-init.user-data` in any way. For more information on how to use `cloud-config` to define SSH keys, see [the cloud-init docs for SSH configuration](https://cloudinit.readthedocs.io/en/latest/reference/yaml_examples/ssh.html).
+
+Since `cloud-init` only runs on instance start, updates to `cloud-init.*` keys on a running instance only take effect after restart.
+
+### Examples
+
+The following command injects `someuser`'s key from Launchpad into the newly created `container`:
+
+```bash
+lxc launch ubuntu:24.04 container -c cloud-init.ssh-keys.mykey root:lp:someuser
+```
+
+The example profile configuration below defines a key to be injected on an instance. The injected key enables the owner of the private key to SSH into the instance as a user named `user`:
+
+```yaml
+config:
+  cloud-init.vendor-data: |
+    users:
+      - name: user
+        ssh_authorized_keys: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJFDWcYmMrCZdk9JI29bAiHKD90oEUr8tqK5VvoO8Vcj
+```
