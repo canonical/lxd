@@ -74,9 +74,8 @@ Snapshots cannot be mounted
 : Snapshots cannot be mounted directly to the host. Instead, a temporary volume must be created to access the snapshot's contents.
   For internal operations, such as copying instances or exporting snapshots, LXD handles this automatically.
 
-Sharing the Pure Storage storage pool between installations
-: Sharing the same Pure Storage storage pool between multiple LXD installations is not supported.
-  If a different LXD installation tries to create a storage pool with a name that already exists, an error is returned.
+Sharing the Pure Storage storage pool between multiple LXD installations
+: Sharing a Pure Storage array between multiple LXD installations is possible provided that installations use distinct storage pool names. Storage pools are implemented as Pods on the array and pod names have to be unique.
 
 Recovering Pure Storage storage pools
 : Recovery of Pure Storage storage pools using `lxd recover` is currently not supported.
