@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/dnsutil"
 )
 
 // OVNRouter OVN router name.
@@ -1375,18 +1376,32 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitchPort, portName),
 	}
 
-	// Only include DNS name record if IPs supplied.
+	// Only generate DNS records if IPs are supplied.
 	if len(dnsIPs) > 0 {
-		var dnsIPsStr strings.Builder
+		dnsNameLower := strings.ToLower(dnsName)
+		var dnsRecords strings.Builder
+
+		// Generate A and AAAA records.
+		dnsRecords.WriteString(`records={"` + dnsNameLower + `"="`)
 		for i, dnsIP := range dnsIPs {
 			if i > 0 {
-				dnsIPsStr.WriteString(" ")
+				dnsRecords.WriteString(" ")
 			}
 
-			dnsIPsStr.WriteString(dnsIP.String())
+			dnsRecords.WriteString(dnsIP.String())
 		}
 
-		cmdArgs = append(cmdArgs, fmt.Sprintf(`records={"%s"="%s"}`, strings.ToLower(dnsName), dnsIPsStr.String()))
+		dnsRecords.WriteString(`"`)
+
+		// Generate PTR records.
+		for _, dnsIP := range dnsIPs {
+			// Trim the "." from the end of the PTR record as OVN doesn't like it.
+			dnsRecords.WriteString(` "` + strings.TrimSuffix(dnsutil.Reverse(dnsIP), ".") + `"="` + dnsNameLower + `"`)
+		}
+
+		dnsRecords.WriteString("}")
+
+		cmdArgs = append(cmdArgs, dnsRecords.String())
 	}
 
 	dnsUUID = strings.TrimSpace(dnsUUID)
@@ -1914,7 +1929,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 		return fmt.Errorf("Failed getting UUIDs: %w", err)
 	}
 
-	var args []string
+	var args []string //nolint:prealloc
 
 	for _, lbUUID := range lbUUIDs {
 		if len(args) > 0 {
@@ -2084,7 +2099,7 @@ func (o *OVN) AddressSetCreate(addressSetPrefix OVNAddressSet, addresses ...net.
 // AddressSetAdd adds the supplied addresses to the address sets, or creates a new address sets if needed.
 // The address set name used is "<addressSetPrefix>_ip<IP version>", e.g. "foo_ip4".
 func (o *OVN) AddressSetAdd(addressSetPrefix OVNAddressSet, addresses ...net.IPNet) error {
-	var args []string
+	var args []string //nolint:prealloc
 	ipVersions := make(map[uint]struct{})
 
 	for _, address := range addresses {
@@ -2128,7 +2143,7 @@ func (o *OVN) AddressSetAdd(addressSetPrefix OVNAddressSet, addresses ...net.IPN
 // AddressSetRemove removes the supplied addresses from the address set.
 // The address set name used is "<addressSetPrefix>_ip<IP version>", e.g. "foo_ip4".
 func (o *OVN) AddressSetRemove(addressSetPrefix OVNAddressSet, addresses ...net.IPNet) error {
-	var args []string
+	var args []string //nolint:prealloc
 
 	for _, address := range addresses {
 		if len(args) > 0 {
@@ -2268,7 +2283,7 @@ func (o *OVN) LogicalRouterPeeringApply(opts OVNRouterPeering) error {
 	}
 
 	// Start fresh command set.
-	var args []string
+	var args []string //nolint:prealloc
 
 	// Will use the first IP from each family of the router port interfaces.
 	localRouterGatewayIPs := make(map[uint]net.IP, 0)
