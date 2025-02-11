@@ -6040,9 +6040,9 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 <!-- config group storage-powerflex-volume-conf end -->
 <!-- config group storage-pure-pool-conf start -->
 ```{config:option} pure.api.token storage-pure-pool-conf
-:shortdesc: "API token for Pure Storage gateway authentication"
+:shortdesc: "API authorization token for Pure Storage gateway"
 :type: "string"
-
+API authorization token for Pure Storage gateway. Must have array_admin role to give LXD full control over managed storage pools (Pure Storage pods).
 ```
 
 ```{config:option} pure.gateway storage-pure-pool-conf
