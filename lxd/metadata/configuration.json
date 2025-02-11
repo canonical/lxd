@@ -6555,7 +6555,7 @@
 					{
 						"powerflex.user.name": {
 							"defaultdesc": "`admin`",
-							"longdesc": "",
+							"longdesc": "Must have at least SystemAdmin role to give LXD full control over managed storage pools.",
 							"scope": "global",
 							"shortdesc": "User for PowerFlex Gateway authentication",
 							"type": "string"
