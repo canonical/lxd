@@ -1387,7 +1387,10 @@ parts:
     source-type: git
     plugin: python
     stage-packages:
-      - python3-crc32c
+      - to amd64:
+        - python3-crc32c
+      - to arm64:
+        - python3-crc32c
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
