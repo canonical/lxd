@@ -292,7 +292,7 @@ parts:
     source-type: git
     plugin: nil
     build-packages:
-      - on riscv64:
+      - to riscv64:
         - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - else:
         - asciidoc
@@ -367,12 +367,12 @@ parts:
     source-type: git
     plugin: nil
     build-packages:
-      - on amd64:
+      - to amd64:
         - g++
         - acpica-tools
         - nasm
         - uuid-dev
-      - on arm64:
+      - to arm64:
         - g++
         - acpica-tools
         - nasm
@@ -589,14 +589,14 @@ parts:
     build-environment:
       - GIT_TAG: "1.17.4" # Enables source-depth: 1, should match git tag without "v" prefix.
     build-packages:
-      - on amd64:
+      - to amd64:
         - bmake
         - curl
         - libelf-dev
         - libseccomp-dev
         - lsb-release
         - libtirpc-dev
-      - on arm64:
+      - to arm64:
         - bmake
         - curl
         - libelf-dev
@@ -756,9 +756,9 @@ parts:
       - -Dsmartcard=disabled
       - -Dtests=false
     build-packages:
-      - on armhf:
+      - to armhf:
         - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
-      - on riscv64:
+      - to riscv64:
         - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - else:
         - libspice-protocol-dev
@@ -878,9 +878,9 @@ parts:
       - --localstatedir=/var/
       - --disable-install-blobs # Ubuntu sources don't have the ROM blobs in them.
     build-packages:
-      - on armhf:
+      - to armhf:
         - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
-      - on riscv64:
+      - to riscv64:
         - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - else:
         - bison
@@ -992,12 +992,12 @@ parts:
     source: edk2-vars-generator
     plugin: nil
     build-packages:
-      - on amd64:
+      - to amd64:
         - dosfstools
         - mtools
         - python3-pexpect
         - xorriso
-      - on arm64:
+      - to arm64:
         - dosfstools
         - mtools
         - python3-pexpect
@@ -1135,9 +1135,9 @@ parts:
       - --prefix=/
       - --with-config=user
     build-packages:
-      - on armhf:
+      - to armhf:
         - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
-      - on riscv64:
+      - to riscv64:
         - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - else:
         - libblkid-dev
@@ -1186,9 +1186,9 @@ parts:
       - --prefix=/
       - --with-config=user
     build-packages:
-      - on armhf:
+      - to armhf:
         - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
-      - on riscv64:
+      - to riscv64:
         - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - else:
         - libblkid-dev
@@ -1228,8 +1228,6 @@ parts:
       rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
 
   zstd:
-    after:
-      - libatomic
     plugin: nil
     stage-packages:
       - zstd
