@@ -689,8 +689,11 @@ parts:
   openvswitch:
     plugin: nil
     stage-packages:
-      - openvswitch-common
-      - openvswitch-switch
+      - to armhf:
+        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - else:
+        - openvswitch-common
+        - openvswitch-switch
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
