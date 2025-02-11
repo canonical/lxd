@@ -6731,8 +6731,8 @@
 				"keys": [
 					{
 						"pure.api.token": {
-							"longdesc": "",
-							"shortdesc": "API token for Pure Storage gateway authentication",
+							"longdesc": "API authorization token for Pure Storage gateway. Must have array_admin role to give LXD full control over managed storage pools (Pure Storage pods).",
+							"shortdesc": "API authorization token for Pure Storage gateway",
 							"type": "string"
 						}
 					},
