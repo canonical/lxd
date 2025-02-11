@@ -189,7 +189,7 @@ func (d *powerflex) Delete(op *operations.Operation) error {
 func (d *powerflex) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.user.name)
-		//
+		// Must have at least SystemAdmin role to give LXD full control over managed storage pools.
 		// ---
 		//  type: string
 		//  defaultdesc: `admin`
