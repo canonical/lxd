@@ -501,7 +501,8 @@ parts:
       [ "$(uname -m)" != "s390x" ] && exit 0
       craftctl default
     stage-packages:
-      - libatomic1
+      - to s390x:
+        - libatomic1
     organize:
       usr/lib/: lib/
     prime:
