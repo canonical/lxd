@@ -575,7 +575,7 @@ func (o *OVN) LogicalRouterPortSetIPv6Advertisements(portName OVNRouterPort, opt
 		fmt.Sprintf("ipv6_ra_configs:send_periodic=%t", opts.SendPeriodic),
 	}
 
-	var removeRAConfigKeys []string
+	removeRAConfigKeys := make([]string, 0) //nolint:prealloc
 
 	if opts.AddressMode != "" {
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:address_mode=%s", string(opts.AddressMode)))
@@ -766,7 +766,7 @@ func (o *OVN) logicalSwitchParseExcludeIPs(ips []shared.IPRange) ([]string, erro
 
 // LogicalSwitchSetIPAllocation sets the IP allocation config on the logical switch.
 func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllocationOpts) error {
-	var removeOtherConfigKeys []string
+	removeOtherConfigKeys := make([]string, 0) //nolint:prealloc
 	args := []string{"set", "logical_switch", string(switchName)}
 
 	if opts.PrefixIPv4 != nil {
@@ -814,7 +814,7 @@ func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllo
 
 // LogicalSwitchDHCPv4RevervationsSet sets the DHCPv4 IP reservations.
 func (o *OVN) LogicalSwitchDHCPv4RevervationsSet(switchName OVNSwitch, reservedIPs []shared.IPRange) error {
-	var removeOtherConfigKeys []string
+	removeOtherConfigKeys := make([]string, 0) //nolint:prealloc
 	args := []string{"set", "logical_switch", string(switchName)}
 
 	if len(reservedIPs) > 0 {
@@ -1187,7 +1187,7 @@ func (o *OVN) LogicalSwitchIPs(switchName OVNSwitch) (map[OVNSwitchPort][]net.IP
 	for _, line := range lines {
 		fields := shared.SplitNTrimSpace(line, ",", -1, true)
 		portName := OVNSwitchPort(fields[0])
-		var ips []net.IP
+		ips := make([]net.IP, 0, len(fields))
 
 		// Parse all IPs mentioned in addresses and dynamic_addresses fields.
 		for i := 1; i < len(fields); i++ {
@@ -1290,7 +1290,7 @@ func (o *OVN) LogicalSwitchPortIPs(portName OVNSwitchPort) ([]net.IP, error) {
 	}
 
 	addresses := strings.Split(strings.Replace(strings.TrimSpace(addressesRaw), ",", " ", 1), " ")
-	ips := make([]net.IP, 0)
+	ips := make([]net.IP, 0, len(addresses))
 
 	for _, address := range addresses {
 		ip := net.ParseIP(address)
@@ -1449,7 +1449,7 @@ func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (OVNDNSUUID, strin
 	dnsUUID := strings.TrimSpace(parts[0])
 
 	var dnsName string
-	var ips []net.IP
+	ips := make([]net.IP, 0) //nolint:prealloc
 
 	// Try and parse the DNS name and IPs.
 	if len(parts) > 1 {
@@ -1730,7 +1730,7 @@ func (o *OVN) PortGroupAdd(projectID int64, portGroupName OVNPortGroup, associat
 
 // PortGroupDelete deletes port groups along with their ACL rules.
 func (o *OVN) PortGroupDelete(portGroupNames ...OVNPortGroup) error {
-	args := make([]string, 0)
+	args := make([]string, 0, 5*len(portGroupNames))
 
 	for _, portGroupName := range portGroupNames {
 		if len(args) > 0 {
@@ -1925,7 +1925,7 @@ func (o *OVN) loadBalancerUUIDs(loadBalancerName OVNLoadBalancer) ([]string, err
 	lbTCPName := fmt.Sprintf("%s-tcp", loadBalancerName)
 	lbUDPName := fmt.Sprintf("%s-udp", loadBalancerName)
 
-	var lbUUIDs []string
+	lbUUIDs := make([]string, 0) //nolint:prealloc
 
 	// Use find command in order to workaround OVN bug where duplicate records of same name can exist.
 	for _, lbName := range []string{lbTCPName, lbUDPName} {
@@ -1954,7 +1954,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 		return fmt.Errorf("Failed getting UUIDs: %w", err)
 	}
 
-	var args []string //nolint:prealloc
+	args := make([]string, 0, 5*len(lbUUIDs))
 
 	for _, lbUUID := range lbUUIDs {
 		if len(args) > 0 {
@@ -2031,7 +2031,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 
 	// If there are some VIP rules then associate the load balancer to the requested routers.
 	if len(vips) > 0 {
-		var args []string
+		args := make([]string, 0, 6*len(lbUUIDs))
 
 		// Get fresh list of load balancer UUIDs.
 		lbUUIDs, err := o.loadBalancerUUIDs(loadBalancerName)
@@ -2062,7 +2062,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 
 // LoadBalancerDelete deletes the specified load balancer(s).
 func (o *OVN) LoadBalancerDelete(loadBalancerNames ...OVNLoadBalancer) error {
-	var args []string
+	args := make([]string, 0, 5*len(loadBalancerNames))
 
 	for _, loadBalancerName := range loadBalancerNames {
 		lbUUIDs, err := o.loadBalancerUUIDs(loadBalancerName)
@@ -2124,7 +2124,8 @@ func (o *OVN) AddressSetCreate(addressSetPrefix OVNAddressSet, addresses ...net.
 // AddressSetAdd adds the supplied addresses to the address sets, or creates a new address sets if needed.
 // The address set name used is "<addressSetPrefix>_ip<IP version>", e.g. "foo_ip4".
 func (o *OVN) AddressSetAdd(addressSetPrefix OVNAddressSet, addresses ...net.IPNet) error {
-	var args []string //nolint:prealloc
+	args := make([]string, 0, 6*len(addresses))
+
 	ipVersions := make(map[uint]struct{})
 
 	for _, address := range addresses {
@@ -2168,7 +2169,7 @@ func (o *OVN) AddressSetAdd(addressSetPrefix OVNAddressSet, addresses ...net.IPN
 // AddressSetRemove removes the supplied addresses from the address set.
 // The address set name used is "<addressSetPrefix>_ip<IP version>", e.g. "foo_ip4".
 func (o *OVN) AddressSetRemove(addressSetPrefix OVNAddressSet, addresses ...net.IPNet) error {
-	var args []string //nolint:prealloc
+	args := make([]string, 0, 7*len(addresses))
 
 	for _, address := range addresses {
 		if len(args) > 0 {
@@ -2230,7 +2231,7 @@ func (o *OVN) LogicalRouterRoutes(routerName OVNRouter) ([]OVNRouterRoute, error
 	}
 
 	lines := shared.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
-	routes := make([]OVNRouterRoute, 0)
+	routes := make([]OVNRouterRoute, 0, len(lines))
 
 	mainTable := true // Assume output starts with main table (supports ovn versions without multiple tables).
 	for i, line := range lines {
@@ -2308,7 +2309,8 @@ func (o *OVN) LogicalRouterPeeringApply(opts OVNRouterPeering) error {
 	}
 
 	// Start fresh command set.
-	var args []string //nolint:prealloc
+
+	args := make([]string, 0) //nolint:prealloc
 
 	// Will use the first IP from each family of the router port interfaces.
 	localRouterGatewayIPs := make(map[uint]net.IP, 0)
