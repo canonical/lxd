@@ -1489,9 +1489,9 @@ parts:
       CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-agent" -tags=agent,netgo github.com/canonical/lxd/lxd-agent
       CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-user" -tags netgo github.com/canonical/lxd/lxd-user
 
-      # Some python dependencies are not available for riscv64 or just require a build from source.
+      # Some python dependencies are not available for armhf/riscv64 or just require a build from source.
       # Not worth the effort for now.
-      if [ "$(uname -m)" != "riscv64" ]; then
+      if [ "$(uname -m)" != "armv7l" ] && [ "$(uname -m)" != "riscv64" ]; then
         # Build the static website
         make doc
 
