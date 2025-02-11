@@ -1628,22 +1628,47 @@ func (o *OVN) ChassisGroupChassisAdd(haChassisGroupName OVNChassisGroup, chassis
 
 // ChassisGroupChassisDelete deletes a chassis ID from an HA chassis group.
 func (o *OVN) ChassisGroupChassisDelete(haChassisGroupName OVNChassisGroup, chassisID string) error {
-	// Check if chassis group exists. ovn-nbctl doesn't provide an "--if-exists" option for this.
-	output, err := o.nbctl("--no-headings", "--data=bare", "--colum=name,ha_chassis", "find", "ha_chassis_group", fmt.Sprintf("name=%s", string(haChassisGroupName)))
+	// Map UUIDs with chassis_names.
+	output, err := o.nbctl("--format=csv", "--no-headings", "--column=_uuid,chassis_name", "find", "ha_chassis")
 	if err != nil {
 		return err
 	}
 
 	lines := shared.SplitNTrimSpace(output, "\n", -1, true)
+
+	uuidToChassis := make(map[string]string, len(lines))
+
+	for _, line := range lines {
+		// a74125a8-b580-4763-b389-11ce2c8c5509,node2
+		key, value, match := strings.Cut(line, ",")
+		if match {
+			uuidToChassis[key] = value
+		}
+	}
+
+	// Check if chassis group exists. ovn-nbctl doesn't provide an "--if-exists" option for this.
+	output, err = o.nbctl("--no-headings", "--data=bare", "--colum=name,ha_chassis", "find", "ha_chassis_group", "name="+string(haChassisGroupName))
+	if err != nil {
+		return err
+	}
+
+	lines = shared.SplitNTrimSpace(output, "\n", -1, true)
 	if len(lines) > 1 {
 		existingChassisGroup := lines[0]
 		members := shared.SplitNTrimSpace(lines[1], " ", -1, true)
 
 		// Remove chassis from group if exists.
-		if existingChassisGroup == string(haChassisGroupName) && shared.ValueInSlice(chassisID, members) {
-			_, err := o.nbctl("ha-chassis-group-remove-chassis", string(haChassisGroupName), chassisID)
-			if err != nil {
-				return err
+		if existingChassisGroup == string(haChassisGroupName) {
+			for _, member := range members {
+				name, found := uuidToChassis[member]
+				if found && name == chassisID {
+					_, err := o.nbctl("ha-chassis-group-remove-chassis", string(haChassisGroupName), chassisID)
+					if err != nil {
+						return err
+					}
+
+					break
+				}
 			}
 		}
 	}
