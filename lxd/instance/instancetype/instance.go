@@ -29,7 +29,7 @@ const (
 const ConfigVolatilePrefix = "volatile."
 
 // ConfigKeyPrefixesAny indicates valid prefixes for configuration options.
-var ConfigKeyPrefixesAny = []string{"environment.", "user.", "image."}
+var ConfigKeyPrefixesAny = []string{"environment.", "user.", "image.", "cloud-init.ssh-keys."}
 
 // ConfigKeyPrefixesContainer indicates valid prefixes for container configuration options.
 var ConfigKeyPrefixesContainer = []string{"linux.sysctl.", "limits.kernel."}
