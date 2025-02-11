@@ -219,8 +219,11 @@ parts:
     plugin: nil
     stage-packages:
       # XXX: explicitly depend on libsnappy1v5 due to https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2072656
-      - ceph-common
-      - libsnappy1v5
+      - to armhf:
+        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - else:
+        - ceph-common
+        - libsnappy1v5
     organize:
       usr/bin/: bin/
       usr/lib/: lib/
