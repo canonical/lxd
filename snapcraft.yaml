@@ -308,8 +308,11 @@ parts:
         - protobuf-compiler
         - xmlto
     stage-packages:
-      - libnet1
-      - libprotobuf-c1
+      - to riscv64:
+        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - else:
+        - libnet1
+        - libprotobuf-c1
     override-stage: |-
       [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
