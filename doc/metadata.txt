@@ -5875,7 +5875,7 @@ If you want to specify the storage pool via its name, also set {config:option}`s
 :scope: "global"
 :shortdesc: "User for PowerFlex Gateway authentication"
 :type: "string"
-
+Must have at least SystemAdmin role to give LXD full control over managed storage pools.
 ```
 
 ```{config:option} powerflex.user.password storage-powerflex-pool-conf
