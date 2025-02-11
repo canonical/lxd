@@ -914,17 +914,20 @@ parts:
         - quilt
         - librbd-dev
     stage-packages:
-      - genisoimage
-      - ipxe-qemu # This is needed due to --disable-install-blobs.
-      - libfdt1
-      - libmagic1t64
-      - libnuma1
-      - libpixman-1-0
-      - libusb-1.0-0
-      - libusbredirparser1t64
-      - liburing2
-      - seabios # This is needed due to --disable-install-blobs.
-      - qemu-system-data # This is needed due to --disable-install-blobs.
+      - to armhf:
+        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - else:
+        - genisoimage
+        - ipxe-qemu # This is needed due to --disable-install-blobs.
+        - libfdt1
+        - libmagic1t64
+        - libnuma1
+        - libpixman-1-0
+        - libusb-1.0-0
+        - libusbredirparser1t64
+        - liburing2
+        - seabios # This is needed due to --disable-install-blobs.
+        - qemu-system-data # This is needed due to --disable-install-blobs.
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
