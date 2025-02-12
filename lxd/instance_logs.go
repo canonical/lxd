@@ -14,7 +14,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/storage"
@@ -313,12 +312,6 @@ func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
 
-	// Ensure instance exists.
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
@@ -329,14 +322,15 @@ func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	file, err := url.PathUnescape(mux.Vars(r)["file"])
+	// Ensure instance exists.
+	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = instancetype.ValidName(name, false)
+	file, err := url.PathUnescape(mux.Vars(r)["file"])
 	if err != nil {
-		return response.BadRequest(err)
+		return response.SmartError(err)
 	}
 
 	if !validLogFileName(file) {
@@ -347,7 +341,7 @@ func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Only log files excluding qemu.log and lxc.log may be deleted"))
 	}
 
-	err = os.Remove(shared.LogPath(project.Instance(projectName, name), file))
+	err = os.Remove(filepath.Join(inst.LogPath(), file))
 	if err != nil {
 		return response.SmartError(err)
 	}
