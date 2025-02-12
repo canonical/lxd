@@ -419,12 +419,6 @@ func instanceExecOutputsGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
 
-	// Ensure instance exists.
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
 	if err != nil {
@@ -435,9 +429,10 @@ func instanceExecOutputsGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	err = instancetype.ValidName(name, false)
+	// Ensure instance exists.
+	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
-		return response.BadRequest(err)
+		return response.SmartError(err)
 	}
 
 	// Mount the instance's root volume
