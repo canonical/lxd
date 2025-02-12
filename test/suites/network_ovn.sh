@@ -234,6 +234,12 @@ test_network_ovn() {
 
   # Clean up.
   lxc delete c1 --force
+
+  # Test ha_chassis removal on shutdown
+  shutdown_lxd "${LXD_DIR}"
+  ! ovn-nbctl get ha_chassis "${chassis_id}" priority || false
+  respawn_lxd "${LXD_DIR}" true
+
   lxc network delete "${ovn_network}"
   lxc network delete "${uplink_network}"
 
