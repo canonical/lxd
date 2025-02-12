@@ -219,8 +219,11 @@ parts:
     plugin: nil
     stage-packages:
       # XXX: explicitly depend on libsnappy1v5 due to https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2072656
-      - ceph-common
-      - libsnappy1v5
+      - to armhf:
+        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - else:
+        - ceph-common
+        - libsnappy1v5
     organize:
       usr/bin/: bin/
       usr/lib/: lib/
@@ -305,8 +308,11 @@ parts:
         - protobuf-compiler
         - xmlto
     stage-packages:
-      - libnet1
-      - libprotobuf-c1
+      - to riscv64:
+        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - else:
+        - libnet1
+        - libprotobuf-c1
     override-stage: |-
       [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
@@ -495,7 +501,8 @@ parts:
       [ "$(uname -m)" != "s390x" ] && exit 0
       craftctl default
     stage-packages:
-      - libatomic1
+      - to s390x:
+        - libatomic1
     organize:
       usr/lib/: lib/
     prime:
@@ -682,8 +689,11 @@ parts:
   openvswitch:
     plugin: nil
     stage-packages:
-      - openvswitch-common
-      - openvswitch-switch
+      - to armhf:
+        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - else:
+        - openvswitch-common
+        - openvswitch-switch
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
@@ -715,7 +725,10 @@ parts:
       - openvswitch
     plugin: nil
     stage-packages:
-      - ovn-common
+      - to armhf:
+        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - else:
+        - ovn-common
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
@@ -758,8 +771,6 @@ parts:
     build-packages:
       - to armhf:
         - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
-      - to riscv64:
-        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - else:
         - libspice-protocol-dev
         - libjpeg-turbo8-dev
@@ -768,8 +779,11 @@ parts:
         - meson
         - ninja-build
     stage-packages:
-      - libjpeg-turbo8
-      - libpixman-1-0
+      - to armhf:
+        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - else:
+        - libjpeg-turbo8
+        - libpixman-1-0
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
@@ -879,9 +893,7 @@ parts:
       - --disable-install-blobs # Ubuntu sources don't have the ROM blobs in them.
     build-packages:
       - to armhf:
-        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
-      - to riscv64:
-        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
+        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
       - else:
         - bison
         - bzip2
@@ -900,17 +912,20 @@ parts:
         - quilt
         - librbd-dev
     stage-packages:
-      - genisoimage
-      - ipxe-qemu # This is needed due to --disable-install-blobs.
-      - libfdt1
-      - libmagic1t64
-      - libnuma1
-      - libpixman-1-0
-      - libusb-1.0-0
-      - libusbredirparser1t64
-      - liburing2
-      - seabios # This is needed due to --disable-install-blobs.
-      - qemu-system-data # This is needed due to --disable-install-blobs.
+      - to armhf:
+        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - else:
+        - genisoimage
+        - ipxe-qemu # This is needed due to --disable-install-blobs.
+        - libfdt1
+        - libmagic1t64
+        - libnuma1
+        - libpixman-1-0
+        - libusb-1.0-0
+        - libusbredirparser1t64
+        - liburing2
+        - seabios # This is needed due to --disable-install-blobs.
+        - qemu-system-data # This is needed due to --disable-install-blobs.
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
@@ -1052,7 +1067,10 @@ parts:
   virtiofsd:
     plugin: nil
     stage-packages:
-      - virtiofsd
+      - to armhf:
+        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - else:
+        - virtiofsd
     organize:
       usr/libexec/: bin/
     prime:
@@ -1137,8 +1155,6 @@ parts:
     build-packages:
       - to armhf:
         - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
-      - to riscv64:
-        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - else:
         - libblkid-dev
         - libssl-dev
@@ -1187,8 +1203,6 @@ parts:
       - --with-config=user
     build-packages:
       - to armhf:
-        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
-      - to riscv64:
         - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - else:
         - libblkid-dev
@@ -1369,7 +1383,10 @@ parts:
     source-type: git
     plugin: python
     stage-packages:
-      - python3-crc32c
+      - to amd64:
+        - python3-crc32c
+      - to arm64:
+        - python3-crc32c
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
@@ -1472,9 +1489,9 @@ parts:
       CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-agent" -tags=agent,netgo github.com/canonical/lxd/lxd-agent
       CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-user" -tags netgo github.com/canonical/lxd/lxd-user
 
-      # Some python dependencies are not available for riscv64 or just require a build from source.
+      # Some python dependencies are not available for armhf/riscv64 or just require a build from source.
       # Not worth the effort for now.
-      if [ "$(uname -m)" != "riscv64" ]; then
+      if [ "$(uname -m)" != "armv7l" ] && [ "$(uname -m)" != "riscv64" ]; then
         # Build the static website
         make doc
 
