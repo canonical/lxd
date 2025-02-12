@@ -1629,7 +1629,7 @@ func (o *OVN) ChassisGroupChassisAdd(haChassisGroupName OVNChassisGroup, chassis
 // ChassisGroupChassisDelete deletes a chassis ID from an HA chassis group.
 func (o *OVN) ChassisGroupChassisDelete(haChassisGroupName OVNChassisGroup, chassisID string) error {
 	// Map UUIDs with chassis_names.
-	output, err := o.nbctl("--format=csv", "--no-headings", "--column=_uuid,chassis_name", "find", "ha_chassis")
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--column=_uuid,chassis_name", "find", "ha_chassis")
 	if err != nil {
 		return err
 	}
