@@ -27,6 +27,7 @@ import (
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -2529,12 +2530,20 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 	instanceConfig := d.inst.ExpandedConfig()
 
 	// Use an empty vendor-data file if no custom vendor-data supplied.
-	vendorData, ok := instanceConfig["cloud-init.vendor-data"]
+	vendorDataKey := "cloud-init.vendor-data"
+	vendorData, ok := instanceConfig[vendorDataKey]
 	if !ok {
-		vendorData = instanceConfig["user.vendor-data"]
+		vendorDataKey := "user.vendor-data"
+		vendorData = instanceConfig[vendorDataKey]
 		if vendorData == "" {
 			vendorData = "#cloud-config\n{}"
 		}
+	}
+
+	// Merge additional SSH keys present on the instance config into vendorData.
+	vendorData, err = util.MergeSSHKeyCloudConfig(instanceConfig, vendorData)
+	if err != nil {
+		logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": err, "project": d.inst.Project(), "instance": d.inst.Name(), "dataConfigKey": vendorDataKey})
 	}
 
 	err = os.WriteFile(filepath.Join(scratchDir, "vendor-data"), []byte(vendorData), 0400)
@@ -2543,12 +2552,20 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 	}
 
 	// Use an empty user-data file if no custom user-data supplied.
-	userData, ok := instanceConfig["cloud-init.user-data"]
+	userDataKey := "cloud-init.user-data"
+	userData, ok := instanceConfig[userDataKey]
 	if !ok {
-		userData = instanceConfig["user.user-data"]
+		userDataKey = "user.user-data"
+		userData = instanceConfig[userDataKey]
 		if userData == "" {
 			userData = "#cloud-config\n{}"
 		}
+	}
+
+	// Merge additional SSH keys present on the instance config into userData.
+	userData, err = util.MergeSSHKeyCloudConfig(instanceConfig, userData)
+	if err != nil {
+		logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": err, "project": d.inst.Project(), "instance": d.inst.Name(), "dataConfigKey": userDataKey})
 	}
 
 	err = os.WriteFile(filepath.Join(scratchDir, "user-data"), []byte(userData), 0400)
