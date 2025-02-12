@@ -662,6 +662,10 @@ func instanceExecOutputDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 func validLogFileName(fname string) bool {
+	if strings.Contains(fname, "/") || strings.Contains(fname, "\\") || strings.Contains(fname, "..") {
+		return false
+	}
+
 	/* Let's just require that the paths be relative, so that we don't have
 	 * to deal with any escaping or whatever.
 	 */
@@ -674,6 +678,10 @@ func validLogFileName(fname string) bool {
 }
 
 func validExecOutputFileName(fName string) bool {
+	if strings.Contains(fName, "/") || strings.Contains(fName, "\\") || strings.Contains(fName, "..") {
+		return false
+	}
+
 	return (strings.HasSuffix(fName, ".stdout") || strings.HasSuffix(fName, ".stderr")) &&
 		strings.HasPrefix(fName, "exec_")
 }
