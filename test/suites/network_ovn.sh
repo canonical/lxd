@@ -100,8 +100,8 @@ test_network_ovn() {
 
   # Check expected chassis and chassis group are created.
   chassis_group_name="lxd-net${ovn_network_id}"
-  chassis_id="$(sudo ovn-nbctl --format json get ha_chassis_group "${chassis_group_name}" ha_chassis | tr -d '[]')"
-  sudo ovn-nbctl get ha_chassis "${chassis_id}" priority
+  chassis_id="$(ovn-nbctl --format json get ha_chassis_group "${chassis_group_name}" ha_chassis | tr -d '[]')"
+  ovn-nbctl get ha_chassis "${chassis_id}" priority
 
   # Check expected logical router has the correct name.
   logical_router_name="${chassis_group_name}-lr"
@@ -228,7 +228,7 @@ test_network_ovn() {
   [ "$(ovn-nbctl get logical_switch_port "${c1_internal_switch_port_name}" external_ids:lxd_switch)" = "${internal_switch_name}" ]
 
   # Assert DNS configuration.
-  dns_entry_uuid="$(sudo ovn-nbctl --format csv --no-headings find dns "external_ids:lxd_switch_port=${c1_internal_switch_port_name}" | cut -d, -f1)"
+  dns_entry_uuid="$(ovn-nbctl --format csv --no-headings find dns "external_ids:lxd_switch_port=${c1_internal_switch_port_name}" | cut -d, -f1)"
   [ "$(ovn-nbctl get dns "${dns_entry_uuid}" external_ids:lxd_switch)" = "${internal_switch_name}" ]
   [ "$(ovn-nbctl get dns "${dns_entry_uuid}" records:c1.lxd)" = '"'"${c1_ipv4_address} ${c1_ipv6_address}"'"' ]
 
