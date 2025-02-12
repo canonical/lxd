@@ -3,13 +3,16 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/zitadel/oidc/v3/pkg/oidc"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/certificate"
+	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/shared"
@@ -113,4 +116,97 @@ func Test_patchSplitIdentityCertificateEntityTypes(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+}
+
+func Test_patchOIDCGroupsClaimScope(t *testing.T) {
+	defaultScopes := []string{oidc.ScopeOpenID, oidc.ScopeEmail, oidc.ScopeProfile, oidc.ScopeOfflineAccess}
+	case1 := func() {
+		// Set up test database.
+		cluster, cleanup := db.NewTestCluster(t)
+		defer cleanup()
+
+		// Set the groups claim.
+		// Use default values for oidc.scopes
+		ctx := context.Background()
+		err := cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			conf, err := clusterConfig.Load(ctx, tx)
+			require.NoError(t, err)
+
+			_, err = conf.Patch(map[string]any{
+				"oidc.groups.claim": "groups",
+			})
+			require.NoError(t, err)
+			return nil
+		})
+		require.NoError(t, err)
+
+		// Run the patch.
+		daemonDB := &db.DB{Cluster: cluster}
+		daemon := &Daemon{db: daemonDB, shutdownCtx: ctx}
+		err = patchOIDCGroupsClaimScope("", daemon)
+		require.NoError(t, err)
+
+		// Check the result.
+		err = cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			conf, err := clusterConfig.Load(ctx, tx)
+			require.NoError(t, err)
+
+			_, _, scopes, _, groupsClaim := conf.OIDCServer()
+			// Expect the groups claim to still be set.
+			assert.Equal(t, "groups", groupsClaim)
+
+			// Expect that `oidc.scopes` contains all of the default scopes, plus the groups claim.
+			assert.ElementsMatch(t, append(defaultScopes, groupsClaim), scopes)
+
+			return nil
+		})
+		require.NoError(t, err)
+	}
+
+	case2 := func() {
+		// Set up test database.
+		cluster, cleanup := db.NewTestCluster(t)
+		defer cleanup()
+
+		// Set the groups claim.
+		// This time set oidc.scopes to already include the groups claim (i.e. this patch was already run on another member).
+		ctx := context.Background()
+		err := cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			conf, err := clusterConfig.Load(ctx, tx)
+			require.NoError(t, err)
+
+			_, err = conf.Patch(map[string]any{
+				"oidc.groups.claim": "groups",
+				"oidc.scopes":       strings.Join(append(defaultScopes, "groups"), " "),
+			})
+			require.NoError(t, err)
+			return nil
+		})
+		require.NoError(t, err)
+
+		// Run the patch.
+		daemonDB := &db.DB{Cluster: cluster}
+		daemon := &Daemon{db: daemonDB, shutdownCtx: ctx}
+		err = patchOIDCGroupsClaimScope("", daemon)
+		require.NoError(t, err)
+
+		// Check the result.
+		err = cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			conf, err := clusterConfig.Load(ctx, tx)
+			require.NoError(t, err)
+
+			_, _, scopes, _, groupsClaim := conf.OIDCServer()
+			// Expect the groups claim to still be set.
+			assert.Equal(t, "groups", groupsClaim)
+
+			// Expect that `oidc.scopes` contains all of the default scopes, plus the groups claim.
+			assert.ElementsMatch(t, append(defaultScopes, groupsClaim), scopes)
+
+			return nil
+		})
+		require.NoError(t, err)
+	}
+
+	case1()
+	case2()
 }
