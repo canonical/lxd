@@ -575,7 +575,7 @@ func (o *OVN) LogicalRouterPortSetIPv6Advertisements(portName OVNRouterPort, opt
 		fmt.Sprintf("ipv6_ra_configs:send_periodic=%t", opts.SendPeriodic),
 	}
 
-	removeRAConfigKeys := make([]string, 0) //nolint:prealloc
+	var removeRAConfigKeys []string //nolint:prealloc
 
 	if opts.AddressMode != "" {
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:address_mode=%s", string(opts.AddressMode)))
@@ -766,7 +766,7 @@ func (o *OVN) logicalSwitchParseExcludeIPs(ips []shared.IPRange) ([]string, erro
 
 // LogicalSwitchSetIPAllocation sets the IP allocation config on the logical switch.
 func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllocationOpts) error {
-	removeOtherConfigKeys := make([]string, 0) //nolint:prealloc
+	var removeOtherConfigKeys []string //nolint:prealloc
 	args := []string{"set", "logical_switch", string(switchName)}
 
 	if opts.PrefixIPv4 != nil {
@@ -814,7 +814,7 @@ func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllo
 
 // LogicalSwitchDHCPv4RevervationsSet sets the DHCPv4 IP reservations.
 func (o *OVN) LogicalSwitchDHCPv4RevervationsSet(switchName OVNSwitch, reservedIPs []shared.IPRange) error {
-	removeOtherConfigKeys := make([]string, 0) //nolint:prealloc
+	var removeOtherConfigKeys []string //nolint:prealloc
 	args := []string{"set", "logical_switch", string(switchName)}
 
 	if len(reservedIPs) > 0 {
@@ -1449,7 +1449,7 @@ func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (OVNDNSUUID, strin
 	dnsUUID := strings.TrimSpace(parts[0])
 
 	var dnsName string
-	ips := make([]net.IP, 0) //nolint:prealloc
+	var ips []net.IP //nolint:prealloc
 
 	// Try and parse the DNS name and IPs.
 	if len(parts) > 1 {
@@ -1629,7 +1629,7 @@ func (o *OVN) ChassisGroupChassisAdd(haChassisGroupName OVNChassisGroup, chassis
 // ChassisGroupChassisDelete deletes a chassis ID from an HA chassis group.
 func (o *OVN) ChassisGroupChassisDelete(haChassisGroupName OVNChassisGroup, chassisID string) error {
 	// Map UUIDs with chassis_names.
-	output, err := o.nbctl("--format=csv", "--no-headings", "--column=_uuid,chassis_name", "find", "ha_chassis")
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--column=_uuid,chassis_name", "find", "ha_chassis")
 	if err != nil {
 		return err
 	}
@@ -1925,7 +1925,7 @@ func (o *OVN) loadBalancerUUIDs(loadBalancerName OVNLoadBalancer) ([]string, err
 	lbTCPName := fmt.Sprintf("%s-tcp", loadBalancerName)
 	lbUDPName := fmt.Sprintf("%s-udp", loadBalancerName)
 
-	lbUUIDs := make([]string, 0) //nolint:prealloc
+	var lbUUIDs []string //nolint:prealloc
 
 	// Use find command in order to workaround OVN bug where duplicate records of same name can exist.
 	for _, lbName := range []string{lbTCPName, lbUDPName} {
@@ -2309,8 +2309,7 @@ func (o *OVN) LogicalRouterPeeringApply(opts OVNRouterPeering) error {
 	}
 
 	// Start fresh command set.
-
-	args := make([]string, 0) //nolint:prealloc
+	var args []string //nolint:prealloc
 
 	// Will use the first IP from each family of the router port interfaces.
 	localRouterGatewayIPs := make(map[uint]net.IP, 0)
