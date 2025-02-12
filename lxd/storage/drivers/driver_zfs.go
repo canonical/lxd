@@ -476,7 +476,7 @@ func (d *zfs) Validate(config map[string]string) error {
 		// ---
 		//  type: bool
 		//  defaultdesc: `true`
-		//  shortdesc: Disable zpool export while an unmount is being performed
+		//  shortdesc: Whether to export the zpool when an unmount is being performed
 		//  scope: global
 		"zfs.export": validate.Optional(validate.IsBool),
 	}
