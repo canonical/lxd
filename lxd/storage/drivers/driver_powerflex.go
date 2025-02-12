@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -42,6 +43,9 @@ type powerflex struct {
 	// Holds the SDC GUID of this specific host.
 	// Use powerflex.getHostGUID() to retrieve the actual value.
 	sdcGUID string
+
+	// Holds the targetQN used by the SDTs.
+	nvmeTargetQN string
 }
 
 // load is used to run one-time action per-driver rather than per-pool.
@@ -127,6 +131,9 @@ func (d *powerflex) FillConfig() error {
 			d.config["powerflex.mode"] = connectors.TypeNVME
 		} else if goscaleio.DrvCfgIsSDCInstalled() {
 			d.config["powerflex.mode"] = connectors.TypeSDC
+		} else {
+			// Fail if no PowerFlex mode can be discovered.
+			return errors.New("Failed to discover PowerFlex mode")
 		}
 	}
 
@@ -150,52 +157,18 @@ func (d *powerflex) Create() error {
 	// Since those aren't any cluster member specific keys the general validation
 	// rules allow empty strings in order to create the pending storage pools.
 	if d.config["powerflex.pool"] == "" {
-		return fmt.Errorf("The powerflex.pool cannot be empty")
+		return errors.New("The powerflex.pool cannot be empty")
 	}
 
 	if d.config["powerflex.gateway"] == "" {
-		return fmt.Errorf("The powerflex.gateway cannot be empty")
+		return errors.New("The powerflex.gateway cannot be empty")
 	}
 
-	client := d.client()
-
-	switch d.config["powerflex.mode"] {
-	case connectors.TypeNVME:
-		// Discover one of the storage pools SDT services.
-		if d.config["powerflex.sdt"] == "" {
-			pool, err := d.resolvePool()
-			if err != nil {
-				return err
-			}
-
-			relations, err := client.getProtectionDomainSDTRelations(pool.ProtectionDomainID)
-			if err != nil {
-				return err
-			}
-
-			if len(relations) == 0 {
-				return fmt.Errorf("Failed to retrieve at least one SDT for the given storage pool: %q", pool.ID)
-			}
-
-			if len(relations[0].IPList) == 0 {
-				return fmt.Errorf("Failed to retrieve IP from SDT: %q", relations[0].Name)
-			}
-
-			d.config["powerflex.sdt"] = relations[0].IPList[0].IP
-		}
-
-	case connectors.TypeSDC:
+	if d.config["powerflex.mode"] == connectors.TypeSDC {
+		// In case the SDC mode is used the SDTs cannot be set.
 		if d.config["powerflex.sdt"] != "" {
-			return fmt.Errorf("The powerflex.sdt config key is specific to the NVMe/TCP mode")
+			return fmt.Errorf("The %q config key is specific to the %q mode", "powerflex.sdt", connectors.TypeNVME)
 		}
-
-		if !goscaleio.DrvCfgIsSDCInstalled() {
-			return fmt.Errorf("PowerFlex SDC is not available on the host")
-		}
-
-	default:
-		// Fail if no PowerFlex mode can be discovered.
-		return fmt.Errorf("Failed to discover PowerFlex mode")
 	}
 
 	return nil
@@ -272,10 +245,9 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//
 		// ---
 		//  type: string
-		//  defaultdesc: one of the SDT
-		//  shortdesc: PowerFlex NVMe/TCP SDT
+		//  shortdesc: Comma separated list of PowerFlex NVMe/TCP SDTs
 		//  scope: global
-		"powerflex.sdt": validate.Optional(validate.IsNetworkAddress),
+		"powerflex.sdt": validate.Optional(validate.IsListOf(validate.IsNetworkAddress)),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.clone_copy)
 		// If this option is set to `true`, PowerFlex makes a non-sparse copy when creating a snapshot of an instance or custom volume.
 		// See {ref}`storage-powerflex-limitations` for more information.
@@ -307,7 +279,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 	// Ensure powerflex.mode cannot be changed to avoid leaving volume mappings
 	// and to prevent disturbing running instances.
 	if oldMode != "" && oldMode != newMode {
-		return fmt.Errorf("PowerFlex mode cannot be changed")
+		return errors.New("PowerFlex mode cannot be changed")
 	}
 
 	// Check if the selected PowerFlex mode is supported on this node.
@@ -322,6 +294,8 @@ func (d *powerflex) Validate(config map[string]string) error {
 			return fmt.Errorf("PowerFlex mode %q is not supported: %w", newMode, err)
 		}
 
+		// In case of NVMe this will actually try to load the respective kernel modules.
+		// In case of SDC it will check if the kernel module got loaded outside of LXD.
 		err = connector.LoadModules()
 		if err != nil {
 			return fmt.Errorf("PowerFlex mode %q is not supported due to missing kernel modules: %w", newMode, err)

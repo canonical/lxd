@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 )
 
@@ -159,6 +160,14 @@ type powerFlexVolume struct {
 		NQN      string `json:"nqn"`
 		HostType string `json:"hostType"`
 	} `json:"mappedSdcInfo"`
+}
+
+type powerFlexDiscoveryLogRecord struct {
+	SubNQN string `json:"subnqn"`
+}
+
+type powerFlexDiscoveryLog struct {
+	Records []powerFlexDiscoveryLogRecord `json:"records"`
 }
 
 // powerFlexClient holds the PowerFlex HTTP client and an access token factory.
@@ -770,6 +779,60 @@ func (d *powerflex) getHostGUID() (string, error) {
 	return d.sdcGUID, nil
 }
 
+// getNVMeTargetQN discovers the targetQN used for the given addresses.
+// The targetQN is unqiue per PowerFlex storage pool.
+// Cache the targetQN as it doesn't change throughout the lifetime of the storage pool.
+func (d *powerflex) getNVMeTargetQN(targetAddresses ...string) (string, error) {
+	if d.nvmeTargetQN == "" {
+		// The discovery log from the first reachable target address is returned.
+		discoveryLogRecords, err := d.discover(d.state.ShutdownCtx, targetAddresses...)
+		if err != nil {
+			return "", fmt.Errorf("Failed to discover SDT NQN: %w", err)
+		}
+
+		for _, record := range discoveryLogRecords {
+			// The targetQN is listed together with every log record.
+			d.nvmeTargetQN = record.SubNQN
+			break
+		}
+	}
+
+	return d.nvmeTargetQN, nil
+}
+
+// getNVMeTargetAddresses discovers all SDTs (targets) from PowerFlex for the respective storage pool.
+// If the pool has one ore more SDTs defined using the powerflex.sdt config keys, use them instead.
+// This allows overriding the list defined in PowerFlex.
+func (d *powerflex) getNVMeTargetAddresses() ([]string, error) {
+	targetAddresses := shared.SplitNTrimSpace(d.config["powerflex.sdt"], ",", -1, true)
+
+	client := d.client()
+	pool, err := d.resolvePool()
+	if err != nil {
+		return nil, err
+	}
+
+	if targetAddresses == nil {
+		// Do not cache the fetched addresses to allow coping with administrative address changes performed in PowerFlex.
+		relations, err := client.getProtectionDomainSDTRelations(pool.ProtectionDomainID)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, relation := range relations {
+			for _, ip := range relation.IPList {
+				targetAddresses = append(targetAddresses, ip.IP)
+			}
+		}
+
+		if len(targetAddresses) == 0 {
+			return nil, fmt.Errorf("Failed to retrieve at least one SDT for the given storage pool: %q", pool.ID)
+		}
+	}
+
+	return targetAddresses, nil
+}
+
 // getVolumeType returns the selected provisioning type of the volume.
 // As a default it returns type thin.
 func (d *powerflex) getVolumeType(vol Volume) powerFlexVolumeType {
@@ -933,15 +996,28 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 		reverter.Add(func() { _ = client.deleteHostVolumeMapping(hostID, volumeID) })
 	}
 
-	targetAddr := d.config["powerflex.sdt"]
+	var cleanup revert.Hook
+	if d.config["powerflex.mode"] == connectors.TypeNVME {
+		// Discover all SDTs from PowerFlex for the respective storage pool.
+		targetAddresses, err := d.getNVMeTargetAddresses()
+		if err != nil {
+			return nil, err
+		}
 
-	// Connect to the storage subsystem.
-	// In case of NVMe/TCP, we have to connect after the first mapping was established,
-	// as PowerFlex does not offer any discovery log entries until a volume gets mapped
-	// to the host.
-	err = connector.ConnectAll(d.state.ShutdownCtx, targetAddr)
-	if err != nil {
-		return nil, err
+		// Discover the SDT's targetQN from any of the addresses.
+		targetQN, err := d.getNVMeTargetQN(targetAddresses...)
+		if err != nil {
+			return nil, err
+		}
+
+		// Connect to the storage subsystem.
+		// In case of NVMe/TCP, we have to connect after the first mapping was established,
+		// as PowerFlex does not offer any discovery log entries until a volume gets mapped
+		// to the host.
+		cleanup, err = connector.Connect(d.state.ShutdownCtx, targetQN, targetAddresses...)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Reverting mapping or connection outside mapVolume function
@@ -950,8 +1026,17 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 	// because it ensures the lock is acquired and accounts for
 	// an existing session before unmapping a volume.
 	outerReverter := revert.New()
+
 	if !mapped {
 		outerReverter.Add(func() { _ = d.unmapVolume(vol) })
+	}
+
+	// Add the cleanup hooks of the connection attempt to the outer reverter.
+	// This ensures that ongoing connection attempts that haven't yet finished are cancelled
+	// before potentially running unmap volume.
+	// As the revert hooks are called in reverse order add the connection cleanup after unmap.
+	if d.config["powerflex.mode"] == connectors.TypeNVME {
+		outerReverter.Add(cleanup)
 	}
 
 	reverter.Success()
@@ -1086,9 +1171,19 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 		}
 
 		if len(mappings) == 0 {
+			targetAddresses, err := d.getNVMeTargetAddresses()
+			if err != nil {
+				return err
+			}
+
+			targetQN, err := d.getNVMeTargetQN(targetAddresses...)
+			if err != nil {
+				return err
+			}
+
 			// Disconnect from the NVMe subsystem.
 			// Do this first before removing the host from PowerFlex.
-			err = connector.DisconnectAll()
+			err = connector.Disconnect(targetQN)
 			if err != nil {
 				return err
 			}
@@ -1146,12 +1241,12 @@ func (d *powerflex) resolvePool() (*powerFlexStoragePool, error) {
 func (d *powerflex) getVolumeName(vol Volume) (string, error) {
 	volUUID, err := uuid.Parse(vol.config["volatile.uuid"])
 	if err != nil {
-		return "", fmt.Errorf(`Failed parsing "volatile.uuid" from volume %q: %w`, vol.name, err)
+		return "", fmt.Errorf("Failed parsing %q from volume %q: %w", "volatile.uuid", vol.name, err)
 	}
 
 	binUUID, err := volUUID.MarshalBinary()
 	if err != nil {
-		return "", fmt.Errorf(`Failed marshalling the "volatile.uuid" of volume %q to binary format: %w`, vol.name, err)
+		return "", fmt.Errorf("Failed marshalling the %q of volume %q to binary format: %w", "volatile.uuid", vol.name, err)
 	}
 
 	// The volume's name in base64 encoded format.
@@ -1172,4 +1267,55 @@ func (d *powerflex) getVolumeName(vol Volume) (string, error) {
 	}
 
 	return volumeTypePrefix + volName + suffix, nil
+}
+
+// discover returns the SDTs (targets) found on the first reachable targetAddr.
+func (d *powerflex) discover(ctx context.Context, targetAddresses ...string) ([]powerFlexDiscoveryLogRecord, error) {
+	connector, err := d.connector()
+	if err != nil {
+		return nil, err
+	}
+
+	hostNQN, err := connector.QualifiedName()
+	if err != nil {
+		return nil, err
+	}
+
+	// Set a deadline for the overall discovery.
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	var discoveryLog powerFlexDiscoveryLog
+	for _, targetAddr := range targetAddresses {
+		stdout, err := shared.RunCommandContext(ctx, "nvme", "discover", "--transport", "tcp", "--traddr", targetAddr, "--hostnqn", hostNQN, "--hostid", d.state.ServerUUID, "--output-format", "json")
+		if err != nil {
+			// Exit code 110 is returned if the target address cannot be reached.
+			logger.Warn("Failed connecting to discovery target", logger.Ctx{"target_address": targetAddr, "err": err})
+			continue
+		}
+
+		// In case no discovery log entries can be fetched the nvme command doesn't return JSON formatted text.
+		if strings.Trim(stdout, "\n") == "No discovery log entries to fetch." {
+			logger.Warn("Failed to find discovery log entries", logger.Ctx{"target_address": targetAddr, "err": err})
+			continue
+		}
+
+		// Try to unmarshal the returned log entries.
+		err = json.Unmarshal([]byte(stdout), &discoveryLog)
+		if err != nil {
+			// Don't just log this error.
+			// Something is clearly wrong with the returned output.
+			return nil, fmt.Errorf("Failed to unmarshal the returned discovery log entries from %q", targetAddr)
+		}
+
+		// Unmarshalling the response from the discovery succeeded, break the loop.
+		break
+	}
+
+	// In case none of the target addresses returned any log records also return an error.
+	if len(discoveryLog.Records) == 0 {
+		return nil, fmt.Errorf("Failed to fetch a discovery log record from any of the target addresses")
+	}
+
+	return discoveryLog.Records, nil
 }
