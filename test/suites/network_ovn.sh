@@ -100,8 +100,8 @@ test_network_ovn() {
 
   # Check expected chassis and chassis group are created.
   chassis_group_name="lxd-net${ovn_network_id}"
-  chassis_id="$(sudo ovn-nbctl --format json get ha_chassis_group "${chassis_group_name}" ha_chassis | tr -d '[]')"
-  sudo ovn-nbctl get ha_chassis "${chassis_id}" priority
+  chassis_id="$(ovn-nbctl --format json get ha_chassis_group "${chassis_group_name}" ha_chassis | tr -d '[]')"
+  ovn-nbctl get ha_chassis "${chassis_id}" priority
 
   # Check expected logical router has the correct name.
   logical_router_name="${chassis_group_name}-lr"
@@ -209,8 +209,8 @@ test_network_ovn() {
   # Busybox test image won't bring up the IPv4 interface by itself. Get the address and bring it up.
   c1_ipv4_address="$(ovn-nbctl get logical_switch_port "${c1_internal_switch_port_name}" dynamic_addresses | tr -d '"' | cut -d' ' -f 2)"
   c1_ipv6_address="$(ovn-nbctl get logical_switch_port "${c1_internal_switch_port_name}" dynamic_addresses | tr -d '"' | cut -d' ' -f 3)"
-  lxc exec c1 -- ip -4 addr add "${c1_ipv4_address}/32" dev eth0
-  lxc exec c1 -- ip -4 route add default dev eth0
+  lxc exec c1 -- ip -4 addr add "${c1_ipv4_address}/24" dev eth0
+  lxc exec c1 -- ip -4 route add default via 10.24.140.1 dev eth0
 
   # Should now be able to get the same IPv4 address from the instance state.
   [ "$(lxc query /1.0/instances/c1?recursion=1 | jq -er '.state.network.eth0.addresses | .[] | select(.family == "inet").address')" = "${c1_ipv4_address}" ]
@@ -228,12 +228,28 @@ test_network_ovn() {
   [ "$(ovn-nbctl get logical_switch_port "${c1_internal_switch_port_name}" external_ids:lxd_switch)" = "${internal_switch_name}" ]
 
   # Assert DNS configuration.
-  dns_entry_uuid="$(sudo ovn-nbctl --format csv --no-headings find dns "external_ids:lxd_switch_port=${c1_internal_switch_port_name}" | cut -d, -f1)"
+  dns_entry_uuid="$(ovn-nbctl --format csv --no-headings find dns "external_ids:lxd_switch_port=${c1_internal_switch_port_name}" | cut -d, -f1)"
   [ "$(ovn-nbctl get dns "${dns_entry_uuid}" external_ids:lxd_switch)" = "${internal_switch_name}" ]
   [ "$(ovn-nbctl get dns "${dns_entry_uuid}" records:c1.lxd)" = '"'"${c1_ipv4_address} ${c1_ipv6_address}"'"' ]
 
+  # Test DNS resolution.
+  [ "$(lxc exec c1 -- nslookup c1.lxd 10.10.10.1 | grep -cF "${c1_ipv6_address}")" = 1 ]
+  [ "$(lxc exec c1 -- nslookup c1.lxd fd42:4242:4242:1010::1 | grep -cF "${c1_ipv6_address}")" = 1 ]
+
+  [ "$(lxc exec c1 -- nslookup "${c1_ipv4_address}" 10.10.10.1 | grep -cF c1.lxd)" = 1 ]
+  [ "$(lxc exec c1 -- nslookup "${c1_ipv4_address}" fd42:4242:4242:1010::1 | grep -cF c1.lxd)" = 1 ]
+
+  [ "$(lxc exec c1 -- nslookup "${c1_ipv6_address}" 10.10.10.1 | grep -cF c1.lxd)" = 1 ]
+  [ "$(lxc exec c1 -- nslookup "${c1_ipv6_address}" fd42:4242:4242:1010::1 | grep -cF c1.lxd)" = 1 ]
+
   # Clean up.
   lxc delete c1 --force
+
+  # Test ha_chassis removal on shutdown
+  shutdown_lxd "${LXD_DIR}"
+  ! ovn-nbctl get ha_chassis "${chassis_id}" priority || false
+  respawn_lxd "${LXD_DIR}" true
+
   lxc network delete "${ovn_network}"
   lxc network delete "${uplink_network}"
 
