@@ -234,12 +234,6 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
 
-	// Ensure instance exists.
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
@@ -250,14 +244,15 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	file, err := url.PathUnescape(mux.Vars(r)["file"])
+	// Ensure instance exists.
+	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = instancetype.ValidName(name, false)
+	file, err := url.PathUnescape(mux.Vars(r)["file"])
 	if err != nil {
-		return response.BadRequest(err)
+		return response.SmartError(err)
 	}
 
 	if !validLogFileName(file) {
@@ -265,7 +260,7 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	ent := response.FileResponseEntry{
-		Path:     shared.LogPath(project.Instance(projectName, name), file),
+		Path:     filepath.Join(inst.LogPath(), file),
 		Filename: file,
 	}
 
