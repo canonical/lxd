@@ -271,7 +271,7 @@ func (p *powerFlexClient) requestAuthenticated(method string, path string, body 
 		if body != nil {
 			bodyReader, err = p.createBodyReader(body)
 			if err != nil {
-				return fmt.Errorf("Failed to create reader from requets body: %w", err)
+				return fmt.Errorf("Failed to create reader from request's body: %w", err)
 			}
 		}
 
