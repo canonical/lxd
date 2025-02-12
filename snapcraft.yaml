@@ -742,10 +742,9 @@ parts:
       - libusb
       - spice-protocol
       - spice-server
-    source: https://gitlab.com/qemu-project/qemu
-    source-commit: 6bbce8b464206e6622216b62841cb3e953d56eb8 # v8.0.5
+    source: https://git.launchpad.net/ubuntu/+source/qemu
+    source-commit: 50a4fe555e21d4b633580d63ae45e807de9e2f91 # import/1%8.2.2+ds-0ubuntu1.5
     source-depth: 1
-    source-submodules: []
     source-type: git
     plugin: autotools
     autotools-configure-parameters:
@@ -785,6 +784,7 @@ parts:
       - --enable-virtfs
       - --firmwarepath=/snap/lxd/current/share/qemu/
       - --localstatedir=/var/
+      - --disable-install-blobs # Ubuntu sources don't have the ROM blobs in them.
     build-packages:
       - bison
       - bzip2
@@ -792,19 +792,32 @@ parts:
       - pkg-config
       - libaio-dev
       - libcap-ng-dev
+      - libfdt-dev
       - libglib2.0-dev
       - libnuma-dev
       - libpixman-1-dev
-      - librbd-dev
       - libusbredirhost-dev
+      - quilt
+      - on amd64: # workaround for armhf, because it lacks of librbd-dev
+        - librbd-dev
+      - on arm64:
+        - librbd-dev
+      - on ppc64el:
+        - librbd-dev
+      - on s390x:
+        - librbd-dev
     stage-packages:
       - genisoimage
       - libatomic1
+      - ipxe-qemu # This is needed due to --disable-install-blobs.
+      - libfdt1
       - libmagic1
       - libnuma1
       - libpixman-1-0
       - libusbredirhost1
       - libusbredirparser1
+      - seabios # This is needed due to --disable-install-blobs.
+      - qemu-system-data # This is needed due to --disable-install-blobs.
     override-prime: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
       craftctl default
@@ -817,11 +830,24 @@ parts:
       # Mangle the configure a bit
       QEMUARCH="$(uname -m)"
       [ "${QEMUARCH}" = "ppc64le" ] && QEMUARCH="ppc64"
+
+      # Apply patches from Ubuntu sources.
+      QUILT_PATCHES=debian/patches quilt push -a
+
       sed -i "s/^unset target_list$/target_list=\"${QEMUARCH}-softmmu\"/" configure
       sed -i 's#libseccomp_minver=".*#libseccomp_minver="0.0"#g' configure
 
+      # Restore vendored copies of meson and tomli Python wheels
+      git restore --source=4769f7051b0753455b775ab10c9226e149ed6237~ -- python/wheels/
+
+      # Extract efi-virtio.rom from ipxe-qemu.
+      # This doesn't work in the organize section below.
+      mkdir -p "${CRAFT_PART_INSTALL}"/share/qemu
+      mv "${CRAFT_PART_INSTALL}"/usr/lib/ipxe/qemu/efi-virtio.rom "${CRAFT_PART_INSTALL}"/share/qemu/
+
       set +ex
       craftctl default
+
     organize:
       usr/bin/: bin/
       usr/lib/: lib/
@@ -829,6 +855,12 @@ parts:
       usr/local/lib/: lib/
       usr/local/libexec/: bin/
       usr/local/share/: share/
+      usr/share/qemu/kvmvapic.bin: share/qemu/
+      usr/share/qemu/s390-ccw.img: share/qemu/
+      usr/share/qemu/s390-netboot.img: share/qemu/
+      usr/share/qemu/slof.bin: share/qemu/
+      usr/share/seabios/bios-256k.bin: share/qemu/
+      usr/share/seabios/vgabios-*: share/qemu/
     prime:
       - bin/genisoimage*
       - bin/mkisofs*
@@ -840,12 +872,19 @@ parts:
       - lib/*/libnuma*so*
       - lib/*/libpixman*so*
       - lib/*/libusbredir*so*
-      - share/qemu/keymaps*
-      - share/qemu/efi-virtio.rom*
-      - share/qemu/kvmvapic.bin*
-      - share/qemu/s390-*.img*
-      - share/qemu/slof.bin*
-      - share/qemu/vgabios-*.bin*
+      - lib/*/libfdt*.so*
+      - share/qemu/keymaps/*
+      - share/qemu/bios-256k.bin
+      - share/qemu/efi-virtio.rom
+      - share/qemu/kvmvapic.bin
+      - share/qemu/s390-ccw.img
+      - share/qemu/s390-netboot.img
+      - share/qemu/slof.bin
+      - share/qemu/vgabios-bochs-display.bin
+      - share/qemu/vgabios-qxl.bin
+      - share/qemu/vgabios-ramfb.bin
+      - share/qemu/vgabios-stdvga.bin
+      - share/qemu/vgabios-virtio.bin
 
   qemu-ovmf-secureboot:
     after:
