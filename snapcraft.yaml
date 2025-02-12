@@ -797,6 +797,8 @@ parts:
       - libnuma-dev
       - libpixman-1-dev
       - libusbredirhost-dev
+      - python3-pip
+      - python3-venv
       - quilt
       - on amd64: # workaround for armhf, because it lacks of librbd-dev
         - librbd-dev
