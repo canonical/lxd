@@ -148,8 +148,10 @@ func instanceLogsGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
 
+	s := d.State()
+
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -158,15 +160,15 @@ func instanceLogsGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	err = instancetype.ValidName(name, false)
+	// Ensure instance exists.
+	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
-		return response.BadRequest(err)
+		return response.SmartError(err)
 	}
 
 	result := []string{}
 
-	fullName := project.Instance(projectName, name)
-	dents, err := os.ReadDir(shared.LogPath(fullName))
+	dents, err := os.ReadDir(inst.LogPath())
 	if err != nil {
 		return response.SmartError(err)
 	}
