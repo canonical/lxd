@@ -6199,7 +6199,7 @@ Set the option to `rebase` to copy based on the initial image.
 ```{config:option} zfs.export storage-zfs-pool-conf
 :defaultdesc: "`true`"
 :scope: "global"
-:shortdesc: "Disable zpool export while an unmount is being performed"
+:shortdesc: "Whether to export the zpool when an unmount is being performed"
 :type: "bool"
 
 ```
