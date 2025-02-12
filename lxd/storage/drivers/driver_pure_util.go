@@ -237,7 +237,7 @@ func (p *pureClient) createBodyReader(contents map[string]any) (io.Reader, error
 }
 
 // request issues a HTTP request against the Pure Storage gateway.
-func (p *pureClient) request(method string, url url.URL, reqBody io.Reader, reqHeaders map[string]string, respBody any, respHeaders map[string]string) error {
+func (p *pureClient) request(method string, url url.URL, reqBody map[string]any, reqHeaders map[string]string, respBody any, respHeaders map[string]string) error {
 	// Extract scheme and host from the gateway URL.
 	scheme, host, found := strings.Cut(p.driver.config["pure.gateway"], "://")
 	if !found {
@@ -273,7 +273,17 @@ func (p *pureClient) request(method string, url url.URL, reqBody io.Reader, reqH
 		url.Path = path.Join("api", p.driver.apiVersion, url.Path)
 	}
 
-	req, err := http.NewRequest(method, url.String(), reqBody)
+	var err error
+	var reqBodyReader io.Reader
+
+	if reqBody != nil {
+		reqBodyReader, err = p.createBodyReader(reqBody)
+		if err != nil {
+			return err
+		}
+	}
+
+	req, err := http.NewRequest(method, url.String(), reqBodyReader)
 	if err != nil {
 		return fmt.Errorf("Failed to create request: %w", err)
 	}
@@ -342,7 +352,7 @@ func (p *pureClient) request(method string, url url.URL, reqBody io.Reader, reqH
 
 // requestAuthenticated issues an authenticated HTTP request against the Pure Storage gateway.
 // In case the access token is expired, the function will try to obtain a new one.
-func (p *pureClient) requestAuthenticated(method string, url url.URL, reqBody io.Reader, respBody any) error {
+func (p *pureClient) requestAuthenticated(method string, url url.URL, reqBody map[string]any, respBody any) error {
 	// If request fails with an unauthorized error, the request will be retried after
 	// requesting a new access token.
 	retries := 1
@@ -485,11 +495,8 @@ func (p *pureClient) deleteProtectionGroup(name string) error {
 
 	// Ensure the protection group is destroyed.
 	if !pg.IsDestroyed {
-		req, err := p.createBodyReader(map[string]any{
+		req := map[string]any{
 			"destroyed": true,
-		})
-		if err != nil {
-			return err
 		}
 
 		err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
@@ -537,11 +544,8 @@ func (p *pureClient) deleteStoragePoolDefaultProtections(poolName string) error 
 
 		// To be able to delete default protection groups, they have to
 		// be removed from the list of default protections.
-		req, err := p.createBodyReader(map[string]any{
+		req := map[string]any{
 			"default_protections": []pureDefaultProtection{},
-		})
-		if err != nil {
-			return err
 		}
 
 		err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
@@ -611,20 +615,15 @@ func (p *pureClient) createStoragePool(poolName string, size int64) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	reqBody := make(map[string]any)
+	req := make(map[string]any)
 	if size > 0 {
-		reqBody["quota_limit"] = size
+		req["quota_limit"] = size
 	}
 
 	pool, err := p.getStoragePool(poolName)
 	if err == nil && pool.IsDestroyed {
 		// Storage pool exists in destroyed state, therefore, restore it.
-		reqBody["destroyed"] = false
-
-		req, err := p.createBodyReader(reqBody)
-		if err != nil {
-			return err
-		}
+		req["destroyed"] = false
 
 		url := api.NewURL().Path("pods").WithQuery("names", poolName)
 		err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
@@ -635,11 +634,6 @@ func (p *pureClient) createStoragePool(poolName string, size int64) error {
 		logger.Info("Storage pool has been restored", logger.Ctx{"pool": poolName})
 	} else {
 		// Storage pool does not exist in destroyed state, therefore, try to create a new one.
-		req, err := p.createBodyReader(reqBody)
-		if err != nil {
-			return err
-		}
-
 		url := api.NewURL().Path("pods").WithQuery("names", poolName)
 		err = p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
 		if err != nil {
@@ -662,18 +656,13 @@ func (p *pureClient) createStoragePool(poolName string, size int64) error {
 
 // updateStoragePool updates an existing storage pool (Pure Storage pod).
 func (p *pureClient) updateStoragePool(poolName string, size int64) error {
-	reqBody := make(map[string]any)
+	req := make(map[string]any)
 	if size > 0 {
-		reqBody["quota_limit"] = size
-	}
-
-	req, err := p.createBodyReader(reqBody)
-	if err != nil {
-		return err
+		req["quota_limit"] = size
 	}
 
 	url := api.NewURL().Path("pods").WithQuery("names", poolName)
-	err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
+	err := p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to update storage pool %q: %w", poolName, err)
 	}
@@ -697,11 +686,8 @@ func (p *pureClient) deleteStoragePool(poolName string) error {
 	// In addition, we want to destroy all of its contents to allow the pool to be deleted.
 	// If the pool is already destroyed, we can skip this step.
 	if !pool.IsDestroyed {
-		req, err := p.createBodyReader(map[string]any{
+		req := map[string]any{
 			"destroyed": true,
-		})
-		if err != nil {
-			return err
 		}
 
 		url := api.NewURL().Path("pods").WithQuery("names", poolName).WithQuery("destroy_contents", "true")
@@ -761,17 +747,14 @@ func (p *pureClient) getVolume(poolName string, volName string) (*pureVolume, er
 // createVolume creates a new volume in the given storage pool. The volume is created with
 // supplied size in bytes. Upon successful creation, volume's ID is returned.
 func (p *pureClient) createVolume(poolName string, volName string, sizeBytes int64) error {
-	req, err := p.createBodyReader(map[string]any{
+	req := map[string]any{
 		"provisioned": sizeBytes,
-	})
-	if err != nil {
-		return err
 	}
 
 	// Prevent default protection groups to be applied on the new volume, which can
 	// prevent us from eradicating the volume once deleted.
 	url := api.NewURL().Path("volumes").WithQuery("names", poolName+"::"+volName).WithQuery("with_default_protection", "false")
-	err = p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
+	err := p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to create volume %q in storage pool %q: %w", volName, poolName, err)
 	}
@@ -781,17 +764,14 @@ func (p *pureClient) createVolume(poolName string, volName string, sizeBytes int
 
 // deleteVolume deletes an exisiting volume in the given storage pool.
 func (p *pureClient) deleteVolume(poolName string, volName string) error {
-	req, err := p.createBodyReader(map[string]any{
+	req := map[string]any{
 		"destroyed": true,
-	})
-	if err != nil {
-		return err
 	}
 
 	url := api.NewURL().Path("volumes").WithQuery("names", poolName+"::"+volName)
 
 	// To destroy the volume, we need to patch it by setting the destroyed to true.
-	err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
+	err := p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to destroy volume %q in storage pool %q: %w", volName, poolName, err)
 	}
@@ -808,15 +788,12 @@ func (p *pureClient) deleteVolume(poolName string, volName string) error {
 
 // resizeVolume resizes an existing volume. This function does not resize any filesystem inside the volume.
 func (p *pureClient) resizeVolume(poolName string, volName string, sizeBytes int64, truncate bool) error {
-	req, err := p.createBodyReader(map[string]any{
+	req := map[string]any{
 		"provisioned": sizeBytes,
-	})
-	if err != nil {
-		return err
 	}
 
 	url := api.NewURL().Path("volumes").WithQuery("names", poolName+"::"+volName).WithQuery("truncate", fmt.Sprint(truncate))
-	err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
+	err := p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to resize volume %q in storage pool %q: %w", volName, poolName, err)
 	}
@@ -827,13 +804,10 @@ func (p *pureClient) resizeVolume(poolName string, volName string, sizeBytes int
 // copyVolume copies a source volume into destination volume. If overwrite is set to true,
 // the destination volume will be overwritten if it already exists.
 func (p *pureClient) copyVolume(srcPoolName string, srcVolName string, dstPoolName string, dstVolName string, overwrite bool) error {
-	req, err := p.createBodyReader(map[string]any{
+	req := map[string]any{
 		"source": map[string]string{
 			"name": srcPoolName + "::" + srcVolName,
 		},
-	})
-	if err != nil {
-		return err
 	}
 
 	url := api.NewURL().Path("volumes").WithQuery("names", dstPoolName+"::"+dstVolName).WithQuery("overwrite", fmt.Sprint(overwrite))
@@ -844,7 +818,7 @@ func (p *pureClient) copyVolume(srcPoolName string, srcVolName string, dstPoolNa
 		url = url.WithQuery("with_default_protection", "false")
 	}
 
-	err = p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
+	err := p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
 	if err != nil {
 		return fmt.Errorf(`Failed to copy volume "%s/%s" to "%s/%s": %w`, srcPoolName, srcVolName, dstPoolName, dstVolName, err)
 	}
@@ -892,15 +866,12 @@ func (p *pureClient) getVolumeSnapshot(poolName string, volName string, snapshot
 
 // createVolumeSnapshot creates a new snapshot for the given storage volume.
 func (p *pureClient) createVolumeSnapshot(poolName string, volName string, snapshotName string) error {
-	req, err := p.createBodyReader(map[string]any{
+	req := map[string]any{
 		"suffix": snapshotName,
-	})
-	if err != nil {
-		return err
 	}
 
 	url := api.NewURL().Path("volume-snapshots").WithQuery("source_names", poolName+"::"+volName)
-	err = p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
+	err := p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to create snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
 	}
@@ -917,11 +888,8 @@ func (p *pureClient) deleteVolumeSnapshot(poolName string, volName string, snaps
 
 	if !snapshot.IsDestroyed {
 		// First destroy the snapshot.
-		req, err := p.createBodyReader(map[string]any{
+		req := map[string]any{
 			"destroyed": true,
-		})
-		if err != nil {
-			return err
 		}
 
 		// Destroy snapshot.
@@ -1003,7 +971,7 @@ func (p *pureClient) getCurrentHost() (*pureHost, error) {
 // createHost creates a new host with provided initiator qualified names that can be associated
 // with specific volumes.
 func (p *pureClient) createHost(hostName string, qns []string) error {
-	body := make(map[string]any, 1)
+	req := make(map[string]any, 1)
 
 	connector, err := p.driver.connector()
 	if err != nil {
@@ -1012,16 +980,11 @@ func (p *pureClient) createHost(hostName string, qns []string) error {
 
 	switch connector.Type() {
 	case connectors.TypeISCSI:
-		body["iqns"] = qns
+		req["iqns"] = qns
 	case connectors.TypeNVME:
-		body["nqns"] = qns
+		req["nqns"] = qns
 	default:
 		return fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
-	}
-
-	req, err := p.createBodyReader(body)
-	if err != nil {
-		return err
 	}
 
 	url := api.NewURL().Path("hosts").WithQuery("names", hostName)
@@ -1039,7 +1002,7 @@ func (p *pureClient) createHost(hostName string, qns []string) error {
 
 // updateHost updates an existing host.
 func (p *pureClient) updateHost(hostName string, qns []string) error {
-	body := make(map[string]any, 1)
+	req := make(map[string]any, 1)
 
 	connector, err := p.driver.connector()
 	if err != nil {
@@ -1048,16 +1011,11 @@ func (p *pureClient) updateHost(hostName string, qns []string) error {
 
 	switch connector.Type() {
 	case connectors.TypeISCSI:
-		body["iqns"] = qns
+		req["iqns"] = qns
 	case connectors.TypeNVME:
-		body["nqns"] = qns
+		req["nqns"] = qns
 	default:
 		return fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
-	}
-
-	req, err := p.createBodyReader(body)
-	if err != nil {
-		return err
 	}
 
 	// To destroy the volume, we need to patch it by setting the destroyed to true.
