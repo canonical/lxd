@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/dell/goscaleio"
@@ -172,9 +171,8 @@ type powerFlexDiscoveryLog struct {
 
 // powerFlexClient holds the PowerFlex HTTP client and an access token factory.
 type powerFlexClient struct {
-	driver    *powerflex
-	token     string
-	tokenLock sync.RWMutex
+	driver *powerflex
+	token  string
 }
 
 // newPowerFlexClient creates a new instance of the HTTP PowerFlex client.
@@ -197,7 +195,7 @@ func (p *powerFlexClient) createBodyReader(contents map[string]any) (io.Reader, 
 }
 
 // request issues a HTTP request against the PowerFlex gateway.
-func (p *powerFlexClient) request(method string, path string, token string, body io.Reader, response any) error {
+func (p *powerFlexClient) request(method string, path string, body io.Reader, response any) error {
 	url := p.driver.config["powerflex.gateway"] + path
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
@@ -209,7 +207,7 @@ func (p *powerFlexClient) request(method string, path string, token string, body
 		req.Header.Add("Content-Type", "application/json")
 	}
 
-	if token != "" {
+	if p.token != "" {
 		req.Header.Add("Authorization", "Bearer "+p.token)
 	}
 
@@ -262,11 +260,7 @@ func (p *powerFlexClient) request(method string, path string, token string, body
 func (p *powerFlexClient) requestAuthenticated(method string, path string, body map[string]any, response any) error {
 	retries := 0
 	for {
-		// Returns a copy of the client's token.
-		// This allows issuing multiple requests in parallel.
-		// Otherwise the lock on the token can only be released after
-		// the actual request has been finished as the token might be expired.
-		token, err := p.login()
+		err := p.login()
 		if err != nil {
 			return err
 		}
@@ -281,19 +275,12 @@ func (p *powerFlexClient) requestAuthenticated(method string, path string, body 
 			}
 		}
 
-		err = p.request(method, path, token, bodyReader, response)
+		err = p.request(method, path, bodyReader, response)
 		if err != nil {
 			if api.StatusErrorCheck(err, http.StatusUnauthorized) && retries == 0 {
 				// Access token seems to be expired.
 				// Reset the token and try one more time.
-				// If two requests (from different callers) fail at the exact same time this might result in
-				// two subsequent login attempts.
-				// The first one resets the token and tries to login again.
-				// It will use this new token for its own request (as returned by the login func)
-				// but the second caller will again reset the token and perform another login.
-				p.tokenLock.Lock()
 				p.token = ""
-				p.tokenLock.Unlock()
 				retries++
 				continue
 			}
@@ -307,36 +294,30 @@ func (p *powerFlexClient) requestAuthenticated(method string, path string, body 
 }
 
 // login creates a new access token and authenticates the client.
-// If the token already exists it returns a copy of it.
-// To prevent parallel logins the function obtains a lock.
-func (p *powerFlexClient) login() (string, error) {
-	p.tokenLock.Lock()
-	defer p.tokenLock.Unlock()
-
-	// Create a new token.
-	if p.token == "" {
-		body, err := p.createBodyReader(map[string]any{
-			"username": p.driver.config["powerflex.user.name"],
-			"password": p.driver.config["powerflex.user.password"],
-		})
-		if err != nil {
-			return "", err
-		}
-
-		var actualResponse struct {
-			AccessToken string `json:"access_token"`
-		}
-
-		err = p.request(http.MethodPost, "/rest/auth/login", "", body, &actualResponse)
-		if err != nil {
-			return "", fmt.Errorf("Failed to login: %w", err)
-		}
-
-		// Save the new token for later use.
-		p.token = actualResponse.AccessToken
+func (p *powerFlexClient) login() error {
+	if p.token != "" {
+		return nil
 	}
 
-	return p.token, nil
+	body, err := p.createBodyReader(map[string]any{
+		"username": p.driver.config["powerflex.user.name"],
+		"password": p.driver.config["powerflex.user.password"],
+	})
+	if err != nil {
+		return err
+	}
+
+	var actualResponse struct {
+		AccessToken string `json:"access_token"`
+	}
+
+	err = p.request(http.MethodPost, "/rest/auth/login", body, &actualResponse)
+	if err != nil {
+		return fmt.Errorf("Failed to login: %w", err)
+	}
+
+	p.token = actualResponse.AccessToken
+	return nil
 }
 
 // getStoragePool returns the storage pool behind poolID.
