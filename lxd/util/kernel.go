@@ -2,6 +2,7 @@ package util
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -16,7 +17,7 @@ func LoadModule(module string) error {
 		return nil
 	}
 
-	_, err := shared.RunCommand("modprobe", "-b", module)
+	_, err := shared.RunCommandContext(context.TODO(), "modprobe", "-b", module)
 	return err
 }
 
