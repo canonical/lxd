@@ -122,7 +122,7 @@ func devlxdConfigKeyGetHandler(d *Daemon, c instance.Instance, w http.ResponseWr
 	if strings.HasSuffix(key, ".vendor-data") || strings.HasSuffix(key, ".user-data") {
 		value, err = util.MergeSSHKeyCloudConfig(c.ExpandedConfig(), value)
 		if err != nil {
-			logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": err, "project": c.Project(), "instance": c.Name(), "requestedKey": key})
+			logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": err, "project": c.Project().Name, "instance": c.Name(), "requestedKey": key})
 		}
 	}
 
