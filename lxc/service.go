@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -27,6 +28,10 @@ func (c *cmdService) command() *cobra.Command {
 	// Join
 	serviceAddCmd := cmdServiceAdd{global: c.global, service: c}
 	cmd.AddCommand(serviceAddCmd.command())
+
+	// List
+	serviceListCmd := cmdServiceList{global: c.global, service: c}
+	cmd.AddCommand(serviceListCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -146,4 +151,79 @@ func (c *cmdServiceAdd) run(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// List.
+type cmdServiceList struct {
+	global  *cmdGlobal
+	service *cmdService
+
+	flagFormat string
+}
+
+func (c *cmdServiceList) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("list", i18n.G("[<remote>:]"))
+	cmd.Aliases = []string{"ls"}
+	cmd.Short = i18n.G("List service")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`List service`))
+
+	cmd.RunE = c.run
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		return c.global.cmpRemotes(toComplete, false)
+	}
+
+	return cmd
+}
+
+func (c *cmdServiceList) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	services, err := client.GetServices()
+	if err != nil {
+		return err
+	}
+
+	data := [][]string{}
+	for _, service := range services {
+		details := []string{
+			service.Name,
+			service.Type.String(),
+			strings.Join(service.Addresses, ","),
+			service.Description,
+		}
+
+		data = append(data, details)
+	}
+
+	sort.Sort(cli.SortColumnsNaturally(data))
+
+	header := []string{
+		i18n.G("NAME"),
+		i18n.G("TYPE"),
+		i18n.G("ADDRESSES"),
+		i18n.G("DESCRIPTION"),
+	}
+
+	return cli.RenderTable(c.flagFormat, header, data, services)
 }
