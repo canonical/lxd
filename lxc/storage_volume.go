@@ -265,7 +265,7 @@ func (c *cmdStorageVolumeAttach) run(cmd *cobra.Command, args []string) error {
 
 	// Only specify sourcetype when not the default
 	if volType != "custom" {
-		device["source-type"] = volType
+		device["source.type"] = volType
 	}
 
 	// Add the device to the instance
@@ -373,7 +373,7 @@ func (c *cmdStorageVolumeAttachProfile) run(cmd *cobra.Command, args []string) e
 
 	// Only specify sourcetype when not the default
 	if volType != "custom" {
-		device["source-type"] = volType
+		device["source.type"] = volType
 	}
 
 	// Add the device to the instance
@@ -880,8 +880,8 @@ func (c *cmdStorageVolumeDetach) run(cmd *cobra.Command, args []string) error {
 	if devName == "" {
 		for n, d := range inst.Devices {
 			sourceType := "custom"
-			if d["source-type"] != "" {
-				sourceType = d["source-type"]
+			if d["source.type"] != "" {
+				sourceType = d["source.type"]
 			}
 
 			if d["type"] == "disk" && d["pool"] == resource.name && volType == sourceType && volName == d["source"] {
@@ -984,8 +984,8 @@ func (c *cmdStorageVolumeDetachProfile) run(cmd *cobra.Command, args []string) e
 	if devName == "" {
 		for n, d := range profile.Devices {
 			sourceType := "custom"
-			if d["source-type"] != "" {
-				sourceType = d["source-type"]
+			if d["source.type"] != "" {
+				sourceType = d["source.type"]
 			}
 
 			if d["type"] == "disk" && d["pool"] == resource.name && volType == sourceType && volName == d["source"] {
