@@ -2599,3 +2599,11 @@ The following pool level configuration keys have been added:
 1. {config:option}`storage-pure-pool-conf:pure.api.token`
 1. {config:option}`storage-pure-pool-conf:pure.mode`
 1. {config:option}`storage-pure-pool-conf:pure.target`
+
+## `cloud_init_ssh_keys`
+
+Adds support for injecting additional SSH public keys into instances through {ref}`cloud-init <instance-options-cloud-init>` without conflicting with any configuration present on {config:option}`instance-cloud-init:cloud-init.vendor-data` or {config:option}`instance-cloud-init:cloud-init.user-data`.
+
+To achieve this, the `cloud-init.ssh-keys.KEYNAME` configuration key is added for both instances and profiles. This key is used to define a public key to be injected. `KEYNAME` can be any arbitrary name for the injected key.
+
+The value for `cloud-init.ssh-keys.KEYNAME` should be `<user>:<key>`, where `<user>` is the name of the user for whom to inject the key. For `<key>`, provide either the public key or a `cloud-init` import ID for a key hosted elsewhere. Example valid values for `cloud-init.ssh-keys.KEYNAME` are `root:gh:githubUser` or `myUser:ssh-keyAlg base64PublicKey`.

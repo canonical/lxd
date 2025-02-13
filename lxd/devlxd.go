@@ -25,6 +25,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/ucred"
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -69,10 +70,28 @@ func devlxdConfigGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrite
 	}
 
 	filtered := []string{}
+	hasSSHKeys := false
+	hasCustomConfig := false
 	for k := range c.ExpandedConfig() {
-		if strings.HasPrefix(k, "user.") || strings.HasPrefix(k, "cloud-init.") {
+		// cloud-init.ssh-keys keys should not be retireved by cloud-init directly but instead should be merged into
+		// cloud-init.vendor-data and/or cloud-init.user-data.
+		if strings.HasPrefix(k, "cloud-init.ssh-keys.") {
+			hasSSHKeys = true
+		} else if strings.HasPrefix(k, "user.") || strings.HasPrefix(k, "cloud-init.") {
+			if strings.HasSuffix(k, ".vendor-data") || strings.HasSuffix(k, ".user-data") {
+				hasCustomConfig = true
+			}
+
 			filtered = append(filtered, "/1.0/config/"+k)
 		}
+	}
+
+	// If the instance has SSH keys to be injected into it and do not have any custom seed data for cloud-init defined,
+	// include cloud-init.vendor-data in the response, since the SSH keys will be included in it.
+	// We are including vendor-data because it makes more sense conceptually, as the vendor (LXD) is generating the
+	// configuration for `cloud-init` to fetch.
+	if hasSSHKeys && !hasCustomConfig {
+		filtered = append(filtered, "/1.0/config/cloud-init.vendor-data")
 	}
 
 	return response.DevLxdResponse(http.StatusOK, filtered, "json", c.Type() == instancetype.VM)
@@ -97,8 +116,18 @@ func devlxdConfigKeyGetHandler(d *Daemon, c instance.Instance, w http.ResponseWr
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
 
-	value, ok := c.ExpandedConfig()[key]
-	if !ok {
+	value := c.ExpandedConfig()[key]
+
+	// If parsing the config is not possible, abstain from merging the additional keys into the config.
+	if strings.HasSuffix(key, ".vendor-data") || strings.HasSuffix(key, ".user-data") {
+		value, err = util.MergeSSHKeyCloudConfig(c.ExpandedConfig(), value)
+		if err != nil {
+			logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": err, "project": c.Project(), "instance": c.Name(), "requestedKey": key})
+		}
+	}
+
+	// If the requested key is not defined and there isn't any addition SSH keys for this instance, return a 'not found' response.
+	if value == "" {
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusNotFound, "not found"), c.Type() == instancetype.VM)
 	}
 
