@@ -150,13 +150,13 @@ lxc network forward create <ovn_network_name> <listen_address>|--allocate=ipv{4,
 This example shows how to create a network forward on a network named `ovn1` with an allocated listen address and no default target address:
 
 ```
-lxd network forward create ovn1 --allocate=ipv4
+lxc network forward create ovn1 --allocate=ipv4
 ```
 
 This example shows how to create a network forward on a network named `ovn1` with a specific listen address and a target address:
 
 ```
-lxd network forward create ovn1 192.0.2.1 target_address=10.41.211.2
+lxc network forward create ovn1 192.0.2.1 target_address=10.41.211.2
 ```
 
 ````
@@ -206,7 +206,7 @@ lxc network forward create <bridge_network_name> <listen_address> [target_addres
 This example shows how to create a forward on a network named `bridge1` with a specific listen address and a target address:
 
 ```
-lxd network forward create bridge1 192.0.2.1 target_address=10.41.211.2
+lxc network forward create bridge1 192.0.2.1 target_address=10.41.211.2
 ```
 
 ````
