@@ -40,6 +40,10 @@ func (c *cmdClusterLink) command() *cobra.Command {
 	clusterLinkListCmd := cmdClusterLinkList{global: c.global, cluster: c.cluster}
 	cmd.AddCommand(clusterLinkListCmd.command())
 
+	// Delete
+	clusterLinkDeleteCmd := cmdClusterLinkDelete{global: c.global, cluster: c.cluster}
+	cmd.AddCommand(clusterLinkDeleteCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -77,6 +81,14 @@ When run without a token, creates a pending cluster link that must be activated 
 	cmd.Flags().StringVarP(&c.flagDescription, "description", "d", "", cli.FormatStringFlagLabel("Cluster link description"))
 
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
@@ -282,4 +294,64 @@ func (c *cmdClusterLinkList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, clusterLinks)
+}
+
+// Delete.
+type cmdClusterLinkDelete struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+}
+
+func (c *cmdClusterLinkDelete) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("delete", "[<remote>:]<link>")
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = "Delete cluster links"
+	cmd.Long = cli.FormatSection("Description", `Delete cluster links`)
+
+	cmd.Example = cli.FormatSection("", `On lxd01: lxc cluster link delete lxd02
+	Delete cluster link lxd02 and its associated identity.
+
+		On lxd02: lxc cluster link delete lxd01
+	Delete cluster link lxd01 and its associated identity.`)
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("cluster_link", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdClusterLinkDelete) run(cmd *cobra.Command, args []string) error {
+	// Quick checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	err = client.DeleteClusterLink(resource.name)
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf("Cluster link %s deleted"+"\n", resource.name)
+	}
+
+	return nil
 }
