@@ -148,7 +148,13 @@ func (r *ProtocolLXD) DoHTTP(req *http.Request) (*http.Response, error) {
 	r.addClientHeaders(req)
 
 	if r.oidcClient != nil {
-		return r.oidcClient.do(req)
+		var oidcScopesExtensionPresent bool
+		err := r.CheckExtension("oidc_scopes")
+		if err == nil {
+			oidcScopesExtensionPresent = true
+		}
+
+		return r.oidcClient.do(req, oidcScopesExtensionPresent)
 	}
 
 	return r.http.Do(req)

@@ -5472,7 +5472,7 @@
 					},
 					{
 						"oidc.groups.claim": {
-							"longdesc": "Specify a custom claim to be requested when performing OIDC flows.\nConfigure a corresponding custom claim in your identity provider and\nadd organization level groups to it. These can be mapped to LXD groups\nfor automatic access control.",
+							"longdesc": "Specify a custom token claim to denote groups defined at the identity provider.\nThe contents of this claim can be mapped to LXD groups for managing access control.\nThe value of the claim is expected to be a JSON string array.",
 							"scope": "global",
 							"shortdesc": "A claim used for mapping identity provider groups to LXD groups.",
 							"type": "string"
@@ -5484,6 +5484,14 @@
 							"scope": "global",
 							"shortdesc": "OpenID Connect Discovery URL for the provider",
 							"type": "string"
+						}
+					},
+					{
+						"oidc.scopes": {
+							"longdesc": "A list of OpenID Connect scopes to request from the identity provider.\nThis must include the `openid` and `email` scopes.\nThe remaining optional scopes are `offline_access` and `profile`.\nIf you remove the `offline_access` scope, users might be required to log in more frequently.\nIf you remove the `profile` scope, user information may not be displayed in LXD UI (or in `lxc auth identity` commands).\nYou may add additional scopes if this is required by your identity provider, or if necessary for configuration of {ref}`identity provider groups \u003cidentity-provider-groups\u003e`.",
+							"scope": "global",
+							"shortdesc": "Space-separated list of OpenID Connect scopes",
+							"type": "space-delimited string"
 						}
 					}
 				]

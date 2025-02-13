@@ -3,6 +3,7 @@ package oidc
 import (
 	"context"
 	"crypto/sha512"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -50,6 +51,7 @@ type Verifier struct {
 
 	clientID       string
 	issuer         string
+	scopes         []string
 	audience       string
 	groupsClaim    string
 	clusterCert    func() *shared.CertInfo
@@ -286,6 +288,7 @@ func (o *Verifier) getGroupsFromClaims(customClaims map[string]any) []string {
 	groupsArr, ok := groupsClaimAny.([]any)
 	if !ok {
 		logger.Warn("Unexpected type for OIDC groups custom claim", logger.Ctx{"claim_name": o.groupsClaim, "claim_value": groupsClaimAny})
+		return nil
 	}
 
 	groups := make([]string, 0, len(groupsArr))
@@ -293,6 +296,7 @@ func (o *Verifier) getGroupsFromClaims(customClaims map[string]any) []string {
 		groupName, ok := groupNameAny.(string)
 		if !ok {
 			logger.Warn("Unexpected type for OIDC groups custom claim", logger.Ctx{"claim_name": o.groupsClaim, "claim_value": groupsClaimAny})
+			return nil
 		}
 
 		groups = append(groups, groupName)
@@ -359,7 +363,16 @@ func (o *Verifier) WriteHeaders(w http.ResponseWriter) error {
 	w.Header().Set("X-LXD-OIDC-issuer", o.issuer)
 	w.Header().Set("X-LXD-OIDC-clientid", o.clientID)
 	w.Header().Set("X-LXD-OIDC-audience", o.audience)
+
+	// Continue to sent groups claim header for compatibility with older clients
 	w.Header().Set("X-LXD-OIDC-groups-claim", o.groupsClaim)
+
+	scopesJSON, err := json.Marshal(o.scopes)
+	if err != nil {
+		return fmt.Errorf("Failed to marshal OIDC scopes: %w", err)
+	}
+
+	w.Header().Set("X-LXD-OIDC-scopes", string(scopesJSON))
 
 	return nil
 }
@@ -453,12 +466,7 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 		rp.WithHTTPClient(httpClient),
 	}
 
-	oidcScopes := []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail, oidc.ScopeProfile}
-	if o.groupsClaim != "" {
-		oidcScopes = append(oidcScopes, o.groupsClaim)
-	}
-
-	relyingParty, err := rp.NewRelyingPartyOIDC(ctx, o.issuer, o.clientID, "", fmt.Sprintf("https://%s/oidc/callback", host), oidcScopes, options...)
+	relyingParty, err := rp.NewRelyingPartyOIDC(ctx, o.issuer, o.clientID, "", "https://"+host+"/oidc/callback", o.scopes, options...)
 	if err != nil {
 		return fmt.Errorf("Failed to get OIDC relying party: %w", err)
 	}
@@ -652,7 +660,7 @@ type Opts struct {
 }
 
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientID string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
+func NewVerifier(issuer string, clientID string, scopes []string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
 	opts := &Opts{}
 
 	if options != nil && options.GroupsClaim != "" {
@@ -662,6 +670,7 @@ func NewVerifier(issuer string, clientID string, audience string, clusterCert fu
 	verifier := &Verifier{
 		issuer:               issuer,
 		clientID:             clientID,
+		scopes:               scopes,
 		audience:             audience,
 		identityCache:        identityCache,
 		groupsClaim:          opts.GroupsClaim,
