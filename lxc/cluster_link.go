@@ -37,6 +37,10 @@ func (c *cmdClusterLink) command() *cobra.Command {
 	clusterLinkListCmd := cmdClusterLinkList{global: c.global, cluster: c.cluster}
 	cmd.AddCommand(clusterLinkListCmd.command())
 
+	// Remove
+	clusterLinkRemoveCmd := cmdClusterLinkRemove{global: c.global, cluster: c.cluster}
+	cmd.AddCommand(clusterLinkRemoveCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -254,4 +258,59 @@ func (c *cmdClusterLinkList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, clusterLinks)
+}
+
+// Remove.
+type cmdClusterLinkRemove struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+}
+
+func (c *cmdClusterLinkRemove) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("remove", i18n.G("<name>"))
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = i18n.G("Remove cluster links")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Remove cluster links`))
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpClusterLinks(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdClusterLinkRemove) run(cmd *cobra.Command, args []string) error {
+	// Quick checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	err = client.DeleteClusterLink(resource.name)
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Cluster link %s removed")+"\n", resource.name)
+	}
+
+	return nil
 }
