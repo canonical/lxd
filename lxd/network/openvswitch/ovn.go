@@ -1435,38 +1435,40 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 	return OVNDNSUUID(dnsUUID), nil
 }
 
-// LogicalSwitchPortGetDNS returns the logical switch port DNS info (UUID, name and IPs).
-func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (OVNDNSUUID, string, []net.IP, error) {
+// LogicalSwitchPortGetDNS returns the logical switch port DNS info (UUID and IPs).
+func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (OVNDNSUUID, []net.IP, error) {
 	// Get UUID and DNS IPs for a switch port in the format: "<DNS UUID>,<DNS NAME>=<IP> <IP>"
 	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,records", "find", "dns",
 		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitchPort, portName),
 	)
 	if err != nil {
-		return "", "", nil, err
+		return "", nil, err
 	}
 
-	parts := strings.Split(strings.TrimSpace(output), ",")
-	dnsUUID := strings.TrimSpace(parts[0])
+	dnsUUID, recordFields, _ := strings.Cut(strings.TrimSpace(output), ",")
 
-	var dnsName string
 	var ips []net.IP //nolint:prealloc
 
-	// Try and parse the DNS name and IPs.
-	if len(parts) > 1 {
-		dnsParts := strings.SplitN(strings.TrimSpace(parts[1]), "=", 2)
-		if len(dnsParts) == 2 {
-			dnsName = strings.TrimSpace(dnsParts[0])
-			ipParts := strings.Split(dnsParts[1], " ")
-			for _, ipPart := range ipParts {
-				ip := net.ParseIP(strings.TrimSpace(ipPart))
-				if ip != nil {
-					ips = append(ips, ip)
-				}
-			}
+	// Find IPs in the records fields.
+	// These fields can be in several formats, e.g.
+	// 1. <name>=<IP>
+	// 2. <IP>
+	// 3. <reverse IP>.in-addr.arpa=<name>
+	// We are only interested in getting the IPs in field formats 1 and 2.
+	for _, recordField := range strings.Fields(recordFields) {
+		a, b, found := strings.Cut(recordField, "=")
+		if found {
+			a = b // Get IP part of <name>=<IP> type fields.
+		}
+
+		// Parse candidate field value to see if its an IP.
+		ip := net.ParseIP(a)
+		if ip != nil {
+			ips = append(ips, ip)
 		}
 	}
 
-	return OVNDNSUUID(dnsUUID), dnsName, ips, nil
+	return OVNDNSUUID(dnsUUID), ips, nil
 }
 
 // logicalSwitchPortDeleteDNSAppendArgs adds the command arguments to remove DNS records from a switch port.

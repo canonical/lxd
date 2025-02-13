@@ -4318,7 +4318,7 @@ func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, d
 	}
 
 	// Get DNS records.
-	dnsUUID, _, dnsIPs, err := client.LogicalSwitchPortGetDNS(instancePortName)
+	dnsUUID, dnsIPs, err := client.LogicalSwitchPortGetDNS(instancePortName)
 	if err != nil {
 		return err
 	}
