@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -36,6 +37,10 @@ func (c *cmdClusterLink) command() *cobra.Command {
 	// Create
 	clusterLinkCreateCmd := cmdClusterLinkCreate{global: c.global, cluster: c.cluster}
 	cmd.AddCommand(clusterLinkCreateCmd.command())
+
+	// List
+	clusterLinkListCmd := cmdClusterLinkList{global: c.global, cluster: c.cluster}
+	cmd.AddCommand(clusterLinkListCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -189,4 +194,95 @@ func (c *cmdClusterLinkCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// List.
+type cmdClusterLinkList struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+
+	flagFormat string
+}
+
+func (c *cmdClusterLinkList) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("list", i18n.G("[<remote>:]"))
+	cmd.Aliases = []string{"ls"}
+	cmd.Short = i18n.G("List cluster links")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`List cluster links`))
+
+	cmd.RunE = c.run
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 1 {
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdClusterLinkList) run(cmd *cobra.Command, args []string) error {
+	// Quick checks
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	remote := ""
+	if len(args) > 0 {
+		remote = args[0]
+	}
+
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	clusterLinks, err := client.GetClusterLinks()
+	if err != nil {
+		return err
+	}
+
+	data := [][]string{}
+	for _, clusterLink := range clusterLinks {
+		clusterLinkIdentity, _, err := client.GetIdentity(api.AuthenticationMethodTLS, clusterLink.Name)
+		if err != nil {
+			return err
+		}
+
+		status := "ACTIVE"
+		if clusterLinkIdentity.Type == api.IdentityTypeCertificateClusterLinkPending {
+			status = "PENDING"
+		}
+
+		details := []string{
+			clusterLink.Name,
+			clusterLink.Config["volatile.addresses"],
+			clusterLink.Description,
+			status,
+			clusterLink.Type,
+		}
+
+		data = append(data, details)
+	}
+	sort.Sort(cli.SortColumnsNaturally(data))
+
+	header := []string{
+		i18n.G("NAME"),
+		i18n.G("ADDRESSES"),
+		i18n.G("DESCRIPTION"),
+		i18n.G("STATUS"),
+		i18n.G("TYPE"),
+	}
+
+	return cli.RenderTable(c.flagFormat, header, data, clusterLinks)
 }
