@@ -1446,7 +1446,7 @@ parts:
       - liblapack-dev
       - pkg-config
     build-snaps:
-      - go
+      - go/1.23/stable
     stage-packages:
       - acl
       - attr
