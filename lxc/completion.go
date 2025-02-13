@@ -97,6 +97,9 @@ var topLevelInstanceServerResourceNameFuncs = map[string]func(server lxd.Instanc
 	"cluster_group": func(server lxd.InstanceServer) ([]string, error) {
 		return server.GetClusterGroupNames()
 	},
+	"cluster_link": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetClusterLinkNames()
+	},
 }
 
 var topLevelImageServerResourceNameFuncs = map[string]func(server lxd.ImageServer) ([]string, error){
