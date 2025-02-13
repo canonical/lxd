@@ -73,8 +73,10 @@ func devlxdConfigGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrite
 	hasSSHKeys := false
 	hasCustomConfig := false
 	for k := range c.ExpandedConfig() {
-		// cloud-init.ssh-keys keys should not be retireved by cloud-init directly but instead should be merged into
-		// cloud-init.vendor-data and/or cloud-init.user-data.
+		// cloud-init.ssh-keys keys are not to be retrieved by cloud-init directly, but instead LXD converts them
+		// into cloud-init config and merges it into cloud-init.[vendor|user]-data.
+		// This way we can make use of the full array of options proivded by cloud-config for injecting keys
+		// and not compromise any cloud-init config defined on the instance's expanded config.
 		if strings.HasPrefix(k, "cloud-init.ssh-keys.") {
 			hasSSHKeys = true
 		} else if strings.HasPrefix(k, "user.") || strings.HasPrefix(k, "cloud-init.") {
@@ -122,7 +124,7 @@ func devlxdConfigKeyGetHandler(d *Daemon, c instance.Instance, w http.ResponseWr
 	if strings.HasSuffix(key, ".vendor-data") || strings.HasSuffix(key, ".user-data") {
 		value, err = util.MergeSSHKeyCloudConfig(c.ExpandedConfig(), value)
 		if err != nil {
-			logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": err, "project": c.Project(), "instance": c.Name(), "requestedKey": key})
+			logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": err, "project": c.Project().Name, "instance": c.Name(), "requestedKey": key})
 		}
 	}
 

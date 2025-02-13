@@ -2554,7 +2554,7 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 	// Merge additional SSH keys present on the instance config into vendorData.
 	vendorData, err = util.MergeSSHKeyCloudConfig(instanceConfig, vendorData)
 	if err != nil {
-		logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": err, "project": d.inst.Project(), "instance": d.inst.Name(), "dataConfigKey": vendorDataKey})
+		logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": err, "project": d.inst.Project().Name, "instance": d.inst.Name(), "dataConfigKey": vendorDataKey})
 	}
 
 	err = os.WriteFile(filepath.Join(scratchDir, "vendor-data"), []byte(vendorData), 0400)
@@ -2576,7 +2576,7 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 	// Merge additional SSH keys present on the instance config into userData.
 	userData, err = util.MergeSSHKeyCloudConfig(instanceConfig, userData)
 	if err != nil {
-		logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": err, "project": d.inst.Project(), "instance": d.inst.Name(), "dataConfigKey": userDataKey})
+		logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": err, "project": d.inst.Project().Name, "instance": d.inst.Name(), "dataConfigKey": userDataKey})
 	}
 
 	err = os.WriteFile(filepath.Join(scratchDir, "user-data"), []byte(userData), 0400)
