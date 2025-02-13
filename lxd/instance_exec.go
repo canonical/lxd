@@ -623,9 +623,9 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 
 	// Override any environment variable settings from the instance if not manually specified in post.
 	for k, v := range inst.ExpandedConfig() {
-		if strings.HasPrefix(k, "environment.") {
-			envKey := strings.TrimPrefix(k, "environment.")
-			_, found := post.Environment[envKey]
+		envKey, found := strings.CutPrefix(k, "environment.")
+		if found {
+			_, found = post.Environment[envKey]
 			if !found {
 				post.Environment[envKey] = v
 			}
