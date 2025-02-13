@@ -208,7 +208,7 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, w := range filters {
-			url := fmt.Sprintf("/%s/warnings/%s", version.APIVersion, w.UUID)
+			url := "/" + version.APIVersion + "/warnings/" + w.UUID
 			resultList = append(resultList, url)
 		}
 
