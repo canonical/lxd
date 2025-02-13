@@ -1716,6 +1716,17 @@ The instance with the highest value is shut down first.
 The content is used as seed value for `cloud-init`.
 ```
 
+```{config:option} cloud-init.ssh-keys.KEYNAME instance-cloud-init
+:condition: "If supported by image"
+:liveupdate: "no"
+:shortdesc: "Additional SSH key to be injected on the instance by `cloud-init`"
+:type: "string"
+Represents an additional SSH public key to be merged into existing `cloud-init` seed data
+and injected into an instance. Has the format `{user}:{key}`, where {user} is a Linux username and
+{key} can be either a pure SSH public key or an import ID for a key hosted elsewhere.
+// For example: `root:gh:githubUser`, `myUser:ssh-keyAlg publicKeyHash`
+```
+
 ```{config:option} cloud-init.user-data instance-cloud-init
 :condition: "If supported by image"
 :defaultdesc: "`#cloud-config`"
