@@ -431,7 +431,7 @@ test_basic_usage() {
 
   # check that we can set the environment
   lxc exec foo -- pwd | grep /root
-  lxc exec --env BEST_BAND=meshuggah foo -- env | grep meshuggah
+  lxc exec --env BEST_BAND=meshuggah foo -- env | grep -xF BEST_BAND=meshuggah
   lxc exec foo -- ip link show | grep eth0
 
   # check that we can get the return code for a non- wait-for-websocket exec
