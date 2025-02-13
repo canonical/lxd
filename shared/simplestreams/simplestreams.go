@@ -223,7 +223,7 @@ func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, []extende
 
 	addAlias := func(imageType string, architecture string, name string, fingerprint string) *api.ImageAlias {
 		if defaultOS != "" {
-			name = strings.TrimPrefix(name, fmt.Sprintf("%s/", defaultOS))
+			name = strings.TrimPrefix(name, defaultOS+"/")
 		}
 
 		for _, entry := range aliasesList {
@@ -266,7 +266,7 @@ func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, []extende
 				}
 
 				// Medium
-				alias = addAlias(image.Type, image.Architecture, fmt.Sprintf("%s/%s", entry.Name, image.Properties["architecture"]), image.Fingerprint)
+				alias = addAlias(image.Type, image.Architecture, entry.Name+"/"+image.Properties["architecture"], image.Fingerprint)
 				if alias != nil {
 					image.Aliases = append(image.Aliases, *alias)
 				}
