@@ -705,7 +705,7 @@ parts:
     source-commit: fa66e4cd562804509055e44a88f666673e6d27c0 # v1.17.2
     source-type: git
     build-snaps:
-      - go
+      - go/1.23/stable
     plugin: make
     override-prime: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
