@@ -33,6 +33,10 @@ func (c *cmdService) command() *cobra.Command {
 	serviceListCmd := cmdServiceList{global: c.global, service: c}
 	cmd.AddCommand(serviceListCmd.command())
 
+	// Remove
+	serviceRemoveCmd := cmdServiceRemove{global: c.global, service: c}
+	cmd.AddCommand(serviceRemoveCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -226,4 +230,54 @@ func (c *cmdServiceList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, services)
+}
+
+// Remove.
+type cmdServiceRemove struct {
+	global  *cmdGlobal
+	service *cmdService
+}
+
+func (c *cmdServiceRemove) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("remove", i18n.G("<service>"))
+	cmd.Short = i18n.G("Remove services")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Remove services`))
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpServices(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdServiceRemove) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	err = client.DeleteService(args[0])
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
