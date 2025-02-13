@@ -1986,6 +1986,15 @@
 						}
 					},
 					{
+						"cloud-init.ssh-keys.KEYNAME": {
+							"condition": "If supported by image",
+							"liveupdate": "no",
+							"longdesc": "Represents an additional SSH public key to be merged into existing `cloud-init` seed data\nand injected into an instance. Has the format `{user}:{key}`, where {user} is a Linux username and\n{key} can be either a pure SSH public key or an import ID for a key hosted elsewhere.\n// For example: `root:gh:githubUser`, `myUser:ssh-keyAlg publicKeyHash`",
+							"shortdesc": "Additional SSH key to be injected on the instance by `cloud-init`",
+							"type": "string"
+						}
+					},
+					{
 						"cloud-init.user-data": {
 							"condition": "If supported by image",
 							"defaultdesc": "`#cloud-config`",
