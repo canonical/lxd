@@ -2549,8 +2549,8 @@ This adds support for listing network zones across all projects using the `all-p
 
 ## `instance_root_volume_attachment`
 
-Adds support for instance root volumes to be attached to other instances as disk
-devices. Introduces the `<type>/<volume>` syntax for the `source` property of
+Adds support for instance root volumes and snapshots to be attached to other
+instances as disk devices. Introduces the `source.type` and `source.snapshot` keys for
 disk devices.
 
 ## `projects_limits_uplink_ips`
