@@ -70,10 +70,28 @@ func devlxdConfigGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrite
 	}
 
 	filtered := []string{}
+	hasSSHKeys := false
+	hasCustomConfig := false
 	for k := range c.ExpandedConfig() {
-		if strings.HasPrefix(k, "user.") || strings.HasPrefix(k, "cloud-init.") {
+		// cloud-init.ssh-keys keys should not be retireved by cloud-init directly but instead should be merged into
+		// cloud-init.vendor-data and/or cloud-init.user-data.
+		if strings.HasPrefix(k, "cloud-init.ssh-keys.") {
+			hasSSHKeys = true
+		} else if strings.HasPrefix(k, "user.") || strings.HasPrefix(k, "cloud-init.") {
+			if strings.HasSuffix(k, ".vendor-data") || strings.HasSuffix(k, ".user-data") {
+				hasCustomConfig = true
+			}
+
 			filtered = append(filtered, "/1.0/config/"+k)
 		}
+	}
+
+	// If the instance has SSH keys to be injected into it and do not have any custom seed data for cloud-init defined,
+	// include cloud-init.vendor-data in the response, since the SSH keys will be included in it.
+	// We are including vendor-data because it makes more sense conceptually, as the vendor (LXD) is generating the
+	// configuration for `cloud-init` to fetch.
+	if hasSSHKeys && !hasCustomConfig {
+		filtered = append(filtered, "/1.0/config/cloud-init.vendor-data")
 	}
 
 	return response.DevLxdResponse(http.StatusOK, filtered, "json", c.Type() == instancetype.VM)
