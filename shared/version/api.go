@@ -436,6 +436,7 @@ var APIExtensions = []string{
 	"profiles_all_projects",
 	"storage_driver_powerflex",
 	"storage_driver_pure",
+	"cloud_init_ssh_keys",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
