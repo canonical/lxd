@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
+	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
@@ -95,6 +96,7 @@ var patches = []patch{
 	{name: "instance_remove_volatile_last_state_ip_addresses", stage: patchPostDaemonStorage, run: patchInstanceRemoveVolatileLastStateIPAddresses},
 	{name: "entity_type_identity_certificate_split", stage: patchPreLoadClusterConfig, run: patchSplitIdentityCertificateEntityTypes},
 	{name: "storage_unset_powerflex_sdt_setting", stage: patchPostDaemonStorage, run: patchUnsetPowerFlexSDTSetting},
+	{name: "oidc_groups_claim_scope", stage: patchPreLoadClusterConfig, run: patchOIDCGroupsClaimScope},
 }
 
 type patch struct {
@@ -1443,6 +1445,43 @@ func patchUnsetPowerFlexSDTSetting(_ string, d *Daemon) error {
 DELETE FROM storage_pools_config WHERE key = "powerflex.sdt"
 	`)
 	return err
+}
+
+// patchOIDCGroupsClaimScope adds the contents of oidc.groups.claim to the new configuration for oidc.scopes if present.
+// The oidc.groups.claim value was initially added to scopes but shouldn't have been. This patch will allow users with
+// working identity provider group mappings to continue using them by continuing to request the claim as an additional
+// scope.
+func patchOIDCGroupsClaimScope(_ string, d *Daemon) error {
+	err := d.State().DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get current configuration.
+		globalConfig, err := clusterConfig.Load(ctx, tx)
+		if err != nil {
+			return err
+		}
+
+		// Get the groups claim and scopes (these will just be the default values at the time of the patch)
+		_, _, scopes, _, groupsClaim := globalConfig.OIDCServer()
+
+		// If the groups claim is not set, or this patch was already run on another member and the groups claim is
+		// already present in the list of scopes, then there is nothing to do.
+		if groupsClaim == "" || shared.ValueInSlice(groupsClaim, scopes) {
+			return nil
+		}
+
+		// Add the groups claim as an additional scope.
+		// The groups claim still needs to be set to extract group values from the token claims or userinfo.
+		oidcScopes := append(scopes, groupsClaim)
+		_, err = globalConfig.Patch(map[string]any{
+			"oidc.scopes": strings.Join(oidcScopes, " "),
+		})
+
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to configure oidc.groups.claim as an OIDC scope: %w", err)
+	}
+
+	return nil
 }
 
 // Patches end here

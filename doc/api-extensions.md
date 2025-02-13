@@ -2607,3 +2607,10 @@ Adds support for injecting additional SSH public keys into instances through {re
 To achieve this, the `cloud-init.ssh-keys.KEYNAME` configuration key is added for both instances and profiles. This key is used to define a public key to be injected. `KEYNAME` can be any arbitrary name for the injected key.
 
 The value for `cloud-init.ssh-keys.KEYNAME` should be `<user>:<key>`, where `<user>` is the name of the user for whom to inject the key. For `<key>`, provide either the public key or a `cloud-init` import ID for a key hosted elsewhere. Example valid values for `cloud-init.ssh-keys.KEYNAME` are `root:gh:githubUser` or `myUser:ssh-keyAlg base64PublicKey`.
+
+## `oidc_scopes`
+
+This API extension enables setting an {config:option}`server-oidc:oidc.scopes` configuration key, which accepts a space-separated list of OIDC scopes to request from the identity provider.
+This configuration option can be used to request additional scopes that might be required for retrieving {ref}`identity provider groups <identity-provider-groups>` from the identity provider.
+Additionally, the optional scopes `profile` and `offline_access` can be unset via this setting.
+Note that the `openid` and `email` scopes are always required.
