@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/shared"
@@ -61,7 +59,7 @@ func (c *cmdRestore) run(cmd *cobra.Command, args []string) error {
 	// Setup the snapshot restore
 	snapname := args[1]
 	if !shared.IsSnapshot(snapname) {
-		snapname = fmt.Sprintf("%s/%s", name, snapname)
+		snapname = name + "/" + snapname
 	}
 
 	req := api.InstancePut{
