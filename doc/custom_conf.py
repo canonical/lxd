@@ -164,6 +164,7 @@ linkcheck_ignore = [
     # Those links may fail from time to time
     'https://www.dell.com/',
     'https://www.dell.com/en-us/shop/powerflex/sf/powerflex',
+    'https://www.gnu.org/licenses/agpl-3.0.en.html',
     ]
 
 # Pages on which to ignore anchors
