@@ -201,7 +201,7 @@
 						}
 					},
 					{
-						"source-type": {
+						"source.type": {
 							"defaultdesc": "`custom`",
 							"longdesc": "Possible values are `custom` (the default) or `virtual-machine`. This\nkey is only valid when `source` is the name of a storage volume.",
 							"required": "no",
