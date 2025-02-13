@@ -119,6 +119,7 @@ void forknet(void)
 import "C"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -235,7 +236,7 @@ func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		// If the interface has an altname that matches the target name, this can prevent rename of the
 		// interface, so try removing it and trying the rename again if succeeds.
-		_, altErr := shared.RunCommand("ip", "link", "property", "del", "dev", ifName, "altname", hostName)
+		_, altErr := shared.RunCommandContext(context.TODO(), "ip", "link", "property", "del", "dev", ifName, "altname", hostName)
 		if altErr == nil {
 			err = link.SetName(hostName)
 		}
@@ -253,7 +254,7 @@ func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 		}
 
 		// Wifi cards (move the phy instead).
-		_, err = shared.RunCommand("iw", "phy", strings.TrimSpace(string(phyName)), "set", "netns", lxdPID)
+		_, err = shared.RunCommandContext(context.TODO(), "iw", "phy", strings.TrimSpace(string(phyName)), "set", "netns", lxdPID)
 		if err != nil {
 			return err
 		}
