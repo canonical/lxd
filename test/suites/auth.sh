@@ -100,6 +100,7 @@ test_authorization() {
   BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc
 
   ! lxc auth identity group add oidc/test-user@example.com not-found || false # Group not found
+  [ "$(my_curl -X PUT --data "{\"groups\":[\"test-group\",\"not-found1\",\"not-found2\"]}" "https://${LXD_ADDR}/1.0/auth/identities/oidc/test-user@example.com" | jq -er '.error')" = 'One or more groups were not found: "not-found1", "not-found2"' ] # Groups not found error (only contains the groups that were not found).
   lxc auth identity group add oidc/test-user@example.com test-group # Valid
 
   # Test fine-grained TLS identity creation
