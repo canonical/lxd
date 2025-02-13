@@ -196,7 +196,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 			continue
 		}
 
-		certificateURL := fmt.Sprintf("/%s/certificates/%s", version.APIVersion, identity.Identifier)
+		certificateURL := "/" + version.APIVersion + "/certificates/" + identity.Identifier
 		body = append(body, certificateURL)
 	}
 
