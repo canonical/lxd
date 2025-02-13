@@ -1537,7 +1537,7 @@ parts:
       - lxd
       - sqlite
     build-snaps:
-      - go
+      - go/1.23/stable
     plugin: nil
     override-pull: |
       craftctl default
