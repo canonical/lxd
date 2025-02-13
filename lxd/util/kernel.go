@@ -12,7 +12,7 @@ import (
 // LoadModule loads the kernel module with the given name, by invoking
 // modprobe. This respects any modprobe configuration on the system.
 func LoadModule(module string) error {
-	if shared.PathExists(fmt.Sprintf("/sys/module/%s", module)) {
+	if shared.PathExists("/sys/module/" + module) {
 		return nil
 	}
 
