@@ -650,7 +650,7 @@ parts:
     source-commit: 9b69590c7428470a72f2ae05f826412976af1395 # v1.17.4
     source-type: git
     build-snaps:
-      - go
+      - go/1.23/stable
     plugin: make
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
