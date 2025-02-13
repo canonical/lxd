@@ -83,7 +83,7 @@ func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.Ce
 		args.Proxy = proxy
 	}
 
-	url := fmt.Sprintf("https://%s", address)
+	url := "https://" + address
 	return lxd.ConnectLXD(url, args)
 }
 
@@ -131,7 +131,7 @@ func SetupTrust(serverCert *shared.CertInfo, clusterPut api.ClusterPut) error {
 		UserAgent:     version.UserAgent,
 	}
 
-	target, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", clusterPut.ClusterAddress), args)
+	target, err := lxd.ConnectLXD("https://"+clusterPut.ClusterAddress, args)
 	if err != nil {
 		return fmt.Errorf("Failed to connect to target cluster node %q: %w", clusterPut.ClusterAddress, err)
 	}
@@ -173,7 +173,7 @@ func UpdateTrust(serverCert *shared.CertInfo, serverName string, targetAddress s
 		UserAgent:     version.UserAgent,
 	}
 
-	target, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", targetAddress), args)
+	target, err := lxd.ConnectLXD("https://"+targetAddress, args)
 	if err != nil {
 		return fmt.Errorf("Failed to connect to target cluster node %q: %w", targetAddress, err)
 	}
