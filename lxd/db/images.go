@@ -527,7 +527,10 @@ SELECT nodes.address FROM nodes
   LEFT JOIN images ON images_nodes.image_id = images.id
 WHERE images.fingerprint = ?
 `
-	var localAddress string // Address of this node
+	// Address of this node
+	var localAddress string
+	// Addresses of online nodes with the image
+	var addresses []string //nolint:prealloc
 
 	offlineThreshold, err := c.GetNodeOfflineThreshold(ctx)
 	if err != nil {
@@ -544,7 +547,6 @@ WHERE images.fingerprint = ?
 		return "", err
 	}
 
-	addresses := make([]string, 0, len(allAddresses)-1) // Addresses of online nodes with the image
 	for _, address := range allAddresses {
 		node, err := c.GetNodeByAddress(ctx, address)
 		if err != nil {
@@ -1111,6 +1113,9 @@ SELECT DISTINCT nodes.address FROM nodes WHERE nodes.address NOT IN (
 }
 
 func (c *ClusterTx) getNodesByImageFingerprint(ctx context.Context, stmt string, fingerprint string, autoUpdate *bool) ([]string, error) {
+	// Addresses of online nodes with the image
+	var addresses []string //nolint:prealloc
+
 	offlineThreshold, err := c.GetNodeOfflineThreshold(ctx)
 	if err != nil {
 		return nil, err
@@ -1128,7 +1133,6 @@ func (c *ClusterTx) getNodesByImageFingerprint(ctx context.Context, stmt string,
 		return nil, err
 	}
 
-	addresses := make([]string, 0, len(allAddresses)) // Addresses of online nodes with the image
 	for _, address := range allAddresses {
 		node, err := c.GetNodeByAddress(ctx, address)
 		if err != nil {
