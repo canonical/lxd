@@ -1169,7 +1169,7 @@ func clusterCopyCustomVolumeInternal(s *state.State, r *http.Request, sourceAddr
 	req.Source.Type = api.SourceTypeMigration
 	req.Source.Certificate = string(s.Endpoints.NetworkCert().PublicKey())
 	req.Source.Mode = "pull"
-	req.Source.Operation = fmt.Sprintf("https://%s/%s/operations/%s", sourceAddress, version.APIVersion, opAPI.ID)
+	req.Source.Operation = "https://" + sourceAddress + "/" + version.APIVersion + "/operations/" + opAPI.ID
 	req.Source.Websockets = websockets
 	req.Source.Project = ""
 
