@@ -55,7 +55,7 @@ func GetCurrentAllocations(ctx context.Context, globalConfig map[string]any, tx 
 	// Add the pool-specific disk limits.
 	for k, v := range raw {
 		if strings.HasPrefix(k, projectLimitDiskPool) && v.Limit > 0 {
-			result[fmt.Sprintf("disk.%s", strings.SplitN(k, ".", 4)[3])] = v
+			result["disk."+strings.SplitN(k, ".", 4)[3]] = v
 		}
 	}
 
