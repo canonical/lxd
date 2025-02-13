@@ -970,8 +970,8 @@ func volumeIsUsedByDevice(vol api.StorageVolume, inst *db.InstanceArgs, dev map[
 	}
 
 	volumeTypeName := cluster.StoragePoolVolumeTypeNameCustom
-	if dev["source-type"] != "" {
-		volumeTypeName = dev["source-type"]
+	if dev["source.type"] != "" {
+		volumeTypeName = dev["source.type"]
 	}
 
 	if volumeTypeName == vol.Type && dev["source"] == vol.Name {
