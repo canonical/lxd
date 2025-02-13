@@ -97,6 +97,8 @@ projects:
     features.storage.volumes: "true"
   description: Default LXD project
   name: default
+  storage: ""
+  network: ""
 
 EOF
 
