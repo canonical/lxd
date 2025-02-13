@@ -611,7 +611,7 @@ parts:
         - lsb-release
         - libtirpc-dev
     build-snaps:
-      - go
+      - go/1.23/stable
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
