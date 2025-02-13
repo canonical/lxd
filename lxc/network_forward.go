@@ -140,7 +140,7 @@ func (c *cmdNetworkForwardList) run(cmd *cobra.Command, args []string) error {
 			forward.ListenAddress,
 			forward.Description,
 			forward.Config["target_address"],
-			fmt.Sprintf("%d", len(forward.Ports)),
+			fmt.Sprint(len(forward.Ports)),
 		}
 
 		if clustered {
