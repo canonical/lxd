@@ -610,6 +610,8 @@ parts:
         - libseccomp-dev
         - lsb-release
         - libtirpc-dev
+    build-snaps:
+      - go
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
