@@ -303,7 +303,7 @@ To inject SSH keys into LXD instances for an arbitrary user, use the configurati
 
 Use the format `<user>:<key>` for its value, where `<user>` is a Linux username and `<key>` can be either a pure SSH public key or an import ID for a key hosted elsewhere. For example, `root:gh:githubUser` and `myUser:ssh-keyAlg publicKeyHash` are valid values.
 
-`cloud-init.ssh-keys.<keyName>` cannot be applied if LXD is unable to parse both the existing `cloud-config.vendor-data` and `cloud-config.user-data` for that instance. This could happen, for example, if those keys contain badly formatted YAML.
+The content of `cloud-init.ssh-keys.<keyName>` is merged into the contents of both `cloud-config.vendor-data` and `cloud-config.user-data` before presenting their content to the guest. This is done according to the [`cloud-config` specification](https://cloudinit.readthedocs.io/en/latest/explanation/about-cloud-config.html). Therefore, keys defined via `cloud-init.ssh-keys.<keyName>` cannot be applied if LXD is unable to parse both the existing `cloud-config.vendor-data` and `cloud-config.user-data` for that instance. This could happen, for example, if those keys contain badly formatted YAML.
 
 You can define SSH keys via `cloud-init.vendor-data` or `cloud-init.user-data` directly. Keys defined using `cloud-init.ssh-keys.<keyName>` do not conflict with those defined with either `cloud-init.vendor-data` or `cloud-init.user-data` in any way. For more information on how to use `cloud-config` to define SSH keys, see [the cloud-init docs for SSH configuration](https://cloudinit.readthedocs.io/en/latest/reference/yaml_examples/ssh.html).
 
