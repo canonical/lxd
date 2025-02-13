@@ -1851,3 +1851,28 @@ func (g *cmdGlobal) cmpFiles(toComplete string, includeLocalFiles bool) ([]strin
 
 	return append(instances, files...), directives
 }
+
+// cmpClusterLinks provides shell completions for cluster links.
+func (g *cmdGlobal) cmpClusterLinks(toComplete string) ([]string, cobra.ShellCompDirective) {
+	// Parse remote
+	resources, err := g.ParseServers(toComplete)
+	if err != nil || len(resources) == 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	clusterLinks, err := client.GetClusterLinks()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	results := make([]string, 0, len(clusterLinks))
+
+	for _, link := range clusterLinks {
+		results = append(results, link.Name)
+	}
+
+	return results, cobra.ShellCompDirectiveNoFileComp
+}
