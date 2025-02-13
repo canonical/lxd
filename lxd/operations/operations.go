@@ -146,7 +146,7 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 	op.createdAt = time.Now()
 	op.updatedAt = op.createdAt
 	op.status = api.Pending
-	op.url = fmt.Sprintf("/%s/operations/%s", version.APIVersion, op.id)
+	op.url = "/" + version.APIVersion + "/operations/" + op.id
 	op.resources = opResources
 	op.finished = cancel.New(context.Background())
 	op.state = s
