@@ -1000,7 +1000,7 @@ func (c *ClusterTx) GetPoolNamesFromIDs(ctx context.Context, poolIDs []int64) ([
 		args[i] = id
 	}
 
-	q := fmt.Sprintf("SELECT name FROM storage_pools WHERE id IN (%s)", strings.Join(params, ","))
+	q := "SELECT name FROM storage_pools WHERE id IN (" + strings.Join(params, ",") + ")"
 
 	poolNames, err := query.SelectStrings(ctx, c.tx, q, args...)
 	if err != nil {
