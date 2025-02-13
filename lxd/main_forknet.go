@@ -208,7 +208,7 @@ func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check if the interface exists.
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", ifName)) {
+	if !shared.PathExists("/sys/class/net/" + ifName) {
 		return fmt.Errorf("Couldn't restore host interface %q as container interface %q couldn't be found", hostName, ifName)
 	}
 
@@ -244,7 +244,7 @@ func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 	}
 
 	// Move it back to the host.
-	phyPath := fmt.Sprintf("/sys/class/net/%s/phy80211/name", hostName)
+	phyPath := "/sys/class/net/" + hostName + "/phy80211/name"
 	if shared.PathExists(phyPath) {
 		// Get the phy name.
 		phyName, err := os.ReadFile(phyPath)
