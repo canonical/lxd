@@ -83,9 +83,11 @@ func (c *cmdProject) command() *cobra.Command {
 
 // Create.
 type cmdProjectCreate struct {
-	global     *cmdGlobal
-	project    *cmdProject
-	flagConfig []string
+	global      *cmdGlobal
+	project     *cmdProject
+	flagConfig  []string
+	flagStorage string
+	flagNetwork string
 }
 
 func (c *cmdProjectCreate) command() *cobra.Command {
@@ -100,6 +102,8 @@ lxc project create p1 < config.yaml
     Create a project with configuration from config.yaml`))
 
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new project")+"``")
+	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Add a storage pool to be used as the root device in the default profile")+"``")
+	cmd.Flags().StringVarP(&c.flagNetwork, "network", "n", "", i18n.G("Add a NIC device to the default profile connected to the specified network")+"``")
 
 	cmd.RunE = c.run
 
@@ -152,6 +156,8 @@ func (c *cmdProjectCreate) run(cmd *cobra.Command, args []string) error {
 	project := api.ProjectsPost{}
 	project.Name = resource.name
 	project.ProjectPut = stdinData
+	project.StoragePool = c.flagStorage
+	project.Network = c.flagNetwork
 
 	if project.Config == nil {
 		project.Config = map[string]string{}
