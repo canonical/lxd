@@ -19,7 +19,7 @@ func deviceJoinPath(parts ...string) string {
 // validatePCIDevice returns whether a configured PCI device exists under the given address.
 // It also returns nil, if an empty address is supplied.
 func validatePCIDevice(address string) error {
-	if address != "" && !shared.PathExists(fmt.Sprintf("/sys/bus/pci/devices/%s", address)) {
+	if address != "" && !shared.PathExists("/sys/bus/pci/devices/"+address) {
 		return fmt.Errorf("Invalid PCI address (no device found): %s", address)
 	}
 
