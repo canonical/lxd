@@ -183,7 +183,7 @@ doc: doc-clean doc-install doc-html doc-objects
 doc-incremental: doc-html
 
 doc-%:
-	cd doc && $(MAKE) -f Makefile $*
+	$(MAKE) -C doc -f Makefile $*
 
 .PHONY: debug
 debug:
