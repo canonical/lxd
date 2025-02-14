@@ -281,12 +281,18 @@ func (c *cmdAgent) mountHostShares() {
 	}
 
 	for _, mount := range agentMounts {
+		l := logger.AddContext(logger.Ctx{"source": mount.Source, "path": mount.Target})
+
+		if strings.Contains(mount.Target, "..") {
+			l.Error("Invalid mount target")
+			continue
+		}
+
 		// Convert relative mounts to absolute from / otherwise dir creation fails or mount fails.
 		if !strings.HasPrefix(mount.Target, "/") {
 			mount.Target = "/" + mount.Target
+			l.AddContext(logger.Ctx{"path": mount.Target})
 		}
-
-		l := logger.AddContext(logger.Ctx{"source": mount.Source, "path": mount.Target})
 
 		if !shared.PathExists(mount.Target) {
 			err := os.MkdirAll(mount.Target, 0755)
