@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -101,7 +102,16 @@ func memoryState() api.InstanceStateMemory {
 		return memory
 	}
 
-	memory.Usage = int64(stats.MemTotalBytes) - int64(stats.MemFreeBytes)
+	// Bound checking before converting from uint64 to int64
+	if stats.MemTotalBytes > math.MaxInt64 {
+		stats.MemTotalBytes = math.MaxInt64
+	}
+
+	if stats.MemFreeBytes > math.MaxInt64 {
+		stats.MemFreeBytes = math.MaxInt64
+	}
+
+	memory.Usage = int64(stats.MemTotalBytes - stats.MemFreeBytes)
 	memory.Total = int64(stats.MemTotalBytes)
 
 	// Memory peak in bytes
