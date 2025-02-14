@@ -113,6 +113,10 @@ type NetworkForwardsPost struct {
 	//  shortdesc: IP address to listen on
 
 	// The listen address of the forward
+	// For OVN networks only, you can dynamically allocate the listen address from a pre-defined range.
+	// To do so for an IPv4 address, provide a listen_address of `0.0.0.0`.
+	// For an IPv6 address, provide a listen_address of `::`.
+	// These are equivalent to the `allocate=ipv{4|6}` flag used to create a network forward via the CLI.
 	// Example: 192.0.2.1
 	ListenAddress string `json:"listen_address" yaml:"listen_address"`
 }
