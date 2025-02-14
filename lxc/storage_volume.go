@@ -1823,7 +1823,7 @@ func (c *cmdStorageVolumeList) poolColumnData(vol api.StorageVolume, state api.S
 
 func (c *cmdStorageVolumeList) typeColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
 	if shared.IsSnapshot(vol.Name) {
-		return fmt.Sprintf("%s (snapshot)", vol.Type)
+		return vol.Type + " (snapshot)"
 	}
 
 	return vol.Type
@@ -1954,7 +1954,7 @@ func (c *cmdStorageVolumeMove) run(cmd *cobra.Command, args []string) error {
 		var args []string
 
 		if srcRemote != "" {
-			args = append(args, fmt.Sprintf("%s:%s", srcRemote, srcVolPool))
+			args = append(args, srcRemote+":"+srcVolPool)
 		} else {
 			args = append(args, srcVolPool)
 		}
@@ -2922,7 +2922,7 @@ func (c *cmdStorageVolumeImport) run(cmd *cobra.Command, args []string) error {
 			Tracker: &ioprogress.ProgressTracker{
 				Length: fstat.Size(),
 				Handler: func(percent int64, speed int64) {
-					progress.UpdateProgress(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2))})
+					progress.UpdateProgress(ioprogress.ProgressData{Text: strconv.FormatInt(percent, 10) + "% (" + units.GetByteSizeString(speed, 2) + "/s)"})
 				},
 			},
 		},
