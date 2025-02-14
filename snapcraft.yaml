@@ -572,6 +572,8 @@ parts:
       - libelf-dev
       - lsb-release
       - libtirpc-dev
+    build-snaps:
+      - go/1.23/stable
     override-prime: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
@@ -1444,7 +1446,7 @@ parts:
       - liblapack-dev
       - pkg-config
     build-snaps:
-      - go
+      - go/1.23/stable
     stage-packages:
       - acl
       - attr
@@ -1535,7 +1537,7 @@ parts:
       - lxd
       - sqlite
     build-snaps:
-      - go
+      - go/1.23/stable
     plugin: nil
     override-pull: |
       craftctl default
