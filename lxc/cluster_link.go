@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -15,6 +16,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/termios"
@@ -43,6 +45,10 @@ func (c *cmdClusterLink) command() *cobra.Command {
 	// Delete
 	clusterLinkDeleteCmd := cmdClusterLinkDelete{global: c.global, cluster: c.cluster}
 	cmd.AddCommand(clusterLinkDeleteCmd.command())
+
+	// Edit
+	clusterLinkEditCmd := cmdClusterLinkEdit{global: c.global, cluster: c.cluster}
+	cmd.AddCommand(clusterLinkEditCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -283,6 +289,7 @@ func (c *cmdClusterLinkList) run(cmd *cobra.Command, args []string) error {
 
 		data = append(data, details)
 	}
+
 	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
@@ -351,6 +358,137 @@ func (c *cmdClusterLinkDelete) run(cmd *cobra.Command, args []string) error {
 
 	if !c.global.flagQuiet {
 		fmt.Printf("Cluster link %s deleted"+"\n", resource.name)
+	}
+
+	return nil
+}
+
+// Edit.
+type cmdClusterLinkEdit struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+}
+
+func (c *cmdClusterLinkEdit) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("edit", "[<remote>:]<link>")
+	cmd.Short = "Edit cluster link configurations as YAML"
+	cmd.Long = cli.FormatSection("Description", `Edit cluster link configurations as YAML`)
+	cmd.Example = cli.FormatSection("", `lxc cluster link edit [<remote>:]<name> < link.yaml
+    Update a cluster link using the content of link.yaml.`)
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("cluster_link", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdClusterLinkEdit) helpTemplate() string {
+	return `### This is a YAML representation of a cluster link.
+### Any line starting with a '#' will be ignored.
+###
+### A cluster link consists of a set of configuration items.
+###
+### An example would look like:
+### description: backup cluster
+### config:
+###   user.key: value
+###   `
+}
+
+func (c *cmdClusterLinkEdit) run(cmd *cobra.Command, args []string) error {
+	// Quick checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing cluster link name")
+	}
+
+	// If stdin isn't a terminal, read text from it
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		newdata := api.ClusterLinkPut{}
+		err = yaml.Unmarshal(contents, &newdata)
+		if err != nil {
+			return err
+		}
+
+		return resource.server.UpdateClusterLink(resource.name, newdata, "")
+	}
+
+	// Extract the current value
+	clusterLink, etag, err := resource.server.GetClusterLink(resource.name)
+	if err != nil {
+		return err
+	}
+
+	// Get the writable fields of the cluster link (ClusterLinkPut)
+	clusterLinkPut := clusterLink.Writable()
+
+	data, err := yaml.Marshal(&clusterLinkPut)
+	if err != nil {
+		return err
+	}
+
+	// Spawn the editor
+	content, err := shared.TextEditor("", []byte(c.helpTemplate()+"\n\n"+string(data)))
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Parse the text received from the editor
+		newdata := api.ClusterLinkPut{}
+		err = yaml.Unmarshal(content, &newdata)
+		if err == nil {
+			err = resource.server.UpdateClusterLink(resource.name, newdata, etag)
+		}
+
+		// Respawn the editor
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Config parsing error: %s"+"\n", err)
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
+
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		break
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf("Cluster link %s updated"+"\n", resource.name)
 	}
 
 	return nil
