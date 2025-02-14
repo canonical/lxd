@@ -995,9 +995,9 @@ func (n *bridge) Rename(newName string) error {
 	}
 
 	// Rename forkdns log file.
-	forkDNSLogPath := fmt.Sprintf("forkdns.%s.log", n.name)
+	forkDNSLogPath := "forkdns." + n.name + ".log"
 	if shared.PathExists(shared.LogPath(forkDNSLogPath)) {
-		err := os.Rename(forkDNSLogPath, shared.LogPath(fmt.Sprintf("forkdns.%s.log", newName)))
+		err := os.Rename(forkDNSLogPath, shared.LogPath("forkdns."+newName+".log"))
 		if err != nil {
 			return err
 		}
@@ -1222,7 +1222,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Cleanup any existing tunnel device.
 	for _, iface := range ifaces {
-		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
+		if strings.HasPrefix(iface.Name, n.name+"-") {
 			tunLink := &ip.Link{Name: iface.Name}
 			err = tunLink.Delete()
 			if err != nil {
@@ -1235,7 +1235,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	if bridge.MTU != bridgeMTUDefault && n.config["bridge.driver"] != "openvswitch" {
 		dummy := &ip.Dummy{
 			Link: ip.Link{
-				Name: fmt.Sprintf("%s-mtu", n.name),
+				Name: n.name + "-mtu",
 				MTU:  bridge.MTU,
 			},
 		}
@@ -1245,7 +1245,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			revert.Add(func() { _ = dummy.Delete() })
 			err = dummy.SetUp()
 			if err == nil {
-				_ = AttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
+				_ = AttachInterface(n.name, n.name+"-mtu")
 			}
 		}
 	}
@@ -1387,7 +1387,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		"--except-interface=lo",
 		"--pid-file=", // Disable attempt at writing a PID file.
 		"--no-ping",   // --no-ping is very important to prevent delays to lease file updates.
-		fmt.Sprintf("--interface=%s", n.name)}
+		"--interface=" + n.name}
 
 	dnsmasqVersion, err := dnsmasq.GetVersion()
 	if err != nil {
@@ -1428,7 +1428,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Update the dnsmasq config.
-		dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--listen-address=%s", ipv4Address.String()))
+		dnsmasqCmd = append(dnsmasqCmd, "--listen-address="+ipv4Address.String())
 		if n.DHCPv4Subnet() != nil {
 			if !shared.ValueInSlice("--dhcp-no-override", dnsmasqCmd) {
 				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")), fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts"))}...)
@@ -2417,7 +2417,7 @@ func (n *bridge) spawnForkDNS(listenAddress string) error {
 		dnsDomain,
 		n.name}
 
-	logPath := shared.LogPath(fmt.Sprintf("forkdns.%s.log", n.name))
+	logPath := shared.LogPath("forkdns." + n.name + ".log")
 
 	p, err := subprocess.NewProcess(command, forkdnsargs, logPath, logPath)
 	if err != nil {
@@ -2644,7 +2644,7 @@ func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (cidr strin
 
 	ipBytes[3] = 1
 
-	return fmt.Sprintf("%s/%d", ipBytes.String(), overlaySize), dev, ipStr, err
+	return ipBytes.String() + fmt.Sprint(overlaySize), dev, ipStr, err
 }
 
 func (n *bridge) addressForSubnet(subnet *net.IPNet) (net.IP, string, error) {
@@ -3519,7 +3519,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 				ip, _, _ := net.ParseCIDR(addr)
 				if ip != nil {
 					leases = append(leases, api.NetworkLease{
-						Hostname: fmt.Sprintf("%s.gw", n.Name()),
+						Hostname: n.Name() + ".gw",
 						Address:  ip.String(),
 						Type:     "gateway",
 					})
@@ -3548,7 +3548,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 						v := network.Config[k]
 						if v != "" {
 							leases = append(leases, api.NetworkLease{
-								Hostname: fmt.Sprintf("%s-%s.uplink", projectName, network.Name),
+								Hostname: projectName + "-" + network.Name + ".uplink",
 								Address:  v,
 								Type:     "uplink",
 								Project:  projectName,
