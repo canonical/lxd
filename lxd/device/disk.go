@@ -152,8 +152,8 @@ func (d *disk) sourceVolumeFields() (volumeName string, volumeType storageDriver
 	volumeName = d.config["source"]
 
 	volumeTypeName = cluster.StoragePoolVolumeTypeNameCustom
-	if d.config["source-type"] != "" {
-		volumeTypeName = d.config["source-type"]
+	if d.config["source.type"] != "" {
+		volumeTypeName = d.config["source.type"]
 	}
 
 	dbVolumeType, err = storagePools.VolumeTypeNameToDBType(volumeTypeName)
@@ -272,7 +272,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		//  required: yes
 		//  shortdesc: Source of a file system or block device
 		"source": validate.IsAny,
-		// lxdmeta:generate(entities=device-disk; group=device-conf; key=source-type)
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=source.type)
 		// Possible values are `custom` (the default) or `virtual-machine`. This
 		// key is only valid when `source` is the name of a storage volume.
 		// ---
@@ -280,7 +280,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		//  defaultdesc: `custom`
 		//  required: no
 		//  shortdesc: Type of the backing storage volume
-		"source-type": validate.Optional(validate.IsOneOf(cluster.StoragePoolVolumeTypeNameCustom, cluster.StoragePoolVolumeTypeNameVM)),
+		"source.type": validate.Optional(validate.IsOneOf(cluster.StoragePoolVolumeTypeNameCustom, cluster.StoragePoolVolumeTypeNameVM)),
 		// lxdmeta:generate(entities=device-disk; group=device-conf; key=limits.read)
 		// You can specify a value in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`).
 		// See also {ref}`storage-configure-io`.
@@ -420,8 +420,8 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		return fmt.Errorf(`Cannot use both "required" and deprecated "optional" properties at the same time`)
 	}
 
-	if d.config["source-type"] != "" && d.config["pool"] == "" {
-		return fmt.Errorf(`"source-type" can only be used on storage volume disk devices`)
+	if d.config["source.type"] != "" && d.config["pool"] == "" {
+		return fmt.Errorf(`"source.type" can only be used on storage volume disk devices`)
 	}
 
 	if d.config["source"] == "" && d.config["path"] != "/" {
@@ -1623,7 +1623,7 @@ func (w *cgroupWriter) Set(version cgroup.Backend, controller string, key string
 // mountPoolVolume mounts storage volumes created via the storage api. Config keys:
 //   - d.config["pool"] : pool name
 //   - d.config["source"] : volume name
-//   - d.config["source-type"] : volume type
+//   - d.config["source.type"] : volume type
 //
 // Returns the mount path and MountInfo struct. If d.inst type is container the
 // volume will be shifted if needed.
