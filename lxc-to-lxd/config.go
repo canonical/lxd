@@ -209,7 +209,7 @@ func parseConfig(path string) ([]string, error) {
 				text := strings.TrimSpace(sc.Text())
 
 				if len(text) > 0 && !strings.HasPrefix(text, "#") {
-					config = append(config, fmt.Sprintf("lxc.mount.entry = %s", text))
+					config = append(config, "lxc.mount.entry = "+text)
 				}
 			}
 
