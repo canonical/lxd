@@ -475,6 +475,11 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 
 // GetNetworkState returns the OS configuration for the network interface.
 func GetNetworkState(name string) (*api.NetworkState, error) {
+	// Reject known bad names that might cause problem when dealing with paths.
+	if strings.Contains(name, "/") || strings.Contains(name, "\\") || strings.Contains(name, "..") {
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Invalid network interface name: %q", name)
+	}
+
 	// Get some information
 	netIf, err := net.InterfaceByName(name)
 	if err != nil {
