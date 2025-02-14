@@ -157,15 +157,9 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeInstanceSnapshot, true)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	recursion := util.IsRecursionRequest(r)
 	resultString := []string{}
 	resultMap := []*api.InstanceSnapshot{}
-	urlToSnaps := make(map[*api.URL]auth.EntitlementReporter)
 
 	if !recursion {
 		var snaps []string
@@ -225,19 +219,11 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			resultMap = append(resultMap, renderedSnap)
-			urlToSnaps[entity.InstanceSnapshotURL(projectName, cname, snapName)] = renderedSnap
 		}
 	}
 
 	if !recursion {
 		return response.SyncResponse(true, resultString)
-	}
-
-	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeInstanceSnapshot, withEntitlements, urlToSnaps)
-		if err != nil {
-			return response.SmartError(err)
-		}
 	}
 
 	return response.SyncResponse(true, resultMap)
@@ -629,11 +615,6 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) re
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func snapshotGet(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
-	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeInstanceSnapshot, false)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	render, _, err := snapInst.Render(storagePools.RenderSnapshotUsage(s, snapInst))
 	if err != nil {
 		return response.SmartError(err)
@@ -642,13 +623,6 @@ func snapshotGet(s *state.State, r *http.Request, snapInst instance.Instance) re
 	renderedSnap, ok := render.(*api.InstanceSnapshot)
 	if !ok {
 		return response.InternalError(fmt.Errorf("Render didn't return a snapshot"))
-	}
-
-	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeInstanceSnapshot, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.InstanceSnapshotURL(snapInst.Project().Name, snapInst.Name(), renderedSnap.Name): renderedSnap})
-		if err != nil {
-			return response.SmartError(err)
-		}
 	}
 
 	etag := []any{snapInst.ExpiryDate()}
