@@ -2834,7 +2834,7 @@ func (n *bridge) DHCPv6Subnet() *net.IPNet {
 
 // forwardConvertToFirewallForward converts forwards into format compatible with the firewall package.
 func (n *bridge) forwardConvertToFirewallForwards(listenAddress net.IP, defaultTargetAddress net.IP, portMaps []*forwardPortMap) []firewallDrivers.AddressForward {
-	var vips []firewallDrivers.AddressForward
+	vips := make([]firewallDrivers.AddressForward, 0, len(portMaps)+1)
 
 	if defaultTargetAddress != nil {
 		vips = append(vips, firewallDrivers.AddressForward{
