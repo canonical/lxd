@@ -120,16 +120,16 @@ func GetDistinctPermissionsByGroupNames(ctx context.Context, tx *sql.Tx, groupNa
 		return nil, nil
 	}
 
-	var args []any
+	var args []any //nolint:prealloc
 	for _, effectiveGroup := range groupNames {
 		args = append(args, effectiveGroup)
 	}
 
-	q := fmt.Sprintf(`
+	q := `
 SELECT DISTINCT auth_groups_permissions.entitlement, auth_groups_permissions.entity_type, auth_groups_permissions.entity_id
 FROM auth_groups_permissions
 JOIN auth_groups ON auth_groups_permissions.auth_group_id = auth_groups.id
-WHERE auth_groups.name IN %s`, query.Params(len(groupNames)))
+WHERE auth_groups.name IN ` + query.Params(len(groupNames))
 
 	rows, err := tx.QueryContext(ctx, q, args...)
 	if err != nil {

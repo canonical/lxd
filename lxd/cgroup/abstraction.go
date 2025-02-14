@@ -30,7 +30,7 @@ func (cg *CGroup) SetMaxProcesses(limit int64) error {
 			return cg.rw.Set(version, "pids", "pids.max", "max")
 		}
 
-		return cg.rw.Set(version, "pids", "pids.max", fmt.Sprintf("%d", limit))
+		return cg.rw.Set(version, "pids", "pids.max", fmt.Sprint(limit))
 	}
 
 	return ErrUnknownVersion
@@ -78,13 +78,13 @@ func (cg *CGroup) SetMemorySoftLimit(limit int64) error {
 	case Unavailable:
 		return ErrControllerMissing
 	case V1:
-		return cg.rw.Set(version, "memory", "memory.soft_limit_in_bytes", fmt.Sprintf("%d", limit))
+		return cg.rw.Set(version, "memory", "memory.soft_limit_in_bytes", fmt.Sprint(limit))
 	case V2:
 		if limit == -1 {
 			return cg.rw.Set(version, "memory", "memory.high", "max")
 		}
 
-		return cg.rw.Set(version, "memory", "memory.high", fmt.Sprintf("%d", limit))
+		return cg.rw.Set(version, "memory", "memory.high", fmt.Sprint(limit))
 	}
 
 	return ErrUnknownVersion
@@ -149,13 +149,13 @@ func (cg *CGroup) SetMemoryLimit(limit int64) error {
 	case Unavailable:
 		return ErrControllerMissing
 	case V1:
-		return cg.rw.Set(version, "memory", "memory.limit_in_bytes", fmt.Sprintf("%d", limit))
+		return cg.rw.Set(version, "memory", "memory.limit_in_bytes", fmt.Sprint(limit))
 	case V2:
 		if limit == -1 {
 			return cg.rw.Set(version, "memory", "memory.max", "max")
 		}
 
-		return cg.rw.Set(version, "memory", "memory.max", fmt.Sprintf("%d", limit))
+		return cg.rw.Set(version, "memory", "memory.max", fmt.Sprint(limit))
 	}
 
 	return ErrUnknownVersion

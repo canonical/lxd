@@ -75,7 +75,7 @@ func PatchPreCheck() error {
 	if len(unavailableNetworks) > 0 {
 		unavailableNetworkNames := make([]string, 0, len(unavailableNetworks))
 		for unavailablePoolName := range unavailableNetworks {
-			unavailableNetworkNames = append(unavailableNetworkNames, fmt.Sprintf("%s/%s", unavailablePoolName.ProjectName, unavailablePoolName.NetworkName))
+			unavailableNetworkNames = append(unavailableNetworkNames, unavailablePoolName.ProjectName+"/"+unavailablePoolName.NetworkName)
 		}
 
 		unavailableNetworksMu.Unlock()

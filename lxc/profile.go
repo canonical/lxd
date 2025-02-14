@@ -792,7 +792,7 @@ func (c *cmdProfileList) projectNameColumnData(profile api.Profile) string {
 }
 
 func (c *cmdProfileList) usedByColumnData(profile api.Profile) string {
-	return fmt.Sprintf("%d", len(profile.UsedBy))
+	return fmt.Sprint(len(profile.UsedBy))
 }
 
 func (c *cmdProfileList) run(cmd *cobra.Command, args []string) error {

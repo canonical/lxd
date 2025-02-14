@@ -1,7 +1,6 @@
 package apparmor
 
 import (
-	"fmt"
 	"strings"
 	"text/template"
 
@@ -105,7 +104,7 @@ func dnsmasqProfile(n network) (string, error) {
 // DnsmasqProfileName returns the AppArmor profile name.
 func DnsmasqProfileName(n network) string {
 	path := shared.VarPath("")
-	name := fmt.Sprintf("%s_<%s>", n.Name(), path)
+	name := n.Name() + "_<" + path + ">"
 	return profileName("dnsmasq", name)
 }
 
