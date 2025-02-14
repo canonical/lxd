@@ -269,7 +269,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resultString := []string{}
-	resultMap := []api.NetworkZone{}
+	resultMap := []*api.NetworkZone{}
 	urlToNetworkZone := make(map[*api.URL]auth.EntitlementReporter)
 	for zoneName, projectName := range zoneNamesMap {
 		// Check permission for each network zone against the requested project.
@@ -296,7 +296,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 			netzoneInfo.UsedBy = project.FilterUsedBy(s.Authorizer, r, netzoneInfo.UsedBy)
 			netzoneInfo.Project = projectName
 
-			resultMap = append(resultMap, *netzoneInfo)
+			resultMap = append(resultMap, netzoneInfo)
 			urlToNetworkZone[entity.NetworkZoneURL(projectName, zoneName)] = netzoneInfo
 		}
 	}
