@@ -46,6 +46,22 @@ func (c *cmdService) command() *cobra.Command {
 	serviceEditCmd := cmdServiceEdit{global: c.global, service: c}
 	cmd.AddCommand(serviceEditCmd.command())
 
+	// Get
+	serviceGetCmd := cmdServiceGet{global: c.global, service: c}
+	cmd.AddCommand(serviceGetCmd.command())
+
+	// Set
+	serviceSetCmd := cmdServiceSet{global: c.global, service: c}
+	cmd.AddCommand(serviceSetCmd.command())
+
+	// Show
+	serviceShowCmd := cmdServiceShow{global: c.global, service: c}
+	cmd.AddCommand(serviceShowCmd.command())
+
+	// Unset
+	serviceUnsetCmd := cmdServiceUnset{global: c.global, service: c}
+	cmd.AddCommand(serviceUnsetCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -299,7 +315,7 @@ type cmdServiceEdit struct {
 
 func (c *cmdServiceEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("edit", i18n.G("[<remote>:]<pool>"))
+	cmd.Use = usage("edit", i18n.G("[<remote>:]<service>"))
 	cmd.Short = i18n.G("Edit service configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit service configurations as YAML`))
@@ -416,4 +432,296 @@ func (c *cmdServiceEdit) run(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// Get.
+type cmdServiceGet struct {
+	global  *cmdGlobal
+	service *cmdService
+
+	flagIsProperty bool
+}
+
+func (c *cmdServiceGet) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("get", i18n.G("[<remote>:]<service> <key>"))
+	cmd.Short = i18n.G("Get values for service configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Get values for service configuration keys`))
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a service property"))
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpServices(toComplete)
+		}
+
+		// TODO: Service config completions.
+		// if len(args) == 1 {
+		// 	return c.global.cmpServiceSetConfigs(args[0])
+		// }
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdServiceGet) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New(i18n.G("Missing service name"))
+	}
+
+	resp, _, err := resource.server.GetService(resource.name)
+	if err != nil {
+		return err
+	}
+
+	if c.flagIsProperty {
+		w := resp.Writable()
+		res, err := getFieldByJsonTag(&w, args[1])
+		if err != nil {
+			return fmt.Errorf(i18n.G("The property %q does not exist for the service %q: %v"), args[1], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		v, ok := resp.Config[args[1]]
+		if ok {
+			fmt.Println(v)
+		}
+	}
+
+	return nil
+}
+
+// Set.
+type cmdServiceSet struct {
+	global  *cmdGlobal
+	service *cmdService
+
+	flagIsProperty bool
+}
+
+func (c *cmdServiceSet) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("set", i18n.G("[<remote>:]<service> <key> <value>"))
+	cmd.Short = i18n.G("Set service configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Set service configuration keys`))
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a service property"))
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpServices(toComplete)
+		}
+
+		// TODO:
+		// if len(args) == 1 {
+		// 	return c.global.cmpServiceAllConfigs(args[0])
+		// }
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdServiceSet) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	remote := args[0]
+
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	if resource.name == "" {
+		return errors.New(i18n.G("Missing service name"))
+	}
+
+	client := resource.server
+
+	// Get service.
+	service, etag, err := client.GetService(resource.name)
+	if err != nil {
+		return err
+	}
+
+	// Parse key/values.
+	keys, err := getConfig(args[1:]...)
+	if err != nil {
+		return err
+	}
+
+	writable := service.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJsonTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+			}
+		}
+	} else {
+		if writable.Config == nil {
+			writable.Config = make(map[string]string)
+		}
+
+		// Update the volume config keys.
+		for k, v := range keys {
+			writable.Config[k] = v
+		}
+	}
+
+	err = client.UpdateService(resource.name, writable, etag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Show.
+type cmdServiceShow struct {
+	global  *cmdGlobal
+	service *cmdService
+}
+
+func (c *cmdServiceShow) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("show", i18n.G("[<remote>:]<service>"))
+	cmd.Short = i18n.G("Show service configurations")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Show service configurations`))
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpServices(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdServiceShow) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	remote := ""
+	if len(args) > 0 {
+		remote = args[0]
+	}
+
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	if resource.name == "" {
+		return errors.New(i18n.G("Missing service name"))
+	}
+
+	service, _, err := client.GetService(resource.name)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&service)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
+
+	return nil
+}
+
+// Unset.
+type cmdServiceUnset struct {
+	global     *cmdGlobal
+	service    *cmdService
+	serviceSet *cmdServiceSet
+
+	flagIsProperty bool
+}
+
+func (c *cmdServiceUnset) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("unset", i18n.G("[<remote>:]<service> <key>"))
+	cmd.Short = i18n.G("Unset service configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Unset service configuration keys`))
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a service property"))
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpServices(toComplete)
+		}
+
+		// TODO:
+		// if len(args) == 1 {
+		// 	return c.global.cmpServiceSetConfigs(args[0])
+		// }
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdServiceUnset) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	c.serviceSet.flagIsProperty = c.flagIsProperty
+
+	args = append(args, "")
+	return c.serviceSet.run(cmd, args)
 }
