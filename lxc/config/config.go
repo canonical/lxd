@@ -76,6 +76,10 @@ func (c *Config) OIDCTokenPath(remote string) string {
 
 // SaveOIDCTokens saves OIDC tokens to disk.
 func (c *Config) SaveOIDCTokens() {
+	if len(c.oidcTokens) == 0 {
+		return
+	}
+
 	tokenParentPath := c.ConfigPath("oidctokens")
 
 	if !shared.PathExists(tokenParentPath) {
