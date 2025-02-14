@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"math/rand"
 	"net"
@@ -149,8 +150,14 @@ func (n *ovn) State() (*api.NetworkState, error) {
 		return nil, err
 	}
 
-	mtu := int(n.getBridgeMTU())
-	if mtu == 0 {
+	// Bound check the MTU value before converting to int.
+	var mtu int
+	uintMTU := n.getBridgeMTU()
+	if uintMTU > math.MaxInt32 {
+		mtu = math.MaxInt32
+	} else if uintMTU > 0 {
+		mtu = int(uintMTU)
+	} else {
 		mtu = 1500
 	}
 
