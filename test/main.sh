@@ -120,6 +120,7 @@ cleanup() {
   else
     echo "==> Cleaning up"
 
+    kill_oidc
     umount -l "${TEST_DIR}/dev"
     cleanup_lxds "$TEST_DIR"
   fi
