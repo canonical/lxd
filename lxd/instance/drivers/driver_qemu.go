@@ -3792,8 +3792,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 	var virtiofsdSockPath string
 	for _, opt := range driveConf.Opts {
 		if strings.HasPrefix(opt, device.DiskVirtiofsdSockMountOpt+"=") {
-			parts := strings.SplitN(opt, "=", 2)
-			virtiofsdSockPath = parts[1]
+			_, virtiofsdSockPath, _ = strings.Cut(opt, "=")
 		}
 	}
 
