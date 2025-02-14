@@ -356,11 +356,6 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 		return response.SmartError(err)
 	}
 
-	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStorageVolumeSnapshot, true)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	recursion := util.IsRecursionRequest(r)
 
 	// Check that the storage volume type is valid.
@@ -398,7 +393,6 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	// Prepare the response.
 	resultString := []string{}
 	resultMap := []*api.StorageVolumeSnapshot{}
-	urlToSnapshot := make(map[*api.URL]auth.EntitlementReporter)
 	for _, volume := range volumes {
 		_, snapshotName, _ := api.GetParentAndSnapshotName(volume.Name)
 
@@ -425,31 +419,23 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 
 			vol.UsedBy = project.FilterUsedBy(s.Authorizer, r, volumeUsedBy)
 
-			tmp := &api.StorageVolumeSnapshot{}
-			tmp.Config = vol.Config
-			tmp.Description = vol.Description
-			tmp.Name = vol.Name
-			tmp.CreatedAt = vol.CreatedAt
+			snap := &api.StorageVolumeSnapshot{}
+			snap.Config = vol.Config
+			snap.Description = vol.Description
+			snap.Name = vol.Name
+			snap.CreatedAt = vol.CreatedAt
 
 			expiryDate := volume.ExpiryDate
 			if expiryDate.Unix() > 0 {
-				tmp.ExpiresAt = &expiryDate
+				snap.ExpiresAt = &expiryDate
 			}
 
-			resultMap = append(resultMap, tmp)
-			urlToSnapshot[entity.StorageVolumeSnapshotURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, snapshotName)] = tmp
+			resultMap = append(resultMap, snap)
 		}
 	}
 
 	if !recursion {
 		return response.SyncResponse(true, resultString)
-	}
-
-	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStorageVolumeSnapshot, withEntitlements, urlToSnapshot)
-		if err != nil {
-			return response.SmartError(err)
-		}
 	}
 
 	return response.SyncResponse(true, resultMap)
@@ -622,11 +608,6 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 		return response.SmartError(err)
 	}
 
-	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStorageVolumeSnapshot, false)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Get the name of the storage volume.
 	snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
 	if err != nil {
@@ -678,13 +659,6 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	snapshot.ExpiresAt = &expiry
 	snapshot.ContentType = dbVolume.ContentType
 	snapshot.CreatedAt = dbVolume.CreatedAt
-
-	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStorageVolumeSnapshot, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.StorageVolumeSnapshotURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, snapshotName): snapshot})
-		if err != nil {
-			return response.SmartError(err)
-		}
-	}
 
 	etag := []any{snapshot.Description, expiry}
 	return response.SyncResponseETag(true, snapshot, etag)
