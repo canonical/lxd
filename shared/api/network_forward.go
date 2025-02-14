@@ -159,7 +159,7 @@ type NetworkForwardPut struct {
 	//  shortdesc: User-provided free-form key/value pairs
 
 	// Forward configuration map (refer to doc/network-forwards.md)
-	// Example: {"user.mykey": "foo"}
+	// Example: {"user.mykey": "foo","target_address": "198.51.100.99"}
 	Config map[string]string `json:"config" yaml:"config"`
 
 	// lxdmeta:generate(entities=network-forward; group=forward-properties; key=ports)
@@ -206,7 +206,7 @@ type NetworkForward struct {
 	Description string `json:"description" yaml:"description"`
 
 	// Forward configuration map (refer to doc/network-forwards.md)
-	// Example: {"user.mykey": "foo"}
+	// Example: {"user.mykey": "foo","target_address": "198.51.100.99"}
 	Config map[string]string `json:"config" yaml:"config"`
 
 	// Port forwards (optional)
