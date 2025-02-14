@@ -529,8 +529,6 @@ WHERE images.fingerprint = ?
 `
 	// Address of this node
 	var localAddress string
-	// Addresses of online nodes with the image
-	var addresses []string //nolint:prealloc
 
 	offlineThreshold, err := c.GetNodeOfflineThreshold(ctx)
 	if err != nil {
@@ -546,6 +544,9 @@ WHERE images.fingerprint = ?
 	if err != nil {
 		return "", err
 	}
+
+	// Addresses of online nodes with the image
+	addresses := make([]string, 0, len(allAddresses))
 
 	for _, address := range allAddresses {
 		node, err := c.GetNodeByAddress(ctx, address)
@@ -1113,9 +1114,6 @@ SELECT DISTINCT nodes.address FROM nodes WHERE nodes.address NOT IN (
 }
 
 func (c *ClusterTx) getNodesByImageFingerprint(ctx context.Context, stmt string, fingerprint string, autoUpdate *bool) ([]string, error) {
-	// Addresses of online nodes with the image
-	var addresses []string //nolint:prealloc
-
 	offlineThreshold, err := c.GetNodeOfflineThreshold(ctx)
 	if err != nil {
 		return nil, err
@@ -1132,6 +1130,9 @@ func (c *ClusterTx) getNodesByImageFingerprint(ctx context.Context, stmt string,
 	if err != nil {
 		return nil, err
 	}
+
+	// Addresses of online nodes with the image
+	addresses := make([]string, 0, len(allAddresses))
 
 	for _, address := range allAddresses {
 		node, err := c.GetNodeByAddress(ctx, address)
