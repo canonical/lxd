@@ -335,7 +335,8 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	instanceOnly := req.InstanceOnly || req.ContainerOnly
+	// We keep the req.ContainerOnly for backward compatibility.
+	instanceOnly := req.InstanceOnly || req.ContainerOnly //nolint:staticcheck,unused
 
 	backup := func(op *operations.Operation) error {
 		args := db.InstanceBackup{
