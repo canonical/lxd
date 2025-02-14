@@ -970,8 +970,8 @@ func volumeIsUsedByDevice(vol api.StorageVolume, inst *db.InstanceArgs, dev map[
 	}
 
 	volumeTypeName := cluster.StoragePoolVolumeTypeNameCustom
-	if dev["source-type"] != "" {
-		volumeTypeName = dev["source-type"]
+	if dev["source.type"] != "" {
+		volumeTypeName = dev["source.type"]
 	}
 
 	if volumeTypeName == vol.Type && dev["source"] == vol.Name {
@@ -1316,7 +1316,7 @@ type ComparableSnapshot struct {
 // creation date is different to the source.
 // A snapshot will be added to the "to delete from target" slice if it doesn't exist in the source or its ID or
 // creation date is different to the source.
-func CompareSnapshots(sourceSnapshots []ComparableSnapshot, targetSnapshots []ComparableSnapshot) ([]int, []int) {
+func CompareSnapshots(sourceSnapshots []ComparableSnapshot, targetSnapshots []ComparableSnapshot) (syncSourceSnapshots []int, deleteTargetSnapshots []int) {
 	// Compare source and target.
 	sourceSnapshotsByName := make(map[string]*ComparableSnapshot, len(sourceSnapshots))
 	targetSnapshotsByName := make(map[string]*ComparableSnapshot, len(targetSnapshots))

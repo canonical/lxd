@@ -186,7 +186,7 @@ See {ref}`devices-disk-types` for details.
 
 ```
 
-```{config:option} source-type device-disk-device-conf
+```{config:option} source.type device-disk-device-conf
 :defaultdesc: "`custom`"
 :required: "no"
 :shortdesc: "Type of the backing storage volume"
