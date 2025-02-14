@@ -584,12 +584,14 @@ func (o *OVN) LogicalRouterPortSetIPv6Advertisements(portName OVNRouterPort, opt
 	}
 
 	if opts.MaxInterval > 0 {
+		// XXX: Sprintf(%d) includes the unit (ns).
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:max_interval=%d", opts.MaxInterval/time.Second))
 	} else {
 		removeRAConfigKeys = append(removeRAConfigKeys, "max_interval")
 	}
 
 	if opts.MinInterval > 0 {
+		// XXX: Sprintf(%d) includes the unit (ns).
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:min_interval=%d", opts.MinInterval/time.Second))
 	} else {
 		removeRAConfigKeys = append(removeRAConfigKeys, "min_interval")
