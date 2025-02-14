@@ -133,13 +133,21 @@ func daemonStorageMount(s *state.State) error {
 }
 
 func daemonStorageSplitVolume(volume string) (poolName string, volumeName string, err error) {
-	fields := strings.Split(volume, "/")
-	if len(fields) != 2 {
+	if strings.Count(volume, "/") != 1 {
 		return "", "", fmt.Errorf("Invalid syntax for volume, must be <pool>/<volume>")
 	}
 
-	poolName = fields[0]
-	volumeName = fields[1]
+	poolName, volumeName, _ = strings.Cut(volume, "/")
+
+	// Validate pool name.
+	if strings.Contains(poolName, "\\") || strings.Contains(poolName, "..") {
+		return "", "", fmt.Errorf("Invalid pool name: %q", poolName)
+	}
+
+	// Validate volume name.
+	if strings.Contains(volumeName, "\\") || strings.Contains(volumeName, "..") {
+		return "", "", fmt.Errorf("Invalid volume name: %q", volumeName)
+	}
 
 	return poolName, volumeName, nil
 }
