@@ -97,7 +97,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 
 		cloudInitPath := "/run/cloud-init"
 		if shared.PathExists(cloudInitPath) {
-			logger.Info(fmt.Sprintf("Removing %q", cloudInitPath))
+			logger.Info(`Removing "`+cloudInitPath+`"`)
 			err = os.RemoveAll(cloudInitPath)
 			if err != nil {
 				return err
