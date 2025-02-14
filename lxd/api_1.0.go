@@ -648,14 +648,26 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 		// Validate the storage volumes
 		if nodeValues["storage.backups_volume"] != nil && nodeValues["storage.backups_volume"] != newNodeConfig.StorageBackupsVolume() {
-			err := daemonStorageValidate(s, nodeValues["storage.backups_volume"].(string))
+			backupsPoolVolume, ok := nodeValues["storage.backups_volume"].(string)
+			if !ok {
+				return fmt.Errorf(`Unexpected type for "storage.backups_volume": %T`, nodeValues["storage.backups_volume"])
+			}
+
+			// Store validated name back into nodeValues to ensure its not classifed as raw user input.
+			nodeValues["storage.backups_volume"], err = daemonStorageValidate(s, backupsPoolVolume)
 			if err != nil {
 				return fmt.Errorf("Failed validation of %q: %w", "storage.backups_volume", err)
 			}
 		}
 
 		if nodeValues["storage.images_volume"] != nil && nodeValues["storage.images_volume"] != newNodeConfig.StorageImagesVolume() {
-			err := daemonStorageValidate(s, nodeValues["storage.images_volume"].(string))
+			imagesPoolVolume, ok := nodeValues["storage.images_volume"].(string)
+			if !ok {
+				return fmt.Errorf(`Unexpected type for "storage.images_volume": %T`, nodeValues["storage.images_volume"])
+			}
+
+			// Store validated name back into nodeValues to ensure its not classifed as raw user input.
+			nodeValues["storage.images_volume"], err = daemonStorageValidate(s, imagesPoolVolume)
 			if err != nil {
 				return fmt.Errorf("Failed validation of %q: %w", "storage.images_volume", err)
 			}
