@@ -977,6 +977,11 @@ func (n *bridge) Delete(clientType request.ClientType) error {
 func (n *bridge) Rename(newName string) error {
 	n.logger.Debug("Rename", logger.Ctx{"newName": newName})
 
+	// Reject known bad names that might cause problem when dealing with paths.
+	if strings.Contains(newName, "/") || strings.Contains(newName, "\\") || strings.Contains(newName, "..") {
+		return fmt.Errorf("Invalid network name: %q", newName)
+	}
+
 	if InterfaceExists(newName) {
 		return fmt.Errorf("Network interface %q already exists", newName)
 	}
@@ -2394,6 +2399,11 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 }
 
 func (n *bridge) spawnForkDNS(listenAddress string) error {
+	// Reject known bad names that might cause problem when dealing with paths.
+	if strings.Contains(n.Name(), "/") || strings.Contains(n.Name(), "\\") || strings.Contains(n.Name(), "..") {
+		return fmt.Errorf("Invalid network name: %q", n.Name())
+	}
+
 	// Setup the dnsmasq domain
 	dnsDomain := n.config["dns.domain"]
 	if dnsDomain == "" {
