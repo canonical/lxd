@@ -120,7 +120,7 @@ func GetDistinctPermissionsByGroupNames(ctx context.Context, tx *sql.Tx, groupNa
 		return nil, nil
 	}
 
-	var args []any //nolint:prealloc
+	args := make([]any, 0, len(groupNames))
 	for _, effectiveGroup := range groupNames {
 		args = append(args, effectiveGroup)
 	}
