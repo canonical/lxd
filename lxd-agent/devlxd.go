@@ -219,7 +219,7 @@ func devlxdAPIGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *dev
 		return okResponse("", "raw")
 	}
 
-	return &devLxdResponse{fmt.Sprintf("method %q not allowed", r.Method), http.StatusBadRequest, "raw"}
+	return &devLxdResponse{`method "` + r.Method + `" not allowed`, http.StatusBadRequest, "raw"}
 }
 
 var devlxdDevicesGet = devLxdHandler{

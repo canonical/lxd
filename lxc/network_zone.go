@@ -141,7 +141,7 @@ func (c *cmdNetworkZoneList) run(cmd *cobra.Command, args []string) error {
 
 	data := [][]string{}
 	for _, zone := range zones {
-		strUsedBy := fmt.Sprintf("%d", len(zone.UsedBy))
+		strUsedBy := fmt.Sprint(len(zone.UsedBy))
 		details := []string{
 			zone.Name,
 			zone.Description,
@@ -827,7 +827,7 @@ func (c *cmdNetworkZoneRecordList) run(cmd *cobra.Command, args []string) error 
 		entries := []string{}
 
 		for _, entry := range record.Entries {
-			entries = append(entries, fmt.Sprintf("%s %s", entry.Type, entry.Value))
+			entries = append(entries, entry.Type+" "+entry.Value)
 		}
 
 		details := []string{

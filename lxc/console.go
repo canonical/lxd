@@ -301,7 +301,7 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 
 		defer func() { _ = os.Remove(path.Name()) }()
 
-		socket = fmt.Sprintf("spice+unix://%s", path.Name())
+		socket = "spice+unix://" + path.Name()
 	} else {
 		listener, err = net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
@@ -313,7 +313,7 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 			return errors.New("Failed to get TCP listen address")
 		}
 
-		socket = fmt.Sprintf("spice://127.0.0.1:%d", addr.Port)
+		socket = "spice://127.0.0.1:" + fmt.Sprint(addr.Port)
 	}
 
 	// Clean everything up when the viewer is done.
@@ -369,7 +369,7 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 		if remoteViewer != "" {
 			cmd = exec.Command(remoteViewer, socket)
 		} else {
-			cmd = exec.Command(spicy, fmt.Sprintf("--uri=%s", socket))
+			cmd = exec.Command(spicy, "--uri="+socket)
 		}
 
 		// Start the command.

@@ -182,7 +182,7 @@ func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (
 	}
 
 	req.Execute = "add-fd"
-	req.Arguments.Opaque = fmt.Sprintf("%s:%s", permissions, name)
+	req.Arguments.Opaque = permissions + ":" + name
 
 	reqJSON, err := json.Marshal(req)
 	if err != nil {

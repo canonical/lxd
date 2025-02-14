@@ -146,7 +146,7 @@ func instanceCreateFromImage(s *state.State, img *api.Image, args db.InstanceArg
 	// Set the "image.*" keys.
 	if img.Properties != nil {
 		for k, v := range img.Properties {
-			args.Config[fmt.Sprintf("image.%s", k)] = v
+			args.Config["image."+k] = v
 		}
 	}
 

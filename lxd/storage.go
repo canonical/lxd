@@ -209,7 +209,7 @@ func storagePoolDriversCacheUpdate(s *state.State) {
 	// Prepare the cache entries.
 	backends := []string{}
 	for k, v := range usedDrivers {
-		backends = append(backends, fmt.Sprintf("%s %s", k, v))
+		backends = append(backends, k+" "+v)
 	}
 
 	// Update the user agent.
