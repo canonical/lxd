@@ -2597,13 +2597,29 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 		}
 	}
 
-	// Append any custom meta-data to our predefined meta-data config.
-	metaData := fmt.Sprintf(`instance-id: %s
-local-hostname: %s
-%s
-`, d.inst.Name(), d.inst.Name(), instanceConfig["user.meta-data"])
+	var metaDataBuilder strings.Builder
 
-	err = os.WriteFile(filepath.Join(scratchDir, "meta-data"), []byte(metaData), 0400)
+	// Append strings to the builder
+	metaDataBuilder.WriteString("instance-id: " + d.inst.Name() + "\n")
+	metaDataBuilder.WriteString("local-hostname: " + d.inst.Name() + "\n")
+
+	// These keys shouldn't be appended to the meta as it would be redundant as their values are already available
+	// for cloud-init. Only the content of `user.meta-data` is appended to meta_data.
+	excludedKeys := []string{"user.meta-data", "user.user-data", "user.vendor-data", "user.network-config"}
+
+	// Add keys that are exposed to cloud-init to meta-data so one can use in jinja templates.
+	// The added values are single quoted to prevent rendering `meta-data` unparseable.
+	// Single quotes included in the value itself are escaped by being replaced with `''`.
+	for key, value := range instanceConfig {
+		if strings.HasPrefix(key, "user.") && !shared.ValueInSlice(key, excludedKeys) {
+			metaDataBuilder.WriteString(key + ": '" + strings.Replace(value, "'", "''", -1) + "'\n")
+		}
+	}
+
+	// Append any custom meta-data.
+	metaDataBuilder.WriteString(instanceConfig["user.meta-data"])
+
+	err = os.WriteFile(filepath.Join(scratchDir, "meta-data"), []byte(metaDataBuilder.String()), 0400)
 	if err != nil {
 		return "", err
 	}
