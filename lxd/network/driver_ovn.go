@@ -1394,15 +1394,12 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 }
 
 // uplinkAllAllocatedIPs gets a list of all IPv4 and IPv6 addresses allocated to OVN networks connected to uplink.
-func (n *ovn) uplinkAllAllocatedIPs(ctx context.Context, tx *db.ClusterTx, uplinkNetName string) ([]net.IP, []net.IP, error) {
+func (n *ovn) uplinkAllAllocatedIPs(ctx context.Context, tx *db.ClusterTx, uplinkNetName string) (v4IPs []net.IP, v6IPs []net.IP, err error) {
 	// Get all managed networks across all projects.
 	projectNetworks, err := tx.GetCreatedNetworks(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to load all networks: %w", err)
 	}
-
-	v4IPs := make([]net.IP, 0)
-	v6IPs := make([]net.IP, 0)
 
 	for _, networks := range projectNetworks {
 		for _, netInfo := range networks {
@@ -3529,10 +3526,7 @@ func (n *ovn) getInstanceDevicePortName(instanceUUID string, deviceName string) 
 }
 
 // instanceDevicePortRoutesParse parses the instance NIC device config for internal routes and external routes.
-func (n *ovn) instanceDevicePortRoutesParse(deviceConfig map[string]string) ([]*net.IPNet, []*net.IPNet, error) {
-	var err error
-
-	internalRoutes := []*net.IPNet{}
+func (n *ovn) instanceDevicePortRoutesParse(deviceConfig map[string]string) (internalRoutes []*net.IPNet, externalRoutes []*net.IPNet, err error) {
 	for _, key := range []string{"ipv4.routes", "ipv6.routes"} {
 		if deviceConfig[key] == "" {
 			continue
@@ -3544,7 +3538,6 @@ func (n *ovn) instanceDevicePortRoutesParse(deviceConfig map[string]string) ([]*
 		}
 	}
 
-	externalRoutes := []*net.IPNet{}
 	for _, key := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
 		if deviceConfig[key] == "" {
 			continue
