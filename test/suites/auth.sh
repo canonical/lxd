@@ -322,8 +322,6 @@ fine_grained: true"
   lxc auth group delete test-group
   lxc auth identity-provider-group delete test-idp-group
   lxc remote remove oidc
-  kill_oidc
-  rm "${TEST_DIR}/oidc.user"
   rm -r "${LXD_CONF2}"
   rm -r "${LXD_CONF3}"
   rm -r "${LXD_CONF4}"
