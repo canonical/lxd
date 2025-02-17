@@ -742,7 +742,7 @@ func (d *zfs) patchDropBlockVolumeFilesystemExtension() error {
 		// Rename zfs dataset. Snapshots will automatically be renamed.
 		newName := fmt.Sprintf("%s/images/%s.block", poolName, strings.Split(fields[1], "_")[0])
 
-		_, err = shared.RunCommandContext(d.state.ShutdownCtx, "zfs", "rename", volume, newName)
+		_, err = shared.RunCommandContext(context.TODO(), "zfs", "rename", volume, newName)
 		if err != nil {
 			return fmt.Errorf("Failed renaming zfs dataset: %w", err)
 		}
