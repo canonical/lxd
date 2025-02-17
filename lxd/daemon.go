@@ -39,6 +39,7 @@ import (
 	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/cluster/secret"
 	"github.com/canonical/lxd/lxd/db/openfga"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/dns"
@@ -131,6 +132,10 @@ type Daemon struct {
 	serverCert    func() *shared.CertInfo
 	serverCertInt *shared.CertInfo // Do not use this directly, use servertCert func.
 
+	// Cluster secret. This should only be modified by the `getClusterSecret` function.
+	// It is reset when joining a cluster so that the joining member will get the shared key on the next `getClusterSecret` call.
+	clusterSecretInternal *secret.Secret
+
 	// Status control.
 	setupChan      chan struct{}      // Closed when basic Daemon setup is completed
 	waitReady      *cancel.Canceller  // Cancelled when LXD is fully ready
@@ -186,20 +191,21 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
 
 	d := &Daemon{
-		identityCache:  &identity.Cache{},
-		config:         config,
-		devlxdEvents:   devlxdEvents,
-		events:         lxdEvents,
-		tasks:          task.NewGroup(),
-		clusterTasks:   task.NewGroup(),
-		db:             &db.DB{},
-		http01Provider: acme.NewHTTP01Provider(),
-		os:             os,
-		setupChan:      make(chan struct{}),
-		waitReady:      cancel.New(context.Background()),
-		shutdownCtx:    shutdownCtx,
-		shutdownCancel: shutdownCancel,
-		shutdownDoneCh: make(chan error),
+		identityCache:         &identity.Cache{},
+		config:                config,
+		devlxdEvents:          devlxdEvents,
+		events:                lxdEvents,
+		tasks:                 task.NewGroup(),
+		clusterTasks:          task.NewGroup(),
+		db:                    &db.DB{},
+		http01Provider:        acme.NewHTTP01Provider(),
+		os:                    os,
+		setupChan:             make(chan struct{}),
+		waitReady:             cancel.New(context.Background()),
+		shutdownCtx:           shutdownCtx,
+		shutdownCancel:        shutdownCancel,
+		shutdownDoneCh:        make(chan error),
+		clusterSecretInternal: &secret.Secret{},
 	}
 
 	d.serverCert = func() *shared.CertInfo { return d.serverCertInt }
@@ -2539,4 +2545,26 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	}
 
 	wg.Wait()
+}
+
+// getClusterSecret gets the current cluster secret and a boolean indicating whether the secret was updated.
+// An error is returned if updating the secret failed.
+func (d *Daemon) getClusterSecret(ctx context.Context) (clusterSecret secret.Secret, wasUpdated bool, err error) {
+	if d.clusterSecretInternal == nil {
+		return secret.Secret{}, false, errors.New("Cluster secret not initialized")
+	}
+
+	if d.clusterSecretInternal.IsValid() {
+		return *d.clusterSecretInternal, false, nil
+	}
+
+	keyLifetime, saltLifetime := d.globalConfig.KeyAndSaltLifetimes()
+	err = d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		return d.clusterSecretInternal.Update(ctx, tx.Tx(), keyLifetime, saltLifetime)
+	})
+	if err != nil {
+		return secret.Secret{}, false, err
+	}
+
+	return *d.clusterSecretInternal, true, nil
 }
