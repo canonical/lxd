@@ -2630,3 +2630,18 @@ Adds the field `client_certificate` to `GET /1.0` to indicate if the current req
 
 This API extension adds a `used_by` field to the API response for a {ref}`cluster group <cluster-groups>`.
 Deletion of a cluster group is disallowed if the cluster group is referenced by project configuration (see {config:option}`project-restricted:restricted.cluster.groups`).
+
+## `secret_lifetime`
+
+Cookie encryption keys used for OIDC authentication are derived from a secret key using a salt.
+This API extension enables setting the {config:option}`server-core:core.secret_key_lifetime` and {config:option}`server-core:core.salt_lifetime` configuration keys.
+
+When the key or salt is required, LXD will check if it has expired.
+If either have expired, a new salt or key will be created with the given lifetime.
+
+The salt lifetime should be shorter than the key lifetime.
+To reflect this, the key lifetime is specified in days and the salt lifetime is specified in minutes.
+
+When the key rotates, all OIDC users will be logged out of LXD.
+If they are still logged into the identity provider, this will cause a brief redirection.
+Otherwise, they will need to log back in to the identity provider.
