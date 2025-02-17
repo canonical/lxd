@@ -416,7 +416,7 @@ func (d *zfs) Delete(op *operations.Operation) error {
 
 	if strings.Contains(d.config["zfs.pool_name"], "/") {
 		// Delete the dataset.
-		_, err := shared.RunCommandContext(d.state.ShutdownCtx, "zfs", "destroy", "-r", d.config["zfs.pool_name"])
+		_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", d.config["zfs.pool_name"])
 		if err != nil {
 			return err
 		}
