@@ -508,7 +508,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		d.globalConfigMu.Unlock()
 
 		// Run any update triggers.
-		err = doAPI10UpdateTriggers(d, nil, changed, s.LocalConfig, config)
+		err = doAPI10UpdateTriggers(r, d, nil, changed, s.LocalConfig, config)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -832,7 +832,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	d.globalConfigMu.Unlock()
 
 	// Run any update triggers.
-	err = doAPI10UpdateTriggers(d, nodeChanged, clusterChanged, newNodeConfig, newClusterConfig)
+	err = doAPI10UpdateTriggers(r, d, nodeChanged, clusterChanged, newNodeConfig, newClusterConfig)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -844,7 +844,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	return response.EmptySyncResponse
 }
 
-func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, nodeConfig *node.Config, clusterConfig *clusterConfig.Config) error {
+func doAPI10UpdateTriggers(r *http.Request, d *Daemon, nodeChanged, clusterChanged map[string]string, nodeConfig *node.Config, clusterConfig *clusterConfig.Config) error {
 	s := d.State()
 
 	maasChanged := false
@@ -1069,7 +1069,14 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 				return util.HTTPClient("", d.proxy)
 			}
 
-			d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcScopes, oidcAudience, s.ServerCert, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
+			host := r.Host
+			if r.RemoteAddr == "@" {
+				// If call was made over the unix socket, use the server address as the host.
+				// This will be reset by the verifier if/when the hostname changes.
+				host = d.localConfig.HTTPSAddress()
+			}
+
+			d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcScopes, oidcAudience, d.getClusterSecret, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim, Host: host, Ctx: r.Context()})
 			if err != nil {
 				return fmt.Errorf("Failed creating verifier: %w", err)
 			}
