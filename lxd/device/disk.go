@@ -2595,7 +2595,7 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 	vendorDataKey := "cloud-init.vendor-data"
 	vendorData, ok := instanceConfig[vendorDataKey]
 	if !ok {
-		vendorDataKey := "user.vendor-data"
+		vendorDataKey = "user.vendor-data"
 		vendorData = instanceConfig[vendorDataKey]
 		if vendorData == "" {
 			vendorData = "#cloud-config\n{}"
