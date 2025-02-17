@@ -17,6 +17,7 @@ import (
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster/secret"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -744,6 +745,20 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 			clusterChanged, err = newClusterConfig.Replace(req.Config)
 		}
 
+		if err != nil {
+			return err
+		}
+
+		_, ok := clusterChanged["core.salt_lifetime"]
+		if ok {
+			err = d.clusterSecretInternal.UnsetSalt(ctx, tx.Tx())
+		}
+
+		_, ok = clusterChanged["core.secret_key_lifetime"]
+		if ok {
+			err = d.clusterSecretInternal.UnsetKey(ctx, tx.Tx())
+		}
+
 		return err
 	})
 	if err != nil {
@@ -843,6 +858,8 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 	for key := range clusterChanged {
 		switch key {
+		case "core.salt_lifetime", "core.secret_key_lifetime":
+			d.clusterSecretInternal = &secret.Secret{}
 		case "core.https_trusted_proxy":
 			s.Endpoints.NetworkUpdateTrustedProxy(clusterChanged[key])
 		case "core.proxy_http":
