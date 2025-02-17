@@ -654,7 +654,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 			lvPath := d.lvmDevPath(d.config["lvm.vg_name"], "", "", d.thinpoolName())
 
 			// Use the remaining space in the volume group.
-			_, err = shared.RunCommandContext(d.state.ShutdownCtx, "lvresize", "-f", "-l", "+100%FREE", lvPath)
+			_, err = shared.RunCommandContext(context.TODO(), "lvresize", "-f", "-l", "+100%FREE", lvPath)
 			if err != nil {
 				return fmt.Errorf("Error resizing LV named %q: %w", lvPath, err)
 			}
