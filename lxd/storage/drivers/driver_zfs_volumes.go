@@ -171,7 +171,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 
 		// Add custom property lxd:content_type which allows distinguishing between regular volumes, block_mode enabled volumes, and ISO volumes.
 		if vol.volType == VolumeTypeCustom {
-			opts = append(opts, fmt.Sprintf("lxd:content_type=%s", vol.contentType))
+			opts = append(opts, "lxd:content_type="+string(vol.contentType))
 		}
 
 		// Avoid double caching in the ARC cache and in the guest OS filesystem cache.
@@ -1891,7 +1891,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		}
 	}
 
-	value := fmt.Sprintf("%d", sizeBytes)
+	value := fmt.Sprint(sizeBytes)
 	if sizeBytes == 0 {
 		return nil
 	}
@@ -2041,7 +2041,7 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 		var volName string
 
 		for _, volumeType := range d.Info().VolumeTypes {
-			prefix := fmt.Sprintf("%s/%s/", d.config["zfs.pool_name"], volumeType)
+			prefix := d.config["zfs.pool_name"] + "/" + string(volumeType) + "/"
 			if strings.HasPrefix(zfsVolName, prefix) {
 				volType = volumeType
 				volName = strings.TrimPrefix(zfsVolName, prefix)
