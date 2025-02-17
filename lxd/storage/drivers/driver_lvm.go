@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -644,7 +645,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 		}
 
 		// Resize physical volume so that lvresize is able to resize as well.
-		_, err = shared.RunCommandContext(d.state.ShutdownCtx, "pvresize", "-y", loopDevPath)
+		_, err = shared.RunCommandContext(context.TODO(), "pvresize", "-y", loopDevPath)
 		if err != nil {
 			return err
 		}
