@@ -5190,6 +5190,24 @@
 						}
 					},
 					{
+						"core.salt_lifetime": {
+							"defaultdesc": "`60`",
+							"longdesc": "The cluster salt is used to encrypt cookies that are used to verify the integrity of the OpenID Connect (OIDC) browser login flow.\nThis configuration specifies the number of minutes a given salt is valid for.\n\nThe default value is 60 minutes.",
+							"scope": "global",
+							"shortdesc": "The lifetime in minutes of the cluster salt.",
+							"type": "integer"
+						}
+					},
+					{
+						"core.secret_key_lifetime": {
+							"defaultdesc": "`30`",
+							"longdesc": "The cluster secret key is used to encrypt cookies that are used to verify the integrity of the OpenID Connect (OIDC) browser login flow.\nIt is also used to encrypt cookies used for maintaining login information for OIDC authenticated users.\nThis configuration specifies the number of days a given key is valid for.\nWhen a key is required, LXD checks if the current key has expired.\nIf the key has expired, a new key is generated with the given lifetime in days.\nThe default value is 30 days.\n\nNote that this key is used in combination with a salt for obfuscation.\n\nWhen this key rotates, all users that are logged in via OIDC will need to re-authenticate with the identity provider (IdP).\nIf they are still logged in with the IdP, they will be automatically logged back into LXD.",
+							"scope": "global",
+							"shortdesc": "The lifetime in days of the cluster secret key.",
+							"type": "integer"
+						}
+					},
+					{
 						"core.shutdown_timeout": {
 							"defaultdesc": "`5`",
 							"longdesc": "Specify the number of minutes to wait for running operations to complete before the LXD server shuts down.",
