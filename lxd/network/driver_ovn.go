@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"math/rand"
 	"net"
@@ -149,8 +150,14 @@ func (n *ovn) State() (*api.NetworkState, error) {
 		return nil, err
 	}
 
-	mtu := int(n.getBridgeMTU())
-	if mtu == 0 {
+	// Bound check the MTU value before converting to int.
+	var mtu int
+	uintMTU := n.getBridgeMTU()
+	if uintMTU > math.MaxInt32 {
+		mtu = math.MaxInt32
+	} else if uintMTU > 0 {
+		mtu = int(uintMTU)
+	} else {
 		mtu = 1500
 	}
 
@@ -1509,12 +1516,12 @@ func (n *ovn) uplinkOperationLockName(uplinkNet Network) string {
 
 // uplinkPortBridgeVars returns the uplink port bridge variables needed for port start/stop.
 func (n *ovn) uplinkPortBridgeVars(uplinkNet Network) *ovnUplinkPortBridgeVars {
-	ovsBridge := fmt.Sprintf("lxdovn%d", uplinkNet.ID())
+	ovsBridge := "lxdovn" + fmt.Sprint(uplinkNet.ID())
 
 	return &ovnUplinkPortBridgeVars{
 		ovsBridge: ovsBridge,
-		uplinkEnd: fmt.Sprintf("%sa", ovsBridge),
-		ovsEnd:    fmt.Sprintf("%sb", ovsBridge),
+		uplinkEnd: ovsBridge + "a",
+		ovsEnd:    ovsBridge + "b",
 	}
 }
 
@@ -2200,7 +2207,7 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		// Save to config so the value can be read by instances connecting to network.
-		updatedConfig["bridge.mtu"] = fmt.Sprintf("%d", bridgeMTU)
+		updatedConfig["bridge.mtu"] = fmt.Sprint(bridgeMTU)
 	}
 
 	// Get a list of all NICs connected to this network that have static DHCP IPv4 reservations.
