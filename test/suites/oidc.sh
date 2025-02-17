@@ -12,10 +12,14 @@ test_oidc() {
   lxc config set oidc.scopes "my-scope email openid" # Valid
   lxc config unset oidc.scopes # Should reset to include profile and offline access claims
 
+  lxc config set "oidc.client.id=device"
+
+  # Cannot set issuer to a URL that cannot perform discovery.
+  ! lxc config set "oidc.issuer=http://127.0.0.1:$(local_tcp_port)/" || false
+
   # Setup OIDC
   spawn_oidc
   lxc config set "oidc.issuer=http://127.0.0.1:$(cat "${TEST_DIR}/oidc.port")/"
-  lxc config set "oidc.client.id=device"
 
   # Expect this to fail. No user set.
   ! BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc || false
