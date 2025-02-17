@@ -217,6 +217,11 @@ func (m *Map) set(name string, value string, initial bool) (bool, error) {
 		return true, nil
 	}
 
+	// Bypass schema for volatile.secret keys and don't insert them into the config map.
+	if strings.HasPrefix(name, "volatile.secret.") {
+		return false, nil
+	}
+
 	key, ok := m.schema[name]
 	if !ok {
 		return false, fmt.Errorf("Unknown key")
