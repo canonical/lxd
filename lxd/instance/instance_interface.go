@@ -28,6 +28,9 @@ import (
 // HookStart hook used when instance has started.
 const HookStart = "onstart"
 
+// HookStartHost hook used when instance is fully ready to be started.
+const HookStartHost = "onstarthost"
+
 // HookStopNS hook used when instance has stopped but before namespaces have been destroyed.
 const HookStopNS = "onstopns"
 

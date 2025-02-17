@@ -50,6 +50,7 @@ var apiInternal = []APIEndpoint{
 	internalClusterRebalanceCmd,
 	internalClusterHealCmd,
 	internalContainerOnStartCmd,
+	internalContainerOnStartHostCmd,
 	internalContainerOnStopCmd,
 	internalContainerOnStopNSCmd,
 	internalGarbageCollectorCmd,
@@ -80,6 +81,12 @@ var internalContainerOnStartCmd = APIEndpoint{
 	Path: "containers/{instanceRef}/onstart",
 
 	Get: APIEndpointAction{Handler: internalContainerOnStart, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+}
+
+var internalContainerOnStartHostCmd = APIEndpoint{
+	Path: "containers/{instanceRef}/onstarthost",
+
+	Get: APIEndpointAction{Handler: internalContainerOnStartHost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalContainerOnStopNSCmd = APIEndpoint{
@@ -336,6 +343,35 @@ func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 	err = inst.OnHook(instance.HookStart, nil)
 	if err != nil {
 		logger.Error("The start hook failed", logger.Ctx{"instance": inst.Name(), "err": err})
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
+}
+
+func internalContainerOnStartHost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	inst, err := internalContainerHookLoadFromReference(s, r)
+	if err != nil {
+		logger.Error("The start-host hook failed to load", logger.Ctx{"err": err})
+		return response.SmartError(err)
+	}
+
+	lxcPID := request.QueryParam(r, "lxc_pid")
+	if lxcPID == "" {
+		err := fmt.Errorf("No lxc_pid GET parameter was provided")
+		logger.Error("The start-host hook failed", logger.Ctx{"instance": inst.Name(), "err": err})
+		return response.BadRequest(err)
+	}
+
+	args := map[string]string{
+		"LXC_PID": lxcPID,
+	}
+
+	err = inst.OnHook(instance.HookStartHost, args)
+	if err != nil {
+		logger.Error("The start-host hook failed", logger.Ctx{"instance": inst.Name(), "err": err})
 		return response.SmartError(err)
 	}
 
