@@ -609,7 +609,7 @@ func genericVFSBackupVolume(d Driver, vol VolumeCopy, tarWriter *instancewriter.
 				}
 			}
 
-			name := fmt.Sprintf("%s.%s", prefix, genericVolumeBlockExtension)
+			name := prefix + "." + genericVolumeBlockExtension
 
 			logMsg := "Copying virtual machine block volume"
 			if vol.volType == VolumeTypeCustom {
@@ -735,18 +735,18 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots [
 				// directory's ownership from the backup. We cannot use --strip-components flag because it
 				// removes the top level directory from the unpack list. Instead we use the --transform
 				// flag to remove the prefix path and transform it into the "." current unpack directory.
-				args = append(args, fmt.Sprintf("--transform=s/^%s/./", strings.ReplaceAll(srcPrefix, "/", `\/`)))
+				args = append(args, "--transform=s/^"+strings.ReplaceAll(srcPrefix, "/", `\/`)+"/./")
 			} else {
 				// For instance volumes, the user created files are stored in the rootfs sub-directory
 				// and so strip-components flag works fine.
-				args = append(args, fmt.Sprintf("--strip-components=%d", len(srcParts)))
+				args = append(args, "--strip-components="+fmt.Sprint(len(srcParts)))
 			}
 
 			// Directory to unpack comes after other options.
 			args = append(args, srcPrefix)
 
 			// Extract filesystem volume.
-			d.Logger().Debug(fmt.Sprintf("Unpacking %s filesystem volume", volTypeName), logger.Ctx{"source": srcPrefix, "target": mountPath, "args": fmt.Sprintf("%+v", args)})
+			d.Logger().Debug("Unpacking "+volTypeName+" filesystem volume", logger.Ctx{"source": srcPrefix, "target": mountPath, "args": fmt.Sprintf("%+v", args)})
 			_, err := srcData.Seek(0, io.SeekStart)
 			if err != nil {
 				return err
@@ -777,7 +777,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots [
 				return err
 			}
 
-			srcFile := fmt.Sprintf("%s.%s", srcPrefix, genericVolumeBlockExtension)
+			srcFile := srcPrefix + "." + genericVolumeBlockExtension
 
 			tr, cancelFunc, err := archive.CompressedTarReader(context.Background(), r, unpacker, sysOS, mountPath)
 			if err != nil {
@@ -803,7 +803,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots [
 				// Allow potentially destructive resize of volume as we are going to be
 				// overwriting it entirely anyway. This allows shrinking of block volumes.
 				allowUnsafeResize = true
-				err = d.SetVolumeQuota(vol.Volume, fmt.Sprintf("%d", size), allowUnsafeResize, op)
+				err = d.SetVolumeQuota(vol.Volume, fmt.Sprint(size), allowUnsafeResize, op)
 				if err != nil {
 					return err
 				}
@@ -907,7 +907,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots [
 		}
 
 		err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
-			backupSnapshotPrefix := fmt.Sprintf("%s/%s", backupSnapshotsPrefix, snapName)
+			backupSnapshotPrefix := backupSnapshotsPrefix + "/" + snapName
 			return unpackVolume(srcData, tarArgs, unpacker, backupSnapshotPrefix, mountPath)
 		}, op)
 		if err != nil {
