@@ -422,7 +422,7 @@ func (d *zfs) Delete(op *operations.Operation) error {
 		}
 	} else {
 		// Delete the pool.
-		_, err := shared.RunCommandContext(d.state.ShutdownCtx, "zpool", "destroy", d.config["zfs.pool_name"])
+		_, err := shared.RunCommandContext(context.TODO(), "zpool", "destroy", d.config["zfs.pool_name"])
 		if err != nil {
 			return err
 		}
