@@ -2148,6 +2148,51 @@ If left empty, no limit is set.
 When enabling this option, set {config:option}`instance-security:security.secureboot` to `false`.
 ```
 
+```{config:option} security.delegate_bpf instance-security
+:condition: "unprivileged container"
+:defaultdesc: "`false`"
+:liveupdate: "no"
+:shortdesc: "Whether to enable eBPF delegation using BPF Token mechanism"
+:type: "bool"
+
+```
+
+```{config:option} security.delegate_bpf.attachs instance-security
+:condition: "unprivileged container"
+:defaultdesc: "`false`"
+:liveupdate: "no"
+:shortdesc: "Which eBPF attach types to allow with delegation mechanism"
+:type: "bool"
+
+```
+
+```{config:option} security.delegate_bpf.cmds instance-security
+:condition: "unprivileged container"
+:defaultdesc: "`false`"
+:liveupdate: "no"
+:shortdesc: "Which eBPF commands to allow with delegation mechanism"
+:type: "bool"
+
+```
+
+```{config:option} security.delegate_bpf.maps instance-security
+:condition: "unprivileged container"
+:defaultdesc: "`false`"
+:liveupdate: "no"
+:shortdesc: "Which eBPF maps to allow with delegation mechanism"
+:type: "bool"
+
+```
+
+```{config:option} security.delegate_bpf.progs instance-security
+:condition: "unprivileged container"
+:defaultdesc: "`false`"
+:liveupdate: "no"
+:shortdesc: "Which eBPF program types to allow with delegation mechanism"
+:type: "bool"
+
+```
+
 ```{config:option} security.devlxd instance-security
 :defaultdesc: "`true`"
 :liveupdate: "no"
