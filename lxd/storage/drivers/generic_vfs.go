@@ -891,6 +891,11 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots [
 	}
 
 	for _, snapName := range snapshots {
+		// Defend against path traversal attacks.
+		if !shared.IsFileName(snapName) {
+			return nil, nil, fmt.Errorf("Invalid snapshot name: %q", snapName)
+		}
+
 		found := false
 		var snapVol Volume
 		for _, snapshot := range vol.Snapshots {
