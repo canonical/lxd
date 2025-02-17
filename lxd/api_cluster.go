@@ -27,6 +27,7 @@ import (
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/cluster/secret"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
@@ -827,6 +828,9 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		if err != nil {
 			return err
 		}
+
+		// Reset the cluster secret. A new one will be fetched when next required.
+		d.clusterSecretInternal = &secret.Secret{}
 
 		d.globalConfigMu.Lock()
 		d.localConfig = nodeConfig
