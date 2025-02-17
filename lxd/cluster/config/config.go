@@ -248,6 +248,13 @@ func (c *Config) ClusterHealingThreshold() time.Duration {
 	return healingThreshold
 }
 
+// KeyAndSaltLifetimes returns the lifetimes of the cluster-wide secret key and salt.
+func (c *Config) KeyAndSaltLifetimes() (keyLifetime time.Duration, saltLifetime time.Duration) {
+	keyLifetimeDays := c.m.GetInt64("core.secret_key_lifetime")
+	saltLifetimeMinutes := c.m.GetInt64("core.salt_lifetime")
+	return time.Duration(keyLifetimeDays) * 24 * time.Hour, time.Duration(saltLifetimeMinutes) * time.Minute
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]any {
