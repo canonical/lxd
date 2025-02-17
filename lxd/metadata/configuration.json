@@ -2442,6 +2442,56 @@
 						}
 					},
 					{
+						"security.delegate_bpf": {
+							"condition": "unprivileged container",
+							"defaultdesc": "`false`",
+							"liveupdate": "no",
+							"longdesc": "This option enables BPF functionality delegation mechanism (using BPF Token).\n\nNote: `security.delegate_bpf.cmd_types`, `security.delegate_bpf.map_types`,\n`security.delegate_bpf.prog_types`, `security.delegate_bpf.attach_types`\nneed to be configured depending on BPF workload in the container.\n\nSee {ref}`bpf-delegation-token` for more information.\n",
+							"shortdesc": "Whether to enable eBPF delegation using BPF Token mechanism",
+							"type": "bool"
+						}
+					},
+					{
+						"security.delegate_bpf.attach_types": {
+							"condition": "unprivileged container",
+							"defaultdesc": "`false`",
+							"liveupdate": "no",
+							"longdesc": "Which eBPF program attachment types to allow with delegation mechanism. Syntax follows\na kernel one for `delegate_attachs` bpffs mount option.\nA number (bitmask) or `:`-separated list of attachment types to allow can be specified.\nFor example, `cgroup_inet_ingress` allows `BPF_CGROUP_INET_INGRESS` attachment type.",
+							"shortdesc": "Which eBPF attach types to allow with delegation mechanism",
+							"type": "bool"
+						}
+					},
+					{
+						"security.delegate_bpf.cmd_types": {
+							"condition": "unprivileged container",
+							"defaultdesc": "`false`",
+							"liveupdate": "no",
+							"longdesc": "Which eBPF commands to allow with delegation mechanism. Syntax follows a kernel one for `delegate_cmds`\nbpffs mount option. A number (bitmask) or `:`-separated list of commands to allow can be specified.\nFor example, `prog_load:map_create` allows eBPF programs loading and eBPF maps creation.\nNotice: `security.delegate_bpf.prog_types` and `security.delegate_bpf.map_types` still need to\nbe configured accordingly.",
+							"shortdesc": "Which eBPF commands to allow with delegation mechanism",
+							"type": "bool"
+						}
+					},
+					{
+						"security.delegate_bpf.map_types": {
+							"condition": "unprivileged container",
+							"defaultdesc": "`false`",
+							"liveupdate": "no",
+							"longdesc": "Which eBPF maps to allow with delegation mechanism. Syntax follows a kernel one for `delegate_maps`\nbpffs mount option. A number (bitmask) or `:`-separated list of map types to allow can be specified.\nFor example, `ringbuf` allows `BPF_MAP_TYPE_RINGBUF` map.",
+							"shortdesc": "Which eBPF maps to allow with delegation mechanism",
+							"type": "bool"
+						}
+					},
+					{
+						"security.delegate_bpf.prog_types": {
+							"condition": "unprivileged container",
+							"defaultdesc": "`false`",
+							"liveupdate": "no",
+							"longdesc": "Which eBPF program types to allow with delegation mechanism. Syntax follows a kernel one for `delegate_progs`\nbpffs mount option. A number (bitmask) or `:`-separated list of program types to allow can be specified.\nFor example, `socket_filter` allows `BPF_PROG_TYPE_SOCKET_FILTER` program type.",
+							"shortdesc": "Which eBPF program types to allow with delegation mechanism",
+							"type": "bool"
+						}
+					},
+					{
 						"security.devlxd": {
 							"defaultdesc": "`true`",
 							"liveupdate": "no",
