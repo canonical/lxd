@@ -40,10 +40,15 @@ const (
 	cookieNameSessionID = "session_id"
 )
 
+type relyingParty struct {
+	rp.RelyingParty
+	outdatedAt time.Time
+}
+
 // Verifier holds all information needed to verify an access token offline.
 type Verifier struct {
 	accessTokenVerifier *op.AccessTokenVerifier
-	relyingParty        rp.RelyingParty
+	relyingParties      []relyingParty
 	identityCache       *identity.Cache
 
 	clientID       string
@@ -159,7 +164,7 @@ func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken stri
 		return nil, fmt.Errorf("Failed to get OIDC identity from identity cache by their subject (%s): %w", claims.Subject, err)
 	}
 
-	userInfo, err := rp.Userinfo[*oidc.UserInfo](ctx, accessToken, oidc.BearerToken, claims.Subject, o.relyingParty)
+	userInfo, err := rp.Userinfo[*oidc.UserInfo](ctx, accessToken, oidc.BearerToken, claims.Subject, o.relyingParties[0])
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to call user info endpoint with given access token: %w", err)}
 	}
@@ -174,14 +179,14 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 	var err error
 	if idToken != "" {
 		// Try to verify the ID token.
-		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParty.IDTokenVerifier())
+		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParties[0].IDTokenVerifier())
 		if err == nil {
 			return o.getResultFromClaims(claims, claims.Claims)
 		}
 	}
 
 	// If ID token verification failed (or it wasn't provided, try refreshing the token).
-	tokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](ctx, o.relyingParty, refreshToken, "", "")
+	tokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](ctx, o.relyingParties[0], refreshToken, "", "")
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to refresh ID tokens: %w", err)}
 	}
@@ -197,7 +202,7 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 	}
 
 	// Verify the refreshed ID token.
-	claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParty.IDTokenVerifier())
+	claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParties[0].IDTokenVerifier())
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to verify refreshed ID token: %w", err)}
 	}
@@ -314,7 +319,7 @@ func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	handler := rp.AuthURLHandler(func() string { return uuid.New().String() }, o.relyingParty, rp.WithURLParam("audience", o.audience))
+	handler := rp.AuthURLHandler(func() string { return uuid.New().String() }, o.relyingParties[0], rp.WithURLParam("audience", o.audience))
 	handler(w, r)
 }
 
@@ -334,6 +339,24 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 	err := o.ensureConfig(r.Context(), r.Host)
 	if err != nil {
 		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("OIDC callback failed: %w", err).Error()).Render(w, r)
+		return
+	}
+
+	var relyingParty rp.RelyingParty
+	for _, p := range o.relyingParties {
+		// Check if the relying party can read the state cookie.
+		// If it can, then the auth flow was initiated by a relying party with the same encryption keys.
+		// Old RPs are only kept valid for 5 minutes (see ensureConfig).
+		_, err := p.CookieHandler().CheckQueryCookie(r, "state")
+		if err != nil {
+			continue
+		}
+
+		relyingParty = p
+	}
+
+	if relyingParty == nil {
+		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("OIDC callback failed: No relying party available with applicable cookie handler").Error()).Render(w, r)
 		return
 	}
 
@@ -360,7 +383,7 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 		// Send to the UI.
 		// NOTE: Once the UI does the redirection on its own, we may be able to use the referer here instead.
 		http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
-	}, o.relyingParty)
+	}, relyingParty)
 
 	handler(w, r)
 }
@@ -415,17 +438,27 @@ func (o *Verifier) ExpireConfig() {
 	o.expireConfig = true
 }
 
-// ensureConfig ensures that the relyingParty and accessTokenVerifier fields of the Verifier are non-nil. Additionally,
-// if the given host is different from the Verifier host we reset the relyingParty to ensure the callback URL is set
-// correctly.
+// ensureConfig ensures that the relyingParties field of Verifier has at least one entry and that the accessTokenVerifier
+// field is non-nil. Additionally, if the given host is different from the Verifier host we add a new relyingParty to
+// relyingParties to ensure the callback URL is set correctly.
 func (o *Verifier) ensureConfig(ctx context.Context, host string) error {
+	// Clean up any old relying parties that became outdated more than 5 minutes ago.
+	rps := make([]relyingParty, 0, len(o.relyingParties))
+	for i, p := range o.relyingParties {
+		if i == 0 || time.Now().Before(p.outdatedAt.Add(5*time.Minute)) {
+			rps = append(rps, p)
+		}
+	}
+
+	o.relyingParties = rps
+
 	clusterSecret, secretUpdated, err := o.clusterSecret(ctx)
 	if err != nil {
 		return err
 	}
 
-	if o.relyingParty == nil || o.expireConfig || secretUpdated || host != o.host {
-		err := o.setRelyingParty(ctx, clusterSecret, host)
+	if len(o.relyingParties) == 0 || o.expireConfig || secretUpdated || host != o.host {
+		err := o.setRelyingParties(ctx, clusterSecret, host)
 		if err != nil {
 			return err
 		}
@@ -444,8 +477,8 @@ func (o *Verifier) ensureConfig(ctx context.Context, host string) error {
 	return nil
 }
 
-// setRelyingParty sets the relyingParty on the Verifier. The host argument is used to set a valid callback URL.
-func (o *Verifier) setRelyingParty(ctx context.Context, clusterSecret secret.Secret, host string) error {
+// setRelyingParties sets the relyingParty on the Verifier. The host argument is used to set a valid callback URL.
+func (o *Verifier) setRelyingParties(ctx context.Context, clusterSecret secret.Secret, host string) error {
 	httpClient, err := o.httpClientFunc()
 	if err != nil {
 		return fmt.Errorf("Failed to get a HTTP client: %w", err)
@@ -464,12 +497,17 @@ func (o *Verifier) setRelyingParty(ctx context.Context, clusterSecret secret.Sec
 		rp.WithHTTPClient(httpClient),
 	}
 
-	relyingParty, err := rp.NewRelyingPartyOIDC(ctx, o.issuer, o.clientID, "", "https://"+host+"/oidc/callback", o.scopes, options...)
+	newRP, err := rp.NewRelyingPartyOIDC(ctx, o.issuer, o.clientID, "", "https://"+host+"/oidc/callback", o.scopes, options...)
 	if err != nil {
 		return fmt.Errorf("Failed to get OIDC relying party: %w", err)
 	}
 
-	o.relyingParty = relyingParty
+	// Set the time that the last RP became outdated.
+	if len(o.relyingParties) > 0 {
+		o.relyingParties[0].outdatedAt = time.Now()
+	}
+
+	o.relyingParties = append([]relyingParty{{RelyingParty: newRP}}, o.relyingParties...)
 	return nil
 }
 
@@ -482,8 +520,8 @@ func (o *Verifier) setAccessTokenVerifier(ctx context.Context) error {
 	}
 
 	var keySet oidc.KeySet
-	if o.relyingParty != nil {
-		keySet = o.relyingParty.IDTokenVerifier().KeySet
+	if len(o.relyingParties) > 0 && o.relyingParties[0].RelyingParty != nil {
+		keySet = o.relyingParties[0].IDTokenVerifier().KeySet
 	} else {
 		discoveryConfig, err := client.Discover(ctx, o.issuer, httpClient)
 		if err != nil {
