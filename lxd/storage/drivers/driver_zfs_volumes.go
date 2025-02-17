@@ -445,6 +445,11 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 
 		// Restore backups from oldest to newest.
 		for _, snapName := range srcBackup.Snapshots {
+			// Defend against path traversal attacks.
+			if !shared.IsFileName(snapName) {
+				return nil, nil, fmt.Errorf("Invalid snapshot name: %q", snapName)
+			}
+
 			prefix := "snapshots"
 			fileName := snapName + ".bin"
 			if v.volType == VolumeTypeVM {
