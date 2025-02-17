@@ -175,10 +175,6 @@ func daemonStorageValidate(s *state.State, target string) (validatedTarget strin
 		return "", fmt.Errorf("Storage pool %q cannot be used when in %q status", poolName, poolState)
 	}
 
-	if pool.Driver().Info().Remote {
-		return "", fmt.Errorf("Remote storage pool %q cannot be used", pool)
-	}
-
 	var snapshots []db.StorageVolumeArgs
 	var dbVol *db.StorageVolume
 
