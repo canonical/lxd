@@ -175,6 +175,12 @@ func daemonStorageValidate(s *state.State, target string) (validatedTarget strin
 		return "", fmt.Errorf("Storage pool %q cannot be used when in %q status", poolName, poolState)
 	}
 
+	// Checking only for remote storage drivers isn't sufficient as drivers
+	// like CephFS can be safely used as the volume can be used on multiple nodes concurrently.
+	if pool.Driver().Info().Remote && !pool.Driver().Info().VolumeMultiNode {
+		return "", fmt.Errorf("Remote storage pool %q cannot be used", poolName)
+	}
+
 	var snapshots []db.StorageVolumeArgs
 	var dbVol *db.StorageVolume
 
