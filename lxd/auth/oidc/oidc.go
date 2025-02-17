@@ -669,6 +669,8 @@ func extractKeys(s secret.Secret, salt []byte) (hash []byte, block []byte, err e
 // Opts contains optional configurable fields for the Verifier.
 type Opts struct {
 	GroupsClaim string
+	Host        string
+	Ctx         context.Context
 }
 
 // NewVerifier returns a Verifier.
@@ -688,6 +690,18 @@ func NewVerifier(issuer string, clientID string, scopes []string, audience strin
 		groupsClaim:    opts.GroupsClaim,
 		clusterSecret:  clusterSecret,
 		httpClientFunc: httpClientFunc,
+	}
+
+	if options != nil && options.Host != "" {
+		ctx := context.Background()
+		if opts.Ctx != nil {
+			ctx = opts.Ctx
+		}
+
+		err := verifier.ensureConfig(ctx, opts.Host)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to configure OIDC verifier: %w", err)
+		}
 	}
 
 	return verifier, nil
