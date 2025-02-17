@@ -153,11 +153,20 @@ func eventsProcess(event api.Event) {
 	}
 
 	l := logger.AddContext(logger.Ctx{"type": "virtiofs", "source": mntSource, "path": e.Config["path"]})
+
+	// Reject path containing "..".
+	if strings.Contains(e.Config["path"], "..") {
+		l.Error("Invalid path containing '..'")
+		return
+	}
+
 	// If the path is not absolute, the mount will be created at `/run/lxd_agent/<path>`
 	// (since the mount command executed below originates from the `lxd-agent` binary that is in the `/run/lxd_agent` directory).
 	// This is not ideal and not consistent with the way mounts are handled with containers. We then make the path absolute.
-	if !filepath.IsAbs(e.Config["path"]) {
-		e.Config["path"] = filepath.Join("/", e.Config["path"])
+	e.Config["path"], err = filepath.Abs(e.Config["path"])
+	if err != nil {
+		l.Error("Failed to make path absolute")
+		return
 	}
 
 	_ = os.MkdirAll(e.Config["path"], 0755)

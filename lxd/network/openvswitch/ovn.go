@@ -303,7 +303,7 @@ func (o *OVN) xbctl(southbound bool, extraArgs ...string) (string, error) {
 	}
 
 	if strings.HasPrefix(dbAddr, "unix:") {
-		dbAddr = fmt.Sprintf("unix:%s", shared.HostPathFollow(strings.TrimPrefix(dbAddr, "unix:")))
+		dbAddr = "unix:" + shared.HostPathFollow(strings.TrimPrefix(dbAddr, "unix:"))
 	}
 
 	// Figure out args.
@@ -530,9 +530,9 @@ func (o *OVN) LogicalRouterPortAdd(routerName OVNRouter, portName OVNRouterPort,
 			}
 
 			_, err := o.nbctl("set", "Logical_Router_Port", string(portName),
-				fmt.Sprintf(`networks="%s"`, strings.Join(ips, `","`)),
-				fmt.Sprintf(`mac="%s"`, mac.String()),
-				fmt.Sprintf("options:gateway_mtu=%d", gatewayMTU),
+				`networks="`+strings.Join(ips, `","`)+`"`,
+				`mac="`+mac.String()+`"`,
+				"options:gateway_mtu="+fmt.Sprint(gatewayMTU),
 			)
 			if err != nil {
 				return err
@@ -548,7 +548,7 @@ func (o *OVN) LogicalRouterPortAdd(routerName OVNRouter, portName OVNRouterPort,
 	}
 
 	args = append(args, "--", "set", "Logical_Router_Port", string(portName),
-		fmt.Sprintf(`options:gateway_mtu=%d`, gatewayMTU),
+		"options:gateway_mtu="+fmt.Sprint(gatewayMTU),
 	)
 
 	_, err := o.nbctl(args...)
@@ -572,43 +572,45 @@ func (o *OVN) LogicalRouterPortDelete(portName OVNRouterPort) error {
 // LogicalRouterPortSetIPv6Advertisements sets the IPv6 router advertisement options on a router port.
 func (o *OVN) LogicalRouterPortSetIPv6Advertisements(portName OVNRouterPort, opts *OVNIPv6RAOpts) error {
 	args := []string{"set", "logical_router_port", string(portName),
-		fmt.Sprintf("ipv6_ra_configs:send_periodic=%t", opts.SendPeriodic),
+		"ipv6_ra_configs:send_periodic=" + fmt.Sprint(opts.SendPeriodic),
 	}
 
 	var removeRAConfigKeys []string //nolint:prealloc
 
 	if opts.AddressMode != "" {
-		args = append(args, fmt.Sprintf("ipv6_ra_configs:address_mode=%s", string(opts.AddressMode)))
+		args = append(args, "ipv6_ra_configs:address_mode="+string(opts.AddressMode))
 	} else {
 		removeRAConfigKeys = append(removeRAConfigKeys, "address_mode")
 	}
 
 	if opts.MaxInterval > 0 {
+		// XXX: Sprintf(%d) includes the unit (ns).
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:max_interval=%d", opts.MaxInterval/time.Second))
 	} else {
 		removeRAConfigKeys = append(removeRAConfigKeys, "max_interval")
 	}
 
 	if opts.MinInterval > 0 {
+		// XXX: Sprintf(%d) includes the unit (ns).
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:min_interval=%d", opts.MinInterval/time.Second))
 	} else {
 		removeRAConfigKeys = append(removeRAConfigKeys, "min_interval")
 	}
 
 	if opts.MTU > 0 {
-		args = append(args, fmt.Sprintf("ipv6_ra_configs:mtu=%d", opts.MTU))
+		args = append(args, "ipv6_ra_configs:mtu="+fmt.Sprint(opts.MTU))
 	} else {
 		removeRAConfigKeys = append(removeRAConfigKeys, "mtu")
 	}
 
 	if len(opts.DNSSearchList) > 0 {
-		args = append(args, fmt.Sprintf("ipv6_ra_configs:dnssl=%s", strings.Join(opts.DNSSearchList, ",")))
+		args = append(args, "ipv6_ra_configs:dnssl="+strings.Join(opts.DNSSearchList, ","))
 	} else {
 		removeRAConfigKeys = append(removeRAConfigKeys, "dnssl")
 	}
 
 	if opts.RecursiveDNSServer != nil {
-		args = append(args, fmt.Sprintf("ipv6_ra_configs:rdnss=%s", opts.RecursiveDNSServer.String()))
+		args = append(args, "ipv6_ra_configs:rdnss="+opts.RecursiveDNSServer.String())
 	} else {
 		removeRAConfigKeys = append(removeRAConfigKeys, "rdnss")
 	}
@@ -644,7 +646,7 @@ func (o *OVN) LogicalRouterPortDeleteIPv6Advertisements(portName OVNRouterPort) 
 
 // LogicalRouterPortLinkChassisGroup links a logical router port to a HA chassis group.
 func (o *OVN) LogicalRouterPortLinkChassisGroup(portName OVNRouterPort, haChassisGroupName OVNChassisGroup) error {
-	chassisGroupID, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "ha_chassis_group", fmt.Sprintf("name=%s", haChassisGroupName))
+	chassisGroupID, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "ha_chassis_group", "name="+string(haChassisGroupName))
 	if err != nil {
 		return err
 	}
@@ -655,7 +657,7 @@ func (o *OVN) LogicalRouterPortLinkChassisGroup(portName OVNRouterPort, haChassi
 		return fmt.Errorf("Chassis group not found")
 	}
 
-	_, err = o.nbctl("set", "logical_router_port", string(portName), fmt.Sprintf("ha_chassis_group=%s", chassisGroupID))
+	_, err = o.nbctl("set", "logical_router_port", string(portName), "ha_chassis_group="+chassisGroupID)
 	if err != nil {
 		return err
 	}
@@ -728,7 +730,7 @@ func (o *OVN) LogicalSwitchDelete(switchName OVNSwitch) error {
 // logicalSwitchFindAssociatedPortGroups finds the port groups that are associated to the switch specified.
 func (o *OVN) logicalSwitchFindAssociatedPortGroups(switchName OVNSwitch) ([]OVNPortGroup, error) {
 	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=name", "find", "port_group",
-		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitch, switchName),
+		"external_ids:"+string(ovnExtIDLXDSwitch)+"="+string(switchName),
 	)
 	if err != nil {
 		return nil, err
@@ -757,7 +759,7 @@ func (o *OVN) logicalSwitchParseExcludeIPs(ips []shared.IPRange) ([]string, erro
 				return nil, fmt.Errorf("Invalid exclude IPv4 range end address")
 			}
 
-			excludeIPs = append(excludeIPs, fmt.Sprintf("%s..%s", v.Start.String(), v.End.String()))
+			excludeIPs = append(excludeIPs, v.Start.String()+".."+v.End.String())
 		}
 	}
 
@@ -770,13 +772,13 @@ func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllo
 	args := []string{"set", "logical_switch", string(switchName)}
 
 	if opts.PrefixIPv4 != nil {
-		args = append(args, fmt.Sprintf("other_config:subnet=%s", opts.PrefixIPv4.String()))
+		args = append(args, "other_config:subnet="+opts.PrefixIPv4.String())
 	} else {
 		removeOtherConfigKeys = append(removeOtherConfigKeys, "subnet")
 	}
 
 	if opts.PrefixIPv6 != nil {
-		args = append(args, fmt.Sprintf("other_config:ipv6_prefix=%s", opts.PrefixIPv6.String()))
+		args = append(args, "other_config:ipv6_prefix="+opts.PrefixIPv6.String())
 	} else {
 		removeOtherConfigKeys = append(removeOtherConfigKeys, "ipv6_prefix")
 	}
@@ -787,7 +789,7 @@ func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllo
 			return err
 		}
 
-		args = append(args, fmt.Sprintf("other_config:exclude_ips=%s", strings.Join(excludeIPs, " ")))
+		args = append(args, "other_config:exclude_ips="+strings.Join(excludeIPs, " "))
 	} else {
 		removeOtherConfigKeys = append(removeOtherConfigKeys, "exclude_ips")
 	}
@@ -823,7 +825,7 @@ func (o *OVN) LogicalSwitchDHCPv4RevervationsSet(switchName OVNSwitch, reservedI
 			return err
 		}
 
-		args = append(args, fmt.Sprintf("other_config:exclude_ips=%s", strings.Join(excludeIPs, " ")))
+		args = append(args, "other_config:exclude_ips="+strings.Join(excludeIPs, " "))
 	} else {
 		removeOtherConfigKeys = append(removeOtherConfigKeys, "exclude_ips")
 	}
@@ -905,16 +907,16 @@ func (o *OVN) LogicalSwitchDHCPv4OptionsSet(switchName OVNSwitch, uuid OVNDHCPOp
 
 	if uuid != "" {
 		_, err = o.nbctl("set", "dhcp_option", string(uuid),
-			fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitch, switchName),
-			fmt.Sprintf("cidr=%s", subnet.String()),
+			"external_ids:"+string(ovnExtIDLXDSwitch)+"="+string(switchName),
+			"cidr="+subnet.String(),
 		)
 		if err != nil {
 			return err
 		}
 	} else {
 		uuidRaw, err := o.nbctl("create", "dhcp_option",
-			fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitch, switchName),
-			fmt.Sprintf("cidr=%s", subnet.String()),
+			"external_ids:"+string(ovnExtIDLXDSwitch)+"="+string(switchName),
+			"cidr="+subnet.String(),
 		)
 		if err != nil {
 			return err
@@ -926,13 +928,13 @@ func (o *OVN) LogicalSwitchDHCPv4OptionsSet(switchName OVNSwitch, uuid OVNDHCPOp
 	// We have to use dhcp-options-set-options rather than the command above as its the only way to allow the
 	// domain_name option to be properly escaped.
 	args := []string{"dhcp-options-set-options", string(uuid),
-		fmt.Sprintf("server_id=%s", opts.ServerID.String()),
-		fmt.Sprintf("server_mac=%s", opts.ServerMAC.String()),
-		fmt.Sprintf("lease_time=%d", opts.LeaseTime/time.Second),
+		"server_id=" + opts.ServerID.String(),
+		"server_mac=" + opts.ServerMAC.String(),
+		"lease_time=" + fmt.Sprint(opts.LeaseTime/time.Second),
 	}
 
 	if opts.Router != nil {
-		args = append(args, fmt.Sprintf("router=%s", opts.Router.String()))
+		args = append(args, "router="+opts.Router.String())
 	}
 
 	if opts.RecursiveDNSServer != nil {
@@ -945,20 +947,20 @@ func (o *OVN) LogicalSwitchDHCPv4OptionsSet(switchName OVNSwitch, uuid OVNDHCPOp
 			nsIPs = append(nsIPs, nsIP.String())
 		}
 
-		args = append(args, fmt.Sprintf("dns_server={%s}", strings.Join(nsIPs, ",")))
+		args = append(args, "dns_server={"+strings.Join(nsIPs, ",")+"}")
 	}
 
 	if opts.DomainName != "" {
 		// Special quoting to allow domain names.
-		args = append(args, fmt.Sprintf(`domain_name="%s"`, opts.DomainName))
+		args = append(args, `domain_name="`+opts.DomainName+`"`)
 	}
 
 	if opts.MTU > 0 {
-		args = append(args, fmt.Sprintf("mtu=%d", opts.MTU))
+		args = append(args, "mtu="+fmt.Sprint(opts.MTU))
 	}
 
 	if opts.Netmask != "" {
-		args = append(args, fmt.Sprintf("netmask=%s", opts.Netmask))
+		args = append(args, "netmask="+opts.Netmask)
 	}
 
 	_, err = o.nbctl(args...)
@@ -1133,9 +1135,7 @@ func (o *OVN) LogicalSwitchSetACLRules(switchName OVNSwitch, aclRules ...OVNACLR
 // logicalSwitchPortACLRules returns the ACL rule UUIDs belonging to a logical switch port.
 func (o *OVN) logicalSwitchPortACLRules(portName OVNSwitchPort) ([]string, error) {
 	// Remove any existing rules assigned to the entity.
-	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "acl",
-		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitchPort, string(portName)),
-	)
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "acl", "external_ids:"+string(ovnExtIDLXDSwitchPort)+"="+string(portName))
 	if err != nil {
 		return nil, err
 	}
@@ -1207,9 +1207,7 @@ func (o *OVN) LogicalSwitchIPs(switchName OVNSwitch) (map[OVNSwitchPort][]net.IP
 
 // LogicalSwitchPortUUID returns the logical switch port UUID or empty string if port doesn't exist.
 func (o *OVN) LogicalSwitchPortUUID(portName OVNSwitchPort) (OVNSwitchPortUUID, error) {
-	portInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name", "find", "logical_switch_port",
-		fmt.Sprintf("name=%s", string(portName)),
-	)
+	portInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name", "find", "logical_switch_port", "name="+string(portName))
 	if err != nil {
 		return "", err
 	}
@@ -1240,7 +1238,7 @@ func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort,
 	if opts != nil {
 		// Created nested VLAN port if requested.
 		if opts.Parent != "" {
-			args = append(args, string(opts.Parent), fmt.Sprintf("%d", opts.VLAN))
+			args = append(args, string(opts.Parent), fmt.Sprint(opts.VLAN))
 		}
 
 		ipStr := make([]string, 0, len(opts.IPs))
@@ -1250,9 +1248,9 @@ func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort,
 
 		var addresses string
 		if opts.MAC != nil && len(ipStr) > 0 {
-			addresses = fmt.Sprintf("%s %s", opts.MAC.String(), strings.Join(ipStr, " "))
+			addresses = opts.MAC.String() + " " + strings.Join(ipStr, " ")
 		} else if opts.MAC != nil && len(ipStr) <= 0 {
-			addresses = fmt.Sprintf("%s %s", opts.MAC.String(), "dynamic")
+			addresses = opts.MAC.String() + " dynamic"
 		} else {
 			addresses = "dynamic"
 		}
@@ -1284,7 +1282,7 @@ func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort,
 
 // LogicalSwitchPortIPs returns a list of IPs for a switch port.
 func (o *OVN) LogicalSwitchPortIPs(portName OVNSwitchPort) ([]net.IP, error) {
-	addressesRaw, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--column=addresses,dynamic_addresses", "find", "logical_switch_port", fmt.Sprintf("name=%s", string(portName)))
+	addressesRaw, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--column=addresses,dynamic_addresses", "find", "logical_switch_port", "name="+string(portName))
 	if err != nil {
 		return nil, err
 	}
@@ -1336,7 +1334,7 @@ func (o *OVN) LogicalSwitchPortDynamicIPs(portName OVNSwitchPort) ([]net.IP, err
 
 // LogicalSwitchPortLocationGet returns the last set location of a logical switch port.
 func (o *OVN) LogicalSwitchPortLocationGet(portName OVNSwitchPort) (string, error) {
-	location, err := o.nbctl("--if-exists", "get", "logical_switch_port", string(portName), fmt.Sprintf("external-ids:%s", ovnExtIDLXDLocation))
+	location, err := o.nbctl("--if-exists", "get", "logical_switch_port", string(portName), "external-ids:"+string(ovnExtIDLXDLocation))
 	if err != nil {
 		return "", err
 	}
@@ -1349,7 +1347,7 @@ func (o *OVN) LogicalSwitchPortOptionsSet(portName OVNSwitchPort, options map[st
 	args := []string{"lsp-set-options", string(portName)}
 
 	for key, value := range options {
-		args = append(args, fmt.Sprintf("%s=%s", key, value))
+		args = append(args, key+"="+value)
 	}
 
 	_, err := o.nbctl(args...)
@@ -1556,7 +1554,7 @@ func (o *OVN) LogicalSwitchPortLinkRouter(switchPortName OVNSwitchPort, routerPo
 	_, err := o.nbctl(
 		"lsp-set-type", string(switchPortName), "router", "--",
 		"lsp-set-addresses", string(switchPortName), "router", "--",
-		"lsp-set-options", string(switchPortName), fmt.Sprintf("nat-addresses=%s", "router"), fmt.Sprintf("router-port=%s", string(routerPortName)),
+		"lsp-set-options", string(switchPortName), "nat-addresses=router", "router-port="+string(routerPortName),
 	)
 	if err != nil {
 		return err
@@ -1571,7 +1569,7 @@ func (o *OVN) LogicalSwitchPortLinkProviderNetwork(switchPortName OVNSwitchPort,
 	_, err := o.nbctl(
 		"lsp-set-addresses", string(switchPortName), "unknown", "--",
 		"lsp-set-type", string(switchPortName), "localnet", "--",
-		"lsp-set-options", string(switchPortName), fmt.Sprintf("network_name=%s", extNetworkName),
+		"lsp-set-options", string(switchPortName), "network_name="+extNetworkName,
 	)
 	if err != nil {
 		return err
@@ -1602,7 +1600,7 @@ func (o *OVN) ChassisGroupAdd(haChassisGroupName OVNChassisGroup, mayExist bool)
 // ChassisGroupDelete deletes an HA chassis group.
 func (o *OVN) ChassisGroupDelete(haChassisGroupName OVNChassisGroup) error {
 	// ovn-nbctl doesn't provide an "--if-exists" option for removing chassis groups.
-	existing, err := o.nbctl("--no-headings", "--data=bare", "--colum=name", "find", "ha_chassis_group", fmt.Sprintf("name=%s", string(haChassisGroupName)))
+	existing, err := o.nbctl("--no-headings", "--data=bare", "--colum=name", "find", "ha_chassis_group", "name="+string(haChassisGroupName))
 	if err != nil {
 		return err
 	}
@@ -1620,7 +1618,7 @@ func (o *OVN) ChassisGroupDelete(haChassisGroupName OVNChassisGroup) error {
 
 // ChassisGroupChassisAdd adds a chassis ID to an HA chassis group with the specified priority.
 func (o *OVN) ChassisGroupChassisAdd(haChassisGroupName OVNChassisGroup, chassisID string, priority uint) error {
-	_, err := o.nbctl("ha-chassis-group-add-chassis", string(haChassisGroupName), chassisID, fmt.Sprintf("%d", priority))
+	_, err := o.nbctl("ha-chassis-group-add-chassis", string(haChassisGroupName), chassisID, fmt.Sprint(priority))
 	if err != nil {
 		return err
 	}
@@ -1683,7 +1681,7 @@ func (o *OVN) ChassisGroupChassisDelete(haChassisGroupName OVNChassisGroup, chas
 // any ACL rules defined on it.
 func (o *OVN) PortGroupInfo(portGroupName OVNPortGroup) (OVNPortGroupUUID, bool, error) {
 	groupInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name,acl", "find", "port_group",
-		fmt.Sprintf("name=%s", string(portGroupName)),
+		"name="+string(portGroupName),
 	)
 	if err != nil {
 		return "", false, err
@@ -1835,27 +1833,27 @@ func (o *OVN) aclRuleAddAppendArgs(args []string, entityTable string, entityName
 		}
 
 		// Add command to create ACL rule.
-		args = append(args, fmt.Sprintf("--id=@id%d", i), "create", "acl",
-			fmt.Sprintf("action=%s", rule.Action),
-			fmt.Sprintf("direction=%s", rule.Direction),
-			fmt.Sprintf("priority=%d", rule.Priority),
-			fmt.Sprintf("match=%s", strconv.Quote(rule.Match)),
+		args = append(args, "--id=@id"+fmt.Sprint(i), "create", "acl",
+			"action="+rule.Action,
+			"direction="+rule.Direction,
+			"priority="+fmt.Sprint(rule.Priority),
+			"match="+strconv.Quote(rule.Match),
 		)
 
 		if rule.Log {
 			args = append(args, "log=true")
 
 			if rule.LogName != "" {
-				args = append(args, fmt.Sprintf("name=%s", rule.LogName))
+				args = append(args, "name="+rule.LogName)
 			}
 		}
 
 		for k, v := range externalIDs {
-			args = append(args, fmt.Sprintf("external_ids:%s=%s", k, v))
+			args = append(args, "external_ids:"+k+"="+v)
 		}
 
 		// Add command to assign ACL rule to entity.
-		args = append(args, "--", "add", entityTable, entityName, "acl", fmt.Sprintf("@id%d", i))
+		args = append(args, "--", "add", entityTable, entityName, "acl", "@id"+fmt.Sprint(i))
 	}
 
 	return args
@@ -1924,16 +1922,14 @@ func (o *OVN) PortGroupPortClearACLRules(portGroupName OVNPortGroup, portName OV
 
 // loadBalancerUUIDs returns list of UUID records for named load balancer.
 func (o *OVN) loadBalancerUUIDs(loadBalancerName OVNLoadBalancer) ([]string, error) {
-	lbTCPName := fmt.Sprintf("%s-tcp", loadBalancerName)
-	lbUDPName := fmt.Sprintf("%s-udp", loadBalancerName)
+	lbTCPName := string(loadBalancerName) + "-tcp"
+	lbUDPName := string(loadBalancerName) + "-udp"
 
 	var lbUUIDs []string //nolint:prealloc
 
 	// Use find command in order to workaround OVN bug where duplicate records of same name can exist.
 	for _, lbName := range []string{lbTCPName, lbUDPName} {
-		output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "load_balancer",
-			fmt.Sprintf(`name="%s"`, lbName),
-		)
+		output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "load_balancer", `name="`+lbName+`"`)
 		if err != nil {
 			return nil, err
 		}
@@ -1947,8 +1943,8 @@ func (o *OVN) loadBalancerUUIDs(loadBalancerName OVNLoadBalancer) ([]string, err
 // LoadBalancerApply creates a new load balancer (if doesn't exist) on the specified routers and switches.
 // Providing an empty set of vips will delete the load balancer.
 func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNRouter, vips ...OVNLoadBalancerVIP) error {
-	lbTCPName := fmt.Sprintf("%s-tcp", loadBalancerName)
-	lbUDPName := fmt.Sprintf("%s-udp", loadBalancerName)
+	lbTCPName := string(loadBalancerName) + "-tcp"
+	lbUDPName := string(loadBalancerName) + "-udp"
 
 	// Remove load balancers if they exist.
 	lbUUIDs, err := o.loadBalancerUUIDs(loadBalancerName)
@@ -1969,7 +1965,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 	// ipToString wraps IPv6 addresses in square brackets.
 	ipToString := func(ip net.IP) string {
 		if ip.To4() == nil {
-			return fmt.Sprintf("[%s]", ip.String())
+			return "[" + ip.String() + "]"
 		}
 
 		return ip.String()
@@ -2003,7 +1999,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 			}
 
 			if r.ListenPort > 0 {
-				targetArgs = append(targetArgs, fmt.Sprintf("%s:%d", ipToString(target.Address), target.Port))
+				targetArgs = append(targetArgs, ipToString(target.Address)+":"+fmt.Sprint(target.Port))
 			} else {
 				targetArgs = append(targetArgs, ipToString(target.Address))
 			}
@@ -2011,7 +2007,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 
 		if r.ListenPort > 0 {
 			args = append(args,
-				fmt.Sprintf("%s:%d", ipToString(r.ListenAddress), r.ListenPort),
+				ipToString(r.ListenAddress)+fmt.Sprint(r.ListenPort),
 				strings.Join(targetArgs, ","),
 				r.Protocol,
 			)
@@ -2214,7 +2210,7 @@ func (o *OVN) LogicalRouterPolicyApply(routerName OVNRouter, policies ...OVNRout
 	args := []string{"lr-policy-del", string(routerName)}
 
 	for _, policy := range policies {
-		args = append(args, "--", "lr-policy-add", string(routerName), fmt.Sprintf("%d", policy.Priority), policy.Match, policy.Action)
+		args = append(args, "--", "lr-policy-add", string(routerName), fmt.Sprint(policy.Priority), policy.Match, policy.Action)
 	}
 
 	_, err := o.nbctl(args...)
@@ -2276,7 +2272,7 @@ func (o *OVN) LogicalRouterRoutes(routerName OVNRouter) ([]OVNRouterRoute, error
 				subnetSize = 128
 			}
 
-			fields[0] = fmt.Sprintf("%s/%d", ip.String(), subnetSize)
+			fields[0] = ip.String() + "/" + fmt.Sprint(subnetSize)
 		}
 
 		_, prefix, err := net.ParseCIDR(fields[0])
@@ -2332,7 +2328,7 @@ func (o *OVN) LogicalRouterPeeringApply(opts OVNRouterPeering) error {
 		args = append(args, ipNet.String())
 	}
 
-	args = append(args, fmt.Sprintf("peer=%s", opts.TargetRouterPort))
+	args = append(args, "peer="+string(opts.TargetRouterPort))
 
 	// Setup target router port peered with local router port.
 	args = append(args, "--", "lrp-add", string(opts.TargetRouter), string(opts.TargetRouterPort), opts.TargetRouterPortMAC.String())
@@ -2349,7 +2345,7 @@ func (o *OVN) LogicalRouterPeeringApply(opts OVNRouterPeering) error {
 		args = append(args, ipNet.String())
 	}
 
-	args = append(args, fmt.Sprintf("peer=%s", opts.LocalRouterPort))
+	args = append(args, "peer="+string(opts.LocalRouterPort))
 
 	// Add routes using the first router gateway IP for each family for next hop address.
 	for _, route := range opts.LocalRouterRoutes {
@@ -2440,7 +2436,7 @@ func (o *OVN) LogicalRouterPeeringDelete(opts OVNRouterPeering) error {
 
 // GetHardwareAddress gets the hardware address of the logical router port.
 func (o *OVN) GetHardwareAddress(ovnRouterPort OVNRouterPort) (string, error) {
-	nameFilter := fmt.Sprintf("name=%s", ovnRouterPort)
+	nameFilter := "name=" + string(ovnRouterPort)
 	hwaddr, err := o.nbctl("--no-headings", "--data=bare", "--format=csv", "--columns=mac", "find", "Logical_Router_Port", nameFilter)
 	if err != nil {
 		return "", err
@@ -2452,7 +2448,7 @@ func (o *OVN) GetHardwareAddress(ovnRouterPort OVNRouterPort) (string, error) {
 // GetLogicalRouterPortActiveChassisHostname gets the hostname of the chassis managing the logical router port.
 func (o *OVN) GetLogicalRouterPortActiveChassisHostname(ovnRouterPort OVNRouterPort) (string, error) {
 	// Get the chassis ID from port bindings where the logical port is a chassis redirect (prepended "cr-") of the logical router port name.
-	filter := fmt.Sprintf("logical_port=cr-%s", ovnRouterPort)
+	filter := "logical_port=cr-" + string(ovnRouterPort)
 	chassisID, err := o.sbctl("--no-headings", "--columns=chassis", "--data=bare", "--format=csv", "find", "Port_Binding", filter)
 	if err != nil {
 		return "", err

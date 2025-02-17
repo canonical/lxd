@@ -3792,8 +3792,8 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 	var virtiofsdSockPath string
 	for _, opt := range driveConf.Opts {
 		if strings.HasPrefix(opt, device.DiskVirtiofsdSockMountOpt+"=") {
-			parts := strings.SplitN(opt, "=", 2)
-			virtiofsdSockPath = parts[1]
+			_, virtiofsdSockPath, _ = strings.Cut(opt, "=")
+			break
 		}
 	}
 
@@ -9103,13 +9103,13 @@ func (d *qemu) setCPUs(count int) error {
 			dev := map[string]string{
 				"id":      devID,
 				"driver":  cpu.Type,
-				"core-id": fmt.Sprintf("%d", cpu.Props.CoreID),
+				"core-id": fmt.Sprint(cpu.Props.CoreID),
 			}
 
 			// No such thing as sockets and threads on s390x.
 			if d.architecture != osarch.ARCH_64BIT_S390_BIG_ENDIAN {
-				dev["socket-id"] = fmt.Sprintf("%d", cpu.Props.SocketID)
-				dev["thread-id"] = fmt.Sprintf("%d", cpu.Props.ThreadID)
+				dev["socket-id"] = fmt.Sprint(cpu.Props.SocketID)
+				dev["thread-id"] = fmt.Sprint(cpu.Props.ThreadID)
 			}
 
 			err := monitor.AddDevice(dev)
@@ -9144,9 +9144,9 @@ func (d *qemu) setCPUs(count int) error {
 				err := monitor.AddDevice(map[string]string{
 					"id":        devID,
 					"driver":    cpu.Type,
-					"socket-id": fmt.Sprintf("%d", cpu.Props.SocketID),
-					"core-id":   fmt.Sprintf("%d", cpu.Props.CoreID),
-					"thread-id": fmt.Sprintf("%d", cpu.Props.ThreadID),
+					"socket-id": fmt.Sprint(cpu.Props.SocketID),
+					"core-id":   fmt.Sprint(cpu.Props.CoreID),
+					"thread-id": fmt.Sprint(cpu.Props.ThreadID),
 				})
 				d.logger.Warn("Failed to add CPU device", logger.Ctx{"err": err})
 			})

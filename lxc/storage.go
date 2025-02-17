@@ -584,12 +584,12 @@ func (c *cmdStorageInfo) run(cmd *cobra.Command, args []string) error {
 		values := u.Query()
 		projectName := values.Get("project")
 		if projectName != "" {
-			attribs = append(attribs, fmt.Sprintf("project %q", projectName))
+			attribs = append(attribs, `project "`+projectName+`"`)
 		}
 
 		locationName := values.Get("target")
 		if locationName != "" {
-			attribs = append(attribs, fmt.Sprintf("location %q", locationName))
+			attribs = append(attribs, `location "`+locationName+`"`)
 		}
 
 		if len(attribs) > 0 {
