@@ -2625,3 +2625,7 @@ Adds flags --network and --storage. The --network flag adds a network device con
 ## `client_cert_presence`
 
 Adds the field `client_certificate` to `GET /1.0` to indicate if the current request has a client certificate in it. This is for informational purposes only and does not affect the behavior of the API.
+
+## `container_bpf_delegation`
+
+Adds new {config:option}`instance-security:security.delegate_bpf`.* group of options in order to support eBPF delegation using BPF Token mechanism.
