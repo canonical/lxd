@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -619,7 +620,7 @@ func (d *zfs) Unmount() (bool, error) {
 
 	// Export the pool.
 	poolName := strings.Split(d.config["zfs.pool_name"], "/")[0]
-	_, err = shared.RunCommandContext(d.state.ShutdownCtx, "zpool", "export", poolName)
+	_, err = shared.RunCommandContext(context.TODO(), "zpool", "export", poolName)
 	if err != nil {
 		return false, err
 	}
