@@ -502,7 +502,8 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 	origpid := pid
 
 	for pid > 1 {
-		cmdline, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
+		procPID := "/proc/" + fmt.Sprint(pid)
+		cmdline, err := os.ReadFile(procPID + "/cmdline")
 		if err != nil {
 			return nil, err
 		}
@@ -531,7 +532,7 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 			return c, nil
 		}
 
-		status, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
+		status, err := os.ReadFile(procPID + "/status")
 		if err != nil {
 			return nil, err
 		}
