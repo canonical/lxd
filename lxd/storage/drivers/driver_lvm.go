@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -148,7 +149,7 @@ func (d *lvm) Create() error {
 				return err
 			}
 
-			d.config["size"] = fmt.Sprintf("%dGiB", defaultSize)
+			d.config["size"] = fmt.Sprint(defaultSize) + "GiB"
 		}
 
 		size, err := units.ParseByteSizeString(d.config["size"])
@@ -644,7 +645,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 		}
 
 		// Resize physical volume so that lvresize is able to resize as well.
-		_, err = shared.RunCommandContext(d.state.ShutdownCtx, "pvresize", "-y", loopDevPath)
+		_, err = shared.RunCommandContext(context.TODO(), "pvresize", "-y", loopDevPath)
 		if err != nil {
 			return err
 		}
@@ -653,7 +654,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 			lvPath := d.lvmDevPath(d.config["lvm.vg_name"], "", "", d.thinpoolName())
 
 			// Use the remaining space in the volume group.
-			_, err = shared.RunCommandContext(d.state.ShutdownCtx, "lvresize", "-f", "-l", "+100%FREE", lvPath)
+			_, err = shared.RunCommandContext(context.TODO(), "lvresize", "-f", "-l", "+100%FREE", lvPath)
 			if err != nil {
 				return fmt.Errorf("Error resizing LV named %q: %w", lvPath, err)
 			}
