@@ -58,14 +58,14 @@ func StorageVolume(projectName string, storageVolumeName string) string {
 // StorageVolumeParts takes a project prefixed storage volume name and returns the project and storage volume
 // name as separate variables.
 func StorageVolumeParts(projectStorageVolumeName string) (projectName string, storageVolumeName string) {
-	parts := strings.SplitN(projectStorageVolumeName, "_", 2)
+	projectName, storageVolumeName, found := strings.Cut(projectStorageVolumeName, "_")
 
 	// If the given name doesn't contain any project, only return the volume name.
-	if len(parts) == 1 {
+	if !found {
 		return "", projectStorageVolumeName
 	}
 
-	return parts[0], parts[1]
+	return projectName, storageVolumeName
 }
 
 // StorageVolumeProject returns the project name to use to for the volume based on the requested project.
