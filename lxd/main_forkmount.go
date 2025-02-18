@@ -836,14 +836,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	// Used by cgo
-	_ "github.com/canonical/lxd/lxd/include"
+	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
 )
 
 type cmdForkmount struct {
 	global *cmdGlobal
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdForkmount) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -889,6 +889,7 @@ func (c *cmdForkmount) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the forkmount command.
 func (c *cmdForkmount) Run(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf("This command should have been intercepted in cgo")
 }
