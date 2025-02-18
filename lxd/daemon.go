@@ -1527,7 +1527,7 @@ func (d *Daemon) init() error {
 			return fmt.Errorf("Failed loading containers to restart: %w", err)
 		}
 
-		instancesShutdown(instances)
+		instancesShutdown(instances, nil, nil)
 		instancesStart(s, instances)
 	}
 
@@ -2102,7 +2102,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 
 		// Full shutdown requested.
 		if sig == unix.SIGPWR {
-			instancesShutdown(instances)
+			instancesShutdown(instances, usedResourcesMap, &resourceMapMu)
 
 			logger.Info("Stopping networks")
 			networkShutdown(s)
