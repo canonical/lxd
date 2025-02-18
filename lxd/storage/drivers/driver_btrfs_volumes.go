@@ -326,6 +326,11 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 
 		// Restore backup snapshots from oldest to newest.
 		for _, snapName := range srcBackup.Snapshots {
+			// Defend against path traversal attacks.
+			if !shared.IsFileName(snapName) {
+				return nil, nil, fmt.Errorf("Invalid snapshot name %q", snapName)
+			}
+
 			snapVol, _ := vol.NewSnapshot(snapName)
 			snapDir := "snapshots"
 			srcFilePrefix := snapName

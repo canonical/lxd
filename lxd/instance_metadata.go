@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"gopkg.in/yaml.v2"
@@ -767,8 +766,8 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 
 // Return the full path of a container template.
 func getContainerTemplatePath(c instance.Instance, filename string) (string, error) {
-	if strings.Contains(filename, "/") {
-		return "", fmt.Errorf("Invalid template filename")
+	if !shared.IsFileName(filename) {
+		return "", fmt.Errorf("Invalid template filename: %q", filename)
 	}
 
 	return filepath.Join(c.Path(), "templates", filename), nil
