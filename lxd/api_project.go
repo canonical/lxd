@@ -307,7 +307,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Quick checks.
-	err = projectValidateName(project.Name)
+	err = projecthelpers.ValidName(project.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -869,7 +869,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Only empty projects can be renamed")
 			}
 
-			err = projectValidateName(req.Name)
+			err = projecthelpers.ValidName(req.Name)
 			if err != nil {
 				return err
 			}
@@ -1548,38 +1548,6 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 	// restrictions when they are configured.
 	if shared.IsTrue(config["restricted"]) && shared.IsFalse(config["features.profiles"]) {
 		return fmt.Errorf("Projects without their own profiles cannot be restricted")
-	}
-
-	return nil
-}
-
-func projectValidateName(name string) error {
-	if name == "" {
-		return fmt.Errorf("No name provided")
-	}
-
-	if strings.Contains(name, "/") {
-		return fmt.Errorf("Project names may not contain slashes")
-	}
-
-	if strings.Contains(name, " ") {
-		return fmt.Errorf("Project names may not contain spaces")
-	}
-
-	if strings.Contains(name, "_") {
-		return fmt.Errorf("Project names may not contain underscores")
-	}
-
-	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
-		return fmt.Errorf("Project names may not contain quotes")
-	}
-
-	if name == "*" {
-		return fmt.Errorf("Reserved project name")
-	}
-
-	if shared.ValueInSlice(name, []string{".", ".."}) {
-		return fmt.Errorf("Invalid project name %q", name)
 	}
 
 	return nil
