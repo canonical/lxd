@@ -42,6 +42,7 @@ __ro_after_init bool pidfd_aware = false;
 __ro_after_init bool pidfd_setns_aware = false;
 __ro_after_init bool uevent_aware = false;
 __ro_after_init bool binfmt_aware = false;
+__ro_after_init bool bpftoken_aware = false;
 __ro_after_init int seccomp_notify_aware = 0;
 __ro_after_init char errbuf[4096];
 
@@ -619,6 +620,35 @@ static void is_binfmt_aware(void)
 	binfmt_aware = true;
 }
 
+static void is_bpftoken_aware(void)
+{
+	__do_close int fs_fd = -EBADF;
+	int ret;
+
+	fs_fd = lxd_fsopen("bpf", FSOPEN_CLOEXEC);
+	if (fs_fd < 0) {
+		(void)sprintf(errbuf, "%s", "fsopen() failed on bpffs");
+		return;
+	}
+
+	// Try to set an invalid "delegate_cmds" option value and ensure that it fails.
+	// This is important to check, because bpffs ignores unknown options on the kernel side.
+	ret = lxd_fsconfig(fs_fd, FSCONFIG_SET_STRING, "delegate_cmds", "MUSTFAIL", 0);
+	if (ret == 0) {
+		(void)sprintf(errbuf, "%s", "fsconfig succeed to set delegate_cmds, but must fail");
+		return;
+	}
+
+	// Now let's check that a valid value works too. Just in case.
+	ret = lxd_fsconfig(fs_fd, FSCONFIG_SET_STRING, "delegate_cmds", "any", 0);
+	if (ret < 0) {
+		(void)sprintf(errbuf, "%s - fsconfig failed to set delegate_cmds", strerror(errno));
+		return;
+	}
+
+	bpftoken_aware = true;
+}
+
 void checkfeature(void)
 {
 	__do_close int hostnetns_fd = -EBADF, newnetns_fd = -EBADF, pidfd = -EBADF;
@@ -638,6 +668,7 @@ void checkfeature(void)
 		(void)sprintf(errbuf, "%s", "Failed to attach to host network namespace");
 
 	is_binfmt_aware();
+	is_bpftoken_aware();
 }
 
 static bool is_empty_string(char *s)
@@ -733,4 +764,8 @@ func canUseCoreScheduling() bool {
 
 func canUseBinfmt() bool {
 	return bool(C.binfmt_aware)
+}
+
+func canUseBPFToken() bool {
+	return bool(C.bpftoken_aware)
 }
