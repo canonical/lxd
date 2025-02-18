@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -537,22 +537,24 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 			return nil, err
 		}
 
-		re, err := regexp.Compile(`^PPid:\s+([0-9]+)$`)
-		if err != nil {
-			return nil, err
-		}
-
 		for _, line := range strings.Split(string(status), "\n") {
-			m := re.FindStringSubmatch(line)
-			if len(m) > 1 {
-				result, err := strconv.Atoi(m[1])
-				if err != nil {
-					return nil, err
-				}
-
-				pid = int32(result)
-				break
+			ppidStr, found := strings.CutPrefix(line, "PPid:")
+			if !found {
+				continue
 			}
+
+			// ParseUint avoid scanning for `-` sign.
+			ppid, err := strconv.ParseUint(strings.TrimSpace(ppidStr), 10, 32)
+			if err != nil {
+				return nil, err
+			}
+
+			if ppid > math.MaxInt32 {
+				return nil, fmt.Errorf("PPid value too large: Upper bound exceeded")
+			}
+
+			pid = int32(ppid)
+			break
 		}
 	}
 
