@@ -2478,8 +2478,8 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	if isLeader && unavailableMembers != nil && len(heartbeatData.Members) > 1 {
 		isDegraded := false
 		hasNodesNotPartOfRaft := false
-		onlineVoters := 0
-		onlineStandbys := 0
+		onlineVoters := int64(0)
+		onlineStandbys := int64(0)
 
 		for _, node := range heartbeatData.Members {
 			role := db.RaftRole(node.RaftRole)
@@ -2506,7 +2506,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		// If there are offline members that have voter or stand-by database roles, let's see if we can
 		// replace them with spare ones. Also, if we don't have enough voters or standbys, let's see if we
 		// can upgrade some member.
-		if isDegraded || onlineVoters < int(maxVoters) || onlineStandbys < int(maxStandBy) {
+		if isDegraded || onlineVoters < maxVoters || onlineStandbys < maxStandBy {
 			d.clusterMembershipMutex.Lock()
 			logger.Debug("Rebalancing member roles in heartbeat", logger.Ctx{"local": localClusterAddress})
 			err := rebalanceMemberRoles(d.State(), d.gateway, nil, unavailableMembers)
