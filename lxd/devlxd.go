@@ -514,9 +514,7 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 
 			projectName := api.ProjectDefaultName
 			if strings.Contains(name, "_") {
-				fields := strings.SplitN(name, "_", 2)
-				projectName = fields[0]
-				name = fields[1]
+				projectName, name, _ = strings.Cut(name, "_")
 			}
 
 			inst, err := instance.LoadByProjectAndName(s, projectName, name)
