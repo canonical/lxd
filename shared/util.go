@@ -836,6 +836,11 @@ func IsBlockdevPath(pathName string) bool {
 	return ((fm&os.ModeDevice != 0) && (fm&os.ModeCharDevice == 0))
 }
 
+// IsFileName checks if the given string is a valid file name (no "/", ".." or "\\").
+func IsFileName(name string) bool {
+	return !strings.Contains(name, "/") && !strings.Contains(name, "\\") && !strings.Contains(name, "..")
+}
+
 // DeepCopy copies src to dest by using encoding/gob so its not that fast.
 func DeepCopy(src, dest any) error {
 	buff := new(bytes.Buffer)
