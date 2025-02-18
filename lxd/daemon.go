@@ -1653,7 +1653,6 @@ func (d *Daemon) init() error {
 	// Get daemon configuration.
 	bgpAddress := d.localConfig.BGPAddress()
 	bgpRouterID := d.localConfig.BGPRouterID()
-	bgpASN := int64(0)
 
 	maasAPIURL := ""
 	maasAPIKey := ""
@@ -1661,7 +1660,7 @@ func (d *Daemon) init() error {
 
 	// Get specific config keys.
 	d.globalConfigMu.Lock()
-	bgpASN = d.globalConfig.BGPASN()
+	bgpASN := d.globalConfig.BGPASN()
 
 	d.proxy = shared.ProxyFromConfig(d.globalConfig.ProxyHTTPS(), d.globalConfig.ProxyHTTP(), d.globalConfig.ProxyIgnoreHosts())
 
