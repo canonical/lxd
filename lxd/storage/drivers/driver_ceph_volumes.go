@@ -35,7 +35,8 @@ import (
 func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	// Function to rename an RBD volume.
 	renameVolume := func(oldName string, newName string) error {
-		_, err := shared.RunCommand(
+		_, err := shared.RunCommandContext(
+			d.state.ShutdownCtx,
 			"rbd",
 			"--id", d.config["ceph.user.name"],
 			"--cluster", d.config["ceph.cluster_name"],
@@ -390,7 +391,8 @@ func (d *ceph) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 	if len(vol.Snapshots) == 0 || len(snapshots) == 0 {
 		// If lightweight clone mode isn't enabled, perform a full copy of the volume.
 		if shared.IsFalse(d.config["ceph.rbd.clone_copy"]) {
-			_, err = shared.RunCommand(
+			_, err = shared.RunCommandContext(
+				d.state.ShutdownCtx,
 				"rbd",
 				"--id", d.config["ceph.user.name"],
 				"--cluster", d.config["ceph.cluster_name"],
@@ -1022,7 +1024,8 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 			}
 
 			// Delete snapshots.
-			_, err := shared.RunCommand(
+			_, err := shared.RunCommandContext(
+				d.state.ShutdownCtx,
 				"rbd",
 				"--id", d.config["ceph.user.name"],
 				"--cluster", d.config["ceph.cluster_name"],
@@ -1116,14 +1119,11 @@ func (d *ceph) HasVolume(vol Volume) (bool, error) {
 }
 
 // FillVolumeConfig populate volume with default config.
-func (d *ceph) FillVolumeConfig(vol Volume) error {
+func (d *ceph) FillVolumeConfig(vol Volume) {
 	// Copy volume.* configuration options from pool.
 	// Exclude 'block.filesystem' and 'block.mount_options'
 	// as this ones are handled below in this function and depends from volume type
-	err := d.fillVolumeConfig(&vol, "block.filesystem", "block.mount_options")
-	if err != nil {
-		return err
-	}
+	d.fillVolumeConfig(&vol, "block.filesystem", "block.mount_options")
 
 	// Only validate filesystem config keys for filesystem volumes or VM block volumes (which have an
 	// associated filesystem volume).
@@ -1155,8 +1155,6 @@ func (d *ceph) FillVolumeConfig(vol Volume) error {
 			vol.config["block.mount_options"] = "discard"
 		}
 	}
-
-	return nil
 }
 
 // commonVolumeRules returns validation rules which are common for pool and volume.
@@ -1926,7 +1924,8 @@ func (d *ceph) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 // DeleteVolumeSnapshot removes a snapshot from the storage device.
 func (d *ceph) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
 	// Check if snapshot exists, and return if not.
-	_, err := shared.RunCommand(
+	_, err := shared.RunCommandContext(
+		d.state.ShutdownCtx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -2167,7 +2166,7 @@ func (d *ceph) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, 
 		return nil, err
 	}
 
-	var ret []string
+	ret := make([]string, 0, len(snapshots))
 
 	for _, snap := range snapshots {
 		// Ignore zombie snapshots as these are only used internally and
@@ -2196,7 +2195,8 @@ func (d *ceph) restoreVolume(vol Volume, snapVol Volume, op *operations.Operatio
 
 	_, snapshotName, _ := api.GetParentAndSnapshotName(snapVol.name)
 
-	_, err = shared.RunCommand(
+	_, err = shared.RunCommandContext(
+		d.state.ShutdownCtx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],

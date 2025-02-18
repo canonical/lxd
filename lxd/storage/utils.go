@@ -2,7 +2,9 @@ package storage
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -219,7 +221,6 @@ func VolumeDBGet(pool Pool, projectName string, volumeName string, volumeType dr
 }
 
 // VolumeDBCreate creates a volume in the database.
-// If volumeConfig is supplied, it is modified with any driver level default config options (if not set).
 // If removeUnknownKeys is true, any unknown config keys are removed from volumeConfig rather than failing.
 func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDescription string, volumeType drivers.VolumeType, snapshot bool, volumeConfig map[string]string, creationDate time.Time, expiryDate time.Time, contentType drivers.ContentType, removeUnknownKeys bool, hasSource bool) error {
 	p, ok := pool.(*lxdBackend)
@@ -269,10 +270,16 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 	// Set source indicator.
 	vol.SetHasSource(hasSource)
 
-	// Fill default config.
-	err = pool.Driver().FillVolumeConfig(vol)
-	if err != nil {
-		return err
+	bytes, _ := json.Marshal(vol.Config()) // Convert map to JSON
+	old := sha256.Sum256(bytes)
+
+	pool.Driver().FillVolumeConfig(vol)
+
+	bytes, _ = json.Marshal(vol.Config()) // Convert map to JSON
+	newHash := sha256.Sum256(bytes)
+
+	if old != newHash {
+		return errors.New("Volume fill not previously performed")
 	}
 
 	// Validate config.
@@ -395,13 +402,10 @@ func BucketDBCreate(ctx context.Context, pool Pool, projectName string, memberSp
 	bucketVol := drivers.NewVolume(pool.Driver(), pool.Name(), drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, bucket.Config, pool.Driver().Config())
 
 	// Fill default config.
-	err := pool.Driver().FillVolumeConfig(bucketVol)
-	if err != nil {
-		return -1, err
-	}
+	pool.Driver().FillVolumeConfig(bucketVol)
 
 	// Validate bucket name.
-	err = pool.Driver().ValidateBucket(bucketVol)
+	err := pool.Driver().ValidateBucket(bucketVol)
 	if err != nil {
 		return -1, err
 	}
