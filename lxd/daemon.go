@@ -2085,7 +2085,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		logger.Info("Stopping daemon storage volumes")
 		done := make(chan struct{})
 		go func() {
-			err := daemonStorageVolumesUnmount(s)
+			err := daemonStorageVolumesUnmount(s, usedResourcesMap, &resourceMapMu)
 			if err != nil {
 				logger.Error("Failed to unmount image and backup volumes", logger.Ctx{"err": err})
 			}
