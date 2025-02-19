@@ -21,6 +21,8 @@ github.com/go-logr/stdr
 github.com/google/uuid
 github.com/gorilla/securecookie
 github.com/gorilla/websocket
+github.com/juju/go4/lock
+github.com/juju/persistent-cookiejar
 github.com/kr/fs
 github.com/muhlemmer/gu
 github.com/pkg/sftp
@@ -65,6 +67,7 @@ golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/net/internal/socks
 golang.org/x/net/proxy
+golang.org/x/net/publicsuffix
 golang.org/x/oauth2
 golang.org/x/oauth2/clientcredentials
 golang.org/x/oauth2/internal
@@ -73,6 +76,8 @@ golang.org/x/text/internal/language
 golang.org/x/text/internal/language/compact
 golang.org/x/text/internal/tag
 golang.org/x/text/language
+gopkg.in/errgo.v1
+gopkg.in/retry.v1
 gopkg.in/yaml.v2
 vendor/golang.org/x/crypto/chacha20
 vendor/golang.org/x/crypto/chacha20poly1305
