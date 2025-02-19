@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/canonical/lxd/lxd/auth"
-	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -17,12 +16,16 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+type idCtx struct {
+	idInfo *api.IdentityInfo
+	cert   *api.Certificate
+}
+
 type tlsSuite struct {
 	suite.Suite
 	authorizer          auth.Authorizer
-	idCache             *identity.Cache
-	fooRestrictedClient identity.CacheEntry
-	unrestrictedClient  identity.CacheEntry
+	fooRestrictedClient idCtx
+	unrestrictedClient  idCtx
 }
 
 func TestTLSSuite(t *testing.T) {
@@ -31,46 +34,58 @@ func TestTLSSuite(t *testing.T) {
 
 func (s *tlsSuite) SetupSuite() {
 	var err error
-	s.idCache = &identity.Cache{}
-	s.authorizer, err = LoadAuthorizer(context.Background(), DriverTLS, logger.Log, s.idCache)
+	s.authorizer, err = LoadAuthorizer(context.Background(), DriverTLS, logger.Log)
 	s.Require().NoError(err)
 	s.fooRestrictedClient = s.newIdentity("foo-restricted", api.IdentityTypeCertificateClientRestricted, []string{"foo"})
 	s.unrestrictedClient = s.newIdentity("unrestricted", api.IdentityTypeCertificateClientUnrestricted, nil)
-	err = s.idCache.ReplaceAll([]identity.CacheEntry{s.fooRestrictedClient, s.unrestrictedClient}, nil)
 	s.Require().NoError(err)
 }
 
-func (s *tlsSuite) newIdentity(name string, identityType string, projects []string) identity.CacheEntry {
+func (s *tlsSuite) newIdentity(name string, identityType string, projects []string) idCtx {
 	cert, _, err := shared.GenerateMemCert(true, shared.CertOptions{})
 	s.Require().NoError(err)
 	x509Cert, err := shared.ParseCert(cert)
 	s.Require().NoError(err)
 	certFingerprint := shared.CertFingerprint(x509Cert)
-	return identity.CacheEntry{
-		Identifier:           certFingerprint,
-		Name:                 name,
-		AuthenticationMethod: api.AuthenticationMethodTLS,
-		IdentityType:         identityType,
-		Projects:             projects,
-		Certificate:          x509Cert,
+	return idCtx{
+		idInfo: &api.IdentityInfo{
+			Identity: api.Identity{
+				AuthenticationMethod: api.AuthenticationMethodTLS,
+				Type:                 identityType,
+				Identifier:           certFingerprint,
+				Name:                 name,
+				TLSCertificate:       string(cert),
+			},
+		},
+		cert: &api.Certificate{
+			WithEntitlements: api.WithEntitlements{},
+			Name:             name,
+			Type:             api.CertificateTypeClient,
+			Restricted:       identityType == api.IdentityTypeCertificateClientUnrestricted,
+			Projects:         projects,
+			Certificate:      string(cert),
+			Fingerprint:      certFingerprint,
+		},
 	}
 }
 
-func (s *tlsSuite) setupCtx(id *identity.CacheEntry) context.Context {
+func (s *tlsSuite) setupCtx(idCtx *idCtx) context.Context {
 	ctx := context.Background()
-	if id == nil {
+	if idCtx == nil {
 		ctx = context.WithValue(ctx, request.CtxTrusted, false)
 		return ctx
 	}
 
 	ctx = context.WithValue(ctx, request.CtxTrusted, true)
-	ctx = context.WithValue(ctx, request.CtxProtocol, id.AuthenticationMethod)
-	return context.WithValue(ctx, request.CtxUsername, id.Identifier)
+	ctx = context.WithValue(ctx, request.CtxProtocol, idCtx.idInfo.AuthenticationMethod)
+	ctx = context.WithValue(ctx, request.CtxIdentityInfo, idCtx.idInfo)
+	ctx = context.WithValue(ctx, request.CtxCertificateInfo, idCtx.cert)
+	return context.WithValue(ctx, request.CtxUsername, idCtx.idInfo.Identifier)
 }
 
 func (s *tlsSuite) TestTLSAuthorizer() {
 	type testCase struct {
-		id            *identity.CacheEntry
+		id            *idCtx
 		entityURL     *api.URL
 		entitlements  []auth.Entitlement
 		expectErr     bool
@@ -107,12 +122,12 @@ func (s *tlsSuite) TestTLSAuthorizer() {
 		},
 		{
 			id:           &s.fooRestrictedClient,
-			entityURL:    entity.IdentityURL(api.AuthenticationMethodTLS, s.fooRestrictedClient.Identifier),
+			entityURL:    entity.IdentityURL(api.AuthenticationMethodTLS, s.fooRestrictedClient.idInfo.Identifier),
 			entitlements: []auth.Entitlement{auth.EntitlementCanView},
 		},
 		{
 			id:        &s.fooRestrictedClient,
-			entityURL: entity.IdentityURL(api.AuthenticationMethodTLS, s.fooRestrictedClient.Identifier),
+			entityURL: entity.IdentityURL(api.AuthenticationMethodTLS, s.fooRestrictedClient.idInfo.Identifier),
 			entitlements: []auth.Entitlement{
 				auth.EntitlementCanEdit,
 				auth.EntitlementCanDelete,
@@ -133,12 +148,12 @@ func (s *tlsSuite) TestTLSAuthorizer() {
 		},
 		{
 			id:           &s.fooRestrictedClient,
-			entityURL:    entity.CertificateURL(s.fooRestrictedClient.Identifier),
+			entityURL:    entity.CertificateURL(s.fooRestrictedClient.idInfo.Identifier),
 			entitlements: []auth.Entitlement{auth.EntitlementCanView},
 		},
 		{
 			id:        &s.fooRestrictedClient,
-			entityURL: entity.CertificateURL(s.fooRestrictedClient.Identifier),
+			entityURL: entity.CertificateURL(s.fooRestrictedClient.idInfo.Identifier),
 			entitlements: []auth.Entitlement{
 				auth.EntitlementCanEdit,
 				auth.EntitlementCanDelete,
@@ -283,11 +298,11 @@ func (s *tlsSuite) TestTLSAuthorizer() {
 			ctx := s.setupCtx(tt.id)
 			err := s.authorizer.CheckPermission(ctx, tt.entityURL, entitlement)
 			if tt.expectErr {
-				s.T().Logf("%q does not have %q on %q", tt.id.Name, entitlement, tt.entityURL)
+				s.T().Logf("%q does not have %q on %q", tt.id.idInfo.Name, entitlement, tt.entityURL)
 				s.Assert().Error(err)
 				s.Assert().True(api.StatusErrorCheck(err, tt.expectErrCode))
 			} else {
-				s.T().Logf("%q has %q on %q", tt.id.Name, entitlement, tt.entityURL)
+				s.T().Logf("%q has %q on %q", tt.id.idInfo.Name, entitlement, tt.entityURL)
 				s.Assert().NoError(err)
 			}
 
