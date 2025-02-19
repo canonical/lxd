@@ -64,6 +64,7 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 
 	rootPath := ""
 	devRootPath := ""
+	configSearchPaths := []string{}
 	if s.OS.InUbuntuCore() {
 		devRootPath = "/"
 
@@ -97,6 +98,7 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 		}
 
 		rootPath = strings.TrimSuffix(rootPath, "\n")
+		configSearchPaths = []string{rootPath + "/usr/share"}
 
 		// Let's ensure that user did:
 		// snap connect mesa-2404:kernel-gpu-2404 pc-kernel
@@ -116,6 +118,7 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 		nvcdi.WithNVIDIACDIHookPath(nvidiaCTKPath),
 		nvcdi.WithMode(mode),
 		nvcdi.WithCSVFiles(defaultNvidiaTegraCSVFiles(rootPath)),
+		nvcdi.WithConfigSearchPaths(configSearchPaths),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create CDI library: %w", err)
