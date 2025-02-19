@@ -367,8 +367,11 @@ const SystemdListenFDsStart = 3
 // IsJSONRequest returns true if the content type of the HTTP request is JSON.
 func IsJSONRequest(r *http.Request) bool {
 	for k, vs := range r.Header {
-		if strings.ToLower(k) == "content-type" &&
-			len(vs) == 1 && strings.ToLower(vs[0]) == "application/json" {
+		if len(vs) != 1 {
+			continue
+		}
+
+		if strings.ToLower(k) == "content-type" && strings.ToLower(vs[0]) == "application/json" {
 			return true
 		}
 	}
