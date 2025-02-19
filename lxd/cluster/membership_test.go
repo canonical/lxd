@@ -288,12 +288,11 @@ func TestJoin(t *testing.T) {
 	identityCache := &identity.Cache{}
 	err := identityCache.ReplaceAll([]identity.CacheEntry{
 		{
-			AuthenticationMethod: api.AuthenticationMethodTLS,
-			IdentityType:         api.IdentityTypeCertificateServer,
-			Identifier:           altServerCert.Fingerprint(),
-			Certificate:          trustedAltServerCert,
+			Type:        api.IdentityTypeCertificateServer,
+			Identifier:  altServerCert.Fingerprint(),
+			Certificate: trustedAltServerCert,
 		},
-	}, nil)
+	})
 	require.NoError(t, err)
 
 	for path, handler := range targetGateway.HandlerFuncs(nil, identityCache) {
