@@ -267,7 +267,7 @@ func ListenAddresses(configListenAddress string) ([]string, error) {
 	listenIP := net.ParseIP(unwrappedConfigListenAddress)
 	if listenIP != nil || !strings.Contains(unwrappedConfigListenAddress, ":") {
 		// Use net.JoinHostPort so that IPv6 addresses are correctly wrapped ready for parsing below.
-		configListenAddress = net.JoinHostPort(unwrappedConfigListenAddress, fmt.Sprintf("%d", shared.HTTPSDefaultPort))
+		configListenAddress = net.JoinHostPort(unwrappedConfigListenAddress, strconv.Itoa(shared.HTTPSDefaultPort))
 	}
 
 	// By this point we should always have the configListenAddress in form <host>:<port>, so lets check that.
@@ -345,7 +345,7 @@ func GetListeners(start int) []net.Listener {
 	for i := start; i < start+fds; i++ {
 		unix.CloseOnExec(i)
 
-		file := os.NewFile(uintptr(i), fmt.Sprintf("inherited-fd%d", i))
+		file := os.NewFile(uintptr(i), "inherited-fd"+strconv.Itoa(i))
 		listener, err := net.FileListener(file)
 		if err != nil {
 			continue
