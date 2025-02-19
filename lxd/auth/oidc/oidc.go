@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/zitadel/oidc/v3/pkg/client"
 	"github.com/zitadel/oidc/v3/pkg/client/rp"
@@ -19,7 +20,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/db/cluster/secret"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
@@ -91,136 +91,209 @@ func (e AuthError) Unwrap() error {
 }
 
 // Auth extracts OIDC tokens from the request, verifies them, and returns the subject.
-func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Request) (*AuthenticationResult, error) {
+func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Request) (*api.IdentityInfo, error) {
 	err := o.ensureConfig(ctx, r.Host)
 	if err != nil {
 		return nil, fmt.Errorf("Authorization failed: %w", err)
 	}
 
-	authorizationHeader := r.Header.Get("Authorization")
+	sessionJWT, err := getSessionCookie(r)
+	if err == nil && sessionJWT != "" {
+		username, err := o.verifySession(ctx, r, w, sessionJWT)
+		if err != nil {
+			deleteSessionCookie(w)
+			return nil, AuthError{Err: fmt.Errorf("Failed to verify session: %w", err)}
+		}
 
-	_, idToken, refreshToken, err := o.getCookies(r)
-	if err != nil {
-		// Cookies are present but we failed to decrypt them. They may have been tampered with, so delete them to force
-		// the user to log in again.
-		_ = o.setCookies(w, nil, uuid.UUID{}, "", "", true)
-		return nil, fmt.Errorf("Failed to retrieve login information: %w", err)
+		return username, nil
 	}
 
-	var result *AuthenticationResult
+	authorizationHeader := r.Header.Get("Authorization")
 	if authorizationHeader != "" {
-		// When a command line client wants to authenticate, it needs to set the Authorization HTTP header like this:
-		//    Authorization Bearer <access_token>
-		parts := strings.Split(authorizationHeader, "Bearer ")
-		if len(parts) != 2 {
+		bearer, accessToken, ok := strings.Cut(authorizationHeader, " ")
+		if !ok || bearer != "Bearer" {
+			// When a command line client wants to authenticate, it needs to set the Authorization HTTP header like this:
+			//    Authorization Bearer <access_token>
 			return nil, AuthError{fmt.Errorf("Bad authorization token, expected a Bearer token")}
 		}
 
-		// Bearer tokens should always be access tokens.
-		result, err = o.authenticateAccessToken(ctx, parts[1])
+		username, err := o.verifyAccessToken(ctx, w, r, accessToken)
 		if err != nil {
-			return nil, err
+			return nil, AuthError{Err: fmt.Errorf("Failed to verify bearer token: %w", err)}
 		}
-	} else if idToken != "" || refreshToken != "" {
-		// When authenticating via the UI, we expect that there will be ID and refresh tokens present in the request cookies.
-		result, err = o.authenticateIDToken(ctx, w, idToken, refreshToken)
-		if err != nil {
-			return nil, err
-		}
+
+		return username, nil
 	}
 
-	return result, nil
+	return nil, AuthError{Err: errors.New("No session cookie or access token found")}
 }
 
-// authenticateAccessToken verifies the access token and checks that the configured audience is present the in access
-// token claims. We do not attempt to refresh access tokens as this is performed client side. The access token subject
-// is returned if no error occurs.
-func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken string) (*AuthenticationResult, error) {
-	claims, err := op.VerifyAccessToken[*oidc.AccessTokenClaims](ctx, accessToken, o.accessTokenVerifier)
+func (o *Verifier) verifySession(ctx context.Context, r *http.Request, w http.ResponseWriter, sessionToken string) (*api.IdentityInfo, error) {
+	var unverifiedClaims jwt.RegisteredClaims
+	_, _, err := jwt.NewParser().ParseUnverified(sessionToken, &unverifiedClaims)
 	if err != nil {
-		return nil, AuthError{Err: fmt.Errorf("Failed to verify access token: %w", err)}
+		// Token is not a JWT, and therefore is not a LXD token.
+		return nil, fmt.Errorf("Session cookie is not a JWT")
 	}
 
-	// Check that the token includes the configured audience.
-	audience := claims.GetAudience()
-	if o.audience != "" && !shared.ValueInSlice(o.audience, audience) {
-		return nil, AuthError{Err: fmt.Errorf("Provided OIDC token doesn't allow the configured audience")}
+	issAndAud := "lxd:" + o.clusterCertFingerprint()
+	if unverifiedClaims.Issuer != issAndAud || len(unverifiedClaims.Audience) != 1 || unverifiedClaims.Audience[0] != issAndAud {
+		// Token was not issued by us, or has empty or multivalued audience, or the intended audience is not us.
+		return nil, fmt.Errorf("Session cookie has invalid issuer or audience")
 	}
 
-	id, err := o.identityCache.GetByOIDCSubject(claims.Subject)
-	if err == nil {
-		return &AuthenticationResult{
-			IdentityType:           api.IdentityTypeOIDCClient,
-			Email:                  id.Identifier,
-			Name:                   id.Name,
-			Subject:                claims.Subject,
-			IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
-		}, nil
-	} else if !api.StatusErrorCheck(err, http.StatusNotFound) {
-		return nil, fmt.Errorf("Failed to get OIDC identity from identity cache by their subject (%s): %w", claims.Subject, err)
-	}
-
-	userInfo, err := rp.Userinfo[*oidc.UserInfo](ctx, accessToken, oidc.BearerToken, claims.Subject, o.relyingParties[0])
+	sessionID, err := uuid.Parse(unverifiedClaims.Subject)
 	if err != nil {
-		return nil, AuthError{Err: fmt.Errorf("Failed to call user info endpoint with given access token: %w", err)}
+		// Token has invalid session ID
+		return nil, fmt.Errorf("Session cookie has invalid subject")
 	}
 
-	return o.getResultFromClaims(userInfo, userInfo.Claims)
+	key, err := sessionKey(ctx, o.clusterSecret, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to generate session key: %w", err)
+	}
+
+	keyFunc := func(token *jwt.Token) (any, error) {
+		return key, nil
+	}
+
+	parserOptions := []jwt.ParserOption{
+		jwt.WithExpirationRequired(),
+		jwt.WithIssuedAt(),
+		jwt.WithIssuer(issAndAud),
+		jwt.WithAudience(issAndAud),
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS512.Name}),
+		jwt.WithLeeway(5 * time.Minute),
+	}
+
+	var claims jwt.RegisteredClaims
+	_, err = jwt.NewParser(parserOptions...).ParseWithClaims(sessionToken, &claims, keyFunc)
+	if err != nil && !errors.Is(err, jwt.ErrTokenExpired) {
+		return nil, fmt.Errorf("Invalid session: %w", err)
+	} else if err != nil {
+		// Signature was verified (claims are verified after signature) but session has timed out.
+		// Try to refresh the session, otherwise fail.
+		newSessionID, err := o.refreshSession(ctx, r, w, sessionID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to refresh session: %w", err)
+		}
+
+		sessionID = *newSessionID
+	}
+
+	id, revoked, _, err := o.sessionHandler.GetIdentityBySessionID(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to check uesr infomatation: %w", err)
+	}
+
+	if revoked {
+		return nil, AuthError{Err: errors.New("Session revoked")}
+	}
+
+	return id, nil
 }
 
-// authenticateIDToken verifies the identity token and returns the ID token subject. If no identity token is given (or
-// verification fails) it will attempt to refresh the ID token.
-func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWriter, idToken string, refreshToken string) (*AuthenticationResult, error) {
-	var claims *oidc.IDTokenClaims
-	var err error
-	if idToken != "" {
-		// Try to verify the ID token.
-		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParties[0].IDTokenVerifier())
-		if err == nil {
-			return o.getResultFromClaims(claims, claims.Claims)
-		}
+func (o *Verifier) refreshSession(ctx context.Context, r *http.Request, w http.ResponseWriter, currentSessionID uuid.UUID) (*uuid.UUID, error) {
+	_, revoked, refreshToken, err := o.sessionHandler.GetIdentityBySessionID(ctx, currentSessionID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get a refresh token: %w", err)
+	}
+
+	if revoked {
+		return nil, errors.New("Session revoked")
+	} else if refreshToken == "" {
+		return nil, errors.New("No refresh token available")
 	}
 
 	// If ID token verification failed (or it wasn't provided, try refreshing the token).
 	tokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](ctx, o.relyingParties[0], refreshToken, "", "")
 	if err != nil {
-		return nil, AuthError{Err: fmt.Errorf("Failed to refresh ID tokens: %w", err)}
+		return nil, fmt.Errorf("Failed to refresh ID token: %w", err)
 	}
 
-	idTokenAny := tokens.Extra("id_token")
-	if idTokenAny == nil {
-		return nil, AuthError{Err: errors.New("ID tokens missing from OIDC refresh response")}
-	}
-
-	idToken, ok := idTokenAny.(string)
-	if !ok {
-		return nil, AuthError{Err: errors.New("Malformed ID tokens in OIDC refresh response")}
-	}
-
-	// Verify the refreshed ID token.
-	claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParties[0].IDTokenVerifier())
+	res, err := o.getResultFromClaims(tokens.IDTokenClaims, tokens.IDTokenClaims.Claims)
 	if err != nil {
-		return nil, AuthError{Err: fmt.Errorf("Failed to verify refreshed ID token: %w", err)}
+		return nil, fmt.Errorf("Failed getting login information from refreshed token: %w", err)
 	}
 
-	sessionID := uuid.New()
-	clusterSecret, _, err := o.clusterSecret(ctx)
+	if tokens.RefreshToken != "" {
+		res.RefreshToken = tokens.RefreshToken
+	} else {
+		res.RefreshToken = refreshToken
+	}
+
+	res.SessionID = uuid.New()
+
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	err = setSessionCookie(ctx, w, o.clusterSecret, o.clusterCertFingerprint, res.SessionID, o.sessionLifetime)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to set session cookie: %w", err)
+	}
+
+	reverter.Add(func() {
+		deleteSessionCookie(w)
+	})
+
+	err = o.sessionHandler.StartSession(ctx, r, *res)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to store login information from refreshed token: %w", err)
+	}
+
+	reverter.Success()
+	return &res.SessionID, nil
+}
+
+// verifyAccessToken verifies the access token and checks that the configured audience is present the in access
+// token claims. We do not attempt to refresh access tokens as this is performed client side. The access token subject
+// is returned if no error occurs.
+func (o *Verifier) verifyAccessToken(ctx context.Context, w http.ResponseWriter, req *http.Request, accessToken string) (*api.IdentityInfo, error) {
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, o.relyingParties[0].UserinfoEndpoint(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create a user info request: %w", err)
+	}
+
+	r.Header.Set("Authorization", "Bearer "+accessToken)
+	var userInfo oidc.UserInfo
+	err = httphelper.HttpRequest(o.relyingParties[0].HttpClient(), r, &userInfo)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to call user info endpoint with given access token: %w", err)
+	}
+
+	res, err := o.getResultFromClaims(&userInfo, userInfo.Claims)
 	if err != nil {
 		return nil, err
 	}
 
-	secureCookie, err := secureCookie(clusterSecret, sessionID[:])
+	res.SessionID = uuid.New()
+	err = setSessionCookie(ctx, w, o.clusterSecret, o.clusterCertFingerprint, res.SessionID, o.sessionLifetime)
 	if err != nil {
-		return nil, AuthError{Err: fmt.Errorf("Failed to create new session with refreshed token: %w", err)}
+		return nil, fmt.Errorf("Failed to start session: %w", err)
 	}
 
-	// Update the cookies.
-	err = o.setCookies(w, secureCookie, sessionID, idToken, tokens.RefreshToken, false)
+	reverter := revert.New()
+	defer reverter.Fail()
+	reverter.Add(func() {
+		deleteSessionCookie(w)
+	})
+
+	err = o.sessionHandler.StartSession(ctx, r, *res)
 	if err != nil {
-		return nil, AuthError{fmt.Errorf("Failed to update login cookies: %w", err)}
+		return nil, fmt.Errorf("Failed to store authentication result: %w", err)
 	}
 
-	return o.getResultFromClaims(claims, claims.Claims)
+	id, revoked, _, err := o.sessionHandler.GetIdentityBySessionID(ctx, res.SessionID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to check uesr infomatation: %w", err)
+	}
+
+	if revoked {
+		return nil, AuthError{Err: errors.New("Session revoked")}
+	}
+
+	reverter.Success()
+	return id, nil
 }
 
 // getResultFromClaims gets an AuthenticationResult from the given rp.SubjectGetter and claim map.
