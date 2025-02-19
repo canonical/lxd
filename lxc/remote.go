@@ -999,6 +999,7 @@ func (c *cmdRemoteRemove) run(cmd *cobra.Command, args []string) error {
 
 	_ = os.Remove(conf.ServerCertPath(args[0]))
 	_ = os.Remove(conf.OIDCTokenPath(args[0]))
+	_ = os.Remove(conf.CookiePath(args[0]))
 
 	return conf.SaveConfig(c.global.confPath)
 }
