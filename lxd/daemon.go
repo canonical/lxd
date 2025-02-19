@@ -549,15 +549,15 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 
 			// We are trusted by the CA. But because `core.trust_ca_certificates` is false, we also need to check that
 			// the client certificate is in the trust store.
-			id, err := d.identityCache.Get(api.AuthenticationMethodTLS, fingerprint)
+			id, err := d.identityCache.Get(fingerprint)
 			if err != nil {
 				return false, "", "", nil, nil
 			}
 
 			// The identity type must be in our list of candidate types (e.g. if this certificate is a metrics certificate
 			// and we're on a non-metrics related route).
-			if !shared.ValueInSlice(id.IdentityType, candidateIdentityTypes) {
-				return false, "", "", nil, nil
+			if !shared.ValueInSlice(id.Type, candidateIdentityTypes) {
+				return false, "", "", nil
 			}
 
 			// In CA mode we only consider if this exact certificate is valid via mTLS checks below.

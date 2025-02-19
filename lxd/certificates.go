@@ -192,7 +192,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	body := []string{}
-	for _, identity := range d.identityCache.GetByAuthenticationMethod(api.AuthenticationMethodTLS) {
+	for _, identity := range d.identityCache.Clone() {
 		if !userHasPermission(entity.CertificateURL(identity.Identifier)) {
 			continue
 		}
