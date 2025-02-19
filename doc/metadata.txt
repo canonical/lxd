@@ -4933,6 +4933,17 @@ If you remove the `profile` scope, user information may not be displayed in LXD 
 You may add additional scopes if this is required by your identity provider, or if necessary for configuration of {ref}`identity provider groups <identity-provider-groups>`.
 ```
 
+```{config:option} oidc.session.lifetime server-oidc
+:defaultdesc: "`300`"
+:scope: "global"
+:shortdesc: "The lifetime in minutes each user session."
+:type: "integer"
+The lifetime in minutes of each user session.
+The default value is 300 minutes (5 hours).
+Note that when a session times out, the user will remain logged in if they are still logged in with the identity provider.
+This value controls how frequently LXD checks authentication status with the identity provider.
+```
+
 <!-- config group server-oidc end -->
 <!-- config group storage-btrfs-bucket-conf start -->
 ```{config:option} size storage-btrfs-bucket-conf

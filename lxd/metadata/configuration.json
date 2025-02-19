@@ -5527,6 +5527,15 @@
 							"shortdesc": "Space-separated list of OpenID Connect scopes",
 							"type": "space-delimited string"
 						}
+					},
+					{
+						"oidc.session.lifetime": {
+							"defaultdesc": "`300`",
+							"longdesc": "The lifetime in minutes of each user session.\nThe default value is 300 minutes (5 hours).\nNote that when a session times out, the user will remain logged in if they are still logged in with the identity provider.\nThis value controls how frequently LXD checks authentication status with the identity provider.",
+							"scope": "global",
+							"shortdesc": "The lifetime in minutes each user session.",
+							"type": "integer"
+						}
 					}
 				]
 			}
