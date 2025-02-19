@@ -831,9 +831,6 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			// Add authentication/authorization context data.
 			ctx := context.WithValue(r.Context(), request.CtxUsername, username)
 			ctx = context.WithValue(ctx, request.CtxProtocol, protocol)
-			if len(identityProviderGroups) > 0 {
-				ctx = context.WithValue(ctx, request.CtxIdentityProviderGroups, identityProviderGroups)
-			}
 
 			// Add forwarded requestor data.
 			if protocol == auth.AuthenticationMethodCluster {
