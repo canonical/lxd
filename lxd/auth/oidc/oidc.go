@@ -76,6 +76,8 @@ type AuthenticationResult struct {
 	Email                  string
 	Name                   string
 	IdentityProviderGroups []string
+	RefreshToken           string
+	SessionID              uuid.UUID
 }
 
 // AuthError represents an authentication error. If an error of this type is returned, the caller should call
