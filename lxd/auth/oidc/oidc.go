@@ -56,15 +56,17 @@ type relyingParty struct {
 type Verifier struct {
 	accessTokenVerifier *op.AccessTokenVerifier
 	relyingParties      []relyingParty
-	identityCache       *identity.Cache
 
-	clientID       string
-	issuer         string
-	scopes         []string
-	audience       string
-	groupsClaim    string
-	httpClientFunc func() (*http.Client, error)
-	clusterSecret  func(ctx context.Context) (secret.Secret, bool, error)
+	clientID               string
+	issuer                 string
+	scopes                 []string
+	audience               string
+	groupsClaim            string
+	httpClientFunc         func() (*http.Client, error)
+	sessionHandler         SessionHandler
+	clusterCertFingerprint func() string
+	clusterSecret          func(ctx context.Context) (secret.Secret, bool, error)
+	sessionLifetime        time.Duration
 
 	// host is used for setting a valid callback URL when setting the relyingParty.
 	// When creating the relyingParty, the OIDC library performs discovery (e.g. it calls the /well-known/oidc-configuration endpoint).
@@ -721,7 +723,7 @@ type Opts struct {
 }
 
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientID string, scopes []string, audience string, clusterSecret func(ctx context.Context) (secret.Secret, bool, error), identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
+func NewVerifier(issuer string, clientID string, scopes []string, audience string, sessionLifetime time.Duration, clusterSecret func(ctx context.Context) (secret.Secret, bool, error), clusterCertFingerprint func() string, httpClientFunc func() (*http.Client, error), sessionHandler SessionHandler, options *Opts) (*Verifier, error) {
 	opts := &Opts{}
 
 	if options != nil && options.GroupsClaim != "" {
@@ -729,14 +731,16 @@ func NewVerifier(issuer string, clientID string, scopes []string, audience strin
 	}
 
 	verifier := &Verifier{
-		issuer:         issuer,
-		clientID:       clientID,
-		scopes:         scopes,
-		audience:       audience,
-		identityCache:  identityCache,
-		groupsClaim:    opts.GroupsClaim,
-		clusterSecret:  clusterSecret,
-		httpClientFunc: httpClientFunc,
+		issuer:                 issuer,
+		clientID:               clientID,
+		scopes:                 scopes,
+		audience:               audience,
+		clusterCertFingerprint: clusterCertFingerprint,
+		groupsClaim:            opts.GroupsClaim,
+		clusterSecret:          clusterSecret,
+		httpClientFunc:         httpClientFunc,
+		sessionHandler:         sessionHandler,
+		sessionLifetime:        sessionLifetime,
 	}
 
 	if options != nil && options.Host != "" {
