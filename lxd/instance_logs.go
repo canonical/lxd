@@ -662,7 +662,7 @@ func instanceExecOutputDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 func validLogFileName(fname string) bool {
-	if strings.Contains(fname, "/") || strings.Contains(fname, "\\") || strings.Contains(fname, "..") {
+	if !shared.IsFileName(fname) {
 		return false
 	}
 
@@ -678,7 +678,7 @@ func validLogFileName(fname string) bool {
 }
 
 func validExecOutputFileName(fName string) bool {
-	if strings.Contains(fName, "/") || strings.Contains(fName, "\\") || strings.Contains(fName, "..") {
+	if !shared.IsFileName(fName) {
 		return false
 	}
 
