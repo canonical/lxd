@@ -224,8 +224,8 @@ func (c *Config) RemoteTokenExpiry() string {
 }
 
 // OIDCServer returns all the OpenID Connect settings needed to connect to a server.
-func (c *Config) OIDCServer() (issuer string, clientID string, scopes []string, audience string, groupsClaim string) {
-	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), strings.Fields(c.m.GetString("oidc.scopes")), c.m.GetString("oidc.audience"), c.m.GetString("oidc.groups.claim")
+func (c *Config) OIDCServer() (issuer string, clientID string, scopes []string, audience string, groupsClaim string, sessionLifetime time.Duration) {
+	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), strings.Fields(c.m.GetString("oidc.scopes")), c.m.GetString("oidc.audience"), c.m.GetString("oidc.groups.claim"), time.Duration(c.m.GetInt64("oidc.session.lifetime")) * time.Minute
 }
 
 // ClusterHealingThreshold returns the configured healing threshold, i.e. the
@@ -739,6 +739,21 @@ var ConfigSchema = config.Schema{
 
 			return nil
 		}),
+	},
+
+	// lxdmeta:generate(entities=server; group=oidc; key=oidc.session.lifetime)
+	// The lifetime in minutes of each user session.
+	// The default value is 300 minutes (5 hours).
+	// Note that when a session times out, the user will remain logged in if they are still logged in with the identity provider.
+	// This value controls how frequently LXD checks authentication status with the identity provider.
+	// ---
+	//  type: integer
+	//  scope: global
+	//  defaultdesc: `300`
+	//  shortdesc: The lifetime in minutes each user session.
+	"oidc.session.lifetime": {
+		Default: "300",
+		Type:    config.Int64,
 	},
 
 	// lxdmeta:generate(entities=server; group=oidc; key=oidc.groups.claim)
