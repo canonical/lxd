@@ -443,6 +443,7 @@ var APIExtensions = []string{
 	"client_cert_presence",
 	"clustering_groups_used_by",
 	"secret_lifetime",
+	"oidc_sessions",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

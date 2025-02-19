@@ -2645,3 +2645,12 @@ To reflect this, the key lifetime is specified in days and the salt lifetime is 
 When the key rotates, all OIDC users will be logged out of LXD.
 If they are still logged into the identity provider, this will cause a brief redirection.
 Otherwise, they will need to log back in to the identity provider.
+
+## `oidc_sessions`
+
+This API extension adds server-side sessions to LXD for OpenID Connect (OIDC) authenticated identities.
+The {config:option}`server-oidc:oidc.session.lifetime` configuration key can be used to set the session duration.
+When a session expires, LXD will confirm the users authentication status with the identity provider (IdP).
+If the `offline_access` scope is requested, a new token will be retrieved from the IdP.
+Otherwise, the user will need to re-authenticate with the IdP.
+Note that if the user is already logged into the IdP then only a brief redirect will occur.
