@@ -1082,7 +1082,7 @@ func (d *Daemon) init() error {
 	var dbWarnings []dbCluster.Warning
 
 	// Set default authorizer.
-	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverTLS, logger.Log, d.identityCache)
+	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverTLS, logger.Log)
 	if err != nil {
 		return err
 	}
@@ -1511,7 +1511,7 @@ func (d *Daemon) init() error {
 
 	// Load the embedded OpenFGA authorizer. This cannot be loaded until after the cluster database is initialised,
 	// so the TLS authorizer must be loaded first to set up clustering.
-	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverEmbeddedOpenFGA, logger.Log, d.identityCache, authDrivers.WithOpenFGADatastore(openfga.NewOpenFGAStore(d.db.Cluster)))
+	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverEmbeddedOpenFGA, logger.Log, authDrivers.WithOpenFGADatastore(openfga.NewOpenFGAStore(d.db.Cluster)))
 	if err != nil {
 		return err
 	}
