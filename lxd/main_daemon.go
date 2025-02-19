@@ -74,10 +74,12 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	chIgnore := make(chan os.Signal, 1)
 	signal.Notify(chIgnore, unix.SIGHUP)
 
-	err := d.Init()
-	if err != nil {
-		return err
-	}
+	go func() {
+		err := d.Init()
+		if err != nil {
+			d.shutdownDoneCh <- err
+		}
+	}()
 
 	for {
 		select {
@@ -91,7 +93,7 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 				}()
 			}
 
-		case err = <-d.shutdownDoneCh:
+		case err := <-d.shutdownDoneCh:
 			return err
 		}
 	}
