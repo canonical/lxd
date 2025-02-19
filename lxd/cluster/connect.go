@@ -3,7 +3,6 @@ package cluster
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -65,17 +64,6 @@ func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.Ce
 			}
 
 			req.Header.Add(request.HeaderForwardedAddress, r.RemoteAddr)
-
-			identityProviderGroupsAny := ctx.Value(request.CtxIdentityProviderGroups)
-			if ok {
-				identityProviderGroups, ok := identityProviderGroupsAny.([]string)
-				if ok {
-					b, err := json.Marshal(identityProviderGroups)
-					if err == nil {
-						req.Header.Add(request.HeaderForwardedIdentityProviderGroups, string(b))
-					}
-				}
-			}
 
 			return shared.ProxyFromEnvironment(req)
 		}
