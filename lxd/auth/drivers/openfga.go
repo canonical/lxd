@@ -46,7 +46,6 @@ type embeddedOpenFGA struct {
 	commonAuthorizer
 	tlsAuthorizer *tls
 	server        openfgav1.OpenFGAServiceServer
-	identityCache *identity.Cache
 }
 
 // The OpenFGA server requires a ULID to specify the store that we are querying against.
@@ -54,13 +53,7 @@ type embeddedOpenFGA struct {
 var dummyDatastoreULID = ulid.Make().String()
 
 // load sets up the authorizer.
-func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cache, opts Opts) error {
-	if identityCache == nil {
-		return fmt.Errorf("Must provide certificate cache")
-	}
-
-	e.identityCache = identityCache
-
+func (e *embeddedOpenFGA) load(ctx context.Context, opts Opts) error {
 	// Use the TLS driver for TLS authenticated users for now.
 	tlsDriver := &tls{
 		commonAuthorizer: commonAuthorizer{
@@ -68,7 +61,7 @@ func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cach
 		},
 	}
 
-	err := tlsDriver.load(ctx, identityCache, opts)
+	err := tlsDriver.load(ctx, opts)
 	if err != nil {
 		return err
 	}
@@ -142,7 +135,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 		return api.NewGenericStatusError(http.StatusForbidden)
 	}
 
-	isRoot, err := auth.IsServerAdmin(ctx, e.identityCache)
+	isRoot, err := auth.IsServerAdmin(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to check caller privilege: %w", err)
 	}
@@ -152,7 +145,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 		return nil
 	}
 
-	id, err := auth.GetIdentityFromCtx(ctx, e.identityCache)
+	id, err := auth.GetIdentityFromCtx(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to get caller identity: %w", err)
 	}
@@ -162,30 +155,8 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 	l := e.logger.AddContext(logCtx)
 
 	// If the identity type does not use fine-grained auth use the TLS driver instead.
-	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
+	if !identity.IsFineGrainedIdentityType(id.Type) {
 		return e.tlsAuthorizer.CheckPermission(ctx, entityURL, entitlement)
-	}
-
-	// Combine the users LXD groups with any mappings that have come from the IDP.
-	groups := id.Groups
-	idpGroups, err := auth.GetIdentityProviderGroupsFromCtx(ctx)
-	if err != nil {
-		return fmt.Errorf("Failed to get caller identity provider groups: %w", err)
-	}
-
-	for _, idpGroup := range idpGroups {
-		lxdGroups, err := e.identityCache.GetIdentityProviderGroupMapping(idpGroup)
-		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-			return fmt.Errorf("Failed to get identity provider group mapping for group %q: %w", idpGroup, err)
-		} else if err != nil {
-			continue
-		}
-
-		for _, lxdGroup := range lxdGroups {
-			if !shared.ValueInSlice(lxdGroup, groups) {
-				groups = append(groups, lxdGroup)
-			}
-		}
 	}
 
 	// The project in the given URL may be for a project that does not have a feature enabled, in this case the auth check
@@ -232,7 +203,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 	}
 
 	// For each group, append a contextual tuple to make the identity a member.
-	for _, groupName := range groups {
+	for _, groupName := range id.EffectiveGroups {
 		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
 			User:     userObject,
 			Relation: "member",
@@ -347,7 +318,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 		return allowFunc(false), nil
 	}
 
-	isRoot, err := auth.IsServerAdmin(ctx, e.identityCache)
+	isRoot, err := auth.IsServerAdmin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to check caller privilege: %w", err)
 	}
@@ -357,7 +328,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 		return allowFunc(true), nil
 	}
 
-	id, err := auth.GetIdentityFromCtx(ctx, e.identityCache)
+	id, err := auth.GetIdentityFromCtx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get caller identity: %w", err)
 	}
@@ -367,30 +338,8 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 	l := e.logger.AddContext(logCtx)
 
 	// If the identity type does not use fine-grained auth, use the TLS driver instead.
-	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
+	if !identity.IsFineGrainedIdentityType(id.Type) {
 		return e.tlsAuthorizer.GetPermissionChecker(ctx, entitlement, entityType)
-	}
-
-	// Combine the users LXD groups with any mappings that have come from the IDP.
-	groups := id.Groups
-	idpGroups, err := auth.GetIdentityProviderGroupsFromCtx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get caller identity provider groups: %w", err)
-	}
-
-	for _, idpGroup := range idpGroups {
-		lxdGroups, err := e.identityCache.GetIdentityProviderGroupMapping(idpGroup)
-		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-			return nil, fmt.Errorf("Failed to get identity provider group mapping for group %q: %w", idpGroup, err)
-		} else if err != nil {
-			continue
-		}
-
-		for _, lxdGroup := range lxdGroups {
-			if !shared.ValueInSlice(lxdGroup, groups) {
-				groups = append(groups, lxdGroup)
-			}
-		}
 	}
 
 	// Construct an OpenFGA list objects request.
@@ -419,7 +368,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 	}
 
 	// For each group, append a contextual tuple to make the identity a member.
-	for _, groupName := range groups {
+	for _, groupName := range id.EffectiveGroups {
 		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
 			User:     userObject,
 			Relation: "member",
