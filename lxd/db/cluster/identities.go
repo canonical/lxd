@@ -320,7 +320,26 @@ func (i Identity) X509() (*x509.Certificate, error) {
 
 // OIDCMetadata contains metadata for OIDC identities.
 type OIDCMetadata struct {
-	Subject string `json:"subject"`
+	Subject           string   `json:"subject"`
+	SessionID         string   `json:"session_id"`
+	RefreshToken      string   `json:"refresh_token"`
+	IDPGroups         []string `json:"idp_groups"`
+	SessionTerminated bool     `json:"session_terminated"`
+}
+
+// OIDCMetadata returns the OIDC identity metadata.
+func (i Identity) OIDCMetadata() (*OIDCMetadata, error) {
+	if i.Type != api.IdentityTypeOIDCClient {
+		return nil, api.NewStatusError(http.StatusBadRequest, "Cannot extract OIDC metadata: Identity is not an OIDC client")
+	}
+
+	var metadata OIDCMetadata
+	err := json.Unmarshal([]byte(i.Metadata), &metadata)
+	if err != nil {
+		return nil, api.StatusErrorf(http.StatusInternalServerError, "Failed to unmarshal OIDC identity metadata: %w", err)
+	}
+
+	return &metadata, nil
 }
 
 // Subject returns OIDC subject from the identity metadata. The AuthMethod of the Identity must be api.AuthenticationMethodOIDC.
@@ -361,18 +380,6 @@ func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
 
 // ToAPI converts an Identity to an api.Identity, executing database queries as necessary.
 func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.Identity, error) {
-	groups, err := GetAuthGroupsByIdentityID(ctx, tx, i.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	groupNames := make([]string, 0, len(groups))
-	for _, group := range groups {
-		if canViewGroup(entity.AuthGroupURL(group.Name)) {
-			groupNames = append(groupNames, group.Name)
-		}
-	}
-
 	var tlsCertificate string
 	if i.AuthMethod == api.AuthenticationMethodTLS && i.Type != api.IdentityTypeCertificateClientPending {
 		metadata, err := i.CertificateMetadata()
@@ -383,6 +390,29 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 		tlsCertificate = metadata.Certificate
 	}
 
+	// Shortcut group checks if identity is not fine-grained.
+	if !identity.IsFineGrainedIdentityType(string(i.Type)) {
+		return &api.Identity{
+			AuthenticationMethod: string(i.AuthMethod),
+			Type:                 string(i.Type),
+			Identifier:           i.Identifier,
+			Name:                 i.Name,
+			TLSCertificate:       tlsCertificate,
+		}, nil
+	}
+
+	groups, err := GetAuthGroupsByIdentityID(ctx, tx, i.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	groupNames := make([]string, 0, len(groups))
+	for _, group := range groups {
+		if canViewGroup == nil || canViewGroup(entity.AuthGroupURL(group.Name)) {
+			groupNames = append(groupNames, group.Name)
+		}
+	}
+
 	return &api.Identity{
 		AuthenticationMethod: string(i.AuthMethod),
 		Type:                 string(i.Type),
@@ -391,6 +421,79 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 		Groups:               groupNames,
 		TLSCertificate:       tlsCertificate,
 	}, nil
+}
+
+// ToAPIInfo returns an api.IdentityInfo from the Identity. It shortcuts if the Identity is not fine-grained. For OIDC identities,
+// it additionally returns a boolean indicating if the session was terminated and a refresh token.
+func (i *Identity) ToAPIInfo(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (info *api.IdentityInfo, sessionTerminated bool, refreshToken string, err error) {
+	apiIdentity, err := i.ToAPI(ctx, tx, canViewGroup)
+	if err != nil {
+		return nil, false, "", fmt.Errorf("Failed to populate LXD groups: %w", err)
+	}
+
+	// Shortcut further checks if identity is not fine-grained.
+	if !identity.IsFineGrainedIdentityType(string(i.Type)) {
+		return &api.IdentityInfo{
+			Identity: *apiIdentity,
+		}, false, "", nil
+	}
+
+	var idpGroupNames []string
+	if apiIdentity.Type == api.IdentityTypeOIDCClient {
+		oidcMetadata, err := i.OIDCMetadata()
+		if err != nil {
+			return nil, true, "", fmt.Errorf("Failed getting OIDC client metadata: %w", err)
+		}
+
+		sessionTerminated = oidcMetadata.SessionTerminated
+		refreshToken = oidcMetadata.RefreshToken
+		idpGroupNames = oidcMetadata.IDPGroups
+	}
+
+	effectiveGroups := apiIdentity.Groups
+	mappedGroups, err := GetDistinctAuthGroupNamesFromIDPGroupNames(ctx, tx, idpGroupNames)
+	if err != nil {
+		return nil, false, "", fmt.Errorf("Failed to get effective groups: %w", err)
+	}
+
+	for _, mappedGroup := range mappedGroups {
+		if !shared.ValueInSlice(mappedGroup, effectiveGroups) {
+			effectiveGroups = append(effectiveGroups, mappedGroup)
+		}
+	}
+
+	return &api.IdentityInfo{
+		Identity:        *apiIdentity,
+		EffectiveGroups: effectiveGroups,
+		FineGrained:     identity.IsFineGrainedIdentityType(apiIdentity.Type),
+	}, sessionTerminated, refreshToken, nil
+}
+
+// PopulateEffectivePermissions accepts an *api.IdentityInfo and adds the effective permissions based on the effective
+// groups. This is done separately because an *api.IdentityInfo is already added to the request context after authentcation
+// (sans effective permissions).
+func PopulateEffectivePermissions(ctx context.Context, tx *sql.Tx, info *api.IdentityInfo) error {
+	permissions, err := GetDistinctPermissionsByGroupNames(ctx, tx, info.EffectiveGroups)
+	if err != nil {
+		return fmt.Errorf("Failed to get effective permissions: %w", err)
+	}
+
+	permissions, entityURLs, err := GetPermissionEntityURLs(ctx, tx, permissions)
+	if err != nil {
+		return fmt.Errorf("Failed to get entity URLs for effective permissions: %w", err)
+	}
+
+	effectivePermissions := make([]api.Permission, 0, len(permissions))
+	for _, permission := range permissions {
+		effectivePermissions = append(effectivePermissions, api.Permission{
+			EntityType:      string(permission.EntityType),
+			EntityReference: entityURLs[entity.Type(permission.EntityType)][permission.EntityID].String(),
+			Entitlement:     string(permission.Entitlement),
+		})
+	}
+
+	info.EffectivePermissions = effectivePermissions
+	return nil
 }
 
 // ActivateTLSIdentity updates a TLS identity to make it valid by adding the fingerprint, PEM encoded certificate, and setting
@@ -447,6 +550,30 @@ func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret 
 		return nil, api.NewStatusError(http.StatusNotFound, "No pending identities found with given secret")
 	} else if len(identities) > 1 {
 		return nil, errors.New("Multiple pending identities found with given secret")
+	}
+
+	return &identities[0], nil
+}
+
+var getOIDCIdentityBySessionIDStmt = fmt.Sprintf(`
+SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
+	FROM identities
+	WHERE identities.type = %d
+	AND json_extract(identities.metadata, '$.session_id') = ?
+`, identityTypeOIDCClient)
+
+// GetOIDCIdentityBySessionID gets a single identity of type identityTypeOIDCClient with the given session ID in its
+// metadata. If no identity with this session ID is found, an api.StatusError is returned with http.StatusNotFound.
+func GetOIDCIdentityBySessionID(ctx context.Context, tx *sql.Tx, sessionID uuid.UUID) (*Identity, error) {
+	identities, err := getIdentitysRaw(ctx, tx, getOIDCIdentityBySessionIDStmt, sessionID.String())
+	if err != nil {
+		return nil, err
+	}
+
+	if len(identities) == 0 {
+		return nil, api.NewStatusError(http.StatusNotFound, "No identities found with given session ID")
+	} else if len(identities) > 1 {
+		return nil, errors.New("Multiple pending identities found with given session ID")
 	}
 
 	return &identities[0], nil
