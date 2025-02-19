@@ -22,6 +22,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 // SessionHandler is used where session handling must call the database. Methods should only be called after a client
@@ -320,12 +321,7 @@ func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 
 // Logout deletes the ID and refresh token cookies and redirects the user to the login page.
 func (o *Verifier) Logout(w http.ResponseWriter, r *http.Request) {
-	err := o.setCookies(w, nil, uuid.UUID{}, "", "", true)
-	if err != nil {
-		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to delete login information: %w", err).Error()).Render(w, r)
-		return
-	}
-
+	deleteSessionCookie(w)
 	http.Redirect(w, r, "/ui/login/", http.StatusFound)
 }
 
@@ -355,28 +351,38 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clusterSecret, _, err := o.clusterSecret(r.Context())
-	if err != nil {
-		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("OIDC callback failed: %w", err).Error()).Render(w, r)
-		return
-	}
-
 	handler := rp.CodeExchangeHandler(func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens[*oidc.IDTokenClaims], state string, rp rp.RelyingParty) {
-		sessionID := uuid.New()
-		secureCookie, err := secureCookie(clusterSecret, sessionID[:])
+		res, err := o.getResultFromClaims(tokens.IDTokenClaims, tokens.IDTokenClaims.Claims)
 		if err != nil {
-			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to start a new session: %w", err).Error()).Render(w, r)
+			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed getting login information: %w", err).Error()).Render(w, r)
 			return
 		}
 
-		err = o.setCookies(w, secureCookie, sessionID, tokens.IDToken, tokens.RefreshToken, false)
+		res.RefreshToken = tokens.RefreshToken
+		res.SessionID = uuid.New()
+
+		reverter := revert.New()
+		defer reverter.Fail()
+
+		err = setSessionCookie(r.Context(), w, o.clusterSecret, o.clusterCertFingerprint, res.SessionID, o.sessionLifetime)
 		if err != nil {
-			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to set login information: %w", err).Error()).Render(w, r)
+			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to set session cookie: %w", err).Error()).Render(w, r)
+			return
+		}
+
+		reverter.Add(func() {
+			deleteSessionCookie(w)
+		})
+
+		err = o.sessionHandler.StartSession(r.Context(), r, *res)
+		if err != nil {
+			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to store login result: %w", err).Error()).Render(w, r)
 			return
 		}
 
 		// Send to the UI.
 		// NOTE: Once the UI does the redirection on its own, we may be able to use the referer here instead.
+		reverter.Success()
 		http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
 	}, relyingParty)
 
