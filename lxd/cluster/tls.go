@@ -67,18 +67,25 @@ func tlsCheckCert(r *http.Request, networkCert *shared.CertInfo, serverCert *sha
 		return false
 	}
 
+	trustedServerCert, err := x509.ParseCertificate(serverCert.KeyPair().Certificate[0])
+	if err != nil {
+		return false
+	}
+
+	trustedServerCerts := map[string]x509.Certificate{serverCert.Fingerprint(): *trustedServerCert}
+	cachedIdentityTypeCertificateServer := cache.X509Certificates(api.IdentityTypeCertificateServer)
+
 	for _, i := range r.TLS.PeerCertificates {
 		// Trust our own server certificate. This allows Dqlite to start with a connection back to this
 		// member before the database is available. It also allows us to switch the server certificate to
 		// the network certificate during cluster upgrade to per-server certificates, and it be trusted.
-		trustedServerCert, _ := x509.ParseCertificate(serverCert.KeyPair().Certificate[0])
-		trusted, _ := util.CheckMutualTLS(*i, map[string]x509.Certificate{serverCert.Fingerprint(): *trustedServerCert})
+		trusted, _ := util.CheckMutualTLS(*i, trustedServerCerts)
 		if trusted {
 			return true
 		}
 
 		// Check the trusted server certficates list provided.
-		trusted, _ = util.CheckMutualTLS(*i, cache.X509Certificates(api.IdentityTypeCertificateServer))
+		trusted, _ = util.CheckMutualTLS(*i, cachedIdentityTypeCertificateServer)
 		if trusted {
 			return true
 		}
