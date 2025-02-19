@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/juju/persistent-cookiejar"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 
 	"github.com/canonical/lxd/shared"
@@ -37,6 +38,9 @@ type Config struct {
 
 	// OIDC tokens
 	oidcTokens map[string]*oidc.Tokens[*oidc.IDTokenClaims]
+
+	// cookie jars
+	cookieJars map[string]*cookiejar.Jar
 }
 
 // GlobalConfigPath returns a joined path of the global configuration directory and passed arguments.
@@ -90,6 +94,32 @@ func (c *Config) SaveOIDCTokens() {
 		tokenPath := c.OIDCTokenPath(remote)
 		data, _ := json.Marshal(tokens)
 		_ = os.WriteFile(tokenPath, data, 0600)
+	}
+}
+
+// CookiePath returns the path for saving the session cookie.
+func (c *Config) CookiePath(remote string) string {
+	return c.ConfigPath("cookies", remote+".json")
+}
+
+// SaveCookies saves any cookies in the cookiejar to disk.
+func (c *Config) SaveCookies() {
+	if len(c.cookieJars) == 0 {
+		return
+	}
+
+	cookieParentPath := c.ConfigPath("cookies")
+
+	if !shared.PathExists(cookieParentPath) {
+		_ = os.MkdirAll(cookieParentPath, 0750)
+	}
+
+	for _, jar := range c.cookieJars {
+		if jar == nil {
+			continue
+		}
+
+		_ = jar.Save()
 	}
 }
 
