@@ -1084,11 +1084,6 @@ func getIdentity(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
-	identifier, err := request.GetCtxValue[string](r.Context(), request.CtxUsername)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to get identity identifier: %w", err))
-	}
-
 	protocol, err := request.GetCtxValue[string](r.Context(), request.CtxProtocol)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get authentication method: %w", err))
@@ -1100,69 +1095,20 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Current identity information must be requested via the HTTPS API"))
 	}
 
-	// Identity provider groups may not be present.
-	identityProviderGroupNames, _ := request.GetCtxValue[[]string](r.Context(), request.CtxIdentityProviderGroups)
+	info, err := request.GetCtxValue[*api.IdentityInfo](r.Context(), request.CtxIdentityInfo)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	s := d.State()
-	var apiIdentity *api.Identity
-	var effectiveGroups []string
-	var effectivePermissions []api.Permission
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(protocol), identifier)
-		if err != nil {
-			return fmt.Errorf("Failed to get current identity from database: %w", err)
-		}
-
-		// Using a permission checker here is redundant, we know who the user is, and we know that they are allowed
-		// to view the groups that they are a member of.
-		apiIdentity, err = id.ToAPI(ctx, tx.Tx(), func(entityURL *api.URL) bool { return true })
-		if err != nil {
-			return fmt.Errorf("Failed to populate LXD groups: %w", err)
-		}
-
-		effectiveGroups = apiIdentity.Groups
-		mappedGroups, err := dbCluster.GetDistinctAuthGroupNamesFromIDPGroupNames(ctx, tx.Tx(), identityProviderGroupNames)
-		if err != nil {
-			return fmt.Errorf("Failed to get effective groups: %w", err)
-		}
-
-		for _, mappedGroup := range mappedGroups {
-			if !shared.ValueInSlice(mappedGroup, effectiveGroups) {
-				effectiveGroups = append(effectiveGroups, mappedGroup)
-			}
-		}
-
-		permissions, err := dbCluster.GetDistinctPermissionsByGroupNames(ctx, tx.Tx(), effectiveGroups)
-		if err != nil {
-			return fmt.Errorf("Failed to get effective permissions: %w", err)
-		}
-
-		permissions, entityURLs, err := dbCluster.GetPermissionEntityURLs(ctx, tx.Tx(), permissions)
-		if err != nil {
-			return fmt.Errorf("Failed to get entity URLs for effective permissions: %w", err)
-		}
-
-		effectivePermissions = make([]api.Permission, 0, len(permissions))
-		for _, permission := range permissions {
-			effectivePermissions = append(effectivePermissions, api.Permission{
-				EntityType:      string(permission.EntityType),
-				EntityReference: entityURLs[entity.Type(permission.EntityType)][permission.EntityID].String(),
-				Entitlement:     string(permission.Entitlement),
-			})
-		}
-
-		return nil
+		return dbCluster.PopulateEffectivePermissions(ctx, tx.Tx(), info)
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	return response.SyncResponse(true, api.IdentityInfo{
-		Identity:             *apiIdentity,
-		EffectiveGroups:      effectiveGroups,
-		EffectivePermissions: effectivePermissions,
-		FineGrained:          identity.IsFineGrainedIdentityType(apiIdentity.Type),
-	})
+	return response.SyncResponse(true, info)
 }
 
 // swagger:operation PUT /1.0/auth/identities/tls/{nameOrIdentifier} identities identity_put_tls
@@ -1354,6 +1300,7 @@ func updateIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Iden
 		return response.SmartError(err)
 	}
 
+	var doIdentityCacheUpdate bool
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		apiIdentity, err := id.ToAPI(ctx, tx.Tx(), canViewGroup)
 		if err != nil {
@@ -1376,6 +1323,7 @@ func updateIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Iden
 		}
 
 		// Only update certificate if present and different to the existing one.
+		doIdentityCacheUpdate = true
 		return dbCluster.UpdateIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier, dbCluster.Identity{
 			AuthMethod: id.AuthMethod,
 			Type:       id.Type,
@@ -1390,7 +1338,7 @@ func updateIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Iden
 
 	// Notify other cluster members to update their identity cache.
 	notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
-	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true)
+	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, doIdentityCacheUpdate)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1533,6 +1481,7 @@ func patchIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Ident
 	}
 
 	var apiIdentity *api.Identity
+	var doUpdateIdentityCache bool
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		apiIdentity, err = id.ToAPI(ctx, tx.Tx(), canViewGroup)
 		if err != nil {
@@ -1558,6 +1507,7 @@ func patchIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Ident
 		// Only update the certificate if it is given. Additionally, we don't need to update it if it's the same as the
 		// existing one.
 		if identityPut.TLSCertificate != "" && fingerprint != id.Identifier {
+			doUpdateIdentityCache = true
 			return dbCluster.UpdateIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier, dbCluster.Identity{
 				AuthMethod: id.AuthMethod,
 				Type:       id.Type,
@@ -1575,7 +1525,7 @@ func patchIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Ident
 
 	// Notify other cluster members to update their identity cache.
 	notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
-	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true)
+	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, doUpdateIdentityCache)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1707,7 +1657,7 @@ func deleteIdentity(d *Daemon, r *http.Request) response.Response {
 
 	// Notify other cluster members to update their identity cache.
 	notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
-	_, err = notify(lifecycle.IdentityDeleted, string(id.AuthMethod), id.Identifier, true)
+	_, err = notify(lifecycle.IdentityDeleted, string(id.AuthMethod), id.Identifier, id.AuthMethod == api.AuthenticationMethodTLS)
 	if err != nil {
 		return response.SmartError(err)
 	}
