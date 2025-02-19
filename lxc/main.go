@@ -454,6 +454,9 @@ func (c *cmdGlobal) PostRun(cmd *cobra.Command, args []string) error {
 	if c.conf != nil && shared.PathExists(c.confPath) {
 		// Save OIDC tokens on exit
 		c.conf.SaveOIDCTokens()
+
+		// Save cookies on exit
+		c.conf.SaveCookies()
 	}
 
 	return nil
