@@ -233,7 +233,7 @@ See {ref}`preseed-yaml-file-fields` for the complete fields of the preseed YAML 
 (use-microcloud)=
 ## Use MicroCloud
 
-```{youtube} https://www.youtube.com/watch?v=iWZYUU8lX5A
+```{youtube} https://www.youtube.com/watch?v=M0y0hQ16YuE
 ```
 
 Instead of setting up your LXD cluster manually, you can use [MicroCloud](https://canonical.com/microcloud) to get a fully highly available LXD cluster with OVN and with Ceph storage up and running.
@@ -246,8 +246,12 @@ Then start the bootstrapping process with the following command:
 
     microcloud init
 
-During the initialization process, MicroCloud detects the other servers, sets up OVN networking and prompts you to add disks to Ceph.
+If you want to set up a multi-machine MicroCloud, run the following command on all the other machines:
+
+    microcloud join
+
+Following the CLI prompts, a working MicroCloud will be ready within minutes.
 
 When the initialization is complete, you’ll have an OVN cluster, a Ceph cluster and a LXD cluster, and LXD itself will have been configured with both networking and storage suitable for use in a cluster.
 
-See the [MicroCloud documentation](https://canonical-microcloud.readthedocs-hosted.com/en/latest/) for more information.
+See the [MicroCloud documentation](https://canonical-microcloud.readthedocs-hosted.com) for more information.
