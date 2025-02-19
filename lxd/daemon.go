@@ -27,7 +27,6 @@ import (
 	liblxc "github.com/lxc/go-lxc"
 	"golang.org/x/sys/unix"
 
-	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/acme"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/auth"
@@ -39,6 +38,8 @@ import (
 	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/cluster/secret"
+	dbOIDC "github.com/canonical/lxd/lxd/db/oidc"
 	"github.com/canonical/lxd/lxd/db/openfga"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/dns"
@@ -52,7 +53,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
-	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/loki"
 	"github.com/canonical/lxd/lxd/maas"
 	"github.com/canonical/lxd/lxd/metrics"
@@ -130,6 +130,10 @@ type Daemon struct {
 	serverCert    func() *shared.CertInfo
 	serverCertInt *shared.CertInfo // Do not use this directly, use servertCert func.
 
+	// Cluster secret. This should only be modified by the `getClusterSecret` function.
+	// It is reset when joining a cluster so that the joining member will get the shared key on the next `getClusterSecret` call.
+	clusterSecretInternal *secret.Secret
+
 	// Status control.
 	setupChan      chan struct{}      // Closed when basic Daemon setup is completed
 	waitReady      *cancel.Canceller  // Cancelled when LXD is fully ready
@@ -182,20 +186,21 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
 
 	d := &Daemon{
-		identityCache:  &identity.Cache{},
-		config:         config,
-		devlxdEvents:   devlxdEvents,
-		events:         lxdEvents,
-		tasks:          task.NewGroup(),
-		clusterTasks:   task.NewGroup(),
-		db:             &db.DB{},
-		http01Provider: acme.NewHTTP01Provider(),
-		os:             os,
-		setupChan:      make(chan struct{}),
-		waitReady:      cancel.New(context.Background()),
-		shutdownCtx:    shutdownCtx,
-		shutdownCancel: shutdownCancel,
-		shutdownDoneCh: make(chan error),
+		identityCache:         &identity.Cache{},
+		config:                config,
+		devlxdEvents:          devlxdEvents,
+		events:                lxdEvents,
+		tasks:                 task.NewGroup(),
+		clusterTasks:          task.NewGroup(),
+		db:                    &db.DB{},
+		http01Provider:        acme.NewHTTP01Provider(),
+		os:                    os,
+		setupChan:             make(chan struct{}),
+		waitReady:             cancel.New(context.Background()),
+		shutdownCtx:           shutdownCtx,
+		shutdownCancel:        shutdownCancel,
+		shutdownDoneCh:        make(chan error),
+		clusterSecretInternal: &secret.Secret{},
 	}
 
 	d.serverCert = func() *shared.CertInfo { return d.serverCertInt }
@@ -309,7 +314,7 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(nil)
 	}
 
-	isServerAdmin, err := auth.IsServerAdmin(r.Context(), d.identityCache)
+	isServerAdmin, err := auth.IsServerAdmin(r.Context())
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to determine caller privilege: %w", err))
 	}
@@ -319,12 +324,12 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 		return response.EmptySyncResponse
 	}
 
-	id, err := auth.GetIdentityFromCtx(r.Context(), d.identityCache)
+	id, err := auth.GetIdentityFromCtx(r.Context())
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to determine caller identity: %w", err))
 	}
 
-	switch id.IdentityType {
+	switch id.Type {
 	case api.IdentityTypeOIDCClient:
 		// OIDC authenticated clients are governed by fine-grained auth. They can call the endpoint but may see an empty list.
 		return response.EmptySyncResponse
@@ -343,8 +348,13 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(fmt.Errorf("Certificate is restricted"))
 	}
 
+	cert, err := request.GetCtxValue[*api.Certificate](r.Context(), request.CtxCertificateInfo)
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to check user permissions: %w", err))
+	}
+
 	// Disallow listing resources in projects the caller does not have access to.
-	if !shared.ValueInSlice(request.ProjectParam(r), id.Projects) {
+	if !shared.ValueInSlice(request.ProjectParam(r), cert.Projects) {
 		return response.Forbidden(fmt.Errorf("Certificate is restricted"))
 	}
 
@@ -359,12 +369,12 @@ func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, identit
 		return nil
 	}
 
-	id, err := auth.GetIdentityFromCtx(ctx, identityCache)
+	id, err := auth.GetIdentityFromCtx(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to get caller identity: %w", err)
 	}
 
-	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
+	if !identity.IsFineGrainedIdentityType(id.Type) {
 		return fmt.Errorf("Not fine grained")
 	}
 
@@ -451,14 +461,87 @@ func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allow
 // This does not perform authorization, only validates authentication.
 // Returns whether trusted or not, the username (or certificate fingerprint) of the trusted client, and the type of
 // client that has been authenticated (cluster, unix, oidc or tls).
-func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted bool, username string, method string, identityProviderGroups []string, err error) {
+func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted bool, username string, method string, err error) {
+	resultHandler := func(trusted bool, username string, method string) error {
+		var ignoreNotFound bool
+		if method == auth.AuthenticationMethodCluster {
+			forwardedUsername := r.Header.Get(request.HeaderForwardedUsername)
+			if forwardedUsername != "" {
+				username = forwardedUsername
+			}
+
+			forwardedProtocol := r.Header.Get(request.HeaderForwardedProtocol)
+			if forwardedProtocol != "" {
+				method = forwardedProtocol
+			}
+		} else if method == auth.AuthenticationMethodPKI {
+			method = api.AuthenticationMethodTLS
+			ignoreNotFound = true
+		}
+
+		if shared.ValueInSlice(method, []string{auth.AuthenticationMethodCluster, auth.AuthenticationMethodUnix, auth.AuthenticationMethodDevLXD}) {
+			return nil
+		}
+
+		var cert *api.Certificate
+		var info *api.IdentityInfo
+		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, clusterTx *db.ClusterTx) error {
+			tx := clusterTx.Tx()
+			id, err := dbCluster.GetIdentity(ctx, tx, dbCluster.AuthMethod(method), username)
+			if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return err // return any errors that are not 404
+			} else if err != nil {
+				if ignoreNotFound {
+					return nil // return nil if ignoring 404
+				}
+
+				return err // return a 404 if not ignoring 404
+			}
+
+			info, _, _, err = id.ToAPIInfo(ctx, tx, nil)
+			if err != nil {
+				return err
+			}
+
+			if !info.FineGrained && info.AuthenticationMethod == api.AuthenticationMethodTLS {
+				dbCert, err := dbCluster.GetCertificate(ctx, tx, username)
+				if err != nil {
+					return err
+				}
+
+				cert, err = dbCert.ToAPI(ctx, tx)
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		if info != nil {
+			request.SetCtxValue(r, request.CtxIdentityInfo, info)
+		}
+
+		if cert != nil {
+			request.SetCtxValue(r, request.CtxCertificateInfo, cert)
+		}
+
+		return nil
+	}
+
 	// Perform mTLS check against server certificates. If this passes, the request was made by another cluster member
 	// and the protocol is auth.AuthenticationMethodCluster.
 	if r.TLS != nil {
 		for _, i := range r.TLS.PeerCertificates {
 			trusted, fingerprint := util.CheckMutualTLS(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateServer))
 			if trusted {
-				return true, fingerprint, auth.AuthenticationMethodCluster, nil, nil
+				err := resultHandler(trusted, fingerprint, auth.AuthenticationMethodCluster)
+				if err != nil {
+					return false, "", "", err
+				}
+
+				return true, fingerprint, auth.AuthenticationMethodCluster, nil
 			}
 		}
 	}
@@ -468,42 +551,38 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 		if w != nil {
 			cred, err := ucred.GetCredFromContext(r.Context())
 			if err != nil {
-				return false, "", "", nil, err
+				return false, "", "", err
 			}
 
 			u, err := user.LookupId(fmt.Sprint(cred.Uid))
 			if err != nil {
-				return true, fmt.Sprint("uid=", cred.Uid), auth.AuthenticationMethodUnix, nil, nil
+				return true, fmt.Sprint("uid=", cred.Uid), auth.AuthenticationMethodUnix, nil
 			}
 
-			return true, u.Username, auth.AuthenticationMethodUnix, nil, nil
+			return true, u.Username, auth.AuthenticationMethodUnix, nil
 		}
 
-		return true, "", auth.AuthenticationMethodUnix, nil, nil
+		return true, "", auth.AuthenticationMethodUnix, nil
 	}
 
 	// Cluster notification with wrong certificate.
 	if isClusterNotification(r) {
-		return false, "", "", nil, fmt.Errorf("Cluster notification isn't using trusted server certificate")
+		return false, "", "", fmt.Errorf("Cluster notification isn't using trusted server certificate")
 	}
 
 	// Bad query, no TLS found.
 	if r.TLS == nil {
-		return false, "", "", nil, fmt.Errorf("Bad/missing TLS on network query")
+		return false, "", "", fmt.Errorf("Bad/missing TLS on network query")
 	}
 
 	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
-		result, err := d.oidcVerifier.Auth(d.shutdownCtx, w, r)
+		id, err := d.oidcVerifier.Auth(d.shutdownCtx, w, r)
 		if err != nil {
-			return false, "", "", nil, fmt.Errorf("Failed OIDC Authentication: %w", err)
+			return false, "", "", fmt.Errorf("Failed OIDC Authentication: %w", err)
 		}
 
-		err = d.handleOIDCAuthenticationResult(r, result)
-		if err != nil {
-			return false, "", "", nil, fmt.Errorf("Failed to process OIDC authentication result: %w", err)
-		}
-
-		return true, result.Email, api.AuthenticationMethodOIDC, result.IdentityProviderGroups, nil
+		request.SetCtxValue(r, request.CtxIdentityInfo, id)
+		return true, id.Identifier, api.AuthenticationMethodOIDC, nil
 	}
 
 	isMetricsRequest := func(u url.URL) bool {
@@ -527,26 +606,31 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 		for _, peerCertificate := range r.TLS.PeerCertificates {
 			trusted, _, fingerprint := util.CheckCASignature(*peerCertificate, d.endpoints.NetworkCert())
 			if !trusted {
-				return false, "", "", nil, nil
+				return false, "", "", nil
 			} else if trustCACertificates {
 				// If CA signed certificates are implicitly trusted via `core.trust_ca_certificates`, return now. Otherwise, continue to mTLS check.
 				// Returning the protocol as auth.AuthenticationMethodPKI will indicate to the auth.Authorizer that
 				// this certificate may not be present in the trust store. If it isn't in the trust store, the caller
 				// has full access to LXD. If it is in the trust store, standard TLS restrictions will apply.
-				return true, fingerprint, auth.AuthenticationMethodPKI, nil, nil
+				err := resultHandler(trusted, fingerprint, auth.AuthenticationMethodPKI)
+				if err != nil {
+					return false, "", "", err
+				}
+
+				return true, fingerprint, auth.AuthenticationMethodPKI, nil
 			}
 
 			// We are trusted by the CA. But because `core.trust_ca_certificates` is false, we also need to check that
 			// the client certificate is in the trust store.
-			id, err := d.identityCache.Get(api.AuthenticationMethodTLS, fingerprint)
+			id, err := d.identityCache.Get(fingerprint)
 			if err != nil {
-				return false, "", "", nil, nil
+				return false, "", "", nil
 			}
 
 			// The identity type must be in our list of candidate types (e.g. if this certificate is a metrics certificate
 			// and we're on a non-metrics related route).
-			if !shared.ValueInSlice(id.IdentityType, candidateIdentityTypes) {
-				return false, "", "", nil, nil
+			if !shared.ValueInSlice(id.Type, candidateIdentityTypes) {
+				return false, "", "", nil
 			}
 
 			// In CA mode we only consider if this exact certificate is valid via mTLS checks below.
@@ -561,94 +645,17 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 	for _, i := range r.TLS.PeerCertificates {
 		trusted, fingerprint := util.CheckMutualTLS(*i, candidateCertificates)
 		if trusted {
-			return true, fingerprint, api.AuthenticationMethodTLS, nil, nil
+			err = resultHandler(trusted, fingerprint, api.AuthenticationMethodTLS)
+			if err != nil {
+				return false, "", "", err
+			}
+
+			return true, fingerprint, api.AuthenticationMethodTLS, nil
 		}
 	}
 
 	// Reject unauthorized.
-	return false, "", "", nil, nil
-}
-
-// handleOIDCAuthenticationResult checks the identity cache for the OIDC identity by their email address. If no identity
-// is found, an identity is added with that email. If an identity is found but the OIDC subject is different to the
-// expected value, the identity is updated with the new subject.
-func (d *Daemon) handleOIDCAuthenticationResult(r *http.Request, result *oidc.AuthenticationResult) error {
-	var action lifecycle.IdentityAction
-
-	id, err := d.identityCache.Get(api.AuthenticationMethodOIDC, result.Email)
-	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-		return fmt.Errorf("Failed getting OIDC identity from cache: %w", err)
-	} else if err != nil {
-		// Identity not found. Add it to the database and refresh the identity cache.
-		idMetadata := dbCluster.OIDCMetadata{Subject: result.Subject}
-		b, err := json.Marshal(idMetadata)
-		if err != nil {
-			return fmt.Errorf("Failed to marshal OIDC identity metadata: %w", err)
-		}
-
-		err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-			_, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
-				AuthMethod: api.AuthenticationMethodOIDC,
-				Type:       api.IdentityTypeOIDCClient,
-				Identifier: result.Email,
-				Name:       result.Name,
-				Metadata:   string(b),
-			})
-			return err
-		})
-		if err != nil {
-			return fmt.Errorf("Failed to add new OIDC identity to database: %w", err)
-		}
-
-		action = lifecycle.IdentityCreated
-	} else if id.Subject != result.Subject || id.Name != result.Name {
-		// The OIDC subject of the user with this email address has changed (this should be rare). Replace the
-		// subject in the identity metadata and refresh the cache.
-		idMetadata := dbCluster.OIDCMetadata{Subject: result.Subject}
-		b, err := json.Marshal(idMetadata)
-		if err != nil {
-			return fmt.Errorf("Failed to marshal OIDC identity metadata: %w", err)
-		}
-
-		err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-			return dbCluster.UpdateIdentity(ctx, tx.Tx(), api.AuthenticationMethodOIDC, result.Email, dbCluster.Identity{
-				AuthMethod: api.AuthenticationMethodOIDC,
-				Type:       api.IdentityTypeOIDCClient,
-				Identifier: result.Email,
-				Name:       result.Name,
-				Metadata:   string(b),
-			})
-		})
-		if err != nil {
-			return fmt.Errorf("Failed to update OIDC identity information: %w", err)
-		}
-
-		action = lifecycle.IdentityUpdated
-	}
-
-	if action != "" {
-		// Notify other nodes about the new identity.
-		s := d.State()
-		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
-		if err != nil {
-			return fmt.Errorf("Failed to notify cluster members of new or updated OIDC identity: %w", err)
-		}
-
-		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-			_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
-			return err
-		})
-		if err != nil {
-			return fmt.Errorf("Failed to notify cluster members of new or updated OIDC identity: %w", err)
-		}
-
-		lc := action.Event(api.AuthenticationMethodOIDC, result.Email, request.CreateRequestor(r), nil)
-		s.Events.SendLifecycle(api.ProjectDefaultName, lc)
-
-		s.UpdateIdentityCache()
-	}
-
-	return nil
+	return false, "", "", nil
 }
 
 // State creates a new State instance linked to our internal db and os.
@@ -768,7 +775,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Authentication
-		trusted, username, protocol, identityProviderGroups, err := d.Authenticate(w, r)
+		trusted, username, protocol, err := d.Authenticate(w, r)
 		if err != nil {
 			var authError oidc.AuthError
 			if errors.As(err, &authError) {
@@ -814,9 +821,6 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			// Add authentication/authorization context data.
 			ctx := context.WithValue(r.Context(), request.CtxUsername, username)
 			ctx = context.WithValue(ctx, request.CtxProtocol, protocol)
-			if len(identityProviderGroups) > 0 {
-				ctx = context.WithValue(ctx, request.CtxIdentityProviderGroups, identityProviderGroups)
-			}
 
 			// Add forwarded requestor data.
 			if protocol == auth.AuthenticationMethodCluster {
@@ -1065,7 +1069,7 @@ func (d *Daemon) init() error {
 	var dbWarnings []dbCluster.Warning
 
 	// Set default authorizer.
-	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverTLS, logger.Log, d.identityCache)
+	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverTLS, logger.Log)
 	if err != nil {
 		return err
 	}
@@ -1494,7 +1498,7 @@ func (d *Daemon) init() error {
 
 	// Load the embedded OpenFGA authorizer. This cannot be loaded until after the cluster database is initialised,
 	// so the TLS authorizer must be loaded first to set up clustering.
-	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverEmbeddedOpenFGA, logger.Log, d.identityCache, authDrivers.WithOpenFGADatastore(openfga.NewOpenFGAStore(d.db.Cluster)))
+	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverEmbeddedOpenFGA, logger.Log, authDrivers.WithOpenFGADatastore(openfga.NewOpenFGAStore(d.db.Cluster)))
 	if err != nil {
 		return err
 	}
@@ -1667,7 +1671,7 @@ func (d *Daemon) init() error {
 	maasAPIURL, maasAPIKey = d.globalConfig.MAASController()
 	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
 	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes := d.globalConfig.LokiServer()
-	oidcIssuer, oidcClientID, oidcScopes, oidcAudience, oidcGroupsClaim := d.globalConfig.OIDCServer()
+	oidcIssuer, oidcClientID, oidcScopes, oidcAudience, oidcGroupsClaim, oidcSessionLifetime := d.globalConfig.OIDCServer()
 	syslogSocketEnabled := d.localConfig.SyslogSocket()
 	instancePlacementScriptlet := d.globalConfig.InstancesPlacementScriptlet()
 
@@ -1695,7 +1699,9 @@ func (d *Daemon) init() error {
 			return util.HTTPClient("", d.proxy)
 		}
 
-		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcScopes, oidcAudience, d.serverCert, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
+		sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events)
+		certFingerprintFunc := func() string { return d.serverCert().Fingerprint() }
+		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcScopes, oidcAudience, oidcSessionLifetime, d.getClusterSecret, certFingerprintFunc, httpClientFunc, sessionHandler, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
 		if err != nil {
 			return err
 		}
@@ -2530,4 +2536,26 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	}
 
 	wg.Wait()
+}
+
+// getClusterSecret gets the current cluster secret and a boolean indicating whether the secret was updated.
+// An error is returned if updating the secret failed.
+func (d *Daemon) getClusterSecret(ctx context.Context) (clusterSecret secret.Secret, wasUpdated bool, err error) {
+	if d.clusterSecretInternal == nil {
+		return secret.Secret{}, false, errors.New("Cluster secret not initialized")
+	}
+
+	if d.clusterSecretInternal.IsValid() {
+		return *d.clusterSecretInternal, false, nil
+	}
+
+	keyLifetime, saltLifetime := d.globalConfig.KeyAndSaltLifetimes()
+	err = d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		return d.clusterSecretInternal.Update(ctx, tx.Tx(), keyLifetime, saltLifetime)
+	})
+	if err != nil {
+		return secret.Secret{}, false, err
+	}
+
+	return *d.clusterSecretInternal, true, nil
 }

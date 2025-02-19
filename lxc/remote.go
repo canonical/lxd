@@ -271,7 +271,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 		if d.HasExtension("explicit_trust_token") {
 			req.TrustToken = token
 		} else {
-			req.Password = token
+			req.Password = token //nolint:staticcheck // We know it's deprecated - we're supporting older clients.
 		}
 
 		err = d.CreateCertificate(req)
@@ -999,6 +999,7 @@ func (c *cmdRemoteRemove) run(cmd *cobra.Command, args []string) error {
 
 	_ = os.Remove(conf.ServerCertPath(args[0]))
 	_ = os.Remove(conf.OIDCTokenPath(args[0]))
+	_ = os.Remove(conf.CookiePath(args[0]))
 
 	return conf.SaveConfig(c.global.confPath)
 }

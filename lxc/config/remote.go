@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/juju/persistent-cookiejar"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 
 	"github.com/canonical/lxd/client"
@@ -278,6 +279,20 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 		}
 
 		args.OIDCTokens = c.oidcTokens[name]
+
+		jar, err := cookiejar.New(&cookiejar.Options{
+			Filename: c.CookiePath(name),
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		if c.cookieJars == nil {
+			c.cookieJars = make(map[string]*cookiejar.Jar)
+		}
+
+		c.cookieJars[name] = jar
+		args.CookieJar = jar
 	}
 
 	// Stop here if no TLS involved

@@ -2618,3 +2618,27 @@ Note that the `openid` and `email` scopes are always required.
 ## `project_default_network_and_storage`
 
 Adds flags --network and --storage. The --network flag adds a network device connected to the specified network to the default profile. The --storage flag adds a root disk device using the specified storage pool to the default profile.
+
+## `secret_lifetime`
+
+Cookie encryption keys used for OIDC authentication are derived from a secret key using a salt.
+This API extension enables setting the {config:option}`server-core:core.secret_key_lifetime` and {config:option}`server-core:core.salt_lifetime` configuration keys.
+
+When the key or salt is required, LXD will check if it has expired.
+If either have expired, a new salt or key will be created with the given lifetime.
+
+The salt lifetime should be shorter than the key lifetime.
+To reflect this, the key lifetime is specified in days and the salt lifetime is specified in minutes.
+
+When the key rotates, all OIDC users will be logged out of LXD.
+If they are still logged into the identity provider, this will cause a brief redirection.
+Otherwise, they will need to log back in to the identity provider.
+
+## `oidc_sessions`
+
+This API extension adds server-side sessions to LXD for OpenID Connect (OIDC) authenticated identities.
+The {config:option}`server-oidc:oidc.session.lifetime` configuration key can be used to set the session duration.
+When a session expires, LXD will confirm the users authentication status with the identity provider (IdP).
+If the `offline_access` scope is requested, a new token will be retrieved from the IdP.
+Otherwise, the user will need to re-authenticate with the IdP.
+Note that if the user is already logged into the IdP then only a brief redirect will occur.

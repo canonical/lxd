@@ -172,10 +172,6 @@ func (r *ProtocolLXD) addClientHeaders(req *http.Request) {
 	if r.requireAuthenticated {
 		req.Header.Set("X-LXD-authenticated", "true")
 	}
-
-	if r.oidcClient != nil {
-		req.Header.Set("Authorization", "Bearer "+r.oidcClient.getAccessToken())
-	}
 }
 
 // RequireAuthenticated sets whether we expect to be authenticated with the server.
@@ -432,6 +428,12 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 	// Create temporary http.Request using the http url, not the ws one, so that we can add the client headers
 	// for the websocket request.
 	req := &http.Request{URL: &r.httpBaseURL, Header: http.Header{}}
+	if r.http.Jar != nil {
+		for _, cookie := range r.http.Jar.Cookies(req.URL) {
+			req.AddCookie(cookie)
+		}
+	}
+
 	r.addClientHeaders(req)
 
 	// Establish the connection
