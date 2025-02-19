@@ -15,6 +15,39 @@ import (
 // separator is used to delimit the project name from the suffix.
 const separator = "_"
 
+// ValidName validates a project name.
+func ValidName(name string) error {
+	if name == "" {
+		return fmt.Errorf("No name provided")
+	}
+
+	if strings.Contains(name, "/") {
+		return fmt.Errorf("Project names may not contain slashes")
+	}
+
+	if strings.Contains(name, " ") {
+		return fmt.Errorf("Project names may not contain spaces")
+	}
+
+	if strings.Contains(name, "_") {
+		return fmt.Errorf("Project names may not contain underscores")
+	}
+
+	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
+		return fmt.Errorf("Project names may not contain quotes")
+	}
+
+	if name == "*" {
+		return fmt.Errorf("Reserved project name")
+	}
+
+	if shared.ValueInSlice(name, []string{".", ".."}) {
+		return fmt.Errorf("Invalid project name %q", name)
+	}
+
+	return nil
+}
+
 // Instance adds the "<project>_" prefix to instance name when the given project name is not "default".
 func Instance(projectName string, instanceName string) string {
 	if projectName != api.ProjectDefaultName {
