@@ -409,28 +409,14 @@ func (o *Verifier) WriteHeaders(w http.ResponseWriter) error {
 }
 
 // IsRequest checks if the request is using OIDC authentication. We check for the presence of the Authorization header
-// or one of the ID or refresh tokens and the session cookie.
+// or the session cookie.
 func (*Verifier) IsRequest(r *http.Request) bool {
 	if r.Header.Get("Authorization") != "" {
 		return true
 	}
 
-	_, err := r.Cookie(cookieNameSessionID)
-	if err != nil {
-		return false
-	}
-
-	idTokenCookie, err := r.Cookie(cookieNameIDToken)
-	if err == nil && idTokenCookie != nil {
-		return true
-	}
-
-	refreshTokenCookie, err := r.Cookie(cookieNameRefreshToken)
-	if err == nil && refreshTokenCookie != nil {
-		return true
-	}
-
-	return false
+	c, err := r.Cookie(cookieNameLXDSession)
+	return err == nil && c != nil && c.Value != ""
 }
 
 // ExpireConfig sets the expiry time of the current configuration to zero. This forces the verifier to reconfigure the
