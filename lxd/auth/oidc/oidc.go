@@ -2,27 +2,22 @@ package oidc
 
 import (
 	"context"
-	"crypto/sha512"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/mail"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/securecookie"
 	"github.com/zitadel/oidc/v3/pkg/client"
 	"github.com/zitadel/oidc/v3/pkg/client/rp"
 	httphelper "github.com/zitadel/oidc/v3/pkg/http"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
-	"golang.org/x/crypto/hkdf"
 
 	"github.com/canonical/lxd/lxd/db/cluster/secret"
-	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -35,17 +30,6 @@ type SessionHandler interface {
 	StartSession(ctx context.Context, r *http.Request, res AuthenticationResult) error
 	GetIdentityBySessionID(ctx context.Context, sessionID uuid.UUID) (info *api.IdentityInfo, sessionRevoked bool, refreshToken string, err error)
 }
-
-const (
-	// cookieNameIDToken is the identifier used to set and retrieve the identity token.
-	cookieNameIDToken = "oidc_identity"
-
-	// cookieNameRefreshToken is the identifier used to set and retrieve the refresh token.
-	cookieNameRefreshToken = "oidc_refresh"
-
-	// cookieNameSessionID is used to identify the session. It does not need to be encrypted.
-	cookieNameSessionID = "session_id"
-)
 
 type relyingParty struct {
 	rp.RelyingParty
@@ -495,7 +479,7 @@ func (o *Verifier) setRelyingParties(ctx context.Context, clusterSecret secret.S
 		return fmt.Errorf("Failed to get a HTTP client: %w", err)
 	}
 
-	hash, block, err := extractKeys(clusterSecret, nil)
+	hash, block, err := hashAndBlockKeys(clusterSecret)
 	if err != nil {
 		return err
 	}
@@ -544,175 +528,6 @@ func (o *Verifier) setAccessTokenVerifier(ctx context.Context) error {
 
 	o.accessTokenVerifier = op.NewAccessTokenVerifier(o.issuer, keySet)
 	return nil
-}
-
-// getCookies gets the sessionID, identity and refresh tokens from the request cookies and decrypts them.
-func (o *Verifier) getCookies(r *http.Request) (sessionIDPtr *uuid.UUID, idToken string, refreshToken string, err error) {
-	sessionIDCookie, err := r.Cookie(cookieNameSessionID)
-	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		return nil, "", "", fmt.Errorf("Failed to get session ID cookie from request: %w", err)
-	} else if sessionIDCookie == nil {
-		return nil, "", "", nil
-	}
-
-	sessionID, err := uuid.Parse(sessionIDCookie.Value)
-	if err != nil {
-		return nil, "", "", fmt.Errorf("Invalid session ID cookie: %w", err)
-	}
-
-	clusterSecret, _, err := o.clusterSecret(r.Context())
-	if err != nil {
-		return nil, "", "", err
-	}
-
-	secureCookie, err := secureCookie(clusterSecret, sessionID[:])
-	if err != nil {
-		return nil, "", "", fmt.Errorf("Failed to decrypt cookies: %w", err)
-	}
-
-	idTokenCookie, err := r.Cookie(cookieNameIDToken)
-	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		return nil, "", "", fmt.Errorf("Failed to get ID token cookie from request: %w", err)
-	}
-
-	if idTokenCookie != nil {
-		err = secureCookie.Decode(cookieNameIDToken, idTokenCookie.Value, &idToken)
-		if err != nil {
-			return nil, "", "", fmt.Errorf("Failed to decrypt ID token cookie: %w", err)
-		}
-	}
-
-	refreshTokenCookie, err := r.Cookie(cookieNameRefreshToken)
-	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		return nil, "", "", fmt.Errorf("Failed to get refresh token cookie from request: %w", err)
-	}
-
-	if refreshTokenCookie != nil {
-		err = secureCookie.Decode(cookieNameRefreshToken, refreshTokenCookie.Value, &refreshToken)
-		if err != nil {
-			return nil, "", "", fmt.Errorf("Failed to decrypt refresh token cookie: %w", err)
-		}
-	}
-
-	return &sessionID, idToken, refreshToken, nil
-}
-
-// setCookies encrypts the session, ID, and refresh tokens and sets them in the HTTP response. Cookies are only set if they are
-// non-empty. If delete is true, the values are set to empty strings and the cookie expiry is set to unix zero time.
-func (*Verifier) setCookies(w http.ResponseWriter, secureCookie *securecookie.SecureCookie, sessionID uuid.UUID, idToken string, refreshToken string, deleteCookies bool) error {
-	idTokenCookie := http.Cookie{
-		Name:     cookieNameIDToken,
-		Path:     "/",
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
-	}
-
-	refreshTokenCookie := http.Cookie{
-		Name:     cookieNameRefreshToken,
-		Path:     "/",
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
-	}
-
-	sessionIDCookie := http.Cookie{
-		Name:     cookieNameSessionID,
-		Path:     "/",
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
-	}
-
-	if deleteCookies {
-		idTokenCookie.Expires = time.Unix(0, 0)
-		refreshTokenCookie.Expires = time.Unix(0, 0)
-		sessionIDCookie.Expires = time.Unix(0, 0)
-
-		http.SetCookie(w, &idTokenCookie)
-		http.SetCookie(w, &refreshTokenCookie)
-		http.SetCookie(w, &sessionIDCookie)
-		return nil
-	}
-
-	encodedIDTokenCookie, err := secureCookie.Encode(cookieNameIDToken, idToken)
-	if err != nil {
-		return fmt.Errorf("Failed to encrypt ID token: %w", err)
-	}
-
-	encodedRefreshToken, err := secureCookie.Encode(cookieNameRefreshToken, refreshToken)
-	if err != nil {
-		return fmt.Errorf("Failed to encrypt refresh token: %w", err)
-	}
-
-	sessionIDCookie.Value = sessionID.String()
-	idTokenCookie.Value = encodedIDTokenCookie
-	refreshTokenCookie.Value = encodedRefreshToken
-
-	http.SetCookie(w, &idTokenCookie)
-	http.SetCookie(w, &refreshTokenCookie)
-	http.SetCookie(w, &sessionIDCookie)
-	return nil
-}
-
-// secureCookie returns a *securecookie.SecureCookie that is secure, unique for each salt, and possible to
-// decrypt on all cluster members.
-//
-// To do this we use the cluster-wide secret as an input seed to HKDF (https://datatracker.ietf.org/doc/html/rfc5869).
-// If no salt is provided, the cluster-wide salt is used.
-//
-// Warning: Changes to this function might cause all existing OIDC users to be logged out of LXD (but not logged out of
-// the IdP).
-func secureCookie(s secret.Secret, salt []byte) (*securecookie.SecureCookie, error) {
-	hash, block, err := extractKeys(s, salt)
-	if err != nil {
-		return nil, err
-	}
-
-	return securecookie.New(hash, block), nil
-}
-
-// extractKeys derives a hash and block key from the given secret and salt. If no salt is given, the cluster-wide salt is used.
-func extractKeys(s secret.Secret, salt []byte) (hash []byte, block []byte, err error) {
-	key, clusterSalt, err := s.KeyAndSalt()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if salt == nil {
-		salt = clusterSalt
-	}
-
-	// Extract a pseudo-random key from the cluster private key.
-	prk := hkdf.Extract(sha512.New, key, salt)
-
-	// Get an io.Reader from which we can read a secure key. We will use this key as the hash key for the cookie.
-	// The hash key is used to verify the integrity of decrypted values using HMAC. The HKDF "info" is set to "INTEGRITY"
-	// to indicate the intended usage of the key and prevent decryption in other contexts
-	// (see https://datatracker.ietf.org/doc/html/rfc5869#section-3.2).
-	keyDerivationFunc := hkdf.Expand(sha512.New, prk, []byte("INTEGRITY"))
-
-	// Read 64 bytes of the derived key. The securecookie library recommends 64 bytes for the hash key (https://github.com/gorilla/securecookie).
-	cookieHashKey := make([]byte, 64)
-	_, err = io.ReadFull(keyDerivationFunc, cookieHashKey)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Failed creating secure cookie hash key: %w", err)
-	}
-
-	// Get an io.Reader from which we can read a secure key. We will use this key as the block key for the cookie.
-	// The block key is used by securecookie to perform AES encryption. The HKDF "info" is set to "ENCRYPTION"
-	// to indicate the intended usage of the key and prevent decryption in other contexts
-	// (see https://datatracker.ietf.org/doc/html/rfc5869#section-3.2).
-	keyDerivationFunc = hkdf.Expand(sha512.New, prk, []byte("ENCRYPTION"))
-
-	// Read 32 bytes of the derived key. Given 32 bytes for the block key the securecookie library will use AES-256 for encryption.
-	cookieBlockKey := make([]byte, 32)
-	_, err = io.ReadFull(keyDerivationFunc, cookieBlockKey)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Failed creating secure cookie block key: %w", err)
-	}
-
-	return cookieHashKey, cookieBlockKey, nil
 }
 
 // Opts contains optional configurable fields for the Verifier.
