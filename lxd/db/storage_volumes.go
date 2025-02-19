@@ -194,7 +194,7 @@ func (c *ClusterTx) GetStorageVolumes(ctx context.Context, memberSpecific bool, 
 				q.WriteString(" OR ")
 			}
 
-			q.WriteString(fmt.Sprintf("(%s)", strings.Join(qFilters, " AND ")))
+			q.WriteString("(" + strings.Join(qFilters, " AND ") + ")")
 		}
 
 		q.WriteString(")")
@@ -284,7 +284,7 @@ func (c *ClusterTx) GetLocalStoragePoolVolumeSnapshotsWithType(ctx context.Conte
 	// results will be returned in the order that the snapshots were created. This is specifically used
 	// during migration to ensure that the storage engines can re-create snapshots using the
 	// correct deltas.
-	queryStr := fmt.Sprintf(`
+	queryStr := `
   SELECT
     storage_volumes_snapshots.id, storage_volumes_snapshots.name, storage_volumes_snapshots.description,
     storage_volumes_snapshots.creation_date, storage_volumes_snapshots.expiry_date,
@@ -297,8 +297,8 @@ func (c *ClusterTx) GetLocalStoragePoolVolumeSnapshotsWithType(ctx context.Conte
     AND storage_volumes.type=?
     AND storage_volumes.name=?
     AND projects.name=?
-    AND (storage_volumes.node_id=? OR storage_volumes.node_id IS NULL AND storage_pools.driver IN %s)
-  ORDER BY storage_volumes_snapshots.creation_date, storage_volumes_snapshots.id`, query.Params(len(remoteDrivers)))
+    AND (storage_volumes.node_id=? OR storage_volumes.node_id IS NULL AND storage_pools.driver IN ` + query.Params(len(remoteDrivers)) + `)
+  ORDER BY storage_volumes_snapshots.creation_date, storage_volumes_snapshots.id`
 
 	args := []any{poolID, volumeType, volumeName, projectName, c.nodeID}
 	for _, driver := range remoteDrivers {
@@ -500,7 +500,7 @@ INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, 
 func (c *ClusterTx) storagePoolVolumeGetTypeID(ctx context.Context, project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
 	remoteDrivers := StorageRemoteDriverNames()
 
-	s := fmt.Sprintf(`
+	s := `
 SELECT storage_volumes_all.id
   FROM storage_volumes_all
   JOIN storage_pools ON storage_volumes_all.storage_pool_id = storage_pools.id
@@ -509,7 +509,7 @@ SELECT storage_volumes_all.id
     AND storage_volumes_all.storage_pool_id=?
     AND storage_volumes_all.name=?
 	AND storage_volumes_all.type=?
-	AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN %s)`, query.Params(len(remoteDrivers)))
+	AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN ` + query.Params(len(remoteDrivers)) + `)`
 
 	args := []any{project, poolID, volumeName, volumeType, nodeID}
 
@@ -670,15 +670,15 @@ func (c *ClusterTx) storageVolumeConfigGet(ctx context.Context, volumeID int64, 
 func (c *ClusterTx) GetNextStorageVolumeSnapshotIndex(ctx context.Context, pool, name string, typ int, pattern string) (nextIndex int) {
 	remoteDrivers := StorageRemoteDriverNames()
 
-	q := fmt.Sprintf(`
+	q := `
 SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
   JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id=storage_volumes.id
   JOIN storage_pools ON storage_volumes.storage_pool_id=storage_pools.id
  WHERE storage_volumes.type=?
    AND storage_volumes.name=?
    AND storage_pools.name=?
-   AND (storage_volumes.node_id=? OR storage_volumes.node_id IS NULL AND storage_pools.driver IN %s)
-`, query.Params(len(remoteDrivers)))
+   AND (storage_volumes.node_id=? OR storage_volumes.node_id IS NULL AND storage_pools.driver IN ` + query.Params(len(remoteDrivers)) + `)`
+
 	var numstr string
 	inargs := []any{typ, name, pool, c.nodeID}
 	outfmt := []any{numstr}
@@ -725,7 +725,7 @@ func storageVolumeDescriptionUpdate(tx *sql.Tx, volumeID int64, description stri
 		table = "storage_volumes"
 	}
 
-	stmt := fmt.Sprintf("UPDATE %s SET description=? WHERE id=?", table)
+	stmt := "UPDATE " + table + " SET description=? WHERE id=?"
 	_, err := tx.Exec(stmt, description, volumeID)
 	return err
 }
