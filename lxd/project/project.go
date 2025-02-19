@@ -21,6 +21,10 @@ func ValidName(name string) error {
 		return fmt.Errorf("No name provided")
 	}
 
+	if strings.Contains(name, "\\") {
+		return fmt.Errorf("Project names may not contain back slashes")
+	}
+
 	if strings.Contains(name, "/") {
 		return fmt.Errorf("Project names may not contain slashes")
 	}
