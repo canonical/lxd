@@ -20,7 +20,7 @@ func IsTrusted(ctx context.Context) bool {
 
 // IsServerAdmin inspects the context and returns true if the request was made over the unix socket, initiated by
 // another cluster member, or sent by a client with an unrestricted certificate.
-func IsServerAdmin(ctx context.Context, identityCache *identity.Cache) (bool, error) {
+func IsServerAdmin(ctx context.Context) (bool, error) {
 	method, err := GetAuthenticationMethodFromCtx(ctx)
 	if err != nil {
 		return false, err
@@ -31,18 +31,18 @@ func IsServerAdmin(ctx context.Context, identityCache *identity.Cache) (bool, er
 		return true, nil
 	}
 
-	id, err := GetIdentityFromCtx(ctx, identityCache)
-	if err != nil {
+	id, err := GetIdentityFromCtx(ctx)
+	if err != nil || id == nil {
 		// AuthenticationMethodPKI is only set as the value of request.CtxProtocol when `core.trust_ca_certificates` is
 		// true. This setting grants full access to LXD for all clients with CA-signed certificates.
-		if method == AuthenticationMethodPKI && api.StatusErrorCheck(err, http.StatusNotFound) {
+		if method == AuthenticationMethodPKI {
 			return true, nil
 		}
 
 		return false, fmt.Errorf("Failed to get caller identity: %w", err)
 	}
 
-	isRestricted, err := identity.IsRestrictedIdentityType(id.IdentityType)
+	isRestricted, err := identity.IsRestrictedIdentityType(id.Type)
 	if err != nil {
 		return false, fmt.Errorf("Failed to check restricted status of identity: %w", err)
 	}
@@ -50,25 +50,14 @@ func IsServerAdmin(ctx context.Context, identityCache *identity.Cache) (bool, er
 	return !isRestricted, nil
 }
 
-// GetIdentityFromCtx returns the identity.CacheEntry for the current authenticated caller.
-func GetIdentityFromCtx(ctx context.Context, identityCache *identity.Cache) (*identity.CacheEntry, error) {
-	authenticationMethod, err := GetAuthenticationMethodFromCtx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get caller authentication method: %w", err)
-	}
+// GetCertificateFromCtx returns the api.Certificate for the current authenticated caller.
+func GetCertificateFromCtx(ctx context.Context) (*api.Certificate, error) {
+	return request.GetCtxValue[*api.Certificate](ctx, request.CtxCertificateInfo)
+}
 
-	// If the caller authenticated via a CA-signed certificate and `core.trust_ca_certificates` is enabled. We still
-	// want to check for any potential trust store entries corresponding to their certificate fingerprint.
-	if authenticationMethod == AuthenticationMethodPKI {
-		authenticationMethod = api.AuthenticationMethodTLS
-	}
-
-	username, err := GetUsernameFromCtx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get caller username: %w", err)
-	}
-
-	return identityCache.Get(authenticationMethod, username)
+// GetIdentityFromCtx returns the api.IdentityInfo for the current authenticated caller.
+func GetIdentityFromCtx(ctx context.Context) (*api.IdentityInfo, error) {
+	return request.GetCtxValue[*api.IdentityInfo](ctx, request.CtxIdentityInfo)
 }
 
 // GetUsernameFromCtx inspects the context and returns the username of the initial caller.
@@ -114,23 +103,4 @@ func GetAuthenticationMethodFromCtx(ctx context.Context) (string, error) {
 	}
 
 	return protocol, nil
-}
-
-// GetIdentityProviderGroupsFromCtx gets the identity provider groups from the request context if present.
-// If the request was forwarded by another cluster member, the value for `request.CtxForwardedIdentityProviderGroups` is
-// returned. Otherwise, the value for `request.CtxIdentityProviderGroups` is returned.
-func GetIdentityProviderGroupsFromCtx(ctx context.Context) ([]string, error) {
-	// Request protocol cannot be empty.
-	protocol, err := request.GetCtxValue[string](ctx, request.CtxProtocol)
-	if err != nil {
-		return nil, api.StatusErrorf(http.StatusInternalServerError, "Failed getting protocol: %w", err)
-	}
-
-	idpGroups, _ := request.GetCtxValue[[]string](ctx, request.CtxIdentityProviderGroups)
-	forwardedIDPGroups, _ := request.GetCtxValue[[]string](ctx, request.CtxForwardedIdentityProviderGroups)
-	if protocol == AuthenticationMethodCluster && forwardedIDPGroups != nil {
-		return forwardedIDPGroups, nil
-	}
-
-	return idpGroups, nil
 }
