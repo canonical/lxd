@@ -94,6 +94,7 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
+	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
 	github.com/google/cel-go v0.24.1 // indirect
 	github.com/google/renameio v1.0.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
@@ -106,8 +107,10 @@ require (
 	github.com/jkeiser/iter v0.0.0-20200628201005-c8aa0ae784d1 // indirect
 	github.com/juju/collections v1.0.4 // indirect
 	github.com/juju/errors v1.0.0 // indirect
+	github.com/juju/go4 v0.0.0-20160222163258-40d72ab9641a // indirect
 	github.com/juju/loggo v1.0.0 // indirect
 	github.com/juju/mgo/v2 v2.0.2 // indirect
+	github.com/juju/persistent-cookiejar v1.0.0 // indirect
 	github.com/juju/schema v1.2.0 // indirect
 	github.com/juju/version v0.0.0-20210303051006-2015802527a8 // indirect
 	github.com/k-sone/critbitgo v1.4.0 // indirect
@@ -168,8 +171,10 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20250303144028-a0af3efb3deb // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250303144028-a0af3efb3deb // indirect
 	google.golang.org/grpc v1.71.0 // indirect
+	gopkg.in/errgo.v1 v1.0.0-20161222125816-442357a80af5 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
+	gopkg.in/retry.v1 v1.0.3 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
