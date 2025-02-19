@@ -1839,7 +1839,6 @@ func updateIdentityCache(d *Daemon) {
 		api.IdentityTypeCertificateServer,
 		api.IdentityTypeCertificateMetricsRestricted,
 		api.IdentityTypeCertificateMetricsUnrestricted,
-		api.IdentityTypeOIDCClient,
 	}
 
 	identityCacheEntries := make([]identity.CacheEntry, 0, len(identities))
@@ -1850,32 +1849,17 @@ func updateIdentityCache(d *Daemon) {
 		}
 
 		cacheEntry := identity.CacheEntry{
-			Identifier:           id.Identifier,
-			Name:                 id.Name,
-			AuthenticationMethod: string(id.AuthMethod),
-			IdentityType:         string(id.Type),
-			Projects:             projects[id.ID],
-			Groups:               groups[id.ID],
+			Identifier: id.Identifier,
+			Type:       string(id.Type),
 		}
 
-		if cacheEntry.AuthenticationMethod == api.AuthenticationMethodTLS {
-			cert, err := id.X509()
-			if err != nil {
-				logger.Warn("Failed to extract x509 certificate from TLS identity metadata", logger.Ctx{"err": err})
-				continue
-			}
-
-			cacheEntry.Certificate = cert
-		} else if cacheEntry.AuthenticationMethod == api.AuthenticationMethodOIDC {
-			subject, err := id.Subject()
-			if err != nil {
-				logger.Warn("Failed to extract OIDC subject from OIDC identity metadata", logger.Ctx{"err": err})
-				continue
-			}
-
-			cacheEntry.Subject = subject
+		cert, err := id.X509()
+		if err != nil {
+			logger.Warn("Failed to extract x509 certificate from TLS identity metadata", logger.Ctx{"err": err})
+			continue
 		}
 
+		cacheEntry.Certificate = cert
 		identityCacheEntries = append(identityCacheEntries, cacheEntry)
 
 		// Add server certs to list of certificates to store in local database to allow cluster restart.
@@ -1899,7 +1883,7 @@ func updateIdentityCache(d *Daemon) {
 		// continue functioning, and hopefully the write will succeed on next update.
 	}
 
-	err = d.identityCache.ReplaceAll(identityCacheEntries, idpGroupMapping)
+	err = d.identityCache.ReplaceAll(identityCacheEntries)
 	if err != nil {
 		logger.Warn("Failed to update identity cache", logger.Ctx{"err": err})
 	}
@@ -1942,14 +1926,13 @@ func updateIdentityCacheFromLocal(d *Daemon) error {
 		}
 
 		identityCacheEntries = append(identityCacheEntries, identity.CacheEntry{
-			Identifier:           id.Identifier,
-			AuthenticationMethod: string(id.AuthMethod),
-			IdentityType:         string(id.Type),
-			Certificate:          cert,
+			Identifier:  id.Identifier,
+			Type:        string(id.Type),
+			Certificate: cert,
 		})
 	}
 
-	err = d.identityCache.ReplaceAll(identityCacheEntries, nil)
+	err = d.identityCache.ReplaceAll(identityCacheEntries)
 	if err != nil {
 		return fmt.Errorf("Failed to update identity cache from local trust store: %w", err)
 	}
