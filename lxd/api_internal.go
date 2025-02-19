@@ -301,8 +301,9 @@ func internalContainerHookLoadFromReference(s *state.State, r *http.Request) (in
 			}
 
 			// Defend against path traversal attacks.
-			if !shared.IsFileName(instanceRef) {
-				return nil, fmt.Errorf("Invalid instance name: %q", instanceRef)
+			err = instancetype.ValidName(instanceRef, false)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid instance name %q: %w", instanceRef, err)
 			}
 
 			// If DB not available, try loading from backup file.
