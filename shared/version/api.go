@@ -440,6 +440,7 @@ var APIExtensions = []string{
 	"oidc_scopes",
 	"project_default_network_and_storage",
 	"secret_lifetime",
+	"oidc_sessions",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
