@@ -21,6 +21,14 @@ func ValidName(name string) error {
 		return fmt.Errorf("No name provided")
 	}
 
+	if name == "*" {
+		return fmt.Errorf("Reserved project name")
+	}
+
+	if name == "." || name == ".." {
+		return fmt.Errorf("Invalid project name %q", name)
+	}
+
 	if strings.Contains(name, "\\") {
 		return fmt.Errorf("Project names may not contain back slashes")
 	}
@@ -39,14 +47,6 @@ func ValidName(name string) error {
 
 	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
 		return fmt.Errorf("Project names may not contain quotes")
-	}
-
-	if name == "*" {
-		return fmt.Errorf("Reserved project name")
-	}
-
-	if shared.ValueInSlice(name, []string{".", ".."}) {
-		return fmt.Errorf("Invalid project name %q", name)
 	}
 
 	return nil
