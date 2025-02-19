@@ -3,6 +3,7 @@
 package cdi
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -64,6 +65,7 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 
 	rootPath := ""
 	devRootPath := ""
+	configSearchPaths := []string{}
 	if s.OS.InUbuntuCore() {
 		devRootPath = "/"
 
@@ -91,12 +93,13 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 			"NVIDIA_DRIVER_ROOT",
 		}
 
-		rootPath, err = shared.RunCommand(cmd[0], cmd[1:]...)
+		rootPath, err = shared.RunCommandContext(context.TODO(), cmd[0], cmd[1:]...)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to determine NVIDIA driver root path: %w", err)
 		}
 
 		rootPath = strings.TrimSuffix(rootPath, "\n")
+		configSearchPaths = []string{rootPath + "/usr/share"}
 
 		// Let's ensure that user did:
 		// snap connect mesa-2404:kernel-gpu-2404 pc-kernel
@@ -116,6 +119,7 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 		nvcdi.WithNVIDIACDIHookPath(nvidiaCTKPath),
 		nvcdi.WithMode(mode),
 		nvcdi.WithCSVFiles(defaultNvidiaTegraCSVFiles(rootPath)),
+		nvcdi.WithConfigSearchPaths(configSearchPaths),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create CDI library: %w", err)
