@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -225,7 +226,7 @@ func CheckMutualTLS(cert x509.Certificate, trustedCerts map[string]x509.Certific
 
 	// Check whether client certificate is in the map of trusted certs.
 	for fingerprint, v := range trustedCerts {
-		if bytes.Equal(cert.Raw, v.Raw) {
+		if subtle.ConstantTimeCompare(cert.Raw, v.Raw) == 1 {
 			logger.Debug("Matched trusted cert", logger.Ctx{"fingerprint": fingerprint, "subject": v.Subject})
 			return true, fingerprint
 		}
