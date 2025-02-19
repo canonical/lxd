@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -1652,7 +1653,6 @@ func (d *Daemon) init() error {
 	// Get daemon configuration.
 	bgpAddress := d.localConfig.BGPAddress()
 	bgpRouterID := d.localConfig.BGPRouterID()
-	bgpASN := int64(0)
 
 	maasAPIURL := ""
 	maasAPIKey := ""
@@ -1660,7 +1660,7 @@ func (d *Daemon) init() error {
 
 	// Get specific config keys.
 	d.globalConfigMu.Lock()
-	bgpASN = d.globalConfig.BGPASN()
+	bgpASN := d.globalConfig.BGPASN()
 
 	d.proxy = shared.ProxyFromConfig(d.globalConfig.ProxyHTTPS(), d.globalConfig.ProxyHTTP(), d.globalConfig.ProxyIgnoreHosts())
 
@@ -1704,6 +1704,10 @@ func (d *Daemon) init() error {
 	// Setup BGP listener.
 	d.bgp = bgp.NewServer()
 	if bgpAddress != "" && bgpASN != 0 && bgpRouterID != "" {
+		if bgpASN > math.MaxUint32 {
+			return fmt.Errorf("Cannot convert BGP ASN to uint32: Upper bound exceeded")
+		}
+
 		err := d.bgp.Start(bgpAddress, uint32(bgpASN), net.ParseIP(bgpRouterID))
 		if err != nil {
 			return err
@@ -2474,8 +2478,8 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	if isLeader && unavailableMembers != nil && len(heartbeatData.Members) > 1 {
 		isDegraded := false
 		hasNodesNotPartOfRaft := false
-		onlineVoters := 0
-		onlineStandbys := 0
+		onlineVoters := int64(0)
+		onlineStandbys := int64(0)
 
 		for _, node := range heartbeatData.Members {
 			role := db.RaftRole(node.RaftRole)
@@ -2502,7 +2506,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		// If there are offline members that have voter or stand-by database roles, let's see if we can
 		// replace them with spare ones. Also, if we don't have enough voters or standbys, let's see if we
 		// can upgrade some member.
-		if isDegraded || onlineVoters < int(maxVoters) || onlineStandbys < int(maxStandBy) {
+		if isDegraded || onlineVoters < maxVoters || onlineStandbys < maxStandBy {
 			d.clusterMembershipMutex.Lock()
 			logger.Debug("Rebalancing member roles in heartbeat", logger.Ctx{"local": localClusterAddress})
 			err := rebalanceMemberRoles(d.State(), d.gateway, nil, unavailableMembers)

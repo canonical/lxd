@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -502,7 +502,8 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 	origpid := pid
 
 	for pid > 1 {
-		cmdline, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
+		procPID := "/proc/" + fmt.Sprint(pid)
+		cmdline, err := os.ReadFile(procPID + "/cmdline")
 		if err != nil {
 			return nil, err
 		}
@@ -514,9 +515,7 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 
 			projectName := api.ProjectDefaultName
 			if strings.Contains(name, "_") {
-				fields := strings.SplitN(name, "_", 2)
-				projectName = fields[0]
-				name = fields[1]
+				projectName, name, _ = strings.Cut(name, "_")
 			}
 
 			inst, err := instance.LoadByProjectAndName(s, projectName, name)
@@ -533,27 +532,29 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 			return c, nil
 		}
 
-		status, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
-		if err != nil {
-			return nil, err
-		}
-
-		re, err := regexp.Compile(`^PPid:\s+([0-9]+)$`)
+		status, err := os.ReadFile(procPID + "/status")
 		if err != nil {
 			return nil, err
 		}
 
 		for _, line := range strings.Split(string(status), "\n") {
-			m := re.FindStringSubmatch(line)
-			if len(m) > 1 {
-				result, err := strconv.Atoi(m[1])
-				if err != nil {
-					return nil, err
-				}
-
-				pid = int32(result)
-				break
+			ppidStr, found := strings.CutPrefix(line, "PPid:")
+			if !found {
+				continue
 			}
+
+			// ParseUint avoid scanning for `-` sign.
+			ppid, err := strconv.ParseUint(strings.TrimSpace(ppidStr), 10, 32)
+			if err != nil {
+				return nil, err
+			}
+
+			if ppid > math.MaxInt32 {
+				return nil, fmt.Errorf("PPid value too large: Upper bound exceeded")
+			}
+
+			pid = int32(ppid)
+			break
 		}
 	}
 
