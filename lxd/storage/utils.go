@@ -1358,6 +1358,10 @@ func ValidVolumeName(volumeName string) error {
 		return fmt.Errorf("Invalid volume name: Cannot be empty")
 	}
 
+	if strings.Contains(volumeName, "\\") {
+		return fmt.Errorf("Invalid volume name %q: Cannot contain backslashes", volumeName)
+	}
+
 	if strings.Contains(volumeName, shared.SnapshotDelimiter) {
 		return fmt.Errorf("Invalid volume name %q: Cannot contain slashes", volumeName)
 	}
