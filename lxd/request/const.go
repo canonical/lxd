@@ -20,9 +20,11 @@ const (
 	// CtxProtocol is the protocol field in request context.
 	CtxProtocol CtxKey = "protocol"
 
-	// CtxIdentityProviderGroups is the identity provider groups field in the request context.
-	// This contains groups defined by the identity provider if the identity authenticated with OIDC.
-	CtxIdentityProviderGroups CtxKey = "identity_provider_groups"
+	// CtxIdentityInfo contains authentication and authorization information about the caller.
+	CtxIdentityInfo CtxKey = "identity_info"
+
+	// CtxCertificateInfo contains authentication and authorization information about the caller.
+	CtxCertificateInfo CtxKey = "certificate_info"
 
 	// CtxForwardedAddress is the forwarded address field in request context.
 	CtxForwardedAddress CtxKey = "forwarded_address"
