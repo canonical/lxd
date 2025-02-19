@@ -4,12 +4,10 @@ package drivers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/canonical/lxd/lxd/auth"
-	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -27,15 +25,9 @@ func init() {
 
 type tls struct {
 	commonAuthorizer
-	identities *identity.Cache
 }
 
-func (t *tls) load(ctx context.Context, identityCache *identity.Cache, opts Opts) error {
-	if identityCache == nil {
-		return errors.New("TLS authorization driver requires an identity cache")
-	}
-
-	t.identities = identityCache
+func (t *tls) load(ctx context.Context, opts Opts) error {
 	return nil
 }
 
@@ -56,7 +48,7 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 		return api.NewGenericStatusError(http.StatusForbidden)
 	}
 
-	isRoot, err := auth.IsServerAdmin(ctx, t.identities)
+	isRoot, err := auth.IsServerAdmin(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to check caller privilege: %w", err)
 	}
@@ -65,12 +57,12 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 		return nil
 	}
 
-	id, err := auth.GetIdentityFromCtx(ctx, t.identities)
+	id, err := auth.GetIdentityFromCtx(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to get caller identity: %w", err)
 	}
 
-	if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
+	if id.Type == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
 		return nil
 	}
 
@@ -79,9 +71,14 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 		return fmt.Errorf("Failed to check project specificity of entity type %q: %w", entityType, err)
 	}
 
+	cert, err := auth.GetCertificateFromCtx(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get caller certificate: %w", err)
+	}
+
 	// Check non- project-specific entity types.
 	if !projectSpecific {
-		if t.allowProjectUnspecificEntityType(entitlement, entityType, id, projectName, pathArguments) {
+		if t.allowProjectUnspecificEntityType(entitlement, entityType, cert, projectName, pathArguments) {
 			return nil
 		}
 
@@ -89,7 +86,7 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 	}
 
 	// Check project level permissions against the certificates project list.
-	if !shared.ValueInSlice(projectName, id.Projects) {
+	if !shared.ValueInSlice(projectName, cert.Projects) {
 		return api.StatusErrorf(http.StatusForbidden, "User does not have permission for project %q", projectName)
 	}
 
@@ -113,7 +110,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 		return allowFunc(false), nil
 	}
 
-	isRoot, err := auth.IsServerAdmin(ctx, t.identities)
+	isRoot, err := auth.IsServerAdmin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to check caller privilege: %w", err)
 	}
@@ -122,13 +119,18 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 		return allowFunc(true), nil
 	}
 
-	id, err := auth.GetIdentityFromCtx(ctx, t.identities)
+	id, err := auth.GetIdentityFromCtx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get caller identity: %w", err)
 	}
 
-	if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
+	if id.Type == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
 		return allowFunc(true), nil
+	}
+
+	cert, err := auth.GetCertificateFromCtx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get caller certificate: %w", err)
 	}
 
 	projectSpecific, err := entityType.RequiresProject()
@@ -152,15 +154,15 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 
 		// Check non- project-specific entity types.
 		if !projectSpecific {
-			return t.allowProjectUnspecificEntityType(entitlement, entityType, id, project, pathArguments)
+			return t.allowProjectUnspecificEntityType(entitlement, entityType, cert, project, pathArguments)
 		}
 
 		// Otherwise, check if the project is in the list of allowed projects for the entity.
-		return shared.ValueInSlice(project, id.Projects)
+		return shared.ValueInSlice(project, cert.Projects)
 	}, nil
 }
 
-func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, entityType entity.Type, id *identity.CacheEntry, projectName string, pathArguments []string) bool {
+func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, entityType entity.Type, cert *api.Certificate, projectName string, pathArguments []string) bool {
 	switch entityType {
 	case entity.TypeServer:
 		// Restricted TLS certificates have the following entitlements on server.
@@ -168,15 +170,15 @@ func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, ent
 	case entity.TypeIdentity:
 		// If the entity URL refers to the identity that made the request, then the second path argument of the URL is
 		// the identifier of the identity. This line allows the caller to view their own identity and no one else's.
-		return entitlement == auth.EntitlementCanView && len(pathArguments) > 1 && pathArguments[1] == id.Identifier
+		return entitlement == auth.EntitlementCanView && len(pathArguments) > 1 && pathArguments[1] == cert.Fingerprint
 	case entity.TypeCertificate:
 		// If the certificate URL refers to the identity that made the request, then the first path argument of the URL is
 		// the identifier of the identity (their fingerprint). This line allows the caller to view their own certificate and no one else's.
-		return entitlement == auth.EntitlementCanView && len(pathArguments) > 0 && pathArguments[0] == id.Identifier
+		return entitlement == auth.EntitlementCanView && len(pathArguments) > 0 && pathArguments[0] == cert.Fingerprint
 	case entity.TypeProject:
 		// If the project is in the list of projects that the identity is restricted to, then they have the following
 		// entitlements.
-		return shared.ValueInSlice(projectName, id.Projects) && shared.ValueInSlice(entitlement, []auth.Entitlement{
+		return shared.ValueInSlice(projectName, cert.Projects) && shared.ValueInSlice(entitlement, []auth.Entitlement{
 			auth.EntitlementCanView,
 			auth.EntitlementCanCreateImages,
 			auth.EntitlementCanCreateImageAliases,
