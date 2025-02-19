@@ -320,7 +320,7 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(nil)
 	}
 
-	isServerAdmin, err := auth.IsServerAdmin(r.Context(), d.identityCache)
+	isServerAdmin, err := auth.IsServerAdmin(r.Context())
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to determine caller privilege: %w", err))
 	}
@@ -330,12 +330,12 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 		return response.EmptySyncResponse
 	}
 
-	id, err := auth.GetIdentityFromCtx(r.Context(), d.identityCache)
+	id, err := auth.GetIdentityFromCtx(r.Context())
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to determine caller identity: %w", err))
 	}
 
-	switch id.IdentityType {
+	switch id.Type {
 	case api.IdentityTypeOIDCClient:
 		// OIDC authenticated clients are governed by fine-grained auth. They can call the endpoint but may see an empty list.
 		return response.EmptySyncResponse
@@ -354,8 +354,13 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(fmt.Errorf("Certificate is restricted"))
 	}
 
+	cert, err := request.GetCtxValue[*api.Certificate](r.Context(), request.CtxCertificateInfo)
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to check user permissions: %w", err))
+	}
+
 	// Disallow listing resources in projects the caller does not have access to.
-	if !shared.ValueInSlice(request.ProjectParam(r), id.Projects) {
+	if !shared.ValueInSlice(request.ProjectParam(r), cert.Projects) {
 		return response.Forbidden(fmt.Errorf("Certificate is restricted"))
 	}
 
@@ -370,12 +375,12 @@ func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, identit
 		return nil
 	}
 
-	id, err := auth.GetIdentityFromCtx(ctx, identityCache)
+	id, err := auth.GetIdentityFromCtx(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to get caller identity: %w", err)
 	}
 
-	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
+	if !identity.IsFineGrainedIdentityType(id.Type) {
 		return fmt.Errorf("Not fine grained")
 	}
 
