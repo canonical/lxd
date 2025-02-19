@@ -2600,7 +2600,7 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 	var metaDataBuilder strings.Builder
 
 	// Append strings to the builder
-	metaDataBuilder.WriteString("instance-id: " + d.inst.Name() + "\n")
+	metaDataBuilder.WriteString("instance-id: " + d.inst.CloudInitID() + "\n")
 	metaDataBuilder.WriteString("local-hostname: " + d.inst.Name() + "\n")
 
 	// These keys shouldn't be appended to the meta as it would be redundant as their values are already available
