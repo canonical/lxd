@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster/secret"
+	dbOIDC "github.com/canonical/lxd/lxd/db/oidc"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -231,7 +232,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	// Get the authentication methods.
 	authMethods := []string{api.AuthenticationMethodTLS}
 
-	oidcIssuer, oidcClientID, _, _, _ := s.GlobalConfig.OIDCServer()
+	oidcIssuer, oidcClientID, _, _, _, _ := s.GlobalConfig.OIDCServer()
 	if oidcIssuer != "" && oidcClientID != "" {
 		authMethods = append(authMethods, api.AuthenticationMethodOIDC)
 	}
@@ -1058,7 +1059,7 @@ func doAPI10UpdateTriggers(r *http.Request, d *Daemon, nodeChanged, clusterChang
 	}
 
 	if oidcChanged {
-		oidcIssuer, oidcClientID, oidcScopes, oidcAudience, oidcGroupsClaim := clusterConfig.OIDCServer()
+		oidcIssuer, oidcClientID, oidcScopes, oidcAudience, oidcGroupsClaim, oidcSessionLifetime := clusterConfig.OIDCServer()
 
 		if oidcIssuer == "" || oidcClientID == "" {
 			d.oidcVerifier = nil
@@ -1076,7 +1077,9 @@ func doAPI10UpdateTriggers(r *http.Request, d *Daemon, nodeChanged, clusterChang
 				host = d.localConfig.HTTPSAddress()
 			}
 
-			d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcScopes, oidcAudience, d.getClusterSecret, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim, Host: host, Ctx: r.Context()})
+			sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events)
+			certFingerprintFunc := func() string { return d.serverCert().Fingerprint() }
+			d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcScopes, oidcAudience, oidcSessionLifetime, d.getClusterSecret, certFingerprintFunc, httpClientFunc, sessionHandler, &oidc.Opts{GroupsClaim: oidcGroupsClaim, Host: host, Ctx: r.Context()})
 			if err != nil {
 				return fmt.Errorf("Failed creating verifier: %w", err)
 			}

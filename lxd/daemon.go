@@ -40,6 +40,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/cluster/secret"
+	dbOIDC "github.com/canonical/lxd/lxd/db/oidc"
 	"github.com/canonical/lxd/lxd/db/openfga"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/dns"
@@ -1678,7 +1679,7 @@ func (d *Daemon) init() error {
 	maasAPIURL, maasAPIKey = d.globalConfig.MAASController()
 	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
 	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes := d.globalConfig.LokiServer()
-	oidcIssuer, oidcClientID, oidcScopes, oidcAudience, oidcGroupsClaim := d.globalConfig.OIDCServer()
+	oidcIssuer, oidcClientID, oidcScopes, oidcAudience, oidcGroupsClaim, oidcSessionLifetime := d.globalConfig.OIDCServer()
 	syslogSocketEnabled := d.localConfig.SyslogSocket()
 	instancePlacementScriptlet := d.globalConfig.InstancesPlacementScriptlet()
 
@@ -1706,7 +1707,9 @@ func (d *Daemon) init() error {
 			return util.HTTPClient("", d.proxy)
 		}
 
-		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcScopes, oidcAudience, d.getClusterSecret, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
+		sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events)
+		certFingerprintFunc := func() string { return d.serverCert().Fingerprint() }
+		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcScopes, oidcAudience, oidcSessionLifetime, d.getClusterSecret, certFingerprintFunc, httpClientFunc, sessionHandler, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
 		if err != nil {
 			return err
 		}
