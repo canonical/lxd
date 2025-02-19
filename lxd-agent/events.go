@@ -164,7 +164,7 @@ func eventsProcess(event api.Event) {
 	// (since the mount command executed below originates from the `lxd-agent` binary that is in the `/run/lxd_agent` directory).
 	// This is not ideal and not consistent with the way mounts are handled with containers. For consistency make the path absolute.
 	e.Config["path"], err = filepath.Abs(e.Config["path"])
-	if err != nil || strings.HasPrefix(e.Config["path"], "/") {
+	if err != nil || !strings.HasPrefix(e.Config["path"], "/") {
 		l.Error("Failed to make path absolute")
 		return
 	}
