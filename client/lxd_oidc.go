@@ -90,19 +90,24 @@ func newOIDCClient(tokens *oidc.Tokens[*oidc.IDTokenClaims]) *oidcClient {
 	return &client
 }
 
-// getAccessToken returns the Access Token from the oidcClient's tokens, or an empty string if no tokens are present.
-func (o *oidcClient) getAccessToken() string {
-	if o.tokens == nil || o.tokens.Token == nil {
-		return ""
-	}
-
-	return o.tokens.AccessToken
-}
-
 // do function executes an HTTP request using the oidcClient's http client, and manages authorization by refreshing or authenticating as needed.
 // If the request fails with an HTTP Unauthorized status, it attempts to refresh the access token, or perform an OIDC authentication if refresh fails.
 // The oidcScopesExtensionPresent argument changes the behaviour of this function based on the presence of an API extension.
 func (o *oidcClient) do(req *http.Request, oidcScopesExtensionPresent bool) (*http.Response, error) {
+	if o.httpClient.Jar == nil || len(o.httpClient.Jar.Cookies(req.URL)) == 0 {
+		// If there is no cookie, pre-emptively set the Authorization header so that LXD knows we're
+		// trying to authenticate with OIDC.
+		token := ""
+		if o.tokens != nil && o.tokens.Token != nil {
+			token = o.tokens.AccessToken
+		}
+
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	// Clone the request so that, if we do send a cookie that becomes invalidated, we don't send it again.
+	// This is because it persists on the *http.Request but is unset on the *http.Client.
+	clonedReq := req.Clone(req.Context())
 	resp, err := o.httpClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -111,6 +116,20 @@ func (o *oidcClient) do(req *http.Request, oidcScopesExtensionPresent bool) (*ht
 	// Return immediately if the error is not HTTP status unauthorized.
 	if resp.StatusCode != http.StatusUnauthorized {
 		return resp, nil
+	}
+
+	// If we have an access token, it might still be valid.
+	if o.tokens != nil && o.tokens.Token != nil && o.tokens.Token.AccessToken != "" {
+		clonedReq.Header.Set("Authorization", "Bearer "+o.tokens.AccessToken)
+		resp, err = o.httpClient.Do(clonedReq)
+		if err != nil {
+			return nil, err
+		}
+
+		// Return immediately if the error is not HTTP status unauthorized.
+		if resp.StatusCode != http.StatusUnauthorized {
+			return resp, nil
+		}
 	}
 
 	issuer := resp.Header.Get("X-LXD-OIDC-issuer")
@@ -139,8 +158,10 @@ func (o *oidcClient) do(req *http.Request, oidcScopesExtensionPresent bool) (*ht
 		}
 	}
 
+	// Try to refresh (returns an error if no refresh token present)
 	err = o.refresh(issuer, clientID, scopes)
 	if err != nil {
+		// Otherwise authenticate
 		err = o.authenticate(issuer, clientID, audience, scopes)
 		if err != nil {
 			return nil, err
@@ -148,14 +169,8 @@ func (o *oidcClient) do(req *http.Request, oidcScopesExtensionPresent bool) (*ht
 	}
 
 	// Set the new access token in the header.
-	req.Header.Set("Authorization", "Bearer "+o.tokens.AccessToken)
-
-	resp, err = o.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	clonedReq.Header.Set("Authorization", "Bearer "+o.tokens.AccessToken)
+	return o.httpClient.Do(clonedReq)
 }
 
 // getProvider initializes a new OpenID Connect Relying Party for a given issuer and clientID.
@@ -196,7 +211,7 @@ func (o *oidcClient) getProvider(issuer string, clientID string, scopes []string
 // refresh attempts to refresh the OpenID Connect access token for the client using the refresh token.
 // If no token is present or the refresh token is empty, it returns an error. If successful, it updates the access token and other relevant token fields.
 func (o *oidcClient) refresh(issuer string, clientID string, scopes []string) error {
-	if o.tokens.Token == nil || o.tokens.RefreshToken == "" {
+	if o.tokens == nil || o.tokens.Token == nil || o.tokens.RefreshToken == "" {
 		return errRefreshAccessToken
 	}
 
