@@ -60,6 +60,10 @@ func ValidName(instanceName string, isSnapshot bool) error {
 
 // ValidSnapName validates a snnapshot instance name which must not include the instance prefix.
 func ValidSnapName(snapshotName string) error {
+	if snapshotName == "" {
+		return fmt.Errorf("Invalid instance snapshot name, cannot be empty")
+	}
+
 	if snapshotName == ".." {
 		return fmt.Errorf("Invalid instance snapshot name %q", snapshotName)
 	}
