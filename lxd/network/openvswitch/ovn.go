@@ -930,7 +930,7 @@ func (o *OVN) LogicalSwitchDHCPv4OptionsSet(switchName OVNSwitch, uuid OVNDHCPOp
 	args := []string{"dhcp-options-set-options", string(uuid),
 		"server_id=" + opts.ServerID.String(),
 		"server_mac=" + opts.ServerMAC.String(),
-		"lease_time=" + fmt.Sprint(opts.LeaseTime/time.Second),
+		"lease_time=" + strconv.FormatInt(int64(opts.LeaseTime.Seconds()), 10),
 	}
 
 	if opts.Router != nil {
