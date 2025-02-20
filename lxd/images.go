@@ -1201,7 +1201,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(fmt.Errorf("Invalid images JSON"))
 	}
 
-	/* Forward requests for containers on other nodes */
+	// Forward requests for containers on other nodes.
 	if !imageUpload && shared.ValueInSlice(req.Source.Type, []string{"container", "instance", "virtual-machine", "snapshot"}) {
 		name := req.Source.Name
 		if name != "" {
