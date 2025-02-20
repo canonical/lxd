@@ -3819,8 +3819,8 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 			// IPv4 addresses have been added, then add an EUI64 static IPv6 address so that the switch
 			// port has an IPv6 address that will be used to generate a DNS record. This works around a
 			// limitation in OVN that prevents us requesting dynamic IPv6 address allocation when
-			// static IPv4 allocation is used.
-			if len(staticIPs) > 0 {
+			// static IPv4 allocation is used or when we don't want to have dynamic IPv4 allocation.
+			if len(staticIPs) > 0 || dhcpv4Subnet == nil {
 				hasIPv6 := false
 				for _, ip := range staticIPs {
 					if ip.To4() == nil {
