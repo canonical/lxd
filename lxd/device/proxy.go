@@ -651,21 +651,36 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 
 func (d *proxy) killProxyProc(pidPath string) error {
 	// If the pid file doesn't exist, there is no process to kill.
-	if !shared.PathExists(pidPath) {
-		return nil
+	if shared.PathExists(pidPath) {
+		p, err := subprocess.ImportProcess(pidPath)
+		if err != nil {
+			return fmt.Errorf("Could not read pid file: %s", err)
+		}
+
+		err = p.Stop()
+		if err != nil && err != subprocess.ErrNotRunning {
+			return fmt.Errorf("Unable to kill forkproxy: %s", err)
+		}
+
+		err = os.Remove(pidPath)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("Failed to remove pid file %q: %w", pidPath, err)
+		}
 	}
 
-	p, err := subprocess.ImportProcess(pidPath)
+	listenAddr, err := network.ProxyParseAddr(d.config["listen"])
 	if err != nil {
-		return fmt.Errorf("Could not read pid file: %s", err)
+		return err
 	}
 
-	err = p.Stop()
-	if err != nil && err != subprocess.ErrNotRunning {
-		return fmt.Errorf("Unable to kill forkproxy: %s", err)
+	// Remove socket file if needed.
+	if listenAddr.ConnType == "unix" && !listenAddr.Abstract {
+		err = os.Remove(listenAddr.Address)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("Failed to remove socket file: %w", err)
+		}
 	}
 
-	_ = os.Remove(pidPath)
 	return nil
 }
 
