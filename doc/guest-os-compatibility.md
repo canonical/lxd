@@ -1,6 +1,8 @@
 (guest-os-compatibility)=
 # Guest OS compatibility
 
+## Virtual machines
+
 The following operating systems (OS) were tested as virtual machine guest running on top of on LXD `5.21/stable`. Each OS was tested by doing a manual installation using the official ISO as provided by the vendor.
 
 OS vendor | OS version         | OS support | [LXD agent](#lxd-agent) | VirtIO-SCSI | VirtIO-BLK | NVMe    | CSM (BIOS) | UEFI | Secure Boot
