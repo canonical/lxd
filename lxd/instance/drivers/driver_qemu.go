@@ -6927,6 +6927,11 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 			diskPools[poolName] = diskPool
 		}
 
+		// Check that we're on shared storage.
+		if !diskPool.Driver().Info().Remote {
+			continue
+		}
+
 		// Setup the volume entry.
 		extraSourceArgs := &migration.VolumeSourceArgs{
 			ClusterMove: true,
@@ -7448,6 +7453,11 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 				// Save it to the pools map to avoid loading it from the DB multiple times.
 				diskPools[poolName] = diskPool
+			}
+
+			// Check that we're on shared storage.
+			if !diskPool.Driver().Info().Remote {
+				continue
 			}
 
 			// Setup the volume entry.
