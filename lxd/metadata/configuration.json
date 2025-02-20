@@ -201,6 +201,14 @@
 						}
 					},
 					{
+						"source.snapshot": {
+							"longdesc": "Snapshot of the volume given by `source`.",
+							"required": "no",
+							"shortdesc": "`source` snapshot name",
+							"type": "string"
+						}
+					},
+					{
 						"source.type": {
 							"defaultdesc": "`custom`",
 							"longdesc": "Possible values are `custom` (the default) or `virtual-machine`. This\nkey is only valid when `source` is the name of a storage volume.",
