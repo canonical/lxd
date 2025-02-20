@@ -107,11 +107,12 @@ func memoryState() api.InstanceStateMemory {
 		stats.MemTotalBytes = math.MaxInt64
 	}
 
-	if stats.MemFreeBytes > math.MaxInt64 {
-		stats.MemFreeBytes = math.MaxInt64
+	usage := stats.MemTotalBytes - stats.MemFreeBytes
+	if usage > math.MaxInt64 {
+		usage = math.MaxInt64
 	}
 
-	memory.Usage = int64(stats.MemTotalBytes - stats.MemFreeBytes)
+	memory.Usage = int64(usage)
 	memory.Total = int64(stats.MemTotalBytes)
 
 	// Memory peak in bytes
