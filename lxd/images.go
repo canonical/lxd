@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -3050,7 +3051,13 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 			continue
 		}
 
-		if opSecret == secret {
+		// Assert opSecret is a string then convert to []byte for constant time comparison.
+		opSecretStr, ok := opSecret.(string)
+		if !ok {
+			continue
+		}
+
+		if subtle.ConstantTimeCompare([]byte(opSecretStr), []byte(secret)) == 1 {
 			// Token is single-use, so cancel it now.
 			err = operationCancel(s, r, projectName, op)
 			if err != nil {
