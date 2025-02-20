@@ -68,8 +68,8 @@ func ValidSnapName(snapshotName string) error {
 		return fmt.Errorf("Invalid instance snapshot name %q", snapshotName)
 	}
 
-	if strings.ContainsAny(snapshotName, " /\\") {
-		return fmt.Errorf("Invalid instance snapshot name %q: Cannot contain spaces, forward or back slashes", snapshotName)
+	if strings.ContainsAny(snapshotName, "* /\\") {
+		return fmt.Errorf("Invalid instance snapshot name %q: Cannot contain *, spaces, forward or back slashes", snapshotName)
 	}
 
 	return nil
