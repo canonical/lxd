@@ -4366,6 +4366,10 @@ func clusterGroupValidateName(name string) error {
 		return fmt.Errorf("No name provided")
 	}
 
+	if strings.Contains(name, "\\") {
+		return fmt.Errorf("Cluster group names may not contain back slashes")
+	}
+
 	if strings.Contains(name, "/") {
 		return fmt.Errorf("Cluster group names may not contain slashes")
 	}
