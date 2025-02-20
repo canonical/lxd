@@ -341,7 +341,7 @@ func GenCert(certf string, keyf string, certtype bool, options CertOptions) erro
 
 // GenerateMemCert creates client or server certificate and key pair,
 // returning them as byte arrays in memory.
-func GenerateMemCert(client bool, options CertOptions) ([]byte, []byte, error) {
+func GenerateMemCert(client bool, options CertOptions) (cert []byte, key []byte, err error) {
 	privk, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to generate key: %w", err)
@@ -424,8 +424,8 @@ func GenerateMemCert(client bool, options CertOptions) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 
-	cert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
-	key := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: data})
+	cert = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	key = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: data})
 
 	return cert, key, nil
 }
