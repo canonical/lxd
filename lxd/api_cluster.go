@@ -4366,6 +4366,14 @@ func clusterGroupValidateName(name string) error {
 		return fmt.Errorf("No name provided")
 	}
 
+	if name == "*" {
+		return fmt.Errorf("Reserved cluster group name")
+	}
+
+	if name == "." || name == ".." {
+		return fmt.Errorf("Invalid cluster group name %q", name)
+	}
+
 	if strings.Contains(name, "\\") {
 		return fmt.Errorf("Cluster group names may not contain back slashes")
 	}
@@ -4384,14 +4392,6 @@ func clusterGroupValidateName(name string) error {
 
 	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
 		return fmt.Errorf("Cluster group names may not contain quotes")
-	}
-
-	if name == "*" {
-		return fmt.Errorf("Reserved cluster group name")
-	}
-
-	if shared.ValueInSlice(name, []string{".", ".."}) {
-		return fmt.Errorf("Invalid cluster group name %q", name)
 	}
 
 	return nil
