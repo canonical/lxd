@@ -2984,6 +2984,8 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 		return nil, fmt.Errorf("Failed getting image token operations: %w", err)
 	}
 
+	fingerprintURLPath := api.NewURL().Path(version.APIVersion, "images", fingerprint).String()
+
 	for _, op := range ops {
 		if op.Resources == nil {
 			continue
@@ -2994,7 +2996,7 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 			continue
 		}
 
-		if !shared.StringPrefixInSlice(api.NewURL().Path(version.APIVersion, "images", fingerprint).String(), opImages) {
+		if !shared.StringPrefixInSlice(fingerprintURLPath, opImages) {
 			continue
 		}
 
