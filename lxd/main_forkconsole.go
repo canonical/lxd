@@ -14,6 +14,7 @@ type cmdForkconsole struct {
 	global *cmdGlobal
 }
 
+// Command setup the console.
 func (c *cmdForkconsole) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -30,6 +31,7 @@ func (c *cmdForkconsole) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the fork console command.
 func (c *cmdForkconsole) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) != 5 {
