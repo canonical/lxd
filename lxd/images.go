@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1201,7 +1202,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(fmt.Errorf("Invalid images JSON"))
 	}
 
-	/* Forward requests for containers on other nodes */
+	// Forward requests for containers on other nodes.
 	if !imageUpload && shared.ValueInSlice(req.Source.Type, []string{"container", "instance", "virtual-machine", "snapshot"}) {
 		name := req.Source.Name
 		if name != "" {
@@ -3031,6 +3032,8 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 		return nil, fmt.Errorf("Failed getting image token operations: %w", err)
 	}
 
+	fingerprintURLPath := api.NewURL().Path(version.APIVersion, "images", fingerprint).String()
+
 	for _, op := range ops {
 		if op.Resources == nil {
 			continue
@@ -3041,7 +3044,7 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 			continue
 		}
 
-		if !shared.StringPrefixInSlice(api.NewURL().Path(version.APIVersion, "images", fingerprint).String(), opImages) {
+		if !shared.StringPrefixInSlice(fingerprintURLPath, opImages) {
 			continue
 		}
 
@@ -3050,7 +3053,13 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 			continue
 		}
 
-		if opSecret == secret {
+		// Assert opSecret is a string then convert to []byte for constant time comparison.
+		opSecretStr, ok := opSecret.(string)
+		if !ok {
+			continue
+		}
+
+		if subtle.ConstantTimeCompare([]byte(opSecretStr), []byte(secret)) == 1 {
 			// Token is single-use, so cancel it now.
 			err = operationCancel(s, r, projectName, op)
 			if err != nil {
