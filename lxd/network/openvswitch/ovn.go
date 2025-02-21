@@ -1997,7 +1997,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 			}
 
 			if r.ListenPort > 0 {
-				targetArgs = append(targetArgs, ipToString(target.Address)+":"+fmt.Sprint(target.Port))
+				targetArgs = append(targetArgs, ipToString(target.Address)+":"+strconv.FormatUint(target.Port, 10))
 			} else {
 				targetArgs = append(targetArgs, ipToString(target.Address))
 			}
