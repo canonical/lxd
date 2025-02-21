@@ -3679,38 +3679,8 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, deviceName string, devi
 
 	revert.Add(func() { _ = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID, true) })
 
-	// If NIC has static IPv4 address then create a DHCPv4 reservation.
-	if deviceConfig["ipv4.address"] != "" {
-		ip := net.ParseIP(deviceConfig["ipv4.address"])
-		if ip != nil {
-			dhcpReservations, err := client.LogicalSwitchDHCPv4RevervationsGet(n.getIntSwitchName())
-			if err != nil {
-				return fmt.Errorf("Failed getting DHCPv4 reservations: %w", err)
-			}
-
-			if !n.hasDHCPv4Reservation(dhcpReservations, ip) {
-				dhcpReservations = append(dhcpReservations, shared.IPRange{Start: ip})
-				err = client.LogicalSwitchDHCPv4RevervationsSet(n.getIntSwitchName(), dhcpReservations)
-				if err != nil {
-					return fmt.Errorf("Failed adding DHCPv4 reservation for %q: %w", ip.String(), err)
-				}
-			}
-		}
-	}
-
 	revert.Success()
 	return nil
-}
-
-// hasDHCPv4Reservation returns whether IP is in the supplied reservation list.
-func (n *ovn) hasDHCPv4Reservation(dhcpReservations []shared.IPRange, ip net.IP) bool {
-	for _, dhcpReservation := range dhcpReservations {
-		if dhcpReservation.Start.Equal(ip) && dhcpReservation.End == nil {
-			return true
-		}
-	}
-
-	return false
 }
 
 // InstanceDevicePortStart sets up an instance device port to the internal logical switch.
@@ -3751,14 +3721,6 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
 		return "", fmt.Errorf("Failed to get OVN client: %w", err)
-	}
-
-	// Get existing DHCPv4 static reservations.
-	// This is used for both checking sticky DHCPv4 allocation availability and for ensuring static DHCP
-	// reservations exist.
-	dhcpReservations, err := client.LogicalSwitchDHCPv4RevervationsGet(n.getIntSwitchName())
-	if err != nil {
-		return "", fmt.Errorf("Failed getting DHCPv4 reservations: %w", err)
 	}
 
 	dhcpv4Subnet := n.DHCPv4Subnet()
@@ -3922,20 +3884,6 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	}
 
 	revert.Add(func() { _ = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID, false) })
-
-	// If NIC has static IPv4 address then ensure a DHCPv4 reservation exists.
-	// Do this at start time as well as add time in case an instance was copied (causing a duplicate address
-	// conflict at add time) which is later resolved by deleting the original instance, meaning LXD needs to
-	// add a reservation when the copied instance next starts.
-	if opts.DeviceConfig["ipv4.address"] != "" && dnsIPv4 != nil {
-		if !n.hasDHCPv4Reservation(dhcpReservations, dnsIPv4) {
-			dhcpReservations = append(dhcpReservations, shared.IPRange{Start: dnsIPv4})
-			err = client.LogicalSwitchDHCPv4RevervationsSet(n.getIntSwitchName(), dhcpReservations)
-			if err != nil {
-				return "", fmt.Errorf("Failed adding DHCPv4 reservation for %q: %w", dnsIPv4.String(), err)
-			}
-		}
-	}
 
 	// Publish NIC's IPs on uplink network if NAT is disabled and using l2proxy ingress mode on uplink.
 	if shared.ValueInSlice(opts.UplinkConfig["ovn.ingress_mode"], []string{"l2proxy", ""}) {
@@ -4395,37 +4343,6 @@ func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, d
 
 	// Remove DNS record if exists.
 	if dnsUUID != "" {
-		// If NIC has static IPv4 address then remove the DHCPv4 reservation.
-		if deviceConfig["ipv4.address"] != "" {
-			ip := net.ParseIP(deviceConfig["ipv4.address"])
-			if ip != nil {
-				dhcpReservations, err := client.LogicalSwitchDHCPv4RevervationsGet(n.getIntSwitchName())
-				if err != nil {
-					return fmt.Errorf("Failed getting DHCPv4 reservations: %w", err)
-				}
-
-				dhcpReservations = append(dhcpReservations, shared.IPRange{Start: ip})
-				dhcpReservationsNew := make([]shared.IPRange, 0, len(dhcpReservations))
-
-				found := false
-				for _, dhcpReservation := range dhcpReservations {
-					if dhcpReservation.Start.Equal(ip) && dhcpReservation.End == nil {
-						found = true
-						continue
-					}
-
-					dhcpReservationsNew = append(dhcpReservationsNew, dhcpReservation)
-				}
-
-				if found {
-					err = client.LogicalSwitchDHCPv4RevervationsSet(n.getIntSwitchName(), dhcpReservationsNew)
-					if err != nil {
-						return fmt.Errorf("Failed removing DHCPv4 reservation for %q: %w", ip.String(), err)
-					}
-				}
-			}
-		}
-
 		err = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID, true)
 		if err != nil {
 			return fmt.Errorf("Failed deleting DNS record: %w", err)
