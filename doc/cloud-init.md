@@ -75,11 +75,7 @@ See {ref}`cloud-init:merging_user_data` for instructions.
 To configure `cloud-init` for an instance, add the corresponding configuration options to a {ref}`profile <profiles>` that the instance uses or directly to the {ref}`instance configuration <instances-configure>`.
 
 When configuring `cloud-init` directly for an instance, keep in mind that `cloud-init` runs only on instance start.
-That means any changes to `cloud-init` configuration will only take effect after the next instance start.
-Some configuration options only take effect on the first boot of an instance. If `cloud-init` notices that an
-instance's `instance-id` has changed, it behaves as if this was the instance's first boot. For more information, see
-the [cloud-init docs](https://docs.cloud-init.io/en/latest/explanation/first_boot.html#first-boot-determination)
-If you are using the CLI client, create the instance with [`lxc init`](lxc_init.md) instead of [`lxc launch`](lxc_launch.md), and then start it after completing the configuration.
+This means any changes to `cloud-init` configuration only take effect after the next instance start. To ensure `cloud-init` configurations are applied on every boot, LXD changes the instance ID whenever relevant `cloud-init` configuration keys are modified. This triggers `cloud-init` to fetch and apply the updated data from LXD as if it were the instance's first boot. For more information, see the `cloud-init` docs regarding {ref}`cloud-init:first_boot_determination`.
 
 To add your configuration:
 
