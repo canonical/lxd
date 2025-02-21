@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -1563,7 +1564,9 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 		// Order is important here, as vlan_mode is set to "access", assuming that vlan.tagged is not used.
 		// If vlan.tagged is specified, then we expect it to also change the vlan_mode as needed.
 		if d.config["vlan"] != "none" {
-			err := ovs.BridgePortSet(hostName, "vlan_mode=access", "tag="+string(d.config["vlan"]))
+			ctx3, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			err := ovs.BridgePortSet(ctx3, hostName, "vlan_mode=access", "tag="+string(d.config["vlan"]))
 			if err != nil {
 				return err
 			}
@@ -1593,7 +1596,9 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 		// Also set the vlan_mode as needed from above.
 		// Must come after the PortSet command used for setting "vlan" mode above so that the correct
 		// vlan_mode is retained.
-		err = ovs.BridgePortSet(hostName, fmt.Sprintf("vlan_mode=%s", vlanMode), fmt.Sprintf("trunks=%s", strings.Join(vlanIDs, ",")))
+		ctx2, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		err = ovs.BridgePortSet(ctx2, hostName, fmt.Sprintf("vlan_mode=%s", vlanMode), fmt.Sprintf("trunks=%s", strings.Join(vlanIDs, ",")))
 		if err != nil {
 			return err
 		}

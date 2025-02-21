@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mdlayher/netx/eui64"
 
@@ -449,7 +450,9 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	} else {
 		if d.config["acceleration"] == "sriov" {
 			ovs := openvswitch.NewOVS()
-			if !ovs.HardwareOffloadingEnabled() {
+			ctx1, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			if !ovs.HardwareOffloadingEnabled(ctx1) {
 				return nil, fmt.Errorf("SR-IOV acceleration requires hardware offloading be enabled in OVS")
 			}
 
@@ -496,7 +499,9 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 			peerName = vfDev
 		} else if d.config["acceleration"] == "vdpa" {
 			ovs := openvswitch.NewOVS()
-			if !ovs.HardwareOffloadingEnabled() {
+			ctx2, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			if !ovs.HardwareOffloadingEnabled(ctx2) {
 				return nil, fmt.Errorf("SR-IOV acceleration requires hardware offloading be enabled in OVS")
 			}
 
@@ -614,7 +619,9 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 	// Get local chassis ID for chassis group.
 	ovs := openvswitch.NewOVS()
-	chassisID, err := ovs.ChassisID()
+	ctx3, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	chassisID, err := ovs.ChassisID(ctx3)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting OVS Chassis ID: %w", err)
 	}
@@ -850,9 +857,11 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	// another LXD host later.
 	if integrationBridgeNICName != "" {
 		integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
 
 		// Detach host-side end of veth pair from OVS integration bridge.
-		err = ovs.BridgePortDelete(integrationBridge, integrationBridgeNICName)
+		err = ovs.BridgePortDelete(ctx, integrationBridge, integrationBridgeNICName)
 		if err != nil {
 			// Don't fail here as we want the postStop hook to run to clean up the local veth pair.
 			d.logger.Error("Failed detaching interface from OVS integration bridge", logger.Ctx{"interface": integrationBridgeNICName, "bridge": integrationBridge, "err": err})
@@ -1118,16 +1127,22 @@ func (d *nicOVN) setupHostNIC(hostName string, ovnPortName openvswitch.OVNSwitch
 	// Attach host side veth interface to bridge.
 	integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
+	ctx1, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 	ovs := openvswitch.NewOVS()
-	err = ovs.BridgePortAdd(integrationBridge, hostName, true)
+	err = ovs.BridgePortAdd(ctx1, integrationBridge, hostName, true)
 	if err != nil {
 		return nil, err
 	}
 
-	revert.Add(func() { _ = ovs.BridgePortDelete(integrationBridge, hostName) })
+	ctx2, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	revert.Add(func() { _ = ovs.BridgePortDelete(ctx2, integrationBridge, hostName) })
 
+	ctx3, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 	// Link OVS port to OVN logical port.
-	err = ovs.InterfaceAssociateOVNSwitchPort(hostName, ovnPortName)
+	err = ovs.InterfaceAssociateOVNSwitchPort(ctx3, hostName, ovnPortName)
 	if err != nil {
 		return nil, err
 	}
