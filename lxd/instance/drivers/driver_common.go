@@ -1255,6 +1255,13 @@ func (d *common) needsNewInstanceID(changedConfig []string, oldExpandedDevices d
 		}
 	}
 
+	// Additional SSH keys should also trigger an ID reset.
+	for _, key := range changedConfig {
+		if strings.HasPrefix(key, "cloud-init.ssh-keys.") {
+			return true
+		}
+	}
+
 	// Look for changes in network interface names.
 	getNICNames := func(devs deviceConfig.Devices) []string {
 		names := make([]string, 0, len(devs))
