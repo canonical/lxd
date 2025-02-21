@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -6959,19 +6960,26 @@ func (d *lxc) stopForkfile(force bool) {
 		return
 	}
 
-	pid, err := strconv.ParseInt(strings.TrimSpace(string(content)), 10, 64)
+	pid, err := strconv.ParseUint(strings.TrimSpace(string(content)), 10, 32)
 	if err != nil {
 		return
 	}
 
-	d.logger.Debug("Stopping forkfile", logger.Ctx{"pid": pid, "force": force})
+	// Bound check the PID.
+	if pid > math.MaxInt {
+		return
+	}
+
+	validPID := int(pid)
+
+	d.logger.Debug("Stopping forkfile", logger.Ctx{"pid": validPID, "force": force})
 
 	if force {
 		// Forcefully kill the running process.
-		_ = unix.Kill(int(pid), unix.SIGTERM)
+		_ = unix.Kill(validPID, unix.SIGTERM)
 	} else {
 		// Try to send SIGINT to forkfile to indicate it should not accept any new connection.
-		_ = unix.Kill(int(pid), unix.SIGINT)
+		_ = unix.Kill(validPID, unix.SIGINT)
 	}
 }
 
