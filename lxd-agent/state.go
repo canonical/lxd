@@ -104,16 +104,17 @@ func memoryState() api.InstanceStateMemory {
 
 	// Bound checking before converting from uint64 to int64
 	if stats.MemTotalBytes > math.MaxInt64 {
-		stats.MemTotalBytes = math.MaxInt64
+		memory.Total = math.MaxInt64
+	} else {
+		memory.Total = int64(stats.MemTotalBytes)
 	}
 
 	usage := stats.MemTotalBytes - stats.MemFreeBytes
 	if usage > math.MaxInt64 {
-		usage = math.MaxInt64
+		memory.Usage = math.MaxInt64
+	} else {
+		memory.Usage = int64(usage)
 	}
-
-	memory.Usage = int64(usage)
-	memory.Total = int64(stats.MemTotalBytes)
 
 	// Memory peak in bytes
 	value, err := os.ReadFile("/sys/fs/cgroup/memory/memory.max_usage_in_bytes")

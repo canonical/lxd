@@ -668,7 +668,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 
 			maxWidth := -1
 			if len(cc) > 2 {
-				temp, err := strconv.ParseInt(cc[2], 10, 64)
+				temp, err := strconv.ParseInt(cc[2], 10, 32)
 				if err != nil {
 					return nil, false, fmt.Errorf(i18n.G("Invalid max width (must be an integer) '%s' in '%s'"), cc[2], columnEntry)
 				}
