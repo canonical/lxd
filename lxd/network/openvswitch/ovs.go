@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -372,4 +373,152 @@ func (o *OVS) OVNSouthboundDBRemoteAddress() (string, error) {
 	}
 
 	return addr, nil
+}
+
+// Default STP priority is 32768 (0x8000). This value will be used if the
+// priority cannot be retrieved or if STP is disabled
+func GetStpPriority(bridgeName string) (string, error) {
+	output, err := shared.RunCommand("ovs-appctl", "stp/show", bridgeName)
+	if err != nil {
+		runErr, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runErr.Unwrap().(*exec.ExitError)
+
+			// STP is disabled for that bridge
+			if ok && exitError.ExitCode() == 2 {
+				return "8000", nil
+			}
+		}
+		return "8000", err
+	}
+
+	// retrieve the stp-priority
+	var stpPriority string
+	var bridgeSection bool
+	lines := strings.Split(output, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "Bridge ID:" {
+			bridgeSection = true
+		}
+		if bridgeSection {
+			if strings.HasPrefix(line, "stp-priority") {
+				sections := strings.Fields(line)
+				if len(sections) > 1 {
+					stpPriority = sections[1]
+				}
+			}
+		}
+	}
+
+	// convert the priority to hexadecimal format
+	decimalStp, err := strconv.Atoi(stpPriority)
+	if err != nil {
+		return "8000", err
+	}
+	hexStp := fmt.Sprintf("%4X", decimalStp)
+	return hexStp, nil
+
+}
+
+// The bridge IDs follow the following format <STP priority>.<MAC Address>
+// The STP priority is in hexadecimal format
+func (o *OVS) GenerateOVSBridgeID(bridgeName string) (string, error) {
+	// get the MAC address
+	netIf, err := net.InterfaceByName(bridgeName)
+	if err != nil {
+		return "None", err
+	}
+	bridgeHwID := strings.ReplaceAll(strings.ToLower(netIf.HardwareAddr.String()), ":", "")
+
+	// Get the STP priority
+	stpPriority, err := GetStpPriority(bridgeName)
+	if err != nil {
+		return "None", err
+	}
+
+	return stpPriority + "." + bridgeHwID, nil
+}
+
+func (o *OVS) StpEnabled(bridgeName string) (bool, error) {
+	output, err := shared.RunCommand("ovs-vsctl", "get", "bridge", bridgeName, "stp_enable")
+	if err != nil {
+		return false, err
+	}
+	output = strings.TrimSpace(output)
+	return strconv.ParseBool(output)
+}
+
+func (o *OVS) GetStpForwardDelay(bridgeName string) (uint64, error) {
+	output, err := shared.RunCommand("ovs-appctl", "stp/show", bridgeName)
+	if err != nil {
+		return uint64(0), err
+	}
+
+	var stpOvsDelay string
+	var bridgeSection bool
+	lines := strings.Split(output, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "Bridge ID:" {
+			bridgeSection = true
+		}
+		if bridgeSection {
+			if strings.HasPrefix(line, "stp-fwd-delay") {
+				sections := strings.Fields(line)
+				if len(sections) > 1 {
+					stpOvsDelay = sections[1]
+				}
+			}
+		}
+	}
+
+	// remove the "s" at the end
+	stpOvsDelay = stpOvsDelay[:len(stpOvsDelay)-1]
+
+	stpFwDelay, err := strconv.ParseUint(stpOvsDelay, 10, 64)
+	return stpFwDelay * 1000, err
+
+}
+
+// In OVS, Vlan filtering is enabled when Vlan related settings are configured
+func (o *OVS) VlanFilteringEnabled(bridgeName string) (bool, error) {
+
+	// check if the tag, trunks or vlan_mode fields are populated
+	output, err := shared.RunCommand("ovs-vsctl", "get", "port", bridgeName, "tag", "trunks", "vlan_mode")
+	if err != nil {
+		return false, err
+	}
+
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	for _, line := range lines {
+		// when no value is defined "[]" is returned
+		if line != "[]" {
+			return true, nil
+		}
+	}
+	return false, nil
+
+}
+
+// In OVS a PVID of 0 means that the port is not associated with any VLAN
+func (o *OVS) GetVlanPvid(bridgeName string) (uint64, error) {
+	output, err := shared.RunCommand("ovs-vsctl", "get", "port", bridgeName, "tag")
+	if err != nil {
+		return 0, err
+	}
+
+	output = strings.TrimSpace(output)
+	if output == "[]" {
+		return 0, nil
+	}
+
+	pvid, err := strconv.ParseUint(output, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return pvid, nil
 }
