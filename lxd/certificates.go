@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rsa"
+	"crypto/subtle"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -231,7 +232,17 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, projectName st
 			continue
 		}
 
-		if opServerName == joinToken.ServerName && opSecret == joinToken.Secret {
+		if opServerName != joinToken.ServerName {
+			continue
+		}
+
+		// Assert opSecret is a string then convert to []byte for constant time comparison.
+		opSecretStr, ok := opSecret.(string)
+		if !ok {
+			continue
+		}
+
+		if subtle.ConstantTimeCompare([]byte(opSecretStr), []byte(joinToken.Secret)) == 1 {
 			foundOp = op
 			break
 		}
@@ -299,7 +310,13 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 			continue
 		}
 
-		if opSecret == addToken.Secret {
+		// Assert opSecret is a string then convert to []byte for constant time comparison.
+		opSecretStr, ok := opSecret.(string)
+		if !ok {
+			continue
+		}
+
+		if subtle.ConstantTimeCompare([]byte(opSecretStr), []byte(addToken.Secret)) == 1 {
 			foundOp = op
 			break
 		}
