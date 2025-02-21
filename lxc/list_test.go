@@ -241,7 +241,7 @@ func TestColumns(t *testing.T) {
 			buffer.WriteString(":0")
 		case 6, 7:
 			buffer.WriteRune(':')
-			buffer.WriteString(strconv.FormatUint(uint64(rand.Uint32()), 10))
+			buffer.WriteString(strconv.FormatUint(uint64(rand.Int31()), 10))
 		}
 
 		// Unconditionally append a comma so that we don't create an invalid
