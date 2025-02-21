@@ -2112,7 +2112,7 @@ func (n *ovn) validateUplinkNetwork(ctx context.Context, tx *db.ClusterTx, p *ap
 	return "", fmt.Errorf(`Option "network" is required`)
 }
 
-// getDHCPv4Reservations returns list DHCP IPv4 reservations from NICs connected to this network.
+// getDHCPv4Reservations returns list of DHCP IPv4 reservations for this network.
 func (n *ovn) getDHCPv4Reservations() ([]shared.IPRange, error) {
 	routerIntPortIPv4, _, err := n.parseRouterIntPortIPv4Net()
 	if err != nil {
@@ -2123,18 +2123,6 @@ func (n *ovn) getDHCPv4Reservations() ([]shared.IPRange, error) {
 
 	if routerIntPortIPv4 != nil {
 		dhcpReserveIPv4s = []shared.IPRange{{Start: routerIntPortIPv4}}
-	}
-
-	err = UsedByInstanceDevices(n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
-		ip := net.ParseIP(nicConfig["ipv4.address"])
-		if ip != nil {
-			dhcpReserveIPv4s = append(dhcpReserveIPv4s, shared.IPRange{Start: ip})
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	return dhcpReserveIPv4s, nil
