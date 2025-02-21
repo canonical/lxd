@@ -1851,3 +1851,28 @@ func (g *cmdGlobal) cmpFiles(toComplete string, includeLocalFiles bool) ([]strin
 
 	return append(instances, files...), directives
 }
+
+// cmpServices provides shell completions for services.
+func (g *cmdGlobal) cmpServices(toComplete string) ([]string, cobra.ShellCompDirective) {
+	// Parse remote.
+	resources, err := g.ParseServers(toComplete)
+	if err != nil || len(resources) == 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	services, err := client.GetServices()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	results := make([]string, 0, len(services))
+
+	for _, service := range services {
+		results = append(results, service.Name)
+	}
+
+	return results, cobra.ShellCompDirectiveNoFileComp
+}

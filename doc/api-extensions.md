@@ -2618,3 +2618,17 @@ Note that the `openid` and `email` scopes are always required.
 ## `project_default_network_and_storage`
 
 Adds flags --network and --storage. The --network flag adds a network device connected to the specified network to the default profile. The --storage flag adds a root disk device using the specified storage pool to the default profile.
+
+## services
+
+This introduces the services API to enable services (server-side remotes).
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/services/<name>` - returns information about a specific service.
+* `GET /1.0/services` - returns a combined view of self-created and delegated services (if any).
+* `PUT /1.0/services/<name>` - allows for modification of a specific service.
+* `POST /1.0/service/add` - adds a specific service using a provided trust token.
+* `DELETE /1.0/services/<name>` - deletes a service.
+
+This also includes the new `services` and `services_config` database tables and their corresponding functions.

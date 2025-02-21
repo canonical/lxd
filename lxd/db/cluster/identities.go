@@ -452,6 +452,27 @@ func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret 
 	return &identities[0], nil
 }
 
+// GetPendingTLSIdentityByName gets a single identity of type identityTypeCertificateClientPending with the given name.
+// If no pending identity is found, an api.StatusError is returned with http.StatusNotFound.
+func GetPendingTLSIdentityByName(ctx context.Context, tx *sql.Tx, name string) (*Identity, error) {
+	identities, err := getIdentitysRaw(ctx, tx, fmt.Sprintf(
+		`SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata 
+		FROM identities
+		WHERE identities.type = %d
+		AND name = ?`, identityTypeCertificateClientPending), name)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(identities) == 0 {
+		return nil, api.NewStatusError(http.StatusNotFound, "No pending identities found with given name")
+	} else if len(identities) > 1 {
+		return nil, errors.New("Multiple pending identities found with given name")
+	}
+
+	return &identities[0], nil
+}
+
 // GetAuthGroupsByIdentityID returns a slice of groups that the identity with the given ID is a member of.
 func GetAuthGroupsByIdentityID(ctx context.Context, tx *sql.Tx, identityID int) ([]AuthGroup, error) {
 	stmt := `

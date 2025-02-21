@@ -481,6 +481,24 @@ CREATE TABLE "projects_config" (
     FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE,
     UNIQUE (project_id, key)
 );
+CREATE TABLE services (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	identity_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	addresses TEXT NOT NULL,
+	type INTEGER NOT NULL,
+	description TEXT NOT NULL,
+	UNIQUE(name),
+	FOREIGN KEY (identity_id) REFERENCES identities (id) ON DELETE CASCADE
+);
+CREATE TABLE services_config(
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	service_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	FOREIGN KEY (service_id) REFERENCES services (id) ON DELETE CASCADE,
+	UNIQUE(service_id, key)
+);
 CREATE TABLE "storage_buckets" (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
 	name TEXT NOT NULL,
@@ -662,5 +680,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (73, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (74, strftime("%s"))
 `
