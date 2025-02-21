@@ -1239,21 +1239,26 @@ func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort,
 			args = append(args, string(opts.Parent), fmt.Sprint(opts.VLAN))
 		}
 
-		ipStr := make([]string, 0, len(opts.IPs))
-		for _, ip := range opts.IPs {
-			ipStr = append(ipStr, ip.String())
+		var addresses []string
+
+		if opts.MAC != nil {
+			addresses = append(addresses, opts.MAC.String())
 		}
 
-		var addresses string
-		if opts.MAC != nil && len(ipStr) > 0 {
-			addresses = opts.MAC.String() + " " + strings.Join(ipStr, " ")
-		} else if opts.MAC != nil && len(ipStr) <= 0 {
-			addresses = opts.MAC.String() + " dynamic"
-		} else {
-			addresses = "dynamic"
+		if len(opts.IPs) > 0 {
+			// If static IPs are requested then use these.
+			for _, ip := range opts.IPs {
+				addresses = append(addresses, ip.String())
+			}
+		} else if opts.DHCPv4OptsID != "" || opts.DHCPv6OptsID != "" {
+			// Or if either DHCPv4 or DHCPv6 is enabled then request dynamic IPs for both protocols.
+			// OVN currently doesn't allow us to request protocol specific dynamic IPs.
+			addresses = append(addresses, "dynamic")
 		}
 
-		args = append(args, "--", "lsp-set-addresses", string(portName), addresses)
+		if len(addresses) > 0 {
+			args = append(args, "--", "lsp-set-addresses", string(portName), strings.Join(addresses, " "))
+		}
 
 		if opts.DHCPv4OptsID != "" {
 			args = append(args, "--", "lsp-set-dhcpv4-options", string(portName), string(opts.DHCPv4OptsID))
@@ -1997,7 +2002,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 			}
 
 			if r.ListenPort > 0 {
-				targetArgs = append(targetArgs, ipToString(target.Address)+":"+fmt.Sprint(target.Port))
+				targetArgs = append(targetArgs, ipToString(target.Address)+":"+strconv.FormatUint(target.Port, 10))
 			} else {
 				targetArgs = append(targetArgs, ipToString(target.Address))
 			}
@@ -2005,7 +2010,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 
 		if r.ListenPort > 0 {
 			args = append(args,
-				ipToString(r.ListenAddress)+fmt.Sprint(r.ListenPort),
+				ipToString(r.ListenAddress)+":"+strconv.FormatUint(r.ListenPort, 10),
 				strings.Join(targetArgs, ","),
 				r.Protocol,
 			)
