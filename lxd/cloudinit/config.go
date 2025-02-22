@@ -5,24 +5,141 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/canonical/lxd/shared"
 	"gopkg.in/yaml.v2"
+
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
-// cloudInitUserSSHKeys is a struct that keeps the SSH keys to be injected using cloud-init for a certain user.
-type cloudInitUserSSHKeys struct {
+// sshKeyExtendedConfigTag defines comment to be added on the side of added keys.
+var sshKeyExtendedConfigTag = "#lxd:cloud-init.ssh-keys"
+
+// VendorDataKeys contains the keys used to store cloud-init's vendor-data.
+var VendorDataKeys = []string{"cloud-init.vendor-data", "user.vendor-data"}
+
+// UserDataKeys contains the keys used to store cloud-init's user-data.
+var UserDataKeys = []string{"cloud-init.user-data", "user.user-data"}
+
+// GetEffectiveConfigKey gets the correct config key for some type of cloud-init configuration.
+// Supported configTypes are "user-data", "vendor-data" or "network-config".
+func GetEffectiveConfigKey(instanceConfig map[string]string, configType string) string {
+	// cloud-init.* keys take precedence over user.* ones
+	key := "cloud-init." + configType
+	value := instanceConfig["cloud-init."+configType]
+	// If cloud-init.* is not defined but user.* is, fallback on the latter.
+	if value == "" {
+		fallbackKey := "user." + configType
+		value = instanceConfig[fallbackKey]
+		if value != "" {
+			key = fallbackKey
+		}
+	}
+
+	return key
+}
+
+// Config contains the user-data and vendor-data used as configuration data for cloud-init.
+type Config struct {
+	UserData   string
+	VendorData string
+}
+
+// GetEffectiveConfig returns the resulting vendor-data and/or user-data for a certain instance.
+// This method takes in an optional requestedKey that point either user-data or vendor-data. If no requiredKey is
+// provided, it is understood that the caller wants the resulting values for both [vendor|user]-data.
+func GetEffectiveConfig(instanceConfig map[string]string, requestedKey string, instanceName string, instanceProject string) (config Config) {
+	// Assign requestedKey according to the type of seed data it refers to.
+	vendorKeyProvided := shared.ValueInSlice(requestedKey, VendorDataKeys)
+	userKeyProvided := shared.ValueInSlice(requestedKey, UserDataKeys)
+
+	var vendorDataKey string
+	var userDataKey string
+
+	if vendorKeyProvided {
+		vendorDataKey = requestedKey
+	} else {
+		vendorDataKey = GetEffectiveConfigKey(instanceConfig, "vendor-data")
+	}
+
+	if userKeyProvided {
+		userDataKey = requestedKey
+	} else {
+		userDataKey = GetEffectiveConfigKey(instanceConfig, "user-data")
+	}
+
+	// Extract additional SSH keys to merge into cloud-config.
+	userKeys := extractAdditionalSSHKeys(instanceConfig)
+
+	var vendorErr error
+	var userErr error
+
+	// Defer logging a warning for each desired output in case of a parsing error.
+	// An output is considered desired if it is the expected output for requestedKey's effective value or no requestedKey was provided.
+	defer func() {
+		if (requestedKey == "" || vendorKeyProvided) && vendorErr != nil {
+			logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": vendorErr, "project": instanceProject, "instance": instanceName, "dataConfigKey": vendorDataKey})
+		}
+
+		if (requestedKey == "" || userKeyProvided) && userErr != nil {
+			logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": userErr, "project": instanceProject, "instance": instanceName, "dataConfigKey": vendorDataKey})
+		}
+	}()
+
+	// Parse data from instance config.
+	vendorCloudConfig, vendorErr := parseCloudConfig(instanceConfig[vendorDataKey])
+	userCloudConfig, userErr := parseCloudConfig(instanceConfig[userDataKey])
+
+	// Merge additional SSH keys into parsed config.
+	// If merging is not possible return the raw value for the target key.
+	if requestedKey == "" || vendorKeyProvided {
+		if vendorErr == nil {
+			config.VendorData, vendorErr = vendorCloudConfig.mergeSSHKeyCloudConfig(userKeys)
+		}
+
+		if config.VendorData == "" {
+			config.VendorData = instanceConfig[vendorDataKey]
+		}
+	}
+
+	if requestedKey == "" || userKeyProvided {
+		if userErr == nil {
+			config.UserData, userErr = userCloudConfig.mergeSSHKeyCloudConfig(userKeys)
+		}
+
+		if config.UserData == "" {
+			config.UserData = instanceConfig[userDataKey]
+		}
+	}
+
+	return config
+}
+
+// parseCloudConfig attempts to unmarshal a string into a cloudConfig object. Returns an error if the
+// provided string is not a valid YAML or lacks the needed "#cloud-config" comment.
+func parseCloudConfig(rawCloudConfig string) (cloudConfig, error) {
+	// Parse YAML cloud-config into map.
+	cloudConfigMap := make(map[any]any)
+	err := yaml.Unmarshal([]byte(rawCloudConfig), cloudConfigMap)
+	if err != nil {
+		return nil, fmt.Errorf("Could not unmarshall cloud-config: %w", err)
+	}
+
+	return cloudConfigMap, nil
+}
+
+// userSSHKeys is a struct that keeps the SSH keys to be injected using cloud-init for a certain user.
+type userSSHKeys struct {
 	importIDs  []string
 	publicKeys []string
 }
 
-// MergeSSHKeyCloudConfig merges any existing SSH keys defined in an instance config into a provided
-// cloud-config YAML string.
-// In the case where we were not able to parse the cloud config, return the original, unchanged config and
-// the error.
-func MergeSSHKeyCloudConfig(instanceConfig map[string]string, cloudConfig string) (string, error) {
-	// Use a pointer to cloudInitUserSSHKeys so we can append to its fields.
-	users := make(map[string]*cloudInitUserSSHKeys)
+// extractAdditionalSSHKeys extracts additional SSH keys from the instance config.
+// Returns a map of userSSHKeys keyed on the name of the user that the keys should be injected for.
+func extractAdditionalSSHKeys(instanceConfig map[string]string) map[string]*userSSHKeys {
+	// Use a pointer to userSSHKeys so we can append to its fields.
+	users := make(map[string]*userSSHKeys)
 
+	// Populate map of userSSHKeys.
 	for key, value := range instanceConfig {
 		if strings.HasPrefix(key, "cloud-init.ssh-keys.") {
 			user, sshKey, found := strings.Cut(value, ":")
@@ -32,10 +149,10 @@ func MergeSSHKeyCloudConfig(instanceConfig map[string]string, cloudConfig string
 				continue
 			}
 
-			// Create an empty cloudInitUserSSHKeys if the user is not configured.
+			// Create an empty userSSHKeys if the user is not configured.
 			_, ok := users[user]
 			if !ok {
-				users[user] = &cloudInitUserSSHKeys{}
+				users[user] = &userSSHKeys{}
 			}
 
 			// Check if ssh key is an import ID with with the "keyServer:UserName".
@@ -50,29 +167,45 @@ func MergeSSHKeyCloudConfig(instanceConfig map[string]string, cloudConfig string
 		}
 	}
 
-	// If no keys are defined, return the original config passed in.
-	if len(users) == 0 {
-		return cloudConfig, nil
+	return users
+}
+
+// cloudConfig represents a cloud-config parsed into a map.
+type cloudConfig map[any]any
+
+// string marshals a cloud-config map into a YAML string.
+func (config cloudConfig) string() (string, error) {
+	resultingConfigBytes, err := yaml.Marshal(config)
+	if err != nil {
+		return "", err
 	}
 
-	// Parse YAML cloud-config into map.
-	cloudConfigMap := make(map[any]any)
-	err := yaml.Unmarshal([]byte(cloudConfig), cloudConfigMap)
-	if err != nil {
-		return cloudConfig, fmt.Errorf("Could not unmarshall cloud-config: %w", err)
+	// Add cloud-config tag and space before comments, as doing the latter
+	// while parsing would result in the comment to be included in the value on the same line.
+	resultingConfig := "#cloud-config\n" + strings.ReplaceAll(string(resultingConfigBytes), sshKeyExtendedConfigTag, " "+sshKeyExtendedConfigTag)
+	return resultingConfig, nil
+}
+
+// mergeSSHKeyCloudConfig merges keys present in a map of userSSHKeys into a CloudConfig.
+// The provided map can be obtained by extracting user keys from an instance config with extractAdditionalSSHKeys.
+// This also returns the resulting YAML string after the merging is done.
+func (config cloudConfig) mergeSSHKeyCloudConfig(userKeys map[string]*userSSHKeys) (string, error) {
+	// If no keys are defined, return the original config passed in.
+	if len(userKeys) == 0 {
+		return config.string()
 	}
 
 	// Get previously defined users list in provided config, if present.
-	userList, err := findOrCreateListInMap(cloudConfigMap, "users")
+	userList, err := findOrCreateListInMap(config, "users")
 	if err != nil {
-		return cloudConfig, err
+		return "", err
 	}
 
 	// Define comment to be added on the side of added keys.
 	sshKeyExtendedConfigTag := "#lxd:cloud-init.ssh-keys"
 
 	// Merge the specified additional keys into the provided cloud config.
-	for user, keys := range users {
+	for user, keys := range userKeys {
 		var targetUser map[any]any
 
 		for index, field := range userList {
@@ -89,7 +222,7 @@ func MergeSSHKeyCloudConfig(instanceConfig map[string]string, cloudConfig string
 					userList[index] = targetUser
 					break
 				} else if !isString {
-					return cloudConfig, errors.New("Invalid user item on users list")
+					return "", errors.New("Invalid user item on users list")
 				}
 			} else if mapField["name"] == user {
 				// If it is a map, check the name.
@@ -112,27 +245,19 @@ func MergeSSHKeyCloudConfig(instanceConfig map[string]string, cloudConfig string
 		// Add public keys to cloud-config.
 		err = addValueToListsInMap(targetUser, keys.publicKeys, sshAuthorizedKeys, sshKeyExtendedConfigTag)
 		if err != nil {
-			return cloudConfig, err
+			return "", err
 		}
 
 		// Add import IDs to cloud-config.
 		err = addValueToListsInMap(targetUser, keys.importIDs, importIDKeys, sshKeyExtendedConfigTag)
 		if err != nil {
-			return cloudConfig, err
+			return "", err
 		}
 	}
 
 	// Only modify the original config map if everything went well.
-	cloudConfigMap["users"] = userList
-	resultingConfigBytes, err := yaml.Marshal(cloudConfigMap)
-	if err != nil {
-		return cloudConfig, err
-	}
-
-	// Add cloud-config tag and space before comments, as doing the latter
-	// while parsing would result in the comment to be included in the value on the same line.
-	resultingConfig := "#cloud-config\n" + strings.ReplaceAll(string(resultingConfigBytes), sshKeyExtendedConfigTag, " "+sshKeyExtendedConfigTag)
-	return resultingConfig, nil
+	config["users"] = userList
+	return config.string()
 }
 
 // addValueToListsInMap finds or creates a list referenced on the provided user map for each key on fieldKeys
