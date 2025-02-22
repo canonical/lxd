@@ -17,6 +17,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/cloudinit"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -25,7 +26,6 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/ucred"
-	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -118,17 +118,25 @@ func devlxdConfigKeyGetHandler(d *Daemon, c instance.Instance, w http.ResponseWr
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
 
-	value := c.ExpandedConfig()[key]
+	var value string
 
-	// If parsing the config is not possible, abstain from merging the additional keys into the config.
-	if strings.HasSuffix(key, ".vendor-data") || strings.HasSuffix(key, ".user-data") {
-		value, err = util.MergeSSHKeyCloudConfig(c.ExpandedConfig(), value)
-		if err != nil {
-			logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": err, "project": c.Project().Name, "instance": c.Name(), "requestedKey": key})
+	isVendorDataKey := shared.ValueInSlice(key, cloudinit.VendorDataKeys)
+	isUserDataKey := shared.ValueInSlice(key, cloudinit.UserDataKeys)
+
+	// For values containing cloud-init seed data, try to merge into them additional SSH keys present on the instance config.
+	// If parsing the config is not possible, abstain from merging the additional keys.
+	if isVendorDataKey || isUserDataKey {
+		cloudInitData := cloudinit.GetEffectiveConfig(c.ExpandedConfig(), key, c.Name(), c.Project().Name)
+		if isVendorDataKey {
+			value = cloudInitData.VendorData
+		} else {
+			value = cloudInitData.UserData
 		}
+	} else {
+		value = c.ExpandedConfig()[key]
 	}
 
-	// If the requested key is not defined and there isn't any addition SSH keys for this instance, return a 'not found' response.
+	// If the resulting value is empty, return Not Found.
 	if value == "" {
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusNotFound, "not found"), c.Type() == instancetype.VM)
 	}
