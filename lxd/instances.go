@@ -24,6 +24,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/cenkalti/backoff/v4"
 )
 
 var instancesCmd = APIEndpoint{
@@ -455,26 +456,82 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 	return instances, nil
 }
 
-func instancesShutdown(instances []instance.Instance) {
+func instancesShutdown(instances []instance.Instance, usedResourceMap map[*api.URL]bool, usedResourceMapMu *sync.Mutex) {
 	sort.Sort(instanceStopList(instances))
 
 	// Limit shutdown concurrency to number of instances or number of CPU cores (which ever is less).
 	var wg sync.WaitGroup
 	instShutdownCh := make(chan instance.Instance)
+	resourceConstrainedMode := usedResourceMap != nil && usedResourceMapMu != nil
+	var instToBackoff map[*api.URL]*backoff.ExponentialBackOff
+	var instToBackoffMu sync.Mutex
 	maxConcurrent := runtime.NumCPU()
 	instCount := len(instances)
 	if instCount < maxConcurrent {
 		maxConcurrent = instCount
 	}
 
+	// If we are in resource constrained mode, we need to track the instance URL (the URLs here are for instances that are still busy, i.e have associated pending operations) to their backoff
+	// so that we can re-send the instance back to the instShutdownCh channel to be shutdown after the backoff period has elapsed.
+	// Each instance URL will have a backoff associated with it so that an instance that is newly detected as busy will have an shorter backoff period than an instance that has been busy for a while.
+	if resourceConstrainedMode {
+		instToBackoff = make(map[*api.URL]*backoff.ExponentialBackOff, len(instances))
+		instToBackoffMu = sync.Mutex{}
+	}
+
 	for i := 0; i < maxConcurrent; i++ {
-		go func(instShutdownCh <-chan instance.Instance) {
+		go func(instShutdownCh chan instance.Instance) {
 			for inst := range instShutdownCh {
 				// Determine how long to wait for the instance to shutdown cleanly.
 				timeoutSeconds := 30
 				value, ok := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
 				if ok {
 					timeoutSeconds, _ = strconv.Atoi(value)
+				}
+
+				instanceURL := entity.InstanceURL(inst.Project().Name, inst.Name())
+				if resourceConstrainedMode {
+					usedResourceMapMu.Lock()
+					exponentialBackOff, exists := instToBackoff[instanceURL]
+					if !exists {
+						exponentialBackOff := backoff.NewExponentialBackOff()
+						exponentialBackOff.InitialInterval = 5 * time.Second
+						exponentialBackOff.Multiplier = 1.5
+						exponentialBackOff.RandomizationFactor = 0.2
+						exponentialBackOff.MaxInterval = 60 * time.Second
+						exponentialBackOff.MaxElapsedTime = 15 * time.Minute
+						instToBackoff[instanceURL] = exponentialBackOff
+					}
+
+					code, err := backoff.RetryWithData(func() (int, error) {
+						usedResourceMapMu.Lock()
+						blocked, exists := usedResourceMap[instanceURL]
+						usedResourceMapMu.Unlock()
+
+						if blocked && exists {
+							instShutdownCh <- inst
+							return 1, nil
+						}
+
+						return 0, nil
+					}, exponentialBackOff)
+					if err != nil {
+						if err != backoff.Permanent(err) {
+							logger.Warn("Failed to retry backoff operation during busy instance shutdown attempt", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
+						} else {
+							logger.Warn("Unknown error returned from backoff operation during instance shutdown retry", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
+						}
+
+						instToBackoffMu.Unlock()
+						continue
+					}
+
+					instToBackoffMu.Unlock()
+					// This means the instance has been sent back to the channel to be retried.
+					// We should not attempt to shutdown the instance for now.
+					if code == 1 {
+						continue
+					}
 				}
 
 				err := inst.Shutdown(time.Second * time.Duration(timeoutSeconds))
@@ -484,6 +541,13 @@ func instancesShutdown(instances []instance.Instance) {
 					if err != nil {
 						logger.Warn("Failed forcefully stopping instance", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
 					}
+				}
+
+				if resourceConstrainedMode {
+					instanceURL := entity.InstanceURL(inst.Project().Name, inst.Name())
+					usedResourceMapMu.Lock()
+					usedResourceMap[instanceURL] = false
+					usedResourceMapMu.Unlock()
 				}
 
 				if inst.ID() > 0 {

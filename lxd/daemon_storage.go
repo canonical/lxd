@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -19,7 +21,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-func daemonStorageVolumesUnmount(s *state.State) error {
+func daemonStorageVolumesUnmount(s *state.State, usedResourcesMap map[*api.URL]bool, resourceMapMu *sync.Mutex) error {
 	var storageBackups string
 	var storageImages string
 
@@ -57,6 +59,87 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 		}
 
 		return nil
+	}
+
+	if usedResourcesMap != nil && (storageBackups != "" || storageImages != "") {
+		tick := time.NewTicker(time.Second)
+		defer tick.Stop()
+
+		storageBackupsUnmounted := false
+		var storageBackupsBaseURLPrefix string
+		var storageBackupsURLToRemoveFromMap *api.URL
+		storageImagesUnmounted := false
+		var storageImagesBaseURLPrefix string
+		var storageImagesURLToRemoveFromMap *api.URL
+
+		if storageBackups != "" {
+			poolName, volumeName, err := daemonStorageSplitVolume(storageBackups)
+			if err != nil {
+				return err
+			}
+
+			storageBackupsBaseURLPrefix = api.NewURL().Path("storage-pools", poolName, "volumes", "custom", volumeName).String()
+		} else {
+			storageBackupsUnmounted = true
+		}
+
+		if storageImages != "" {
+			poolName, volumeName, err := daemonStorageSplitVolume(storageImages)
+			if err != nil {
+				return err
+			}
+
+			storageImagesBaseURLPrefix = api.NewURL().Path("storage-pools", poolName, "volumes", "custom", volumeName).String()
+		} else {
+			storageImagesUnmounted = true
+		}
+
+		for {
+			select {
+			case <-time.After(time.Minute):
+				return fmt.Errorf("Failed to unmount backups and images storage volumes due to timeout")
+			case <-tick.C:
+				resourceMapMu.Lock()
+				for url, used := range usedResourcesMap {
+					// Check if the resource is still in use.
+					if storageBackupsBaseURLPrefix != "" && !storageBackupsUnmounted && (strings.HasPrefix(url.String(), storageBackupsBaseURLPrefix) && !used) {
+						err := unmount(storageBackups)
+						if err != nil {
+							resourceMapMu.Unlock()
+							return fmt.Errorf("Failed to unmount backups storage: %w", err)
+						}
+
+						storageBackupsURLToRemoveFromMap = url
+						storageBackupsUnmounted = true
+					}
+
+					if storageImagesBaseURLPrefix != "" && !storageImagesUnmounted && (strings.HasPrefix(url.String(), storageImagesBaseURLPrefix) && !used) {
+						err := unmount(storageImages)
+						if err != nil {
+							resourceMapMu.Unlock()
+							return fmt.Errorf("Failed to unmount images storage: %w", err)
+						}
+
+						storageImagesURLToRemoveFromMap = url
+						storageImagesUnmounted = true
+					}
+
+					if storageBackupsUnmounted && storageImagesUnmounted {
+						break
+					}
+				}
+
+				if storageBackupsURLToRemoveFromMap != nil {
+					delete(usedResourcesMap, storageBackupsURLToRemoveFromMap)
+				}
+
+				if storageImagesURLToRemoveFromMap != nil {
+					delete(usedResourcesMap, storageImagesURLToRemoveFromMap)
+				}
+
+				resourceMapMu.Unlock()
+			}
+		}
 	}
 
 	if storageBackups != "" {

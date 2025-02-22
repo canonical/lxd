@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -59,7 +60,7 @@ var operationWebsocket = APIEndpoint{
 
 // waitForOperations waits for operations to finish.
 // There's a timeout for console/exec operations that when reached will shut down the instances forcefully.
-func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdownTimeout time.Duration) {
+func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdownTimeout time.Duration, resourceMap map[*api.URL]bool, resourceMapMu *sync.Mutex, firstOperationsCheckPass chan struct{}) {
 	timeout := time.After(consoleShutdownTimeout)
 
 	defer func() {
@@ -98,7 +99,48 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 			_, opAPI, err := op.Render()
 			if err != nil {
 				logger.Warn("Failed to render operation", logger.Ctx{"operation": op, "err": err})
-			} else if opAPI.MayCancel {
+			}
+
+			// If the current operations has a hold on some resources, we keep track of them in the `resourceMap`.
+			// This is used to mark instances and storage volumes as busy to avoid shutting them down / unmounting them prematurely.
+			// This allows the waitForOperations to be called in a goroutine alongside the instance shutdown goroutine and the custom volume unmounting goroutine (for backups and images)
+			// and to avoid the situation where a single very long running operation can block the shutdown of unrelated instances and the unmount of unrelated storage volumes.
+			if opAPI.Resources != nil {
+				for resourceName, resourceEntries := range opAPI.Resources {
+					if resourceName == "instances" || resourceName == "storage_volumes" || resourceName == "storage_volume_snapshots" || resourceName == "storage_volume_backups" {
+						for _, rawURL := range resourceEntries {
+							u := api.NewURL()
+							parsedURL, err := u.Parse(rawURL)
+							if err != nil {
+								logger.Error("Failed to parse raw URL", logger.Ctx{"rawURL": rawURL})
+								continue
+							}
+
+							entityType, projectName, location, pathArgs, err := entity.ParseURL(*parsedURL)
+							if err != nil {
+								logger.Error("Failed to parse URL into a LXD entity", logger.Ctx{"url": *parsedURL})
+								continue
+							}
+
+							if entityType == entity.TypeInstance || entityType == entity.TypeStorageVolume || entityType == entity.TypeStorageVolumeSnapshot || entityType == entity.TypeStorageVolumeBackup {
+								entityURL, err := entityType.URL(projectName, location, pathArgs...)
+								if err != nil {
+									logger.Error("Failed to generate entity URL", logger.Ctx{"entityType": entityType, "projectName": projectName, "location": location, "pathArgs": pathArgs})
+									continue
+								}
+
+								resourceMapMu.Lock()
+								resourceMap[entityURL] = true
+								resourceMapMu.Unlock()
+							} else {
+								logger.Warn("Unexpected entity type", logger.Ctx{"entityType": entityType})
+							}
+						}
+					}
+				}
+			}
+
+			if opAPI.MayCancel {
 				_, _ = op.Cancel()
 			}
 		}
@@ -112,6 +154,10 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 		// Print log message every minute.
 		if i%60 == 0 {
 			logger.Infof("Waiting for %d operation(s) to finish", runningOps)
+		}
+
+		if i == 0 {
+			close(firstOperationsCheckPass)
 		}
 
 		i++

@@ -1528,7 +1528,7 @@ func (d *Daemon) init() error {
 			return fmt.Errorf("Failed loading containers to restart: %w", err)
 		}
 
-		instancesShutdown(instances)
+		instancesShutdown(instances, nil, nil)
 		instancesStart(s, instances)
 	}
 
@@ -2067,18 +2067,29 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 
 	// Handle shutdown (unix.SIGPWR) and reload (unix.SIGTERM) signals.
 	if sig == unix.SIGPWR || sig == unix.SIGTERM {
+		var resourceMapMu sync.Mutex
+		var usedResourcesMap map[*api.URL]bool
+		var firstOperationsCheckPass chan struct{}
 		if d.db.Cluster != nil {
-			// waitForOperations will block until all operations are done, or it's forced to shut down.
-			// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
-			// initiated using `lxd shutdown`.
-			waitForOperations(ctx, d.db.Cluster, s.GlobalConfig.ShutdownTimeout())
+			usedResourcesMap = make(map[*api.URL]bool)
+			firstOperationsCheckPass = make(chan struct{})
+			// Wait for the first operation loop check to complete,
+			// so we can be sure that all operations are accounted for when `dameon.Stop()` is called.
+			// This will populate the resourceMap with all operations that are currently running.
+			// Without this, we might trigger an instance shutdown before the resource map is populated by a potential `<instance_url>:true` entry.
+			// This first pass mechanism is also used to start shutting down instances as soon as
+			// we have a good overview of all the operations so that an operation can't block the instance shutdown process.
+			//
+			// The same mechanism applies for the storage volume used for the backups and images.
+			go waitForOperations(ctx, d.db.Cluster, s.GlobalConfig.ShutdownTimeout(), usedResourcesMap, &resourceMapMu, firstOperationsCheckPass)
+			<-firstOperationsCheckPass
 		}
 
 		// Unmount daemon image and backup volumes if set.
 		logger.Info("Stopping daemon storage volumes")
 		done := make(chan struct{})
 		go func() {
-			err := daemonStorageVolumesUnmount(s)
+			err := daemonStorageVolumesUnmount(s, usedResourcesMap, &resourceMapMu)
 			if err != nil {
 				logger.Error("Failed to unmount image and backup volumes", logger.Ctx{"err": err})
 			}
@@ -2095,7 +2106,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 
 		// Full shutdown requested.
 		if sig == unix.SIGPWR {
-			instancesShutdown(instances)
+			instancesShutdown(instances, usedResourcesMap, &resourceMapMu)
 
 			logger.Info("Stopping networks")
 			networkShutdown(s)
