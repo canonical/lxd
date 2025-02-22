@@ -21,6 +21,7 @@ import (
 	"github.com/zitadel/oidc/v3/pkg/op"
 	"golang.org/x/crypto/hkdf"
 
+	"github.com/canonical/lxd/lxd/db/cluster/secret"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
@@ -39,14 +40,15 @@ const (
 	cookieNameSessionID = "session_id"
 )
 
-const (
-	defaultConfigExpiryInterval = 5 * time.Minute
-)
+type relyingParty struct {
+	rp.RelyingParty
+	outdatedAt time.Time
+}
 
 // Verifier holds all information needed to verify an access token offline.
 type Verifier struct {
 	accessTokenVerifier *op.AccessTokenVerifier
-	relyingParty        rp.RelyingParty
+	relyingParties      []relyingParty
 	identityCache       *identity.Cache
 
 	clientID       string
@@ -54,18 +56,17 @@ type Verifier struct {
 	scopes         []string
 	audience       string
 	groupsClaim    string
-	clusterCert    func() *shared.CertInfo
 	httpClientFunc func() (*http.Client, error)
+	clusterSecret  func(ctx context.Context) (secret.Secret, bool, error)
 
 	// host is used for setting a valid callback URL when setting the relyingParty.
 	// When creating the relyingParty, the OIDC library performs discovery (e.g. it calls the /well-known/oidc-configuration endpoint).
 	// We don't want to perform this on every request, so we only do it when the request host changes.
 	host string
 
-	// configExpiry is the next time at which the relying party and access token verifier will be considered out of date
-	// and will be refreshed. This refreshes the cookie encryption keys that the relying party uses.
-	configExpiry         time.Time
-	configExpiryInterval time.Duration
+	// expireConfig is used to refresh configuration on the next usage. This forces the verifier to, for example, update
+	// the http.Client used for communication with the IdP so that proxies can be used.
+	expireConfig bool
 }
 
 // AuthenticationResult represents an authenticated OIDC client.
@@ -163,7 +164,7 @@ func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken stri
 		return nil, fmt.Errorf("Failed to get OIDC identity from identity cache by their subject (%s): %w", claims.Subject, err)
 	}
 
-	userInfo, err := rp.Userinfo[*oidc.UserInfo](ctx, accessToken, oidc.BearerToken, claims.Subject, o.relyingParty)
+	userInfo, err := rp.Userinfo[*oidc.UserInfo](ctx, accessToken, oidc.BearerToken, claims.Subject, o.relyingParties[0])
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to call user info endpoint with given access token: %w", err)}
 	}
@@ -178,14 +179,14 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 	var err error
 	if idToken != "" {
 		// Try to verify the ID token.
-		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParty.IDTokenVerifier())
+		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParties[0].IDTokenVerifier())
 		if err == nil {
 			return o.getResultFromClaims(claims, claims.Claims)
 		}
 	}
 
 	// If ID token verification failed (or it wasn't provided, try refreshing the token).
-	tokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](ctx, o.relyingParty, refreshToken, "", "")
+	tokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](ctx, o.relyingParties[0], refreshToken, "", "")
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to refresh ID tokens: %w", err)}
 	}
@@ -201,13 +202,18 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 	}
 
 	// Verify the refreshed ID token.
-	claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParty.IDTokenVerifier())
+	claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParties[0].IDTokenVerifier())
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to verify refreshed ID token: %w", err)}
 	}
 
 	sessionID := uuid.New()
-	secureCookie, err := o.secureCookieFromSession(sessionID)
+	clusterSecret, _, err := o.clusterSecret(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	secureCookie, err := secureCookie(clusterSecret, sessionID[:])
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to create new session with refreshed token: %w", err)}
 	}
@@ -313,7 +319,7 @@ func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	handler := rp.AuthURLHandler(func() string { return uuid.New().String() }, o.relyingParty, rp.WithURLParam("audience", o.audience))
+	handler := rp.AuthURLHandler(func() string { return uuid.New().String() }, o.relyingParties[0], rp.WithURLParam("audience", o.audience))
 	handler(w, r)
 }
 
@@ -336,9 +342,33 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var relyingParty rp.RelyingParty
+	for _, p := range o.relyingParties {
+		// Check if the relying party can read the state cookie.
+		// If it can, then the auth flow was initiated by a relying party with the same encryption keys.
+		// Old RPs are only kept valid for 5 minutes (see ensureConfig).
+		_, err := p.CookieHandler().CheckQueryCookie(r, "state")
+		if err != nil {
+			continue
+		}
+
+		relyingParty = p
+	}
+
+	if relyingParty == nil {
+		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("OIDC callback failed: No relying party available with applicable cookie handler").Error()).Render(w, r)
+		return
+	}
+
+	clusterSecret, _, err := o.clusterSecret(r.Context())
+	if err != nil {
+		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("OIDC callback failed: %w", err).Error()).Render(w, r)
+		return
+	}
+
 	handler := rp.CodeExchangeHandler(func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens[*oidc.IDTokenClaims], state string, rp rp.RelyingParty) {
 		sessionID := uuid.New()
-		secureCookie, err := o.secureCookieFromSession(sessionID)
+		secureCookie, err := secureCookie(clusterSecret, sessionID[:])
 		if err != nil {
 			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to start a new session: %w", err).Error()).Render(w, r)
 			return
@@ -353,7 +383,7 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 		// Send to the UI.
 		// NOTE: Once the UI does the redirection on its own, we may be able to use the referer here instead.
 		http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
-	}, o.relyingParty)
+	}, relyingParty)
 
 	handler(w, r)
 }
@@ -405,21 +435,36 @@ func (*Verifier) IsRequest(r *http.Request) bool {
 // ExpireConfig sets the expiry time of the current configuration to zero. This forces the verifier to reconfigure the
 // relying party the next time a user authenticates.
 func (o *Verifier) ExpireConfig() {
-	o.configExpiry = time.Now()
+	o.expireConfig = true
 }
 
-// ensureConfig ensures that the relyingParty and accessTokenVerifier fields of the Verifier are non-nil. Additionally,
-// if the given host is different from the Verifier host we reset the relyingParty to ensure the callback URL is set
-// correctly.
+// ensureConfig ensures that the relyingParties field of Verifier has at least one entry and that the accessTokenVerifier
+// field is non-nil. Additionally, if the given host is different from the Verifier host we add a new relyingParty to
+// relyingParties to ensure the callback URL is set correctly.
 func (o *Verifier) ensureConfig(ctx context.Context, host string) error {
-	if o.relyingParty == nil || host != o.host || time.Now().After(o.configExpiry) {
-		err := o.setRelyingParty(ctx, host)
+	// Clean up any old relying parties that became outdated more than 5 minutes ago.
+	rps := make([]relyingParty, 0, len(o.relyingParties))
+	for i, p := range o.relyingParties {
+		if i == 0 || time.Now().Before(p.outdatedAt.Add(5*time.Minute)) {
+			rps = append(rps, p)
+		}
+	}
+
+	o.relyingParties = rps
+
+	clusterSecret, secretUpdated, err := o.clusterSecret(ctx)
+	if err != nil {
+		return err
+	}
+
+	if len(o.relyingParties) == 0 || o.expireConfig || secretUpdated || host != o.host {
+		err := o.setRelyingParties(ctx, clusterSecret, host)
 		if err != nil {
 			return err
 		}
 
+		o.expireConfig = false
 		o.host = host
-		o.configExpiry = time.Now().Add(o.configExpiryInterval)
 	}
 
 	if o.accessTokenVerifier == nil {
@@ -432,33 +477,19 @@ func (o *Verifier) ensureConfig(ctx context.Context, host string) error {
 	return nil
 }
 
-// setRelyingParty sets the relyingParty on the Verifier. The host argument is used to set a valid callback URL.
-func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
-	// The relying party sets cookies for the following values:
-	// - "state": Used to prevent CSRF attacks (https://datatracker.ietf.org/doc/html/rfc6749#section-10.12).
-	// - "pkce": Used to prevent authorization code interception attacks (https://datatracker.ietf.org/doc/html/rfc7636).
-	// Both should be stored securely. However, these cookies do not need to be decrypted by other cluster members, so
-	// it is ok to use the secure key generation that is built in to the securecookie library. This also reduces the
-	// exposure of our private key.
-
-	// The hash key should be 64 bytes (https://github.com/gorilla/securecookie).
-	cookieHashKey := securecookie.GenerateRandomKey(64)
-	if cookieHashKey == nil {
-		return errors.New("Failed to generate a secure cookie hash key")
-	}
-
-	// The block key should 32 bytes for AES-256 encryption.
-	cookieBlockKey := securecookie.GenerateRandomKey(32)
-	if cookieBlockKey == nil {
-		return errors.New("Failed to generate a secure cookie hash key")
-	}
-
+// setRelyingParties sets the relyingParty on the Verifier. The host argument is used to set a valid callback URL.
+func (o *Verifier) setRelyingParties(ctx context.Context, clusterSecret secret.Secret, host string) error {
 	httpClient, err := o.httpClientFunc()
 	if err != nil {
 		return fmt.Errorf("Failed to get a HTTP client: %w", err)
 	}
 
-	cookieHandler := httphelper.NewCookieHandler(cookieHashKey, cookieBlockKey)
+	hash, block, err := extractKeys(clusterSecret, nil)
+	if err != nil {
+		return err
+	}
+
+	cookieHandler := httphelper.NewCookieHandler(hash, block)
 	options := []rp.Option{
 		rp.WithCookieHandler(cookieHandler),
 		rp.WithVerifierOpts(rp.WithIssuedAtOffset(5 * time.Second)),
@@ -466,12 +497,17 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 		rp.WithHTTPClient(httpClient),
 	}
 
-	relyingParty, err := rp.NewRelyingPartyOIDC(ctx, o.issuer, o.clientID, "", "https://"+host+"/oidc/callback", o.scopes, options...)
+	newRP, err := rp.NewRelyingPartyOIDC(ctx, o.issuer, o.clientID, "", "https://"+host+"/oidc/callback", o.scopes, options...)
 	if err != nil {
 		return fmt.Errorf("Failed to get OIDC relying party: %w", err)
 	}
 
-	o.relyingParty = relyingParty
+	// Set the time that the last RP became outdated.
+	if len(o.relyingParties) > 0 {
+		o.relyingParties[0].outdatedAt = time.Now()
+	}
+
+	o.relyingParties = append([]relyingParty{{RelyingParty: newRP}}, o.relyingParties...)
 	return nil
 }
 
@@ -484,8 +520,8 @@ func (o *Verifier) setAccessTokenVerifier(ctx context.Context) error {
 	}
 
 	var keySet oidc.KeySet
-	if o.relyingParty != nil {
-		keySet = o.relyingParty.IDTokenVerifier().KeySet
+	if len(o.relyingParties) > 0 && o.relyingParties[0].RelyingParty != nil {
+		keySet = o.relyingParties[0].IDTokenVerifier().KeySet
 	} else {
 		discoveryConfig, err := client.Discover(ctx, o.issuer, httpClient)
 		if err != nil {
@@ -513,7 +549,12 @@ func (o *Verifier) getCookies(r *http.Request) (sessionIDPtr *uuid.UUID, idToken
 		return nil, "", "", fmt.Errorf("Invalid session ID cookie: %w", err)
 	}
 
-	secureCookie, err := o.secureCookieFromSession(sessionID)
+	clusterSecret, _, err := o.clusterSecret(r.Context())
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	secureCookie, err := secureCookie(clusterSecret, sessionID[:])
 	if err != nil {
 		return nil, "", "", fmt.Errorf("Failed to decrypt cookies: %w", err)
 	}
@@ -603,27 +644,36 @@ func (*Verifier) setCookies(w http.ResponseWriter, secureCookie *securecookie.Se
 	return nil
 }
 
-// secureCookieFromSession returns a *securecookie.SecureCookie that is secure, unique to each client, and possible to
+// secureCookie returns a *securecookie.SecureCookie that is secure, unique for each salt, and possible to
 // decrypt on all cluster members.
 //
-// To do this we use the cluster private key as an input seed to HKDF (https://datatracker.ietf.org/doc/html/rfc5869) and
-// use the given sessionID uuid.UUID as a salt. The session ID can then be stored as a plaintext cookie so that we can
-// regenerate the keys upon the next request.
+// To do this we use the cluster-wide secret as an input seed to HKDF (https://datatracker.ietf.org/doc/html/rfc5869).
+// If no salt is provided, the cluster-wide salt is used.
 //
 // Warning: Changes to this function might cause all existing OIDC users to be logged out of LXD (but not logged out of
 // the IdP).
-func (o *Verifier) secureCookieFromSession(sessionID uuid.UUID) (*securecookie.SecureCookie, error) {
-	// Get the sessionID as a binary so that we can use it as a salt.
-	salt, err := sessionID.MarshalBinary()
+func secureCookie(s secret.Secret, salt []byte) (*securecookie.SecureCookie, error) {
+	hash, block, err := extractKeys(s, salt)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to marshal session ID as binary: %w", err)
+		return nil, err
 	}
 
-	// Get the current cluster private key.
-	clusterPrivateKey := o.clusterCert().PrivateKey()
+	return securecookie.New(hash, block), nil
+}
+
+// extractKeys derives a hash and block key from the given secret and salt. If no salt is given, the cluster-wide salt is used.
+func extractKeys(s secret.Secret, salt []byte) (hash []byte, block []byte, err error) {
+	key, clusterSalt, err := s.KeyAndSalt()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if salt == nil {
+		salt = clusterSalt
+	}
 
 	// Extract a pseudo-random key from the cluster private key.
-	prk := hkdf.Extract(sha512.New, clusterPrivateKey, salt)
+	prk := hkdf.Extract(sha512.New, key, salt)
 
 	// Get an io.Reader from which we can read a secure key. We will use this key as the hash key for the cookie.
 	// The hash key is used to verify the integrity of decrypted values using HMAC. The HKDF "info" is set to "INTEGRITY"
@@ -635,7 +685,7 @@ func (o *Verifier) secureCookieFromSession(sessionID uuid.UUID) (*securecookie.S
 	cookieHashKey := make([]byte, 64)
 	_, err = io.ReadFull(keyDerivationFunc, cookieHashKey)
 	if err != nil {
-		return nil, fmt.Errorf("Failed creating secure cookie hash key: %w", err)
+		return nil, nil, fmt.Errorf("Failed creating secure cookie hash key: %w", err)
 	}
 
 	// Get an io.Reader from which we can read a secure key. We will use this key as the block key for the cookie.
@@ -648,19 +698,21 @@ func (o *Verifier) secureCookieFromSession(sessionID uuid.UUID) (*securecookie.S
 	cookieBlockKey := make([]byte, 32)
 	_, err = io.ReadFull(keyDerivationFunc, cookieBlockKey)
 	if err != nil {
-		return nil, fmt.Errorf("Failed creating secure cookie block key: %w", err)
+		return nil, nil, fmt.Errorf("Failed creating secure cookie block key: %w", err)
 	}
 
-	return securecookie.New(cookieHashKey, cookieBlockKey), nil
+	return cookieHashKey, cookieBlockKey, nil
 }
 
 // Opts contains optional configurable fields for the Verifier.
 type Opts struct {
 	GroupsClaim string
+	Host        string
+	Ctx         context.Context
 }
 
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientID string, scopes []string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
+func NewVerifier(issuer string, clientID string, scopes []string, audience string, clusterSecret func(ctx context.Context) (secret.Secret, bool, error), identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
 	opts := &Opts{}
 
 	if options != nil && options.GroupsClaim != "" {
@@ -668,15 +720,26 @@ func NewVerifier(issuer string, clientID string, scopes []string, audience strin
 	}
 
 	verifier := &Verifier{
-		issuer:               issuer,
-		clientID:             clientID,
-		scopes:               scopes,
-		audience:             audience,
-		identityCache:        identityCache,
-		groupsClaim:          opts.GroupsClaim,
-		clusterCert:          clusterCert,
-		configExpiryInterval: defaultConfigExpiryInterval,
-		httpClientFunc:       httpClientFunc,
+		issuer:         issuer,
+		clientID:       clientID,
+		scopes:         scopes,
+		audience:       audience,
+		identityCache:  identityCache,
+		groupsClaim:    opts.GroupsClaim,
+		clusterSecret:  clusterSecret,
+		httpClientFunc: httpClientFunc,
+	}
+
+	if options != nil && options.Host != "" {
+		ctx := context.Background()
+		if opts.Ctx != nil {
+			ctx = opts.Ctx
+		}
+
+		err := verifier.ensureConfig(ctx, opts.Host)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to configure OIDC verifier: %w", err)
+		}
 	}
 
 	return verifier, nil

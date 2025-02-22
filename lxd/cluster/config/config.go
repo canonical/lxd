@@ -248,6 +248,13 @@ func (c *Config) ClusterHealingThreshold() time.Duration {
 	return healingThreshold
 }
 
+// KeyAndSaltLifetimes returns the lifetimes of the cluster-wide secret key and salt.
+func (c *Config) KeyAndSaltLifetimes() (keyLifetime time.Duration, saltLifetime time.Duration) {
+	keyLifetimeDays := c.m.GetInt64("core.secret_key_lifetime")
+	saltLifetimeMinutes := c.m.GetInt64("core.salt_lifetime")
+	return time.Duration(keyLifetimeDays) * 24 * time.Hour, time.Duration(saltLifetimeMinutes) * time.Minute
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]any {
@@ -499,6 +506,37 @@ var ConfigSchema = config.Schema{
 	//  defaultdesc: `false`
 	//  shortdesc: Whether to automatically trust clients signed by the CA
 	"core.trust_ca_certificates": {Type: config.Bool, Default: "false"},
+
+	// lxdmeta:generate(entities=server; group=core; key=core.secret_key_lifetime)
+	// The cluster secret key is used to encrypt cookies that are used to verify the integrity of the OpenID Connect (OIDC) browser login flow.
+	// It is also used to encrypt cookies used for maintaining login information for OIDC authenticated users.
+	// This configuration specifies the number of days a given key is valid for.
+	// When a key is required, LXD checks if the current key has expired.
+	// If the key has expired, a new key is generated with the given lifetime in days.
+	// The default value is 30 days.
+	//
+	// Note that this key is used in combination with a salt for obfuscation.
+	//
+	// When this key rotates, all users that are logged in via OIDC will need to re-authenticate with the identity provider (IdP).
+	// If they are still logged in with the IdP, they will be automatically logged back into LXD.
+	// ---
+	//  type: integer
+	//  scope: global
+	//  defaultdesc: `30`
+	//  shortdesc: The lifetime in days of the cluster secret key.
+	"core.secret_key_lifetime": {Type: config.Int64, Default: "30"},
+
+	// lxdmeta:generate(entities=server; group=core; key=core.salt_lifetime)
+	// The cluster salt is used to encrypt cookies that are used to verify the integrity of the OpenID Connect (OIDC) browser login flow.
+	// This configuration specifies the number of minutes a given salt is valid for.
+	//
+	// The default value is 60 minutes.
+	// ---
+	//  type: integer
+	//  scope: global
+	//  defaultdesc: `60`
+	//  shortdesc: The lifetime in minutes of the cluster salt.
+	"core.salt_lifetime": {Type: config.Int64, Default: "60"},
 
 	// lxdmeta:generate(entities=server; group=images; key=images.auto_update_cached)
 	//

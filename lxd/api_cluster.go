@@ -27,6 +27,7 @@ import (
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/cluster/secret"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
@@ -828,6 +829,9 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			return err
 		}
 
+		// Reset the cluster secret. A new one will be fetched when next required.
+		d.clusterSecretInternal = &secret.Secret{}
+
 		d.globalConfigMu.Lock()
 		d.localConfig = nodeConfig
 		d.globalConfig = currentClusterConfig
@@ -839,7 +843,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			changes[k], _ = v.(string)
 		}
 
-		err = doAPI10UpdateTriggers(d, nil, changes, nodeConfig, currentClusterConfig)
+		err = doAPI10UpdateTriggers(r, d, nil, changes, nodeConfig, currentClusterConfig)
 		if err != nil {
 			return err
 		}
