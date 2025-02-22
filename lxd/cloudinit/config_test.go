@@ -4,13 +4,20 @@ import (
 	"testing"
 )
 
-func TestMergeSSHKeyCloudConfig(t *testing.T) {
+func TestGetEffectiveConfig(t *testing.T) {
 	instanceConfig := map[string]string{"cloud-init.ssh-keys.mykey": "root:gh:user1"}
 
-	// First try with an empty cloud-config.
-	out, err := MergeSSHKeyCloudConfig(instanceConfig, "")
-	if err != nil {
-		t.Fatal(err)
+	// Parsing an invalid config should leave it unchanged.
+	instanceConfig["user.vendor-data"] = `users:
+    - name: root
+      ssh-import-id: gh:user2
+`
+
+	cloudInitConfig := GetEffectiveConfig(instanceConfig, "", "instance", "project")
+
+	// Parsing invalid cloud-config should leave it unchanged.
+	if cloudInitConfig.VendorData != instanceConfig["user.vendor-data"] {
+		t.Fatalf("Output %q is different from expected %q", cloudInitConfig.VendorData, instanceConfig["user.vendor-data"])
 	}
 
 	expectedOutput := `#cloud-config
@@ -22,23 +29,11 @@ users:
   - gh:user1 #lxd:cloud-init.ssh-keys
 `
 
-	if expectedOutput != out {
-		t.Fatalf("Output %q is different from expected %q", out, expectedOutput)
+	if cloudInitConfig.UserData != expectedOutput {
+		t.Fatalf("Output %q is different from expected %q", cloudInitConfig.UserData, expectedOutput)
 	}
 
-	invalidCloudConfig := `#cloud-config
-users:
-	- name: root
-ssh-import-id: gh:user2
-`
-
-	// Check merging into invalid config returns an error.
-	_, err = MergeSSHKeyCloudConfig(instanceConfig, invalidCloudConfig)
-	if err == nil {
-		t.Fatal("Parsing invalid config did not return an error")
-	}
-
-	cloudConfig := `#cloud-config
+	instanceConfig["cloud-init.vendor-data"] = `#cloud-config
 users:
     - name: root
       ssh-import-id: gh:user2
@@ -46,11 +41,7 @@ users:
       shell: /bin/bash
 `
 
-	// Merge the instance config into a cloud-config that already contain some keys
-	out, err = MergeSSHKeyCloudConfig(instanceConfig, cloudConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
+	cloudInitConfig = GetEffectiveConfig(instanceConfig, "", "instance", "project")
 
 	expectedOutput = `#cloud-config
 users:
@@ -64,22 +55,22 @@ users:
   - gh:user1 #lxd:cloud-init.ssh-keys
 `
 
-	if expectedOutput != out {
-		t.Fatalf("Output %q is different from expected %q", out, expectedOutput)
+	if cloudInitConfig.VendorData != expectedOutput {
+		t.Fatalf("Output %q is different from expected %q", cloudInitConfig.VendorData, expectedOutput)
+	}
+
+	// Should not merge to user-data since vendor-data has "users" defined.
+	if cloudInitConfig.UserData != "" {
+		t.Fatalf(`Output %q is different from expected ""`, cloudInitConfig.UserData)
 	}
 
 	// Add a pure public key to instance config.
 	instanceConfig["cloud-init.ssh-keys.otherkey"] = "user:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPfOyl6A6lSE+e57RLf4GwDzlg6PALjtiweokxQeCPL0"
-
-	scalarUserCloudConfig := `#cloud-config
+	instanceConfig["cloud-init.user-data"] = `#cloud-config
 users: foo
 `
 
-	// Merge the extended instance config with a cloud-config with a simple users string.
-	out, err = MergeSSHKeyCloudConfig(instanceConfig, scalarUserCloudConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
+	cloudInitConfig = GetEffectiveConfig(instanceConfig, "", "instance", "project")
 
 	expectedOutput = `#cloud-config
 users:
@@ -102,7 +93,7 @@ users:
 
 	// The order of maps inside a list is not predicatable during YAML marshalling, so the order
 	// of users can change and generate two different but equivalent results.
-	if expectedOutput+rootUserConfig+customUserConfig != out && expectedOutput+customUserConfig+rootUserConfig != out {
-		t.Fatalf("Output %q is different from expected %q", out, expectedOutput)
+	if expectedOutput+rootUserConfig+customUserConfig != cloudInitConfig.UserData && expectedOutput+customUserConfig+rootUserConfig != cloudInitConfig.UserData {
+		t.Fatalf("Output %q conflicts with expected %q", cloudInitConfig.UserData, expectedOutput+rootUserConfig+customUserConfig)
 	}
 }
