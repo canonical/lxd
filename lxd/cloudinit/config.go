@@ -122,6 +122,13 @@ func GetEffectiveConfig(instanceConfig map[string]string, requestedKey string, i
 // parseCloudConfig attempts to unmarshal a string into a cloudConfig object. Returns an error if the
 // provided string is not a valid YAML or lacks the needed "#cloud-config" comment.
 func parseCloudConfig(rawCloudConfig string) (cloudConfig, error) {
+	// Check if rawCloudConfig is in a supported format.
+	// A YAML cloud config without #cloud-config is invalid.
+	// The "#cloud-config" tag can be either on the first or second lines.
+	if rawCloudConfig != "" && !shared.ValueInSlice("#cloud-config", shared.SplitNTrimSpace(rawCloudConfig, "\n", 3, false)) {
+		return nil, errors.New(`Parsing configuration is not supported as it is not "#cloud-config"`)
+	}
+
 	// Parse YAML cloud-config into map.
 	cloudConfigMap := make(map[any]any)
 	err := yaml.Unmarshal([]byte(rawCloudConfig), cloudConfigMap)
