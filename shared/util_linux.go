@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -21,7 +22,6 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/shared/revert"
-	"github.com/canonical/lxd/shared/units"
 )
 
 // --- pure Go functions ---
@@ -248,22 +248,27 @@ func GetMeminfo(field string) (int64, error) {
 	for scan.Scan() {
 		line := scan.Text()
 
-		// We only care about MemTotal
-		if !strings.HasPrefix(line, field+":") {
+		// We only care about the requested field
+		rightHandSide, found := strings.CutPrefix(line, field+":")
+		if !found {
 			continue
 		}
 
-		// Extract the before last (value) and last (unit) fields
-		fields := strings.Split(line, " ")
-		value := fields[len(fields)-2] + fields[len(fields)-1]
+		// Most lines end with " kB" to indicate the value is in kilobytes
+		multiplier := int64(1)
+		value, found := strings.CutSuffix(rightHandSide, " kB")
+		if found {
+			multiplier = 1024
+		}
 
-		// Feed the result to units.ParseByteSizeString to get an int value
-		valueBytes, err := units.ParseByteSizeString(value)
+		// Remove spaces and convert to int.
+		valueInt, err := strconv.ParseInt(strings.TrimLeft(value, " "), 10, 64)
 		if err != nil {
 			return -1, err
 		}
 
-		return valueBytes, nil
+		// Multiply the value by the multiplier
+		return valueInt * multiplier, nil
 	}
 
 	return -1, fmt.Errorf("Couldn't find %s", field)
