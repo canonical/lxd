@@ -8323,7 +8323,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 		d.logger.Warn("Failed to get CPU usage", logger.Ctx{"err": err})
 	} else {
 		for cpu, stats := range usage {
-			cpuID := strconv.Itoa(int(cpu))
+			cpuID := strconv.FormatInt(cpu, 10)
 
 			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: float64(stats.System) / 1000000000, Labels: map[string]string{"mode": "system", "cpu": cpuID}})
 			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: float64(stats.User) / 1000000000, Labels: map[string]string{"mode": "user", "cpu": cpuID}})
