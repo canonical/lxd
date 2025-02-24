@@ -868,7 +868,7 @@ func (cg *CGroup) GetMemoryStats() (map[string]uint64, error) {
 }
 
 // GetOOMKills returns the number of oom kills.
-func (cg *CGroup) GetOOMKills() (int64, error) {
+func (cg *CGroup) GetOOMKills() (uint64, error) {
 	var (
 		err   error
 		stats string
@@ -882,29 +882,29 @@ func (cg *CGroup) GetOOMKills() (int64, error) {
 	case V2:
 		stats, err = cg.rw.Get(version, "memory", "memory.events")
 	default:
-		return -1, ErrControllerMissing
+		return 0, ErrControllerMissing
 	}
 
 	if err != nil {
-		return -1, err
+		return 0, err
 	}
 
 	for _, stat := range strings.Split(stats, "\n") {
-		field := strings.Split(stat, " ")
-		// skip incorrect lines
-		if len(field) != 2 {
+		// Skip unrelated lines.
+		value, found := strings.CutPrefix(stat, "oom_kill ")
+		if !found {
 			continue
 		}
 
-		switch field[0] {
-		case "oom_kill":
-			out, _ := strconv.ParseInt(field[1], 10, 64)
-
-			return out, nil
+		out, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", value, err)
 		}
+
+		return out, nil
 	}
 
-	return -1, fmt.Errorf("Failed getting oom_kill")
+	return 0, fmt.Errorf("Failed getting oom_kill")
 }
 
 // GetIOStats returns disk stats.
