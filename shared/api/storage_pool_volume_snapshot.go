@@ -53,8 +53,6 @@ type StorageVolumeSnapshotPost struct {
 //
 // API extension: storage_api_volume_snapshots.
 type StorageVolumeSnapshot struct {
-	WithEntitlements `yaml:",inline"`
-
 	// Snapshot name
 	// Example: snap0
 	Name string `json:"name" yaml:"name"`

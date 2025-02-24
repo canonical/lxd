@@ -136,11 +136,6 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeInstanceBackup, true)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	if shared.IsSnapshot(cname) {
 		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
@@ -169,7 +164,6 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 
 	resultString := []string{}
 	resultMap := []*api.InstanceBackup{}
-	urlToBackup := make(map[*api.URL]auth.EntitlementReporter, len(backups))
 	canView, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeInstanceBackup)
 	if err != nil {
 		return response.SmartError(err)
@@ -193,19 +187,11 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 		} else {
 			render := backup.Render()
 			resultMap = append(resultMap, render)
-			urlToBackup[entity.InstanceBackupURL(projectName, c.Name(), backupName)] = render
 		}
 	}
 
 	if !recursion {
 		return response.SyncResponse(true, resultString)
-	}
-
-	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeInstanceBackup, withEntitlements, urlToBackup)
-		if err != nil {
-			return response.SmartError(err)
-		}
 	}
 
 	return response.SyncResponse(true, resultMap)
@@ -349,7 +335,8 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	instanceOnly := req.InstanceOnly || req.ContainerOnly
+	// We keep the req.ContainerOnly for backward compatibility.
+	instanceOnly := req.InstanceOnly || req.ContainerOnly //nolint:staticcheck,unused
 
 	backup := func(op *operations.Operation) error {
 		args := db.InstanceBackup{
@@ -442,11 +429,6 @@ func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeInstanceBackup, false)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
@@ -472,15 +454,7 @@ func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	renderedBackup := backup.Render()
-	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeInstanceBackup, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.InstanceBackupURL(projectName, name, backupName): renderedBackup})
-		if err != nil {
-			return response.SmartError(err)
-		}
-	}
-
-	return response.SyncResponse(true, renderedBackup)
+	return response.SyncResponse(true, backup.Render())
 }
 
 // swagger:operation POST /1.0/instances/{name}/backups/{backup} instances instance_backup_post
