@@ -190,20 +190,22 @@ func VolumeDBGet(pool Pool, projectName string, volumeName string, volumeType dr
 
 // VolumeDBCreate creates a volume in the database.
 // If removeUnknownKeys is true, any unknown config keys are removed from volumeConfig rather than failing.
-func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDescription string, volumeType drivers.VolumeType, snapshot bool, volumeConfig map[string]string, creationDate time.Time, expiryDate time.Time, contentType drivers.ContentType, removeUnknownKeys bool, hasSource bool) error {
+func VolumeDBCreate(pool Pool, projectName string, volumeName string, volume drivers.Volume, volumeDescription string, snapshot bool, creationDate time.Time, expiryDate time.Time, removeUnknownKeys bool, hasSource bool) error {
 	p, ok := pool.(*lxdBackend)
 	if !ok {
 		return fmt.Errorf("Pool is not a lxdBackend")
 	}
 
 	// Prevent using this function to create storage volume bucket records.
-	if volumeType == drivers.VolumeTypeBucket {
+	if volume.Type() == drivers.VolumeTypeBucket {
 		return fmt.Errorf("Cannot store volume using bucket type")
 	}
 
+	volumeConfig := volume.Config()
+
 	// If the volumeType represents an instance type then check that the volumeConfig doesn't contain any of
 	// the instance disk effective override fields (which should not be stored in the database).
-	if volumeType.IsInstance() {
+	if volume.Type().IsInstance() {
 		for _, k := range instanceDiskVolumeEffectiveFields {
 			_, found := volumeConfig[k]
 			if found {
@@ -213,12 +215,12 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 	}
 
 	// Convert the volume type to our internal integer representation.
-	volDBType, err := VolumeTypeToDBType(volumeType)
+	volDBType, err := VolumeTypeToDBType(volume.Type())
 	if err != nil {
 		return err
 	}
 
-	volDBContentType, err := VolumeContentTypeToDBContentType(contentType)
+	volDBContentType, err := VolumeContentTypeToDBContentType(volume.ContentType())
 	if err != nil {
 		return err
 	}
@@ -229,7 +231,7 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 	}
 
 	volType := VolumeDBTypeToType(volDBType)
-	vol := drivers.NewVolume(pool.Driver(), pool.Name(), volType, contentType, volumeName, volumeConfig, pool.Driver().Config())
+	vol := drivers.NewVolume(pool.Driver(), pool.Name(), volType, volume.ContentType(), volumeName, volumeConfig, pool.Driver().Config())
 
 	// Set source indicator.
 	vol.SetHasSource(hasSource)
@@ -251,7 +253,7 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Error inserting volume %q for project %q in pool %q of type %q into database %q", volumeName, projectName, pool.Name(), volumeType, err)
+		return fmt.Errorf("Error inserting volume %q for project %q in pool %q of type %q into database %q", volumeName, projectName, pool.Name(), volume.Type(), err)
 	}
 
 	return nil
