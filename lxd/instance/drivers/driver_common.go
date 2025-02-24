@@ -436,7 +436,7 @@ func (d *common) StoragePool() (string, error) {
 // that it is removed then added immediately afterwards.
 func (d *common) deviceVolatileReset(devName string, oldConfig, newConfig deviceConfig.Device) error {
 	volatileClear := make(map[string]string)
-	devicePrefix := fmt.Sprintf("volatile.%s.", devName)
+	devicePrefix := "volatile." + devName + "."
 
 	newNICType, err := nictype.NICType(d.state, d.project.Name, newConfig)
 	if err != nil {

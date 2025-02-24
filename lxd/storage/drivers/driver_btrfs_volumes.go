@@ -17,6 +17,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/archive"
 	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
@@ -327,8 +328,9 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 		// Restore backup snapshots from oldest to newest.
 		for _, snapName := range srcBackup.Snapshots {
 			// Defend against path traversal attacks.
-			if !shared.IsFileName(snapName) {
-				return nil, nil, fmt.Errorf("Invalid snapshot name %q", snapName)
+			err := instancetype.ValidSnapName(snapName)
+			if err != nil {
+				return nil, nil, fmt.Errorf("Invalid snapshot name %q: %w", snapName, err)
 			}
 
 			snapVol, _ := vol.NewSnapshot(snapName)

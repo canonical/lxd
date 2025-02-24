@@ -770,5 +770,5 @@ func getContainerTemplatePath(c instance.Instance, filename string) (string, err
 		return "", fmt.Errorf("Invalid template filename: %q", filename)
 	}
 
-	return filepath.Join(c.Path(), "templates", filename), nil
+	return filepath.Join(c.TemplatesPath(), filename), nil
 }

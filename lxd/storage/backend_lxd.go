@@ -2688,6 +2688,12 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 		return fmt.Errorf("New name cannot be a snapshot")
 	}
 
+	// Quick checks.
+	err := instancetype.ValidName(newName, false)
+	if err != nil {
+		return err
+	}
+
 	// Check we can convert the instance to the volume types needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
@@ -3645,6 +3651,12 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 
 	if shared.IsSnapshot(newName) {
 		return fmt.Errorf("New name cannot be a snapshot")
+	}
+
+	// Quick checks.
+	err := instancetype.ValidName(newName, false)
+	if err != nil {
+		return err
 	}
 
 	// Check we can convert the instance to the volume types needed.
