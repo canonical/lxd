@@ -62,7 +62,7 @@ jobs:
         if: github.event_name == 'pull_request'
 
       - name: Upload artifact with ShellCheck defects in SARIF format
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: Differential ShellCheck SARIF
           path: ${{ steps.ShellCheck.outputs.sarif }}
@@ -179,7 +179,7 @@ jobs:
           sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,GOCOVERDIR,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" make check-unit
 
       - name: Upload coverage data
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: coverage-unit
           path: ${{env.GOCOVERDIR}}
@@ -189,7 +189,7 @@ jobs:
         uses: ./.github/actions/download-minio
 
       - name: Upload system test dependencies
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: system-test-deps
           path: |
@@ -287,7 +287,7 @@ jobs:
 
       - name: Upload crash dumps
         if: always()
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: crash-dumps-${{ matrix.suite }}-${{ matrix.backend }}
           path: |
@@ -296,7 +296,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload coverage data
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: coverage-${{ matrix.suite }}-${{ matrix.backend }}
           path: ${{env.GOCOVERDIR}}
@@ -455,7 +455,7 @@ jobs:
           go test -v ./shared/...
 
       - name: Upload lxc client artifacts
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         if: ${{ github.event_name == 'push' }}
         continue-on-error: true
         with:
@@ -596,7 +596,7 @@ jobs:
           CI=true DISABLE_VM_TESTS=true LXD_DIR=/var/lib/lxd PATH=/home/runner/go/bin:$PATH npx playwright test --project chromium:lxd-$TARGET
 
       - name: Upload lxd-ui test artifacts
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         if: always()
         with:
           name: lxd-ui-test-report
@@ -610,7 +610,7 @@ jobs:
           sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,LD_LIBRARY_PATH $(go env GOPATH)/bin/lxd shutdown
 
       - name: Upload coverage data
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: coverage-ui-e2e-tests
           path: ${{env.GOCOVERDIR}}
@@ -659,7 +659,7 @@ jobs:
 
       - name: Upload documentation artifacts
         if: always()
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: documentation
           path: doc/_build
