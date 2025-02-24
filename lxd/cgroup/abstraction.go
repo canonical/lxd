@@ -786,9 +786,7 @@ func (cg *CGroup) GetCpuset() (string, error) {
 	switch version {
 	case Unavailable:
 		return "", ErrControllerMissing
-	case V1:
-		return cg.rw.Get(version, "cpuset", "cpuset.cpus")
-	case V2:
+	case V1, V2:
 		return cg.rw.Get(version, "cpuset", "cpuset.cpus")
 	}
 
@@ -801,9 +799,7 @@ func (cg *CGroup) SetCpuset(limit string) error {
 	switch version {
 	case Unavailable:
 		return ErrControllerMissing
-	case V1:
-		return cg.rw.Set(version, "cpuset", "cpuset.cpus", limit)
-	case V2:
+	case V1, V2:
 		return cg.rw.Set(version, "cpuset", "cpuset.cpus", limit)
 	}
 
