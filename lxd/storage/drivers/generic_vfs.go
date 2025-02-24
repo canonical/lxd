@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/lxd/archive"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
@@ -892,8 +893,9 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots [
 
 	for _, snapName := range snapshots {
 		// Defend against path traversal attacks.
-		if !shared.IsFileName(snapName) {
-			return nil, nil, fmt.Errorf("Invalid snapshot name: %q", snapName)
+		err := instancetype.ValidSnapName(snapName)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Invalid snapshot name %q: %w", snapName, err)
 		}
 
 		found := false

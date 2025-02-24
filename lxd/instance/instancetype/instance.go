@@ -44,19 +44,32 @@ func ValidName(instanceName string, isSnapshot bool) error {
 			return fmt.Errorf("Invalid instance name %q: %w", parentName, err)
 		}
 
-		// Snapshot part is more flexible, but doesn't allow "..", space or / characters.
-		if snapshotName == ".." {
-			return fmt.Errorf("Invalid instance snapshot name %q", snapshotName)
-		}
-
-		if strings.ContainsAny(snapshotName, " /") {
-			return fmt.Errorf("Invalid instance snapshot name %q: Cannot contain spaces or slashes", snapshotName)
+		err = ValidSnapName(snapshotName)
+		if err != nil {
+			return fmt.Errorf("Invalid instance snapshot name %q: %w", snapshotName, err)
 		}
 	} else {
 		err := validate.IsHostname(instanceName)
 		if err != nil {
 			return fmt.Errorf("Invalid instance name %q: %w", instanceName, err)
 		}
+	}
+
+	return nil
+}
+
+// ValidSnapName validates a snnapshot instance name which must not include the instance prefix.
+func ValidSnapName(snapshotName string) error {
+	if snapshotName == "" {
+		return fmt.Errorf("Invalid instance snapshot name, cannot be empty")
+	}
+
+	if snapshotName == ".." {
+		return fmt.Errorf("Invalid instance snapshot name %q", snapshotName)
+	}
+
+	if strings.ContainsAny(snapshotName, "* /\\") {
+		return fmt.Errorf("Invalid instance snapshot name %q: Cannot contain *, spaces, forward or back slashes", snapshotName)
 	}
 
 	return nil
