@@ -33,4 +33,4 @@ jobs:
           exit 1
 
       - name: Check if CLA signed
-        uses: canonical/has-signed-canonical-cla@5faf4998b519bcfc8b2816791f3de1194e4d9365 # 2
+        uses: canonical/has-signed-canonical-cla@5d1443b94417bd150ad234a82fe21f7340a25e4d # 2
