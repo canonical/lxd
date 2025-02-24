@@ -23,9 +23,7 @@ func (cg *CGroup) SetMaxProcesses(limit int64) error {
 	switch version {
 	case Unavailable:
 		return ErrControllerMissing
-	case V1:
-		fallthrough
-	case V2:
+	case V1, V2:
 		if limit == -1 {
 			return cg.rw.Set(version, "pids", "pids.max", "max")
 		}
@@ -202,9 +200,7 @@ func (cg *CGroup) GetProcessesUsage() (int64, error) {
 	switch version {
 	case Unavailable:
 		return -1, ErrControllerMissing
-	case V1:
-		fallthrough
-	case V2:
+	case V1, V2:
 		val, err := cg.rw.Get(version, "pids", "pids.current")
 		if err != nil {
 			return -1, err
