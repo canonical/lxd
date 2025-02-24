@@ -56,10 +56,10 @@ WHERE '' = ?
 		WHEN %d THEN '%s' 
 	END = ? 
 	AND identities.identifier = ?
-	AND identities.type IN (%d)
+	AND identities.type IN (%d, %d, %d)
 `, authMethodTLS, api.AuthenticationMethodTLS,
 		authMethodOIDC, api.AuthenticationMethodOIDC,
-		identityTypeOIDCClient,
+		identityTypeOIDCClient, identityTypeCertificateClient, identityTypeCertificateClientPending,
 	)
 }
 
