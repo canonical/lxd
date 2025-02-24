@@ -207,6 +207,13 @@ can be unset from `vm1`:
 `security.shared` can also be used on `virtual-machine` volumes to enable concurrent
 access. Note that concurrent access to block volumes may result in data loss.
 
+### Attaching virtual machine snapshots to other instances
+Virtual-machine snapshots can also be attached to instances with the
+{config:option}`device-disk-device-conf:source.snapshot` disk device
+configuration key.
+
+    lxc config device add v1 v2-root-snap0 disk pool=my-pool source=vm2 source.type=virtual-machine source.snapshot=snap0
+
 ## Resize a storage volume
 
 If you need more storage in a volume, you can increase the size of your storage volume.
