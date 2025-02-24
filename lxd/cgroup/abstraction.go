@@ -832,31 +832,34 @@ func (cg *CGroup) GetMemoryStats() (map[string]uint64, error) {
 	}
 
 	for _, stat := range strings.Split(stats, "\n") {
-		field := strings.Split(stat, " ")
+		key, value, found := strings.Cut(stat, " ")
+		if !found {
+			continue
+		}
 
-		switch field[0] {
+		switch key {
 		case "total_active_anon", "active_anon":
-			out["active_anon"], _ = strconv.ParseUint(field[1], 10, 64)
+			out["active_anon"], _ = strconv.ParseUint(value, 10, 64)
 		case "total_active_file", "active_file":
-			out["active_file"], _ = strconv.ParseUint(field[1], 10, 64)
+			out["active_file"], _ = strconv.ParseUint(value, 10, 64)
 		case "total_inactive_anon", "inactive_anon":
-			out["inactive_anon"], _ = strconv.ParseUint(field[1], 10, 64)
+			out["inactive_anon"], _ = strconv.ParseUint(value, 10, 64)
 		case "total_inactive_file", "inactive_file":
-			out["inactive_file"], _ = strconv.ParseUint(field[1], 10, 64)
+			out["inactive_file"], _ = strconv.ParseUint(value, 10, 64)
 		case "total_unevictable", "unevictable":
-			out["unevictable"], _ = strconv.ParseUint(field[1], 10, 64)
+			out["unevictable"], _ = strconv.ParseUint(value, 10, 64)
 		case "total_writeback", "file_writeback":
-			out["writeback"], _ = strconv.ParseUint(field[1], 10, 64)
+			out["writeback"], _ = strconv.ParseUint(value, 10, 64)
 		case "total_dirty", "file_dirty":
-			out["dirty"], _ = strconv.ParseUint(field[1], 10, 64)
+			out["dirty"], _ = strconv.ParseUint(value, 10, 64)
 		case "total_mapped_file", "file_mapped":
-			out["mapped"], _ = strconv.ParseUint(field[1], 10, 64)
+			out["mapped"], _ = strconv.ParseUint(value, 10, 64)
 		case "total_rss": // v1 only
-			out["rss"], _ = strconv.ParseUint(field[1], 10, 64)
+			out["rss"], _ = strconv.ParseUint(value, 10, 64)
 		case "total_shmem", "shmem":
-			out["shmem"], _ = strconv.ParseUint(field[1], 10, 64)
+			out["shmem"], _ = strconv.ParseUint(value, 10, 64)
 		case "total_cache", "file":
-			out["cache"], _ = strconv.ParseUint(field[1], 10, 64)
+			out["cache"], _ = strconv.ParseUint(value, 10, 64)
 		}
 	}
 
