@@ -8274,7 +8274,13 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 				metricType = metrics.MemoryShmemBytes
 			case "cache":
 				metricType = metrics.MemoryCachedBytes
-				memoryCached = int64(v)
+
+				// Bound checking before converting from uint64 to int64.
+				if v > math.MaxInt64 {
+					memoryCached = math.MaxInt64
+				} else {
+					memoryCached = int64(v)
+				}
 			}
 
 			out.AddSamples(metricType, metrics.Sample{Value: float64(v)})
