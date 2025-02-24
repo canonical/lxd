@@ -874,6 +874,9 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 			}
 		}
 
+		// Fill volume config with driver defaults before writing to the database.
+		b.driver.FillVolumeConfig(vol)
+
 		// Validate config and create database entry for new storage volume.
 		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
 		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), vol, volumeDescription, false, volumeCreationDate, time.Time{}, true, true)
@@ -2244,6 +2247,9 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 				return fmt.Errorf("Cannot create volume, already exists on migration target storage")
 			}
 		} else {
+			// Ensure driver specific default config is filled in new volume.
+			b.driver.FillVolumeConfig(vol)
+
 			// Validate config and create database entry for new storage volume if not refreshing.
 			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
 			err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), vol, volumeDescription, false, inst.CreationDate(), time.Time{}, true, true)
@@ -5800,6 +5806,9 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	defer revert.Fail()
 
 	if !args.Refresh {
+		// Ensure driver specific default config is filled in new volume.
+		b.driver.FillVolumeConfig(vol)
+
 		// Validate config and create database entry for new storage volume.
 		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
 		err = VolumeDBCreate(b, projectName, args.Name, vol, args.Description, false, time.Now().UTC(), time.Time{}, true, true)
