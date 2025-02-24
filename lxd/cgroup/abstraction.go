@@ -30,7 +30,7 @@ func (cg *CGroup) SetMaxProcesses(limit int64) error {
 			return cg.rw.Set(version, "pids", "pids.max", "max")
 		}
 
-		return cg.rw.Set(version, "pids", "pids.max", fmt.Sprint(limit))
+		return cg.rw.Set(version, "pids", "pids.max", strconv.FormatInt(limit, 10))
 	}
 
 	return ErrUnknownVersion
@@ -78,13 +78,13 @@ func (cg *CGroup) SetMemorySoftLimit(limit int64) error {
 	case Unavailable:
 		return ErrControllerMissing
 	case V1:
-		return cg.rw.Set(version, "memory", "memory.soft_limit_in_bytes", fmt.Sprint(limit))
+		return cg.rw.Set(version, "memory", "memory.soft_limit_in_bytes", strconv.FormatInt(limit, 10))
 	case V2:
 		if limit == -1 {
 			return cg.rw.Set(version, "memory", "memory.high", "max")
 		}
 
-		return cg.rw.Set(version, "memory", "memory.high", fmt.Sprint(limit))
+		return cg.rw.Set(version, "memory", "memory.high", strconv.FormatInt(limit, 10))
 	}
 
 	return ErrUnknownVersion
@@ -149,13 +149,13 @@ func (cg *CGroup) SetMemoryLimit(limit int64) error {
 	case Unavailable:
 		return ErrControllerMissing
 	case V1:
-		return cg.rw.Set(version, "memory", "memory.limit_in_bytes", fmt.Sprint(limit))
+		return cg.rw.Set(version, "memory", "memory.limit_in_bytes", strconv.FormatInt(limit, 10))
 	case V2:
 		if limit == -1 {
 			return cg.rw.Set(version, "memory", "memory.max", "max")
 		}
 
-		return cg.rw.Set(version, "memory", "memory.max", fmt.Sprint(limit))
+		return cg.rw.Set(version, "memory", "memory.max", strconv.FormatInt(limit, 10))
 	}
 
 	return ErrUnknownVersion
@@ -242,13 +242,13 @@ func (cg *CGroup) SetMemorySwapLimit(limit int64) error {
 			return fmt.Errorf("Failed parsing %q: %w", val, err)
 		}
 
-		return cg.rw.Set(version, "memory", "memory.memsw.limit_in_bytes", fmt.Sprintf("%d", limit+valInt))
+		return cg.rw.Set(version, "memory", "memory.memsw.limit_in_bytes", strconv.FormatInt(limit+valInt, 10))
 	case V2:
 		if limit == -1 {
 			return cg.rw.Set(version, "memory", "memory.swap.max", "max")
 		}
 
-		return cg.rw.Set(version, "memory", "memory.swap.max", fmt.Sprintf("%d", limit))
+		return cg.rw.Set(version, "memory", "memory.swap.max", strconv.FormatInt(limit, 10))
 	}
 
 	return ErrUnknownVersion
@@ -520,7 +520,7 @@ func (cg *CGroup) SetMemorySwappiness(limit int64) error {
 	case Unavailable:
 		return ErrControllerMissing
 	case V1:
-		return cg.rw.Set(version, "memory", "memory.swappiness", fmt.Sprintf("%d", limit))
+		return cg.rw.Set(version, "memory", "memory.swappiness", strconv.FormatInt(limit, 10))
 	case V2:
 		return ErrControllerMissing
 	}
@@ -664,9 +664,9 @@ func (cg *CGroup) SetBlkioWeight(limit int64) error {
 	case Unavailable:
 		return ErrControllerMissing
 	case V1:
-		return cg.rw.Set(version, "blkio", "blkio.weight", fmt.Sprintf("%d", limit))
+		return cg.rw.Set(version, "blkio", "blkio.weight", strconv.FormatInt(limit, 10))
 	case V2:
-		return cg.rw.Set(version, "io", "io.weight", fmt.Sprintf("%d", limit))
+		return cg.rw.Set(version, "io", "io.weight", strconv.FormatInt(limit, 10))
 	}
 
 	return ErrUnknownVersion
@@ -687,16 +687,16 @@ func (cg *CGroup) SetBlkioLimit(dev string, oType string, uType string, limit in
 	case Unavailable:
 		return ErrControllerMissing
 	case V1:
-		return cg.rw.Set(version, "blkio", fmt.Sprintf("blkio.throttle.%s_%s_device", oType, uType), fmt.Sprintf("%s %d", dev, limit))
+		return cg.rw.Set(version, "blkio", "blkio.throttle."+oType+"_"+uType+"_device", dev+strconv.FormatInt(limit, 10))
 	case V2:
 		var op string
 		if oType == "read" {
-			op = fmt.Sprintf("r%s", uType)
+			op = "r" + uType
 		} else if oType == "write" {
-			op = fmt.Sprintf("w%s", uType)
+			op = "w" + uType
 		}
 
-		return cg.rw.Set(version, "io", "io.max", fmt.Sprintf("%s %s=%d", dev, op, limit))
+		return cg.rw.Set(version, "io", "io.max", dev+"_"+op+"="+strconv.FormatInt(limit, 10))
 	}
 
 	return ErrUnknownVersion
@@ -709,9 +709,9 @@ func (cg *CGroup) SetCPUShare(limit int64) error {
 	case Unavailable:
 		return ErrControllerMissing
 	case V1:
-		return cg.rw.Set(version, "cpu", "cpu.shares", fmt.Sprintf("%d", limit))
+		return cg.rw.Set(version, "cpu", "cpu.shares", strconv.FormatInt(limit, 10))
 	case V2:
-		return cg.rw.Set(version, "cpu", "cpu.weight", fmt.Sprintf("%d", limit))
+		return cg.rw.Set(version, "cpu", "cpu.weight", strconv.FormatInt(limit, 10))
 	}
 
 	return ErrUnknownVersion
@@ -724,12 +724,12 @@ func (cg *CGroup) SetCPUCfsLimit(limitPeriod int64, limitQuota int64) error {
 	case Unavailable:
 		return ErrControllerMissing
 	case V1:
-		err := cg.rw.Set(version, "cpu", "cpu.cfs_quota_us", fmt.Sprintf("%d", limitQuota))
+		err := cg.rw.Set(version, "cpu", "cpu.cfs_quota_us", strconv.FormatInt(limitQuota, 10))
 		if err != nil {
 			return err
 		}
 
-		err = cg.rw.Set(version, "cpu", "cpu.cfs_period_us", fmt.Sprintf("%d", limitPeriod))
+		err = cg.rw.Set(version, "cpu", "cpu.cfs_period_us", strconv.FormatInt(limitPeriod, 10))
 		if err != nil {
 			return err
 		}
@@ -740,7 +740,7 @@ func (cg *CGroup) SetCPUCfsLimit(limitPeriod int64, limitQuota int64) error {
 			return cg.rw.Set(version, "cpu", "cpu.max", "max")
 		}
 
-		return cg.rw.Set(version, "cpu", "cpu.max", fmt.Sprintf("%d %d", limitQuota, limitPeriod))
+		return cg.rw.Set(version, "cpu", "cpu.max", strconv.FormatInt(limitQuota, 10)+" "+strconv.FormatInt(limitPeriod, 10))
 	}
 
 	return ErrUnknownVersion
@@ -753,13 +753,13 @@ func (cg *CGroup) SetHugepagesLimit(pageType string, limit int64) error {
 	case Unavailable:
 		return ErrControllerMissing
 	case V1:
-		return cg.rw.Set(version, "hugetlb", fmt.Sprintf("hugetlb.%s.limit_in_bytes", pageType), fmt.Sprintf("%d", limit))
+		return cg.rw.Set(version, "hugetlb", "hugetlb."+pageType+".limit_in_bytes", strconv.FormatInt(limit, 10))
 	case V2:
 		if limit == -1 {
-			return cg.rw.Set(version, "hugetlb", fmt.Sprintf("hugetlb.%s.max", pageType), "max")
+			return cg.rw.Set(version, "hugetlb", "hugetlb."+pageType+".max", "max")
 		}
 
-		return cg.rw.Set(version, "hugetlb", fmt.Sprintf("hugetlb.%s.max", pageType), fmt.Sprintf("%d", limit))
+		return cg.rw.Set(version, "hugetlb", "hugetlb."+pageType+".max", strconv.FormatInt(limit, 10))
 	}
 
 	return ErrUnknownVersion
@@ -931,7 +931,7 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 			continue
 		}
 
-		partMap[fmt.Sprintf("%s:%s", fields[0], fields[1])] = fields[3]
+		partMap[fields[0]+":"+fields[1]] = fields[3]
 	}
 
 	// ioMap contains io stats for each device
