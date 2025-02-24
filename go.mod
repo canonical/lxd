@@ -1,6 +1,7 @@
 module github.com/canonical/lxd
 
 go 1.22.7
+toolchain go1.23.6
 
 // https://github.com/minio/minio-go/issues/1931
 replace github.com/minio/minio-go/v7 => github.com/minio/minio-go/v7 v7.0.66
@@ -47,7 +48,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	github.com/zitadel/oidc/v2 v2.12.2
-	golang.org/x/crypto v0.33.0
+	golang.org/x/crypto v0.34.0
 	golang.org/x/oauth2 v0.26.0
 	golang.org/x/sync v0.11.0
 	golang.org/x/sys v0.30.0
