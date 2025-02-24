@@ -931,6 +931,10 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 			continue
 		}
 
+		if len(fields) < 4 {
+			continue
+		}
+
 		partMap[fields[0]+":"+fields[1]] = fields[3]
 	}
 
