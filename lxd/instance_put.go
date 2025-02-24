@@ -73,7 +73,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 
 	projectName := request.ProjectParam(r)
 
-	// Get the container
+	// Get the instance's name
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
@@ -83,7 +83,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
 
-	// Handle requests targeted to a container on a different node
+	// Handle requests targeted to an instance on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
@@ -164,7 +164,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		// Update container configuration
+		// Update instance configuration
 		do = func(op *operations.Operation) error {
 			defer unlock()
 
