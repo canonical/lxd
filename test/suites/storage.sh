@@ -959,6 +959,17 @@ EOF
   LXD_DIR="${LXD_DIR}"
   storage_pool="lxdtest-$(basename "${LXD_DIR}")-pool26"
   lxc storage create "$storage_pool" "$lxd_backend"
+
+  # Tests for retrieving instance root disk size.
+  if [ "${lxd_backend}" = "zfs" ]; then
+    get_instance_size "zfs"
+    lxc storage set "${storage_pool}" volume.zfs.block_mode true
+    get_instance_size "zfs-block"
+    lxc storage unset "${storage_pool}" volume.zfs.block_mode
+  else
+    get_instance_size "${lxd_backend}"
+  fi
+
   lxc init -s "${storage_pool}" testimage c1
   # The storage pool will not be removed since it has c1 attached to it
   ! lxc storage delete "${storage_pool}" || false
@@ -1031,4 +1042,101 @@ EOF
   # shellcheck disable=SC2031,2269
   LXD_DIR="${LXD_DIR}"
   kill_lxd "${LXD_STORAGE_DIR}"
+}
+
+get_instance_size() {
+  driver="{$1}"
+
+  lxc init -s "${storage_pool}" testimage c1
+  # Set 'volume.size' and create new container
+  lxc launch -s "${storage_pool}" testimage c3 -d root,size=7GiB
+  lxc storage set "${storage_pool}" volume.size="8GiB"
+  lxc init -s "${storage_pool}" testimage c2
+
+  # Non block-based drivers.
+  if [ "${driver}" = "btrfs" ] || [ "${driver}" = "dir" ] ; then
+    # Client doesn't show totals for unbounded containers.
+    # c1 and c2 are unbounded despite of volume.size.
+    [ -z "$(lxc info c1 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" ]
+    [ -z "$(lxc info c2 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" ]
+
+    # Check volume also has empty 'volatile.rootfs.size' and volume state also don't show total
+    [ -z "$(lxc storage volume get "${storage_pool}" container/c1 volatile.rootfs.size)" ]
+    ! lxc storage volume info "${storage_pool}" container/c1 | grep "Total:" || false
+    [ -z "$(lxc storage volume get "${storage_pool}" container/c2 volatile.rootfs.size)" ]
+    ! lxc storage volume info "${storage_pool}" container/c2 | grep "Total:" || false
+  fi
+
+  # zfs is not block-based by default but it does not ignore volume.size for FS volumes.
+  if [ "${driver}" = "zfs" ]; then
+    [ -z "$(lxc info c1 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" ]
+    [ "$(lxc info c2 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" = "8.00GiB" ]
+
+    # Check volume also has empty 'volatile.rootfs.size' and volume state also don't show total
+    [ -z "$(lxc storage volume get "${storage_pool}" container/c1 volatile.rootfs.size)" ]
+    ! lxc storage volume info "${storage_pool}" container/c1 | grep "Total:" || false
+    [ "$(lxc storage volume get "${storage_pool}" container/c2 volatile.rootfs.size)" = "8GiB" ]
+    [ "$(lxc storage volume info "${storage_pool}" container/c2 | awk '/Total:/ {print $2; exit}')"  = "8.00GiB" ]
+  fi
+
+  # Block-based drivers
+  if [ "${driver}" = "lvm" ] || [ "${driver}" = "ceph" ] || [ "${driver}" = "zfs-block" ]; then
+    # c1 assumes the default block size of 10GiB
+    [ "$(lxc info c1 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" = "10.00GiB" ]
+    # c1 assumes the size defined by volume.size
+    [ "$(lxc info c2 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" = "8.00GiB" ]
+
+    # Check volume 'volatile.rootfs.size' and volume state also show correct total size
+    [ "$(lxc storage volume get "${storage_pool}" container/c1 volatile.rootfs.size)" = "10GiB" ]
+    [ "$(lxc storage volume info "${storage_pool}" container/c1 | awk '/Total:/ {print $2; exit}')"  = "10.00GiB" ]
+    [ "$(lxc storage volume get "${storage_pool}" container/c2 volatile.rootfs.size)" = "8GiB" ]
+    [ "$(lxc storage volume info "${storage_pool}" container/c2 | awk '/Total:/ {print $2; exit}')"  = "8.00GiB" ]
+  fi
+
+  # For all drivers, c3 should have the initial size as set on the device.
+  [ "$(lxc info c3 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" = "7.00GiB" ]
+
+  # Shrink c1 and grow c2
+  # Device 'size' should override default size and 'volume.size'
+  lxc start c1
+  lxc start c2
+  ! lxc storage volume set "${storage_pool}" container/c1 size="7GiB" || false
+  lxc config device set c1 root size="7GiB"
+  lxc config device set c2 root size="11GiB"
+
+  # Non block-based drivers
+  if [ "${driver}" = "btrfs" ] || [ "${driver}" = "dir" ] || [ "${driver}" = "zfs" ]; then
+    # Device 'size' always applies right away
+    [ "$(lxc info c1 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" = "7.00GiB" ]
+    [ "$(lxc info c2 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" = "11.00GiB" ]
+  fi
+
+  # Block-based drivers
+  if [ "${driver}" = "lvm" ] || [ "${driver}" = "ceph" ] || [ "${driver}" = "zfs-block" ]; then
+    [ "$(lxc info c2 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" = "11.00GiB" ]
+    # Shrinking does not occur until next instance start
+    [ "$(lxc info c1 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" = "10.00GiB" ]
+    lxc stop -f c1
+    [ "$(lxc info c1 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" = "10.00GiB" ]
+    lxc start c1
+    # After restart, instance gets resized and root disk size is updated
+    [ "$(lxc info c1 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" = "7.00GiB" ]
+  fi
+
+  # Unset sizes from devices
+  lxc config device unset c3 root size
+  lxc storage unset "${storage_pool}" volume.size
+  lxc config device unset c1 root size
+  lxc config device unset c2 root size
+
+  # Non block-based drivers. All volumes are back to being unbounded.
+  if [ "${driver}" = "btrfs" ] || [ "${driver}" = "dir" ] || [ "${driver}" = "zfs" ]; then
+    [ -z "$(lxc info c1 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" ]
+    [ -z "$(lxc info c2 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" ]
+    [ -z "$(lxc info c3 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" ]
+  fi
+
+  lxc delete -f c1
+  lxc delete -f c2
+  lxc delete -f c3
 }
