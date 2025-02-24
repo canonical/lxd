@@ -1029,6 +1029,7 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 			var devID string
 			ioStats := &IOStats{}
 
+			// An io.stat line looks like this: "major:minor rbytes=[0-9]+ wbytes=[0-9]+ rios=[0-9]+ wios=[0-9]+ dbytes=[0-9]+ dios=[0-9]+".
 			for _, statPart := range strings.Split(scanner.Text(), " ") {
 				// If the stat part is empty, skip it.
 				if statPart == "" {
@@ -1043,6 +1044,11 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 
 				// Skip loop devices (major dev ID 7) as they are irrelevant.
 				if strings.HasPrefix(devID, "7:") {
+					continue
+				}
+
+				// Skip irrelevant stats related to direct IO (dbytes= and dios=).
+				if strings.HasPrefix(statPart, "d") {
 					continue
 				}
 
