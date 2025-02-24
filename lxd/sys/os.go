@@ -81,6 +81,7 @@ type OS struct {
 	CGInfo cgroup.Info
 
 	// Kernel features
+	BPFToken                bool // BPFToken indicates support for BPF token delegation mechanism.
 	CloseRange              bool // CloseRange indicates support for the close_range syscall.
 	ContainerCoreScheduling bool // ContainerCoreScheduling indicates LXC and kernel support for core scheduling.
 	CoreScheduling          bool // CoreScheduling indicates support for core scheduling syscalls.

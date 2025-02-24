@@ -2426,6 +2426,56 @@
 						}
 					},
 					{
+						"security.delegate_bpf": {
+							"condition": "unprivileged container",
+							"defaultdesc": "`false`",
+							"liveupdate": "no",
+							"longdesc": "",
+							"shortdesc": "Whether to enable eBPF delegation using BPF Token mechanism",
+							"type": "bool"
+						}
+					},
+					{
+						"security.delegate_bpf.attachs": {
+							"condition": "unprivileged container",
+							"defaultdesc": "`false`",
+							"liveupdate": "no",
+							"longdesc": "",
+							"shortdesc": "Which eBPF attach types to allow with delegation mechanism",
+							"type": "bool"
+						}
+					},
+					{
+						"security.delegate_bpf.cmds": {
+							"condition": "unprivileged container",
+							"defaultdesc": "`false`",
+							"liveupdate": "no",
+							"longdesc": "",
+							"shortdesc": "Which eBPF commands to allow with delegation mechanism",
+							"type": "bool"
+						}
+					},
+					{
+						"security.delegate_bpf.maps": {
+							"condition": "unprivileged container",
+							"defaultdesc": "`false`",
+							"liveupdate": "no",
+							"longdesc": "",
+							"shortdesc": "Which eBPF maps to allow with delegation mechanism",
+							"type": "bool"
+						}
+					},
+					{
+						"security.delegate_bpf.progs": {
+							"condition": "unprivileged container",
+							"defaultdesc": "`false`",
+							"liveupdate": "no",
+							"longdesc": "",
+							"shortdesc": "Which eBPF program types to allow with delegation mechanism",
+							"type": "bool"
+						}
+					},
+					{
 						"security.devlxd": {
 							"defaultdesc": "`true`",
 							"liveupdate": "no",
