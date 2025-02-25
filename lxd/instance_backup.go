@@ -528,7 +528,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Validate the name.
+	// Validate the new backup name.
 	newBackupName, err := backup.ValidateBackupName(req.Name)
 	if err != nil {
 		return response.BadRequest(err)
@@ -539,6 +539,9 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	// Save the instance name that was implicitly validated when looking up the backup.
+	name = backup.Instance().Name()
 
 	newName := name + shared.SnapshotDelimiter + newBackupName
 
