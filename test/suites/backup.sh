@@ -665,7 +665,7 @@ test_backup_rename() {
   lxc query -X POST --wait -d '{\"name\":\"foo\"}' /1.0/instances/c1/backups
 
   # All backups should be listed
-  lxc query /1.0/instances/c1/backups | jq .'[0]' | grep instances/c1/backups/foo
+  [ "$(lxc query /1.0/instances/c1/backups | jq -r '.[]')" = "/1.0/instances/c1/backups/foo" ]
 
   # The specific backup should exist
   lxc query /1.0/instances/c1/backups/foo
@@ -674,7 +674,7 @@ test_backup_rename() {
   lxc mv c1 c2
 
   # All backups should be listed
-  lxc query /1.0/instances/c2/backups | jq .'[0]' | grep instances/c2/backups/foo
+  [ "$(lxc query /1.0/instances/c2/backups | jq -r '.[]')" = "/1.0/instances/c2/backups/foo" ]
 
   # The specific backup should exist
   lxc query /1.0/instances/c2/backups/foo
