@@ -1,6 +1,8 @@
 package operationtype
 
 import (
+	"strings"
+
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/shared/entity"
 )
@@ -77,6 +79,140 @@ const (
 	RemoveExpiredTokens
 	ClusterHeal
 )
+
+// StringToOperationType converts a string (case-insensitive) to an Operation Type.
+// Returns Unknown if the string doesn't match any known type.
+func StringToOperationType(opTypeString string) Type {
+	opTypeString = strings.ReplaceAll(opTypeString, " ", "")
+	opTypeString = strings.ToLower(opTypeString)
+
+	switch opTypeString {
+	case "clusterbootstrap":
+		return ClusterBootstrap
+	case "clusterjoin":
+		return ClusterJoin
+	case "backupcreate":
+		return BackupCreate
+	case "backuprename":
+		return BackupRename
+	case "backuprestore":
+		return BackupRestore
+	case "backupremove":
+		return BackupRemove
+	case "consoleshow":
+		return ConsoleShow
+	case "instancecreate":
+		return InstanceCreate
+	case "instanceupdate":
+		return InstanceUpdate
+	case "instancerename":
+		return InstanceRename
+	case "instancemigrate":
+		return InstanceMigrate
+	case "instancelivemigrate":
+		return InstanceLiveMigrate
+	case "instancefreeze":
+		return InstanceFreeze
+	case "instanceunfreeze":
+		return InstanceUnfreeze
+	case "instancedelete":
+		return InstanceDelete
+	case "instancestart":
+		return InstanceStart
+	case "instancestop":
+		return InstanceStop
+	case "instancerestart":
+		return InstanceRestart
+	case "instancerebuild":
+		return InstanceRebuild
+	case "commandexec":
+		return CommandExec
+	case "snapshotcreate":
+		return SnapshotCreate
+	case "snapshotrename":
+		return SnapshotRename
+	case "snapshotrestore":
+		return SnapshotRestore
+	case "snapshottransfer":
+		return SnapshotTransfer
+	case "snapshotupdate":
+		return SnapshotUpdate
+	case "snapshotdelete":
+		return SnapshotDelete
+	case "imagedownload":
+		return ImageDownload
+	case "imagedelete":
+		return ImageDelete
+	case "imagetoken":
+		return ImageToken
+	case "imagerefresh":
+		return ImageRefresh
+	case "volumecopy":
+		return VolumeCopy
+	case "volumecreate":
+		return VolumeCreate
+	case "volumemigrate":
+		return VolumeMigrate
+	case "volumemove":
+		return VolumeMove
+	case "volumesnapshotcreate":
+		return VolumeSnapshotCreate
+	case "volumesnapshotdelete":
+		return VolumeSnapshotDelete
+	case "volumesnapshotupdate":
+		return VolumeSnapshotUpdate
+	case "projectrename":
+		return ProjectRename
+	case "imagesexpire":
+		return ImagesExpire
+	case "imagespruneleftover":
+		return ImagesPruneLeftover
+	case "imagesupdate":
+		return ImagesUpdate
+	case "imagessynchronize":
+		return ImagesSynchronize
+	case "logsexpire":
+		return LogsExpire
+	case "instancetypesupdate":
+		return InstanceTypesUpdate
+	case "backupsexpire":
+		return BackupsExpire
+	case "snapshotsexpire":
+		return SnapshotsExpire
+	case "customvolumesnapshotsexpire":
+		return CustomVolumeSnapshotsExpire
+	case "customvolumebackupcreate":
+		return CustomVolumeBackupCreate
+	case "customvolumebackupremove":
+		return CustomVolumeBackupRemove
+	case "customvolumebackuprename":
+		return CustomVolumeBackupRename
+	case "customvolumebackuprestore":
+		return CustomVolumeBackupRestore
+	case "warningspruneresolved":
+		return WarningsPruneResolved
+	case "clusterjointoken":
+		return ClusterJoinToken
+	case "volumesnapshotrename":
+		return VolumeSnapshotRename
+	case "clustermemberevacuate":
+		return ClusterMemberEvacuate
+	case "clustermemberrestore":
+		return ClusterMemberRestore
+	case "certificateaddtoken":
+		return CertificateAddToken
+	case "removeorphanedoperations":
+		return RemoveOrphanedOperations
+	case "renewservercertificate":
+		return RenewServerCertificate
+	case "removeexpiredtokens":
+		return RemoveExpiredTokens
+	case "clusterheal":
+		return ClusterHeal
+	default:
+		return Unknown
+	}
+}
 
 // Description return a human-readable description of the operation type.
 func (t Type) Description() string {

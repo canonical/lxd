@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,6 +40,24 @@ const (
 	// OperationClassToken represents the Token OperationClass.
 	OperationClassToken OperationClass = 3
 )
+
+// StringToOperationClass converts a string (case-insensitive) to an OperationClass.
+// Returns Unknown if the string doesn't match any known type.
+func StringToOperationClass(opClassString string) (OperationClass, error) {
+	opClassString = strings.ReplaceAll(opClassString, " ", "")
+	opClassString = strings.ToLower(opClassString)
+
+	switch opClassString {
+	case "task":
+		return OperationClassTask, nil
+	case "websocket":
+		return OperationClassWebsocket, nil
+	case "token":
+		return OperationClassToken, nil
+	default:
+		return -1, fmt.Errorf("Unknown operation class '%s'", opClassString)
+	}
+}
 
 func (t OperationClass) String() string {
 	return map[OperationClass]string{
