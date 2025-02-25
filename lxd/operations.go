@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -1260,4 +1261,78 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 	logger.Debug("Done removing orphaned operations across the cluster")
 
 	return nil
+}
+
+type operationWaitPost struct {
+	Duration  string              `json:"duration" yaml:"duration"`
+	OpClass   string              `json:"op_class" yaml:"op_class"`
+	OpType    string              `json:"op_type" yaml:"op_type"`
+	Resources map[string][]string `json:"resources" yaml:"resources"`
+}
+
+func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
+	// Extract the entity URL and duration from the request.
+	req := operationWaitPost{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Parse the duration.
+	duration, err := time.ParseDuration(req.Duration)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Extract and validate resources
+	var resources map[string][]api.URL
+	if req.Resources != nil {
+		resources = make(map[string][]api.URL)
+		for resourceType, entityURLs := range req.Resources {
+			for _, entityURL := range entityURLs {
+				parsedURL, err := url.Parse(entityURL)
+				if err != nil {
+					return response.BadRequest(err)
+				}
+
+				_, _, _, _, err = entity.ParseURL(*parsedURL)
+				if err != nil {
+					return response.BadRequest(err)
+				}
+
+				resources[resourceType] = append(resources[resourceType], api.URL{URL: *parsedURL})
+			}
+		}
+	}
+
+	opClass, err := operations.StringToOperationClass(req.OpClass)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	opType := operationtype.StringToOperationType(req.OpType)
+	if opType == operationtype.Unknown {
+		return response.BadRequest(fmt.Errorf("Invalid operation type %q", req.OpType))
+	}
+
+	run := func(op *operations.Operation) error {
+		// Just sleep for the duration.
+		time.Sleep(duration)
+		return nil
+	}
+
+	var onConnect func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error
+	if opClass == operations.OperationClassWebsocket {
+		onConnect = func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+			// Do nothing
+			return nil
+		}
+	}
+
+	op, err := operations.OperationCreate(d.State(), "", opClass, opType, resources, nil, run, nil, onConnect, r)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
