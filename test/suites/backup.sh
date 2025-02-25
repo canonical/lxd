@@ -12,7 +12,7 @@ test_storage_volume_recover() {
   fi
 
   # Create custom block volume.
-  lxc storage volume create "${poolName}" vol1 --type=block
+  lxc storage volume create "${poolName}" vol1 --type=block size=32MiB
 
   # Import ISO.
   truncate -s 8MiB foo.iso
@@ -28,7 +28,7 @@ test_storage_volume_recover() {
 
   if [ "$poolDriver" = "zfs" ]; then
     # Create filesystem volume.
-    lxc storage volume create "${poolName}" vol3
+    lxc storage volume create "${poolName}" vol3 size=32MiB
 
     # Create block_mode enabled volume.
     lxc storage volume create "${poolName}" vol4 zfs.block_mode=true size=200MiB
@@ -106,7 +106,7 @@ EOF
 
     # Recover container and custom volume that isn't mounted.
     lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
-    lxc storage volume create "${poolName}" vol1_test
+    lxc storage volume create "${poolName}" vol1_test size=32MiB
     lxc storage volume attach "${poolName}" vol1_test c1 /mnt
     lxc start c1
     lxc exec c1 --project test -- mount | grep /mnt
@@ -728,7 +728,7 @@ _backup_volume_export_with_project() {
   lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
 
   # Create custom storage volume.
-  lxc storage volume create "${custom_vol_pool}" testvol
+  lxc storage volume create "${custom_vol_pool}" testvol size=32MiB
 
   # Attach storage volume to the test container and start.
   lxc storage volume attach "${custom_vol_pool}" testvol c1 /mnt
@@ -911,7 +911,7 @@ test_backup_volume_rename_delete() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
 
   # Create test volume.
-  lxc storage volume create "${pool}" vol1
+  lxc storage volume create "${pool}" vol1 size=32MiB
 
   if ! lxc query -X POST /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -q "Error: Storage volume backup not found" ; then
     echo "invalid rename response for missing storage volume"
@@ -996,7 +996,7 @@ test_backup_volume_expiry() {
   poolName=$(lxc profile device get default root pool)
 
   # Create custom volume.
-  lxc storage volume create "${poolName}" vol1
+  lxc storage volume create "${poolName}" vol1 size=32MiB
 
   # Create storage volume backups using the API directly.
   # The first one is created with an expiry date, the second one never expires.
