@@ -540,6 +540,9 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Save the instance name that was implicitly validated when looking up the backup.
+	name = backup.Instance().Name()
+
 	newName := name + shared.SnapshotDelimiter + newBackupName
 
 	rename := func(op *operations.Operation) error {
