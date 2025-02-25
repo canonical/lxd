@@ -1034,7 +1034,7 @@ test_backup_export_import_recover() {
     ensure_has_localhost_remote "${LXD_ADDR}"
 
     # Create and export an instance.
-    lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
+    lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
     lxc export c1 "${LXD_DIR}/c1.tar.gz"
     lxc delete -f c1
 
