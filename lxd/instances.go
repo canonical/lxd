@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/canonical/lxd/lxd/auth"
@@ -17,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/warnings"
@@ -455,7 +457,66 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 	return instances, nil
 }
 
-func instancesShutdown(instances []instance.Instance) {
+// isInstanceBusy checks if the instance is busy or not.
+func isInstanceBusy(instancesTracker *OpsTrackingGroup, inst instance.Instance) bool {
+	instanceURL := entity.InstanceURL(inst.Project().Name, inst.Name())
+	instancesTracker.Mu.RLock()
+	op, ok := instancesTracker.Ops[instanceURL.String()]
+	instancesTracker.Mu.RUnlock()
+	if ok && op != nil {
+		if op.Status() == api.Running && op.Class() != operations.OperationClassToken {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Helper function for force-stopping instances.
+func forceStopRemainingInstances(instances []instance.Instance, startIndex int) {
+	var forcedInstancesWg sync.WaitGroup
+	for j := startIndex; j < len(instances); j++ {
+		remainingInst := instances[j]
+		if !remainingInst.IsRunning() {
+			continue
+		}
+
+		forcedInstancesWg.Add(1)
+		go func() {
+			defer forcedInstancesWg.Done()
+			logger.Debug("Forcefully shutting down instance", logger.Ctx{"project": remainingInst.Project().Name, "instance": remainingInst.Name()})
+			err := remainingInst.Stop(false)
+			if err != nil {
+				logger.Warn("Failed forcefully stopping instance", logger.Ctx{"project": remainingInst.Project().Name, "instance": remainingInst.Name(), "err": err})
+			}
+
+			if remainingInst.ID() > 0 {
+				_ = remainingInst.VolatileSet(map[string]string{"volatile.last_state.power": instance.PowerStateRunning})
+			}
+		}()
+	}
+
+	logger.Debug("Waiting for all remaining instances to be forcefully stopped")
+	forcedInstancesWg.Wait()
+}
+
+// waitWithCtx blocks on wg.Wait() but returns early if ctx is canceled.
+func waitWithCtx(ctx context.Context, wg *sync.WaitGroup) error {
+	doneCh := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(doneCh)
+	}()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-doneCh:
+		return nil
+	}
+}
+
+func instancesShutdown(ctx context.Context, instances []instance.Instance, opsTracker *OperationTracker) {
 	sort.Sort(instanceStopList(instances))
 
 	// Limit shutdown concurrency to number of instances or number of CPU cores (which ever is less).
@@ -471,6 +532,7 @@ func instancesShutdown(instances []instance.Instance) {
 		go func(instShutdownCh <-chan instance.Instance) {
 			for inst := range instShutdownCh {
 				// Determine how long to wait for the instance to shutdown cleanly.
+				logger.Debug("Instance received for shutdown", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "timestamp": time.Now().UnixNano()})
 				timeoutSeconds := 30
 				value, ok := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
 				if ok {
@@ -494,32 +556,110 @@ func instancesShutdown(instances []instance.Instance) {
 				}
 
 				wg.Done()
+				logger.Debug("Instance shutdown complete", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "timestamp": time.Now().UnixNano()})
 			}
 		}(instShutdownCh)
 	}
 
-	var currentBatchPriority int
-	for i, inst := range instances {
-		// Skip stopped instances.
+	var instancesTracker *OpsTrackingGroup
+	if opsTracker != nil {
+		instancesTracker = opsTracker.GetOpsTrackingGroup("instances")
+	}
+
+	var processedInstances atomic.Int32
+	var toBeProcessedInstances atomic.Int32
+	currentBatchPriority := -1
+
+	for {
+		// If the sum of processed instances and instances being processed is equal to the total number of instances,
+		// then all instances are being taken care of in the shutdown worker pool, so we can wait for them to finish.
+		if int(processedInstances.Load()+toBeProcessedInstances.Load()) >= len(instances) {
+			err := waitWithCtx(ctx, &wg)
+			if err != nil {
+				// Context cancelled: Force stop remaining instances and exit.
+				logger.Debug("Context cancelled, stopping remaining instances", logger.Ctx{"ctxErr": ctx.Err()})
+				forceStopRemainingInstances(instances, int(processedInstances.Load()))
+				wg.Wait()
+				close(instShutdownCh)
+				logger.Debug("All instances have been forcefully stopped after context cancellation, returning")
+				return
+			}
+
+			close(instShutdownCh)
+			logger.Debug("All instances have been shutdown, returning")
+			return
+		}
+
+		inst := instances[int(processedInstances.Load()+toBeProcessedInstances.Load())]
+
 		if !inst.IsRunning() {
+			processedInstances.Add(1)
 			continue
 		}
 
 		priority, _ := strconv.Atoi(inst.ExpandedConfig()["boot.stop.priority"])
+		if priority != currentBatchPriority {
+			// Wait for the previous batch to complete (including busy-wait goroutines).
+			err := waitWithCtx(ctx, &wg)
+			if err != nil {
+				// Context cancelled: Force stop remaining instances and exit.
+				logger.Debug("Context cancelled, stopping remaining instances", logger.Ctx{"ctxErr": ctx.Err()})
+				forceStopRemainingInstances(instances, int(processedInstances.Load()))
+				wg.Wait()
+				close(instShutdownCh)
+				logger.Debug("All instances have been forcefully stopped after context cancellation, returning")
+				return
+			}
 
-		// Shutdown instances in priority batches, logging at the start of each batch.
-		if i == 0 || priority != currentBatchPriority {
 			currentBatchPriority = priority
-
-			// Wait for instances with higher priority to finish before starting next batch.
-			wg.Wait()
-			logger.Info("Stopping instances", logger.Ctx{"stopPriority": currentBatchPriority})
+			logger.Info("Stopping instances", logger.Ctx{"stopPriority": currentBatchPriority, "timestamp": time.Now().UnixNano()})
 		}
 
+		if instancesTracker != nil && isInstanceBusy(instancesTracker, inst) {
+			logger.Debug("Instance is busy in batch, tracking instance busy state", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+			wg.Add(1)
+			// Start a goroutine to check the instance busy state and when it is ready to be sent to the shutdown worker pool.
+			go func(inst instance.Instance) {
+				ticker := time.NewTicker(500 * time.Millisecond)
+				defer func() {
+					ticker.Stop()
+					toBeProcessedInstances.Add(-1)
+				}()
+				for {
+					select {
+					case <-ctx.Done():
+						// Forcefully stop it
+						logger.Debug("Force stopping busy instance", logger.Ctx{"instance": inst.Name(), "project": inst.Project().Name})
+						err := inst.Stop(false)
+						if err != nil {
+							logger.Warn("Failed forcefully stopping instance", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
+						}
+
+						if inst.ID() > 0 {
+							_ = inst.VolatileSet(map[string]string{"volatile.last_state.power": instance.PowerStateRunning})
+						}
+
+						wg.Done()
+						return
+					case <-ticker.C:
+						if !isInstanceBusy(instancesTracker, inst) {
+							instShutdownCh <- inst
+							processedInstances.Add(1)
+							return
+						}
+					}
+				}
+			}(inst)
+			toBeProcessedInstances.Add(1)
+			continue
+		} else {
+			logger.Debug("Instance is not busy in batch", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+		}
+
+		// Instance is not detected as busy.
+		// Send it to the worker pool immediately.
 		wg.Add(1)
 		instShutdownCh <- inst
+		processedInstances.Add(1)
 	}
-
-	wg.Wait()
-	close(instShutdownCh)
 }
