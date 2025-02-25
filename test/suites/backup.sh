@@ -1065,7 +1065,7 @@ test_backup_export_import_instance_only() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Create an instance with snapshot.
-  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
 
   # Verify the original instance has snapshots.
