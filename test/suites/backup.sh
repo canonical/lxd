@@ -1068,6 +1068,9 @@ test_backup_export_import_instance_only() {
   lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
 
+  # Verify the original instance has snapshots.
+  [ "$(lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq -r 'length')" = "1" ]
+
   # Export the instance and remove it.
   lxc export c1 "${LXD_DIR}/c1.tar.gz" --instance-only
   lxc delete -f c1
@@ -1076,7 +1079,7 @@ test_backup_export_import_instance_only() {
   lxc import "${LXD_DIR}/c1.tar.gz"
 
   # Verify imported instance has no snapshots.
-  [ "$(lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq "length == 0")" = "true" ]
+  [ "$(lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq -r 'length')" = "0" ]
 
   rm "${LXD_DIR}/c1.tar.gz"
   lxc delete -f c1
