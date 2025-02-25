@@ -8274,7 +8274,13 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 				metricType = metrics.MemoryShmemBytes
 			case "cache":
 				metricType = metrics.MemoryCachedBytes
-				memoryCached = int64(v)
+
+				// Bound checking before converting from uint64 to int64.
+				if v > math.MaxInt64 {
+					memoryCached = math.MaxInt64
+				} else {
+					memoryCached = int64(v)
+				}
 			}
 
 			out.AddSamples(metricType, metrics.Sample{Value: float64(v)})
@@ -8293,16 +8299,10 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 		out.AddSamples(metrics.MemoryMemFreeBytes, metrics.Sample{Value: float64(memoryLimit - memoryUsage)})
 	}
 
-	// Get oom kills.
+	// Get OOM kills. If we fail to get the OOM kills count, 0 is returned.
 	oomKills, err := cg.GetOOMKills()
 	if err != nil {
-		d.logger.Warn("Failed to get oom kills", logger.Ctx{"err": err})
-	}
-
-	// If we failed to get OOM kills, because of a couple of reasons (instance stopped, cgroup controller not available, etc),
-	// we default to 0 instead of -1 for the MemoryOOMKillsTotal metric (a total of `-1` would be misleading).
-	if oomKills < 0 {
-		oomKills = 0
+		d.logger.Warn("Failed to get OOM kills", logger.Ctx{"err": err})
 	}
 
 	out.AddSamples(metrics.MemoryOOMKillsTotal, metrics.Sample{Value: float64(oomKills)})
@@ -8329,7 +8329,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 		d.logger.Warn("Failed to get CPU usage", logger.Ctx{"err": err})
 	} else {
 		for cpu, stats := range usage {
-			cpuID := strconv.Itoa(int(cpu))
+			cpuID := strconv.FormatInt(cpu, 10)
 
 			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: float64(stats.System) / 1000000000, Labels: map[string]string{"mode": "system", "cpu": cpuID}})
 			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: float64(stats.User) / 1000000000, Labels: map[string]string{"mode": "user", "cpu": cpuID}})
