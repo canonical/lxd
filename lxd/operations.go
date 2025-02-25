@@ -97,82 +97,73 @@ func (s *OperationTracker) GetOpsTrackingGroup(operationGroupID string) *OpsTrac
 	}
 }
 
-// waitForOperations waits for operations to finish.
-// There's a timeout for console/exec operations that when reached will shut down the instances forcefully.
-func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdownTimeout time.Duration) {
-	timeout := time.After(consoleShutdownTimeout)
+func entityToPendingOperations() (*OperationTracker, error) {
+	// Get all the operations
+	ops := operations.Clone()
+	// Create the operation store
+	opsTracker := NewOperationTracker()
+	instancesTracker := opsTracker.GetOpsTrackingGroup("instances")
+	volumesTracker := opsTracker.GetOpsTrackingGroup("volumes")
 
-	defer func() {
-		_ = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			err := dbCluster.DeleteOperations(ctx, tx.Tx(), cluster.GetNodeID())
-			if err != nil {
-				logger.Error("Failed cleaning up operations")
-			}
+	for _, op := range ops {
+		if op.Status() != api.Running || op.Class() == operations.OperationClassToken {
+			continue
+		}
 
-			return nil
-		})
-	}()
+		_, opAPI, err := op.Render()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to render an operation while listing all operations: %w", err)
+		}
 
-	// Check operation status every second.
-	tick := time.NewTicker(time.Second)
-	defer tick.Stop()
+		// If the current operations has a hold on some resources, we keep track of them in the `resourceMap`.
+		// This is used to mark instances and storage volumes as busy to avoid shutting them down / unmounting them prematurely.
+		// This allows the waitForOperations to be called in a goroutine alongside the instance shutdown goroutine and the custom volume unmounting goroutine (for backups and images)
+		// and to avoid the situation where a single very long running operation can block the shutdown of unrelated instances and the unmount of unrelated storage volumes.
+		if opAPI.Resources != nil {
+			for resourceName, resourceEntries := range opAPI.Resources {
+				if resourceName == "instances" || resourceName == "storage_volumes" || resourceName == "storage_volume_snapshots" || resourceName == "backups" {
+					for _, rawURL := range resourceEntries {
+						u := api.NewURL()
+						parsedURL, err := u.Parse(rawURL)
+						if err != nil {
+							return nil, fmt.Errorf("Failed to parse raw URL %q: %w", rawURL, err)
+						}
 
-	var i int
-	for {
-		// Get all the operations
-		ops := operations.Clone()
+						entityType, projectName, location, pathArgs, err := entity.ParseURL(*parsedURL)
+						if err != nil {
+							return nil, fmt.Errorf("Failed to parse URL (%q) into a LXD entity: %w", parsedURL.String(), err)
+						}
 
-		var runningOps, execConsoleOps int
-		for _, op := range ops {
-			if op.Status() != api.Running || op.Class() == operations.OperationClassToken {
-				continue
-			}
+						entityURL, err := entityType.URL(projectName, location, pathArgs...)
+						if err != nil {
+							return nil, fmt.Errorf("Failed to generate entity URL: %w", err)
+						}
 
-			runningOps++
-
-			opType := op.Type()
-			if opType == operationtype.CommandExec || opType == operationtype.ConsoleShow {
-				execConsoleOps++
-			}
-
-			_, opAPI, err := op.Render()
-			if err != nil {
-				logger.Warn("Failed to render operation", logger.Ctx{"operation": op, "err": err})
-			} else if opAPI.MayCancel {
-				_, _ = op.Cancel()
+						switch entityType {
+						case entity.TypeInstance:
+							instancesTracker.Mu.Lock()
+							logger.Debug("Adding instance to tracker map", logger.Ctx{"entityURL": entityURL.String(), "op status": op.Status()})
+							instancesTracker.Ops[entityURL.String()] = op
+							instancesTracker.Mu.Unlock()
+						case entity.TypeStorageVolume, entity.TypeStorageVolumeSnapshot, entity.TypeStorageVolumeBackup:
+							volumesTracker.Mu.Lock()
+							logger.Debug("Adding volume to tracker map", logger.Ctx{"entityURL": entityURL.String(), "op status": op.Status()})
+							volumesTracker.Ops[entityURL.String()] = op
+							volumesTracker.Mu.Unlock()
+						default:
+							logger.Error("Unexpected entity type", logger.Ctx{"entityType": entityType})
+						}
+					}
+				}
 			}
 		}
 
-		// No more running operations left. Exit function.
-		if runningOps == 0 {
-			logger.Info("All running operations finished, shutting down")
-			return
-		}
-
-		// Print log message every minute.
-		if i%60 == 0 {
-			logger.Infof("Waiting for %d operation(s) to finish", runningOps)
-		}
-
-		i++
-
-		select {
-		case <-timeout:
-			// We wait up to core.shutdown_timeout minutes for exec/console operations to finish.
-			// If there are still running operations, we continue shutdown which will stop any running
-			// instances and terminate the operations.
-			if execConsoleOps > 0 {
-				logger.Info("Shutdown timeout reached, continuing with shutdown")
-			}
-
-			return
-		case <-ctx.Done():
-			// Return here, and ignore any running operations.
-			logger.Info("Forcing shutdown, ignoring running operations")
-			return
-		case <-tick.C:
+		if opAPI.MayCancel {
+			_, _ = op.Cancel()
 		}
 	}
+
+	return opsTracker, nil
 }
 
 // API functions
