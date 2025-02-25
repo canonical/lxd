@@ -674,11 +674,11 @@ func (cg *CGroup) SetBlkioWeight(limit int64) error {
 
 // SetBlkioLimit sets the specified read or write limit for a device.
 func (cg *CGroup) SetBlkioLimit(dev string, oType string, uType string, limit int64) error {
-	if !shared.ValueInSlice(oType, []string{"read", "write"}) {
+	if oType != "read" && oType != "write" {
 		return fmt.Errorf("Invalid I/O operation type: %s", oType)
 	}
 
-	if !shared.ValueInSlice(uType, []string{"iops", "bps"}) {
+	if uType != "iops" && uType != "bps" {
 		return fmt.Errorf("Invalid I/O limit type: %s", uType)
 	}
 
