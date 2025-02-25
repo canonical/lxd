@@ -105,7 +105,7 @@ yes
 EOF
 
     # Recover container and custom volume that isn't mounted.
-    lxc init testimage c1
+    lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
     lxc storage volume create "${poolName}" vol1_test
     lxc storage volume attach "${poolName}" vol1_test c1 /mnt
     lxc start c1
@@ -378,8 +378,8 @@ _backup_import_with_project() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  lxc launch testimage c1
-  lxc launch testimage c2
+  lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
+  lxc launch testimage c2 -d "${SMALL_ROOT_DISK}"
 
   # Check invalid snapshot names
   ! lxc snapshot c2 ".." || false
@@ -486,7 +486,7 @@ _backup_import_with_project() {
   # Also check that the container storage volume config is correctly captured and restored.
   default_pool="$(lxc profile device get default root pool)"
 
-  lxc launch testimage c1-foo
+  lxc launch testimage c1-foo -d "${SMALL_ROOT_DISK}"
   lxc storage volume set "${default_pool}" container/c1-foo user.foo=c1-foo-snap0
   lxc snapshot c1-foo c1-foo-snap0
   lxc storage volume set "${default_pool}" container/c1-foo user.foo=c1-foo-snap1
@@ -508,7 +508,7 @@ _backup_import_with_project() {
   lxc storage create pool_2 dir
 
   # Export created container
-  lxc init testimage c3 -s pool_1
+  lxc init testimage c3 -d "${SMALL_ROOT_DISK}" -s pool_1
   lxc export c3 "${LXD_DIR}/c3.tar.gz"
 
   # Remove container and storage pool
@@ -575,7 +575,7 @@ _backup_export_with_project() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  lxc launch testimage c1
+  lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
 
   mkdir "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized"
@@ -628,7 +628,7 @@ _backup_export_with_project() {
   rm -rf "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized"
 
   # Check if hyphens cause issues when creating backups
-  lxc launch testimage c1-foo
+  lxc launch testimage c1-foo -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1-foo
 
   lxc export c1-foo "${LXD_DIR}/c1-foo.tar.gz"
@@ -654,7 +654,7 @@ test_backup_rename() {
     false
   fi
 
-  lxc init testimage c1
+  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
 
   if ! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -q "Error: Instance backup not found" ; then
     echo "invalid rename response for missing backup"
@@ -725,7 +725,7 @@ _backup_volume_export_with_project() {
   lxd_backend=$(storage_backend "$LXD_DIR")
 
   # Create test container.
-  lxc init testimage c1
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
 
   # Create custom storage volume.
   lxc storage volume create "${custom_vol_pool}" testvol
@@ -969,7 +969,7 @@ test_backup_different_instance_uuid() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   echo "==> Checking instances UUID during backup operation"
-  lxc launch testimage c1
+  lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
   initialUUID=$(lxc config get c1 volatile.uuid)
   initialGenerationID=$(lxc config get c1 volatile.uuid.generation)
 
@@ -1034,7 +1034,7 @@ test_backup_export_import_recover() {
     ensure_has_localhost_remote "${LXD_ADDR}"
 
     # Create and export an instance.
-    lxc launch testimage c1
+    lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
     lxc export c1 "${LXD_DIR}/c1.tar.gz"
     lxc delete -f c1
 
@@ -1065,7 +1065,7 @@ test_backup_export_import_instance_only() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Create an instance with snapshot.
-  lxc init testimage c1
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
 
   # Export the instance and remove it.
