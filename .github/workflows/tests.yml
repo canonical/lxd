@@ -384,6 +384,7 @@ jobs:
           - macos-latest
           - windows-latest
     runs-on: ${{ matrix.os }}
+    needs: code-tests
 
     steps:
       - name: Checkout code
