@@ -125,8 +125,8 @@ jobs:
           strip -s /tmp/bin/*
 
           # bin/min/max (sizes are in MiB)
-          SIZES="lxc 15 16
-                 lxd-agent 13 14"
+          SIZES="lxc 16 17
+                 lxd-agent 14 15"
           MIB="$((1024 * 1024))"
 
           while read -r bin min max; do
