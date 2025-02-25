@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -55,6 +56,45 @@ var operationWebsocket = APIEndpoint{
 	MetricsType: entity.TypeOperation,
 
 	Get: APIEndpointAction{Handler: operationWebsocketGet, AllowUntrusted: true},
+}
+
+// OpsTrackingGroup holds a mapping of entity URLs (string format for efficient key comparison) to their operation.
+// It is a thread-safe data structure. Each entries in the map should only be of one entity type (or of a same group of similar entity).
+type OpsTrackingGroup struct {
+	Mu  sync.RWMutex
+	Ops map[string]*operations.Operation
+}
+
+// OperationTracker contains operation tracking groups.
+// These are thread-safe types containing a map of entity URL to the associated operation.
+// The advantage of separating the entity URLs to operations mapping is that
+// we don't have to hold a global lock on one unique map when we read the operations in a goroutine
+// where we're only interested in a particular subset of operations.
+// e.g: I don't want to lock the read-write access on 'instance' related entries if I'm checking the 'volume' operations.
+// (see an example of that in the `daemonStorageVolumesUnmount` function).
+type OperationTracker struct {
+	instances OpsTrackingGroup
+	volumes   OpsTrackingGroup
+}
+
+// NewOperationTracker create a new operation tracker.
+func NewOperationTracker() *OperationTracker {
+	return &OperationTracker{
+		instances: OpsTrackingGroup{Ops: make(map[string]*operations.Operation)},
+		volumes:   OpsTrackingGroup{Ops: make(map[string]*operations.Operation)},
+	}
+}
+
+// GetOpsTrackingGroup extracts a particular tracking group from this global operation tracker.
+func (s *OperationTracker) GetOpsTrackingGroup(operationGroupID string) *OpsTrackingGroup {
+	switch operationGroupID {
+	case "instances":
+		return &s.instances
+	case "volumes":
+		return &s.volumes
+	default:
+		return nil
+	}
 }
 
 // waitForOperations waits for operations to finish.
