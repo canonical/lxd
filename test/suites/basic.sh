@@ -123,11 +123,11 @@ test_basic_usage() {
   # Check volatile.apply_template is altered during rename.
   lxc config get bar volatile.apply_template | grep rename
 
-  lxc list | grep -v foo
+  ! lxc info foo || false
   lxc list | grep bar
 
   lxc rename bar foo
-  lxc list | grep -v bar
+  ! lxc info bar || false
   lxc list | grep foo
   lxc rename foo bar
 
@@ -416,7 +416,7 @@ test_basic_usage() {
   lxc init testimage last-used-at-test
   lxc list last-used-at-test  --format json | jq -r '.[].last_used_at' | grep '1970-01-01T00:00:00Z'
   lxc start last-used-at-test
-  lxc list last-used-at-test  --format json | jq -r '.[].last_used_at' | grep -v '1970-01-01T00:00:00Z'
+  ! lxc list last-used-at-test  --format json | jq -r '.[].last_used_at' | grep '1970-01-01T00:00:00Z' || false
   lxc delete last-used-at-test --force
 
   # Test user, group and cwd
