@@ -7,9 +7,9 @@ version: 2
 
 # Set the version of Python and other tools you might need
 build:
-  os: ubuntu-22.04
+  os: ubuntu-24.04
   tools:
-    golang: "1.22"
+    golang: "1.23"
     python: "3.12"
   jobs:
     pre_install:
