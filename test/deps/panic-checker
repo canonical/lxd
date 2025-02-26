@@ -9,6 +9,9 @@ import re
 #
 # Only the first panic is returned.
 #
+# Additionally checks for dangling permission log messages. These are easier to
+# find and print since they're logged by LXD and contained within a single line.
+#
 # NOTE: When a panic occurs in LXD at runtime via a mux handler, it is logged
 # at info level because the net/http library has a built-in recover. We are not
 # handling panic recovery manually. Because it is logged at info level, this
@@ -19,8 +22,12 @@ with open(sys.argv[1]) as file:
     lastline = ""
     stacktrace_regex = re.compile(r'^goroutine\s+\d+\s+\[running\]:')
     standard_log_regex = re.compile(r'(INFO|DEBUG|TRACE|WARNING|ERROR)')
-
+    dangling_permission_regex = re.compile(r'WARNING.*Encountered dangling permissions')
     for line in file:
+        if dangling_permission_regex.search(line):
+            sys.stderr.write(line)
+            exit(1)
+
         if not found and not stacktrace_regex.search(line):
             # Nothing found yet but lets retain the last log line
             lastline = line
