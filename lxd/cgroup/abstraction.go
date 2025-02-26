@@ -692,7 +692,7 @@ func (cg *CGroup) SetBlkioLimit(dev string, oType string, uType string, limit in
 			op = "w" + uType
 		}
 
-		return cg.rw.Set(version, "io", "io.max", dev+"_"+op+"="+strconv.FormatInt(limit, 10))
+		return cg.rw.Set(version, "io", "io.max", dev+" "+op+"="+strconv.FormatInt(limit, 10))
 	}
 
 	return ErrUnknownVersion
