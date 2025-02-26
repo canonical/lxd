@@ -144,6 +144,7 @@ test_basic_usage() {
 
   # Start the instance to clear apply_template.
   lxc start foo
+  [ "$(lxc config get foo volatile.apply_template || echo fail)" = "" ]
   lxc stop foo -f
 
   # Test container rename
