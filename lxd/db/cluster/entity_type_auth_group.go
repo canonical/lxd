@@ -38,9 +38,12 @@ func (e entityTypeAuthGroup) onDeleteTriggerSQL() (name string, sql string) {
 CREATE TRIGGER %s
 	AFTER DELETE ON auth_groups
 	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
 	DELETE FROM warnings
 		WHERE entity_type_code = %d
 		AND entity_id = OLD.id;
 	END
-`, name, e.code())
+`, name, e.code(), e.code())
 }
