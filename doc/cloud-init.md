@@ -75,11 +75,7 @@ See {ref}`cloud-init:merging_user_data` for instructions.
 To configure `cloud-init` for an instance, add the corresponding configuration options to a {ref}`profile <profiles>` that the instance uses or directly to the {ref}`instance configuration <instances-configure>`.
 
 When configuring `cloud-init` directly for an instance, keep in mind that `cloud-init` runs only on instance start.
-That means any changes to `cloud-init` configuration will only take effect after the next instance start.
-Some configuration options only take effect on the first boot of an instance. If `cloud-init` notices that an
-instance's `instance-id` has changed, it behaves as if this was the instance's first boot. For more information, see
-the [cloud-init docs](https://docs.cloud-init.io/en/latest/explanation/first_boot.html#first-boot-determination)
-If you are using the CLI client, create the instance with [`lxc init`](lxc_init.md) instead of [`lxc launch`](lxc_launch.md), and then start it after completing the configuration.
+This means any changes to `cloud-init` configuration only take effect after the next instance start. To ensure `cloud-init` configurations are applied on every boot, LXD changes the instance ID whenever relevant `cloud-init` configuration keys are modified. This triggers `cloud-init` to fetch and apply the updated data from LXD as if it were the instance's first boot. For more information, see the `cloud-init` docs regarding {ref}`cloud-init:first_boot_determination`.
 
 To add your configuration:
 
@@ -303,9 +299,9 @@ To inject SSH keys into LXD instances for an arbitrary user, use the configurati
 
 Use the format `<user>:<key>` for its value, where `<user>` is a Linux username and `<key>` can be either a pure SSH public key or an import ID for a key hosted elsewhere. For example, `root:gh:githubUser` and `myUser:ssh-keyAlg publicKeyHash` are valid values.
 
-The content of `cloud-init.ssh-keys.<keyName>` is merged into the contents of both `cloud-config.vendor-data` and `cloud-config.user-data` before presenting their content to the guest. This is done according to the [`cloud-config` specification](https://cloudinit.readthedocs.io/en/latest/explanation/about-cloud-config.html). Therefore, keys defined via `cloud-init.ssh-keys.<keyName>` cannot be applied if LXD is unable to parse both the existing `cloud-config.vendor-data` and `cloud-config.user-data` for that instance. This could happen, for example, if those keys contain badly formatted YAML.
+The contents of the `cloud-init.ssh-keys.<keyName>` keys are merged into both {config:option}`instance-cloud-init:cloud-init.vendor-data` and {config:option}`instance-cloud-init:cloud-init.user-data` before being passed to the guest, following the `cloud-config` specification. (See the {ref}`cloud-init documentation <cloud-init:about-cloud-config>` for details.) Therefore, keys defined via `cloud-init.ssh-keys.<keyName>` cannot be applied if LXD cannot parse the existing `cloud-init.vendor-data` and `cloud-init.user-data` for that instance. This might occur if those keys are not in YAML format or contain invalid YAML. Other configuration formats are not yet supported.
 
-You can define SSH keys via `cloud-init.vendor-data` or `cloud-init.user-data` directly. Keys defined using `cloud-init.ssh-keys.<keyName>` do not conflict with those defined with either `cloud-init.vendor-data` or `cloud-init.user-data` in any way. For more information on how to use `cloud-config` to define SSH keys, see [the cloud-init docs for SSH configuration](https://cloudinit.readthedocs.io/en/latest/reference/yaml_examples/ssh.html).
+You can define SSH keys via `cloud-init.vendor-data` or `cloud-init.user-data` directly. Keys defined using `cloud-init.ssh-keys.<keyName>` do not conflict with those defined in either of those settings. For details on defining SSH keys with `cloud-config`, see {ref}`the cloud-init documentation for SSH configuration <cloud-init:cce-ssh>`. Changing a `cloud-init.*` key does not remove previously applied keys.
 
 Since `cloud-init` only runs on instance start, updates to `cloud-init.*` keys on a running instance only take effect after restart.
 
