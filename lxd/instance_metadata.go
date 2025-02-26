@@ -471,12 +471,12 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	templateName := r.FormValue("path")
 	if templateName == "" {
 		templates := []string{}
-		if !shared.PathExists(filepath.Join(c.Path(), "templates")) {
+		templatesPath := c.TemplatesPath()
+		if !shared.PathExists(templatesPath) {
 			return response.SyncResponse(true, templates)
 		}
 
 		// List templates
-		templatesPath := filepath.Join(c.Path(), "templates")
 		entries, err := os.ReadDir(templatesPath)
 		if err != nil {
 			return response.InternalError(err)
@@ -625,8 +625,9 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 		return response.BadRequest(fmt.Errorf("missing path argument"))
 	}
 
-	if !shared.PathExists(filepath.Join(c.Path(), "templates")) {
-		err := os.MkdirAll(filepath.Join(c.Path(), "templates"), 0711)
+	templatesPath := c.TemplatesPath()
+	if !shared.PathExists(templatesPath) {
+		err := os.MkdirAll(templatesPath, 0711)
 		if err != nil {
 			return response.SmartError(err)
 		}
