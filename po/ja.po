@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-02-12 10:13-0800\n"
+"POT-Creation-Date: 2025-02-19 09:05-0700\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -18,6 +18,31 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: Weblate 4.16.2-dev\n"
+
+#: lxc/service.go:340
+#, fuzzy
+msgid ""
+"### This is a YAML representation of a service.\n"
+"### Any line starting with a '#' will be ignored.\n"
+"###\n"
+"### A service consists of a set of configuration items.\n"
+"###\n"
+"### An example would look like:\n"
+"### description: backup cluster\n"
+"### addresses: [10.0.0.1:8443, 10.0.0.2:8443]\n"
+"### config:\n"
+"###   "
+msgstr ""
+"### This is a YAML representation of the network zone record.\n"
+"### Any line starting with a '# will be ignored.\n"
+"###\n"
+"### A network zone consists of a set of rules and configuration items.\n"
+"###\n"
+"### An example would look like:\n"
+"### name: foo\n"
+"### description: SPF record\n"
+"### config:\n"
+"###  user.foo: bah\n"
 
 #: lxc/storage_bucket.go:261 lxc/storage_bucket.go:1034
 msgid ""
@@ -742,6 +767,12 @@ msgstr "<alias>"
 msgid "<alias> <target>"
 msgstr "<alias> <target>"
 
+#: lxc/service.go:84
+msgid ""
+"<name> <type> [--token <trust_token>] [--address <ip_address>] [--identity "
+"<identity_name>]"
+msgstr ""
+
 #: lxc/alias.go:156
 msgid "<old alias> <new alias>"
 msgstr "<old alias> <new alias>"
@@ -757,6 +788,11 @@ msgstr "<remote> <URL>"
 #: lxc/remote.go:870
 msgid "<remote> <new-name>"
 msgstr "<remote> <new-name>"
+
+#: lxc/service.go:268
+#, fuzzy
+msgid "<service>"
+msgstr "device"
 
 #: lxc/file.go:699
 msgid "<source path>... [<remote>:]<instance>/<path>"
@@ -775,6 +811,11 @@ msgstr "<target>"
 #: lxc/network_allocations.go:25
 #, fuzzy
 msgid "ADDRESS"
+msgstr "IP ADDRESS"
+
+#: lxc/service.go:253
+#, fuzzy
+msgid "ADDRESSES"
 msgstr "IP ADDRESS"
 
 #: lxc/alias.go:139 lxc/image.go:1143 lxc/image_alias.go:267
@@ -1163,7 +1204,8 @@ msgstr "不適切なキー/値のペア: %s"
 msgid "Bad key=value pair: %q"
 msgstr "不適切な キー=値 のペア: %s"
 
-#: lxc/publish.go:193 lxc/storage.go:162 lxc/storage_volume.go:700
+#: lxc/publish.go:193 lxc/service.go:167 lxc/storage.go:162
+#: lxc/storage_volume.go:700
 #, c-format
 msgid "Bad key=value pair: %s"
 msgstr "不適切な キー=値 のペア: %s"
@@ -1288,7 +1330,7 @@ msgstr "--fast と --columns は同時に指定できません"
 msgid "Can't specify --project with --all-projects"
 msgstr "--project と --all-project は同時に指定できません"
 
-#: lxc/rename.go:60
+#: lxc/rename.go:59
 msgid "Can't specify a different remote for rename"
 msgstr "リネームの場合は異なるリモートを指定できません"
 
@@ -1509,9 +1551,9 @@ msgstr "移動先のインスタンスに適用するキー/値の設定"
 #: lxc/network_acl.go:698 lxc/network_forward.go:775
 #: lxc/network_load_balancer.go:738 lxc/network_peer.go:698
 #: lxc/network_zone.go:639 lxc/network_zone.go:1334 lxc/profile.go:600
-#: lxc/project.go:370 lxc/storage.go:359 lxc/storage_bucket.go:349
-#: lxc/storage_bucket.go:1126 lxc/storage_volume.go:1185
-#: lxc/storage_volume.go:1217
+#: lxc/project.go:370 lxc/service.go:415 lxc/storage.go:359
+#: lxc/storage_bucket.go:349 lxc/storage_bucket.go:1126
+#: lxc/storage_volume.go:1185 lxc/storage_volume.go:1217
 #, c-format
 msgid "Config parsing error: %s"
 msgstr "設定の構文エラー: %s"
@@ -1853,7 +1895,7 @@ msgstr "DEFAULT TARGET ADDRESS"
 #: lxc/network_acl.go:157 lxc/network_forward.go:157
 #: lxc/network_load_balancer.go:160 lxc/network_peer.go:149
 #: lxc/network_zone.go:162 lxc/network_zone.go:846 lxc/operation.go:173
-#: lxc/profile.go:750 lxc/project.go:580 lxc/storage.go:723
+#: lxc/profile.go:750 lxc/project.go:580 lxc/service.go:254 lxc/storage.go:723
 #: lxc/storage_bucket.go:513 lxc/storage_bucket.go:833
 #: lxc/storage_volume.go:1770
 msgid "DESCRIPTION"
@@ -2068,18 +2110,20 @@ msgstr "警告を削除します"
 #: lxc/project.go:856 lxc/project.go:923 lxc/publish.go:34 lxc/query.go:34
 #: lxc/rebuild.go:28 lxc/remote.go:35 lxc/remote.go:91 lxc/remote.go:749
 #: lxc/remote.go:787 lxc/remote.go:873 lxc/remote.go:954 lxc/remote.go:1018
-#: lxc/remote.go:1066 lxc/rename.go:22 lxc/restore.go:24 lxc/snapshot.go:32
-#: lxc/storage.go:34 lxc/storage.go:97 lxc/storage.go:203 lxc/storage.go:261
-#: lxc/storage.go:393 lxc/storage.go:475 lxc/storage.go:655 lxc/storage.go:742
-#: lxc/storage.go:846 lxc/storage.go:940 lxc/storage_bucket.go:30
-#: lxc/storage_bucket.go:84 lxc/storage_bucket.go:189 lxc/storage_bucket.go:250
-#: lxc/storage_bucket.go:383 lxc/storage_bucket.go:459
-#: lxc/storage_bucket.go:536 lxc/storage_bucket.go:630
-#: lxc/storage_bucket.go:699 lxc/storage_bucket.go:733
-#: lxc/storage_bucket.go:774 lxc/storage_bucket.go:853
-#: lxc/storage_bucket.go:959 lxc/storage_bucket.go:1023
-#: lxc/storage_bucket.go:1158 lxc/storage_volume.go:58
-#: lxc/storage_volume.go:169 lxc/storage_volume.go:291
+#: lxc/remote.go:1066 lxc/rename.go:21 lxc/restore.go:22 lxc/service.go:30
+#: lxc/service.go:86 lxc/service.go:198 lxc/service.go:270 lxc/service.go:320
+#: lxc/service.go:449 lxc/service.go:525 lxc/service.go:625 lxc/service.go:694
+#: lxc/snapshot.go:32 lxc/storage.go:34 lxc/storage.go:97 lxc/storage.go:203
+#: lxc/storage.go:261 lxc/storage.go:393 lxc/storage.go:475 lxc/storage.go:655
+#: lxc/storage.go:742 lxc/storage.go:846 lxc/storage.go:940
+#: lxc/storage_bucket.go:30 lxc/storage_bucket.go:84 lxc/storage_bucket.go:189
+#: lxc/storage_bucket.go:250 lxc/storage_bucket.go:383
+#: lxc/storage_bucket.go:459 lxc/storage_bucket.go:536
+#: lxc/storage_bucket.go:630 lxc/storage_bucket.go:699
+#: lxc/storage_bucket.go:733 lxc/storage_bucket.go:774
+#: lxc/storage_bucket.go:853 lxc/storage_bucket.go:959
+#: lxc/storage_bucket.go:1023 lxc/storage_bucket.go:1158
+#: lxc/storage_volume.go:58 lxc/storage_volume.go:169 lxc/storage_volume.go:291
 #: lxc/storage_volume.go:405 lxc/storage_volume.go:626
 #: lxc/storage_volume.go:735 lxc/storage_volume.go:822
 #: lxc/storage_volume.go:927 lxc/storage_volume.go:1031
@@ -2361,6 +2405,11 @@ msgstr "プロファイル設定をYAMLで編集します"
 msgid "Edit project configurations as YAML"
 msgstr "プロジェクト設定をYAMLで編集します"
 
+#: lxc/service.go:319 lxc/service.go:320
+#, fuzzy
+msgid "Edit service configurations as YAML"
+msgstr "プロファイル設定をYAMLで編集します"
+
 #: lxc/storage_bucket.go:249 lxc/storage_bucket.go:250
 msgid "Edit storage bucket configurations as YAML"
 msgstr "ストレージバケットの設定をYAMLで編集します"
@@ -2450,8 +2499,9 @@ msgstr "イメージの取得中: %s"
 #: lxc/network_acl.go:524 lxc/network_forward.go:580
 #: lxc/network_load_balancer.go:559 lxc/network_peer.go:522
 #: lxc/network_zone.go:477 lxc/network_zone.go:1165 lxc/profile.go:1082
-#: lxc/project.go:726 lxc/storage.go:812 lxc/storage_bucket.go:603
-#: lxc/storage_volume.go:2199 lxc/storage_volume.go:2237
+#: lxc/project.go:726 lxc/service.go:593 lxc/storage.go:812
+#: lxc/storage_bucket.go:603 lxc/storage_volume.go:2199
+#: lxc/storage_volume.go:2237
 #, fuzzy, c-format
 msgid "Error setting properties: %v"
 msgstr "イメージの取得中: %s"
@@ -2464,7 +2514,7 @@ msgstr "イメージのプロパティを削除します"
 #: lxc/cluster.go:457 lxc/network.go:1322 lxc/network_acl.go:518
 #: lxc/network_forward.go:574 lxc/network_load_balancer.go:553
 #: lxc/network_peer.go:516 lxc/network_zone.go:471 lxc/network_zone.go:1159
-#: lxc/profile.go:1076 lxc/project.go:720 lxc/storage.go:806
+#: lxc/profile.go:1076 lxc/project.go:720 lxc/service.go:587 lxc/storage.go:806
 #: lxc/storage_bucket.go:597 lxc/storage_volume.go:2193
 #: lxc/storage_volume.go:2231
 #, c-format
@@ -2838,7 +2888,7 @@ msgstr ""
 #: lxc/network_forward.go:93 lxc/network_load_balancer.go:97
 #: lxc/network_peer.go:85 lxc/network_zone.go:90 lxc/network_zone.go:788
 #: lxc/operation.go:109 lxc/profile.go:727 lxc/project.go:480
-#: lxc/project.go:925 lxc/remote.go:791 lxc/storage.go:657
+#: lxc/project.go:925 lxc/remote.go:791 lxc/service.go:202 lxc/storage.go:657
 #: lxc/storage_bucket.go:460 lxc/storage_bucket.go:775
 #: lxc/storage_volume.go:1646 lxc/warning.go:94
 msgid "Format (csv|json|table|yaml|compact)"
@@ -2963,6 +3013,11 @@ msgstr ""
 msgid "Get the key as a project property"
 msgstr ""
 
+#: lxc/service.go:452
+#, fuzzy
+msgid "Get the key as a service property"
+msgstr "ストレージバケットに対する鍵を作成します"
+
 #: lxc/storage_bucket.go:386
 #, fuzzy
 msgid "Get the key as a storage bucket property"
@@ -3029,6 +3084,11 @@ msgstr "プロファイルの設定値を取得します"
 #: lxc/project.go:403 lxc/project.go:404
 msgid "Get values for project configuration keys"
 msgstr "プロジェクトの設定値を取得します"
+
+#: lxc/service.go:448 lxc/service.go:449
+#, fuzzy
+msgid "Get values for service configuration keys"
+msgstr "デバイスの設定値を取得します"
 
 #: lxc/storage_bucket.go:382 lxc/storage_bucket.go:383
 msgid "Get values for storage bucket configuration keys"
@@ -3180,7 +3240,7 @@ msgstr ""
 "存在するスナップショット名の場合は既存のスナップショットを削除したあとに新し"
 "いスナップショットを作成します"
 
-#: lxc/main.go:415
+#: lxc/main.go:419
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -3349,6 +3409,11 @@ msgstr "インスタンス名: %s"
 msgid "Instance type"
 msgstr "インスタンスタイプ"
 
+#: lxc/service.go:149
+#, fuzzy, c-format
+msgid "Invalid IP address: %s"
+msgstr "不正な送り先 %s"
+
 #: lxc/remote.go:409
 #, c-format
 msgid "Invalid URL scheme \"%s\" in \"%s\""
@@ -3429,7 +3494,7 @@ msgstr ""
 "新しいスナップショット名が不正です。親のボリュームはソースと同じでなければな"
 "りません"
 
-#: lxc/main.go:518
+#: lxc/main.go:522
 msgid "Invalid number of arguments"
 msgstr "引数の数が不正です"
 
@@ -3468,6 +3533,10 @@ msgstr "不正な送り先 %s"
 #, c-format
 msgid "IsSM: %s (%s)"
 msgstr "IsSM: %s (%s)"
+
+#: lxc/service.go:85 lxc/service.go:86
+msgid "Join a service"
+msgstr ""
 
 #: lxc/image.go:167
 msgid "Keep the image up to date after initial copy"
@@ -3937,6 +4006,11 @@ msgstr ""
 msgid "List projects"
 msgstr "プロジェクトを一覧表示します"
 
+#: lxc/service.go:197 lxc/service.go:198
+#, fuzzy
+msgid "List service"
+msgstr "インスタンスのデバイスを一覧表示します"
+
 #: lxc/storage_bucket.go:772 lxc/storage_bucket.go:774
 msgid "List storage bucket keys"
 msgstr "ストレージバケットの鍵を一覧表示します"
@@ -4293,6 +4367,11 @@ msgstr "プロファイルを管理します"
 msgid "Manage projects"
 msgstr "プロジェクトを管理します"
 
+#: lxc/service.go:29 lxc/service.go:30
+#, fuzzy
+msgid "Manage services"
+msgstr "デバイスを管理します"
+
 #: lxc/storage_bucket.go:732
 msgid "Manage storage bucket keys"
 msgstr "ストレージバケットの鍵を管理します"
@@ -4558,6 +4637,16 @@ msgstr "プロファイル名を指定する必要があります"
 msgid "Missing project name"
 msgstr "プロジェクト名を指定する必要があります"
 
+#: lxc/service.go:369 lxc/service.go:487 lxc/service.go:564 lxc/service.go:663
+#, fuzzy
+msgid "Missing service name"
+msgstr "ピア名を指定する必要があります"
+
+#: lxc/service.go:121
+#, fuzzy
+msgid "Missing service type"
+msgstr "プロファイル名を指定する必要があります"
+
 #: lxc/profile.go:315
 msgid "Missing source profile name"
 msgstr "コピー元のプロファイル名を指定する必要があります"
@@ -4697,8 +4786,9 @@ msgstr "インスタンス名を指定する必要があります: "
 #: lxc/config_trust.go:514 lxc/list.go:573 lxc/network.go:1090
 #: lxc/network_acl.go:156 lxc/network_peer.go:148 lxc/network_zone.go:161
 #: lxc/network_zone.go:845 lxc/profile.go:748 lxc/project.go:573
-#: lxc/remote.go:849 lxc/storage.go:715 lxc/storage_bucket.go:512
-#: lxc/storage_bucket.go:832 lxc/storage_volume.go:1769
+#: lxc/remote.go:849 lxc/service.go:251 lxc/storage.go:715
+#: lxc/storage_bucket.go:512 lxc/storage_bucket.go:832
+#: lxc/storage_volume.go:1769
 msgid "NAME"
 msgstr "NAME"
 
@@ -5067,7 +5157,7 @@ msgstr "送信パケット"
 msgid "Partitions:"
 msgstr "パーティション:"
 
-#: lxc/main.go:376
+#: lxc/main.go:380
 #, c-format
 msgid "Password for %s: "
 msgstr "%s のパスワード: "
@@ -5117,9 +5207,9 @@ msgstr "終了するには ctrl+c を押してください"
 #: lxc/network_acl.go:699 lxc/network_forward.go:776
 #: lxc/network_load_balancer.go:739 lxc/network_peer.go:699
 #: lxc/network_zone.go:640 lxc/network_zone.go:1335 lxc/profile.go:601
-#: lxc/project.go:371 lxc/storage.go:360 lxc/storage_bucket.go:350
-#: lxc/storage_bucket.go:1127 lxc/storage_volume.go:1186
-#: lxc/storage_volume.go:1218
+#: lxc/project.go:371 lxc/service.go:416 lxc/storage.go:360
+#: lxc/storage_bucket.go:350 lxc/storage_bucket.go:1127
+#: lxc/storage_volume.go:1186 lxc/storage_volume.go:1218
 msgid "Press enter to open the editor again or ctrl+c to abort change"
 msgstr ""
 "再度エディタを開くためには Enter キーを、変更を取り消すには ctrl+c を入力しま"
@@ -5559,6 +5649,11 @@ msgstr "クラスタメンバからロールを削除します"
 msgid "Remove rules from an ACL"
 msgstr "ACL からルールを削除します"
 
+#: lxc/service.go:269 lxc/service.go:270
+#, fuzzy
+msgid "Remove services"
+msgstr "インスタンスのデバイスを削除します"
+
 #: lxc/config_trust.go:533 lxc/config_trust.go:534
 msgid "Remove trusted client"
 msgstr "信頼済みクライアントを削除します"
@@ -5586,7 +5681,7 @@ msgstr "リモートサーバ名を変更します"
 msgid "Rename identity provider groups"
 msgstr "クラスタグループの名前を変更します"
 
-#: lxc/rename.go:21 lxc/rename.go:22
+#: lxc/rename.go:20 lxc/rename.go:21
 msgid "Rename instances and snapshots"
 msgstr "インスタンスまたはインスタンスのスナップショットの名前を変更します"
 
@@ -5663,11 +5758,11 @@ msgstr ""
 msgid "Restore cluster member"
 msgstr "クラスターメンバーをリストアします"
 
-#: lxc/restore.go:23
+#: lxc/restore.go:21
 msgid "Restore instances from snapshots"
 msgstr "スナップショットからインスタンスをリストアします"
 
-#: lxc/restore.go:24
+#: lxc/restore.go:22
 msgid ""
 "Restore instances from snapshots\n"
 "\n"
@@ -5818,6 +5913,11 @@ msgstr "サーバのプロトコル (lxd or simplestreams)"
 #, c-format
 msgid "Server version: %s\n"
 msgstr "サーバのバージョン: %s\n"
+
+#: lxc/service.go:179
+#, c-format
+msgid "Service %s joined"
+msgstr ""
 
 #: lxc/config.go:1051 lxc/config.go:1052
 #, fuzzy
@@ -6023,6 +6123,11 @@ msgstr ""
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
 "    lxc project set [<remote>:]<project> <key> <value>"
 
+#: lxc/service.go:524 lxc/service.go:525
+#, fuzzy
+msgid "Set service configuration keys"
+msgstr "デバイスの設定項目を設定します"
+
 #: lxc/storage_bucket.go:535
 msgid "Set storage bucket configuration keys"
 msgstr "ストレージバケットの設定項目を設定します"
@@ -6152,6 +6257,11 @@ msgstr ""
 msgid "Set the key as a project property"
 msgstr ""
 
+#: lxc/service.go:528
+#, fuzzy
+msgid "Set the key as a service property"
+msgstr "ストレージバケットに対する鍵を作成します"
+
 #: lxc/storage_bucket.go:543
 #, fuzzy
 msgid "Set the key as a storage bucket property"
@@ -6251,7 +6361,7 @@ msgstr "インスタンスもしくはサーバの設定を表示します"
 msgid "Show instance or server information"
 msgstr "インスタンスもしくはサーバの情報を表示します"
 
-#: lxc/main.go:280 lxc/main.go:281
+#: lxc/main.go:284 lxc/main.go:285
 msgid "Show less common commands"
 msgstr "全てのコマンドを表示します (主なコマンドだけではなく)"
 
@@ -6302,6 +6412,11 @@ msgstr "プロファイルの設定を表示します"
 #: lxc/project.go:794 lxc/project.go:795
 msgid "Show project options"
 msgstr "プロジェクトの設定を表示します"
+
+#: lxc/service.go:624 lxc/service.go:625
+#, fuzzy
+msgid "Show service configurations"
+msgstr "プロファイルの設定を表示します"
 
 #: lxc/storage_bucket.go:629 lxc/storage_bucket.go:630
 msgid "Show storage bucket configurations"
@@ -6579,7 +6694,7 @@ msgstr "TOKEN"
 #: lxc/auth.go:965 lxc/config_trust.go:408 lxc/image.go:1147
 #: lxc/image_alias.go:269 lxc/list.go:579 lxc/network.go:1091
 #: lxc/network.go:1173 lxc/network_allocations.go:27 lxc/operation.go:172
-#: lxc/storage_volume.go:1768 lxc/warning.go:216
+#: lxc/service.go:252 lxc/storage_volume.go:1768 lxc/warning.go:216
 msgid "TYPE"
 msgstr "TYPE"
 
@@ -6675,6 +6790,11 @@ msgstr ""
 #: lxc/config_device.go:459
 msgid "The profile device doesn't exist"
 msgstr "プロファイルのデバイスが存在しません"
+
+#: lxc/service.go:499
+#, fuzzy, c-format
+msgid "The property %q does not exist for the service %q: %v"
+msgstr "設定 %q はクラスタメンバー %q には存在しません"
 
 #: lxc/cluster.go:376
 #, fuzzy, c-format
@@ -6804,7 +6924,7 @@ msgstr "LXD サーバはすでにクラスターに属しています"
 msgid "This LXD server is not available on the network"
 msgstr "この LXD サーバはネットワークから利用できません"
 
-#: lxc/main.go:307
+#: lxc/main.go:311
 msgid ""
 "This client hasn't been configured to use a remote LXD server yet.\n"
 "As your platform can't run native Linux instances, you must connect to a "
@@ -6852,7 +6972,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
-#: lxc/main.go:421
+#: lxc/main.go:425
 #, fuzzy
 msgid ""
 "To start your first container, try: lxc launch ubuntu:24.04\n"
@@ -7113,6 +7233,11 @@ msgstr "プロファイルの設定を削除します"
 msgid "Unset project configuration keys"
 msgstr "プロジェクトの設定を削除します"
 
+#: lxc/service.go:693 lxc/service.go:694
+#, fuzzy
+msgid "Unset service configuration keys"
+msgstr "デバイスの設定を削除します"
+
 #: lxc/storage_bucket.go:698 lxc/storage_bucket.go:699
 msgid "Unset storage bucket configuration keys"
 msgstr "ストレージバケットの設定を削除します"
@@ -7170,6 +7295,11 @@ msgstr ""
 #: lxc/project.go:755
 msgid "Unset the key as a project property"
 msgstr ""
+
+#: lxc/service.go:697
+#, fuzzy
+msgid "Unset the key as a service property"
+msgstr "ストレージバケットに対する鍵を作成します"
 
 #: lxc/storage_bucket.go:702
 #, fuzzy
@@ -7322,7 +7452,7 @@ msgstr "処理が完全に終わるまで待ちます"
 msgid "Whether or not to only backup the instance (without snapshots)"
 msgstr "スナップショットを含めずにインスタンスのみをバックアップするかどうか"
 
-#: lxc/restore.go:36
+#: lxc/restore.go:34
 msgid ""
 "Whether or not to restore the instance's running state from snapshot (if "
 "available)"
@@ -7384,7 +7514,7 @@ msgstr "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 #: lxc/config_trust.go:347 lxc/config_trust.go:430 lxc/monitor.go:32
 #: lxc/network.go:1003 lxc/network_acl.go:92 lxc/network_zone.go:84
 #: lxc/operation.go:104 lxc/profile.go:707 lxc/project.go:475
-#: lxc/storage.go:652 lxc/version.go:20 lxc/warning.go:69
+#: lxc/service.go:195 lxc/storage.go:652 lxc/version.go:20 lxc/warning.go:69
 msgid "[<remote>:]"
 msgstr "[<remote>:]"
 
@@ -7605,7 +7735,7 @@ msgstr "[<remote>:]<instance> <profile>"
 msgid "[<remote>:]<instance> <profiles>"
 msgstr "[<remote>:]<instance> <profiles>"
 
-#: lxc/restore.go:22
+#: lxc/restore.go:20
 msgid "[<remote>:]<instance> <snapshot>"
 msgstr "[<remote>:]<instance> <snapshot>"
 
@@ -7653,7 +7783,7 @@ msgstr ""
 msgid "[<remote>:]<instance>[/<path>] [<target path>]"
 msgstr "[<remote>:]<instance>[/<path>] [<target path>]"
 
-#: lxc/rename.go:20
+#: lxc/rename.go:19
 msgid "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
 msgstr "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
 
@@ -7980,6 +8110,21 @@ msgstr "[<remote>:]<project> <key>=<value>..."
 #: lxc/project.go:595
 msgid "[<remote>:]<project> <new-name>"
 msgstr "[<remote>:]<project> <new-name>"
+
+#: lxc/service.go:318 lxc/service.go:623
+#, fuzzy
+msgid "[<remote>:]<service>"
+msgstr "[<remote>:]<profile>"
+
+#: lxc/service.go:447 lxc/service.go:692
+#, fuzzy
+msgid "[<remote>:]<service> <key>"
+msgstr "[<remote>:]<profile> <key>"
+
+#: lxc/service.go:523
+#, fuzzy
+msgid "[<remote>:]<service> <key> <value>"
+msgstr "[<remote>:]<image> <key> <value>"
 
 #: lxc/copy.go:39
 #, fuzzy
@@ -8605,6 +8750,15 @@ msgstr ""
 "lxc query -X DELETE --wait /1.0/instances/c1\n"
 "    ローカルのインスタンス \"c1\" を削除します。"
 
+#: lxc/service.go:322
+#, fuzzy
+msgid ""
+"lxc service edit [<remote>:]<service> < service.yaml\n"
+"    Update a service using the content of service.yaml."
+msgstr ""
+"lxc profile edit <profile> < profile.yaml\n"
+"    profile.yaml の内容でプロファイルを更新します"
+
 #: lxc/snapshot.go:37
 #, fuzzy
 msgid ""
@@ -8620,7 +8774,7 @@ msgstr ""
 "lxc init ubuntu:22.04 u1 < config.yaml\n"
 "    config.yaml の設定を使ってインスタンスを作成します"
 
-#: lxc/restore.go:28
+#: lxc/restore.go:26
 msgid ""
 "lxc snapshot u1 snap0\n"
 "    Create the snapshot.\n"
@@ -10905,9 +11059,6 @@ msgstr "yes"
 #~ "lxc file mount foo/root fooroot\n"
 #~ "   インスタンス foo の /root をローカルの fooroot ディレクトリ上にマウント"
 #~ "します。"
-
-#~ msgid "device"
-#~ msgstr "device"
 
 #~ msgid "Format (csv|json|table|yaml)"
 #~ msgstr "フォーマット (csv|json|table|yaml)"

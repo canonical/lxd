@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-02-12 10:13-0800\n"
+"POT-Creation-Date: 2025-02-19 09:05-0700\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/linux-containers/"
@@ -19,6 +19,31 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
 "|| n%100>=20) ? 1 : 2;\n"
 "X-Generator: Weblate 4.12-dev\n"
+
+#: lxc/service.go:340
+#, fuzzy
+msgid ""
+"### This is a YAML representation of a service.\n"
+"### Any line starting with a '#' will be ignored.\n"
+"###\n"
+"### A service consists of a set of configuration items.\n"
+"###\n"
+"### An example would look like:\n"
+"### description: backup cluster\n"
+"### addresses: [10.0.0.1:8443, 10.0.0.2:8443]\n"
+"### config:\n"
+"###   "
+msgstr ""
+"### To jest przedstawienie nośnika pamięci w yaml.\n"
+"### Każdy wiersz zaczynający się od '# zostanie pominięty.\n"
+"###\n"
+"### Nośnik pamięci składa się z zestawu parametrów.\n"
+"###\n"
+"### name: vol1\n"
+"### type: custom\n"
+"### used_by: []\n"
+"### config:\n"
+"###   size: \"61203283968\""
 
 #: lxc/storage_bucket.go:261 lxc/storage_bucket.go:1034
 #, fuzzy
@@ -770,6 +795,12 @@ msgstr ""
 msgid "<alias> <target>"
 msgstr ""
 
+#: lxc/service.go:84
+msgid ""
+"<name> <type> [--token <trust_token>] [--address <ip_address>] [--identity "
+"<identity_name>]"
+msgstr ""
+
 #: lxc/alias.go:156
 msgid "<old alias> <new alias>"
 msgstr ""
@@ -784,6 +815,10 @@ msgstr ""
 
 #: lxc/remote.go:870
 msgid "<remote> <new-name>"
+msgstr ""
+
+#: lxc/service.go:268
+msgid "<service>"
 msgstr ""
 
 #: lxc/file.go:699
@@ -801,6 +836,10 @@ msgstr ""
 
 #: lxc/network_allocations.go:25
 msgid "ADDRESS"
+msgstr ""
+
+#: lxc/service.go:253
+msgid "ADDRESSES"
 msgstr ""
 
 #: lxc/alias.go:139 lxc/image.go:1143 lxc/image_alias.go:267
@@ -1161,7 +1200,8 @@ msgstr ""
 msgid "Bad key=value pair: %q"
 msgstr ""
 
-#: lxc/publish.go:193 lxc/storage.go:162 lxc/storage_volume.go:700
+#: lxc/publish.go:193 lxc/service.go:167 lxc/storage.go:162
+#: lxc/storage_volume.go:700
 #, c-format
 msgid "Bad key=value pair: %s"
 msgstr ""
@@ -1285,7 +1325,7 @@ msgstr ""
 msgid "Can't specify --project with --all-projects"
 msgstr ""
 
-#: lxc/rename.go:60
+#: lxc/rename.go:59
 msgid "Can't specify a different remote for rename"
 msgstr ""
 
@@ -1497,9 +1537,9 @@ msgstr ""
 #: lxc/network_acl.go:698 lxc/network_forward.go:775
 #: lxc/network_load_balancer.go:738 lxc/network_peer.go:698
 #: lxc/network_zone.go:639 lxc/network_zone.go:1334 lxc/profile.go:600
-#: lxc/project.go:370 lxc/storage.go:359 lxc/storage_bucket.go:349
-#: lxc/storage_bucket.go:1126 lxc/storage_volume.go:1185
-#: lxc/storage_volume.go:1217
+#: lxc/project.go:370 lxc/service.go:415 lxc/storage.go:359
+#: lxc/storage_bucket.go:349 lxc/storage_bucket.go:1126
+#: lxc/storage_volume.go:1185 lxc/storage_volume.go:1217
 #, c-format
 msgid "Config parsing error: %s"
 msgstr ""
@@ -1816,7 +1856,7 @@ msgstr ""
 #: lxc/network_acl.go:157 lxc/network_forward.go:157
 #: lxc/network_load_balancer.go:160 lxc/network_peer.go:149
 #: lxc/network_zone.go:162 lxc/network_zone.go:846 lxc/operation.go:173
-#: lxc/profile.go:750 lxc/project.go:580 lxc/storage.go:723
+#: lxc/profile.go:750 lxc/project.go:580 lxc/service.go:254 lxc/storage.go:723
 #: lxc/storage_bucket.go:513 lxc/storage_bucket.go:833
 #: lxc/storage_volume.go:1770
 msgid "DESCRIPTION"
@@ -2028,18 +2068,20 @@ msgstr ""
 #: lxc/project.go:856 lxc/project.go:923 lxc/publish.go:34 lxc/query.go:34
 #: lxc/rebuild.go:28 lxc/remote.go:35 lxc/remote.go:91 lxc/remote.go:749
 #: lxc/remote.go:787 lxc/remote.go:873 lxc/remote.go:954 lxc/remote.go:1018
-#: lxc/remote.go:1066 lxc/rename.go:22 lxc/restore.go:24 lxc/snapshot.go:32
-#: lxc/storage.go:34 lxc/storage.go:97 lxc/storage.go:203 lxc/storage.go:261
-#: lxc/storage.go:393 lxc/storage.go:475 lxc/storage.go:655 lxc/storage.go:742
-#: lxc/storage.go:846 lxc/storage.go:940 lxc/storage_bucket.go:30
-#: lxc/storage_bucket.go:84 lxc/storage_bucket.go:189 lxc/storage_bucket.go:250
-#: lxc/storage_bucket.go:383 lxc/storage_bucket.go:459
-#: lxc/storage_bucket.go:536 lxc/storage_bucket.go:630
-#: lxc/storage_bucket.go:699 lxc/storage_bucket.go:733
-#: lxc/storage_bucket.go:774 lxc/storage_bucket.go:853
-#: lxc/storage_bucket.go:959 lxc/storage_bucket.go:1023
-#: lxc/storage_bucket.go:1158 lxc/storage_volume.go:58
-#: lxc/storage_volume.go:169 lxc/storage_volume.go:291
+#: lxc/remote.go:1066 lxc/rename.go:21 lxc/restore.go:22 lxc/service.go:30
+#: lxc/service.go:86 lxc/service.go:198 lxc/service.go:270 lxc/service.go:320
+#: lxc/service.go:449 lxc/service.go:525 lxc/service.go:625 lxc/service.go:694
+#: lxc/snapshot.go:32 lxc/storage.go:34 lxc/storage.go:97 lxc/storage.go:203
+#: lxc/storage.go:261 lxc/storage.go:393 lxc/storage.go:475 lxc/storage.go:655
+#: lxc/storage.go:742 lxc/storage.go:846 lxc/storage.go:940
+#: lxc/storage_bucket.go:30 lxc/storage_bucket.go:84 lxc/storage_bucket.go:189
+#: lxc/storage_bucket.go:250 lxc/storage_bucket.go:383
+#: lxc/storage_bucket.go:459 lxc/storage_bucket.go:536
+#: lxc/storage_bucket.go:630 lxc/storage_bucket.go:699
+#: lxc/storage_bucket.go:733 lxc/storage_bucket.go:774
+#: lxc/storage_bucket.go:853 lxc/storage_bucket.go:959
+#: lxc/storage_bucket.go:1023 lxc/storage_bucket.go:1158
+#: lxc/storage_volume.go:58 lxc/storage_volume.go:169 lxc/storage_volume.go:291
 #: lxc/storage_volume.go:405 lxc/storage_volume.go:626
 #: lxc/storage_volume.go:735 lxc/storage_volume.go:822
 #: lxc/storage_volume.go:927 lxc/storage_volume.go:1031
@@ -2305,6 +2347,10 @@ msgstr ""
 msgid "Edit project configurations as YAML"
 msgstr ""
 
+#: lxc/service.go:319 lxc/service.go:320
+msgid "Edit service configurations as YAML"
+msgstr ""
+
 #: lxc/storage_bucket.go:249 lxc/storage_bucket.go:250
 msgid "Edit storage bucket configurations as YAML"
 msgstr ""
@@ -2382,8 +2428,9 @@ msgstr ""
 #: lxc/network_acl.go:524 lxc/network_forward.go:580
 #: lxc/network_load_balancer.go:559 lxc/network_peer.go:522
 #: lxc/network_zone.go:477 lxc/network_zone.go:1165 lxc/profile.go:1082
-#: lxc/project.go:726 lxc/storage.go:812 lxc/storage_bucket.go:603
-#: lxc/storage_volume.go:2199 lxc/storage_volume.go:2237
+#: lxc/project.go:726 lxc/service.go:593 lxc/storage.go:812
+#: lxc/storage_bucket.go:603 lxc/storage_volume.go:2199
+#: lxc/storage_volume.go:2237
 #, c-format
 msgid "Error setting properties: %v"
 msgstr ""
@@ -2396,7 +2443,7 @@ msgstr ""
 #: lxc/cluster.go:457 lxc/network.go:1322 lxc/network_acl.go:518
 #: lxc/network_forward.go:574 lxc/network_load_balancer.go:553
 #: lxc/network_peer.go:516 lxc/network_zone.go:471 lxc/network_zone.go:1159
-#: lxc/profile.go:1076 lxc/project.go:720 lxc/storage.go:806
+#: lxc/profile.go:1076 lxc/project.go:720 lxc/service.go:587 lxc/storage.go:806
 #: lxc/storage_bucket.go:597 lxc/storage_volume.go:2193
 #: lxc/storage_volume.go:2231
 #, c-format
@@ -2739,7 +2786,7 @@ msgstr ""
 #: lxc/network_forward.go:93 lxc/network_load_balancer.go:97
 #: lxc/network_peer.go:85 lxc/network_zone.go:90 lxc/network_zone.go:788
 #: lxc/operation.go:109 lxc/profile.go:727 lxc/project.go:480
-#: lxc/project.go:925 lxc/remote.go:791 lxc/storage.go:657
+#: lxc/project.go:925 lxc/remote.go:791 lxc/service.go:202 lxc/storage.go:657
 #: lxc/storage_bucket.go:460 lxc/storage_bucket.go:775
 #: lxc/storage_volume.go:1646 lxc/warning.go:94
 msgid "Format (csv|json|table|yaml|compact)"
@@ -2857,6 +2904,10 @@ msgstr ""
 msgid "Get the key as a project property"
 msgstr ""
 
+#: lxc/service.go:452
+msgid "Get the key as a service property"
+msgstr ""
+
 #: lxc/storage_bucket.go:386
 msgid "Get the key as a storage bucket property"
 msgstr ""
@@ -2919,6 +2970,10 @@ msgstr ""
 
 #: lxc/project.go:403 lxc/project.go:404
 msgid "Get values for project configuration keys"
+msgstr ""
+
+#: lxc/service.go:448 lxc/service.go:449
+msgid "Get values for service configuration keys"
 msgstr ""
 
 #: lxc/storage_bucket.go:382 lxc/storage_bucket.go:383
@@ -3065,7 +3120,7 @@ msgstr ""
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/main.go:415
+#: lxc/main.go:419
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -3225,6 +3280,11 @@ msgstr ""
 msgid "Instance type"
 msgstr ""
 
+#: lxc/service.go:149
+#, c-format
+msgid "Invalid IP address: %s"
+msgstr ""
+
 #: lxc/remote.go:409
 #, c-format
 msgid "Invalid URL scheme \"%s\" in \"%s\""
@@ -3297,7 +3357,7 @@ msgstr ""
 msgid "Invalid new snapshot name, parent volume must be the same as source"
 msgstr ""
 
-#: lxc/main.go:518
+#: lxc/main.go:522
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -3335,6 +3395,10 @@ msgstr ""
 #: lxc/info.go:238
 #, c-format
 msgid "IsSM: %s (%s)"
+msgstr ""
+
+#: lxc/service.go:85 lxc/service.go:86
+msgid "Join a service"
 msgstr ""
 
 #: lxc/image.go:167
@@ -3672,6 +3736,10 @@ msgstr ""
 msgid "List projects"
 msgstr ""
 
+#: lxc/service.go:197 lxc/service.go:198
+msgid "List service"
+msgstr ""
+
 #: lxc/storage_bucket.go:772 lxc/storage_bucket.go:774
 msgid "List storage bucket keys"
 msgstr ""
@@ -3977,6 +4045,10 @@ msgstr ""
 msgid "Manage projects"
 msgstr ""
 
+#: lxc/service.go:29 lxc/service.go:30
+msgid "Manage services"
+msgstr ""
+
 #: lxc/storage_bucket.go:732
 msgid "Manage storage bucket keys"
 msgstr ""
@@ -4233,6 +4305,14 @@ msgstr ""
 msgid "Missing project name"
 msgstr ""
 
+#: lxc/service.go:369 lxc/service.go:487 lxc/service.go:564 lxc/service.go:663
+msgid "Missing service name"
+msgstr ""
+
+#: lxc/service.go:121
+msgid "Missing service type"
+msgstr ""
+
 #: lxc/profile.go:315
 msgid "Missing source profile name"
 msgstr ""
@@ -4354,8 +4434,9 @@ msgstr ""
 #: lxc/config_trust.go:514 lxc/list.go:573 lxc/network.go:1090
 #: lxc/network_acl.go:156 lxc/network_peer.go:148 lxc/network_zone.go:161
 #: lxc/network_zone.go:845 lxc/profile.go:748 lxc/project.go:573
-#: lxc/remote.go:849 lxc/storage.go:715 lxc/storage_bucket.go:512
-#: lxc/storage_bucket.go:832 lxc/storage_volume.go:1769
+#: lxc/remote.go:849 lxc/service.go:251 lxc/storage.go:715
+#: lxc/storage_bucket.go:512 lxc/storage_bucket.go:832
+#: lxc/storage_volume.go:1769
 msgid "NAME"
 msgstr ""
 
@@ -4716,7 +4797,7 @@ msgstr ""
 msgid "Partitions:"
 msgstr ""
 
-#: lxc/main.go:376
+#: lxc/main.go:380
 #, c-format
 msgid "Password for %s: "
 msgstr ""
@@ -4765,9 +4846,9 @@ msgstr ""
 #: lxc/network_acl.go:699 lxc/network_forward.go:776
 #: lxc/network_load_balancer.go:739 lxc/network_peer.go:699
 #: lxc/network_zone.go:640 lxc/network_zone.go:1335 lxc/profile.go:601
-#: lxc/project.go:371 lxc/storage.go:360 lxc/storage_bucket.go:350
-#: lxc/storage_bucket.go:1127 lxc/storage_volume.go:1186
-#: lxc/storage_volume.go:1218
+#: lxc/project.go:371 lxc/service.go:416 lxc/storage.go:360
+#: lxc/storage_bucket.go:350 lxc/storage_bucket.go:1127
+#: lxc/storage_volume.go:1186 lxc/storage_volume.go:1218
 msgid "Press enter to open the editor again or ctrl+c to abort change"
 msgstr ""
 
@@ -5193,6 +5274,10 @@ msgstr ""
 msgid "Remove rules from an ACL"
 msgstr ""
 
+#: lxc/service.go:269 lxc/service.go:270
+msgid "Remove services"
+msgstr ""
+
 #: lxc/config_trust.go:533 lxc/config_trust.go:534
 msgid "Remove trusted client"
 msgstr ""
@@ -5218,7 +5303,7 @@ msgstr ""
 msgid "Rename identity provider groups"
 msgstr ""
 
-#: lxc/rename.go:21 lxc/rename.go:22
+#: lxc/rename.go:20 lxc/rename.go:21
 msgid "Rename instances and snapshots"
 msgstr ""
 
@@ -5291,11 +5376,11 @@ msgstr ""
 msgid "Restore cluster member"
 msgstr ""
 
-#: lxc/restore.go:23
+#: lxc/restore.go:21
 msgid "Restore instances from snapshots"
 msgstr ""
 
-#: lxc/restore.go:24
+#: lxc/restore.go:22
 msgid ""
 "Restore instances from snapshots\n"
 "\n"
@@ -5439,6 +5524,11 @@ msgstr ""
 #: lxc/version.go:66
 #, c-format
 msgid "Server version: %s\n"
+msgstr ""
+
+#: lxc/service.go:179
+#, c-format
+msgid "Service %s joined"
 msgstr ""
 
 #: lxc/config.go:1051 lxc/config.go:1052
@@ -5600,6 +5690,10 @@ msgid ""
 "    lxc project set [<remote>:]<project> <key> <value>"
 msgstr ""
 
+#: lxc/service.go:524 lxc/service.go:525
+msgid "Set service configuration keys"
+msgstr ""
+
 #: lxc/storage_bucket.go:535
 msgid "Set storage bucket configuration keys"
 msgstr ""
@@ -5707,6 +5801,10 @@ msgstr ""
 msgid "Set the key as a project property"
 msgstr ""
 
+#: lxc/service.go:528
+msgid "Set the key as a service property"
+msgstr ""
+
 #: lxc/storage_bucket.go:543
 msgid "Set the key as a storage bucket property"
 msgstr ""
@@ -5800,7 +5898,7 @@ msgstr ""
 msgid "Show instance or server information"
 msgstr ""
 
-#: lxc/main.go:280 lxc/main.go:281
+#: lxc/main.go:284 lxc/main.go:285
 msgid "Show less common commands"
 msgstr ""
 
@@ -5850,6 +5948,10 @@ msgstr ""
 
 #: lxc/project.go:794 lxc/project.go:795
 msgid "Show project options"
+msgstr ""
+
+#: lxc/service.go:624 lxc/service.go:625
+msgid "Show service configurations"
 msgstr ""
 
 #: lxc/storage_bucket.go:629 lxc/storage_bucket.go:630
@@ -6127,7 +6229,7 @@ msgstr ""
 #: lxc/auth.go:965 lxc/config_trust.go:408 lxc/image.go:1147
 #: lxc/image_alias.go:269 lxc/list.go:579 lxc/network.go:1091
 #: lxc/network.go:1173 lxc/network_allocations.go:27 lxc/operation.go:172
-#: lxc/storage_volume.go:1768 lxc/warning.go:216
+#: lxc/service.go:252 lxc/storage_volume.go:1768 lxc/warning.go:216
 msgid "TYPE"
 msgstr ""
 
@@ -6216,6 +6318,11 @@ msgstr ""
 
 #: lxc/config_device.go:459
 msgid "The profile device doesn't exist"
+msgstr ""
+
+#: lxc/service.go:499
+#, c-format
+msgid "The property %q does not exist for the service %q: %v"
 msgstr ""
 
 #: lxc/cluster.go:376
@@ -6341,7 +6448,7 @@ msgstr ""
 msgid "This LXD server is not available on the network"
 msgstr ""
 
-#: lxc/main.go:307
+#: lxc/main.go:311
 msgid ""
 "This client hasn't been configured to use a remote LXD server yet.\n"
 "As your platform can't run native Linux instances, you must connect to a "
@@ -6377,7 +6484,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:421
+#: lxc/main.go:425
 msgid ""
 "To start your first container, try: lxc launch ubuntu:24.04\n"
 "Or for a virtual machine: lxc launch ubuntu:24.04 --vm"
@@ -6628,6 +6735,10 @@ msgstr ""
 msgid "Unset project configuration keys"
 msgstr ""
 
+#: lxc/service.go:693 lxc/service.go:694
+msgid "Unset service configuration keys"
+msgstr ""
+
 #: lxc/storage_bucket.go:698 lxc/storage_bucket.go:699
 msgid "Unset storage bucket configuration keys"
 msgstr ""
@@ -6678,6 +6789,10 @@ msgstr ""
 
 #: lxc/project.go:755
 msgid "Unset the key as a project property"
+msgstr ""
+
+#: lxc/service.go:697
+msgid "Unset the key as a service property"
 msgstr ""
 
 #: lxc/storage_bucket.go:702
@@ -6821,7 +6936,7 @@ msgstr ""
 msgid "Whether or not to only backup the instance (without snapshots)"
 msgstr ""
 
-#: lxc/restore.go:36
+#: lxc/restore.go:34
 msgid ""
 "Whether or not to restore the instance's running state from snapshot (if "
 "available)"
@@ -6876,7 +6991,7 @@ msgstr ""
 #: lxc/config_trust.go:347 lxc/config_trust.go:430 lxc/monitor.go:32
 #: lxc/network.go:1003 lxc/network_acl.go:92 lxc/network_zone.go:84
 #: lxc/operation.go:104 lxc/profile.go:707 lxc/project.go:475
-#: lxc/storage.go:652 lxc/version.go:20 lxc/warning.go:69
+#: lxc/service.go:195 lxc/storage.go:652 lxc/version.go:20 lxc/warning.go:69
 msgid "[<remote>:]"
 msgstr ""
 
@@ -7089,7 +7204,7 @@ msgstr ""
 msgid "[<remote>:]<instance> <profiles>"
 msgstr ""
 
-#: lxc/restore.go:22
+#: lxc/restore.go:20
 msgid "[<remote>:]<instance> <snapshot>"
 msgstr ""
 
@@ -7135,7 +7250,7 @@ msgstr ""
 msgid "[<remote>:]<instance>[/<path>] [<target path>]"
 msgstr ""
 
-#: lxc/rename.go:20
+#: lxc/rename.go:19
 msgid "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
 msgstr ""
 
@@ -7440,6 +7555,18 @@ msgstr ""
 
 #: lxc/project.go:595
 msgid "[<remote>:]<project> <new-name>"
+msgstr ""
+
+#: lxc/service.go:318 lxc/service.go:623
+msgid "[<remote>:]<service>"
+msgstr ""
+
+#: lxc/service.go:447 lxc/service.go:692
+msgid "[<remote>:]<service> <key>"
+msgstr ""
+
+#: lxc/service.go:523
+msgid "[<remote>:]<service> <key> <value>"
 msgstr ""
 
 #: lxc/copy.go:39
@@ -7886,6 +8013,12 @@ msgid ""
 "    Delete local instance \"c1\"."
 msgstr ""
 
+#: lxc/service.go:322
+msgid ""
+"lxc service edit [<remote>:]<service> < service.yaml\n"
+"    Update a service using the content of service.yaml."
+msgstr ""
+
 #: lxc/snapshot.go:37
 msgid ""
 "lxc snapshot create u1 snap0\n"
@@ -7896,7 +8029,7 @@ msgid ""
 "\"config.yaml\"."
 msgstr ""
 
-#: lxc/restore.go:28
+#: lxc/restore.go:26
 msgid ""
 "lxc snapshot u1 snap0\n"
 "    Create the snapshot.\n"
