@@ -349,7 +349,12 @@ container_devices_proxy_unix() {
     false
   fi
 
-  rm -f "${HOST_SOCK}"
+  # Ensure host socket removed upon device removal.
+  lxc config device remove proxyTester proxyDev
+  if [ -e "${HOST_SOCK}" ]; then
+    echo "Host socket was not removed upon device removal"
+    false
+  fi
 
   # Cleanup
   lxc delete -f proxyTester
