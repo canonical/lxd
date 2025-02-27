@@ -21,7 +21,7 @@ test_storage_volume_snapshots() {
     lxc storage create "$storage_pool" "$lxd_backend"
   fi
   lxc storage volume create "${storage_pool}" "${storage_volume}"
-  lxc launch testimage c1 -s "${storage_pool}"
+  lxc launch testimage c1 -s "${storage_pool}" -d "${SMALL_ROOT_DISK}"
   lxc storage volume attach "${storage_pool}" "${storage_volume}" c1 /mnt
   # Create file on volume
   echo foobar > "${TEST_DIR}/testfile"
@@ -170,14 +170,14 @@ EOF
   lxc storage volume delete "${storage_pool}" "vol2"
 
   # Check snapshot copy (mode pull).
-  lxc launch testimage "c1"
+  lxc launch testimage "c1" -d "${SMALL_ROOT_DISK}"
   lxc storage volume create "${storage_pool}" "vol1"
   lxc storage volume attach "${storage_pool}" "vol1" "c1" /mnt
   lxc exec "c1" -- touch /mnt/foo
   lxc delete -f "c1"
   lxc storage volume snapshot "${storage_pool}" "vol1" "snap0"
   lxc storage volume copy "${storage_pool}/vol1/snap0" "${storage_pool}/vol2" --mode pull
-  lxc launch testimage "c1"
+  lxc launch testimage "c1" -d "${SMALL_ROOT_DISK}"
   lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
   lxc exec "c1" -- test -f /mnt/foo
   lxc delete -f "c1"
@@ -185,7 +185,7 @@ EOF
 
   # Check snapshot copy (mode pull, remote).
   lxc storage volume copy "${storage_pool}/vol1/snap0" "localhost:${storage_pool}/vol2" --mode pull
-  lxc launch testimage "c1"
+  lxc launch testimage "c1" -d "${SMALL_ROOT_DISK}"
   lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
   lxc exec "c1" -- test -f /mnt/foo
   lxc delete -f "c1"
@@ -193,7 +193,7 @@ EOF
 
   # Check snapshot copy (mode push).
   lxc storage volume copy "${storage_pool}/vol1/snap0" "${storage_pool}/vol2" --mode push
-  lxc launch testimage "c1"
+  lxc launch testimage "c1" -d "${SMALL_ROOT_DISK}"
   lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
   lxc exec "c1" -- test -f /mnt/foo
   lxc delete -f "c1"
@@ -201,7 +201,7 @@ EOF
 
   # Check snapshot copy (mode push, remote).
   lxc storage volume copy "${storage_pool}/vol1/snap0" "localhost:${storage_pool}/vol2" --mode push
-  lxc launch testimage "c1"
+  lxc launch testimage "c1" -d "${SMALL_ROOT_DISK}"
   lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
   lxc exec "c1" -- test -f /mnt/foo
   lxc delete -f "c1"
@@ -209,7 +209,7 @@ EOF
 
   # Check snapshot copy (mode relay).
   lxc storage volume copy "${storage_pool}/vol1/snap0" "${storage_pool}/vol2" --mode relay
-  lxc launch testimage "c1"
+  lxc launch testimage "c1" -d "${SMALL_ROOT_DISK}"
   lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
   lxc exec "c1" -- test -f /mnt/foo
   lxc delete -f "c1"
@@ -217,7 +217,7 @@ EOF
 
   # Check snapshot copy (mode relay, remote).
   lxc storage volume copy "${storage_pool}/vol1/snap0" "localhost:${storage_pool}/vol2" --mode relay
-  lxc launch testimage "c1"
+  lxc launch testimage "c1" -d "${SMALL_ROOT_DISK}"
   lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
   lxc exec "c1" -- test -f /mnt/foo
   lxc delete -f "c1"
@@ -226,7 +226,7 @@ EOF
   # Check snapshot copy between pools.
   lxc storage create "${storage_pool2}" dir
   lxc storage volume copy "${storage_pool}/vol1/snap0" "${storage_pool2}/vol2"
-  lxc launch testimage "c1"
+  lxc launch testimage "c1" -d "${SMALL_ROOT_DISK}"
   lxc storage volume attach "${storage_pool2}" "vol2" "c1" /mnt
   lxc exec "c1" -- test -f /mnt/foo
   lxc delete -f "c1"
@@ -236,13 +236,13 @@ EOF
   # Check snapshot copy between pools (remote).
   lxc storage create "${storage_pool2}" dir
   lxc storage volume copy "${storage_pool}/vol1/snap0" "localhost:${storage_pool2}/vol2"
-  lxc launch testimage "c1"
+  lxc launch testimage "c1" -d "${SMALL_ROOT_DISK}"
   lxc storage volume attach "${storage_pool2}" "vol2" "c1" /mnt
   lxc exec "c1" -- test -f /mnt/foo
   lxc delete -f "c1"
   lxc storage volume delete "${storage_pool2}" "vol2"
   lxc storage volume copy "localhost:${storage_pool}/vol1/snap0" "${storage_pool2}/vol2"
-  lxc launch testimage "c1"
+  lxc launch testimage "c1" -d "${SMALL_ROOT_DISK}"
   lxc storage volume attach "${storage_pool2}" "vol2" "c1" /mnt
   lxc exec "c1" -- test -f /mnt/foo
   lxc delete -f "c1"
