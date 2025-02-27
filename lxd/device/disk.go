@@ -1052,6 +1052,10 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		opts = append(opts, "cache="+d.config["io.cache"])
 	}
 
+	if shared.IsTrue(d.config["readonly"]) || d.config["source.snapshot"] != "" {
+		opts = append(opts, "ro")
+	}
+
 	// Add I/O limits if set.
 	var diskLimits *deviceConfig.DiskLimits
 	if d.config["limits.read"] != "" || d.config["limits.write"] != "" || d.config["limits.max"] != "" {
@@ -1226,10 +1230,6 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				revert.Add(revertFunc)
 
 				mount.Opts = append(mount.Opts, d.detectVMPoolMountOpts()...)
-			}
-
-			if shared.IsTrue(d.config["readonly"]) || d.config["source.snapshot"] != "" {
-				mount.Opts = append(mount.Opts, "ro")
 			}
 
 			// If the source being added is a directory or cephfs share, then we will use the lxd-agent
