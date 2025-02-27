@@ -173,7 +173,7 @@ LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
 export LXD_REQUIRED_TESTS
 
 # This must be enough to accomodate the busybox testimage
-SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
+SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=40MiB"}"
 export SMALL_ROOT_DISK
 
 run_test() {
