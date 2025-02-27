@@ -172,6 +172,10 @@ export LXD_SKIP_TESTS
 LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
 export LXD_REQUIRED_TESTS
 
+# This must be enough to accomodate the busybox testimage
+SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
+export SMALL_ROOT_DISK
+
 run_test() {
   TEST_CURRENT=${1}
   TEST_CURRENT_DESCRIPTION=${2:-${1}}
@@ -411,7 +415,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_backup_volume_export "backup volume export"
     run_test test_backup_export_import_instance_only "backup export and import instance only"
     run_test test_backup_volume_rename_delete "backup volume rename and delete"
-    run_test test_backup_different_instance_uuid "backup instance and check instance UUIDs"
+    run_test test_backup_instance_uuid "backup instance and check instance UUIDs"
     run_test test_backup_volume_expiry "backup volume expiry"
     run_test test_backup_export_import_recover "backup export, import, and recovery"
     run_test test_container_local_cross_pool_handling "container local cross pool handling"
