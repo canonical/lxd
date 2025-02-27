@@ -2,7 +2,7 @@ test_container_devices_disk() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  lxc init testimage foo
+  lxc init testimage foo -d "${SMALL_ROOT_DISK}"
 
   _container_devices_disk_shift
   _container_devices_raw_mount_options
@@ -68,9 +68,9 @@ _container_devices_disk_shift() {
   ! lxc storage volume set "${POOL}" foo-shift security.unmapped=true || false
 
   lxc start foo
-  lxc launch testimage foo-priv -c security.privileged=true
-  lxc launch testimage foo-isol1 -c security.idmap.isolated=true
-  lxc launch testimage foo-isol2 -c security.idmap.isolated=true
+  lxc launch testimage foo-priv -c security.privileged=true -d "${SMALL_ROOT_DISK}"
+  lxc launch testimage foo-isol1 -c security.idmap.isolated=true -d "${SMALL_ROOT_DISK}"
+  lxc launch testimage foo-isol2 -c security.idmap.isolated=true -d "${SMALL_ROOT_DISK}"
 
   lxc config device add foo shifted disk pool="${POOL}" source=foo-shift path=/mnt
   lxc config device add foo-priv shifted disk pool="${POOL}" source=foo-shift path=/mnt
@@ -96,7 +96,7 @@ _container_devices_raw_mount_options() {
   # shellcheck disable=SC2154
   mkfs.vfat "${loop_device_1}"
 
-  lxc launch testimage foo-priv -c security.privileged=true
+  lxc launch testimage foo-priv -c security.privileged=true -d "${SMALL_ROOT_DISK}"
 
   lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt
   [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "0:0" ]
@@ -135,7 +135,7 @@ _container_devices_disk_ceph() {
   mkfs.ext4 -m0 "${RBD_DEVICE}"
   rbd unmap "${RBD_DEVICE}"
 
-  lxc launch testimage ceph-disk -c security.privileged=true
+  lxc launch testimage ceph-disk -c security.privileged=true -d "${SMALL_ROOT_DISK}"
   lxc config device add ceph-disk rbd disk source=ceph:"${RBD_POOL_NAME}"/my-volume ceph.user_name=admin ceph.cluster_name=ceph path=/ceph
   lxc exec ceph-disk -- stat /ceph/lost+found
   lxc restart ceph-disk --force
@@ -152,7 +152,7 @@ _container_devices_disk_cephfs() {
     return
   fi
 
-  lxc launch testimage ceph-fs -c security.privileged=true
+  lxc launch testimage ceph-fs -c security.privileged=true -d "${SMALL_ROOT_DISK}"
   lxc config device add ceph-fs fs disk source=cephfs:"${LXD_CEPH_CEPHFS}"/ ceph.user_name=admin ceph.cluster_name=ceph path=/cephfs
   lxc exec ceph-fs -- stat /cephfs
   lxc restart ceph-fs --force
