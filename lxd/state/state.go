@@ -22,6 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/maas"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/sys"
+	"github.com/canonical/lxd/lxd/ubuntupro"
 	"github.com/canonical/lxd/shared"
 )
 
@@ -98,6 +99,9 @@ type State struct {
 
 	// Authorizer.
 	Authorizer auth.Authorizer
+
+	// Ubuntu pro settings.
+	UbuntuPro *ubuntupro.Client
 }
 
 // LeaderInfo represents information regarding cluster member leadership.
