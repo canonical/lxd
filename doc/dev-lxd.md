@@ -231,3 +231,35 @@ Return value:
 
     instance-id: af6a01c7-f847-4688-a2a4-37fddd744625
     local-hostname: abc
+
+#### `/1.0/ubuntu-pro`
+
+##### GET
+
+* Description: Get Ubuntu Pro guest attachment setting for the instance
+* Return: JSON object
+
+Return value
+
+```json
+{
+   "guest_attach": "on"
+}
+```
+
+#### `/1.0/ubuntu-pro/token`
+
+##### POST
+
+* Description: Get an Ubuntu Pro guest attachment token
+* Return: JSON object
+
+Return value
+
+```json
+{
+   "expires": "2025-03-23T20:00:00-04:00",
+   "token": "<RANDOM-STRING>",
+   "id": "9f65c3d0-c326-491e-927f-9b062b6649a0"
+}
+```
