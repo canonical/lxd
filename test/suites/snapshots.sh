@@ -24,7 +24,7 @@ snapshots() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  lxc init testimage foo
+  lxc init testimage foo -d "${SMALL_ROOT_DISK}"
 
   lxc snapshot foo
   # FIXME: make this backend agnostic
@@ -149,7 +149,7 @@ snap_restore() {
   ## create some state we will check for when snapshot is restored
 
   ## prepare snap0
-  lxc launch testimage bar
+  lxc launch testimage bar -d "${SMALL_ROOT_DISK}"
   echo snap0 > state
   lxc file push state bar/root/state
   lxc file push state bar/root/file_only_in_snap0
@@ -276,7 +276,7 @@ snap_restore() {
   fi
 
   # Check that instances have two different UUID after a snapshot copy
-  lxc launch testimage bar2
+  lxc launch testimage bar2 -d "${SMALL_ROOT_DISK}"
   initialUUID=$(lxc config get bar2 volatile.uuid)
   initialGenerationID=$(lxc config get bar2 volatile.uuid.generation)
   lxc copy bar2 bar3
@@ -319,7 +319,7 @@ snap_restore() {
   lxc delete bar
 
   # Test if container's with hyphen's in their names are treated correctly.
-  lxc launch testimage a-b
+  lxc launch testimage a-b -d "${SMALL_ROOT_DISK}"
   lxc snapshot a-b base
   lxc restore a-b base
   lxc snapshot a-b c-d
@@ -327,7 +327,7 @@ snap_restore() {
   lxc delete -f a-b
 
   # Check snapshot creation dates.
-  lxc init testimage c1
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
   ! lxc storage volume show "${pool}" container/c1 | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
   ! lxc storage volume show "${pool}" container/c1/snap0 | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
@@ -357,7 +357,7 @@ test_snap_expiry() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  lxc launch testimage c1
+  lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
   lxc config show c1/snap0 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
   [ "$(lxc config get --property c1/snap0 expires_at)" = "0001-01-01 00:00:00 +0000 UTC" ]
@@ -387,11 +387,11 @@ test_snap_schedule() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Check we get a snapshot on first start
-  lxc launch testimage c1 -c snapshots.schedule='@startup'
-  lxc launch testimage c2 -c snapshots.schedule='@startup, @daily'
-  lxc launch testimage c3 -c snapshots.schedule='@startup, 10 5,6 * * *'
-  lxc launch testimage c4 -c snapshots.schedule='@startup, 10 5-8 * * *'
-  lxc launch testimage c5 -c snapshots.schedule='@startup, 10 2,5-8/2 * * *'
+  lxc launch testimage c1 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup'
+  lxc launch testimage c2 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup, @daily'
+  lxc launch testimage c3 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup, 10 5,6 * * *'
+  lxc launch testimage c4 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup, 10 5-8 * * *'
+  lxc launch testimage c5 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup, 10 2,5-8/2 * * *'
   lxc info c1 | grep -q snap0
   lxc info c2 | grep -q snap0
   lxc info c3 | grep -q snap0
@@ -414,7 +414,7 @@ test_snap_volume_db_recovery() {
 
   poolName=$(lxc profile device get default root pool)
 
-  lxc init testimage c1
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
   lxc snapshot c1
   lxc start c1
