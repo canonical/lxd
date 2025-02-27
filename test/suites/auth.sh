@@ -75,7 +75,7 @@ test_authorization() {
 
   # Test permission is removed automatically when instance is removed.
   lxc auth group permission add test-group instance c1 can_exec project=default # Valid
-  lxc rm c1 --force
+  lxc delete c1 --force
   [ "$(lxd sql global --format csv "SELECT count(*) FROM auth_groups_permissions WHERE entitlement = 'can_exec'")" = 0 ] # Permission should be removed when instance is removed.
 
   # Network permissions
