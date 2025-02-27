@@ -13,6 +13,8 @@ ASN
 AXFR
 backend
 backends
+backport
+backporting
 backticks
 balancers
 benchmarking
@@ -25,6 +27,7 @@ BPF
 Btrfs
 bugfix
 bugfixes
+CCLA
 CDI
 CentOS
 Ceph
@@ -43,6 +46,7 @@ CPUs
 CRIU
 CRL
 cron
+cryptographically
 CSM
 CSV
 CUDA

@@ -2,70 +2,52 @@
 
 <!-- Include start contributing -->
 
-The LXD team appreciates contributions to the project, through pull requests, issues on the [GitHub repository](https://github.com/canonical/lxd/issues), or discussions or questions on the [forum](https://discourse.ubuntu.com/c/lxd/126).
+The LXD team welcomes contributions through pull requests, issue reports, and discussions.
+- Contribute to the code or documentation, report bugs, or request features in the [GitHub repository](https://github.com/canonical/lxd/issues)
+- Ask questions or join discussions in the [LXD forum](https://discourse.ubuntu.com/c/lxd/126).
 
-Check the following guidelines before contributing to the project.
+Review the following guidelines before contributing to the project.
 
 ## Code of Conduct
 
-When contributing, you must adhere to the Code of Conduct, which is available at: [`https://github.com/canonical/lxd/blob/main/CODE_OF_CONDUCT.md`](https://github.com/canonical/lxd/blob/main/CODE_OF_CONDUCT.md)
+All contributors must adhere to the [Contributor Covenant Code of Conduct](https://github.com/canonical/lxd/blob/main/CODE_OF_CONDUCT.md).
 
 ## License and copyright
 
-All contributors must sign the [Canonical contributor license agreement](https://ubuntu.com/legal/contributors), which gives Canonical permission to use the contributions. The author of a change remains the copyright holder of their code (no copyright assignment).
+All contributors must sign the [Canonical contributor license agreement (CCLA)](https://ubuntu.com/legal/contributors), which grants Canonical permission to use the contributions.
 
-By default, any contribution to this project is licensed out under the project license: AGPL-3.0-only.
-
-By exception, Canonical may import code under licenses compatible with AGPL-3.0-only, such as Apache-2.0.
-Such code will remain under its original license and will be identified as such in the commit message or its file header.
-
-Some files and commits are licensed out under Apache-2.0 rather than AGPL-3.0-only.
-These are marked as Apache-2.0 in their package-level COPYING file, file header or commit message.
+- You retain copyright ownership of your contributions (no copyright assignment).
+- By default, contributions are licensed under the project's **AGPL-3.0-only** license.
+- Exceptions:
+  - Canonical may import code under AGPL-3.0-only compatible licenses, such as Apache-2.0.
+  - Such code retains its original license and is marked as such in commit messages or file headers.
+  - Some files and commits are licensed under Apache-2.0 rather than AGPL-3.0-only. These are indicated in their package-level COPYING file, file header, or commit message.
 
 ## Pull requests
 
-Changes to this project should be proposed as pull requests on GitHub
-at: [`https://github.com/canonical/lxd`](https://github.com/canonical/lxd)
+Submit pull requests on GitHub at: [`https://github.com/canonical/lxd`](https://github.com/canonical/lxd).
 
-Proposed changes will then go through review there and once approved,
-be merged in the main branch.
+All pull requests undergo review and must be approved before being merged into the main branch.
 
 ### Commit structure
 
-Separate commits should be used for:
+Use separate commits for different types of changes:
 
-- API extension (`api: Add XYZ extension`, contains `doc/api-extensions.md` and `shared/version/api.go`)
-- Documentation (`doc: Update XYZ` for files in `doc/`)
-- API structure (`shared/api: Add XYZ` for changes to `shared/api/`)
-- Go client package (`client: Add XYZ` for changes to `client/`)
-- CLI (`lxc/<command>: Change XYZ` for changes to `lxc/`)
-- LXD daemon (`lxd/<package>: Add support for XYZ` for changes to `lxd/`)
-- Tests (`tests: Add test for XYZ` for changes to `tests/`)
+| Type                 | Affects files                                    | Commit message format               |
+|----------------------|--------------------------------------------------|-------------------------------------|
+| **API extensions**   | `doc/api-extensions.md`, `shared/version/api.go` | `api: Add XYZ extension`            |
+| **Documentation**    | Files in `doc/`                                  | `doc: Update XYZ`                   |
+| **API structure**    | Files in `shared/api/`                           | `shared/api: Add XYZ`               |
+| **Go client package**| Files in `client/`                               | `client: Add XYZ`                   |
+| **CLI changes**      | Files in `lxc/`                                  | `lxc/<command>: Change XYZ`         | 
+| **LXD daemon**       | Files in `lxd/`                                  | `lxd/<package>: Add support for XYZ`|
+| **Tests**            | Files in `tests/`                                | `tests: Add test for XYZ`           |
 
-The same kind of pattern extends to the other tools in the LXD code tree
-and depending on complexity, things may be split into even smaller chunks.
+Depending on complexity, large changes might be further split into smaller, logical commits. This commit structure facilitates the review process and simplifies backporting fixes to stable branches.
 
-When updating strings in the CLI tool (`lxc/`), you may need a commit to update the templates:
+### Developer Certificate of Origin sign-off
 
-    make i18n
-    git commit -a -s -m "i18n: Update translation templates" po/
-
-When updating API (`shared/api`), you may need a commit to update the swagger YAML:
-
-    make update-api
-    git commit -s -m "doc/rest-api: Refresh swagger YAML" doc/rest-api.yaml
-
-This structure makes it easier for contributions to be reviewed and also
-greatly simplifies the process of back-porting fixes to stable branches.
-
-### Developer Certificate of Origin
-
-To improve tracking of contributions to this project we use the DCO 1.1
-and use a "sign-off" procedure for all changes going into the branch.
-
-The sign-off is a simple line at the end of the explanation for the
-commit which certifies that you wrote it or otherwise have the right
-to pass it on as an open-source contribution.
+To ensure transparency and accountability in contributions to this project, all contributors must include a **Signed-off-by** line in their commits in accordance with DCO 1.1:
 
 ```
 Developer Certificate of Origin
@@ -105,20 +87,53 @@ By making a contribution to this project, I certify that:
     this project or the open source license(s) involved.
 ```
 
-An example of a valid sign-off line is:
+#### Including a Signed-off-by line in your commits
+
+Every commit must include a **Signed-off-by** line, even when part of a larger set of contributions. To do this, use the `-s` flag when committing:
+
+    git commit -s -m "Your commit message"
+
+This automatically adds the following to your commit message:
 
 ```
-Signed-off-by: Random J Developer <random@developer.org>
+Signed-off-by: Your Name <your.email@example.com>
 ```
 
-Use a known identity and a valid e-mail address.
-Sorry, no anonymous contributions are allowed.
+By including this line, you acknowledge your agreement to the DCO 1.1 for that specific contribution.
 
-We also require each commit be individually signed-off by their author,
-even when part of a larger set. You may find `git commit -s` useful.
+- Use a valid name and email address—anonymous contributions are not accepted.
+- Ensure your email matches the one associated with your GitHub account.
+
+### Commit signature verification
+
+In addition to the sign-off requirement, contributors must also cryptographically sign their commits to verify authenticity. See: [GitHub's documentation on commit signature verification](https://docs.github.com/en/authentication/managing-commit-signature-verification).
+
+### Make-generated files
+
+Some changes require regenerating certain files using Makefile commands.
+
+After you run any of the commands below, you'll be prompted whether to commit the changes. If you respond `Y`, only the re-generated files are committed—any other staged files are ignored.
+
+#### CLI tool string updates
+
+If you modify CLI strings in `lxc/`, regenerate and commit translation files:
+
+    make i18n
+
+#### API updates
+
+If you modify the LXD API (`shared/api`), regenerate and commit the Swagger YAML file (`doc/rest-api.yaml`) used for API reference documentation:
+
+    make update-api
+
+#### Configuration options updates
+
+If you add or update configuration options, regenerate and commit the documentation metadata files (`lxd/metadata/configuration.json` and `doc/metadata.txt`):
+
+    make update-metadata
 
 <!-- Include end contributing -->
 
 ## More information
 
-For more information, see [Contributing](https://documentation.ubuntu.com/lxd/en/latest/contributing/) in the documentation.
+For more information, including details about contributing to the code as well as the documentation for LXD, see [Contributing](https://documentation.ubuntu.com/lxd/en/latest/contributing/) in the documentation.
