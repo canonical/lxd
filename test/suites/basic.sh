@@ -741,7 +741,7 @@ test_basic_usage() {
 
   # Test assigning a profile through a YAML file to an instance.
   poolName=$(lxc profile device get default root pool)
-  lxc profile create foo < <(cat <<EOF
+  lxc profile create foo << EOF
 config:
   limits.cpu: 2
   limits.memory: 1024MiB
@@ -752,7 +752,6 @@ devices:
     pool: ${poolName}
     type: disk
 EOF
-)
   lxc init testimage c1 --profile foo
   [ "$(lxc config get c1 limits.cpu --expanded)" = "2" ]
   [ "$(lxc config get c1 limits.memory --expanded)" = "1024MiB" ]
