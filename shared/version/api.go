@@ -438,6 +438,7 @@ var APIExtensions = []string{
 	"cloud_init_ssh_keys",
 	"oidc_scopes",
 	"project_default_network_and_storage",
+	"ubuntu_pro_guest_attach",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

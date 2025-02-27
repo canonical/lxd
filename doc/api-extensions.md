@@ -2612,3 +2612,8 @@ Note that the `openid` and `email` scopes are always required.
 ## `project_default_network_and_storage`
 
 Adds flags --network and --storage. The --network flag adds a network device connected to the specified network to the default profile. The --storage flag adds a root disk device using the specified storage pool to the default profile.
+
+## `ubuntu_pro_guest_attach`
+
+Adds a new {config:option}`instance-miscellaneous:ubuntu_pro.guest_attach` configuration option for instances.
+When set to `on`, if the host has guest attachment enabled, the guest can request a guest token for Ubuntu Pro via `devlxd`.
