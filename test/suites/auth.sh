@@ -58,7 +58,7 @@ test_authorization() {
 
   # Storage volume permissions.
   pool_name="$(lxc storage list -f csv | cut -d, -f1)"
-  lxc storage volume create "${pool_name}" vol1
+  lxc storage volume create "${pool_name}" vol1 size=32MiB
   ! lxc auth group permission add test-group storage_volume vol1 can_manage_backups || false # No project, pool, or volume type
   lxc auth group permission add test-group storage_volume vol1 can_manage_backups project=default pool="${pool_name}" type=custom # Valid
   lxc auth group permission remove test-group storage_volume vol1 can_manage_backups project=default pool="${pool_name}" type=custom # Valid
@@ -355,7 +355,7 @@ storage_pool_used_by() {
   [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 3 ]
 
   # Perform the same checks with storage volume snapshots.
-  lxc storage volume create "${pool_name}" vol1
+  lxc storage volume create "${pool_name}" vol1 size=32MiB
   [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length+4)) ]
   [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 3 ]
 
@@ -1002,7 +1002,7 @@ auth_project_features() {
 
   # Create a storage volume in the default project.
   volName="vol$$"
-  lxc storage volume create "${pool_name}" "${volName}" --project default
+  lxc storage volume create "${pool_name}" "${volName}" --project default size=32MiB
 
   # The storage volume we created in the default project is not visible in project blah.
   ! lxc_remote storage volume show "${remote}:${pool_name}" "${volName}" --project blah || false
@@ -1126,7 +1126,7 @@ entities_enrichment_with_entitlements() {
 
   # Storage volume
   pool_name="$(lxc storage list -f csv | cut -d, -f1)"
-  lxc storage volume create "${pool_name}" test-volume
+  lxc storage volume create "${pool_name}" test-volume size=32MiB
   lxc auth group permission add test-group storage_volume test-volume can_view project=default pool="${pool_name}" type=custom
   lxc auth group permission add test-group storage_volume test-volume can_edit project=default pool="${pool_name}" type=custom
   lxc auth group permission add test-group storage_volume test-volume can_delete project=default pool="${pool_name}" type=custom
