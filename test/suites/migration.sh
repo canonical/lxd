@@ -173,7 +173,7 @@ migration() {
   remote_pool=$(lxc_remote config profile device get l2:default root pool)
 
   # Test container only copies
-  lxc init testimage cccp
+  lxc init testimage cccp -d "${SMALL_ROOT_DISK}"
 
   lxc storage volume set "${pool}" container/cccp user.foo=snap0
   echo "before" | lxc file push - cccp/blah
@@ -236,7 +236,7 @@ migration() {
   lxc_remote delete l2:udssr
 
   # Test container only copies
-  lxc init testimage cccp
+  lxc init testimage cccp -d "${SMALL_ROOT_DISK}"
   lxc snapshot cccp
   lxc snapshot cccp
 
@@ -249,7 +249,7 @@ migration() {
   if [ "$lxd_backend" = "zfs" ]; then
     # Test container only copies when zfs.clone_copy is set to false.
     lxc storage set "lxdtest-$(basename "${LXD_DIR}")" zfs.clone_copy false
-    lxc init testimage cccp
+    lxc init testimage cccp -d "${SMALL_ROOT_DISK}"
     lxc snapshot cccp
     lxc snapshot cccp
 
@@ -623,7 +623,7 @@ migration() {
   lxc_remote rm -f l2:c1
 
   # On zfs, this used to crash due to a websocket read issue.
-  lxc launch testimage c1
+  lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
   lxc copy c1 l2:c1 --stateless
   lxc copy c1 l2:c1 --stateless --refresh
