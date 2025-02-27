@@ -74,7 +74,7 @@ type proAPIGetGuestTokenV1 struct {
 		Attributes api.UbuntuProGuestTokenResponse `json:"attributes"`
 	} `json:"data"`
 	Errors []struct {
-		Title string
+		Title string `json:"title"`
 	} `json:"errors"`
 }
 
