@@ -46,13 +46,13 @@ test_container_devices_nic_bridged_filtering() {
   lxc profile show "${ctPrefix}" | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${brName}/" | lxc profile edit "${ctPrefix}"
 
   # Launch first container.
-  lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
+  lxc init testimage "${ctPrefix}A" -d "${SMALL_ROOT_DISK}" -p "${ctPrefix}"
   lxc config device add "${ctPrefix}A" eth0 nic nictype=nic name=eth0 nictype=bridged parent="${brName}"
   lxc start "${ctPrefix}A"
   lxc exec "${ctPrefix}A" -- ip a add 192.0.2.2/24 dev eth0
 
   # Launch second container.
-  lxc init testimage "${ctPrefix}B" -p "${ctPrefix}"
+  lxc init testimage "${ctPrefix}B" -d "${SMALL_ROOT_DISK}" -p "${ctPrefix}"
   lxc config device add "${ctPrefix}B" eth0 nic nictype=nic name=eth0 nictype=bridged parent="${brName}"
   lxc start "${ctPrefix}B"
   lxc exec "${ctPrefix}B" -- ip a add 192.0.2.3/24 dev eth0
@@ -589,7 +589,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc delete -f "${ctPrefix}B"
 
   # Check filtering works when ipv4 and ipv6 addresses are set to none on the nic device and the parent network is managed.
-  lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
+  lxc init testimage "${ctPrefix}A" -d "${SMALL_ROOT_DISK}" -p "${ctPrefix}"
   lxc config device add "${ctPrefix}A" eth0 nic \
     name=eth0 \
     nictype=bridged \
@@ -628,7 +628,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc network set "${brName}" ipv6.address none
 
   lxc network set "${brName}" ipv6.dhcp.stateful false
-  lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
+  lxc init testimage "${ctPrefix}A" -d "${SMALL_ROOT_DISK}" -p "${ctPrefix}"
   lxc config device add "${ctPrefix}A" eth0 nic \
     nictype=nic \
     name=eth0 \
@@ -743,7 +743,7 @@ test_container_devices_nic_bridged_filtering() {
   ip a add 2001:db8::1/64 dev "${brName}2"
   ip link set "${brName}2" up
 
-  lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
+  lxc init testimage "${ctPrefix}A" -d "${SMALL_ROOT_DISK}" -p "${ctPrefix}"
   lxc config device add "${ctPrefix}A" eth0 nic \
     nictype=nic \
     name=eth0 \
@@ -849,7 +849,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc network set "${brName}" ipv6.address none
   lxc network set "${brName}" ipv6.dhcp.stateful false
 
-  lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
+  lxc init testimage "${ctPrefix}A" -d "${SMALL_ROOT_DISK}" -p "${ctPrefix}"
   lxc config device add "${ctPrefix}A" eth0 nic \
     nictype=nic \
     name=eth0 \
