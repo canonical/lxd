@@ -416,6 +416,7 @@ var APIExtensions = []string{
 	"disk_io_bus_virtio_blk",
 	"metrics_api_requests",
 	"projects_limits_disk_pool",
+	"ubuntu_pro_guest_attach",
 	"metadata_configuration_entity_types",
 	"access_management_tls",
 	"network_allocations_ovn_uplink",
