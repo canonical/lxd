@@ -1971,7 +1971,7 @@ func (d *Daemon) init() error {
 	d.tasks.Start(d.shutdownCtx)
 
 	// Load Ubuntu Pro configuration before starting any instances.
-	d.ubuntuPro = ubuntupro.New(d.os.ReleaseInfo["NAME"], d.shutdownCtx)
+	d.ubuntuPro = ubuntupro.New(d.shutdownCtx, d.os.ReleaseInfo["NAME"])
 
 	// Restore instances
 	instancesStart(d.State(), instances)

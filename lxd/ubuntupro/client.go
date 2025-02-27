@@ -106,7 +106,7 @@ func (proCLI) getGuestToken(ctx context.Context) (*api.UbuntuProGuestTokenRespon
 // New returns a new Client that watches /var/lib/ubuntu-pro for changes to LXD configuration and contains a shim
 // for the actual Ubuntu Pro CLI. If the host is not Ubuntu, it returns a static Client that always returns
 // guestAttachSettingOff.
-func New(osName string, ctx context.Context) *Client {
+func New(ctx context.Context, osName string) *Client {
 	if osName != "Ubuntu" {
 		// If we're not on Ubuntu, return a static Client.
 		return &Client{guestAttachSetting: guestAttachSettingOff}
