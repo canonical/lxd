@@ -43,7 +43,7 @@ test_authorization() {
 
   # Instance permissions.
   ! lxc auth group permission add test-group instance c1 can_exec project=default || false # Not found
-  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
+  lxc init testimage c1
   ! lxc auth group permission add test-group instance c1 can_exec || false # No project
   lxc auth group permission add test-group instance c1 can_exec project=default # Valid
   lxc auth group permission remove test-group instance c1 can_exec project=default # Valid
@@ -428,7 +428,7 @@ fine_grained_authorization() {
   ! lxc auth group permission add test-group instance user-foo user project=default || false
 
   # Create an instance for testing the `user` entitlement on entity type `instance`.
-  lxc launch testimage user-foo -d "${SMALL_ROOT_DISK}"
+  lxc launch testimage user-foo
 
   # Change permission to "user" for instance "user-foo"
   lxc auth group permission add test-group instance user-foo user project=default
@@ -1107,7 +1107,7 @@ entities_enrichment_with_entitlements() {
   # Repeat the same test for other entity types.
   # Instance
   ensure_import_testimage
-  lxc init --empty test-foo -d "${SMALL_ROOT_DISK}"
+  lxc init testimage test-foo
   lxc auth group permission add test-group instance test-foo can_view project=default
   lxc auth group permission add test-group instance test-foo can_edit project=default
   lxc auth group permission add test-group instance test-foo can_delete project=default
