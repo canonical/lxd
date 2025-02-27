@@ -62,7 +62,7 @@ _container_devices_disk_shift() {
   # Cannot set both security.shifted and security.unmapped.
   ! lxc storage volume create "${POOL}" foo-shift security.shifted=true security.unmapped=true || false
 
-  lxc storage volume create "${POOL}" foo-shift security.shifted=true
+  lxc storage volume create "${POOL}" foo-shift security.shifted=true size=32MiB
 
   # Cannot set both security.shifted and security.unmapped.
   ! lxc storage volume set "${POOL}" foo-shift security.unmapped=true || false
