@@ -726,9 +726,14 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 			}
 		}
 
-		poolCreate, err := c.global.asker.AskBool(fmt.Sprintf("Create a new %s pool? (yes/no) [default=yes]: ", strings.ToUpper(pool.Driver)), "yes")
-		if err != nil {
-			return err
+		poolCreate := false
+
+		// PowerFlex can only consume already existing storage pools.
+		if pool.Driver != "powerflex" {
+			poolCreate, err = c.global.asker.AskBool(fmt.Sprintf("Create a new %s pool? (yes/no) [default=yes]: ", strings.ToUpper(pool.Driver)), "yes")
+			if err != nil {
+				return err
+			}
 		}
 
 		if poolCreate {
