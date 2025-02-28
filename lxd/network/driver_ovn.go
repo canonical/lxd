@@ -3705,7 +3705,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	dhcpv4Subnet := n.DHCPv4Subnet()
 	dhcpv6Subnet := n.DHCPv6Subnet()
 
-	var portIPs []net.IP // Don't initialise to empty as this will request dynamic IPs.
+	var staticIPs []net.IP
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -3738,7 +3738,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 				needDynamicIPv4 = false
 			}
 
-			portIPs = append(portIPs, ip)
+			staticIPs = append(staticIPs, ip)
 		}
 
 		findDHCPOptionSet := func(options []openvswitch.OVNDHCPOptsSet, subnet net.IPNet) (optID openvswitch.OVNDHCPOptionsUUID, err error) {
@@ -3800,9 +3800,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 			}
 
 			// Add EUI64 to list of static IPs for instance port.
-			portIPs = append(portIPs, eui64IP)
-		} else if portIPs == nil && (needDynamicIPv4 || needDynamicIPv6) {
-			portIPs = []net.IP{} // Request dynamic IPs for both protocols.
+			staticIPs = append(staticIPs, eui64IP)
 		}
 
 		var nestedPortParentName openvswitch.OVNSwitchPort
@@ -3824,7 +3822,8 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 			DHCPv4OptsID: dhcpV4ID,
 			DHCPv6OptsID: dhcpv6ID,
 			MAC:          mac,
-			IPs:          portIPs,
+			IPs:          staticIPs,
+			DynamicIPs:   len(staticIPs) == 0 && (needDynamicIPv4 || needDynamicIPv6),
 			Parent:       nestedPortParentName,
 			VLAN:         nestedPortVLAN,
 			Location:     n.state.ServerName,
@@ -3856,8 +3855,8 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	}
 
 	// Populate DNS IP variables with any static IPs first before checking if we need to extract dynamic IPs.
-	for _, portIP := range portIPs {
-		checkAndStoreIP(portIP)
+	for _, staticIP := range staticIPs {
+		checkAndStoreIP(staticIP)
 	}
 
 	// Get dynamic IPs for switch port if any IPs not assigned statically.
