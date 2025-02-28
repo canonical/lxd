@@ -97,7 +97,7 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 
 			_, opAPI, err := op.Render()
 			if err != nil {
-				logger.Warn("Failed to render operation", logger.Ctx{"operation": op, "err": err})
+				logger.Warn("Failed to render operation", logger.Ctx{"operation ID": op.ID(), "operation class": op.Class().String(), "operation status": op.Status().String(), "err": err})
 			} else if opAPI.MayCancel {
 				_, _ = op.Cancel()
 			}
