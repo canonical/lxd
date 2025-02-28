@@ -115,7 +115,7 @@ type OVNDHCPv6Opts struct {
 // OVNSwitchPortOpts options that can be applied to a swich port.
 type OVNSwitchPortOpts struct {
 	MAC          net.HardwareAddr   // Optional, if nil will be set to dynamic.
-	IPs          []net.IP           // Optional, if empty IPs will be set to dynamic.
+	IPs          []net.IP           // Optional, if non-nil but empty, then dynamic IPs are requested.
 	DHCPv4OptsID OVNDHCPOptionsUUID // Optional, if empty, no DHCPv4 enabled on port.
 	DHCPv6OptsID OVNDHCPOptionsUUID // Optional, if empty, no DHCPv6 enabled on port.
 	Parent       OVNSwitchPort      // Optional, if set a nested port is created.
@@ -1158,14 +1158,12 @@ func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort,
 			addresses = append(addresses, opts.MAC.String())
 		}
 
-		if len(opts.IPs) > 0 {
-			// If static IPs are requested then use these.
-			for _, ip := range opts.IPs {
-				addresses = append(addresses, ip.String())
-			}
-		} else if opts.DHCPv4OptsID != "" || opts.DHCPv6OptsID != "" {
-			// Or if either DHCPv4 or DHCPv6 is enabled then request dynamic IPs for both protocols.
-			// OVN currently doesn't allow us to request protocol specific dynamic IPs.
+		for _, ip := range opts.IPs {
+			addresses = append(addresses, ip.String())
+		}
+
+		// If a non-nil empty IP slice is supplied then request dynamic IPs.
+		if opts.IPs != nil && len(opts.IPs) == 0 {
 			addresses = append(addresses, "dynamic")
 		}
 
