@@ -3696,24 +3696,16 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		return "", err
 	}
 
-	staticIPs := []net.IP{}
-	for _, key := range []string{"ipv4.address", "ipv6.address"} {
-		if opts.DeviceConfig[key] == "" {
-			continue
-		}
-
-		ip := net.ParseIP(opts.DeviceConfig[key])
-		if ip == nil {
-			return "", fmt.Errorf("Invalid %s value %q", key, opts.DeviceConfig[key])
-		}
-
-		staticIPs = append(staticIPs, ip)
-	}
-
 	internalRoutes, externalRoutes, err := n.instanceDevicePortRoutesParse(opts.DeviceConfig)
 	if err != nil {
 		return "", fmt.Errorf("Failed parsing NIC device routes: %w", err)
 	}
+
+	instancePortName := n.getInstanceDevicePortName(opts.InstanceUUID, opts.DeviceName)
+	dhcpv4Subnet := n.DHCPv4Subnet()
+	dhcpv6Subnet := n.DHCPv6Subnet()
+
+	var portIPs []net.IP // Don't initialise to empty as this will request dynamic IPs.
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -3723,106 +3715,118 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		return "", fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
-	dhcpv4Subnet := n.DHCPv4Subnet()
-	dhcpv6Subnet := n.DHCPv6Subnet()
-	var dhcpV4ID, dhcpv6ID openvswitch.OVNDHCPOptionsUUID
+	// Logical switch port setup section.
+	{
+		needDynamicIPv4 := dhcpv4Subnet != nil
+		needDynamicIPv6 := dhcpv6Subnet != nil
 
-	if dhcpv4Subnet != nil || dhcpv6Subnet != nil {
-		// Find existing DHCP options set for IPv4 and IPv6 and update them instead of adding sets.
-		existingOpts, err := client.LogicalSwitchDHCPOptionsGet(n.getIntSwitchName())
+		for _, key := range []string{"ipv4.address", "ipv6.address"} {
+			if opts.DeviceConfig[key] == "" {
+				continue
+			}
+
+			ip := net.ParseIP(opts.DeviceConfig[key])
+			if ip == nil {
+				return "", fmt.Errorf("Invalid %s value %q", key, opts.DeviceConfig[key])
+			}
+
+			// Cancel the dynamic IP request if static IP is configured.
+			if ip.To4() == nil {
+				needDynamicIPv6 = false
+			} else {
+				needDynamicIPv4 = false
+			}
+
+			portIPs = append(portIPs, ip)
+		}
+
+		findDHCPOptionSet := func(options []openvswitch.OVNDHCPOptsSet, subnet net.IPNet) (optID openvswitch.OVNDHCPOptionsUUID, err error) {
+			for _, option := range options {
+				if option.CIDR.String() == subnet.String() {
+					if optID != "" {
+						return "", fmt.Errorf("Multiple matching DHCP option sets found for switch %q and subnet %q", n.getIntSwitchName(), subnet.String())
+					}
+
+					// Don't return here in order to check for duplicates to detect inconsistencies.
+					optID = option.UUID
+				}
+			}
+
+			if optID == "" {
+				return "", fmt.Errorf("Could not find instance port DHCP options for subnet %q", subnet.String())
+			}
+
+			return optID, nil
+		}
+
+		var dhcpV4ID, dhcpv6ID openvswitch.OVNDHCPOptionsUUID
+
+		if dhcpv4Subnet != nil || dhcpv6Subnet != nil {
+			// Find existing DHCP options set for IPv4 and IPv6 and update them instead of adding sets.
+			existingOpts, err := client.LogicalSwitchDHCPOptionsGet(n.getIntSwitchName())
+			if err != nil {
+				return "", fmt.Errorf("Failed getting existing DHCP settings for internal switch: %w", err)
+			}
+
+			if dhcpv4Subnet != nil {
+				dhcpV4ID, err = findDHCPOptionSet(existingOpts, *dhcpv4Subnet)
+				if err != nil {
+					return "", err
+				}
+			}
+
+			if dhcpv6Subnet != nil {
+				dhcpv6ID, err = findDHCPOptionSet(existingOpts, *dhcpv6Subnet)
+				if err != nil {
+					return "", err
+				}
+			}
+		}
+
+		// If port only needs dynamic IPv6 address then generate EUI64 address and request that statically.
+		// This works around a limitation in OVN where we can only request dynamic IPs for both protocols.
+		if !needDynamicIPv4 && needDynamicIPv6 {
+			eui64IP, err := eui64.ParseMAC(dhcpv6Subnet.IP, mac)
+			if err != nil {
+				return "", fmt.Errorf("Failed generating EUI64 for instance port %q: %w", mac.String(), err)
+			}
+
+			// Add EUI64 to list of static IPs for instance port.
+			portIPs = append(portIPs, eui64IP)
+		} else if portIPs == nil && (needDynamicIPv4 || needDynamicIPv6) {
+			portIPs = []net.IP{} // Request dynamic IPs for both protocols.
+		}
+
+		var nestedPortParentName openvswitch.OVNSwitchPort
+		var nestedPortVLAN uint16
+		if opts.DeviceConfig["nested"] != "" {
+			nestedPortParentName = n.getInstanceDevicePortName(opts.InstanceUUID, opts.DeviceConfig["nested"])
+			nestedPortVLANInt64, err := strconv.ParseUint(opts.DeviceConfig["vlan"], 10, 16)
+			if err != nil {
+				return "", fmt.Errorf("Invalid VLAN ID %q: %w", opts.DeviceConfig["vlan"], err)
+			}
+
+			nestedPortVLAN = uint16(nestedPortVLANInt64)
+		}
+
+		// Add port with mayExist set to true, so that if instance port exists, we don't fail and continue below
+		// to configure the port as needed. This is required because the port is created when the NIC is added, but
+		// we need to ensure it is present at start up as well in case it was deleted since the NIC was added.
+		err = client.LogicalSwitchPortAdd(n.getIntSwitchName(), instancePortName, &openvswitch.OVNSwitchPortOpts{
+			DHCPv4OptsID: dhcpV4ID,
+			DHCPv6OptsID: dhcpv6ID,
+			MAC:          mac,
+			IPs:          portIPs,
+			Parent:       nestedPortParentName,
+			VLAN:         nestedPortVLAN,
+			Location:     n.state.ServerName,
+		}, true)
 		if err != nil {
-			return "", fmt.Errorf("Failed getting existing DHCP settings for internal switch: %w", err)
+			return "", err
 		}
 
-		if dhcpv4Subnet != nil {
-			for _, existingOpt := range existingOpts {
-				if existingOpt.CIDR.String() == dhcpv4Subnet.String() {
-					if dhcpV4ID != "" {
-						return "", fmt.Errorf("Multiple matching DHCP option sets found for switch %q and subnet %q", n.getIntSwitchName(), dhcpv4Subnet.String())
-					}
-
-					dhcpV4ID = existingOpt.UUID
-				}
-			}
-
-			if dhcpV4ID == "" {
-				return "", fmt.Errorf("Could not find DHCPv4 options for instance port for subnet %q", dhcpv4Subnet.String())
-			}
-		}
-
-		if dhcpv6Subnet != nil {
-			for _, existingOpt := range existingOpts {
-				if existingOpt.CIDR.String() == dhcpv6Subnet.String() {
-					if dhcpv6ID != "" {
-						return "", fmt.Errorf("Multiple matching DHCP option sets found for switch %q and subnet %q", n.getIntSwitchName(), dhcpv6Subnet.String())
-					}
-
-					dhcpv6ID = existingOpt.UUID
-				}
-			}
-
-			if dhcpv6ID == "" {
-				return "", fmt.Errorf("Could not find DHCPv6 options for instance port for subnet %q", dhcpv6Subnet.String())
-			}
-
-			// If port isn't going to have fully dynamic IPs allocated by OVN, and instead only static
-			// IPv4 addresses have been added, then add an EUI64 static IPv6 address so that the switch
-			// port has an IPv6 address that will be used to generate a DNS record. This works around a
-			// limitation in OVN that prevents us requesting dynamic IPv6 address allocation when
-			// static IPv4 allocation is used or when we don't want to have dynamic IPv4 allocation.
-			if len(staticIPs) > 0 || dhcpv4Subnet == nil {
-				hasIPv6 := false
-				for _, ip := range staticIPs {
-					if ip.To4() == nil {
-						hasIPv6 = true
-						break
-					}
-				}
-
-				if !hasIPv6 {
-					eui64IP, err := eui64.ParseMAC(dhcpv6Subnet.IP, mac)
-					if err != nil {
-						return "", fmt.Errorf("Failed generating EUI64 for instance port %q: %w", mac.String(), err)
-					}
-
-					// Add EUI64 to list of static IPs for instance port.
-					staticIPs = append(staticIPs, eui64IP)
-				}
-			}
-		}
+		revert.Add(func() { _ = client.LogicalSwitchPortDelete(instancePortName) })
 	}
-
-	instancePortName := n.getInstanceDevicePortName(opts.InstanceUUID, opts.DeviceName)
-
-	var nestedPortParentName openvswitch.OVNSwitchPort
-	var nestedPortVLAN uint16
-	if opts.DeviceConfig["nested"] != "" {
-		nestedPortParentName = n.getInstanceDevicePortName(opts.InstanceUUID, opts.DeviceConfig["nested"])
-		nestedPortVLANInt64, err := strconv.ParseUint(opts.DeviceConfig["vlan"], 10, 16)
-		if err != nil {
-			return "", fmt.Errorf("Invalid VLAN ID %q: %w", opts.DeviceConfig["vlan"], err)
-		}
-
-		nestedPortVLAN = uint16(nestedPortVLANInt64)
-	}
-
-	// Add port with mayExist set to true, so that if instance port exists, we don't fail and continue below
-	// to configure the port as needed. This is required because the port is created when the NIC is added, but
-	// we need to ensure it is present at start up as well in case it was deleted since the NIC was added.
-	err = client.LogicalSwitchPortAdd(n.getIntSwitchName(), instancePortName, &openvswitch.OVNSwitchPortOpts{
-		DHCPv4OptsID: dhcpV4ID,
-		DHCPv6OptsID: dhcpv6ID,
-		MAC:          mac,
-		IPs:          staticIPs,
-		Parent:       nestedPortParentName,
-		VLAN:         nestedPortVLAN,
-		Location:     n.state.ServerName,
-	}, true)
-	if err != nil {
-		return "", err
-	}
-
-	revert.Add(func() { _ = client.LogicalSwitchPortDelete(instancePortName) })
 
 	// Add DNS records for port's IPs, and retrieve the IP addresses used.
 	var dnsIPv4, dnsIPv6 net.IP
@@ -3844,8 +3848,8 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	}
 
 	// Populate DNS IP variables with any static IPs first before checking if we need to extract dynamic IPs.
-	for _, staticIP := range staticIPs {
-		checkAndStoreIP(staticIP)
+	for _, portIP := range portIPs {
+		checkAndStoreIP(portIP)
 	}
 
 	// Get dynamic IPs for switch port if any IPs not assigned statically.
