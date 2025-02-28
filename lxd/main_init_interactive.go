@@ -843,6 +843,42 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 				}
 
 				pool.Config["ceph.osd.pool_name"] = pool.Config["source"]
+			} else if pool.Driver == "powerflex" {
+				// ask for the PowerFlex user.
+				pool.Config["powerflex.user.name"], err = c.global.asker.AskString("Name of the PowerFlex user [default=admin]: ", "admin", nil)
+				if err != nil {
+					return err
+				}
+
+				// ask for the PowerFlex password.
+				pool.Config["powerflex.user.password"], err = c.global.asker.AskString("Name of the PowerFlex password: ", "", nil)
+				if err != nil {
+					return err
+				}
+
+				// ask for the PowerFlex protection domain.
+				pool.Config["powerflex.domain"], err = c.global.asker.AskString("Name of the PowerFlex protection domain: ", "", nil)
+				if err != nil {
+					return err
+				}
+
+				// ask for the PowerFlex pool.
+				pool.Config["powerflex.pool"], err = c.global.asker.AskString("Name of the PowerFlex pool: ", "", nil)
+				if err != nil {
+					return err
+				}
+
+				// ask for the PowerFlex gateway address.
+				pool.Config["powerflex.gateway"], err = c.global.asker.AskString("Address of the PowerFlex gateway: ", "", nil)
+				if err != nil {
+					return err
+				}
+
+				// ask for the PowerFlex mode.
+				pool.Config["powerflex.mode"], err = c.global.asker.AskString("Mode used to connect PowerFlex volumes [default=nvme]: ", "nvme", nil)
+				if err != nil {
+					return err
+				}
 			} else {
 				question := "Name of the existing " + strings.ToUpper(pool.Driver) + " pool or dataset: "
 				pool.Config["source"], err = c.global.asker.AskString(question, "", nil)
