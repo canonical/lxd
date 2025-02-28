@@ -474,6 +474,102 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 	return &network, nil
 }
 
+// Fetch native linux bridge information.
+func getNativeBridgeState(name string) *api.NetworkStateBridge {
+	bridge := api.NetworkStateBridge{}
+	bridgePath := fmt.Sprintf("/sys/class/net/%s/bridge", name)
+	if sysfsExists(bridgePath) {
+
+		// Bridge ID.
+		strValue, err := os.ReadFile(filepath.Join(bridgePath, "bridge_id"))
+		if err == nil {
+			bridge.ID = strings.TrimSpace(string(strValue))
+		}
+
+		// Bridge STP.
+		uintValue, err := readUint(filepath.Join(bridgePath, "stp_state"))
+		if err == nil {
+			bridge.STP = uintValue == 1
+		}
+
+		// Bridge forward delay.
+		uintValue, err = readUint(filepath.Join(bridgePath, "forward_delay"))
+		if err == nil {
+			bridge.ForwardDelay = uintValue
+		}
+
+		// Bridge default VLAN.
+		uintValue, err = readUint(filepath.Join(bridgePath, "default_pvid"))
+		if err == nil {
+			bridge.VLANDefault = uintValue
+		}
+
+		// Bridge VLAN filtering.
+		uintValue, err = readUint(filepath.Join(bridgePath, "vlan_filtering"))
+		if err == nil {
+			bridge.VLANFiltering = uintValue == 1
+		}
+
+		// Upper devices.
+		bridgeIfPath := fmt.Sprintf("/sys/class/net/%s/brif", name)
+		if sysfsExists(bridgeIfPath) {
+			entries, err := os.ReadDir(bridgeIfPath)
+			if err == nil {
+				bridge.UpperDevices = []string{}
+				for _, entry := range entries {
+					bridge.UpperDevices = append(bridge.UpperDevices, entry.Name())
+				}
+			}
+		}
+	}
+
+	return &bridge
+}
+
+// Fetch OVS bridge information.
+func getOVSBridgeState(ovs *openvswitch.OVS, name string) *api.NetworkStateBridge {
+	//time.Sleep(time.Second * 6)
+	bridge := api.NetworkStateBridge{}
+
+	// Bridge ID
+	strValue, err := ovs.GenerateOVSBridgeID(name)
+	if err == nil {
+		bridge.ID = strValue
+	}
+
+	// Bridge STP
+	boolValue, err := ovs.StpEnabled(name)
+	if err == nil {
+		bridge.STP = boolValue
+	}
+
+	// Bridge Forwards Delay
+	uintValue, err := ovs.GetStpForwardDelay(name)
+	if err == nil {
+		bridge.ForwardDelay = uintValue
+	}
+
+	// Bridge default VLAN (PVID)
+	uintValue, err = ovs.GetVlanPvid(name)
+	if err == nil {
+		bridge.VLANDefault = uintValue
+	}
+
+	// Bridge VLAN filtering
+	boolValue, err = ovs.VlanFilteringEnabled(name)
+	if err == nil {
+		bridge.VLANFiltering = boolValue
+	}
+
+	//Upper devices
+	entries, err := ovs.BridgePortList(name)
+	if err == nil {
+		bridge.UpperDevices = append(bridge.UpperDevices, entries...)
+	}
+
+	return &bridge
+}
+
 // GetNetworkState returns the OS configuration for the network interface.
 func GetNetworkState(name string) (*api.NetworkState, error) {
 	// Reject known bad names that might cause problem when dealing with paths.
@@ -606,106 +702,20 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 		network.Bond = &bonding
 	}
 
-	// Populate bridge details
+	// Populate bridge details and determine if it is an OVS bridge
 	ovs := openvswitch.NewOVS()
-	exists := false
+	isOVSBridge := false
 	if ovs.Installed() {
-		exists, err = ovs.BridgeExists(name)
+		isOVSBridge, err = ovs.BridgeExists(name)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	bridge := api.NetworkStateBridge{}
-
-	if !exists {
-		// Populate native linux bridge details.
-		bridgePath := fmt.Sprintf("/sys/class/net/%s/bridge", name)
-		if sysfsExists(bridgePath) {
-
-			// Bridge ID.
-			strValue, err := os.ReadFile(filepath.Join(bridgePath, "bridge_id"))
-			if err == nil {
-				bridge.ID = strings.TrimSpace(string(strValue))
-			}
-
-			// Bridge STP.
-			uintValue, err := readUint(filepath.Join(bridgePath, "stp_state"))
-			if err == nil {
-				bridge.STP = uintValue == 1
-			}
-
-			// Bridge forward delay.
-			uintValue, err = readUint(filepath.Join(bridgePath, "forward_delay"))
-			if err == nil {
-				bridge.ForwardDelay = uintValue
-			}
-
-			// Bridge default VLAN.
-			uintValue, err = readUint(filepath.Join(bridgePath, "default_pvid"))
-			if err == nil {
-				bridge.VLANDefault = uintValue
-			}
-
-			// Bridge VLAN filtering.
-			uintValue, err = readUint(filepath.Join(bridgePath, "vlan_filtering"))
-			if err == nil {
-				bridge.VLANFiltering = uintValue == 1
-			}
-
-			// Upper devices.
-			bridgeIfPath := fmt.Sprintf("/sys/class/net/%s/brif", name)
-			if sysfsExists(bridgeIfPath) {
-				entries, err := os.ReadDir(bridgeIfPath)
-				if err == nil {
-					bridge.UpperDevices = []string{}
-					for _, entry := range entries {
-						bridge.UpperDevices = append(bridge.UpperDevices, entry.Name())
-					}
-				}
-			}
-
-			network.Bridge = &bridge
-		}
+	if !isOVSBridge {
+		network.Bridge = getNativeBridgeState(name)
 	} else {
-		// Populate OVS bridge details
-		// Bridge ID
-		strValue, err := ovs.GenerateOVSBridgeID(name)
-		if err == nil {
-			bridge.ID = strValue
-		}
-
-		// Bridge STP
-		boolValue, err := ovs.StpEnabled(name)
-		if err == nil {
-			bridge.STP = boolValue
-		}
-
-		// Bridge Forwards Delay
-		uintValue, err := ovs.GetStpForwardDelay(name)
-		if err == nil {
-			bridge.ForwardDelay = uintValue
-		}
-
-		// Bridge default VLAN (PVID)
-		uintValue, err = ovs.GetVlanPvid(name)
-		if err == nil {
-			bridge.VLANDefault = uintValue
-		}
-
-		// Bridge VLAN filtering
-		boolValue, err = ovs.VlanFilteringEnabled(name)
-		if err == nil {
-			bridge.VLANFiltering = boolValue
-		}
-
-		//Upper devices
-		entries, err := ovs.BridgePortList(name)
-		if err == nil {
-			bridge.UpperDevices = append(bridge.UpperDevices, entries...)
-		}
-		network.Bridge = &bridge
-
+		network.Bridge = getOVSBridgeState(ovs, name)
 	}
 
 	// Populate VLAN details.
