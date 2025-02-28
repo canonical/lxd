@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/pem"
 	"fmt"
 	"net"
@@ -711,7 +712,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 
 		// Optimization for zfs on zfs (when using Ubuntu's bpool/rpool)
 		if pool.Driver == "zfs" && backingFs == "zfs" {
-			poolName, _ := shared.RunCommand("zpool", "get", "-H", "-o", "value", "name", "rpool")
+			poolName, _ := shared.RunCommandContext(context.TODO(), "zpool", "get", "-H", "-o", "value", "name", "rpool")
 			if strings.TrimSpace(poolName) == "rpool" {
 				zfsDataset, err := c.global.asker.AskBool("Would you like to create a new zfs dataset under rpool/lxd? (yes/no) [default=yes]: ", "yes")
 				if err != nil {
@@ -726,9 +727,14 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 			}
 		}
 
-		poolCreate, err := c.global.asker.AskBool(fmt.Sprintf("Create a new %s pool? (yes/no) [default=yes]: ", strings.ToUpper(pool.Driver)), "yes")
-		if err != nil {
-			return err
+		poolCreate := false
+
+		// PowerFlex can only consume already existing storage pools.
+		if pool.Driver != "powerflex" {
+			poolCreate, err = c.global.asker.AskBool(fmt.Sprintf("Create a new %s pool? (yes/no) [default=yes]: ", strings.ToUpper(pool.Driver)), "yes")
+			if err != nil {
+				return err
+			}
 		}
 
 		if poolCreate {
@@ -838,6 +844,42 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 				}
 
 				pool.Config["ceph.osd.pool_name"] = pool.Config["source"]
+			} else if pool.Driver == "powerflex" {
+				// ask for the PowerFlex user.
+				pool.Config["powerflex.user.name"], err = c.global.asker.AskString("Name of the PowerFlex user [default=admin]: ", "admin", nil)
+				if err != nil {
+					return err
+				}
+
+				// ask for the PowerFlex password.
+				pool.Config["powerflex.user.password"], err = c.global.asker.AskString("Name of the PowerFlex password: ", "", nil)
+				if err != nil {
+					return err
+				}
+
+				// ask for the PowerFlex protection domain.
+				pool.Config["powerflex.domain"], err = c.global.asker.AskString("Name of the PowerFlex protection domain: ", "", nil)
+				if err != nil {
+					return err
+				}
+
+				// ask for the PowerFlex pool.
+				pool.Config["powerflex.pool"], err = c.global.asker.AskString("Name of the PowerFlex pool: ", "", nil)
+				if err != nil {
+					return err
+				}
+
+				// ask for the PowerFlex gateway address.
+				pool.Config["powerflex.gateway"], err = c.global.asker.AskString("Address of the PowerFlex gateway: ", "", nil)
+				if err != nil {
+					return err
+				}
+
+				// ask for the PowerFlex mode.
+				pool.Config["powerflex.mode"], err = c.global.asker.AskString("Mode used to connect PowerFlex volumes [default=nvme]: ", "nvme", nil)
+				if err != nil {
+					return err
+				}
 			} else {
 				question := "Name of the existing " + strings.ToUpper(pool.Driver) + " pool or dataset: "
 				pool.Config["source"], err = c.global.asker.AskString(question, "", nil)
