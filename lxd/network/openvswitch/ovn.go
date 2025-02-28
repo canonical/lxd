@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/lxd/linux"
-	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/dnsutil"
 )
@@ -180,9 +179,8 @@ type OVNRouterPeering struct {
 }
 
 // NewOVN initialises new OVN client wrapper with the connection set in network.ovn.northbound_connection config.
-func NewOVN(s *state.State) (*OVN, error) {
+func NewOVN(nbConnection string, sslSettings func() (sslCACert string, sslClientCert string, sslClientKey string)) (*OVN, error) {
 	// Get database connection strings.
-	nbConnection := s.GlobalConfig.NetworkOVNNorthboundConnection()
 	sbConnection, err := NewOVS().OVNSouthboundDBRemoteAddress()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get OVN southbound connection string: %w", err)
@@ -196,7 +194,7 @@ func NewOVN(s *state.State) (*OVN, error) {
 
 	// If using SSL, then get the CA and client key pair.
 	if strings.Contains(nbConnection, "ssl:") {
-		sslCACert, sslClientCert, sslClientKey := s.GlobalConfig.NetworkOVNSSL()
+		sslCACert, sslClientCert, sslClientKey := sslSettings()
 
 		if sslCACert == "" {
 			content, err := os.ReadFile("/etc/ovn/ovn-central.crt")
