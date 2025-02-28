@@ -411,7 +411,7 @@ func getImgInfo(d lxd.InstanceServer, conf *config.Config, imgRemote string, ins
 		// Get the image info
 		imgInfo, _, err = imgRemoteServer.GetImage(imageRef)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf(i18n.G("Failed to find image %q on remote %q"), imageRef, imgRemote)
 		}
 	}
 
