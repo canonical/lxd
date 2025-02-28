@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -297,6 +298,96 @@ func devlxdImageExportHandler(d *Daemon, w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
+var devlxdUbuntuProGet = devLxdHandler{
+	path:        "/1.0/ubuntu-pro",
+	handlerFunc: devlxdUbuntuProGetHandler,
+}
+
+func devlxdUbuntuProGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+	if r.Method != http.MethodGet {
+		return errorResponse(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
+	}
+
+	// Get a http.Client.
+	client, err := getClient(d.serverCID, int(d.serverPort), d.serverCertificate)
+	if err != nil {
+		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+	}
+
+	// Remove the request URI, this cannot be set on requests.
+	r.RequestURI = ""
+
+	// Set up the request URL with the correct host.
+	r.URL = &api.NewURL().Scheme("https").Host("custom.socket").Path(version.APIVersion, "ubuntu-pro").URL
+
+	// Proxy the request.
+	resp, err := client.Do(r)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, err.Error())
+	}
+
+	var apiResponse api.Response
+	err = json.NewDecoder(resp.Body).Decode(&apiResponse)
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	var settingsResponse api.UbuntuProSettings
+	err = json.Unmarshal(apiResponse.Metadata, &settingsResponse)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, fmt.Sprintf("Invalid Ubuntu Token settings response received from host: %v", err))
+	}
+
+	return okResponse(settingsResponse, "json")
+}
+
+var devlxdUbuntuProTokenPost = devLxdHandler{
+	path:        "/1.0/ubuntu-pro/token",
+	handlerFunc: devlxdUbuntuProTokenPostHandler,
+}
+
+func devlxdUbuntuProTokenPostHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+	if r.Method != http.MethodPost {
+		return errorResponse(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
+	}
+
+	// Get a http.Client.
+	client, err := getClient(d.serverCID, int(d.serverPort), d.serverCertificate)
+	if err != nil {
+		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+	}
+
+	// Remove the request URI, this cannot be set on requests.
+	r.RequestURI = ""
+
+	// Set up the request URL with the correct host.
+	r.URL = &api.NewURL().Scheme("https").Host("custom.socket").Path(version.APIVersion, "ubuntu-pro", "token").URL
+
+	// Proxy the request.
+	resp, err := client.Do(r)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, err.Error())
+	}
+
+	var apiResponse api.Response
+	err = json.NewDecoder(resp.Body).Decode(&apiResponse)
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	if apiResponse.StatusCode != http.StatusOK {
+		return errorResponse(apiResponse.Code, apiResponse.Error)
+	}
+
+	var tokenResponse api.UbuntuProGuestTokenResponse
+	err = json.Unmarshal(apiResponse.Metadata, &tokenResponse)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, fmt.Sprintf("Invalid Ubuntu Token response received from host: %v", err))
+	}
+
+	return okResponse(tokenResponse, "json")
+}
+
 var handlers = []devLxdHandler{
 	{
 		path: "/",
@@ -311,6 +402,8 @@ var handlers = []devLxdHandler{
 	devLxdEventsGet,
 	devlxdDevicesGet,
 	devlxdImageExport,
+	devlxdUbuntuProGet,
+	devlxdUbuntuProTokenPost,
 }
 
 func hoistReq(f func(*Daemon, http.ResponseWriter, *http.Request) *devLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {

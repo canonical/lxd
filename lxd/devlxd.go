@@ -317,6 +317,50 @@ func devlxdDevicesGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrit
 	return response.DevLxdResponse(http.StatusOK, c.ExpandedDevices(), "json", c.Type() == instancetype.VM)
 }
 
+var devlxdUbuntuProGet = devLxdHandler{
+	path:        "/1.0/ubuntu-pro",
+	handlerFunc: devlxdUbuntuProGetHandler,
+}
+
+func devlxdUbuntuProGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.NewGenericStatusError(http.StatusForbidden), c.Type() == instancetype.VM)
+	}
+
+	if r.Method != http.MethodGet {
+		return response.DevLxdErrorResponse(api.NewGenericStatusError(http.StatusMethodNotAllowed), c.Type() == instancetype.VM)
+	}
+
+	settings := d.State().UbuntuPro.GuestAttachSettings(c.ExpandedConfig()["ubuntu_pro.guest_attach"])
+
+	// Otherwise, return the value from the instance configuration.
+	return response.DevLxdResponse(http.StatusOK, settings, "json", c.Type() == instancetype.VM)
+}
+
+var devlxdUbuntuProTokenPost = devLxdHandler{
+	path:        "/1.0/ubuntu-pro/token",
+	handlerFunc: devlxdUbuntuProTokenPostHandler,
+}
+
+func devlxdUbuntuProTokenPostHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.NewGenericStatusError(http.StatusForbidden), c.Type() == instancetype.VM)
+	}
+
+	if r.Method != http.MethodPost {
+		return response.DevLxdErrorResponse(api.NewGenericStatusError(http.StatusMethodNotAllowed), c.Type() == instancetype.VM)
+	}
+
+	// Return http.StatusForbidden if the host does not have guest attachment enabled.
+	tokenJSON, err := d.State().UbuntuPro.GetGuestToken(r.Context(), c.ExpandedConfig()["ubuntu_pro.guest_attach"])
+	if err != nil {
+		return response.DevLxdErrorResponse(fmt.Errorf("Failed to get an Ubuntu Pro guest token: %w", err), c.Type() == instancetype.VM)
+	}
+
+	// Pass it back to the guest.
+	return response.DevLxdResponse(http.StatusOK, tokenJSON, "json", c.Type() == instancetype.VM)
+}
+
 var handlers = []devLxdHandler{
 	{
 		path: "/",
@@ -331,6 +375,8 @@ var handlers = []devLxdHandler{
 	devlxdEventsGet,
 	devlxdImageExport,
 	devlxdDevicesGet,
+	devlxdUbuntuProGet,
+	devlxdUbuntuProTokenPost,
 }
 
 func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
