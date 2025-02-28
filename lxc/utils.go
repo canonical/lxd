@@ -141,7 +141,7 @@ func parseDeviceOverrides(deviceOverrideArgs []string) (map[string]map[string]st
 
 // IsAliasesSubset returns true if the first array is completely contained in the second array.
 func IsAliasesSubset(a1 []api.ImageAlias, a2 []api.ImageAlias) bool {
-	set := make(map[string]interface{})
+	set := make(map[string]any)
 	for _, alias := range a2 {
 		set[alias.Name] = nil
 	}
@@ -325,9 +325,9 @@ func structHasField(typ reflect.Type, field string) bool {
 }
 
 // getServerSupportedFilters returns two lists: one with filters supported by server and second one with not supported.
-func getServerSupportedFilters(filters []string, i interface{}) ([]string, []string) {
-	supportedFilters := []string{}
-	unsupportedFilters := []string{}
+func getServerSupportedFilters(filters []string, i any) (supportedFilters []string, unsupportedFilters []string) {
+	supportedFilters = []string{}
+	unsupportedFilters = []string{}
 
 	for _, filter := range filters {
 		membs := strings.SplitN(filter, "=", 2)
@@ -347,7 +347,7 @@ func getServerSupportedFilters(filters []string, i interface{}) ([]string, []str
 }
 
 // guessImage checks that the image name (provided by the user) is correct given an instance remote and image remote.
-func guessImage(conf *config.Config, d lxd.InstanceServer, instRemote string, imgRemote string, imageRef string) (string, string) {
+func guessImage(conf *config.Config, d lxd.InstanceServer, instRemote string, imgRemote string, imageRef string) (imageRemote string, image string) {
 	if instRemote != imgRemote {
 		return imgRemote, imageRef
 	}
