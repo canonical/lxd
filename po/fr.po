@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-02-12 10:13-0800\n"
+"POT-Creation-Date: 2025-02-28 17:38+0100\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -1056,7 +1056,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:347 lxc/rebuild.go:131
+#: lxc/init.go:348 lxc/rebuild.go:131
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -1315,7 +1315,7 @@ msgstr ""
 msgid "Can't specify --project with --all-projects"
 msgstr ""
 
-#: lxc/rename.go:60
+#: lxc/rename.go:59
 msgid "Can't specify a different remote for rename"
 msgstr ""
 
@@ -2137,7 +2137,7 @@ msgstr "Récupération de l'image : %s"
 #: lxc/project.go:856 lxc/project.go:923 lxc/publish.go:34 lxc/query.go:34
 #: lxc/rebuild.go:28 lxc/remote.go:35 lxc/remote.go:91 lxc/remote.go:749
 #: lxc/remote.go:787 lxc/remote.go:873 lxc/remote.go:954 lxc/remote.go:1018
-#: lxc/remote.go:1066 lxc/rename.go:22 lxc/restore.go:24 lxc/snapshot.go:32
+#: lxc/remote.go:1066 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32
 #: lxc/storage.go:34 lxc/storage.go:97 lxc/storage.go:203 lxc/storage.go:261
 #: lxc/storage.go:393 lxc/storage.go:475 lxc/storage.go:655 lxc/storage.go:742
 #: lxc/storage.go:846 lxc/storage.go:940 lxc/storage_bucket.go:30
@@ -2237,7 +2237,7 @@ msgstr ""
 msgid "Device: %s"
 msgstr "Serveur distant : %s"
 
-#: lxc/init.go:407
+#: lxc/init.go:408
 #, fuzzy
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr "pas d'image, conteneur ou instantané affecté sur ce serveur"
@@ -2792,6 +2792,11 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 #, fuzzy, c-format
 msgid "Failed to decode trust token: %w"
 msgstr "Profil à appliquer au nouveau conteneur"
+
+#: lxc/utils.go:414
+#, fuzzy, c-format
+msgid "Failed to find image %q on remote %q"
+msgstr "Échec lors de la génération de 'lxc.1': %v"
 
 #: lxc/remote.go:306
 #, fuzzy, c-format
@@ -3409,7 +3414,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
 
-#: lxc/init.go:418
+#: lxc/init.go:419
 #, fuzzy, c-format
 msgid "Instance name is: %s"
 msgstr "Le nom du conteneur est : %s"
@@ -5642,7 +5647,7 @@ msgstr "Copie de l'image : %s"
 msgid "Rename identity provider groups"
 msgstr "Copie de l'image : %s"
 
-#: lxc/rename.go:21 lxc/rename.go:22
+#: lxc/rename.go:20 lxc/rename.go:21
 #, fuzzy
 msgid "Rename instances and snapshots"
 msgstr "Forcer le conteneur à s'arrêter"
@@ -5722,12 +5727,12 @@ msgstr "Le pendant de `lxc pause` est `lxc start`."
 msgid "Restore cluster member"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/restore.go:23
+#: lxc/restore.go:21
 #, fuzzy
 msgid "Restore instances from snapshots"
 msgstr "Forcer le conteneur à s'arrêter"
 
-#: lxc/restore.go:24
+#: lxc/restore.go:22
 #, fuzzy
 msgid ""
 "Restore instances from snapshots\n"
@@ -5769,7 +5774,7 @@ msgstr ""
 msgid "Retrieve the container's console log"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/init.go:361
+#: lxc/init.go:362
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "Récupération de l'image : %s"
@@ -6728,7 +6733,7 @@ msgstr ""
 "Le conteneur est en cours d'exécution. Utiliser --force pour qu'il soit "
 "arrêté et redémarré."
 
-#: lxc/init.go:439
+#: lxc/init.go:440
 #, fuzzy
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
@@ -6904,12 +6909,12 @@ msgstr "Temps d'attente du conteneur avant de le tuer"
 msgid "Timestamps:"
 msgstr "Horodatage :"
 
-#: lxc/init.go:441
+#: lxc/init.go:442
 #, fuzzy
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 
-#: lxc/init.go:440
+#: lxc/init.go:441
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
@@ -7401,7 +7406,7 @@ msgstr ""
 msgid "Whether or not to only backup the instance (without snapshots)"
 msgstr "Réaliser ou pas l'instantané de l'état de fonctionnement du conteneur"
 
-#: lxc/restore.go:36
+#: lxc/restore.go:34
 #, fuzzy
 msgid ""
 "Whether or not to restore the instance's running state from snapshot (if "
@@ -7919,7 +7924,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/restore.go:22
+#: lxc/restore.go:20
 #, fuzzy
 msgid "[<remote>:]<instance> <snapshot>"
 msgstr ""
@@ -8041,7 +8046,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/rename.go:20
+#: lxc/rename.go:19
 #, fuzzy
 msgid "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
 msgstr ""
@@ -9250,7 +9255,7 @@ msgid ""
 "\"config.yaml\"."
 msgstr ""
 
-#: lxc/restore.go:28
+#: lxc/restore.go:26
 msgid ""
 "lxc snapshot u1 snap0\n"
 "    Create the snapshot.\n"
