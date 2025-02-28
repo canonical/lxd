@@ -132,7 +132,7 @@ func (n *ovn) State() (*api.NetworkState, error) {
 		})
 	}
 
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return nil, err
 	}
@@ -2139,7 +2139,7 @@ func (n *ovn) setup(update bool) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -2795,7 +2795,7 @@ func (n *ovn) logicalRouterPolicySetup(client *openvswitch.OVN, excludePeers ...
 // ensureNetworkPortGroup ensures that the network level port group (used for classifying NICs connected to this
 // network as internal) exists.
 func (n *ovn) ensureNetworkPortGroup(projectID int64) error {
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -2823,7 +2823,7 @@ func (n *ovn) ensureNetworkPortGroup(projectID int64) error {
 // The chassis priority value is a stable-random value derived from chassis group name and node ID. This is so we
 // don't end up using the same chassis for the primary uplink chassis for all OVN networks in a cluster.
 func (n *ovn) addChassisGroupEntry() error {
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -2888,7 +2888,7 @@ func (n *ovn) addChassisGroupEntry() error {
 
 // deleteChassisGroupEntry deletes an entry for the local OVS chassis from the OVN logical network's chassis group.
 func (n *ovn) deleteChassisGroupEntry() error {
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -2918,7 +2918,7 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 	}
 
 	if clientType == request.ClientTypeNormal {
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -3323,7 +3323,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		addChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
 		removeChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -3667,7 +3667,7 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, deviceName string, devi
 	revert := revert.New()
 	defer revert.Fail()
 
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -3718,7 +3718,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	revert := revert.New()
 	defer revert.Fail()
 
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return "", fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -4198,7 +4198,7 @@ func (n *ovn) InstanceDevicePortIPs(instanceUUID string, deviceName string) ([]n
 		return nil, fmt.Errorf("Instance UUID is required")
 	}
 
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -4219,7 +4219,7 @@ func (n *ovn) InstanceDevicePortIPs(instanceUUID string, deviceName string) ([]n
 func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error {
 	instancePortName := n.getInstanceDevicePortName(instanceUUID, deviceName)
 
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -4571,7 +4571,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 	if shared.ValueInSlice("ovn.ingress_mode", changedKeys) {
 		n.logger.Debug("Applying ingress mode changes from uplink network to instance NICs", logger.Ctx{"uplink": uplinkName})
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -4822,7 +4822,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 			return nil, err
 		}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -4926,7 +4926,7 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 			return nil // Nothing has changed.
 		}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -5003,7 +5003,7 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 			return err
 		}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -5110,7 +5110,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 			return nil, err
 		}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -5214,7 +5214,7 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 			return nil // Nothing has changed.
 		}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -5292,7 +5292,7 @@ func (n *ovn) LoadBalancerDelete(listenAddress string, clientType request.Client
 			return err
 		}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -5487,7 +5487,7 @@ func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
 			return fmt.Errorf("Only peerings in %q state can be setup", api.NetworkStatusCreated)
 		}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -5783,7 +5783,7 @@ func (n *ovn) PeerDelete(peerName string) error {
 			TargetRouterPort: targetOVNNet.getLogicalRouterPeerPortName(n.ID()),
 		}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
