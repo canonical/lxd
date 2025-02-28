@@ -3717,8 +3717,9 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 	// Logical switch port setup section.
 	{
-		needDynamicIPv4 := dhcpv4Subnet != nil
-		needDynamicIPv6 := dhcpv6Subnet != nil
+		// Port will need dynamic IPs if DHCP is enabled on network or if the device has routes.
+		needDynamicIPv4 := dhcpv4Subnet != nil || opts.DeviceConfig["ipv4.routes"] != "" || opts.DeviceConfig["ipv4.routes.external"] != ""
+		needDynamicIPv6 := dhcpv6Subnet != nil || opts.DeviceConfig["ipv6.routes"] != "" || opts.DeviceConfig["ipv6.routes.external"] != ""
 
 		for _, key := range []string{"ipv4.address", "ipv6.address"} {
 			if opts.DeviceConfig[key] == "" {
@@ -3786,7 +3787,14 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		// If port only needs dynamic IPv6 address then generate EUI64 address and request that statically.
 		// This works around a limitation in OVN where we can only request dynamic IPs for both protocols.
 		if !needDynamicIPv4 && needDynamicIPv6 {
-			eui64IP, err := eui64.ParseMAC(dhcpv6Subnet.IP, mac)
+			// Don't use dhcpv6Subnet here as it will be nil if ipv6.dhcp=false, but we still need to
+			// parse the network IPv6 subnet when device has routes.
+			_, subnet, err := n.parseRouterIntPortIPv6Net()
+			if err != nil {
+				return "", fmt.Errorf("Failed getting subnet for EUI64 for instance port %q: %w", mac.String(), err)
+			}
+
+			eui64IP, err := eui64.ParseMAC(subnet.IP, mac)
 			if err != nil {
 				return "", fmt.Errorf("Failed generating EUI64 for instance port %q: %w", mac.String(), err)
 			}
