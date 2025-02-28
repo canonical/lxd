@@ -924,6 +924,56 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	//  shortdesc: Whether to handle the `sysinfo` system call
 	"security.syscalls.intercept.sysinfo": validate.Optional(validate.IsBool),
 
+	// lxdmeta:generate(entities=instance; group=security; key=security.delegate_bpf)
+	//
+	// ---
+	//  type: bool
+	//  defaultdesc: `false`
+	//  liveupdate: no
+	//  condition: unprivileged container
+	//  shortdesc: Whether to enable eBPF delegation using BPF Token mechanism
+	"security.delegate_bpf": validate.Optional(validate.IsBool),
+
+	// lxdmeta:generate(entities=instance; group=security; key=security.delegate_bpf.cmds)
+	//
+	// ---
+	//  type: bool
+	//  defaultdesc: `false`
+	//  liveupdate: no
+	//  condition: unprivileged container
+	//  shortdesc: Which eBPF commands to allow with delegation mechanism
+	"security.delegate_bpf.cmds": validate.Optional(validate.IsBpfDelegateOption("cmds")),
+
+	// lxdmeta:generate(entities=instance; group=security; key=security.delegate_bpf.maps)
+	//
+	// ---
+	//  type: bool
+	//  defaultdesc: `false`
+	//  liveupdate: no
+	//  condition: unprivileged container
+	//  shortdesc: Which eBPF maps to allow with delegation mechanism
+	"security.delegate_bpf.maps": validate.Optional(validate.IsBpfDelegateOption("maps")),
+
+	// lxdmeta:generate(entities=instance; group=security; key=security.delegate_bpf.progs)
+	//
+	// ---
+	//  type: bool
+	//  defaultdesc: `false`
+	//  liveupdate: no
+	//  condition: unprivileged container
+	//  shortdesc: Which eBPF program types to allow with delegation mechanism
+	"security.delegate_bpf.progs": validate.Optional(validate.IsBpfDelegateOption("progs")),
+
+	// lxdmeta:generate(entities=instance; group=security; key=security.delegate_bpf.attachs)
+	//
+	// ---
+	//  type: bool
+	//  defaultdesc: `false`
+	//  liveupdate: no
+	//  condition: unprivileged container
+	//  shortdesc: Which eBPF attach types to allow with delegation mechanism
+	"security.delegate_bpf.attachs": validate.Optional(validate.IsBpfDelegateOption("attachs")),
+
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.last_state.idmap)
 	// The UID/GID map that has been applied to the container's underlying storage.
 	// This is usually set for containers created on older kernels that don't
