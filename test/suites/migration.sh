@@ -173,7 +173,7 @@ migration() {
   remote_pool=$(lxc_remote config profile device get l2:default root pool)
 
   # Test container only copies
-  lxc init testimage cccp -d root,size=64MiB
+  lxc init testimage cccp -d root,size=16MiB
 
   lxc storage volume set "${pool}" container/cccp user.foo=snap0
   echo "before" | lxc file push - cccp/blah
