@@ -6,10 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/state"
@@ -17,9 +19,11 @@ import (
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
-func daemonStorageVolumesUnmount(s *state.State) error {
+func daemonStorageVolumesUnmount(ctx context.Context, unmountTimeout <-chan time.Time, s *state.State, opsTracker *OperationTracker) error {
 	var storageBackups string
 	var storageImages string
 
@@ -59,21 +63,127 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 		return nil
 	}
 
-	if storageBackups != "" {
-		err := unmount(storageBackups)
-		if err != nil {
-			return fmt.Errorf("Failed to unmount backups storage: %w", err)
+	if opsTracker != nil && (storageBackups != "" || storageImages != "") {
+		tick := time.NewTicker(time.Second)
+		defer tick.Stop()
+
+		// We're only interested to the ongoing operations related to 'volumes' in this function.
+		volumesTracker := opsTracker.GetOpsTrackingGroup("volumes")
+
+		storageBackupsUnmounted := false
+		var storageBackupsBaseURLPrefix string
+		var storageBackupsURLToRemoveFromMap string
+		storageImagesUnmounted := false
+		var storageImagesBaseURLPrefix string
+		var storageImagesURLToRemoveFromMap string
+
+		if storageBackups != "" {
+			poolName, volumeName, err := daemonStorageSplitVolume(storageBackups)
+			if err != nil {
+				return err
+			}
+
+			storageBackupsBaseURLPrefix = api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", "custom", volumeName).String()
+		} else {
+			storageBackupsUnmounted = true
+		}
+
+		if storageImages != "" {
+			poolName, volumeName, err := daemonStorageSplitVolume(storageImages)
+			if err != nil {
+				return err
+			}
+
+			storageImagesBaseURLPrefix = api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", "custom", volumeName).String()
+		} else {
+			storageImagesUnmounted = true
+		}
+
+		for {
+			select {
+			case <-unmountTimeout:
+				logger.Warn("Unmounting storage volumes timed out")
+				return fmt.Errorf("Failed to unmount backups and images storage volumes due to timeout")
+			case <-ctx.Done():
+				logger.Warn("Unmounting storage volumes cancelled")
+				return fmt.Errorf("Failed to unmount backups and images storage volumes due to context cancellation")
+			case <-tick.C:
+				volumesTracker.Mu.RLock()
+				for url, op := range volumesTracker.Ops {
+					if op.Status() == api.Running && op.Class() != operations.OperationClassToken {
+						continue
+					}
+
+					// Check if the resource has the same storageBackupsBaseURLPrefix prefix
+					if storageBackupsBaseURLPrefix != "" && !storageBackupsUnmounted && strings.HasPrefix(url, storageBackupsBaseURLPrefix) {
+						err := unmount(storageBackups)
+						if err != nil {
+							volumesTracker.Mu.RUnlock()
+							return fmt.Errorf("Failed to unmount backups storage: %w", err)
+						}
+
+						storageBackupsURLToRemoveFromMap = url
+						storageBackupsUnmounted = true
+						logger.Debug("Successfully unmounted backups storage volume")
+					}
+
+					if storageImagesBaseURLPrefix != "" && !storageImagesUnmounted && strings.HasPrefix(url, storageImagesBaseURLPrefix) {
+						err := unmount(storageImages)
+						if err != nil {
+							volumesTracker.Mu.RUnlock()
+							return fmt.Errorf("Failed to unmount images storage: %w", err)
+						}
+
+						storageImagesURLToRemoveFromMap = url
+						storageImagesUnmounted = true
+						logger.Debug("Successfully unmounted images storage volume")
+					}
+				}
+
+				volumesTracker.Mu.RUnlock()
+				if storageBackupsUnmounted && storageImagesUnmounted {
+					if storageBackupsURLToRemoveFromMap != "" {
+						volumesTracker.Mu.Lock()
+						logger.Debug("Removing storage backups URL from operations tracker", logger.Ctx{"url": storageBackupsURLToRemoveFromMap})
+						delete(volumesTracker.Ops, storageBackupsURLToRemoveFromMap)
+						volumesTracker.Mu.Unlock()
+					}
+
+					if storageImagesURLToRemoveFromMap != "" {
+						volumesTracker.Mu.Lock()
+						logger.Debug("Removing storage images URL from operations tracker", logger.Ctx{"url": storageImagesURLToRemoveFromMap})
+						delete(volumesTracker.Ops, storageImagesURLToRemoveFromMap)
+						volumesTracker.Mu.Unlock()
+					}
+
+					return nil
+				}
+			}
 		}
 	}
 
-	if storageImages != "" {
-		err := unmount(storageImages)
-		if err != nil {
-			return fmt.Errorf("Failed to unmount images storage: %w", err)
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("Failed to unmount backups and images storage volumes due to context cancellation")
+	case <-unmountTimeout:
+		return fmt.Errorf("Failed to unmount backups and images storage volumes due to timeout")
+	default:
+		if storageBackups != "" {
+			err := unmount(storageBackups)
+			if err != nil {
+				return fmt.Errorf("Failed to unmount backups storage: %w", err)
+			}
 		}
-	}
 
-	return nil
+		if storageImages != "" {
+			err := unmount(storageImages)
+			if err != nil {
+				return fmt.Errorf("Failed to unmount images storage: %w", err)
+			}
+		}
+
+		return nil
+	}
 }
 
 func daemonStorageMount(s *state.State) error {

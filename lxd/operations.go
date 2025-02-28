@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -57,82 +59,112 @@ var operationWebsocket = APIEndpoint{
 	Get: APIEndpointAction{Handler: operationWebsocketGet, AllowUntrusted: true},
 }
 
-// waitForOperations waits for operations to finish.
-// There's a timeout for console/exec operations that when reached will shut down the instances forcefully.
-func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdownTimeout time.Duration) {
-	timeout := time.After(consoleShutdownTimeout)
+// OpsTrackingGroup holds a mapping of entity URLs (string format for efficient key comparison) to their operation.
+// It is a thread-safe data structure. Each entries in the map should only be of one entity type (or of a same group of similar entity).
+type OpsTrackingGroup struct {
+	Mu  sync.RWMutex
+	Ops map[string]*operations.Operation
+}
 
-	defer func() {
-		_ = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			err := dbCluster.DeleteOperations(ctx, tx.Tx(), cluster.GetNodeID())
-			if err != nil {
-				logger.Error("Failed cleaning up operations")
-			}
+// OperationTracker contains operation tracking groups.
+// These are thread-safe types containing a map of entity URL to the associated operation.
+// The advantage of separating the entity URLs to operations mapping is that
+// we don't have to hold a global lock on one unique map when we read the operations in a goroutine
+// where we're only interested in a particular subset of operations.
+// e.g: I don't want to lock the read-write access on 'instance' related entries if I'm checking the 'volume' operations.
+// (see an example of that in the `daemonStorageVolumesUnmount` function).
+type OperationTracker struct {
+	instances OpsTrackingGroup
+	volumes   OpsTrackingGroup
+}
 
-			return nil
-		})
-	}()
+// NewOperationTracker create a new operation tracker.
+func NewOperationTracker() *OperationTracker {
+	return &OperationTracker{
+		instances: OpsTrackingGroup{Ops: make(map[string]*operations.Operation)},
+		volumes:   OpsTrackingGroup{Ops: make(map[string]*operations.Operation)},
+	}
+}
 
-	// Check operation status every second.
-	tick := time.NewTicker(time.Second)
-	defer tick.Stop()
+// GetOpsTrackingGroup extracts a particular tracking group from this global operation tracker.
+func (s *OperationTracker) GetOpsTrackingGroup(operationGroupID string) *OpsTrackingGroup {
+	switch operationGroupID {
+	case "instances":
+		return &s.instances
+	case "volumes":
+		return &s.volumes
+	default:
+		return nil
+	}
+}
 
-	var i int
-	for {
-		// Get all the operations
-		ops := operations.Clone()
+func entityToPendingOperations() (*OperationTracker, error) {
+	// Get all the operations
+	ops := operations.Clone()
+	// Create the operation store
+	opsTracker := NewOperationTracker()
+	instancesTracker := opsTracker.GetOpsTrackingGroup("instances")
+	volumesTracker := opsTracker.GetOpsTrackingGroup("volumes")
 
-		var runningOps, execConsoleOps int
-		for _, op := range ops {
-			if op.Status() != api.Running || op.Class() == operations.OperationClassToken {
-				continue
-			}
+	for _, op := range ops {
+		if op.Status() != api.Running || op.Class() == operations.OperationClassToken {
+			continue
+		}
 
-			runningOps++
+		_, opAPI, err := op.Render()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to render an operation while listing all operations: %w", err)
+		}
 
-			opType := op.Type()
-			if opType == operationtype.CommandExec || opType == operationtype.ConsoleShow {
-				execConsoleOps++
-			}
+		// If the current operations has a hold on some resources, we keep track of them in the `resourceMap`.
+		// This is used to mark instances and storage volumes as busy to avoid shutting them down / unmounting them prematurely.
+		// This allows the waitForOperations to be called in a goroutine alongside the instance shutdown goroutine and the custom volume unmounting goroutine (for backups and images)
+		// and to avoid the situation where a single very long running operation can block the shutdown of unrelated instances and the unmount of unrelated storage volumes.
+		if opAPI.Resources != nil {
+			for resourceName, resourceEntries := range opAPI.Resources {
+				if resourceName == "instances" || resourceName == "storage_volumes" || resourceName == "storage_volume_snapshots" || resourceName == "backups" {
+					for _, rawURL := range resourceEntries {
+						u := api.NewURL()
+						parsedURL, err := u.Parse(rawURL)
+						if err != nil {
+							return nil, fmt.Errorf("Failed to parse raw URL %q: %w", rawURL, err)
+						}
 
-			_, opAPI, err := op.Render()
-			if err != nil {
-				logger.Warn("Failed to render operation", logger.Ctx{"operation": op, "err": err})
-			} else if opAPI.MayCancel {
-				_, _ = op.Cancel()
+						entityType, projectName, location, pathArgs, err := entity.ParseURL(*parsedURL)
+						if err != nil {
+							return nil, fmt.Errorf("Failed to parse URL (%q) into a LXD entity: %w", parsedURL.String(), err)
+						}
+
+						entityURL, err := entityType.URL(projectName, location, pathArgs...)
+						if err != nil {
+							return nil, fmt.Errorf("Failed to generate entity URL: %w", err)
+						}
+
+						switch entityType {
+						case entity.TypeInstance:
+							instancesTracker.Mu.Lock()
+							logger.Debug("Adding instance to tracker map", logger.Ctx{"entityURL": entityURL.String(), "op status": op.Status()})
+							instancesTracker.Ops[entityURL.String()] = op
+							instancesTracker.Mu.Unlock()
+						case entity.TypeStorageVolume, entity.TypeStorageVolumeSnapshot, entity.TypeStorageVolumeBackup:
+							volumesTracker.Mu.Lock()
+							logger.Debug("Adding volume to tracker map", logger.Ctx{"entityURL": entityURL.String(), "op status": op.Status()})
+							volumesTracker.Ops[entityURL.String()] = op
+							volumesTracker.Mu.Unlock()
+						default:
+							logger.Error("Unexpected entity type", logger.Ctx{"entityType": entityType})
+						}
+					}
+				}
 			}
 		}
 
-		// No more running operations left. Exit function.
-		if runningOps == 0 {
-			logger.Info("All running operations finished, shutting down")
-			return
-		}
-
-		// Print log message every minute.
-		if i%60 == 0 {
-			logger.Infof("Waiting for %d operation(s) to finish", runningOps)
-		}
-
-		i++
-
-		select {
-		case <-timeout:
-			// We wait up to core.shutdown_timeout minutes for exec/console operations to finish.
-			// If there are still running operations, we continue shutdown which will stop any running
-			// instances and terminate the operations.
-			if execConsoleOps > 0 {
-				logger.Info("Shutdown timeout reached, continuing with shutdown")
-			}
-
-			return
-		case <-ctx.Done():
-			// Return here, and ignore any running operations.
-			logger.Info("Forcing shutdown, ignoring running operations")
-			return
-		case <-tick.C:
+		if opAPI.MayCancel {
+			_, _ = op.Cancel()
 		}
 	}
+
+	return opsTracker, nil
 }
 
 // API functions
@@ -1229,4 +1261,78 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 	logger.Debug("Done removing orphaned operations across the cluster")
 
 	return nil
+}
+
+type operationWaitPost struct {
+	Duration  string              `json:"duration" yaml:"duration"`
+	OpClass   string              `json:"op_class" yaml:"op_class"`
+	OpType    string              `json:"op_type" yaml:"op_type"`
+	Resources map[string][]string `json:"resources" yaml:"resources"`
+}
+
+func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
+	// Extract the entity URL and duration from the request.
+	req := operationWaitPost{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Parse the duration.
+	duration, err := time.ParseDuration(req.Duration)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Extract and validate resources
+	var resources map[string][]api.URL
+	if req.Resources != nil {
+		resources = make(map[string][]api.URL)
+		for resourceType, entityURLs := range req.Resources {
+			for _, entityURL := range entityURLs {
+				parsedURL, err := url.Parse(entityURL)
+				if err != nil {
+					return response.BadRequest(err)
+				}
+
+				_, _, _, _, err = entity.ParseURL(*parsedURL)
+				if err != nil {
+					return response.BadRequest(err)
+				}
+
+				resources[resourceType] = append(resources[resourceType], api.URL{URL: *parsedURL})
+			}
+		}
+	}
+
+	opClass, err := operations.StringToOperationClass(req.OpClass)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	opType := operationtype.StringToOperationType(req.OpType)
+	if opType == operationtype.Unknown {
+		return response.BadRequest(fmt.Errorf("Invalid operation type %q", req.OpType))
+	}
+
+	run := func(op *operations.Operation) error {
+		// Just sleep for the duration.
+		time.Sleep(duration)
+		return nil
+	}
+
+	var onConnect func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error
+	if opClass == operations.OperationClassWebsocket {
+		onConnect = func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+			// Do nothing
+			return nil
+		}
+	}
+
+	op, err := operations.OperationCreate(d.State(), "", opClass, opType, resources, nil, run, nil, onConnect, r)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }

@@ -1533,7 +1533,7 @@ func (d *Daemon) init() error {
 			return fmt.Errorf("Failed loading containers to restart: %w", err)
 		}
 
-		instancesShutdown(instances)
+		instancesShutdown(d.shutdownCtx, instances, nil)
 		instancesStart(s, instances)
 	}
 
@@ -2071,42 +2071,66 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		if err == nil {
 			instancesLoaded = true
 		}
+
+		// Load cluster configuration.
+		var cancel context.CancelFunc
+		err = d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			config, err := clusterConfig.Load(ctx, tx)
+			if err != nil {
+				return err
+			}
+
+			d.globalConfigMu.Lock()
+			d.globalConfig = config
+			d.globalConfigMu.Unlock()
+
+			return nil
+		})
+		if err != nil {
+			logger.Warn("Failed loading cluster configuration", logger.Ctx{"err": err})
+			ctx, cancel = context.WithTimeout(ctx, 5*time.Minute)
+		} else {
+			ctx, cancel = context.WithTimeout(ctx, d.globalConfig.ShutdownTimeout())
+		}
+
+		defer cancel()
 	}
 
 	// Handle shutdown (unix.SIGPWR) and reload (unix.SIGTERM) signals.
 	if sig == unix.SIGPWR || sig == unix.SIGTERM {
+		var opsTracker *OperationTracker
 		if d.db.Cluster != nil {
-			// waitForOperations will block until all operations are done, or it's forced to shut down.
-			// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
-			// initiated using `lxd shutdown`.
-			waitForOperations(ctx, d.db.Cluster, s.GlobalConfig.ShutdownTimeout())
+			opsTracker, err = entityToPendingOperations()
+			if err != nil {
+				logger.Error("Failed to get entity to pending operations map", logger.Ctx{"err": err})
+			}
 		}
 
 		// Unmount daemon image and backup volumes if set.
 		logger.Info("Stopping daemon storage volumes")
-		done := make(chan struct{})
+		var volumesWg sync.WaitGroup
+		volumesWg.Add(1)
 		go func() {
-			err := daemonStorageVolumesUnmount(s)
+			unmountTimeout := time.After(1 * time.Minute)
+			logger.Debug("Unmounting daemon storage volumes")
+			err := daemonStorageVolumesUnmount(ctx, unmountTimeout, s, opsTracker)
 			if err != nil {
 				logger.Error("Failed to unmount image and backup volumes", logger.Ctx{"err": err})
 			}
 
-			done <- struct{}{}
+			volumesWg.Done()
 		}()
-
-		// Only wait 60 seconds in case the storage backend is unreachable.
-		select {
-		case <-time.After(time.Minute):
-			logger.Error("Timed out waiting for image and backup volume")
-		case <-done:
-		}
 
 		// Full shutdown requested.
 		if sig == unix.SIGPWR {
-			instancesShutdown(instances)
+			logger.Debug("Shutting down instances")
+			instancesShutdown(ctx, instances, opsTracker)
 
 			logger.Info("Stopping networks")
 			networkShutdown(s)
+
+			volumesWg.Wait()
+			logger.Debug("Daemon storage volumes unmounted")
 
 			// Unmount storage pools after instances stopped.
 			logger.Info("Stopping storage pools")
@@ -2136,6 +2160,23 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 					logger.Error("Unable to unmount storage pool", logger.Ctx{"pool": poolName, "err": err})
 					continue
 				}
+			}
+		}
+
+		if d.db.Cluster != nil {
+			// Remove remaining operations before closing the database.
+			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				err := dbCluster.DeleteOperations(ctx, tx.Tx(), s.DB.Cluster.GetNodeID())
+				if err != nil {
+					logger.Error("Failed cleaning up operations")
+				}
+
+				return nil
+			})
+			if err != nil {
+				logger.Error("Failed cleaning up operations", logger.Ctx{"err": err})
+			} else {
+				logger.Debug("Operations deleted from the database")
 			}
 		}
 	}
