@@ -37,6 +37,7 @@ require (
 	github.com/miekg/dns v1.1.64
 	github.com/minio/minio-go/v7 v7.0.90
 	github.com/mitchellh/mapstructure v1.5.0
+	github.com/moby/sys/capability v0.4.0
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/openfga/api/proto v0.0.0-20250127102726-f9709139a369
@@ -49,7 +50,6 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
-	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	github.com/vishvananda/netlink v1.3.0
 	github.com/zitadel/oidc/v3 v3.37.0
 	go.starlark.net v0.0.0-20250318223901-d9371fef63fe
@@ -145,6 +145,7 @@ require (
 	github.com/spf13/viper v1.20.1 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
+	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	github.com/zitadel/logging v0.6.2 // indirect
