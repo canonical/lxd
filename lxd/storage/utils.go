@@ -969,12 +969,25 @@ func volumeIsUsedByDevice(vol api.StorageVolume, inst *db.InstanceArgs, dev map[
 		}
 	}
 
+	var volName string
+	var snapName string
+
+	if shared.IsSnapshot(vol.Name) {
+		parts := strings.SplitN(vol.Name, shared.SnapshotDelimiter, 2)
+		volName, snapName = parts[0], parts[1]
+	} else if dev["source.snapshot"] != "" {
+		// vol is not a snapshot but dev refers to one
+		return false, nil
+	} else {
+		volName = vol.Name
+	}
+
 	volumeTypeName := cluster.StoragePoolVolumeTypeNameCustom
 	if dev["source.type"] != "" {
 		volumeTypeName = dev["source.type"]
 	}
 
-	if volumeTypeName == vol.Type && dev["source"] == vol.Name {
+	if volumeTypeName == vol.Type && dev["source"] == volName && dev["source.snapshot"] == snapName {
 		return true, nil
 	}
 
