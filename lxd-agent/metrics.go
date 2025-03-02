@@ -311,6 +311,10 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 	out := metrics.MemoryMetrics{}
 	scanner := bufio.NewScanner(bytes.NewReader(content))
 
+	// Variables for accurate RSS calculation using kernel memory accounting
+	var memTotalBytes, memFreeBytes, buffersBytes, cachedBytes, shmemBytes uint64
+	var foundMemTotal, foundMemFree, foundBuffers, foundCached, foundShmem bool
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		fields := strings.Fields(line)
@@ -331,7 +335,7 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 			value *= 1024
 		}
 
-		// FIXME: Missing RSS
+		// Parse fields for both existing metrics and RSS calculation
 		switch fields[0] {
 		case "Active":
 			out.ActiveBytes = value
@@ -339,7 +343,12 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 			out.ActiveAnonBytes = value
 		case "Active(file)":
 			out.ActiveFileBytes = value
+		case "Buffers":
+			buffersBytes = value
+			foundBuffers = true
 		case "Cached":
+			cachedBytes = value
+			foundCached = true
 			out.CachedBytes = value
 		case "Dirty":
 			out.DirtyBytes = value
@@ -358,10 +367,16 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 		case "MemAvailable":
 			out.MemAvailableBytes = value
 		case "MemFree":
+			memFreeBytes = value
+			foundMemFree = true
 			out.MemFreeBytes = value
 		case "MemTotal":
+			memTotalBytes = value
+			foundMemTotal = true
 			out.MemTotalBytes = value
 		case "Shmem":
+			shmemBytes = value
+			foundShmem = true
 			out.ShmemBytes = value
 		case "SwapCached":
 			out.SwapBytes = value
@@ -370,6 +385,23 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 		case "Writeback":
 			out.WritebackBytes = value
 		}
+	}
+
+	// Calculate RSS using kernel memory accounting
+	// This is the most accurate and efficient method as it uses the kernel's own memory accounting
+	if foundMemTotal && foundMemFree && foundBuffers && foundCached && foundShmem {
+		// Formula: RSS = MemTotal - (MemFree + Buffers + Cached - Shmem)
+		// This matches how tools like 'free' calculate used memory
+		rssBytes := memTotalBytes - (memFreeBytes + buffersBytes + cachedBytes - shmemBytes)
+		out.RSSBytes = rssBytes
+		logger.Debug("RSS metric using kernel memory accounting", 
+					logger.Ctx{"formula": "MemTotal-(MemFree+Buffers+Cached-Shmem)", "value": rssBytes})
+	} else {
+		// Log warning if we can't calculate RSS using kernel accounting
+		logger.Warn("Kernel RSS calculation failed - omitting RSS metric", 
+				   logger.Ctx{"foundMemTotal": foundMemTotal, "foundMemFree": foundMemFree, 
+							 "foundBuffers": foundBuffers, "foundCached": foundCached, 
+							 "foundShmem": foundShmem})
 	}
 
 	return out, nil
