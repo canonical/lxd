@@ -311,6 +311,11 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 	out := metrics.MemoryMetrics{}
 	scanner := bufio.NewScanner(bytes.NewReader(content))
 
+	// Variables for RSS calculation
+	var rssTotal uint64
+	var foundRssAnon, foundRssFile, foundRssShmem bool
+	var kernelSupportsRssComponents bool
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		fields := strings.Fields(line)
@@ -331,7 +336,6 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 			value *= 1024
 		}
 
-		// FIXME: Missing RSS
 		switch fields[0] {
 		case "Active":
 			out.ActiveBytes = value
@@ -361,6 +365,18 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 			out.MemFreeBytes = value
 		case "MemTotal":
 			out.MemTotalBytes = value
+		case "RssAnon":
+			rssTotal += value
+			foundRssAnon = true
+			kernelSupportsRssComponents = true
+		case "RssFile":
+			rssTotal += value
+			foundRssFile = true
+			kernelSupportsRssComponents = true
+		case "RssShmem":
+			rssTotal += value
+			foundRssShmem = true
+			kernelSupportsRssComponents = true
 		case "Shmem":
 			out.ShmemBytes = value
 		case "SwapCached":
@@ -369,6 +385,40 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 			out.UnevictableBytes = value
 		case "Writeback":
 			out.WritebackBytes = value
+		}
+	}
+
+	// Set RSS based on available information
+	if kernelSupportsRssComponents && foundRssAnon && foundRssFile && foundRssShmem {
+		// Modern kernels (5.10+): Use the sum of RSS components
+		// This is the most accurate representation of RSS across the system
+		out.RSSBytes = rssTotal
+		logger.Debug("RSS metric using RssAnon+RssFile+RssShmem components", logger.Ctx{"value": rssTotal})
+	} else {
+		// For kernels that don't support detailed RSS components in /proc/meminfo (pre-5.10)
+		// use the same approach as the QEMU driver: read VmRSS from /proc/self/status
+		statusContent, err := os.ReadFile("/proc/self/status")
+		if err == nil {
+			scanner := bufio.NewScanner(bytes.NewReader(statusContent))
+			for scanner.Scan() {
+				line := scanner.Text()
+				if !strings.HasPrefix(line, "VmRSS:") {
+					continue
+				}
+
+				fields := strings.Fields(line)
+				if len(fields) < 2 {
+					continue
+				}
+
+				rssValue, err := strconv.ParseUint(fields[1], 10, 64)
+				if err == nil {
+					// VmRSS is in kB
+					out.RSSBytes = rssValue * 1024
+					logger.Debug("RSS metric using /proc/self/status VmRSS", logger.Ctx{"value": out.RSSBytes})
+					break
+				}
+			}
 		}
 	}
 
