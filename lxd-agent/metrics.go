@@ -311,10 +311,9 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 	out := metrics.MemoryMetrics{}
 	scanner := bufio.NewScanner(bytes.NewReader(content))
 
-	// Variables for RSS calculation
-	var rssTotal uint64
-	var foundRssAnon, foundRssFile, foundRssShmem bool
-	var kernelSupportsRssComponents bool
+	// Variables for accurate RSS calculation using kernel memory accounting
+	var memTotalBytes, memFreeBytes, buffersBytes, cachedBytes, shmemBytes uint64
+	var foundMemTotal, foundMemFree, foundBuffers, foundCached, foundShmem bool
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -336,6 +335,7 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 			value *= 1024
 		}
 
+		// Parse fields for both existing metrics and RSS calculation
 		switch fields[0] {
 		case "Active":
 			out.ActiveBytes = value
@@ -343,7 +343,12 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 			out.ActiveAnonBytes = value
 		case "Active(file)":
 			out.ActiveFileBytes = value
+		case "Buffers":
+			buffersBytes = value
+			foundBuffers = true
 		case "Cached":
+			cachedBytes = value
+			foundCached = true
 			out.CachedBytes = value
 		case "Dirty":
 			out.DirtyBytes = value
@@ -362,22 +367,16 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 		case "MemAvailable":
 			out.MemAvailableBytes = value
 		case "MemFree":
+			memFreeBytes = value
+			foundMemFree = true
 			out.MemFreeBytes = value
 		case "MemTotal":
+			memTotalBytes = value
+			foundMemTotal = true
 			out.MemTotalBytes = value
-		case "RssAnon":
-			rssTotal += value
-			foundRssAnon = true
-			kernelSupportsRssComponents = true
-		case "RssFile":
-			rssTotal += value
-			foundRssFile = true
-			kernelSupportsRssComponents = true
-		case "RssShmem":
-			rssTotal += value
-			foundRssShmem = true
-			kernelSupportsRssComponents = true
 		case "Shmem":
+			shmemBytes = value
+			foundShmem = true
 			out.ShmemBytes = value
 		case "SwapCached":
 			out.SwapBytes = value
@@ -388,41 +387,161 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 		}
 	}
 
-	// Set RSS based on available information
-	if kernelSupportsRssComponents && foundRssAnon && foundRssFile && foundRssShmem {
-		// Modern kernels (5.10+): Use the sum of RSS components
-		// This is the most accurate representation of RSS across the system
-		out.RSSBytes = rssTotal
-		logger.Debug("RSS metric using RssAnon+RssFile+RssShmem components", logger.Ctx{"value": rssTotal})
-	} else {
-		// For kernels that don't support detailed RSS components in /proc/meminfo (pre-5.10)
-		// use the same approach as the QEMU driver: read VmRSS from /proc/self/status
-		statusContent, err := os.ReadFile("/proc/self/status")
+	// Method 1: Calculate RSS using kernel memory accounting
+	// This is the most accurate and efficient method as it uses the kernel's own memory accounting
+	if foundMemTotal && foundMemFree && foundBuffers && foundCached && foundShmem {
+		// Formula: RSS = MemTotal - (MemFree + Buffers + Cached - Shmem)
+		// This matches how tools like 'free' calculate used memory
+		rssBytes := memTotalBytes - (memFreeBytes + buffersBytes + cachedBytes - shmemBytes)
+		out.RSSBytes = rssBytes
+		logger.Debug("RSS metric using kernel memory accounting", 
+					logger.Ctx{"formula": "MemTotal-(MemFree+Buffers+Cached-Shmem)", "value": rssBytes})
+		return out, nil
+	}
+
+	// Method 2: Process summation (if Method 1 fails)
+	// Only use this method if system load is reasonable
+	isLowLoad, err := isSystemLoadReasonable()
+	if err == nil && isLowLoad {
+		logger.Debug("Attempting process summation fallback for RSS calculation")
+		rssTotal, err := sumProcessRSS()
 		if err == nil {
-			scanner := bufio.NewScanner(bytes.NewReader(statusContent))
-			for scanner.Scan() {
-				line := scanner.Text()
-				if !strings.HasPrefix(line, "VmRSS:") {
-					continue
-				}
+			out.RSSBytes = rssTotal
+			logger.Debug("RSS metric using process summation fallback", 
+						logger.Ctx{"value": rssTotal})
+			return out, nil
+		} else {
+			logger.Warn("Process summation fallback failed", logger.Ctx{"error": err})
+		}
+	} else {
+		logger.Debug("Skipping process summation fallback due to high system load or error", 
+				   logger.Ctx{"error": err})
+	}
 
-				fields := strings.Fields(line)
-				if len(fields) < 2 {
-					continue
-				}
+	// Method 3: Agent-only fallback
+	// This is the last resort and only provides the RSS of the lxd-agent process
+	statusContent, err := os.ReadFile("/proc/self/status")
+	if err == nil {
+		scanner := bufio.NewScanner(bytes.NewReader(statusContent))
+		for scanner.Scan() {
+			line := scanner.Text()
+			if !strings.HasPrefix(line, "VmRSS:") {
+				continue
+			}
 
-				rssValue, err := strconv.ParseUint(fields[1], 10, 64)
-				if err == nil {
-					// VmRSS is in kB
-					out.RSSBytes = rssValue * 1024
-					logger.Debug("RSS metric using /proc/self/status VmRSS", logger.Ctx{"value": out.RSSBytes})
-					break
-				}
+			fields := strings.Fields(line)
+			if len(fields) < 2 {
+				continue
+			}
+
+			rssValue, err := strconv.ParseUint(fields[1], 10, 64)
+			if err == nil {
+				// VmRSS is in kB
+				out.RSSBytes = rssValue * 1024
+				logger.Debug("RSS metric using agent-only fallback (limited accuracy)", 
+							logger.Ctx{"value": out.RSSBytes})
+				break
 			}
 		}
 	}
 
 	return out, nil
+}
+
+// isSystemLoadReasonable checks if the system load is low enough to
+// safely run the process summation method
+func isSystemLoadReasonable() (bool, error) {
+	loadavg, err := os.ReadFile("/proc/loadavg")
+	if err != nil {
+		return false, fmt.Errorf("Failed to read /proc/loadavg: %w", err)
+	}
+	
+	fields := strings.Fields(string(loadavg))
+	if len(fields) == 0 {
+		return false, fmt.Errorf("Invalid /proc/loadavg content")
+	}
+	
+	load, err := strconv.ParseFloat(fields[0], 64)
+	if err != nil {
+		return false, fmt.Errorf("Failed to parse load average: %w", err)
+	}
+	
+	// Consider load reasonable if load average is under 5.0
+	// This threshold could be adjusted based on system capacity
+	return load < 5.0, nil
+}
+
+// sumProcessRSS calculates system-wide RSS by summing across all processes
+// This is a fallback method used when kernel accounting fails
+func sumProcessRSS() (uint64, error) {
+	var totalRSS uint64
+	var errorCount int
+	
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return 0, fmt.Errorf("Failed to read /proc directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		// Skip non-PID directories
+		if !entry.IsDir() {
+			continue
+		}
+
+		// Check if directory name is a number (PID)
+		pid := entry.Name()
+		if _, err := strconv.ParseUint(pid, 10, 64); err != nil {
+			continue
+		}
+
+		// Read process status file
+		statusPath := filepath.Join("/proc", pid, "status")
+		content, err := os.ReadFile(statusPath)
+		if err != nil {
+			// Process may have terminated - skip but count the error
+			errorCount++
+			continue
+		}
+
+		// Parse VmRSS value
+		scanner := bufio.NewScanner(bytes.NewReader(content))
+		foundRSS := false
+		
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "VmRSS:") {
+				fields := strings.Fields(line)
+				if len(fields) >= 2 {
+					// Extract numeric value
+					rssValue, err := strconv.ParseUint(fields[1], 10, 64)
+					if err == nil {
+						// Add to total (convert from kB to bytes)
+						totalRSS += rssValue * 1024
+						foundRSS = true
+					}
+				}
+				break
+			}
+		}
+		
+		if !foundRSS {
+			// Some kernel threads might not have VmRSS - this is normal
+			continue
+		}
+	}
+
+	// If we had too many errors, the result might be inaccurate
+	if errorCount > 10 {
+		logger.Warn("High error count during process RSS summation", 
+				   logger.Ctx{"errors": errorCount})
+	}
+
+	// Only fail if we couldn't read any processes
+	if totalRSS == 0 && errorCount > 0 {
+		return 0, fmt.Errorf("Failed to read RSS for any process")
+	}
+
+	return totalRSS, nil
 }
 
 func getNetworkMetrics() (map[string]metrics.NetworkMetrics, error) {
