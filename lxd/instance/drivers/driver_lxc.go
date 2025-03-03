@@ -1250,10 +1250,9 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 
 	// Setup process limits
 	for k, v := range d.expandedConfig {
-		if strings.HasPrefix(k, "limits.kernel.") {
-			prlimitSuffix := strings.TrimPrefix(k, "limits.kernel.")
-			prlimitKey := fmt.Sprintf("lxc.prlimit.%s", prlimitSuffix)
-			err = lxcSetConfigItem(cc, prlimitKey, v)
+		prlimitSuffix, found := strings.CutPrefix(k, "limits.kernel.")
+		if found {
+			err = lxcSetConfigItem(cc, "lxc.prlimit."+prlimitSuffix, v)
 			if err != nil {
 				return nil, err
 			}
