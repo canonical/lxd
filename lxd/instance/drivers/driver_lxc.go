@@ -998,8 +998,8 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		}
 	}
 
-	// Setup environment
 	for k, v := range d.expandedConfig {
+		// Setup environment
 		// lxdmeta:generate(entities=instance; group=miscellaneous; key=environment.*)
 		// The specified key/value environment variables are exported to the instance and set for `lxc exec`.
 
@@ -1013,6 +1013,36 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 			if err != nil {
 				return nil, err
 			}
+
+			continue
+		}
+
+		// Setup process limits
+		prlimitSuffix, found := strings.CutPrefix(k, "limits.kernel.")
+		if found {
+			err = lxcSetConfigItem(cc, "lxc.prlimit."+prlimitSuffix, v)
+			if err != nil {
+				return nil, err
+			}
+
+			continue
+		}
+
+		// Setup sysctls
+		// lxdmeta:generate(entities=instance; group=miscellaneous; key=linux.sysctl.*)
+		//
+		// ---
+		//  type: string
+		//  liveupdate: no
+		//  condition: container
+		//  shortdesc: Override for the corresponding `sysctl` setting in the container
+		if strings.HasPrefix(k, "linux.sysctl.") {
+			err = lxcSetConfigItem(cc, k, v)
+			if err != nil {
+				return nil, err
+			}
+
+			continue
 		}
 	}
 
@@ -1244,34 +1274,6 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 				if err != nil {
 					return nil, err
 				}
-			}
-		}
-	}
-
-	// Setup process limits
-	for k, v := range d.expandedConfig {
-		prlimitSuffix, found := strings.CutPrefix(k, "limits.kernel.")
-		if found {
-			err = lxcSetConfigItem(cc, "lxc.prlimit."+prlimitSuffix, v)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	// Setup sysctls
-	for k, v := range d.expandedConfig {
-		// lxdmeta:generate(entities=instance; group=miscellaneous; key=linux.sysctl.*)
-		//
-		// ---
-		//  type: string
-		//  liveupdate: no
-		//  condition: container
-		//  shortdesc: Override for the corresponding `sysctl` setting in the container
-		if strings.HasPrefix(k, "linux.sysctl.") {
-			err = lxcSetConfigItem(cc, k, v)
-			if err != nil {
-				return nil, err
 			}
 		}
 	}
