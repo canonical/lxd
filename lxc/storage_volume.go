@@ -51,6 +51,14 @@ func parseVolume(defaultType string, name string) (volName string, volType strin
 	return volName, volType
 }
 
+func parseVolumeSnapshot(defaultType string, name string) (volName string, volType string, snapshot string) {
+	volName, volType = parseVolume(defaultType, name)
+
+	volName, snapshot, _ = strings.Cut(volName, "/")
+
+	return volName, volType, snapshot
+}
+
 func (c *cmdStorageVolume) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("volume")
@@ -155,6 +163,68 @@ func (c *cmdStorageVolume) parseVolumeWithPool(name string) (volumeName string, 
 	return fields[1], fields[0]
 }
 
+func cmdAttachArgsAsDevice(client lxd.InstanceServer, poolName string, flagTarget string, args []string) (devName string, device map[string]string, err error) {
+	volName, volType, snapshot := parseVolumeSnapshot("custom", args[1])
+	if volType != "custom" && volType != "virtual-machine" {
+		return "", nil, errors.New(i18n.G(`Only "custom" and "virtual-machine" volumes can be attached to instances`))
+	}
+
+	// Attach the volume
+	devPath := ""
+	if len(args) == 3 {
+		devName = args[1]
+	} else if len(args) == 4 {
+		// Use the provided target.
+		if flagTarget != "" && client.IsClustered() {
+			client = client.UseTarget(flagTarget)
+		}
+
+		vol, _, err := client.GetStoragePoolVolume(poolName, volType, volName)
+		if err != nil {
+			return "", nil, err
+		}
+
+		switch vol.ContentType {
+		case "block", "iso":
+			devName = args[3]
+		case "filesystem":
+			// If using a filesystem volume, the path must also be provided as the fourth argument.
+			if !strings.HasPrefix(args[3], "/") {
+				devPath = path.Join("/", args[3])
+			} else {
+				devPath = args[3]
+			}
+
+			devName = args[1]
+		default:
+			return "", nil, errors.New(i18n.G("Unsupported content type for attaching to instances"))
+		}
+	} else if len(args) == 5 {
+		// Path and device name have been given to us.
+		devName = args[3]
+		devPath = args[4]
+	}
+
+	// Prepare the instance's device entry
+	device = map[string]string{
+		"type":   "disk",
+		"pool":   poolName,
+		"source": volName,
+		"path":   devPath,
+	}
+
+	// Only specify sourcetype when not the default
+	if volType != "custom" {
+		device["source.type"] = volType
+	}
+
+	if snapshot != "" {
+		device["source.snapshot"] = snapshot
+	}
+
+	return devName, device, nil
+}
+
 // Attach.
 type cmdStorageVolumeAttach struct {
 	global        *cmdGlobal
@@ -164,7 +234,7 @@ type cmdStorageVolumeAttach struct {
 
 func (c *cmdStorageVolumeAttach) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("attach", i18n.G("[<remote>:]<pool> [<type>/]<volume> <instance> [<device name>] [<path>]"))
+	cmd.Use = usage("attach", i18n.G("[<remote>:]<pool> [<type>/]<volume>[/<snapshot>] <instance> [<device name>] [<path>]"))
 	cmd.Short = i18n.G("Attach new storage volumes to instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Attach new storage volumes to instances
@@ -211,61 +281,9 @@ func (c *cmdStorageVolumeAttach) run(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.G("Missing pool name"))
 	}
 
-	volName, volType := parseVolume("custom", args[1])
-	if volType != "custom" && volType != "virtual-machine" {
-		return errors.New(i18n.G(`Only "custom" and "virtual-machine" volumes can be attached to instances`))
-	}
-
-	// Attach the volume
-	devPath := ""
-	devName := ""
-	if len(args) == 3 {
-		devName = args[1]
-	} else if len(args) == 4 {
-		client := resource.server
-
-		// Use the provided target.
-		if c.storage.flagTarget != "" && client.IsClustered() {
-			client = client.UseTarget(c.storage.flagTarget)
-		}
-
-		vol, _, err := client.GetStoragePoolVolume(resource.name, volType, volName)
-		if err != nil {
-			return err
-		}
-
-		switch vol.ContentType {
-		case "block", "iso":
-			devName = args[3]
-		case "filesystem":
-			// If using a filesystem volume, the path must also be provided as the fourth argument.
-			if !strings.HasPrefix(args[3], "/") {
-				devPath = path.Join("/", args[3])
-			} else {
-				devPath = args[3]
-			}
-
-			devName = args[1]
-		default:
-			return errors.New(i18n.G("Unsupported content type for attaching to instances"))
-		}
-	} else if len(args) == 5 {
-		// Path and device name have been given to us.
-		devName = args[3]
-		devPath = args[4]
-	}
-
-	// Prepare the instance's device entry
-	device := map[string]string{
-		"type":   "disk",
-		"pool":   resource.name,
-		"source": volName,
-		"path":   devPath,
-	}
-
-	// Only specify sourcetype when not the default
-	if volType != "custom" {
-		device["source.type"] = volType
+	devName, device, err := cmdAttachArgsAsDevice(resource.server, resource.name, c.storage.flagTarget, args)
+	if err != nil {
+		return err
 	}
 
 	// Add the device to the instance
@@ -286,7 +304,7 @@ type cmdStorageVolumeAttachProfile struct {
 
 func (c *cmdStorageVolumeAttachProfile) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("attach-profile", i18n.G("[<remote:>]<pool> [<type>/]<volume> <profile> [<device name>] [<path>]"))
+	cmd.Use = usage("attach-profile", i18n.G("[<remote:>]<pool> [<type>/]<volume>[/<snapshot>] <profile> [<device name>] [<path>]"))
 	cmd.Short = i18n.G("Attach new storage volumes to profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Attach new storage volumes to profiles
@@ -333,47 +351,9 @@ func (c *cmdStorageVolumeAttachProfile) run(cmd *cobra.Command, args []string) e
 		return errors.New(i18n.G("Missing pool name"))
 	}
 
-	// Attach the volume
-	devPath := ""
-	devName := ""
-	if len(args) == 3 {
-		devName = args[1]
-	} else if len(args) == 4 {
-		// Only the path has been given to us.
-		devPath = args[3]
-		devName = args[1]
-	} else if len(args) == 5 {
-		// Path and device name have been given to us.
-		devName = args[3]
-		devPath = args[4]
-	}
-
-	volName, volType := parseVolume("custom", args[1])
-	if volType != "custom" && volType != "virtual-machine" {
-		return errors.New(i18n.G(`Only "custom" and "virtual-machine" volumes can be attached to profiles`))
-	}
-
-	// Check if the requested storage volume actually exists
-	vol, _, err := resource.server.GetStoragePoolVolume(resource.name, volType, volName)
+	devName, device, err := cmdAttachArgsAsDevice(resource.server, resource.name, c.storage.flagTarget, args)
 	if err != nil {
 		return err
-	}
-
-	// Prepare the instance's device entry
-	device := map[string]string{
-		"type":   "disk",
-		"pool":   resource.name,
-		"source": volName,
-	}
-
-	// Ignore path for block volumes
-	if vol.ContentType != "block" {
-		device["path"] = devPath
-	}
-
-	// Only specify sourcetype when not the default
-	if volType != "custom" {
-		device["source.type"] = volType
 	}
 
 	// Add the device to the instance
@@ -817,7 +797,7 @@ type cmdStorageVolumeDetach struct {
 
 func (c *cmdStorageVolumeDetach) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("detach", i18n.G("[<remote>:]<pool> [<type>/]<volume> <instance> [<device name>]"))
+	cmd.Use = usage("detach", i18n.G("[<remote>:]<pool> [<type>/]<volume>[/<snapshot>] <instance> [<device name>]"))
 	cmd.Short = i18n.G("Detach storage volumes from instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Detach storage volumes from instances`))
@@ -874,7 +854,7 @@ func (c *cmdStorageVolumeDetach) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	volName, volType := parseVolume("custom", args[1])
+	volName, volType, snapshot := parseVolumeSnapshot("custom", args[1])
 
 	// Find the device
 	if devName == "" {
@@ -884,7 +864,7 @@ func (c *cmdStorageVolumeDetach) run(cmd *cobra.Command, args []string) error {
 				sourceType = d["source.type"]
 			}
 
-			if d["type"] == "disk" && d["pool"] == resource.name && volType == sourceType && volName == d["source"] {
+			if d["type"] == "disk" && d["pool"] == resource.name && volType == sourceType && volName == d["source"] && snapshot == d["source.snapshot"] {
 				if devName != "" {
 					return errors.New(i18n.G("More than one device matches, specify the device name"))
 				}
@@ -922,7 +902,7 @@ type cmdStorageVolumeDetachProfile struct {
 
 func (c *cmdStorageVolumeDetachProfile) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("detach-profile", i18n.G("[<remote:>]<pool> [<type>/]<volume> <profile> [<device name>]"))
+	cmd.Use = usage("detach-profile", i18n.G("[<remote:>]<pool> [<type>/]<volume>[/<snapshot>] <profile> [<device name>]"))
 	cmd.Short = i18n.G("Detach storage volumes from profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Detach storage volumes from profiles`))
@@ -978,7 +958,7 @@ func (c *cmdStorageVolumeDetachProfile) run(cmd *cobra.Command, args []string) e
 		return err
 	}
 
-	volName, volType := parseVolume("custom", args[1])
+	volName, volType, snapshot := parseVolumeSnapshot("custom", args[1])
 
 	// Find the device
 	if devName == "" {
@@ -988,7 +968,7 @@ func (c *cmdStorageVolumeDetachProfile) run(cmd *cobra.Command, args []string) e
 				sourceType = d["source.type"]
 			}
 
-			if d["type"] == "disk" && d["pool"] == resource.name && volType == sourceType && volName == d["source"] {
+			if d["type"] == "disk" && d["pool"] == resource.name && volType == sourceType && volName == d["source"] && snapshot == d["source.snapshot"] {
 				if devName != "" {
 					return errors.New(i18n.G("More than one device matches, specify the device name"))
 				}

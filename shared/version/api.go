@@ -431,7 +431,7 @@ var APIExtensions = []string{
 	"storage_ceph_osd_pool_size",
 	"network_get_target",
 	"network_zones_all_projects",
-	"instance_root_volume_attachment",
+	"vm_root_volume_attachment",
 	"projects_limits_uplink_ips",
 	"entities_with_entitlements",
 	"profiles_all_projects",
