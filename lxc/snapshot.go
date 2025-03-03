@@ -34,10 +34,10 @@ func (c *cmdSnapshot) command() *cobra.Command {
 
 When --stateful is used, LXD attempts to checkpoint the instance's
 running state, including process memory state, TCP connections, ...`))
-	cmd.Example = cli.FormatSection("", i18n.G(`lxc snapshot create u1 snap0
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc snapshot u1 snap0
 	Create a snapshot of "u1" called "snap0".
 
-	lxc snapshot create u1 snap0 < config.yaml
+	lxc snapshot u1 snap0 < config.yaml
 		Create a snapshot of "u1" called "snap0" with the configuration from "config.yaml".`))
 
 	cmd.RunE = c.run
