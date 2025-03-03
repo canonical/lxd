@@ -248,7 +248,7 @@ jobs:
         uses: ./.github/actions/install-lxd-runtimedeps
 
       - name: Download system test dependencies
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: system-test-deps
           merge-multiple: true
@@ -335,14 +335,14 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Download coverage data
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           pattern: coverage-*
           path: ${{env.GOCOVERDIR}}
           merge-multiple: true
 
       - name: Download system test dependencies
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: system-test-deps
           merge-multiple: true
@@ -515,7 +515,7 @@ jobs:
         uses: ./.github/actions/install-lxd-runtimedeps
 
       - name: Download system test dependencies
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: system-test-deps
           merge-multiple: true
@@ -528,7 +528,7 @@ jobs:
           chmod uog+x /home/runner/go/bin/*
 
       - name: Download docs (for the objects.inv.txt file to be available for the e2e tests)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: documentation
           merge-multiple: true
