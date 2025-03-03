@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-03-03 08:53+0100\n"
+"POT-Creation-Date: 2025-03-03 10:13+0100\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1033,7 +1033,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr "どちらもみつかりませんでした。raw SPICE ソケットはこちらにあります:"
 
-#: lxc/init.go:347 lxc/rebuild.go:131
+#: lxc/init.go:348 lxc/rebuild.go:131
 msgid "Asked for a VM but image is of type container"
 msgstr "VMを要求しましたが、イメージタイプがコンテナです"
 
@@ -2169,7 +2169,7 @@ msgstr "プロファイルのデバイスは個々のインスタンスでは取
 msgid "Device: %s"
 msgstr "デバイス: %s"
 
-#: lxc/init.go:407
+#: lxc/init.go:408
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
 "サーバから変更されたイメージ、インスタンス、スナップショットを取得できません"
@@ -2709,6 +2709,11 @@ msgstr "エイリアス %s の作成に失敗しました: %w"
 #, fuzzy, c-format
 msgid "Failed to decode trust token: %w"
 msgstr "クラスタメンバへの接続に失敗しました: %w"
+
+#: lxc/utils.go:414
+#, fuzzy, c-format
+msgid "Failed to find image %q on remote %q"
+msgstr "プロジェクトが見つけられませんでした: %w"
 
 #: lxc/remote.go:306
 #, c-format
@@ -3321,7 +3326,7 @@ msgstr "クライアント %q に対するインスタンスが切断されま�
 msgid "Instance name is mandatory"
 msgstr "インスタンス名を指定する必要があります"
 
-#: lxc/init.go:418
+#: lxc/init.go:419
 #, c-format
 msgid "Instance name is: %s"
 msgstr "インスタンス名: %s"
@@ -5695,7 +5700,7 @@ msgstr "証明書の使用を1つ以上のプロジェクトに制限します"
 msgid "Retrieve the container's console log"
 msgstr "インスタンスのコンソールログを取得します"
 
-#: lxc/init.go:361
+#: lxc/init.go:362
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "イメージの取得中: %s"
@@ -6650,7 +6655,7 @@ msgstr ""
 "インスタンスは現在実行中です。停止して、再起動するために --force を使用してく"
 "ださい"
 
-#: lxc/init.go:439
+#: lxc/init.go:440
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr "起動しようとしたインスタンスに接続されているネットワークがありません。"
 
@@ -6837,13 +6842,13 @@ msgstr "インスタンスがクリーンにシャットダウンするまで待
 msgid "Timestamps:"
 msgstr "タイムスタンプ:"
 
-#: lxc/init.go:441
+#: lxc/init.go:442
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 "インスタンスにネットワークを接続するには、lxc network attach を使用してくださ"
 "い"
 
-#: lxc/init.go:440
+#: lxc/init.go:441
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
