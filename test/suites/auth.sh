@@ -230,6 +230,7 @@ fine_grained: true"
 
   # Perform access check compatibility with project feature flags
   auth_project_features "oidc"
+  entities_enrichment_with_entitlements
   LXD_CONF="${LXD_CONF2}" auth_project_features "tls"
 
   # The OIDC identity should be able to delete themselves without any permissions.
@@ -301,8 +302,6 @@ fine_grained: true"
   lxc config trust remove "${lxdconf6_fingerprint_short}"
 
   lxc auth identity group add oidc/test-user@example.com test-group
-
-  entities_enrichment_with_entitlements
 
   # Cleanup
   lxc auth group delete test-group
@@ -1129,6 +1128,9 @@ entities_enrichment_with_entitlements() {
     false
   fi
 
+  lxc auth group permission remove test-group storage_pool "${pool_name}" can_edit
+  lxc auth group permission remove test-group storage_pool "${pool_name}" can_delete
+
   # Storage volume
   pool_name="$(lxc storage list -f csv | cut -d, -f1)"
   lxc storage volume create "${pool_name}" test-volume
@@ -1377,4 +1379,8 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group server viewer
   lxc auth group permission add test-group server project_manager
   [ "$(lxc_remote query "oidc:/1.0?with-access-entitlements=admin,viewer,project_manager" | jq -r '.access_entitlements | sort | @csv')" = '"admin","project_manager","viewer"' ]
+
+  lxc auth group permission remove test-group server admin
+  lxc auth group permission remove test-group server viewer
+  lxc auth group permission remove test-group server project_manager
 }
