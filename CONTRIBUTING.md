@@ -3,14 +3,14 @@
 <!-- Include start contributing -->
 
 The LXD team welcomes contributions through pull requests, issue reports, and discussions.
-- Contribute to the code or documentation, report bugs, or request features in the [GitHub repository](https://github.com/canonical/lxd/issues)
+- Contribute to the code or documentation, report bugs, or request features in the [GitHub repository](https://github.com/canonical/lxd)
 - Ask questions or join discussions in the [LXD forum](https://discourse.ubuntu.com/c/lxd/126).
 
 Review the following guidelines before contributing to the project.
 
 ## Code of Conduct
 
-All contributors must adhere to the [Contributor Covenant Code of Conduct](https://github.com/canonical/lxd/blob/main/CODE_OF_CONDUCT.md).
+All contributors must adhere to the [Ubuntu Code of Conduct](https://ubuntu.com/community/ethos/code-of-conduct).
 
 ## License and copyright
 
@@ -136,4 +136,4 @@ If you add or update configuration options, regenerate and commit the documentat
 
 ## More information
 
-For more information, including details about contributing to the code as well as the documentation for LXD, see [Contributing](https://documentation.ubuntu.com/lxd/en/latest/contributing/) in the documentation.
+For more information, including details about contributing to the code as well as the documentation for LXD, see [How to contribute to LXD](https://documentation.ubuntu.com/lxd/en/latest/contributing/) in the documentation.
