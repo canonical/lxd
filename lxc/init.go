@@ -109,7 +109,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 	var configMap map[string]string
 	var profiles []string
 
-	// If stdin isn't a terminal, read text from it
+	// If stdin isn't a terminal, read text from it.
 	if !termios.IsTerminal(getStdinFd()) {
 		contents, err := io.ReadAll(os.Stdin)
 		if err != nil {
@@ -152,7 +152,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 				return nil, "", err
 			}
 		} else if len(args) == 1 {
-			// Switch image / instance names
+			// Switch image / instance names.
 			name = image
 			remote = iremote
 			image = ""
@@ -269,7 +269,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 		d = d.UseTarget(c.flagTarget)
 	}
 
-	// Setup instance creation request
+	// Setup instance creation request.
 	req := api.InstancesPost{
 		Name:         name,
 		InstanceType: c.flagType,
@@ -329,14 +329,15 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 
 	var opInfo api.Operation
 	if !c.flagEmpty {
-		// Get the image server and image info
+		// Get the image server and image info.
 		iremote, image = guessImage(conf, d, remote, iremote, image)
 
-		// Deal with the default image
+		// Deal with the default image.
 		if image == "" {
 			image = "default"
 		}
 
+		// Fetch image info from the given remote.
 		imgRemote, imgInfo, err := getImgInfo(d, conf, iremote, remote, image, &req.Source)
 		if err != nil {
 			return nil, "", err
@@ -350,13 +351,13 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 			req.Type = api.InstanceType(imgInfo.Type)
 		}
 
-		// Create the instance
+		// Create the instance.
 		op, err := d.CreateInstanceFromImage(imgRemote, *imgInfo, req)
 		if err != nil {
 			return nil, "", err
 		}
 
-		// Watch the background operation
+		// Watch the background operation.
 		progress := cli.ProgressRenderer{
 			Format: i18n.G("Retrieving image: %s"),
 			Quiet:  c.global.flagQuiet,
@@ -376,7 +377,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 
 		progress.Done("")
 
-		// Extract the instance name
+		// Extract the instance name.
 		info, err := op.GetTarget()
 		if err != nil {
 			return nil, "", err
@@ -401,7 +402,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 
 	instances, ok := opInfo.Resources["instances"]
 	if !ok || len(instances) == 0 {
-		// Try using the older "containers" field
+		// Try using the older "containers" field.
 		instances, ok = opInfo.Resources["containers"]
 		if !ok || len(instances) == 0 {
 			return nil, "", errors.New(i18n.G("Didn't get any affected image, instance or snapshot from server"))
@@ -418,7 +419,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 		fmt.Printf(i18n.G("Instance name is: %s")+"\n", name)
 	}
 
-	// Validate the network setup
+	// Validate the network setup.
 	c.checkNetwork(d, name)
 
 	return d, name, nil
