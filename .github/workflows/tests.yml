@@ -369,7 +369,7 @@ jobs:
           project: LXD
           viewerUrl: https://canonical.tiobe.com/tiobeweb/TICS/api/cfg?name=default
           branchdir: ${{ github.workspace }}
-          ticsAuthToken: ${{ secrets.TICS_AUTH_TOKEN }}
+          ticsAuthToken: ${{ secrets.TICSAUTHTOKEN }}
           installTics: true
           calc: ALL
           tmpdir: /tmp/tics
