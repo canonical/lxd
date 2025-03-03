@@ -1,9 +1,11 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/canonical/lxd/lxd/ip"
 	"github.com/canonical/lxd/lxd/network/openvswitch"
@@ -65,7 +67,9 @@ func AttachInterface(bridgeName string, devName string) error {
 		}
 	} else {
 		ovs := openvswitch.NewOVS()
-		err := ovs.BridgePortAdd(bridgeName, devName, true)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		err := ovs.BridgePortAdd(ctx, bridgeName, devName, true)
 		if err != nil {
 			return err
 		}
@@ -84,7 +88,9 @@ func DetachInterface(bridgeName string, devName string) error {
 		}
 	} else {
 		ovs := openvswitch.NewOVS()
-		err := ovs.BridgePortDelete(bridgeName, devName)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		err := ovs.BridgePortDelete(ctx, bridgeName, devName)
 		if err != nil {
 			return err
 		}

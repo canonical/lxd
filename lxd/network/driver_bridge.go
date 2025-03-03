@@ -1147,12 +1147,16 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 			// Add and configure the interface in one operation to reduce the number of executions and
 			// to avoid systemd-udevd from applying the default MACAddressPolicy=persistent policy.
-			err := ovs.BridgeAdd(n.name, false, bridge.Address, bridge.MTU)
+			ctx1, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			err := ovs.BridgeAdd(ctx1, n.name, false, bridge.Address, bridge.MTU)
 			if err != nil {
 				return err
 			}
 
-			revert.Add(func() { _ = ovs.BridgeDelete(n.name) })
+			ctx2, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			revert.Add(func() { _ = ovs.BridgeDelete(ctx2, n.name) })
 		} else {
 			// Add and configure the interface in one operation to reduce the number of executions and
 			// to avoid systemd-udevd from applying the default MACAddressPolicy=persistent policy.
@@ -2240,7 +2244,9 @@ func (n *bridge) Stop() error {
 	// Destroy the bridge interface
 	if n.config["bridge.driver"] == "openvswitch" {
 		ovs := openvswitch.NewOVS()
-		err := ovs.BridgeDelete(n.name)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		err := ovs.BridgeDelete(ctx, n.name)
 		if err != nil {
 			return err
 		}

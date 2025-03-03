@@ -14,7 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
@@ -1011,8 +1011,10 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProject
 	} else if shared.PathExists("/sys/class/net/" + apiNet.Name + "/bonding") {
 		apiNet.Type = "bond"
 	} else {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
 		ovs := openvswitch.NewOVS()
-		exists, _ := ovs.BridgeExists(apiNet.Name)
+		exists, _ := ovs.BridgeExists(ctx, apiNet.Name)
 		if exists {
 			apiNet.Type = "bridge"
 		} else {

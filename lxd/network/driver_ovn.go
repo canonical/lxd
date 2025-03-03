@@ -18,7 +18,7 @@ import (
 
 	"github.com/mdlayher/netx/eui64"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
@@ -955,7 +955,9 @@ func (n *ovn) getUnderlayInfo() (uint32, net.IP, error) {
 	}
 
 	ovs := openvswitch.NewOVS()
-	encapIP, err := ovs.OVNEncapIP()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	encapIP, err := ovs.OVNEncapIP(ctx)
 	if err != nil {
 		return 0, nil, fmt.Errorf("Failed getting OVN enscapsulation IP from OVS: %w", err)
 	}
@@ -1634,19 +1636,25 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 
 	// Create uplink OVS bridge if needed.
 	ovs := openvswitch.NewOVS()
-	err = ovs.BridgeAdd(vars.ovsBridge, true, nil, 0)
+	ctx1, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	err = ovs.BridgeAdd(ctx1, vars.ovsBridge, true, nil, 0)
 	if err != nil {
 		return fmt.Errorf("Failed to create uplink OVS bridge %q: %w", vars.ovsBridge, err)
 	}
 
+	ctx2, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 	// Connect OVS end veth interface to OVS bridge.
-	err = ovs.BridgePortAdd(vars.ovsBridge, vars.ovsEnd, true)
+	err = ovs.BridgePortAdd(ctx2, vars.ovsBridge, vars.ovsEnd, true)
 	if err != nil {
 		return fmt.Errorf("Failed to connect uplink veth interface %q to uplink OVS bridge %q: %w", vars.ovsEnd, vars.ovsBridge, err)
 	}
 
+	ctx3, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 	// Associate OVS bridge to logical OVN provider.
-	err = ovs.OVNBridgeMappingAdd(vars.ovsBridge, uplinkNet.Name())
+	err = ovs.OVNBridgeMappingAdd(ctx3, vars.ovsBridge, uplinkNet.Name())
 	if err != nil {
 		return fmt.Errorf("Failed to associate uplink OVS bridge %q to OVN provider %q: %w", vars.ovsBridge, uplinkNet.Name(), err)
 	}
@@ -1666,7 +1674,9 @@ func (n *ovn) startUplinkPortBridgeOVS(uplinkNet Network, bridgeDevice string) e
 
 	// If uplink is an openvswitch bridge, have OVN logical provider connect directly to it.
 	ovs := openvswitch.NewOVS()
-	err := ovs.OVNBridgeMappingAdd(bridgeDevice, uplinkNet.Name())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	err := ovs.OVNBridgeMappingAdd(ctx, bridgeDevice, uplinkNet.Name())
 	if err != nil {
 		return fmt.Errorf("Failed to associate uplink OVS bridge %q to OVN provider %q: %w", bridgeDevice, uplinkNet.Name(), err)
 	}
@@ -1747,7 +1757,9 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 
 	// Detect if uplink interface is a OVS bridge.
 	ovs := openvswitch.NewOVS()
-	isOVSBridge, _ := ovs.BridgeExists(uplinkHostName)
+	ctx1, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	isOVSBridge, _ := ovs.BridgeExists(ctx1, uplinkHostName)
 	if isOVSBridge {
 		return n.startUplinkPortBridgeOVS(uplinkNet, uplinkHostName)
 	}
@@ -1774,20 +1786,26 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 		return fmt.Errorf("Failed to configure uplink interface %q: %w", uplinkHostName, err)
 	}
 
+	ctx2, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 	// Create uplink OVS bridge if needed.
-	err = ovs.BridgeAdd(vars.ovsBridge, true, nil, 0)
+	err = ovs.BridgeAdd(ctx2, vars.ovsBridge, true, nil, 0)
 	if err != nil {
 		return fmt.Errorf("Failed to create uplink OVS bridge %q: %w", vars.ovsBridge, err)
 	}
 
+	ctx3, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 	// Connect OVS end veth interface to OVS bridge.
-	err = ovs.BridgePortAdd(vars.ovsBridge, uplinkHostName, true)
+	err = ovs.BridgePortAdd(ctx3, vars.ovsBridge, uplinkHostName, true)
 	if err != nil {
 		return fmt.Errorf("Failed to connect uplink interface %q to uplink OVS bridge %q: %w", uplinkHostName, vars.ovsBridge, err)
 	}
 
+	ctx4, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 	// Associate OVS bridge to logical OVN provider.
-	err = ovs.OVNBridgeMappingAdd(vars.ovsBridge, uplinkNet.Name())
+	err = ovs.OVNBridgeMappingAdd(ctx4, vars.ovsBridge, uplinkNet.Name())
 	if err != nil {
 		return fmt.Errorf("Failed to associate uplink OVS bridge %q to OVN provider %q: %w", vars.ovsBridge, uplinkNet.Name(), err)
 	}
@@ -1891,12 +1909,16 @@ func (n *ovn) deleteUplinkPortBridgeNative(uplinkNet Network) error {
 			removeVeths = true
 
 			ovs := openvswitch.NewOVS()
-			err = ovs.OVNBridgeMappingDelete(vars.ovsBridge, uplinkNet.Name())
+			ctx1, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			err = ovs.OVNBridgeMappingDelete(ctx1, vars.ovsBridge, uplinkNet.Name())
 			if err != nil {
 				return err
 			}
 
-			err = ovs.BridgeDelete(vars.ovsBridge)
+			ctx2, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			err = ovs.BridgeDelete(ctx2, vars.ovsBridge)
 			if err != nil {
 				return err
 			}
@@ -1937,7 +1959,9 @@ func (n *ovn) deleteUplinkPortBridgeOVS(uplinkNet Network, ovsBridge string) err
 	// Remove uplink OVS bridge mapping if not in use by other OVN networks.
 	if !uplinkUsed {
 		ovs := openvswitch.NewOVS()
-		err = ovs.OVNBridgeMappingDelete(ovsBridge, uplinkNet.Name())
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		err = ovs.OVNBridgeMappingDelete(ctx, ovsBridge, uplinkNet.Name())
 		if err != nil {
 			return err
 		}
@@ -1958,7 +1982,9 @@ func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 
 	// Detect if uplink interface is a OVS bridge.
 	ovs := openvswitch.NewOVS()
-	isOVSBridge, _ := ovs.BridgeExists(uplinkHostName)
+	ctx1, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	isOVSBridge, _ := ovs.BridgeExists(ctx1, uplinkHostName)
 	if isOVSBridge {
 		return n.deleteUplinkPortBridgeOVS(uplinkNet, uplinkHostName)
 	}
@@ -1979,12 +2005,16 @@ func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 			releaseIF = true
 
 			ovs := openvswitch.NewOVS()
-			err = ovs.OVNBridgeMappingDelete(vars.ovsBridge, uplinkNet.Name())
+			ctx2, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			err = ovs.OVNBridgeMappingDelete(ctx2, vars.ovsBridge, uplinkNet.Name())
 			if err != nil {
 				return err
 			}
 
-			err = ovs.BridgeDelete(vars.ovsBridge)
+			ctx3, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			err = ovs.BridgeDelete(ctx3, vars.ovsBridge)
 			if err != nil {
 				return err
 			}
@@ -2830,7 +2860,9 @@ func (n *ovn) addChassisGroupEntry() error {
 
 	// Get local chassis ID for chassis group.
 	ovs := openvswitch.NewOVS()
-	chassisID, err := ovs.ChassisID()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	chassisID, err := ovs.ChassisID(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed getting OVS Chassis ID: %w", err)
 	}
@@ -2895,7 +2927,9 @@ func (n *ovn) deleteChassisGroupEntry() error {
 
 	// Remove local chassis from chassis group.
 	ovs := openvswitch.NewOVS()
-	chassisID, err := ovs.ChassisID()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	chassisID, err := ovs.ChassisID(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed getting OVS Chassis ID: %w", err)
 	}
