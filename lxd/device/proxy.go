@@ -397,6 +397,7 @@ func (d *proxy) checkProcStarted(logPath string) (bool, error) {
 	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
+	var firstError string
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
@@ -405,13 +406,23 @@ func (d *proxy) checkProcStarted(logPath string) (bool, error) {
 		}
 
 		if strings.HasPrefix(line, "Error:") {
-			return false, errors.New(line)
+			if strings.Contains(line, "Failed to listen on") {
+				return false, errors.New(line)
+			}
+
+			if firstError == "" {
+				firstError = line
+			}
 		}
 	}
 
 	err = scanner.Err()
 	if err != nil {
 		return false, err
+	}
+
+	if firstError != "" {
+		return false, errors.New(firstError)
 	}
 
 	return false, nil
