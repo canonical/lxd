@@ -58,7 +58,7 @@ test_authorization() {
 
   # Storage volume permissions.
   pool_name="$(lxc storage list -f csv | cut -d, -f1)"
-  lxc storage volume create "${pool_name}" vol1
+  lxc storage volume create "${pool_name}" vol1 size=32MiB
   ! lxc auth group permission add test-group storage_volume vol1 can_manage_backups || false # No project, pool, or volume type
   lxc auth group permission add test-group storage_volume vol1 can_manage_backups project=default pool="${pool_name}" type=custom # Valid
   lxc auth group permission remove test-group storage_volume vol1 can_manage_backups project=default pool="${pool_name}" type=custom # Valid
@@ -75,7 +75,7 @@ test_authorization() {
 
   # Test permission is removed automatically when instance is removed.
   lxc auth group permission add test-group instance c1 can_exec project=default # Valid
-  lxc rm c1 --force
+  lxc delete c1 --force
   [ "$(lxd sql global --format csv "SELECT count(*) FROM auth_groups_permissions WHERE entitlement = 'can_exec'")" = 0 ] # Permission should be removed when instance is removed.
 
   # Network permissions
@@ -355,7 +355,7 @@ storage_pool_used_by() {
   [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 3 ]
 
   # Perform the same checks with storage volume snapshots.
-  lxc storage volume create "${pool_name}" vol1
+  lxc storage volume create "${pool_name}" vol1 size=32MiB
   [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length+4)) ]
   [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 3 ]
 
@@ -1002,7 +1002,7 @@ auth_project_features() {
 
   # Create a storage volume in the default project.
   volName="vol$$"
-  lxc storage volume create "${pool_name}" "${volName}" --project default
+  lxc storage volume create "${pool_name}" "${volName}" --project default size=32MiB
 
   # The storage volume we created in the default project is not visible in project blah.
   ! lxc_remote storage volume show "${remote}:${pool_name}" "${volName}" --project blah || false
@@ -1126,7 +1126,7 @@ entities_enrichment_with_entitlements() {
 
   # Storage volume
   pool_name="$(lxc storage list -f csv | cut -d, -f1)"
-  lxc storage volume create "${pool_name}" test-volume
+  lxc storage volume create "${pool_name}" test-volume size=32MiB
   lxc auth group permission add test-group storage_volume test-volume can_view project=default pool="${pool_name}" type=custom
   lxc auth group permission add test-group storage_volume test-volume can_edit project=default pool="${pool_name}" type=custom
   lxc auth group permission add test-group storage_volume test-volume can_delete project=default pool="${pool_name}" type=custom
@@ -1233,9 +1233,8 @@ entities_enrichment_with_entitlements() {
   lxc auth identity-provider-group delete test-idp-group3
 
   # Image
-  lxc init images:alpine/3.21 c1
-  lxc delete c1 -f
-  imgFingerprint=$(lxc image list --format json | jq -r '.[] | select(.update_source.alias == "alpine/3.21") | .fingerprint')
+  lxc image copy images:alpine/edge local:
+  imgFingerprint=$(lxc image list --format json | jq -r '.[] | select(.update_source.alias == "alpine/edge") | .fingerprint')
   lxc auth group permission add test-group image "${imgFingerprint}" can_view project=default
   lxc auth group permission add test-group image "${imgFingerprint}" can_edit project=default
   lxc auth group permission add test-group image "${imgFingerprint}" can_delete project=default
