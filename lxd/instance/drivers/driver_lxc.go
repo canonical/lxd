@@ -8120,9 +8120,6 @@ func (d *lxc) CGroup() (*cgroup.CGroup, error) {
 
 // SetAffinity sets affinity in the container according with a set provided.
 func (d *lxc) SetAffinity(set []string) error {
-	sort.Strings(set)
-	affinitySet := strings.Join(set, ",")
-
 	// Confirm the container didn't just stop
 	if d.InitPID() <= 0 {
 		return nil
@@ -8132,6 +8129,9 @@ func (d *lxc) SetAffinity(set []string) error {
 	if err != nil {
 		return fmt.Errorf("Unable to get cgroup struct: %w", err)
 	}
+
+	sort.Strings(set)
+	affinitySet := strings.Join(set, ",")
 
 	err = cg.SetCpuset(affinitySet)
 	if err != nil {
