@@ -89,12 +89,12 @@ For more information about LXD snap packages (regarding more versions, update ma
 ```{note}
 On Ubuntu 18.04 LTS, if you previously had the LXD deb package installed, you can migrate all your existing data over by installing the 5.0 snap and running the following commands:
 
-    sudo install lxd --channel=5.0/stable
+    sudo snap install lxd --channel=5.0/stable
     sudo lxd.migrate
 
 After successfully running the `lxd.migrate` command, you can then switch to a newer snap channel if desired, like the 5.21 one:
 
-    sudo refresh lxd --channel=5.21/stable
+    sudo snap refresh lxd --channel=5.21/stable
 ```
 
 If you want the current user to be able to interact with the LXD daemon, add it to the `lxd` group as the installation process does not add it for you:
