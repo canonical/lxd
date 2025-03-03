@@ -1269,9 +1269,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		//  condition: container
 		//  shortdesc: Override for the corresponding `sysctl` setting in the container
 		if strings.HasPrefix(k, "linux.sysctl.") {
-			sysctlSuffix := strings.TrimPrefix(k, "linux.sysctl.")
-			sysctlKey := fmt.Sprintf("lxc.sysctl.%s", sysctlSuffix)
-			err = lxcSetConfigItem(cc, sysctlKey, v)
+			err = lxcSetConfigItem(cc, k, v)
 			if err != nil {
 				return nil, err
 			}
