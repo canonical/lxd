@@ -480,6 +480,14 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   ### Configuration: unprivileged containers
   pivot_root,
 
+  # We need to allow all these filesystems because they were allowed
+  # for years as a result of a https://bugs.launchpad.net/apparmor/+bug/1597017
+  # Now, when AppArmor is fixed, we start to get complaints that things which
+  # were working before stopped to work now.
+  mount fstype=devpts,
+  mount fstype=proc,
+  mount fstype=sysfs,
+
   # Allow modifying mount propagation
   mount options=(rw,slave) -> **,
   mount options=(rw,rslave) -> **,
