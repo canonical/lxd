@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-02-12 10:13-0800\n"
+"POT-Creation-Date: 2025-03-03 08:53+0100\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Indonesian <https://hosted.weblate.org/projects/linux-"
@@ -1023,7 +1023,7 @@ msgstr ""
 msgid "Can't specify --project with --all-projects"
 msgstr ""
 
-#: lxc/rename.go:60
+#: lxc/rename.go:59
 msgid "Can't specify a different remote for rename"
 msgstr ""
 
@@ -1766,7 +1766,7 @@ msgstr ""
 #: lxc/project.go:856 lxc/project.go:923 lxc/publish.go:34 lxc/query.go:34
 #: lxc/rebuild.go:28 lxc/remote.go:35 lxc/remote.go:91 lxc/remote.go:749
 #: lxc/remote.go:787 lxc/remote.go:873 lxc/remote.go:954 lxc/remote.go:1018
-#: lxc/remote.go:1066 lxc/rename.go:22 lxc/restore.go:24 lxc/snapshot.go:32
+#: lxc/remote.go:1066 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32
 #: lxc/storage.go:34 lxc/storage.go:97 lxc/storage.go:203 lxc/storage.go:261
 #: lxc/storage.go:393 lxc/storage.go:475 lxc/storage.go:655 lxc/storage.go:742
 #: lxc/storage.go:846 lxc/storage.go:940 lxc/storage_bucket.go:30
@@ -4956,7 +4956,7 @@ msgstr ""
 msgid "Rename identity provider groups"
 msgstr ""
 
-#: lxc/rename.go:21 lxc/rename.go:22
+#: lxc/rename.go:20 lxc/rename.go:21
 msgid "Rename instances and snapshots"
 msgstr ""
 
@@ -5029,11 +5029,11 @@ msgstr ""
 msgid "Restore cluster member"
 msgstr ""
 
-#: lxc/restore.go:23
+#: lxc/restore.go:21
 msgid "Restore instances from snapshots"
 msgstr ""
 
-#: lxc/restore.go:24
+#: lxc/restore.go:22
 msgid ""
 "Restore instances from snapshots\n"
 "\n"
@@ -6559,7 +6559,7 @@ msgstr ""
 msgid "Whether or not to only backup the instance (without snapshots)"
 msgstr ""
 
-#: lxc/restore.go:36
+#: lxc/restore.go:34
 msgid ""
 "Whether or not to restore the instance's running state from snapshot (if "
 "available)"
@@ -6827,7 +6827,7 @@ msgstr ""
 msgid "[<remote>:]<instance> <profiles>"
 msgstr ""
 
-#: lxc/restore.go:22
+#: lxc/restore.go:20
 msgid "[<remote>:]<instance> <snapshot>"
 msgstr ""
 
@@ -6873,7 +6873,7 @@ msgstr ""
 msgid "[<remote>:]<instance>[/<path>] [<target path>]"
 msgstr ""
 
-#: lxc/rename.go:20
+#: lxc/rename.go:19
 msgid "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
 msgstr ""
 
@@ -7626,15 +7626,15 @@ msgstr ""
 
 #: lxc/snapshot.go:37
 msgid ""
-"lxc snapshot create u1 snap0\n"
+"lxc snapshot u1 snap0\n"
 "\tCreate a snapshot of \"u1\" called \"snap0\".\n"
 "\n"
-"\tlxc snapshot create u1 snap0 < config.yaml\n"
+"\tlxc snapshot u1 snap0 < config.yaml\n"
 "\t\tCreate a snapshot of \"u1\" called \"snap0\" with the configuration from "
 "\"config.yaml\"."
 msgstr ""
 
-#: lxc/restore.go:28
+#: lxc/restore.go:26
 msgid ""
 "lxc snapshot u1 snap0\n"
 "    Create the snapshot.\n"
