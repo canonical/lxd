@@ -1071,14 +1071,12 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		nvidiaDriver := d.expandedConfig["nvidia.driver.capabilities"]
 		if nvidiaDriver == "" {
 			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_DRIVER_CAPABILITIES=compute,utility")
-			if err != nil {
-				return nil, err
-			}
 		} else {
 			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_DRIVER_CAPABILITIES="+nvidiaDriver)
-			if err != nil {
-				return nil, err
-			}
+		}
+
+		if err != nil {
+			return nil, err
 		}
 
 		nvidiaRequireCuda := d.expandedConfig["nvidia.require.cuda"]
