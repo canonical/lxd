@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -105,7 +106,7 @@ func (d *common) validatePool(config map[string]string, driverRules map[string]f
 // excludeKeys allow exclude some keys from copying to volume config.
 // Sometimes that can be useful when copying is dependant from specific conditions
 // and shouldn't be done in generic way.
-func (d *common) fillVolumeConfig(vol *Volume, excludedKeys ...string) error {
+func (d *common) fillVolumeConfig(vol *Volume, excludedKeys ...string) {
 	for k := range d.config {
 		if !strings.HasPrefix(k, "volume.") {
 			continue
@@ -144,13 +145,11 @@ func (d *common) fillVolumeConfig(vol *Volume, excludedKeys ...string) error {
 			vol.config[volKey] = d.config[k]
 		}
 	}
-
-	return nil
 }
 
 // FillVolumeConfig populate volume with default config.
-func (d *common) FillVolumeConfig(vol Volume) error {
-	return d.fillVolumeConfig(&vol)
+func (d *common) FillVolumeConfig(vol Volume) {
+	d.fillVolumeConfig(&vol)
 }
 
 // validateVolume validates a volume config against common rules and optional driver specific rules.
@@ -291,7 +290,7 @@ func (d *common) moveGPTAltHeader(devPath string) error {
 		return nil
 	}
 
-	_, err = shared.RunCommand(path, "--move-second-header", devPath)
+	_, err = shared.RunCommandContext(context.Background(), path, "--move-second-header", devPath)
 	if err == nil {
 		d.logger.Debug("Moved GPT alternative header to end of disk", logger.Ctx{"dev": devPath})
 		return nil
@@ -584,7 +583,7 @@ func (d *common) filesystemFreeze(path string) (func() error, error) {
 		return nil, fmt.Errorf("Failed syncing filesystem %q: %w", path, err)
 	}
 
-	_, err = shared.RunCommand("fsfreeze", "--freeze", path)
+	_, err = shared.RunCommandContext(context.Background(), "fsfreeze", "--freeze", path)
 	if err != nil {
 		return nil, fmt.Errorf("Failed freezing filesystem %q: %w", path, err)
 	}
@@ -592,7 +591,7 @@ func (d *common) filesystemFreeze(path string) (func() error, error) {
 	d.logger.Info("Filesystem frozen", logger.Ctx{"path": path})
 
 	unfreezeFS := func() error {
-		_, err := shared.RunCommand("fsfreeze", "--unfreeze", path)
+		_, err := shared.RunCommandContext(context.Background(), "fsfreeze", "--unfreeze", path)
 		if err != nil {
 			return fmt.Errorf("Failed unfreezing filesystem %q: %w", path, err)
 		}
