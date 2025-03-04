@@ -111,23 +111,24 @@ test_basic_usage() {
   ! lxc list --columns=nsp --fast || false
 
   # Check volatile.apply_template is correct.
-  lxc config get foo volatile.apply_template | grep create
+  [ "$(lxc config get foo volatile.apply_template)" = "create" ]
 
   # Start the instance to clear apply_template.
   lxc start foo
+  [ "$(lxc config get bar volatile.apply_template)" = "" ]
   lxc stop foo -f
 
   # Test container rename
   lxc move foo bar
 
   # Check volatile.apply_template is altered during rename.
-  lxc config get bar volatile.apply_template | grep rename
+  [ "$(lxc config get bar volatile.apply_template)" = "rename" ]
 
-  lxc list | grep -v foo
+  ! lxc info foo || false
   lxc list | grep bar
 
   lxc rename bar foo
-  lxc list | grep -v bar
+  ! lxc info bar || false
   lxc list | grep foo
   lxc rename foo bar
 
@@ -416,7 +417,7 @@ test_basic_usage() {
   lxc init testimage last-used-at-test
   lxc list last-used-at-test  --format json | jq -r '.[].last_used_at' | grep '1970-01-01T00:00:00Z'
   lxc start last-used-at-test
-  lxc list last-used-at-test  --format json | jq -r '.[].last_used_at' | grep -v '1970-01-01T00:00:00Z'
+  ! lxc list last-used-at-test  --format json | jq -r '.[].last_used_at' | grep '1970-01-01T00:00:00Z' || false
   lxc delete last-used-at-test --force
 
   # Test user, group and cwd
@@ -696,7 +697,7 @@ test_basic_usage() {
 
   # Test assigning a profile through a YAML file to an instance.
   poolName=$(lxc profile device get default root pool)
-  lxc profile create foo < <(cat <<EOF
+  lxc profile create foo << EOF
 config:
   limits.cpu: 2
   limits.memory: 1024MiB
@@ -707,7 +708,6 @@ devices:
     pool: ${poolName}
     type: disk
 EOF
-)
   lxc init testimage c1 --profile foo
   [ "$(lxc config get c1 limits.cpu --expanded)" = "2" ]
   [ "$(lxc config get c1 limits.memory --expanded)" = "1024MiB" ]

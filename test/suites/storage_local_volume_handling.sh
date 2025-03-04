@@ -68,11 +68,11 @@ test_storage_local_volume_handling() {
       lxc storage create "${pool}1" "${driver}"
     fi
 
-    lxc storage volume create "${pool}" vol1
+    lxc storage volume create "${pool}" vol1 size=32MiB
     lxc storage volume set "${pool}" vol1 user.foo=snap0
     lxc storage volume set "${pool}" vol1 snapshots.expiry=1H
 
-    lxc storage volume create "${pool}" blockVol --type=block
+    lxc storage volume create "${pool}" blockVol --type=block size=32MiB
     truncate -s 25MiB foo.iso
     lxc storage volume import "${pool}" ./foo.iso isoVol
 
@@ -158,10 +158,10 @@ test_storage_local_volume_handling() {
     lxc storage create pool_2 dir
 
     # Create volumes with same name on another pool
-    lxc storage volume create pool_1 vol1
-    lxc storage volume create pool_2 vol1
-    lxc storage volume create pool_1 vol2
-    lxc storage volume create pool_2 vol2
+    lxc storage volume create pool_1 vol1 size=32MiB
+    lxc storage volume create pool_2 vol1 size=32MiB
+    lxc storage volume create pool_1 vol2 size=32MiB
+    lxc storage volume create pool_2 vol2 size=32MiB
 
     # List volumes from all pools
     lxc storage volume list --format csv --columns pn | grep "pool_1,vol1"
@@ -195,7 +195,7 @@ test_storage_local_volume_handling() {
           target_pool="${pool_base}-${target_driver}"
 
           # source_driver -> target_driver
-          lxc storage volume create "${source_pool}" vol1
+          lxc storage volume create "${source_pool}" vol1 size=32MiB
           # This will create the snapshot vol1/snap0
           lxc storage volume snapshot "${source_pool}" vol1
           # Copy volume with snapshots
@@ -215,7 +215,7 @@ test_storage_local_volume_handling() {
           lxc storage volume delete "${target_pool}" vol1
 
           # target_driver -> source_driver
-          lxc storage volume create "${target_pool}" vol1
+          lxc storage volume create "${target_pool}" vol1 size=32MiB
           lxc storage volume copy "${target_pool}/vol1" "${source_pool}/vol1"
           lxc storage volume delete "${source_pool}" vol1
 
