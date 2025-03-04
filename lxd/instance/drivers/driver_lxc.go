@@ -774,12 +774,12 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		}
 
 		if shared.IsDir(mnt) {
-			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none rbind,create=dir,optional 0 0", mnt, strings.TrimPrefix(mnt, "/")))
+			err = lxcSetConfigItem(cc, "lxc.mount.entry", mnt+" "+strings.TrimPrefix(mnt, "/")+" none rbind,create=dir,optional 0 0")
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file,optional 0 0", mnt, strings.TrimPrefix(mnt, "/")))
+			err = lxcSetConfigItem(cc, "lxc.mount.entry", mnt+" "+strings.TrimPrefix(mnt, "/")+" none rbind,create=file,optional 0 0")
 			if err != nil {
 				return nil, err
 			}
@@ -792,8 +792,8 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		templateConfDir = "/usr/share/lxc/config"
 	}
 
-	if shared.PathExists(fmt.Sprintf("%s/common.conf.d/", templateConfDir)) {
-		err = lxcSetConfigItem(cc, "lxc.include", fmt.Sprintf("%s/common.conf.d/", templateConfDir))
+	if shared.PathExists(templateConfDir + "/common.conf.d/") {
+		err = lxcSetConfigItem(cc, "lxc.include", templateConfDir+"/common.conf.d/")
 		if err != nil {
 			return nil, err
 		}
@@ -922,7 +922,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 
 	// Setup devlxd
 	if shared.IsTrueOrEmpty(d.expandedConfig["security.devlxd"]) {
-		err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s dev/lxd none bind,create=dir 0 0", shared.VarPath("devlxd")))
+		err = lxcSetConfigItem(cc, "lxc.mount.entry", shared.VarPath("devlxd")+" dev/lxd none bind,create=dir 0 0")
 		if err != nil {
 			return nil, err
 		}
@@ -950,7 +950,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 			 * profile.
 			 */
 			if d.state.OS.AppArmorStacking && !d.state.OS.AppArmorStacked {
-				profile = fmt.Sprintf("%s//&:%s:", profile, apparmor.InstanceNamespaceName(d))
+				profile = profile + "//&:" + apparmor.InstanceNamespaceName(d) + ":"
 			}
 
 			err := lxcSetConfigItem(cc, "lxc.apparmor.profile", profile)
@@ -975,7 +975,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		// System requirement errors are handled during policy generation instead of here
 		ok, err := seccomp.InstanceNeedsIntercept(d.state, d)
 		if err == nil && ok {
-			err = lxcSetConfigItem(cc, "lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
+			err = lxcSetConfigItem(cc, "lxc.seccomp.notify.proxy", "unix:"+shared.VarPath("seccomp.socket"))
 			if err != nil {
 				return nil, err
 			}
@@ -998,8 +998,8 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		}
 	}
 
-	// Setup environment
 	for k, v := range d.expandedConfig {
+		// Setup environment
 		// lxdmeta:generate(entities=instance; group=miscellaneous; key=environment.*)
 		// The specified key/value environment variables are exported to the instance and set for `lxc exec`.
 
@@ -1007,11 +1007,42 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		//  type: string
 		//  liveupdate: yes (exec)
 		//  shortdesc: Environment variables to export
-		if strings.HasPrefix(k, "environment.") {
-			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("%s=%s", strings.TrimPrefix(k, "environment."), v))
+		environmentKey, found := strings.CutPrefix(k, "environment.")
+		if found {
+			err = lxcSetConfigItem(cc, "lxc.environment", environmentKey+"="+v)
 			if err != nil {
 				return nil, err
 			}
+
+			continue
+		}
+
+		// Setup process limits
+		prlimitSuffix, found := strings.CutPrefix(k, "limits.kernel.")
+		if found {
+			err = lxcSetConfigItem(cc, "lxc.prlimit."+prlimitSuffix, v)
+			if err != nil {
+				return nil, err
+			}
+
+			continue
+		}
+
+		// Setup sysctls
+		// lxdmeta:generate(entities=instance; group=miscellaneous; key=linux.sysctl.*)
+		//
+		// ---
+		//  type: string
+		//  liveupdate: no
+		//  condition: container
+		//  shortdesc: Override for the corresponding `sysctl` setting in the container
+		if strings.HasPrefix(k, "linux.sysctl.") {
+			err = lxcSetConfigItem(cc, k, v)
+			if err != nil {
+				return nil, err
+			}
+
+			continue
 		}
 	}
 
@@ -1040,27 +1071,25 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		nvidiaDriver := d.expandedConfig["nvidia.driver.capabilities"]
 		if nvidiaDriver == "" {
 			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_DRIVER_CAPABILITIES=compute,utility")
-			if err != nil {
-				return nil, err
-			}
 		} else {
-			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_DRIVER_CAPABILITIES=%s", nvidiaDriver))
-			if err != nil {
-				return nil, err
-			}
+			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_DRIVER_CAPABILITIES="+nvidiaDriver)
+		}
+
+		if err != nil {
+			return nil, err
 		}
 
 		nvidiaRequireCuda := d.expandedConfig["nvidia.require.cuda"]
-		if nvidiaRequireCuda == "" {
-			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_REQUIRE_CUDA=%s", nvidiaRequireCuda))
+		if nvidiaRequireCuda != "" {
+			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_REQUIRE_CUDA="+nvidiaRequireCuda)
 			if err != nil {
 				return nil, err
 			}
 		}
 
 		nvidiaRequireDriver := d.expandedConfig["nvidia.require.driver"]
-		if nvidiaRequireDriver == "" {
-			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_REQUIRE_DRIVER=%s", nvidiaRequireDriver))
+		if nvidiaRequireDriver != "" {
+			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_REQUIRE_DRIVER="+nvidiaRequireDriver)
 			if err != nil {
 				return nil, err
 			}
@@ -1247,42 +1276,11 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		}
 	}
 
-	// Setup process limits
-	for k, v := range d.expandedConfig {
-		if strings.HasPrefix(k, "limits.kernel.") {
-			prlimitSuffix := strings.TrimPrefix(k, "limits.kernel.")
-			prlimitKey := fmt.Sprintf("lxc.prlimit.%s", prlimitSuffix)
-			err = lxcSetConfigItem(cc, prlimitKey, v)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	// Setup sysctls
-	for k, v := range d.expandedConfig {
-		// lxdmeta:generate(entities=instance; group=miscellaneous; key=linux.sysctl.*)
-		//
-		// ---
-		//  type: string
-		//  liveupdate: no
-		//  condition: container
-		//  shortdesc: Override for the corresponding `sysctl` setting in the container
-		if strings.HasPrefix(k, "linux.sysctl.") {
-			sysctlSuffix := strings.TrimPrefix(k, "linux.sysctl.")
-			sysctlKey := fmt.Sprintf("lxc.sysctl.%s", sysctlSuffix)
-			err = lxcSetConfigItem(cc, sysctlKey, v)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
 	// Setup shmounts
 	if d.state.OS.LXCFeatures["mount_injection_file"] {
-		err = lxcSetConfigItem(cc, "lxc.mount.auto", fmt.Sprintf("shmounts:%s:/dev/.lxd-mounts", d.ShmountsPath()))
+		err = lxcSetConfigItem(cc, "lxc.mount.auto", "shmounts:"+d.ShmountsPath()+":/dev/.lxd-mounts")
 	} else {
-		err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s dev/.lxd-mounts none bind,create=dir 0 0", d.ShmountsPath()))
+		err = lxcSetConfigItem(cc, "lxc.mount.entry", d.ShmountsPath()+" dev/.lxd-mounts none bind,create=dir 0 0")
 	}
 
 	if err != nil {
@@ -1630,7 +1628,7 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 		// that device doesn't already exist on the host as if a device exists on the host
 		// we can't know whether that is because liblxc has moved it back already or whether
 		// it is a conflicting device.
-		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", devName)) {
+		if !shared.PathExists("/sys/class/net/" + devName) {
 			if stopHookNetnsPath == "" {
 				return fmt.Errorf("Cannot detach NIC device %q without stopHookNetnsPath being provided", devName)
 			}
@@ -8120,9 +8118,6 @@ func (d *lxc) CGroup() (*cgroup.CGroup, error) {
 
 // SetAffinity sets affinity in the container according with a set provided.
 func (d *lxc) SetAffinity(set []string) error {
-	sort.Strings(set)
-	affinitySet := strings.Join(set, ",")
-
 	// Confirm the container didn't just stop
 	if d.InitPID() <= 0 {
 		return nil
@@ -8132,6 +8127,9 @@ func (d *lxc) SetAffinity(set []string) error {
 	if err != nil {
 		return fmt.Errorf("Unable to get cgroup struct: %w", err)
 	}
+
+	sort.Strings(set)
+	affinitySet := strings.Join(set, ",")
 
 	err = cg.SetCpuset(affinitySet)
 	if err != nil {
@@ -8183,10 +8181,10 @@ func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, ke
 func (rw *lxcCgroupReadWriter) Set(version cgroup.Backend, controller string, key string, value string) error {
 	if !rw.running {
 		if version == cgroup.V1 {
-			return lxcSetConfigItem(rw.cc, fmt.Sprintf("lxc.cgroup.%s", key), value)
+			return lxcSetConfigItem(rw.cc, "lxc.cgroup."+key, value)
 		}
 
-		return lxcSetConfigItem(rw.cc, fmt.Sprintf("lxc.cgroup2.%s", key), value)
+		return lxcSetConfigItem(rw.cc, "lxc.cgroup2."+key, value)
 	}
 
 	return rw.cc.SetCgroupItem(key, value)
@@ -8575,5 +8573,5 @@ func (d *lxc) loadRawLXCConfig(cc *liblxc.Container) error {
 
 // forfileRunningLockName returns the forkfile-running_ID lock name.
 func (d *common) forkfileRunningLockName() string {
-	return fmt.Sprintf("forkfile-running_%d", d.id)
+	return "forkfile-running_" + strconv.FormatInt(int64(d.id), 10)
 }
