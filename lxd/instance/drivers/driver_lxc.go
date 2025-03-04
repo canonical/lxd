@@ -1007,8 +1007,9 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		//  type: string
 		//  liveupdate: yes (exec)
 		//  shortdesc: Environment variables to export
-		if strings.HasPrefix(k, "environment.") {
-			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("%s=%s", strings.TrimPrefix(k, "environment."), v))
+		environmentKey, found := strings.CutPrefix(k, "environment.")
+		if found {
+			err = lxcSetConfigItem(cc, "lxc.environment", environmentKey+"="+v)
 			if err != nil {
 				return nil, err
 			}
