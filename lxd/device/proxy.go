@@ -654,12 +654,12 @@ func (d *proxy) killProxyProc(pidPath string) error {
 	if shared.PathExists(pidPath) {
 		p, err := subprocess.ImportProcess(pidPath)
 		if err != nil {
-			return fmt.Errorf("Could not read pid file: %s", err)
+			return fmt.Errorf("Could not read pid file %q: %w", pidPath, err)
 		}
 
 		err = p.Stop()
 		if err != nil && err != subprocess.ErrNotRunning {
-			return fmt.Errorf("Unable to kill forkproxy: %s", err)
+			return fmt.Errorf("Unable to kill forkproxy: %w", err)
 		}
 
 		err = os.Remove(pidPath)
