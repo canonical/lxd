@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -372,4 +373,143 @@ func (o *OVS) OVNSouthboundDBRemoteAddress() (string, error) {
 	}
 
 	return addr, nil
+}
+
+// getSTPPriority returns the STP priority of the OVS bridge.
+// Default STP priority is 32768 (0x8000). This value will be used if the priority cannot be retrieved or if STP is disabled.
+// The STP range in OVS is 0 to 65,535: http://www.openvswitch.org/support/dist-docs/ovs-vswitchd.conf.db.5.txt
+func getSTPPriority(ctx context.Context, bridgeName string) (uint16, error) {
+	const defaultSTPPriority = 32768
+
+	output, err := shared.RunCommandContext(ctx, "ovs-vsctl", "get", "bridge", bridgeName, "other_config:stp-priority")
+	// get bridge does not differentiate in it's error codes between variable undefined and other errors, such as bridge not found
+	// the error output will need to be checked to make sure if stp-priority is not defined (defaults to 0x8000) or if a breaking error happened
+	if err != nil {
+		// default stp-priority is used if stp-priority is not defined
+		if strings.Contains(err.Error(), fmt.Sprintf(`no key "stp-priority" in Bridge record %q column other_config`, bridgeName)) {
+			return defaultSTPPriority, nil
+		}
+
+		// All other errors are considered errors
+		return defaultSTPPriority, err
+	}
+
+	// Convert to hex format
+	output = strings.TrimSpace(output)
+	// remove surrounding quotes
+	output = output[1 : len(output)-1]
+	stpPriority, err := strconv.ParseUint(output, 10, 16)
+	if err != nil {
+		return defaultSTPPriority, err
+	}
+
+	return uint16(stpPriority), nil
+}
+
+// GenerateOVSBridgeID returns the bridge ID of the OVS bridge.
+// The bridge IDs follow the following format <STP priority>.<MAC Address>.
+// Check the Bridge ID section on https://www.kernel.org/doc/Documentation/networking/bridge.rst.
+// The STP priority is in hexadecimal format just like the MAC address.
+func (o *OVS) GenerateOVSBridgeID(ctx context.Context, bridgeName string) (string, error) {
+	// get the MAC address
+	netIf, err := net.InterfaceByName(bridgeName)
+	if err != nil {
+		return "", err
+	}
+
+	bridgeHwID := strings.ReplaceAll(strings.ToLower(netIf.HardwareAddr.String()), ":", "")
+
+	// Get the STP priority
+	stpPriority, err := getSTPPriority(ctx, bridgeName)
+	if err != nil {
+		return "", err
+	}
+
+	stpPriorityHex := fmt.Sprintf("%4X", stpPriority)
+	return stpPriorityHex + "." + bridgeHwID, nil
+}
+
+// STPEnabled checks if STP is enabled by looking up the "stp_enable" boolean config variable.
+// Returns the value stored in "stp_enable", or false if it is undefined.
+func (o *OVS) STPEnabled(ctx context.Context, bridgeName string) (bool, error) {
+	output, err := shared.RunCommandContext(ctx, "ovs-vsctl", "get", "bridge", bridgeName, "stp_enable")
+	if err != nil {
+		return false, err
+	}
+
+	output = strings.TrimSpace(output)
+	return strconv.ParseBool(output)
+}
+
+// GetSTPForwardDelay returns the STP forward delay in ms. OVS returns the value in seconds, so it needs to be
+// converted to ms to satisfy the api.NetworkStateBridge struct which expects the value in ms.
+// Default value is 15s.
+// Check the "other_config : stp-forward-delay:" section on http://www.openvswitch.org/support/dist-docs/ovs-vswitchd.conf.db.5.txt
+func (o *OVS) GetSTPForwardDelay(ctx context.Context, bridgeName string) (uint64, error) {
+	const defaultSTPFwdDelay = 15000
+
+	output, err := shared.RunCommandContext(ctx, "ovs-vsctl", "get", "bridge", bridgeName, "other_config:stp-forward-delay")
+	// get bridge does not differentiate in it's error codes between variables undefined and other errors, such as bridge not found
+	// the error output will need to be checked to make sure if stp-forward-delay is not defined (defaults to 15000) or if a breaking error happened
+	if err != nil {
+		// default stp-priority is used if stp-priority is not defined
+		if strings.Contains(err.Error(), fmt.Sprintf(`no key "stp-forward-delay" in Bridge record %q column other_config`, bridgeName)) {
+			return defaultSTPFwdDelay, nil
+		}
+
+		// All other errors are considered errors
+		return defaultSTPFwdDelay, err
+	}
+
+	output = strings.TrimSpace(output)
+	// remove surrounding quotes
+	output = output[1 : len(output)-1]
+	// Convert to uint64
+	stpFwdDelay, err := strconv.ParseUint(output, 10, 64)
+	if err != nil {
+		return defaultSTPFwdDelay, err
+	}
+
+	return stpFwdDelay * 1000, nil
+}
+
+// VLANFilteringEnabled checks if a vlans are enabled on the OVS bridge.
+// In OVS, Vlan filtering is enabled when Vlan related settings are configured.
+func (o *OVS) VLANFilteringEnabled(ctx context.Context, bridgeName string) (bool, error) {
+	// check if the tag, trunks or vlan_mode fields are populated
+	output, err := shared.RunCommandContext(ctx, "ovs-vsctl", "get", "port", bridgeName, "tag", "trunks", "vlan_mode")
+	if err != nil {
+		return false, err
+	}
+
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	for _, line := range lines {
+		// when no value is defined "[]" is returned
+		if line != "[]" {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// GetVLANPVID returbs the PVID of the ovs bridge.
+// In OVS a PVID of 0 means that the port is not associated with any VLAN.
+func (o *OVS) GetVLANPVID(ctx context.Context, bridgeName string) (uint64, error) {
+	output, err := shared.RunCommandContext(ctx, "ovs-vsctl", "get", "port", bridgeName, "tag")
+	if err != nil {
+		return 0, err
+	}
+
+	output = strings.TrimSpace(output)
+	if output == "[]" {
+		return 0, nil
+	}
+
+	pvid, err := strconv.ParseUint(output, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return pvid, nil
 }
