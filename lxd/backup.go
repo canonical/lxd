@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -16,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance"
+	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -179,6 +181,36 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 
 		resCh <- err
 	}(tarWriterRes)
+
+	// If the instance is a virtual machine, it can also be useful to embed the VM's node CPU flags,
+	// so that if we import back the VM on a different node, we can compute a common set of CPU flags that
+	// are supported by both nodes.
+	if sourceInst.Type() == instancetype.VM && !sourceInst.IsSnapshot() {
+
+		info := instanceDrivers.DriverStatuses()[instancetype.VM].Info
+		hostFlags, ok := info.Features["flags"].(map[string]bool)
+		cpuFlags := make([]string, 0)
+		if !ok {
+			l.Warn("Failed to get machine CPU flags from CPU information")
+		} else {
+			for flag, ok := range hostFlags {
+				if ok {
+					cpuFlags = append(cpuFlags, flag)
+				}
+			}
+		}
+
+		if len(cpuFlags) == 0 {
+			l.Warn("Failed to get machine CPU flags from CPU information")
+		} else {
+			err = sourceInst.VolatileSet(map[string]string{"volatile.cpu_flags": strings.Join(cpuFlags, ",")})
+			if err != nil {
+				l.Error("Failed to set virtual machine CPU flags before writing backup index", logger.Ctx{"err": err})
+			}
+
+			l.Debug("Added CPU flags to backup index in 'volatile.cpu_flags' config key", logger.Ctx{"flags": cpuFlags})
+		}
+	}
 
 	// Write index file.
 	l.Debug("Adding backup index file")
