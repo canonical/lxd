@@ -1569,15 +1569,50 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	cpuType := "host"
 
 	// Get CPU flags if clustered and migration is enabled (x86_64 only for now).
-	if d.architecture == osarch.ARCH_64BIT_INTEL_X86 && d.state.ServerClustered && shared.IsTrue(d.expandedConfig["migration.stateful"]) {
-		cpuFlags, err := d.getClusterCPUFlags()
-		if err != nil {
-			op.Done(err)
-			return err
+	if d.architecture == osarch.ARCH_64BIT_INTEL_X86 && shared.IsTrue(d.expandedConfig["migration.stateful"]) {
+		// It is also possible to use CPU flags from the source node if this node is not clustered.
+		if d.localConfig["volatile.cpu_flags"] != "" && !d.state.ServerClustered {
+			// Compare with this node's CPU flags.
+			sourceCpuFlags := strings.Split(d.localConfig["volatile.cpu_flags"], ",")
+			info := DriverStatuses()[instancetype.VM].Info
+			hostFlags, ok := info.Features["flags"].(map[string]bool)
+			if !ok {
+				return fmt.Errorf("Failed to get CPU flags for host")
+			}
+
+			// Get the common flags between the source and the host.
+			commonFlags := []string{}
+			for _, flag := range sourceCpuFlags {
+				if !hostFlags[flag] {
+					d.logger.Warn("CPU flag not supported on this node", logger.Ctx{"flag": flag})
+					continue
+				}
+
+				commonFlags = append(commonFlags, flag)
+				d.logger.Debug("CPU flag supported on this node", logger.Ctx{"flag": flag})
+			}
+
+			cpuType = "kvm64"
+			cpuExtensions = append(cpuExtensions, commonFlags...)
+
+			// Clear the `volatile.cpu_flags` key.
+			err = d.VolatileSet(map[string]string{"volatile.cpu_flags": ""})
+			if err != nil {
+				err = fmt.Errorf("Failed cleaning `volatile.cpu_flags` key: %w", err)
+				return err
+			}
 		}
 
-		cpuType = "kvm64"
-		cpuExtensions = append(cpuExtensions, cpuFlags...)
+		if d.state.ServerClustered {
+			cpuFlags, err := d.getClusterCPUFlags()
+			if err != nil {
+				op.Done(err)
+				return err
+			}
+
+			cpuType = "kvm64"
+			cpuExtensions = append(cpuExtensions, cpuFlags...)
+		}
 	}
 
 	if len(cpuExtensions) > 0 {
