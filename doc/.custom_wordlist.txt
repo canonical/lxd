@@ -10,6 +10,7 @@ AppArmor
 ARMv
 ARP
 ASN
+Auth
 AXFR
 backend
 backends
@@ -258,6 +259,7 @@ SPL
 SquashFS
 SSDs
 SSL
+SSO
 Starlark
 stateful
 stderr
