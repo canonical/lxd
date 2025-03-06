@@ -196,6 +196,13 @@ type ServerUntrusted struct {
 	//
 	// API extension: oidc
 	AuthMethods []string `json:"auth_methods" yaml:"auth_methods"`
+
+	// Whether the requester sent a client certificate with the request
+	// Read only: true
+	// Example: false
+	//
+	// API extension: client_cert_presence
+	ClientCertificate bool `json:"client_certificate" yaml:"client_certificate"`
 }
 
 // Server represents a LXD server
