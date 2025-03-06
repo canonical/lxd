@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -1061,7 +1062,12 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 	}
 
 	if nodeID == 0 {
-		return "", nil, fmt.Errorf("No dqlite node has address %s: %w", address, err)
+		raftNodeAddresses := make([]string, 0, len(nodes))
+		for _, node := range nodes {
+			raftNodeAddresses = append(raftNodeAddresses, node.Address)
+		}
+
+		return "", nil, fmt.Errorf("No dqlite node has address %s (%s)", address, strings.Join(raftNodeAddresses, ","))
 	}
 
 	roles, err := newRolesChanges(state, gateway, nodes, nil)
