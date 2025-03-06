@@ -162,8 +162,20 @@ func (s *Client) init(ctx context.Context, ubuntuProDir string, proShim pro) {
 	s.guestAttachSetting = guestAttachSettingOff
 	s.pro = proShim
 
+	// Check that the given directory exists.
+	_, err := os.Stat(ubuntuProDir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			logger.Debug("Ubuntu Pro guest attachment disabled - host is Ubuntu but no Pro configuration directory exists")
+		} else {
+			logger.Error("Ubuntu Pro guest attachment disabled - failed to check existence of Ubuntu Pro configuration directory", logger.Ctx{"err": err})
+		}
+
+		return
+	}
+
 	// Set up a watcher on the ubuntu pro directory.
-	err := s.watch(ctx, ubuntuProDir)
+	err = s.watch(ctx, ubuntuProDir)
 	if err != nil {
 		logger.Warn("Failed to configure Ubuntu configuration watcher", logger.Ctx{"err": err})
 	}
