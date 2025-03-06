@@ -24,45 +24,29 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-// RBDFormatPrefix is the prefix used in disk paths to identify RBD.
-const RBDFormatPrefix = "rbd"
-
-// RBDFormatSeparator is the field separate used in disk paths for RBD devices.
-const RBDFormatSeparator = " "
-
-// DiskParseRBDFormat parses an rbd formatted string, and returns the pool name, volume name, and list of options.
-func DiskParseRBDFormat(rbd string) (cephPoolName string, rbdImageName string, options []string, err error) {
-	if !strings.HasPrefix(rbd, RBDFormatPrefix+RBDFormatSeparator) {
-		return "", "", nil, fmt.Errorf("Invalid rbd format, missing prefix")
-	}
-
-	fields := strings.SplitN(rbd, RBDFormatSeparator, 3)
-	if len(fields) != 3 {
-		return "", "", nil, fmt.Errorf("Invalid rbd format, invalid number of fields")
-	}
-
-	opts := fields[2]
-
-	fields = strings.SplitN(fields[1], "/", 2)
-	if len(fields) != 2 {
-		return "", "", nil, fmt.Errorf("Invalid rbd format, invalid pool or volume")
-	}
-
-	return fields[0], fields[1], strings.Split(opts, ":"), nil
+// DevSourcePath is a path on the LXD host.
+// See `deviceConfig.DevSource`.
+type DevSourcePath struct {
+	Path string
 }
 
-// DiskGetRBDFormat returns a rbd formatted string with the given values.
-func DiskGetRBDFormat(clusterName string, userName string, cephPoolName string, rbdImageName string) string {
-	// Configuration values containing :, @, or = can be escaped with a leading \ character.
-	// According to https://docs.ceph.com/docs/hammer/rbd/qemu-rbd/#usage
-	optEscaper := strings.NewReplacer(":", `\:`, "@", `\@`, "=", `\=`)
-	opts := []string{
-		"id=" + optEscaper.Replace(userName),
-		"pool=" + optEscaper.Replace(cephPoolName),
-		"conf=/etc/ceph/" + optEscaper.Replace(clusterName) + ".conf",
-	}
+// DevSourceFD is a file descriptor held by the LXD process.
+// See `deviceConfig.DevSource`.
+type DevSourceFD struct {
+	FD   uintptr
+	Path string
+}
 
-	return RBDFormatPrefix + RBDFormatSeparator + optEscaper.Replace(cephPoolName) + "/" + optEscaper.Replace(rbdImageName) + RBDFormatSeparator + strings.Join(opts, ":")
+// DevSourceRBD describes an RBD image.
+// See `deviceConfig.DevSource`.
+//
+// This structure roughly corresponds to a qmp BlockdevOptionsRbd:
+// https://www.qemu.org/docs/master/interop/qemu-storage-daemon-qmp-ref.html#qapidoc-708
+type DevSourceRBD struct {
+	ClusterName string
+	UserName    string
+	PoolName    string
+	ImageName   string
 }
 
 // BlockFsDetect detects the type of block device.
