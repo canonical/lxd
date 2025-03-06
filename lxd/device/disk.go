@@ -1207,7 +1207,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					projectStorageVolumeName := project.StorageVolume(d.inst.Project().Name, volumeName)
 
 					vol := d.pool.GetVolume(volumeType, contentType, projectStorageVolumeName, dbVolume.Config)
-					rbdImageName := storageDrivers.CephGetRBDImageName(vol, "", false)
+					rbdImageName, snapName := storageDrivers.CephGetRBDImageName(vol, false)
 
 					mount := deviceConfig.MountEntryItem{
 						DevSource: DevSourceRBD{
@@ -1215,6 +1215,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 							UserName:    userName,
 							PoolName:    poolName,
 							ImageName:   rbdImageName,
+							Snapshot:    snapName,
 						},
 						DevName: d.name,
 						Opts:    opts,
