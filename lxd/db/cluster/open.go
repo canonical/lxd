@@ -137,7 +137,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) error {
 		// Update the schema and api_extension columns of ourselves.
 		err = updateNodeVersion(tx, address, apiExtensions)
 		if err != nil {
-			return fmt.Errorf("Failed to update cluster member version info: %w", err)
+			return fmt.Errorf("Failed to update cluster member version info for %q: %w", address, err)
 		}
 
 		return checkClusterIsUpgradable(ctx, tx, [2]int{len(updates), apiExtensions})
