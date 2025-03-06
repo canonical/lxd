@@ -47,6 +47,7 @@ type DevSourceRBD struct {
 	UserName    string
 	PoolName    string
 	ImageName   string
+	Snapshot    string
 }
 
 // BlockFsDetect detects the type of block device.
