@@ -1479,7 +1479,7 @@ func (d *Daemon) init() error {
 			options = append(options, driver.WithTracing(dqliteClient.LogDebug))
 		}
 
-		d.db.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, localClusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
+		d.db.Cluster, err = db.OpenCluster(d.shutdownCtx, "db.bin", store, localClusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
 		if err == nil {
 			logger.Info("Initialized global database")
 			break
