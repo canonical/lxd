@@ -3752,13 +3752,14 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]string, mountInfo *storageP
 				clusterName = storageDrivers.CephDefaultUser
 			}
 
-			rbdImageName := storageDrivers.CephGetRBDImageName(vol, "", false)
+			rbdImageName, snapName := storageDrivers.CephGetRBDImageName(vol, false)
 
 			driveConf.DevSource = device.DevSourceRBD{
 				ClusterName: clusterName,
 				UserName:    userName,
 				PoolName:    config["ceph.osd.pool_name"],
 				ImageName:   rbdImageName,
+				Snapshot:    snapName,
 			}
 		}
 	}
@@ -4018,6 +4019,10 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		blockDev["user"] = rbdSource.UserName
 		blockDev["server"] = []map[string]string{}
 		blockDev["conf"] = "/etc/ceph/" + rbdSource.ClusterName + ".conf"
+
+		if rbdSource.Snapshot != "" {
+			blockDev["snapshot"] = rbdSource.Snapshot
+		}
 
 		// Setup the Ceph cluster config (monitors and keyring).
 		monitors, err := storageDrivers.CephMonitors(rbdSource.ClusterName)
