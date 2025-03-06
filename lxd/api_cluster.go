@@ -4365,7 +4365,16 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(members) > 0 {
-			return fmt.Errorf("Only empty cluster groups can be removed")
+			return api.StatusErrorf(http.StatusBadRequest, "Only empty cluster groups can be removed")
+		}
+
+		usedBy, err := dbCluster.GetClusterGroupUsedBy(ctx, tx.Tx(), name)
+		if err != nil {
+			return err
+		}
+
+		if len(usedBy) > 0 {
+			return api.StatusErrorf(http.StatusBadRequest, "Cluster group is currently in use")
 		}
 
 		return dbCluster.DeleteClusterGroup(ctx, tx.Tx(), name)
