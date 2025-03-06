@@ -321,6 +321,11 @@ type ClusterGroup struct {
 	// List of members in this group
 	// Example: ["node1", "node3"]
 	Members []string `json:"members" yaml:"members"`
+
+	// UsedBy is a list or LXD entity URLs that reference the cluster group.
+	//
+	// API extension: clustering_groups_used_by
+	UsedBy []string `json:"used_by" yaml:"used_by"`
 }
 
 // ClusterGroupPost represents the fields required to rename a cluster group.
