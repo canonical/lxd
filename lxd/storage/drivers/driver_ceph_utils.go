@@ -1131,15 +1131,22 @@ func (d *ceph) generateUUID(fsType string, devPath string) error {
 }
 
 func (d *ceph) getRBDVolumeName(vol Volume, snapName string, zombie bool, withPoolName bool) string {
-	out := CephGetRBDImageName(vol, snapName, zombie)
+	imageName, volSnapName := CephGetRBDImageName(vol, zombie)
+
+	// see `man 8 rbd` for "snap-spec"
+	if snapName != "" {
+		imageName += "@" + snapName
+	} else if volSnapName != "" {
+		imageName += "@" + volSnapName
+	}
 
 	// If needed, the output will be prefixed with the pool name, e.g.
 	// <pool>/<type>_<volname>@<snapname>.
 	if withPoolName {
-		out = fmt.Sprintf("%s/%s", d.config["ceph.osd.pool_name"], out)
+		imageName = d.config["ceph.osd.pool_name"] + "/" + imageName
 	}
 
-	return out
+	return imageName
 }
 
 // Let's say we want to send the a container "a" including snapshots "snap0" and
