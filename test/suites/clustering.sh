@@ -3810,7 +3810,22 @@ EOF
   # Clean up
   lxc rm -f c1 c2 c3 c4 c5
 
-  # Restricted project tests
+  ## Restricted project tests
+
+  # Create an empty cluster group and reference it from project config
+  lxc cluster group create cluster:fizz
+  lxc project create cluster:buzz -c restricted=true -c restricted.cluster.groups=fizz
+
+  # Cannot launch an instance because fizz has no members
+  ! lxc init testimage cluster:c1 --project buzz || false
+
+  # Group fizz has no members, but it cannot be deleted because it is referenced by project buzz.
+  ! lxc cluster group delete cluster:fizz || false
+
+  # Clean up.
+  lxc project delete cluster:buzz
+  lxc cluster group delete cluster:fizz
+
   lxc project create foo -c features.images=false -c restricted=true -c restricted.cluster.groups=blah
   lxc profile show default | lxc profile edit default --project foo
 
