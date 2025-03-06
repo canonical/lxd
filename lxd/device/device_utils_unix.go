@@ -338,7 +338,7 @@ func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, devi
 
 	// Instruct LXD to perform the mount.
 	runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
-		DevPath:    d.HostPath,
+		DevSource:  DevSourcePath{Path: d.HostPath},
 		TargetPath: d.RelativePath,
 		FSType:     "none",
 		Opts:       []string{"bind", "create=file"},
