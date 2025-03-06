@@ -1,7 +1,13 @@
 package cluster
 
 import (
+	"context"
+	"database/sql"
+
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 //go:generate -command mapper lxd-generate db mapper -t cluster_groups.mapper.go
@@ -50,4 +56,44 @@ func (c *ClusterGroup) ToAPI() (*api.ClusterGroup, error) {
 	}
 
 	return &result, nil
+}
+
+// GetClusterGroupUsedBy collates references to the cluster group with the given name.
+// This currently only returns the URLs of projects whose `restricted.cluster.groups` configuration
+// contains the cluster group.
+func GetClusterGroupUsedBy(ctx context.Context, tx *sql.Tx, groupName string) ([]string, error) {
+	q := `
+SELECT projects.name, projects_config.value FROM projects 
+JOIN projects_config ON projects.id = projects_config.project_id 
+WHERE projects_config.key = 'restricted.cluster.groups' AND projects_config.value LIKE '%` + groupName + `%'`
+
+	stmt, err := tx.Prepare(q)
+	if err != nil {
+		return nil, err
+	}
+
+	projects := make(map[string]string)
+	err = query.SelectObjects(ctx, stmt, func(scan func(dest ...any) error) error {
+		var projectName string
+		var configValue string
+		err := scan(&projectName, &configValue)
+		if err != nil {
+			return err
+		}
+
+		projects[projectName] = configValue
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	projectURLs := make([]string, 0, len(projects))
+	for name, value := range projects {
+		if shared.ValueInSlice(groupName, shared.SplitNTrimSpace(value, ",", -1, false)) {
+			projectURLs = append(projectURLs, entity.ProjectURL(name).String())
+		}
+	}
+
+	return projectURLs, nil
 }
