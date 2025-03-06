@@ -3829,26 +3829,24 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			for i := range clusterGroups {
-				nodeClusterGroups, err := dbCluster.GetNodeClusterGroups(ctx, tx.Tx(), dbCluster.NodeClusterGroupFilter{GroupID: &clusterGroups[i].ID})
-				if err != nil {
-					return err
-				}
-
-				clusterGroups[i].Nodes = make([]string, 0, len(nodeClusterGroups))
-				for _, node := range nodeClusterGroups {
-					clusterGroups[i].Nodes = append(clusterGroups[i].Nodes, node.Node)
-				}
-			}
-
 			apiClusterGroups := make([]*api.ClusterGroup, 0, len(clusterGroups))
 			for _, clusterGroup := range clusterGroups {
-				members, err := tx.GetClusterGroupNodes(ctx, clusterGroup.Name)
+				nodeClusterGroups, err := dbCluster.GetNodeClusterGroups(ctx, tx.Tx(), dbCluster.NodeClusterGroupFilter{GroupID: &clusterGroup.ID})
 				if err != nil {
 					return err
 				}
 
-				apiClusterGroups = append(apiClusterGroups, db.ClusterGroupToAPI(&clusterGroup, members))
+				clusterGroup.Nodes = make([]string, 0, len(nodeClusterGroups))
+				for _, node := range nodeClusterGroups {
+					clusterGroup.Nodes = append(clusterGroup.Nodes, node.Node)
+				}
+
+				apiClusterGroup, err := clusterGroup.ToAPI(ctx, tx.Tx())
+				if err != nil {
+					return err
+				}
+
+				apiClusterGroups = append(apiClusterGroups, apiClusterGroup)
 			}
 
 			result = apiClusterGroups
@@ -3912,7 +3910,7 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var group *dbCluster.ClusterGroup
-
+	var apiGroup *api.ClusterGroup
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the cluster group.
 		group, err = dbCluster.GetClusterGroup(ctx, tx.Tx(), name)
@@ -3930,13 +3928,17 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 			group.Nodes = append(group.Nodes, node.Node)
 		}
 
+		apiGroup, err = group.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	apiGroup, err := group.ToAPI()
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -4205,13 +4207,13 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 			dbClusterGroup.Nodes = append(dbClusterGroup.Nodes, node.Node)
 		}
 
+		clusterGroup, err = dbClusterGroup.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	clusterGroup, err = dbClusterGroup.ToAPI()
 	if err != nil {
 		return response.SmartError(err)
 	}
