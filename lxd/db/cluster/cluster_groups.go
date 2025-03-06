@@ -48,11 +48,17 @@ type ClusterGroupFilter struct {
 }
 
 // ToAPI returns a LXD API entry.
-func (c *ClusterGroup) ToAPI() (*api.ClusterGroup, error) {
+func (c *ClusterGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.ClusterGroup, error) {
+	usedBy, err := GetClusterGroupUsedBy(ctx, tx, c.Name)
+	if err != nil {
+		return nil, err
+	}
+
 	result := api.ClusterGroup{
 		Name:        c.Name,
 		Description: c.Description,
 		Members:     c.Nodes,
+		UsedBy:      usedBy,
 	}
 
 	return &result, nil
