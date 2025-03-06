@@ -1450,16 +1450,21 @@ func (d *lxc) deviceStaticShiftMounts(mounts []deviceConfig.MountEntryItem) erro
 	// device files before they are mounted.
 	if idmapSet != nil && !d.state.OS.RunningInUserNS {
 		for _, mount := range mounts {
+			pathSource, isPath := mount.DevSource.(device.DevSourcePath)
+			if mount.DevSource != nil && !isPath {
+				return fmt.Errorf("Device source for device %q was not a host path (was %T)", mount.DevName, mount.DevSource)
+			}
+
 			// Skip UID/GID shifting if OwnerShift mode is not static, or the host-side
 			// DevPath is empty (meaning an unmount request that doesn't need shifting).
-			if mount.OwnerShift != deviceConfig.MountOwnerShiftStatic || mount.DevPath == "" {
+			if mount.OwnerShift != deviceConfig.MountOwnerShiftStatic || pathSource.Path == "" {
 				continue
 			}
 
-			err := idmapSet.ShiftFile(mount.DevPath)
+			err := idmapSet.ShiftFile(pathSource.Path)
 			if err != nil {
 				// uidshift failing is weird, but not a big problem. Log and proceed.
-				d.logger.Debug("Failed to uidshift device", logger.Ctx{"mountDevPath": mount.DevPath, "err": err})
+				d.logger.Debug("Failed to uidshift device", logger.Ctx{"mountDevPath": pathSource.Path, "err": err})
 			}
 		}
 	}
@@ -1650,8 +1655,14 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 	reverter := revert.New()
 	defer reverter.Fail()
+
 	for _, mount := range mounts {
-		if mount.DevPath != "" {
+		pathSource, isPath := mount.DevSource.(device.DevSourcePath)
+		if mount.DevSource != nil && !isPath {
+			return fmt.Errorf("Device source for device %q was not a host path (was %T)", mount.DevName, mount.DevSource)
+		}
+
+		if pathSource.Path != "" {
 			flags := 0
 
 			// Convert options into flags.
@@ -1667,14 +1678,14 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 
 			var idmapType idmap.IdmapStorageType = idmap.IdmapStorageNone
 			if !d.IsPrivileged() && mount.OwnerShift == deviceConfig.MountOwnerShiftDynamic {
-				idmapType = d.IdmappedStorage(mount.DevPath, mount.FSType)
+				idmapType = d.IdmappedStorage(pathSource.Path, mount.FSType)
 				if idmapType == idmap.IdmapStorageNone {
 					return fmt.Errorf("Required idmapping abilities not available")
 				}
 			}
 
 			// Mount it into the container.
-			err := d.insertMount(mount.DevPath, mount.TargetPath, mount.FSType, flags, idmapType)
+			err := d.insertMount(pathSource.Path, mount.TargetPath, mount.FSType, flags, idmapType)
 			if err != nil {
 				return fmt.Errorf("Failed to add mount for device inside container: %s", err)
 			}
@@ -2118,10 +2129,15 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		// Pass any mounts into LXC.
 		if len(runConf.Mounts) > 0 {
 			for _, mount := range runConf.Mounts {
+				pathSource, isPath := mount.DevSource.(device.DevSourcePath)
+				if mount.DevSource != nil && !isPath {
+					return "", nil, fmt.Errorf("Device source for device %q was not a host path (was %T)", mount.DevName, mount.DevSource)
+				}
+
 				mntOptions := strings.Join(mount.Opts, ",")
 
 				if !d.IsPrivileged() && mount.OwnerShift == deviceConfig.MountOwnerShiftDynamic {
-					switch d.IdmappedStorage(mount.DevPath, mount.FSType) {
+					switch d.IdmappedStorage(pathSource.Path, mount.FSType) {
 					case idmap.IdmapStorageIdmapped:
 						mntOptions = strings.Join([]string{mntOptions, "idmap=container"}, ",")
 					case idmap.IdmapStorageNone:
@@ -2129,7 +2145,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 					}
 				}
 
-				mntVal := shared.EscapePathFstab(mount.DevPath) + " " + shared.EscapePathFstab(mount.TargetPath) + " " + mount.FSType + " " + mntOptions + " " + fmt.Sprint(mount.Freq, " ", mount.PassNo)
+				mntVal := shared.EscapePathFstab(pathSource.Path) + " " + shared.EscapePathFstab(mount.TargetPath) + " " + mount.FSType + " " + mntOptions + " " + fmt.Sprint(mount.Freq, " ", mount.PassNo)
 				err = lxcSetConfigItem(cc, "lxc.mount.entry", mntVal)
 				if err != nil {
 					return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), err)
