@@ -663,6 +663,10 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 		return err
 	}
 
+	if backupConf.Container == nil {
+		return fmt.Errorf("No instance config in backup config")
+	}
+
 	if allowNameOverride && instName != "" {
 		backupConf.Container.Name = instName
 	}
