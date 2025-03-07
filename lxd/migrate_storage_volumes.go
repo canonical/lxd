@@ -102,11 +102,16 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		return fmt.Errorf("Failed generating volume migration config: %w", err)
 	}
 
+	customVol, err := srcConfig.CustomVolume()
+	if err != nil {
+		return fmt.Errorf("Failed getting the custom volume: %w", err)
+	}
+
 	// The refresh argument passed to MigrationTypes() is always set
 	// to false here. The migration source/sender doesn't need to care whether
 	// or not it's doing a refresh as the migration sink/receiver will know
 	// this, and adjust the migration types accordingly.
-	poolMigrationTypes = pool.MigrationTypes(storageDrivers.ContentType(srcConfig.Volume.ContentType), false, !s.volumeOnly)
+	poolMigrationTypes = pool.MigrationTypes(storageDrivers.ContentType(customVol.ContentType), false, !s.volumeOnly)
 	if len(poolMigrationTypes) == 0 {
 		return fmt.Errorf("No source migration types available")
 	}
@@ -120,12 +125,12 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 
 	// Only send snapshots when requested.
 	if !s.volumeOnly {
-		offerHeader.Snapshots = make([]*migration.Snapshot, 0, len(srcConfig.VolumeSnapshots))
-		offerHeader.SnapshotNames = make([]string, 0, len(srcConfig.VolumeSnapshots))
+		offerHeader.Snapshots = make([]*migration.Snapshot, 0, len(customVol.Snapshots))
+		offerHeader.SnapshotNames = make([]string, 0, len(customVol.Snapshots))
 
-		for i := range srcConfig.VolumeSnapshots {
-			offerHeader.SnapshotNames = append(offerHeader.SnapshotNames, srcConfig.VolumeSnapshots[i].Name)
-			offerHeader.Snapshots = append(offerHeader.Snapshots, volumeSnapshotToProtobuf(srcConfig.VolumeSnapshots[i]))
+		for i := range customVol.Snapshots {
+			offerHeader.SnapshotNames = append(offerHeader.SnapshotNames, customVol.Snapshots[i].Name)
+			offerHeader.Snapshots = append(offerHeader.Snapshots, volumeSnapshotToProtobuf(customVol.Snapshots[i]))
 		}
 	}
 
@@ -146,7 +151,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		return err
 	}
 
-	migrationTypes, err := migration.MatchTypes(respHeader, storagePools.FallbackMigrationType(storageDrivers.ContentType(srcConfig.Volume.ContentType)), poolMigrationTypes)
+	migrationTypes, err := migration.MatchTypes(respHeader, storagePools.FallbackMigrationType(storageDrivers.ContentType(customVol.ContentType)), poolMigrationTypes)
 	if err != nil {
 		logger.Errorf("Failed to negotiate migration type: %v", err)
 		s.sendControl(err)
@@ -155,11 +160,11 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 
 	volSourceArgs := &migration.VolumeSourceArgs{
 		IndexHeaderVersion: respHeader.GetIndexHeaderVersion(), // Enable index header frame if supported.
-		Name:               srcConfig.Volume.Name,
+		Name:               customVol.Name,
 		MigrationType:      migrationTypes[0],
 		Snapshots:          offerHeader.SnapshotNames,
 		TrackProgress:      true,
-		ContentType:        srcConfig.Volume.ContentType,
+		ContentType:        customVol.ContentType,
 		Info:               &migration.Info{Config: srcConfig},
 		VolumeOnly:         s.volumeOnly,
 	}
@@ -168,13 +173,13 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	if respHeader.GetRefresh() {
 		volSourceArgs.Refresh = true
 		volSourceArgs.Snapshots = respHeader.GetSnapshotNames()
-		allSnapshots := volSourceArgs.Info.Config.VolumeSnapshots
+		allSnapshots := customVol.Snapshots
 
 		// Ensure that only the requested snapshots are included in the migration index header.
-		volSourceArgs.Info.Config.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(volSourceArgs.Snapshots))
+		customVol.Snapshots = make([]*api.StorageVolumeSnapshot, 0, len(volSourceArgs.Snapshots))
 		for i := range allSnapshots {
 			if shared.ValueInSlice(allSnapshots[i].Name, volSourceArgs.Snapshots) {
-				volSourceArgs.Info.Config.VolumeSnapshots = append(volSourceArgs.Info.Config.VolumeSnapshots, allSnapshots[i])
+				customVol.Snapshots = append(customVol.Snapshots, allSnapshots[i])
 			}
 		}
 	}

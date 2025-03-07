@@ -713,28 +713,33 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 		return err
 	}
 
-	if backupConf.Container == nil {
+	if backupConf.Instance == nil {
 		return fmt.Errorf("Instance definition in backup config is missing")
 	}
 
 	if allowNameOverride && instName != "" {
-		backupConf.Container.Name = instName
+		backupConf.Instance.Name = instName
 	}
 
-	if instName != backupConf.Container.Name {
-		return fmt.Errorf("Instance name requested %q doesn't match instance name in backup config %q", instName, backupConf.Container.Name)
+	if instName != backupConf.Instance.Name {
+		return fmt.Errorf("Instance name requested %q doesn't match instance name in backup config %q", instName, backupConf.Instance.Name)
 	}
 
-	if backupConf.Pool == nil {
+	if len(backupConf.Pools) == 0 {
 		// We don't know what kind of storage type the pool is.
 		return fmt.Errorf("No storage pool struct in the backup file found. The storage pool needs to be recovered manually")
+	}
+
+	rootVolPool, err := backupConf.RootVolumePool()
+	if err != nil {
+		return fmt.Errorf("Failed getting the root volume's pool: %w", err)
 	}
 
 	// Try to retrieve the storage pool the instance supposedly lives on.
 	pool, err := storagePools.LoadByName(s, instancePoolName)
 	if response.IsNotFoundError(err) {
 		// Create the storage pool db entry if it doesn't exist.
-		_, err = storagePoolDBCreate(s, instancePoolName, "", backupConf.Pool.Driver, backupConf.Pool.Config)
+		_, err = storagePoolDBCreate(s, instancePoolName, "", rootVolPool.Driver, rootVolPool.Config)
 		if err != nil {
 			return fmt.Errorf("Create storage pool database entry: %w", err)
 		}
@@ -747,12 +752,12 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 		return fmt.Errorf("Find storage pool database entry: %w", err)
 	}
 
-	if backupConf.Pool.Name != instancePoolName {
-		return fmt.Errorf(`The storage pool %q the instance was detected on does not match the storage pool %q specified in the backup file`, instancePoolName, backupConf.Pool.Name)
+	if rootVolPool.Name != instancePoolName {
+		return fmt.Errorf(`The storage pool %q the instance was detected on does not match the storage pool %q specified in the backup file`, instancePoolName, rootVolPool.Name)
 	}
 
-	if backupConf.Pool.Driver != pool.Driver().Info().Name {
-		return fmt.Errorf(`The storage pool's %q driver %q conflicts with the driver %q recorded in the instance's backup file`, instancePoolName, pool.Driver().Info().Name, backupConf.Pool.Driver)
+	if rootVolPool.Driver != pool.Driver().Info().Name {
+		return fmt.Errorf(`The storage pool's %q driver %q conflicts with the driver %q recorded in the instance's backup file`, instancePoolName, pool.Driver().Info().Name, rootVolPool.Driver)
 	}
 
 	// Check snapshots are consistent.
@@ -764,7 +769,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	// Check if a storage volume entry for the instance already exists.
 	var dbVolume *db.StorageVolume
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, instanceDBVolType, backupConf.Container.Name, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, instanceDBVolType, backupConf.Instance.Name, true)
 		if err != nil && !response.IsNotFoundError(err) {
 			return err
 		}
@@ -776,12 +781,12 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	}
 
 	if dbVolume != nil {
-		return fmt.Errorf(`Storage volume for instance %q already exists in the database`, backupConf.Container.Name)
+		return fmt.Errorf(`Storage volume for instance %q already exists in the database`, backupConf.Instance.Name)
 	}
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check if an entry for the instance already exists in the db.
-		_, err := tx.GetInstanceID(ctx, projectName, backupConf.Container.Name)
+		_, err := tx.GetInstanceID(ctx, projectName, backupConf.Instance.Name)
 
 		return err
 	})
@@ -790,25 +795,30 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	}
 
 	if err == nil {
-		return fmt.Errorf(`Entry for instance %q already exists in the database`, backupConf.Container.Name)
+		return fmt.Errorf(`Entry for instance %q already exists in the database`, backupConf.Instance.Name)
 	}
 
-	if backupConf.Volume == nil {
+	if len(backupConf.Volumes) == 0 {
 		return fmt.Errorf(`No storage volume struct in the backup file found. The storage volume needs to be recovered manually`)
 	}
 
 	if dbVolume != nil {
-		if dbVolume.Name != backupConf.Volume.Name {
-			return fmt.Errorf(`The name %q of the storage volume is not identical to the instance's name "%s"`, dbVolume.Name, backupConf.Container.Name)
+		rootVol, err := backupConf.RootVolume()
+		if err != nil {
+			return fmt.Errorf("Failed getting the root volume: %w", err)
 		}
 
-		if dbVolume.Type != backupConf.Volume.Type {
-			return fmt.Errorf(`The type %q of the storage volume is not identical to the instance's type %q`, dbVolume.Type, backupConf.Volume.Type)
+		if dbVolume.Name != rootVol.Name {
+			return fmt.Errorf(`The name %q of the storage volume is not identical to the instance's name "%s"`, dbVolume.Name, backupConf.Instance.Name)
 		}
 
-		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		if dbVolume.Type != rootVol.Type {
+			return fmt.Errorf(`The type %q of the storage volume is not identical to the instance's type %q`, dbVolume.Type, rootVol.Type)
+		}
+
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Remove the storage volume db entry for the instance since force was specified.
-			return tx.RemoveStoragePoolVolume(ctx, projectName, backupConf.Container.Name, instanceDBVolType, pool.ID())
+			return tx.RemoveStoragePoolVolume(ctx, projectName, backupConf.Instance.Name, instanceDBVolType, pool.ID())
 		})
 		if err != nil {
 			return err
@@ -818,7 +828,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	var profiles []api.Profile
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profiles, err = tx.GetProfiles(ctx, projectName, backupConf.Container.Profiles)
+		profiles, err = tx.GetProfiles(ctx, projectName, backupConf.Instance.Profiles)
 
 		return err
 	})
@@ -827,31 +837,31 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	}
 
 	// Initialise the devices maps.
-	if backupConf.Container.Devices == nil {
-		backupConf.Container.Devices = make(map[string]map[string]string, 0)
+	if backupConf.Instance.Devices == nil {
+		backupConf.Instance.Devices = make(map[string]map[string]string, 0)
 	}
 
-	if backupConf.Container.ExpandedDevices == nil {
-		backupConf.Container.ExpandedDevices = make(map[string]map[string]string, 0)
+	if backupConf.Instance.ExpandedDevices == nil {
+		backupConf.Instance.ExpandedDevices = make(map[string]map[string]string, 0)
 	}
 
 	// Apply device overrides.
 	// Do this before calling internalImportRootDevicePopulate so that device overrides are taken into account.
-	resultingDevices, err := shared.ApplyDeviceOverrides(backupConf.Container.Devices, backupConf.Container.ExpandedDevices, deviceOverrides)
+	resultingDevices, err := shared.ApplyDeviceOverrides(backupConf.Instance.Devices, backupConf.Instance.ExpandedDevices, deviceOverrides)
 	if err != nil {
 		return err
 	}
 
-	backupConf.Container.Devices = resultingDevices
+	backupConf.Instance.Devices = resultingDevices
 
 	// Add root device if needed.
 	// And ensure root device is associated with same pool as instance has been imported to.
-	internalImportRootDevicePopulate(instancePoolName, backupConf.Container.Devices, backupConf.Container.ExpandedDevices, profiles)
+	internalImportRootDevicePopulate(instancePoolName, backupConf.Instance.Devices, backupConf.Instance.ExpandedDevices, profiles)
 
 	revert := revert.New()
 	defer revert.Fail()
 
-	if backupConf.Container == nil {
+	if backupConf.Instance == nil {
 		return fmt.Errorf("No instance config in backup config")
 	}
 
@@ -868,8 +878,8 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	revert.Add(cleanup)
 	defer instOp.Done(err)
 
-	instancePath := storagePools.InstancePath(instanceType, projectName, backupConf.Container.Name, false)
-	isPrivileged := backupConf.Container.Config["security.privileged"] == ""
+	instancePath := storagePools.InstancePath(instanceType, projectName, backupConf.Instance.Name, false)
+	isPrivileged := backupConf.Instance.Config["security.privileged"] == ""
 
 	err = storagePools.CreateContainerMountpoint(instanceMountPoint, instancePath, isPrivileged)
 	if err != nil {
@@ -877,11 +887,11 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	}
 
 	for _, snap := range existingSnapshots {
-		snapInstName := backupConf.Container.Name + shared.SnapshotDelimiter + snap.Name
+		snapInstName := backupConf.Instance.Name + shared.SnapshotDelimiter + snap.Name
 
 		snapErr := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Check if an entry for the snapshot already exists in the db.
-			_, err := tx.GetInstanceSnapshotID(ctx, projectName, backupConf.Container.Name, snap.Name)
+			_, err := tx.GetInstanceSnapshotID(ctx, projectName, backupConf.Instance.Name, snap.Name)
 
 			return err
 		})
@@ -964,7 +974,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 		// Recreate missing mountpoints and symlinks.
 		volStorageName := project.Instance(projectName, snapInstName)
 		snapshotMountPoint := storageDrivers.GetVolumeMountPath(instancePoolName, instanceVolType, volStorageName)
-		snapshotPath := storagePools.InstancePath(instanceType, projectName, backupConf.Container.Name, true)
+		snapshotPath := storagePools.InstancePath(instanceType, projectName, backupConf.Instance.Name, true)
 		snapshotTargetPath := storageDrivers.GetVolumeSnapshotDir(instancePoolName, instanceVolType, volStorageName)
 
 		err = storagePools.CreateSnapshotMountpoint(snapshotMountPoint, snapshotTargetPath, snapshotPath)

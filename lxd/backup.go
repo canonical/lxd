@@ -543,8 +543,13 @@ func volumeBackupWriteIndex(s *state.State, projectName string, volumeName strin
 		return fmt.Errorf("Failed generating volume backup config: %w", err)
 	}
 
+	customVol, err := config.CustomVolume()
+	if err != nil {
+		return fmt.Errorf("Failed getting the custom volume: %w", err)
+	}
+
 	indexInfo := backup.Info{
-		Name:             config.Volume.Name,
+		Name:             customVol.Name,
 		Pool:             pool.Name(),
 		Backend:          pool.Driver().Info().Name,
 		OptimizedStorage: &optimized,
@@ -554,8 +559,8 @@ func volumeBackupWriteIndex(s *state.State, projectName string, volumeName strin
 	}
 
 	if snapshots {
-		indexInfo.Snapshots = make([]string, 0, len(config.VolumeSnapshots))
-		for _, s := range config.VolumeSnapshots {
+		indexInfo.Snapshots = make([]string, 0, len(customVol.Snapshots))
+		for _, s := range customVol.Snapshots {
 			indexInfo.Snapshots = append(indexInfo.Snapshots, s.Name)
 		}
 	}
