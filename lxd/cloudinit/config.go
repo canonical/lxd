@@ -73,14 +73,14 @@ func GetEffectiveConfig(instanceConfig map[string]string, requestedKey string, i
 	var vendorErr error
 	var userErr error
 
-	// Defer logging a warning for each desired output in case of a parsing error.
+	// Defer logging a warning for each desired output in case of failing to merge SSH keys into cloud-init data due to a parsing error.
 	// An output is considered desired if it is the expected output for requestedKey's effective value or no requestedKey was provided.
 	defer func() {
-		if (requestedKey == "" || vendorKeyProvided) && vendorErr != nil {
+		if len(userKeys) > 0 && (requestedKey == "" || vendorKeyProvided) && vendorErr != nil {
 			logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": vendorErr, "project": instanceProject, "instance": instanceName, "dataConfigKey": vendorDataKey})
 		}
 
-		if (requestedKey == "" || userKeyProvided) && userErr != nil {
+		if len(userKeys) > 0 && (requestedKey == "" || userKeyProvided) && userErr != nil {
 			logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": userErr, "project": instanceProject, "instance": instanceName, "dataConfigKey": vendorDataKey})
 		}
 	}()
