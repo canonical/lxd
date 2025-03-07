@@ -234,6 +234,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	defer func() { _ = f.Close() }()
 	cpuInfoScanner := bufio.NewScanner(f)
 	cpuInfoMap := map[int64]*cpuInfo{}
+	flagList := []string{}
 
 	// CPU information
 	for cpuInfoScanner.Scan() {
@@ -291,6 +292,11 @@ func GetCPU() (*api.ResourcesCPU, error) {
 
 			if key == "model name" {
 				cpuInfo.Name = value
+				continue
+			}
+
+			if key == "flags" {
+				flagList = strings.SplitN(value, " ", -1)
 				continue
 			}
 
@@ -431,6 +437,9 @@ func GetCPU() (*api.ResourcesCPU, error) {
 
 			// Die number
 			resCore.Die = uint64(cpuDie)
+
+			// flag List
+			resCore.Flags = flagList
 
 			// Frequency
 			if sysfsExists(filepath.Join(entryPath, "cpufreq", "scaling_cur_freq")) {

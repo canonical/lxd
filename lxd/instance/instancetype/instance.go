@@ -1129,6 +1129,15 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  shortdesc: Instance `vsock ID` used as of last start
 	"volatile.vsock_id": validate.Optional(validate.IsInt64),
 
+	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.cpu_flags)
+	// When exporting a virtual machine, LXD populates the `volatile.cpu_flags` with the CPU flags of the LXD node it is running on.
+	// This information is used during a start after an import, to compute a CPU baseline for QEMU between the source and destination nodes.
+	// ---
+	//  type: string
+	//  condition: virtual machine
+	//  shortdesc: Instance CPU flags in a comma-separated list format.
+	"volatile.cpu_flags": validate.Optional(validate.IsAny),
+
 	// lxdmeta:generate(entities=instance; group=boot; key=boot.debug_edk2)
 	// The instance should use a debug version of the `edk2`.
 	// A log file can be found in `$LXD_DIR/logs/<instance_name>/edk2.log`.

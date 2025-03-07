@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -21,6 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/task"
@@ -179,6 +181,27 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 
 		resCh <- err
 	}(tarWriterRes)
+
+	// If the instance is a virtual machine, it can also be useful to embed the VM's node CPU flags,
+	// so that if we import back the VM on a different node, we can compute a common set of CPU flags that
+	// are supported by both nodes.
+	if sourceInst.Type() == instancetype.VM && !sourceInst.IsSnapshot() {
+		cpu, err := resources.GetCPU()
+		if err != nil {
+			return fmt.Errorf("Error getting CPU information: %w\n", err)
+		}
+
+		// We assume that the CPU flags are the same for all sockets and cores.
+		if cpu == nil || cpu.Sockets == nil || len(cpu.Sockets) == 0 || (len(cpu.Sockets) > 0 && (cpu.Sockets[0].Cores == nil || len(cpu.Sockets[0].Cores) == 0)) {
+			return fmt.Errorf("Failed getting CPU flags from CPU information %v\n", cpu)
+		}
+
+		cpuFlags := cpu.Sockets[0].Cores[0].Flags
+		err = sourceInst.VolatileSet(map[string]string{"volatile.cpu_flags": strings.Join(cpuFlags, ",")})
+		if err != nil {
+			l.Warn("Failed to set virtual machine CPU flags before writing backup index", logger.Ctx{"err": err})
+		}
+	}
 
 	// Write index file.
 	l.Debug("Adding backup index file")
