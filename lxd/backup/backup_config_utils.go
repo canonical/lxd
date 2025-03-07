@@ -21,32 +21,32 @@ import (
 
 // ConfigToInstanceDBArgs converts the instance config in the backup config to DB InstanceArgs.
 func ConfigToInstanceDBArgs(state *state.State, c *config.Config, projectName string, applyProfiles bool) (*db.InstanceArgs, error) {
-	if c.Container == nil {
+	if c.Instance == nil {
 		return nil, nil
 	}
 
-	arch, _ := osarch.ArchitectureId(c.Container.Architecture)
-	instanceType, _ := instancetype.New(c.Container.Type)
+	arch, _ := osarch.ArchitectureId(c.Instance.Architecture)
+	instanceType, _ := instancetype.New(c.Instance.Type)
 
 	inst := &db.InstanceArgs{
 		Project:      projectName,
 		Architecture: arch,
-		BaseImage:    c.Container.Config["volatile.base_image"],
-		Config:       c.Container.Config,
-		CreationDate: c.Container.CreatedAt,
+		BaseImage:    c.Instance.Config["volatile.base_image"],
+		Config:       c.Instance.Config,
+		CreationDate: c.Instance.CreatedAt,
 		Type:         instanceType,
-		Description:  c.Container.Description,
-		Devices:      deviceConfig.NewDevices(c.Container.Devices),
-		Ephemeral:    c.Container.Ephemeral,
-		LastUsedDate: c.Container.LastUsedAt,
-		Name:         c.Container.Name,
-		Stateful:     c.Container.Stateful,
+		Description:  c.Instance.Description,
+		Devices:      deviceConfig.NewDevices(c.Instance.Devices),
+		Ephemeral:    c.Instance.Ephemeral,
+		LastUsedDate: c.Instance.LastUsedAt,
+		Name:         c.Instance.Name,
+		Stateful:     c.Instance.Stateful,
 	}
 
 	if applyProfiles {
 		err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			inst.Profiles = make([]api.Profile, 0, len(c.Container.Profiles))
-			profiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, c.Container.Profiles)
+			inst.Profiles = make([]api.Profile, 0, len(c.Instance.Profiles))
+			profiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, c.Instance.Profiles)
 			if err != nil {
 				return err
 			}
@@ -204,20 +204,31 @@ func UpdateInstanceConfig(c *db.Cluster, b Info, mountPath string) error {
 		return err
 	}
 
-	// Update instance information in the backup.yaml.
-	if backup.Container != nil {
-		backup.Container.Name = b.Name
-		backup.Container.Project = b.Project
-	}
-
 	// Update volume information in the backup.yaml.
-	if backup.Volume != nil {
-		backup.Volume.Name = b.Name
-		backup.Volume.Project = b.Project
+	if backup.Volumes != nil {
+		rootVol, err := backup.RootVolume()
+		if err != nil {
+			return fmt.Errorf("Failed getting the root volume: %w", err)
+		}
+
+		rootVol.Name = b.Name
+		rootVol.Project = b.Project
+
+		updateRootVol, err := b.Config.RootVolume()
+		if err != nil {
+			return fmt.Errorf("Failed getting the root volume: %w", err)
+		}
 
 		// Ensure the most recent volume UUIDs get updated.
-		backup.Volume.Config = b.Config.Volume.Config
-		backup.VolumeSnapshots = b.Config.VolumeSnapshots
+		rootVol.Config = updateRootVol.Config
+		rootVol.Snapshots = updateRootVol.Snapshots
+	}
+
+	// Update instance information in the backup.yaml.
+	// Perform this after fetching the root vol as it's picked by the instance's name from the list of vols.
+	if backup.Instance != nil {
+		backup.Instance.Name = b.Name
+		backup.Instance.Project = b.Project
 	}
 
 	var pool *api.StoragePool
@@ -235,13 +246,16 @@ func UpdateInstanceConfig(c *db.Cluster, b Info, mountPath string) error {
 	rootDiskDeviceFound := false
 
 	// Change the pool in the backup.yaml.
-	backup.Pool = pool
+	err = backup.UpdateRootVolumePool(pool)
+	if err != nil {
+		return fmt.Errorf("Failed to update the root volume's pool: %w", err)
+	}
 
-	if updateRootDevicePool(backup.Container.Devices, pool.Name) {
+	if updateRootDevicePool(backup.Instance.Devices, pool.Name) {
 		rootDiskDeviceFound = true
 	}
 
-	if updateRootDevicePool(backup.Container.ExpandedDevices, pool.Name) {
+	if updateRootDevicePool(backup.Instance.ExpandedDevices, pool.Name) {
 		rootDiskDeviceFound = true
 	}
 
