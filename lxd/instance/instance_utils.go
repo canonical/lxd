@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -417,8 +416,7 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 // Project config is not populated (as not in the backup file), however expanded config from backup file is applied
 // to avoid needing to expand config by loading profiles from database.
 func LoadFromBackup(s *state.State, projectName string, instancePath string) (Instance, error) {
-	backupYamlPath := filepath.Join(instancePath, "backup.yaml")
-	backupConf, err := backup.ParseConfigYamlFile(backupYamlPath)
+	backupConf, backupYamlPath, err := backup.ParseConfigYamlFile(instancePath)
 	if err != nil {
 		return nil, fmt.Errorf("Failed parsing instance backup file from %q: %w", backupYamlPath, err)
 	}
