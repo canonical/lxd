@@ -55,8 +55,8 @@ func (c *ClusterTx) GetProjectInstancesAndProfiles(ctx context.Context, projects
 	}
 
 	var defaultProjectName = api.ProjectDefaultName
-	var profileFilters []cluster.ProfileFilter
-	var instanceFilters []cluster.InstanceFilter
+	profileFilters := make([]cluster.ProfileFilter, 0, len(projects))
+	instanceFilters := make([]cluster.InstanceFilter, 0, len(projects))
 
 	for _, project := range projects {
 		instanceFilters = append(instanceFilters, cluster.InstanceFilter{
