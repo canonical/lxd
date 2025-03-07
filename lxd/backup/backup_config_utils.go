@@ -81,6 +81,65 @@ func ConfigToInstanceDBArgs(state *state.State, c *config.Config, projectName st
 	return inst, nil
 }
 
+// UpgradeConfigFile changes from the old to the new metadata file format.
+// It's a noop in case the config is already using the new format.
+func UpgradeConfigFile(backupConf *config.Config) {
+	// Rewrite the the instance and pools config keys only if observed in the old format.
+	// Currently pools are only listed in the config files of instances.
+	if backupConf.Container != nil {
+		backupConf.Instance = backupConf.Container
+		backupConf.Pools = []*api.StoragePool{backupConf.Pool}
+	}
+
+	// Rewrite the volumes only in case the old format is used.
+	// We can indicate this by checking whether or not the .Volumes key is set.
+	// This is applicable for both instances and custom storage volumes.
+	if len(backupConf.Volumes) == 0 {
+		backupConf.Volumes = []*config.VolumeConfig{
+			{
+				StorageVolume: *backupConf.Volume,
+				Snapshots:     backupConf.VolumeSnapshots,
+			},
+		}
+	}
+
+	// Set the corresponding backup format version if not set.
+	if backupConf.Version == 0 {
+		backupConf.Version = api.BackupMetadataVersion2
+	}
+
+	// Unset the deprecated keys.
+	backupConf.Container = nil
+	backupConf.Pool = nil
+	backupConf.Volume = nil
+	backupConf.VolumeSnapshots = nil
+}
+
+// DowngradeConfigFile changes from the new to the old metadata file format.
+// It's a noop in case the config is already using the old format.
+// Downgrading loses the information about any additional custom storage volumes
+// that might have been attached to the config.
+// For instances it only lists the root volume including its snapshots.
+func DowngradeConfigFile(backupConf *config.Config) {
+	if backupConf.Instance != nil {
+		backupConf.Container = backupConf.Instance
+
+		if len(backupConf.Pools) > 0 {
+			backupConf.Pool = backupConf.Pools[0]
+		}
+	}
+
+	if len(backupConf.Volumes) > 0 {
+		backupConf.Volume = &backupConf.Volumes[0].StorageVolume
+		backupConf.VolumeSnapshots = backupConf.Volumes[0].Snapshots
+	}
+
+	backupConf.Version = 0
+	backupConf.Instance = nil
+	backupConf.Volumes = nil
+	backupConf.Pools = nil
+}
+
 // ParseConfigYamlFile decodes the YAML file at path specified into a Config.
 func ParseConfigYamlFile(path string) (*config.Config, error) {
 	data, err := os.ReadFile(path)
@@ -94,9 +153,12 @@ func ParseConfigYamlFile(path string) (*config.Config, error) {
 		return nil, err
 	}
 
+	// Rewrite from the old to the new format in case the metadata file hasn't been updated yet.
+	UpgradeConfigFile(&backupConf)
+
 	// Default to container if type not specified in backup config.
-	if backupConf.Container != nil && backupConf.Container.Type == "" {
-		backupConf.Container.Type = string(api.InstanceTypeContainer)
+	if backupConf.Instance != nil && backupConf.Instance.Type == "" {
+		backupConf.Instance.Type = string(api.InstanceTypeContainer)
 	}
 
 	return &backupConf, nil
