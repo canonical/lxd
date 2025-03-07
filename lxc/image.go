@@ -1078,8 +1078,9 @@ type cmdImageList struct {
 	global *cmdGlobal
 	image  *cmdImage
 
-	flagFormat  string
-	flagColumns string
+	flagFormat      string
+	flagColumns     string
+	flagAllProjects bool
 }
 
 func (c *cmdImageList) command() *cobra.Command {
@@ -1107,13 +1108,15 @@ Column shorthand chars:
     F - Fingerprint (long)
     p - Whether image is public
     d - Description
+    e - Project
     a - Architecture
     s - Size
     u - Upload date
     t - Type`))
 
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", "lfpdatsu", i18n.G("Columns")+"``")
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultImagesColumns, i18n.G("Columns")+"``")
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("Display images from all projects"))
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -1127,23 +1130,32 @@ Column shorthand chars:
 	return cmd
 }
 
+const defaultImagesColumns = "lfpdatsu"
+const defaultImagesColumnsAllProjects = "elfpdatsu"
+
 func (c *cmdImageList) parseColumns() ([]imageColumn, error) {
 	columnsShorthandMap := map[rune]imageColumn{
-		'l': {i18n.G("ALIAS"), c.aliasColumnData},
-		'L': {i18n.G("ALIASES"), c.aliasesColumnData},
+		'a': {i18n.G("ARCHITECTURE"), c.architectureColumnData},
+		'd': {i18n.G("DESCRIPTION"), c.descriptionColumnData},
+		'e': {i18n.G("PROJECT"), c.projectColumnData},
 		'f': {i18n.G("FINGERPRINT"), c.fingerprintColumnData},
 		'F': {i18n.G("FINGERPRINT"), c.fingerprintFullColumnData},
+		'l': {i18n.G("ALIAS"), c.aliasColumnData},
+		'L': {i18n.G("ALIASES"), c.aliasesColumnData},
 		'p': {i18n.G("PUBLIC"), c.publicColumnData},
-		'd': {i18n.G("DESCRIPTION"), c.descriptionColumnData},
-		'a': {i18n.G("ARCHITECTURE"), c.architectureColumnData},
 		's': {i18n.G("SIZE"), c.sizeColumnData},
-		'u': {i18n.G("UPLOAD DATE"), c.uploadDateColumnData},
 		't': {i18n.G("TYPE"), c.typeColumnData},
+		'u': {i18n.G("UPLOAD DATE"), c.uploadDateColumnData},
+	}
+
+	// Add project column if --all-projects flag specified and custom columns are not specified.
+	if c.flagAllProjects && c.flagColumns == defaultImagesColumns {
+		c.flagColumns = defaultImagesColumnsAllProjects
 	}
 
 	columnList := strings.Split(c.flagColumns, ",")
-
 	columns := []imageColumn{}
+
 	for _, columnEntry := range columnList {
 		if columnEntry == "" {
 			return nil, fmt.Errorf(i18n.G("Empty column entry (redundant, leading or trailing command) in '%s'"), c.flagColumns)
@@ -1199,6 +1211,10 @@ func (c *cmdImageList) publicColumnData(image api.Image) string {
 
 func (c *cmdImageList) descriptionColumnData(image api.Image) string {
 	return c.findDescription(image.Properties)
+}
+
+func (c *cmdImageList) projectColumnData(image api.Image) string {
+	return image.Project
 }
 
 func (c *cmdImageList) architectureColumnData(image api.Image) string {
@@ -1371,8 +1387,16 @@ func (c *cmdImageList) run(cmd *cobra.Command, args []string) error {
 
 			clientFilters = filters
 		}
+	} else {
+		allImages, err = remoteServer.GetImagesWithFilter(serverFilters)
+		if err != nil {
+			allImages, err = remoteServer.GetImages()
+			if err != nil {
+				return err
+			}
 
-		clientFilters = filters
+			clientFilters = filters
+		}
 	}
 
 	images := make([]api.Image, 0, len(allImages))
