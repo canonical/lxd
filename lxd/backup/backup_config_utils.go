@@ -14,6 +14,7 @@ import (
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/osarch"
 )
@@ -189,10 +190,8 @@ func updateRootDevicePool(devices map[string]map[string]string, poolName string)
 
 // UpdateInstanceConfig updates the instance's backup.yaml configuration file.
 func UpdateInstanceConfig(c *db.Cluster, b Info, mountPath string) error {
-	backupFilePath := filepath.Join(mountPath, "backup.yaml")
-
 	// Read in the backup.yaml file.
-	backup, err := ParseConfigYamlFile(backupFilePath)
+	backup, backupYamlPath, err := ParseConfigYamlFile(mountPath)
 	if err != nil {
 		return err
 	}
@@ -259,7 +258,7 @@ func UpdateInstanceConfig(c *db.Cluster, b Info, mountPath string) error {
 
 	// Write updated backup.yaml file.
 
-	file, err := os.Create(backupFilePath)
+	file, err := os.Create(backupYamlPath)
 	if err != nil {
 		return err
 	}
