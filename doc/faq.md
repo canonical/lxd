@@ -1,5 +1,5 @@
 ---
-discourse: lxc:14705
+discourse: lxc:[Cgroup2&#32;related&#32;issue](14705)
 ---
 
 # Frequently asked questions
