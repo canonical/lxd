@@ -31,8 +31,8 @@ const RBDFormatPrefix = "rbd"
 const RBDFormatSeparator = " "
 
 // DiskParseRBDFormat parses an rbd formatted string, and returns the pool name, volume name, and list of options.
-func DiskParseRBDFormat(rbd string) (poolName string, volumeName string, options []string, err error) {
-	if !strings.HasPrefix(rbd, fmt.Sprintf("%s%s", RBDFormatPrefix, RBDFormatSeparator)) {
+func DiskParseRBDFormat(rbd string) (cephPoolName string, rbdImageName string, options []string, err error) {
+	if !strings.HasPrefix(rbd, RBDFormatPrefix+RBDFormatSeparator) {
 		return "", "", nil, fmt.Errorf("Invalid rbd format, missing prefix")
 	}
 
@@ -52,22 +52,22 @@ func DiskParseRBDFormat(rbd string) (poolName string, volumeName string, options
 }
 
 // DiskGetRBDFormat returns a rbd formatted string with the given values.
-func DiskGetRBDFormat(clusterName string, userName string, poolName string, volumeName string) string {
+func DiskGetRBDFormat(clusterName string, userName string, cephPoolName string, rbdImageName string) string {
 	// Configuration values containing :, @, or = can be escaped with a leading \ character.
 	// According to https://docs.ceph.com/docs/hammer/rbd/qemu-rbd/#usage
 	optEscaper := strings.NewReplacer(":", `\:`, "@", `\@`, "=", `\=`)
 	opts := []string{
-		fmt.Sprintf("id=%s", optEscaper.Replace(userName)),
-		fmt.Sprintf("pool=%s", optEscaper.Replace(poolName)),
-		fmt.Sprintf("conf=/etc/ceph/%s.conf", optEscaper.Replace(clusterName)),
+		"id=" + optEscaper.Replace(userName),
+		"pool=" + optEscaper.Replace(cephPoolName),
+		"conf=/etc/ceph/" + optEscaper.Replace(clusterName) + ".conf",
 	}
 
-	return fmt.Sprintf("%s%s%s/%s%s%s", RBDFormatPrefix, RBDFormatSeparator, optEscaper.Replace(poolName), optEscaper.Replace(volumeName), RBDFormatSeparator, strings.Join(opts, ":"))
+	return RBDFormatPrefix + RBDFormatSeparator + optEscaper.Replace(cephPoolName) + "/" + optEscaper.Replace(rbdImageName) + RBDFormatSeparator + strings.Join(opts, ":")
 }
 
 // BlockFsDetect detects the type of block device.
 func BlockFsDetect(dev string) (string, error) {
-	out, err := shared.RunCommand("blkid", "-s", "TYPE", "-o", "value", dev)
+	out, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "TYPE", "-o", "value", dev)
 	if err != nil {
 		return "", err
 	}
@@ -162,7 +162,8 @@ func DiskMountClear(mntPath string) error {
 }
 
 func diskCephRbdMap(clusterName string, userName string, poolName string, volumeName string) (string, error) {
-	devPath, err := shared.RunCommand(
+	devPath, err := shared.RunCommandContext(
+		context.TODO(),
 		"rbd",
 		"--id", userName,
 		"--cluster", clusterName,
@@ -186,7 +187,8 @@ func diskCephRbdUnmap(deviceName string) error {
 	unmapImageName := deviceName
 	busyCount := 0
 again:
-	_, err := shared.RunCommand(
+	_, err := shared.RunCommandContext(
+		context.TODO(),
 		"rbd",
 		"unmap",
 		unmapImageName)
@@ -236,9 +238,9 @@ func diskCephfsOptions(clusterName string, userName string, fsName string, fsPat
 
 	// Prepare mount entry.
 	fsOptions := []string{
-		fmt.Sprintf("name=%v", userName),
-		fmt.Sprintf("secret=%v", secret),
-		fmt.Sprintf("mds_namespace=%v", fsName),
+		"name=" + userName,
+		"secret=" + secret,
+		"mds_namespace=" + fsName,
 	}
 
 	srcPath := strings.Join(monAddresses, ",") + ":/" + fsPath
@@ -489,7 +491,7 @@ func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Ins
 		"--fd=3",
 		// use -o flags for support in wider versions of virtiofsd.
 		"-o", "xattr",
-		"-o", fmt.Sprintf("source=%s", sharePath),
+		"-o", "source=" + sharePath,
 	}
 
 	// Virtiofsd defaults to namespace sandbox mode which requires pidfd_open support.

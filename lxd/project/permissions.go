@@ -1,7 +1,6 @@
 package project
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -25,10 +24,10 @@ func CheckRestrictedDevicesDiskPaths(projectConfig map[string]string, sourcePath
 	}
 
 	// Clean, then add trailing slash, to ensure we are prefix matching on whole path.
-	sourcePath = fmt.Sprintf("%s/", filepath.Clean(shared.HostPath(sourcePath)))
+	sourcePath = filepath.Clean(shared.HostPath(sourcePath)) + "/"
 	for _, parentSourcePath := range strings.SplitN(projectConfig["restricted.devices.disk.paths"], ",", -1) {
 		// Clean, then add trailing slash, to ensure we are prefix matching on whole path.
-		parentSourcePathTrailing := fmt.Sprintf("%s/", filepath.Clean(shared.HostPath(parentSourcePath)))
+		parentSourcePathTrailing := filepath.Clean(shared.HostPath(parentSourcePath)) + "/"
 		if strings.HasPrefix(sourcePath, parentSourcePathTrailing) {
 			return true, parentSourcePath
 		}

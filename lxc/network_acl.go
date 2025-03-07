@@ -99,7 +99,7 @@ func (c *cmdNetworkACLList) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(false)
+			return c.global.cmpRemotes(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -140,7 +140,7 @@ func (c *cmdNetworkACLList) run(cmd *cobra.Command, args []string) error {
 
 	data := [][]string{}
 	for _, acl := range acls {
-		strUsedBy := fmt.Sprintf("%d", len(acl.UsedBy))
+		strUsedBy := fmt.Sprint(len(acl.UsedBy))
 		details := []string{
 			acl.Name,
 			acl.Description,

@@ -99,7 +99,7 @@ func (c *cmdSQL) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if query == ".dump" || query == ".schema" {
-		url := fmt.Sprintf("/internal/sql?database=%s", database)
+		url := "/internal/sql?database=" + database
 		if query == ".schema" {
 			url += "&schema=1"
 		}

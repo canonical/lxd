@@ -107,7 +107,7 @@ lxc storage create s1 dir < config.yaml
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(false)
+			return c.global.cmpRemotes(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -584,12 +584,12 @@ func (c *cmdStorageInfo) run(cmd *cobra.Command, args []string) error {
 		values := u.Query()
 		projectName := values.Get("project")
 		if projectName != "" {
-			attribs = append(attribs, fmt.Sprintf("project %q", projectName))
+			attribs = append(attribs, `project "`+projectName+`"`)
 		}
 
 		locationName := values.Get("target")
 		if locationName != "" {
-			attribs = append(attribs, fmt.Sprintf("location %q", locationName))
+			attribs = append(attribs, `location "`+locationName+`"`)
 		}
 
 		if len(attribs) > 0 {
@@ -660,7 +660,7 @@ func (c *cmdStorageList) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(false)
+			return c.global.cmpRemotes(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp

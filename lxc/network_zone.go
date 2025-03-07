@@ -75,7 +75,8 @@ type cmdNetworkZoneList struct {
 	global      *cmdGlobal
 	networkZone *cmdNetworkZone
 
-	flagFormat string
+	flagFormat      string
+	flagAllProjects bool
 }
 
 func (c *cmdNetworkZoneList) command() *cobra.Command {
@@ -87,10 +88,11 @@ func (c *cmdNetworkZoneList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("Display network zones from all projects"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(false)
+			return c.global.cmpRemotes(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -124,18 +126,30 @@ func (c *cmdNetworkZoneList) run(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.G("Filtering isn't supported yet"))
 	}
 
-	zones, err := resource.server.GetNetworkZones()
-	if err != nil {
-		return err
+	var zones []api.NetworkZone
+	if c.flagAllProjects {
+		zones, err = resource.server.GetNetworkZonesAllProjects()
+		if err != nil {
+			return err
+		}
+	} else {
+		zones, err = resource.server.GetNetworkZones()
+		if err != nil {
+			return err
+		}
 	}
 
 	data := [][]string{}
 	for _, zone := range zones {
-		strUsedBy := fmt.Sprintf("%d", len(zone.UsedBy))
+		strUsedBy := fmt.Sprint(len(zone.UsedBy))
 		details := []string{
 			zone.Name,
 			zone.Description,
 			strUsedBy,
+		}
+
+		if c.flagAllProjects {
+			details = append([]string{zone.Project}, details...)
 		}
 
 		data = append(data, details)
@@ -147,6 +161,10 @@ func (c *cmdNetworkZoneList) run(cmd *cobra.Command, args []string) error {
 		i18n.G("NAME"),
 		i18n.G("DESCRIPTION"),
 		i18n.G("USED BY"),
+	}
+
+	if c.flagAllProjects {
+		header = append([]string{i18n.G("PROJECT")}, header...)
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, zones)
@@ -809,7 +827,7 @@ func (c *cmdNetworkZoneRecordList) run(cmd *cobra.Command, args []string) error 
 		entries := []string{}
 
 		for _, entry := range record.Entries {
-			entries = append(entries, fmt.Sprintf("%s %s", entry.Type, entry.Value))
+			entries = append(entries, entry.Type+" "+entry.Value)
 		}
 
 		details := []string{

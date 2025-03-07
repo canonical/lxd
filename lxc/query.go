@@ -53,7 +53,7 @@ func (c *cmdQuery) pretty(input any) string {
 	enc.SetIndent("", "\t")
 	err := enc.Encode(input)
 	if err != nil {
-		return fmt.Sprintf("%v", input)
+		return fmt.Sprint(input)
 	}
 
 	return pretty.String()
@@ -127,7 +127,7 @@ func (c *cmdQuery) run(cmd *cobra.Command, args []string) error {
 		}
 
 		// Setup the request
-		req, err := http.NewRequest(c.flagAction, fmt.Sprintf("%s%s", httpInfo.URL, path), rs)
+		req, err := http.NewRequest(c.flagAction, httpInfo.URL+path, rs)
 		if err != nil {
 			return err
 		}
@@ -160,7 +160,7 @@ func (c *cmdQuery) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		resp, _, err = d.RawQuery("GET", fmt.Sprintf("%s/wait?%s", uri.Path, uri.RawQuery), "", "")
+		resp, _, err = d.RawQuery("GET", uri.Path+"/wait?"+uri.RawQuery, "", "")
 		if err != nil {
 			return err
 		}

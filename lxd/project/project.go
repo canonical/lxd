@@ -15,6 +15,43 @@ import (
 // separator is used to delimit the project name from the suffix.
 const separator = "_"
 
+// ValidName validates a project name.
+func ValidName(name string) error {
+	if name == "" {
+		return fmt.Errorf("No name provided")
+	}
+
+	if name == "*" {
+		return fmt.Errorf("Reserved project name")
+	}
+
+	if name == "." || name == ".." {
+		return fmt.Errorf("Invalid project name %q", name)
+	}
+
+	if strings.Contains(name, "\\") {
+		return fmt.Errorf("Project names may not contain back slashes")
+	}
+
+	if strings.Contains(name, "/") {
+		return fmt.Errorf("Project names may not contain slashes")
+	}
+
+	if strings.Contains(name, " ") {
+		return fmt.Errorf("Project names may not contain spaces")
+	}
+
+	if strings.Contains(name, "_") {
+		return fmt.Errorf("Project names may not contain underscores")
+	}
+
+	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
+		return fmt.Errorf("Project names may not contain quotes")
+	}
+
+	return nil
+}
+
 // Instance adds the "<project>_" prefix to instance name when the given project name is not "default".
 func Instance(projectName string, instanceName string) string {
 	if projectName != api.ProjectDefaultName {
@@ -58,14 +95,14 @@ func StorageVolume(projectName string, storageVolumeName string) string {
 // StorageVolumeParts takes a project prefixed storage volume name and returns the project and storage volume
 // name as separate variables.
 func StorageVolumeParts(projectStorageVolumeName string) (projectName string, storageVolumeName string) {
-	parts := strings.SplitN(projectStorageVolumeName, "_", 2)
+	projectName, storageVolumeName, found := strings.Cut(projectStorageVolumeName, "_")
 
 	// If the given name doesn't contain any project, only return the volume name.
-	if len(parts) == 1 {
+	if !found {
 		return "", projectStorageVolumeName
 	}
 
-	return parts[0], parts[1]
+	return projectName, storageVolumeName
 }
 
 // StorageVolumeProject returns the project name to use to for the volume based on the requested project.

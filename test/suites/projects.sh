@@ -307,6 +307,9 @@ test_projects_profiles() {
   lxc project switch default
   ! lxc profile list | grep -q 'p1' || false
 
+  # The profile is visible in the default project when --all-projects is used
+  lxc profile list --all-projects | grep -q 'p1'
+
   # A profile with the same name can be created in the default project
   lxc profile create p1
 
@@ -380,6 +383,19 @@ test_projects_profiles_default() {
   lxc delete c1
   lxc image delete "${fingerprint}"
   lxc project delete foo
+
+  # Create another project using --storage and --network flags
+  lxc project create bar --storage default --network lxdbr0
+
+  # Ensure default profile properly set up
+  lxc profile show default --project bar | grep -E -q "network: lxdbr0"
+  lxc profile show default --project bar | grep -E -q "pool: default"
+
+  # Delete project
+  lxc project delete bar
+
+  # Ensure failure when --network and features.networks=true used together
+  ! lxc project create bar --network lxdbr0 -c features.networks=true || false
 }
 
 # Use private images in a project.

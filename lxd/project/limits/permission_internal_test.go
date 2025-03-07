@@ -89,7 +89,7 @@ func checkProfileRestrictions(projectConfig map[string]string, profileConfig map
 		Config: profileConfig,
 	}
 
-	return checkRestrictions(proj, []api.Instance{}, []api.Profile{prof})
+	return checkInstanceRestrictions(proj, []api.Instance{}, []api.Profile{prof})
 }
 
 func TestProjectLowLevelRestrictions(t *testing.T) {

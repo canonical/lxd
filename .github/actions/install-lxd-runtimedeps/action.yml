@@ -37,6 +37,7 @@ runs:
           socat \
           sqlite3 \
           squashfs-tools \
+          swtpm \
           tar \
           tcl \
           thin-provisioning-tools \

@@ -7,12 +7,12 @@ import (
 
 // GetParentAndSnapshotName returns the parent name, snapshot name, and whether it actually was a snapshot name.
 func GetParentAndSnapshotName(name string) (parentName string, snapshotName string, isSnapshot bool) {
-	fields := strings.SplitN(name, "/", 2)
-	if len(fields) == 1 {
-		return name, "", false
+	parentName, snapshotName, isSnapshot = strings.Cut(name, "/")
+	if !isSnapshot {
+		return name, "", isSnapshot
 	}
 
-	return fields[0], fields[1], true
+	return parentName, snapshotName, isSnapshot
 }
 
 // InstanceType represents the type if instance being returned or requested via the API.
@@ -108,7 +108,9 @@ type InstancePost struct {
 
 	// Whether snapshots should be discarded (migration only, deprecated, use instance_only)
 	// Example: false
-	ContainerOnly bool `json:"container_only" yaml:"container_only"` // Deprecated, use InstanceOnly.
+	//
+	// Deprecated: use InstanceOnly.
+	ContainerOnly bool `json:"container_only" yaml:"container_only"`
 
 	// Target for the migration, will use pull mode if not set (migration only)
 	Target *InstancePostTarget `json:"target" yaml:"target"`
@@ -224,6 +226,8 @@ type InstanceRebuildPost struct {
 //
 // API extension: instances.
 type Instance struct {
+	WithEntitlements `yaml:",inline"`
+
 	// Instance name
 	// Example: foo
 	Name string `json:"name" yaml:"name"`
@@ -426,7 +430,9 @@ type InstanceSource struct {
 
 	// Whether the copy should skip the snapshots (for copy, deprecated, use instance_only)
 	// Example: false
-	ContainerOnly bool `json:"container_only,omitempty" yaml:"container_only,omitempty"` // Deprecated, use InstanceOnly.
+	//
+	// Deprecated: Use InstanceOnly.
+	ContainerOnly bool `json:"container_only,omitempty" yaml:"container_only,omitempty"`
 
 	// Whether this is refreshing an existing instance (for migration and copy)
 	// Example: false

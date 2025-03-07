@@ -269,7 +269,7 @@ type cmdForkproxy struct {
 	global *cmdGlobal
 }
 
-// UDP session tracking (map "client tuple" to udp session)
+// UDP session tracking (map "client tuple" to udp session).
 var udpSessions = map[string]*udpSession{}
 var udpSessionsLock sync.Mutex
 
@@ -320,7 +320,7 @@ func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *devic
 			connectPort = cAddr.Ports[(*lStruct).lAddrIndex]
 		}
 
-		connectAddr = net.JoinHostPort(cAddr.Address, fmt.Sprintf("%d", connectPort))
+		connectAddr = net.JoinHostPort(cAddr.Address, fmt.Sprint(connectPort))
 	}
 
 	if lAddr.ConnType == "udp" {
@@ -379,12 +379,12 @@ func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *devic
 			proto := srcConn.LocalAddr().Network()
 			proto = strings.ToUpper(proto)
 			if strings.Contains(cHost, ":") {
-				proto = fmt.Sprintf("%s6", proto)
+				proto = proto + "6"
 			} else {
-				proto = fmt.Sprintf("%s4", proto)
+				proto = proto + "4"
 			}
 
-			_, _ = dstConn.Write([]byte(fmt.Sprintf("PROXY %s %s %s %s %s\r\n", proto, cHost, dHost, cPort, dPort)))
+			_, _ = dstConn.Write([]byte("PROXY " + proto + " " + cHost + " " + dHost + " " + cPort + " " + dPort + "\r\n"))
 		}
 	}
 
@@ -468,7 +468,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 			listenAddresses = make([]string, 0, listenPortCount)
 
 			for i := 0; i < listenPortCount; i++ {
-				listenAddresses = append(listenAddresses, net.JoinHostPort(lAddr.Address, fmt.Sprintf("%d", lAddr.Ports[i])))
+				listenAddresses = append(listenAddresses, net.JoinHostPort(lAddr.Address, fmt.Sprint(lAddr.Ports[i])))
 			}
 		}
 
@@ -520,7 +520,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 
 			var listenAddrMode os.FileMode
 			if args[8] != "" {
-				tmp, err := strconv.ParseUint(args[8], 8, 0)
+				tmp, err := strconv.ParseUint(args[8], 8, 32)
 				if err != nil {
 					return err
 				}

@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/network/acl"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
@@ -827,6 +828,28 @@ func (n *common) bgpGetPeers(config map[string]string) []string {
 	}
 
 	return peers
+}
+
+// projectUplinkIPQuotaAvailable checks if a project has quota available to assign new uplink IPs in a certain network.
+func (n *common) projectUplinkIPQuotaAvailable(ctx context.Context, tx *db.ClusterTx, p *api.Project, uplinkName string) (ipv4QuotaAvailable bool, ipv6QuotaAvailable bool, err error) {
+	rawIPV4Quota, hasIPV4Quota := p.Config["limits.networks.uplink_ips.ipv4."+uplinkName]
+	rawIPV6Quota, hasIPV6Quota := p.Config["limits.networks.uplink_ips.ipv6."+uplinkName]
+
+	// Will be 0 if the limit is not set.
+	ipv4AddressLimit, _ := strconv.Atoi(rawIPV4Quota)
+	ipv6AddressLimit, _ := strconv.Atoi(rawIPV6Quota)
+
+	var ipv4QuotaMet bool
+	var ipv6QuotaMet bool
+
+	// If limit-1 is exceeded, than that means we have no quota available.
+	ipv4QuotaMet, ipv6QuotaMet, err = limits.UplinkAddressQuotasExceeded(ctx, tx, p.Name, uplinkName, ipv4AddressLimit-1, ipv6AddressLimit-1, nil)
+	if err != nil {
+		return false, false, err
+	}
+
+	// Undefined quotas are always available.
+	return !hasIPV4Quota || !ipv4QuotaMet, !hasIPV6Quota || !ipv6QuotaMet, nil
 }
 
 // forwardValidate validates the forward request.

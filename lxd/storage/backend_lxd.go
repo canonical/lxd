@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -736,7 +737,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	}
 
 	for _, snapName := range srcBackup.Snapshots {
-		snapInstName := fmt.Sprintf("%s%s%s", srcBackup.Name, shared.SnapshotDelimiter, snapName)
+		snapInstName := srcBackup.Name + shared.SnapshotDelimiter + snapName
 		err = instancetype.ValidName(snapInstName, true)
 		if err != nil {
 			return nil, nil, err
@@ -744,7 +745,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	}
 
 	for _, snap := range srcBackup.Config.Snapshots {
-		snapInstName := fmt.Sprintf("%s%s%s", srcBackup.Name, shared.SnapshotDelimiter, snap.Name)
+		snapInstName := srcBackup.Name + shared.SnapshotDelimiter + snap.Name
 		err = instancetype.ValidName(snapInstName, true)
 		if err != nil {
 			return nil, nil, err
@@ -1153,6 +1154,16 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		// Get the src volume name on storage.
 		srcVolStorageName := project.Instance(src.Project().Name, src.Name())
 		srcVol := b.GetVolume(volType, contentType, srcVolStorageName, srcConfig.Volume.Config)
+
+		// Set the parent volume's UUID.
+		if b.driver.Info().PopulateParentVolumeUUID {
+			parentUUID, err := b.getParentVolumeUUID(srcVol, src.Project().Name)
+			if err != nil {
+				return err
+			}
+
+			srcVol.SetParentUUID(parentUUID)
+		}
 
 		volCopy := drivers.NewVolumeCopy(vol, targetSnapshots...)
 		srcVolCopy := drivers.NewVolumeCopy(srcVol, sourceSnapshots...)
@@ -1837,7 +1848,7 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string, op 
 			metadata := make(map[string]any)
 			tracker = &ioprogress.ProgressTracker{
 				Handler: func(percent, speed int64) {
-					displayPrefix := fmt.Sprintf("Converting image format from %s to raw", imgFormat)
+					displayPrefix := "Converting image format from " + imgFormat + " to raw"
 					shared.SetProgressMetadata(metadata, "format_progress", displayPrefix, percent, 0, speed)
 					_ = op.UpdateMetadata(metadata)
 				},
@@ -2014,6 +2025,16 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 	// Perform this after checking for optimized image as overwriting the volumes UUID
 	// will cause a non matching configuration which will always fall back to non optimized storage.
 	vol := b.GetNewVolume(volType, contentType, volStorageName, volumeConfig)
+
+	// Set the parent volume UUID.
+	if b.driver.Info().PopulateParentVolumeUUID {
+		parentUUID, err := b.getParentVolumeUUID(vol, inst.Project().Name)
+		if err != nil {
+			return err
+		}
+
+		vol.SetParentUUID(parentUUID)
+	}
 
 	// Validate config and create database entry for new storage volume.
 	err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", volType, false, vol.Config(), inst.CreationDate(), time.Time{}, contentType, true, false)
@@ -2295,7 +2316,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	// will still be able to accommodate it.
 	if args.VolumeSize > 0 && contentType == drivers.ContentTypeBlock {
 		l.Debug("Setting volume size from offer header", logger.Ctx{"size": args.VolumeSize})
-		args.Config["size"] = fmt.Sprintf("%d", args.VolumeSize)
+		args.Config["size"] = strconv.FormatInt(args.VolumeSize, 10)
 	} else if args.Config["size"] != "" {
 		l.Debug("Using volume size from root disk config", logger.Ctx{"size": args.Config["size"]})
 	}
@@ -2363,6 +2384,16 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 		snapshotStorageName := project.Instance(inst.Project().Name, instSnapshot.Name())
 		targetSnapshots = append(targetSnapshots, b.GetVolume(volType, contentType, snapshotStorageName, snap.Config))
+	}
+
+	// Set the parent volume's UUID.
+	if b.driver.Info().PopulateParentVolumeUUID {
+		parentUUID, err := b.getParentVolumeUUID(vol, projectName)
+		if err != nil {
+			return err
+		}
+
+		vol.SetParentUUID(parentUUID)
 	}
 
 	volCopy := drivers.NewVolumeCopy(vol, targetSnapshots...)
@@ -2495,7 +2526,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		// to a temporary location before converting it into the desired format.
 		// The conversion cannot be done in-place, therefore the image has to be
 		// saved in an intermediate location.
-		conversionID := fmt.Sprintf("conversion_%s_%s", inst.Project().Name, inst.Name())
+		conversionID := "conversion_" + inst.Project().Name + "_" + inst.Name()
 		imgPath := filepath.Join(shared.VarPath("backups"), conversionID)
 
 		// Create new file in backups directory.
@@ -2526,8 +2557,8 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 
 		if canResizeRootDiskSize {
 			// Set size of the volume to the uncompressed image size.
-			l.Debug("Setting volume size to uncompressed image size", logger.Ctx{"size": fmt.Sprintf("%d", imgBytes)})
-			vol.SetConfigSize(fmt.Sprintf("%d", imgBytes))
+			l.Debug("Setting volume size to uncompressed image size", logger.Ctx{"size": imgBytes})
+			vol.SetConfigSize(strconv.FormatInt(imgBytes, 10))
 		}
 
 		// Convert received image into intance volume.
@@ -2538,7 +2569,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		// block volume will still be able to accommodate it.
 		if canResizeRootDiskSize && contentType == drivers.ContentTypeBlock && args.VolumeSize > 0 {
 			l.Debug("Setting volume size to source disk size", logger.Ctx{"size": args.VolumeSize})
-			vol.SetConfigSize(fmt.Sprintf("%d", args.VolumeSize))
+			vol.SetConfigSize(strconv.FormatInt(args.VolumeSize, 10))
 		}
 
 		srcDiskSize = args.VolumeSize
@@ -2555,7 +2586,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 	}
 
 	// Parse source disk size into bytes.
-	srcSize, err := units.ParseByteSizeString(fmt.Sprintf("%d", srcDiskSize))
+	srcSize, err := units.ParseByteSizeString(strconv.FormatInt(srcDiskSize, 10))
 	if err != nil {
 		return fmt.Errorf("Failed parsing source disk size")
 	}
@@ -2655,6 +2686,12 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 
 	if shared.IsSnapshot(newName) {
 		return fmt.Errorf("New name cannot be a snapshot")
+	}
+
+	// Quick checks.
+	err := instancetype.ValidName(newName, false)
+	if err != nil {
+		return err
 	}
 
 	// Check we can convert the instance to the volume types needed.
@@ -2892,13 +2929,13 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 	}
 
 	// Get current config to compare what has changed.
-	curVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
+	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
 	if err != nil {
 		return err
 	}
 
 	// Apply config changes if there are any.
-	changedConfig, userOnly := b.detectChangedConfig(curVol.Config, newConfig)
+	changedConfig, userOnly := b.detectChangedConfig(dbVol.Config, newConfig)
 	if len(changedConfig) != 0 {
 		// Check that the volume's size property isn't being changed.
 		if changedConfig["size"] != "" {
@@ -2920,10 +2957,11 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 			return fmt.Errorf(`Instance volume "volatile.uuid" property cannot be changed`)
 		}
 
-		// Load storage volume from database.
-		dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
-		if err != nil {
-			return err
+		if shared.IsFalseOrEmpty(changedConfig["security.shared"]) && volDBType == cluster.StoragePoolVolumeTypeVM {
+			err = allowRemoveSecurityShared(b.state, inst.Project().Name, &dbVol.StorageVolume)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Generate the effective root device volume for instance.
@@ -2943,7 +2981,7 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 	}
 
 	// Update the database if something changed.
-	if len(changedConfig) != 0 || newDesc != curVol.Description {
+	if len(changedConfig) != 0 || newDesc != dbVol.Description {
 		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpdateStoragePoolVolume(ctx, inst.Project().Name, inst.Name(), volDBType, b.ID(), newDesc, newConfig)
 		})
@@ -3074,6 +3112,16 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 
 		// Attempt to sync the filesystem.
 		_ = filesystem.SyncFS(inst.RootfsPath())
+	}
+
+	// Set the parent volume UUID.
+	if b.driver.Info().PopulateParentVolumeUUID {
+		parentUUID, err := b.getParentVolumeUUID(vol, inst.Project().Name)
+		if err != nil {
+			return err
+		}
+
+		vol.SetParentUUID(parentUUID)
 	}
 
 	volCopy := drivers.NewVolumeCopy(vol, sourceSnapshots...)
@@ -3261,13 +3309,17 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (*VolumeUsage, err
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 	vol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
 
-	// Get the usage.
-	size, err := b.driver.GetVolumeUsage(vol)
-	if err != nil {
+	// Get the usage
+	// If storage driver does not support getting the volume usage, proceed getting the total.
+	usedBytes, err := b.driver.GetVolumeUsage(vol)
+	if err != nil && !errors.Is(err, drivers.ErrNotSupported) {
 		return nil, err
 	}
 
-	val.Used = size
+	// If driver does not support getting volume usage, this value should be 0.
+	if usedBytes > 0 {
+		val.Used = usedBytes
+	}
 
 	// Get the total size.
 	_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
@@ -3601,6 +3653,12 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 		return fmt.Errorf("New name cannot be a snapshot")
 	}
 
+	// Quick checks.
+	err := instancetype.ValidName(newName, false)
+	if err != nil {
+		return err
+	}
+
 	// Check we can convert the instance to the volume types needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
@@ -3703,6 +3761,16 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 	}
 
 	vol := b.GetVolume(volType, contentType, snapVolName, dbVol.Config)
+
+	// Set the parent volume UUID.
+	if b.driver.Info().PopulateParentVolumeUUID {
+		parentUUID, err := b.getParentVolumeUUID(vol, inst.Project().Name)
+		if err != nil {
+			return err
+		}
+
+		vol.SetParentUUID(parentUUID)
+	}
 
 	volExists, err := b.driver.HasVolume(vol)
 	if err != nil {
@@ -3905,6 +3973,17 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 		return nil, err
 	}
 
+	// Set the parent volume UUID.
+	if b.driver.Info().PopulateParentVolumeUUID {
+		parentUUID, err := b.getParentVolumeUUID(vol, inst.Project().Name)
+		if err != nil {
+			return nil, err
+		}
+
+		vol.SetParentUUID(parentUUID)
+	}
+
+	// Mount the snapshot.
 	err = b.driver.MountVolumeSnapshot(vol, op)
 	if err != nil {
 		return nil, err
@@ -3954,6 +4033,17 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operati
 		return err
 	}
 
+	// Set the parent volume UUID.
+	if b.driver.Info().PopulateParentVolumeUUID {
+		parentUUID, err := b.getParentVolumeUUID(vol, inst.Project().Name)
+		if err != nil {
+			return err
+		}
+
+		vol.SetParentUUID(parentUUID)
+	}
+
+	// Unmount volume.
 	_, err = b.driver.UnmountVolumeSnapshot(vol, op)
 
 	return err
@@ -4097,8 +4187,10 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 				}
 
 				// Reset img volume variables as we just deleted the old one.
+				// Since the old volume has been removed, ensure the new volume
+				// is instantiated with its own UUID.
 				imgDBVol = nil
-				imgVol = b.GetVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, nil)
+				imgVol = b.GetNewVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, nil)
 			} else if err != nil {
 				return err
 			} else {
@@ -4142,7 +4234,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 
 	// If the volume filler has recorded the size of the unpacked volume, then store this in the image DB row.
 	if volFiller.Size != 0 {
-		imgVol.Config()["volatile.rootfs.size"] = fmt.Sprintf("%d", volFiller.Size)
+		imgVol.Config()["volatile.rootfs.size"] = strconv.FormatInt(volFiller.Size, 10)
 
 		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpdateStoragePoolVolume(ctx, api.ProjectDefaultName, image.Fingerprint, cluster.StoragePoolVolumeTypeImage, b.id, "", imgVol.Config())
@@ -5709,7 +5801,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	// The target should use this value if present, otherwise it might get an error like
 	// "no space left on device".
 	if args.VolumeSize > 0 {
-		vol.SetConfigSize(fmt.Sprintf("%d", args.VolumeSize))
+		vol.SetConfigSize(strconv.FormatInt(args.VolumeSize, 10))
 	}
 
 	// Receive index header from source if applicable and respond confirming receipt.
@@ -5718,6 +5810,15 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	srcInfo, err := b.migrationIndexHeaderReceive(l, args.IndexHeaderVersion, conn, args.Refresh)
 	if err != nil {
 		return err
+	}
+
+	if b.driver.Info().PopulateParentVolumeUUID {
+		parentUUID, err := b.getParentVolumeUUID(vol, projectName)
+		if err != nil {
+			return err
+		}
+
+		vol.SetParentUUID(parentUUID)
 	}
 
 	revert := revert.New()
@@ -5941,6 +6042,46 @@ func (b *lxdBackend) detectChangedConfig(curConfig, newConfig map[string]string)
 	return changedConfig, userOnly
 }
 
+func allowRemoveSecurityShared(s *state.State, projectName string, volume *api.StorageVolume) error {
+	err := VolumeUsedByProfileDevices(s, volume.Pool, projectName, volume, func(profileID int64, profile api.Profile, project api.Project, usedByDevices []string) error {
+		return errors.New("Cannot disable security.shared on block storage volume as it is attached to profile(s)")
+	})
+	if err != nil {
+		return err
+	}
+
+	usedByInstances := 0
+
+	err = VolumeUsedByInstanceDevices(s, volume.Pool, projectName, volume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+		// Don't consider a virtual-machine to be using its root volume if security.protection.start=true
+		if volume.Type == cluster.StoragePoolVolumeTypeNameVM && inst.Type == instancetype.VM && volume.Project == inst.Project && volume.Name == inst.Name {
+			apiInst, err := inst.ToAPI()
+			if err != nil {
+				return err
+			}
+
+			apiInst.ExpandedConfig = instancetype.ExpandInstanceConfig(s.GlobalConfig.Dump(), apiInst.Config, inst.Profiles)
+
+			if shared.IsTrue(apiInst.ExpandedConfig["security.protection.start"]) {
+				return nil
+			}
+		}
+
+		usedByInstances += 1
+
+		if usedByInstances > 1 {
+			return errors.New("Cannot disable security.shared on block storage volume as it is attached to more than one instance")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // UpdateCustomVolume applies the supplied config to the custom volume.
 func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newDesc string, newConfig map[string]string, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volName": volName, "newDesc": newDesc, "newConfig": newConfig})
@@ -6018,38 +6159,9 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 
 		sharedVolume, ok := changedConfig["security.shared"]
 		if ok && shared.IsFalseOrEmpty(sharedVolume) && curVol.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock {
-			usedByProfile := false
-
-			err = VolumeUsedByProfileDevices(b.state, b.name, projectName, &curVol.StorageVolume, func(profileID int64, profile api.Profile, project api.Project, usedByDevices []string) error {
-				usedByProfile = true
-
-				return db.ErrListStop
-			})
-			if err != nil && err != db.ErrListStop {
+			err = allowRemoveSecurityShared(b.state, projectName, &curVol.StorageVolume)
+			if err != nil {
 				return err
-			}
-
-			if usedByProfile {
-				return fmt.Errorf("Cannot disable security.shared on custom storage block volume as it is attached to profile(s)")
-			}
-
-			var usedByInstanceDevices []string
-
-			err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &curVol.StorageVolume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
-				usedByInstanceDevices = append(usedByInstanceDevices, inst.Name)
-
-				if len(usedByInstanceDevices) > 1 {
-					return db.ErrListStop
-				}
-
-				return nil
-			})
-			if err != nil && err != db.ErrListStop {
-				return err
-			}
-
-			if len(usedByInstanceDevices) > 1 {
-				return fmt.Errorf("Cannot disable security.shared on custom storage block volume as it is attached to more than one instance")
 			}
 		}
 
@@ -6214,21 +6326,6 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	return nil
 }
 
-// GetCustomVolumeDisk returns the location of the disk.
-func (b *lxdBackend) GetCustomVolumeDisk(projectName, volName string) (string, error) {
-	volume, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
-	if err != nil {
-		return "", err
-	}
-
-	// Get the volume name on storage.
-	volStorageName := project.StorageVolume(projectName, volName)
-
-	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
-
-	return b.driver.GetVolumeDiskPath(vol)
-}
-
 // GetCustomVolumeUsage returns the disk space used by the custom volume.
 func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (*VolumeUsage, error) {
 	err := b.isStatusReady()
@@ -6249,12 +6346,15 @@ func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (*VolumeU
 	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
 	// Get the usage.
-	size, err := b.driver.GetVolumeUsage(vol)
-	if err != nil {
+	usedBytes, err := b.driver.GetVolumeUsage(vol)
+	if err != nil && !errors.Is(err, drivers.ErrNotSupported) {
 		return nil, err
 	}
 
-	val.Used = size
+	// If retrieving usage is unsupported, Used should be 0.
+	if usedBytes > 0 {
+		val.Used = usedBytes
+	}
 
 	// Get the total size.
 	sizeStr, ok := vol.Config()["size"]
@@ -6590,6 +6690,16 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 
 	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, volume.Config)
 
+	// Set the parent volume's UUID.
+	if b.driver.Info().PopulateParentVolumeUUID {
+		parentUUID, err := b.getParentVolumeUUID(vol, projectName)
+		if err != nil {
+			return err
+		}
+
+		vol.SetParentUUID(parentUUID)
+	}
+
 	// Delete the snapshot from the storage device.
 	// Must come before DB VolumeDBDelete so that the volume ID is still available.
 	volExists, err := b.driver.HasVolume(vol)
@@ -6683,7 +6793,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 		if ok {
 			// We need to delete some snapshots and try again.
 			for _, snapName := range snapErr.Snapshots {
-				err := b.DeleteCustomVolumeSnapshot(projectName, fmt.Sprintf("%s/%s", volName, snapName), op)
+				err := b.DeleteCustomVolumeSnapshot(projectName, volName+"/"+snapName, op)
 				if err != nil {
 					return err
 				}
@@ -7580,13 +7690,13 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 		Name: volName,
 		StorageVolumePut: api.StorageVolumePut{
 			Config: map[string]string{
-				"size": fmt.Sprintf("%d", size),
+				"size": strconv.FormatInt(size, 10),
 			},
 		},
 	}
 
 	err := b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		return limits.AllowVolumeCreation(b.state.GlobalConfig, tx, projectName, b.name, req)
+		return limits.AllowVolumeCreation(ctx, b.state.GlobalConfig, tx, projectName, b.name, req)
 	})
 	if err != nil {
 		return fmt.Errorf("Failed checking volume creation allowed: %w", err)
@@ -7691,7 +7801,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	}
 
 	err = b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		return limits.AllowVolumeCreation(b.state.GlobalConfig, tx, srcBackup.Project, b.name, req)
+		return limits.AllowVolumeCreation(ctx, b.state.GlobalConfig, tx, srcBackup.Project, b.name, req)
 	})
 	if err != nil {
 		return fmt.Errorf("Failed checking volume creation allowed: %w", err)
@@ -7771,4 +7881,31 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 
 	revert.Success()
 	return nil
+}
+
+// getParentVolumeUUID returns the UUID of the parent's volume.
+// If the volume has no parent, an empty string is returned.
+func (b *lxdBackend) getParentVolumeUUID(vol drivers.Volume, projectName string) (string, error) {
+	parentName, _, isSnapshot := api.GetParentAndSnapshotName(vol.Name())
+	if !isSnapshot {
+		// Volume has no parent.
+		return "", nil
+	}
+
+	// Ensure the parent name does not contain a project prefix.
+	_, parentName = project.StorageVolumeParts(parentName)
+
+	// Load storage volume from the database.
+	parentDBVol, err := VolumeDBGet(b, projectName, parentName, vol.Type())
+	if err != nil {
+		return "", fmt.Errorf("Failed to extract parent UUID from snapshot %q in project %q: %w", vol.Name(), projectName, err)
+	}
+
+	// Extract parent volume UUID.
+	parentUUID := parentDBVol.Config["volatile.uuid"]
+	if parentUUID == "" {
+		return "", fmt.Errorf("Parent volume %q of snapshot %q in project %q does not have UUID set)", parentName, projectName, vol.Name())
+	}
+
+	return parentUUID, nil
 }

@@ -1,8 +1,6 @@
 package config
 
 import (
-	"fmt"
-
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -18,7 +16,7 @@ func SafeLoad(schema Schema, values map[string]string) (Map, error) {
 		}
 
 		for _, error := range errors {
-			message := fmt.Sprintf("Invalid configuration key: %s", error.Reason)
+			message := "Invalid configuration key: " + error.Reason
 			logger.Error(message, logger.Ctx{"key": error.Name})
 		}
 	}

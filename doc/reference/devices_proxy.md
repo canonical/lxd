@@ -13,11 +13,15 @@ The `proxy` device type is supported for both containers (NAT and non-NAT modes)
 It supports hotplugging for both containers and VMs.
 ```
 
-Proxy devices allow forwarding network connections between host and instance.
-This method makes it possible to forward traffic hitting one of the host's addresses to an address inside the instance, or to do the reverse and have an address in the instance connect through the host.
+Proxy devices allow you to forward network connections between a host and an instance running on that host.
 
-In {ref}`devices-proxy-nat-mode`, a proxy device can be used for TCP and UDP proxying.
-In non-NAT mode, you can also proxy traffic between Unix sockets (which can be useful to, for example, forward graphical GUI or audio traffic from the container to the host system) or even across protocols (for example, you can have a TCP listener on the host system and forward its traffic to a Unix socket inside a container).
+You can use them to:
+
+- Forward traffic from an address on the host to an address inside the instance.
+- Do the reverse, enabling an address inside the instance to connect through the host.
+
+In {ref}`devices-proxy-nat-mode`, proxy devices support TCP and UDP proxying (traffic forwarding).
+In non-NAT mode, proxy devices can also forward traffic between Unix sockets, which is useful for tasks such as forwarding a GUI or audio traffic from a container to the host system. Additionally, they can proxy traffic across different protocols—for example, forwarding traffic from a TCP listener on the host to a Unix socket inside a container.
 
 The supported connection types are:
 
@@ -26,9 +30,7 @@ The supported connection types are:
 - `unix <-> unix`
 - `tcp <-> unix`
 - `unix <-> tcp`
-- `udp <-> tcp`
 - `tcp <-> udp`
-- `udp <-> unix`
 - `unix <-> udp`
 
 To add a `proxy` device, use the following command:
@@ -45,10 +47,11 @@ In addition, network forwards cannot be used to proxy traffic between different 
 (devices-proxy-nat-mode)=
 ## NAT mode
 
-The proxy device also supports a NAT mode (`nat=true`), where packets are forwarded using NAT rather than being proxied through a separate connection.
-This mode has the benefit that the client address is maintained without the need for the target destination to support the HAProxy PROXY protocol (which is the only way to pass the client address through when using the proxy device in non-NAT mode).
+The proxy device supports a NAT mode (`nat=true`), which forwards packets using NAT instead of creating a separate proxy connection.
 
-However, NAT mode is supported only if the host that the instance is running on is the gateway (which is the case if you're using `lxdbr0`, for example).
+This mode has the benefit that the client address is maintained without requiring the target destination to support the HAProxy PROXY protocol. This is necessary for passing client addresses in non-NAT mode.
+
+However, NAT mode is only available when the host running the instance also acts as the gateway. This is the typical case when using `lxdbr0`, for example.
 
 In NAT mode, the supported connection types are:
 
@@ -65,14 +68,14 @@ Use the following command to configure a static IP for an instance NIC:
 
 To define a static IPv6 address, the parent managed network must have `ipv6.dhcp.stateful` enabled.
 
-When defining IPv6 addresses, use the square bracket notation, for example:
+When defining IPv6 addresses, use square bracket notation. Example:
 
     connect=tcp:[2001:db8::1]:80
 
-You can specify that the connect address should be the IP of the instance by setting the connect IP to the wildcard address (`0.0.0.0` for IPv4 and `[::]` for IPv6).
+You can specify that the connect address should be the IP of the instance by setting the connect IP to the wildcard address, which is `0.0.0.0` for IPv4 and `[::]` for IPv6.
 
 ```{note}
-The listen address can also use wildcard addresses when using non-NAT mode.
+The listen address can also use wildcard addresses in non-NAT mode.
 However, when using NAT mode, you must specify an IP address on the LXD host.
 ```
 

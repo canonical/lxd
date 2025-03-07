@@ -64,6 +64,8 @@ const NetworkStatusUnavailable = "Unavailable"
 //
 // swagger:model
 type Network struct {
+	WithEntitlements `yaml:",inline"`
+
 	// The network name
 	// Read only: true
 	// Example: lxdbr0

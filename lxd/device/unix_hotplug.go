@@ -16,27 +16,27 @@ import (
 	"github.com/canonical/lxd/shared/validate"
 )
 
-// unixHotplugDeviceMatch matches a unix-hotplug device based on vendorid and productid. USB bus and devices with a major number of 0 are ignored. This function is used to indicate whether a unix hotplug event qualifies as part of our registered devices, and to load matching devices.
+// unixHotplugDeviceMatch matches a unix-hotplug device based on vendorid, productid and/or subsystem. USB bus and devices with a major number of 0 are ignored. This function is used to indicate whether a unix hotplug event qualifies as part of our registered devices, and to load matching devices.
 func unixHotplugDeviceMatch(config deviceConfig.Device, vendorid string, productid string, subsystem string, major uint32) bool {
-	match := false
-	vendorIDMatch := vendorid == config["vendorid"]
-	productIDMatch := productid == config["productid"]
-
 	// Ignore USB bus devices (handled by `usb` device type) since we don't want `unix-hotplug` and `usb` devices conflicting. We want to add all device nodes besides those with a `usb` subsystem.
 	// We ignore devices with a major number of 0, since this indicates they are unnamed devices (e.g. non-device mounts).
 	if strings.HasPrefix(subsystem, "usb") || major == 0 {
 		return false
 	}
 
-	if config["vendorid"] != "" && config["productid"] != "" {
-		match = vendorIDMatch && productIDMatch
-	} else if config["vendorid"] != "" {
-		match = vendorIDMatch
-	} else if config["productid"] != "" {
-		match = productIDMatch
+	if config["vendorid"] != "" && config["vendorid"] != vendorid {
+		return false
 	}
 
-	return match
+	if config["productid"] != "" && config["productid"] != productid {
+		return false
+	}
+
+	if config["subsystem"] != "" && config["subsystem"] != subsystem {
+		return false
+	}
+
+	return true
 }
 
 type unixHotplug struct {
@@ -80,6 +80,13 @@ func (d *unixHotplug) validateConfig(instConf instance.ConfigReader) error {
 		//  type: string
 		//  shortdesc: Product ID of the USB device
 		"productid": validate.Optional(validate.IsDeviceID),
+
+		// lxdmeta:generate(entities=device-unix-hotplug; group=device-conf; key=subsystem)
+		//
+		// ---
+		// type: string
+		// shortdesc: Subsystem of the Unix device
+		"subsystem": validate.IsAny,
 		"uid":       unixValidUserID,
 		"gid":       unixValidUserID,
 		"mode":      unixValidOctalFileMode,
@@ -91,6 +98,14 @@ func (d *unixHotplug) validateConfig(instConf instance.ConfigReader) error {
 		//  defaultdesc: `false`
 		//  shortdesc: Whether this device is required to start the container
 		"required": validate.Optional(validate.IsBool),
+
+		// lxdmeta:generate(entities=device-unix-hotplug; group=device-conf; key=ownership.inherit)
+		//
+		// ---
+		// type: bool
+		// defaultdesc: `false`
+		// shortdesc: Whether this device inherits ownership (GID and/or UID) from the host
+		"ownership.inherit": validate.Optional(validate.IsBool),
 	}
 
 	err := d.config.Validate(rules)
@@ -98,8 +113,12 @@ func (d *unixHotplug) validateConfig(instConf instance.ConfigReader) error {
 		return err
 	}
 
-	if d.config["vendorid"] == "" && d.config["productid"] == "" {
-		return fmt.Errorf("Unix hotplug devices require a vendorid or a productid")
+	if d.config["vendorid"] == "" && d.config["productid"] == "" && d.config["subsystem"] == "" {
+		return fmt.Errorf("Unix hotplug devices require a vendorid, productid or subsystem")
+	}
+
+	if d.config["gid"] != "" && d.config["uid"] != "" && shared.IsTrue(d.config["ownership.inherit"]) {
+		return fmt.Errorf("Unix hotplug device ownership cannot be inherited from host while GID and UID are set")
 	}
 
 	return nil
@@ -249,13 +268,20 @@ func (d *unixHotplug) loadUnixDevices() []udev.Device {
 		}
 	}
 
+	if d.config["subsystem"] != "" {
+		err := e.AddMatchProperty("SUBSYSTEM", d.config["subsystem"])
+		if err != nil {
+			logger.Warn("Failed to add property to device", logger.Ctx{"property_name": "SUBSYSTEM", "property_value": d.config["subsystem"]})
+		}
+	}
+
 	err := e.AddMatchIsInitialized()
 	if err != nil {
 		logger.Warn("Failed to add initialised property to device", logger.Ctx{"err": err})
 	}
 
 	devices, _ := e.Devices()
-	var matchingDevices []udev.Device
+	var matchingDevices []udev.Device //nolint:prealloc
 	for i := range devices {
 		device := devices[i]
 

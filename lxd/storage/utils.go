@@ -462,6 +462,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  type: string
 		//  defaultdesc: auto (20% of free disk space, >= 5 GiB and <= 30 GiB)
 		//  shortdesc: Size of the storage pool (for loop-based pools)
+		//  scope: local
 
 		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs; group=volume-conf; key=size)
 		//
@@ -470,12 +471,14 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  condition: appropriate driver
 		//  defaultdesc: same as `volume.size`
 		//  shortdesc: Size/quota of the storage volume
+		//  scope: global
 
 		// lxdmeta:generate(entities=storage-cephobject; group=bucket-conf; key=size)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: Quota of the storage bucket
+		//  scope: local
 
 		// lxdmeta:generate(entities=storage-btrfs,storage-lvm,storage-zfs; group=bucket-conf; key=size)
 		//
@@ -484,28 +487,31 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  condition: appropriate driver
 		//  defaultdesc: same as `volume.size`
 		//  shortdesc: Size/quota of the storage bucket
+		//  scope: local
 		"size": validate.Optional(validate.IsSize),
-		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=snapshots.expiry)
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-pure; group=volume-conf; key=snapshots.expiry)
 		// Specify an expression like `1M 2H 3d 4w 5m 6y`.
 		// ---
 		//  type: string
 		//  condition: custom volume
 		//  defaultdesc: same as `volume.snapshots.expiry`
 		//  shortdesc: When snapshots are to be deleted
+		//  scope: global
 		"snapshots.expiry": func(value string) error {
 			// Validate expression
 			_, err := shared.GetExpiry(time.Time{}, value)
 			return err
 		},
-		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=snapshots.schedule)
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-pure; group=volume-conf; key=snapshots.schedule)
 		// Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
 		// ---
 		//  type: string
 		//  condition: custom volume
 		//  defaultdesc: same as `snapshots.schedule`
 		//  shortdesc: Schedule for automatic volume snapshots
+		//  scope: global
 		"snapshots.schedule": validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly"})),
-		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=snapshots.pattern)
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-pure; group=volume-conf; key=snapshots.pattern)
 		// You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.
 		//
 		// {{snapshot_pattern_detail}}
@@ -514,6 +520,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  condition: custom volume
 		//  defaultdesc: same as `volume.snapshots.pattern` or `snap%d`
 		//  shortdesc: Template for the snapshot name
+		//  scope: global
 		"snapshots.pattern": validate.IsAny,
 	}
 
@@ -526,6 +533,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  condition: custom volume
 		//  defaultdesc: same as `volume.security.shifted` or `false`
 		//  shortdesc: Enable ID shifting overlay
+		//  scope: global
 		rules["security.shifted"] = validate.Optional(validate.IsBool)
 		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=security.unmapped)
 		//
@@ -534,30 +542,33 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  condition: custom volume
 		//  defaultdesc: same as `volume.security.unmappped` or `false`
 		//  shortdesc: Disable ID mapping for the volume
+		//  scope: global
 		rules["security.unmapped"] = validate.Optional(validate.IsBool)
 	}
 
-	// security.shared is only relevant for custom block volumes.
-	if vol == nil || (vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeBlock) {
+	// security.shared guards virtual-machine and custom block volumes.
+	if vol == nil || ((vol.Type() == drivers.VolumeTypeCustom || vol.Type() == drivers.VolumeTypeVM) && vol.ContentType() == drivers.ContentTypeBlock) {
 		// lxdmeta:generate(entities=storage-btrfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=security.shared)
 		// Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
 		//
 		// ---
 		//  type: bool
-		//  condition: custom block volume
+		//  condition: virtual-machine or custom block volume
 		//  defaultdesc: same as `volume.security.shared` or `false`
 		//  shortdesc: Enable volume sharing
+		//  scope: global
 		rules["security.shared"] = validate.Optional(validate.IsBool)
 	}
 
 	// Those keys are only valid for volumes.
 	if vol != nil {
-		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=volatile.uuid)
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-pure; group=volume-conf; key=volatile.uuid)
 		//
 		// ---
 		//  type: string
 		//  defaultdesc: random UUID
 		//  shortdesc: The volume's UUID
+		//  scope: global
 		rules["volatile.uuid"] = validate.Optional(validate.IsUUID)
 	}
 
@@ -572,36 +583,42 @@ func validatePoolCommonRules() map[string]func(string) error {
 		// ---
 		//  type: string
 		//  shortdesc: Path to an existing block device, loop file, or Btrfs subvolume
+		//  scope: local
 
 		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=source)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: Existing CephFS file system or file system path to use
+		//  scope: local
 
 		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=source)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: Existing OSD storage pool to use
+		//  scope: local
 
 		// lxdmeta:generate(entities=storage-dir; group=pool-conf; key=source)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: Path to an existing directory
+		//  scope: local
 
 		// lxdmeta:generate(entities=storage-lvm; group=pool-conf; key=source)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: Path to an existing block device, loop file, or LVM volume group
+		//  scope: local
 
 		// lxdmeta:generate(entities=storage-zfs; group=pool-conf; key=source)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: Path to an existing block device, loop file, or ZFS dataset/pool
+		//  scope: local
 		"source": validate.IsAny,
 		// lxdmeta:generate(entities=storage-btrfs,storage-lvm,storage-zfs; group=pool-conf; key=source.wipe)
 		// Set this option to `true` to wipe the block device specified in `source`
@@ -610,6 +627,7 @@ func validatePoolCommonRules() map[string]func(string) error {
 		//  type: bool
 		//  defaultdesc: `false`
 		//  shortdesc: Whether to wipe the block device before creating the pool
+		//  scope: local
 		"source.wipe":             validate.Optional(validate.IsBool),
 		"volatile.initial_source": validate.IsAny,
 		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-powerflex; group=pool-conf; key=rsync.bwlimit)
@@ -619,6 +637,7 @@ func validatePoolCommonRules() map[string]func(string) error {
 		//  type: string
 		//  defaultdesc: `0` (no limit)
 		//  shortdesc: Upper limit on the socket I/O for `rsync`
+		//  scope: global
 		"rsync.bwlimit": validate.Optional(validate.IsSize),
 		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-powerflex; group=pool-conf; key=rsync.compression)
 		//
@@ -626,12 +645,13 @@ func validatePoolCommonRules() map[string]func(string) error {
 		//  type: bool
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to use compression while migrating storage pools
+		//  scope: global
 		"rsync.compression": validate.Optional(validate.IsBool),
 	}
 
 	// Add to pool config rules (prefixed with volume.*) which are common for pool and volume.
 	for volRule, volValidator := range poolAndVolumeCommonRules(nil) {
-		rules[fmt.Sprintf("volume.%s", volRule)] = volValidator
+		rules["volume."+volRule] = volValidator
 	}
 
 	return rules
@@ -641,7 +661,19 @@ func validatePoolCommonRules() map[string]func(string) error {
 func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error {
 	rules := poolAndVolumeCommonRules(&vol)
 
-	// volatile.idmap settings only make sense for filesystem volumes.
+	// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=volatile.idmap.last)
+	//
+	// ---
+	//   type: string
+	//   shortdesc: JSON-serialized UID/GID map that has been applied to the volume
+	//   condition: filesystem
+
+	// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=volatile.idmap.next)
+	//
+	// ---
+	//   type: string
+	//   shortdesc: JSON-serialized UID/GID map that has been applied to the volume
+	//   condition: filesystem
 	if vol.ContentType() == drivers.ContentTypeFS {
 		rules["volatile.idmap.last"] = validate.IsAny
 		rules["volatile.idmap.next"] = validate.IsAny
@@ -748,7 +780,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sys
 		// Check whether image is allowed to be unpacked into pool volume. Create a partial image volume
 		// struct and then use it to check that target volume size can be set as needed.
 		imgVolConfig := map[string]string{
-			"volatile.rootfs.size": fmt.Sprintf("%d", imgVirtualSize),
+			"volatile.rootfs.size": fmt.Sprint(imgVirtualSize),
 		}
 
 		imgVol := drivers.NewVolume(nil, "", drivers.VolumeTypeImage, drivers.ContentTypeBlock, "", imgVolConfig, nil)
@@ -797,9 +829,13 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sys
 			_ = to.Close()
 		}
 
-		// Check if we should do parallel unpacking.
+		// Extra options when dealing with block devices.
 		if shared.IsBlockdevPath(dstPath) {
+			// Parallel unpacking.
 			cmd = append(cmd, "-W")
+
+			// Our block devices are clean, so skip zeroes.
+			cmd = append(cmd, "-n", "--target-is-zero")
 		}
 
 		cmd = append(cmd, imgPath, dstPath)
@@ -906,6 +942,58 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 	return contentType
 }
 
+// volumeIsUsedByDevice; true when vol is referred to by dev
+// inst is the instance dev belongs to, or nil if dev is part of a profile.
+func volumeIsUsedByDevice(vol api.StorageVolume, inst *db.InstanceArgs, dev map[string]string) (bool, error) {
+	if dev["type"] != cluster.TypeDisk.String() {
+		return false, nil
+	}
+
+	if dev["pool"] != vol.Pool {
+		return false, nil
+	}
+
+	if inst != nil && instancetype.IsRootDiskDevice(dev) {
+		rootVolumeType, err := InstanceTypeToVolumeType(inst.Type)
+		if err != nil {
+			return false, err
+		}
+
+		rootVolumeDBType, err := VolumeTypeToDBType(rootVolumeType)
+		if err != nil {
+			return false, err
+		}
+
+		if inst.Name == vol.Name && cluster.StoragePoolVolumeTypeNames[rootVolumeDBType] == vol.Type {
+			return true, nil
+		}
+	}
+
+	var volName string
+	var snapName string
+
+	if shared.IsSnapshot(vol.Name) {
+		parts := strings.SplitN(vol.Name, shared.SnapshotDelimiter, 2)
+		volName, snapName = parts[0], parts[1]
+	} else if dev["source.snapshot"] != "" {
+		// vol is not a snapshot but dev refers to one
+		return false, nil
+	} else {
+		volName = vol.Name
+	}
+
+	volumeTypeName := cluster.StoragePoolVolumeTypeNameCustom
+	if dev["source.type"] != "" {
+		volumeTypeName = dev["source.type"]
+	}
+
+	if volumeTypeName == vol.Type && dev["source"] == volName && dev["source.snapshot"] == snapName {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 // VolumeUsedByProfileDevices finds profiles using a volume and passes them to profileFunc for evaluation.
 // The profileFunc is provided with a profile config, project config and a list of device names that are using
 // the volume.
@@ -990,15 +1078,12 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 		// Iterate through each of the profiles's devices, looking for disks in the same pool as volume.
 		// Then try and match the volume name against the profile device's "source" property.
 		for name, dev := range profile.Devices {
-			if dev["type"] != cluster.TypeDisk.String() {
-				continue
+			usesVol, err := volumeIsUsedByDevice(*vol, nil, dev)
+			if err != nil {
+				return err
 			}
 
-			if dev["pool"] != poolName {
-				continue
-			}
-
-			if dev["source"] == vol.Name {
+			if usesVol {
 				usedByDevices = append(usedByDevices, name)
 			}
 		}
@@ -1056,15 +1141,12 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 			// Iterate through each of the instance's devices, looking for disks in the same pool as volume.
 			// Then try and match the volume name against the instance device's "source" property.
 			for devName, dev := range devices {
-				if dev["type"] != "disk" {
-					continue
+				usesVol, err := volumeIsUsedByDevice(*vol, &inst, dev)
+				if err != nil {
+					return err
 				}
 
-				if dev["pool"] != poolName {
-					continue
-				}
-
-				if dev["source"] == vol.Name {
+				if usesVol {
 					usedByDevices = append(usedByDevices, devName)
 				}
 			}
@@ -1132,7 +1214,7 @@ func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (boo
 		return false, err
 	}
 
-	fullName := fmt.Sprintf("%s/%s", poolName, volumeName)
+	fullName := poolName + "/" + volumeName
 	if storageBackups == fullName || storageImages == fullName {
 		return true, nil
 	}
@@ -1247,7 +1329,7 @@ type ComparableSnapshot struct {
 // creation date is different to the source.
 // A snapshot will be added to the "to delete from target" slice if it doesn't exist in the source or its ID or
 // creation date is different to the source.
-func CompareSnapshots(sourceSnapshots []ComparableSnapshot, targetSnapshots []ComparableSnapshot) ([]int, []int) {
+func CompareSnapshots(sourceSnapshots []ComparableSnapshot, targetSnapshots []ComparableSnapshot) (syncSourceSnapshots []int, deleteTargetSnapshots []int) {
 	// Compare source and target.
 	sourceSnapshotsByName := make(map[string]*ComparableSnapshot, len(sourceSnapshots))
 	targetSnapshotsByName := make(map[string]*ComparableSnapshot, len(targetSnapshots))
@@ -1289,9 +1371,23 @@ func ValidVolumeName(volumeName string) error {
 		return fmt.Errorf("Invalid volume name: Cannot be empty")
 	}
 
+	if strings.Contains(volumeName, "\\") {
+		return fmt.Errorf("Invalid volume name %q: Cannot contain backslashes", volumeName)
+	}
+
 	if strings.Contains(volumeName, shared.SnapshotDelimiter) {
 		return fmt.Errorf("Invalid volume name %q: Cannot contain slashes", volumeName)
 	}
 
 	return nil
+}
+
+// GetPoolDefaultBlockSize returns the default block size for the specified storage pool according to its driver.
+func GetPoolDefaultBlockSize(s *state.State, poolName string) (string, error) {
+	pool, err := LoadByName(s, poolName)
+	if err != nil {
+		return "", fmt.Errorf("Failed loading storage pool: %w", err)
+	}
+
+	return pool.Driver().Info().DefaultBlockSize, nil
 }

@@ -125,6 +125,11 @@ func profileAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.
 //      description: Project name
 //      type: string
 //      example: default
+//    - in: query
+//      name: all-projects
+//      description: Retrieve profiles from all projects
+//      type: boolean
+//      example: true
 //  responses:
 //    "200":
 //      description: API endpoints
@@ -174,6 +179,11 @@ func profileAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.
 //	    description: Project name
 //	    type: string
 //	    example: default
+//	  - in: query
+//	    name: all-projects
+//	    description: Retrieve profiles from all projects
+//	    type: boolean
+//	    example: true
 //	responses:
 //	  "200":
 //	    description: API endpoints
@@ -206,12 +216,23 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	requestProjectName := request.ProjectParam(r)
+	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
+
+	// requestProjectName is only valid for project specific requests.
+	if allProjects && requestProjectName != api.ProjectDefaultName {
+		return response.BadRequest(errors.New("Cannot specify a project when requesting all projects"))
+	}
+
 	p, err := project.ProfileProject(s.DB.Cluster, requestProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	recursion := util.IsRecursionRequest(r)
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeProfile, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	request.SetCtxValue(r, request.CtxEffectiveProjectName, p.Name)
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeProfile)
@@ -221,14 +242,23 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 
 	var apiProfiles []*api.Profile
 	var profileURLs []string
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := dbCluster.ProfileFilter{
-			Project: &p.Name,
-		}
+	urlToProfile := make(map[*api.URL]auth.EntitlementReporter)
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var profiles []dbCluster.Profile
+		if !allProjects {
+			filter := dbCluster.ProfileFilter{
+				Project: &p.Name,
+			}
 
-		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), filter)
-		if err != nil {
-			return err
+			profiles, err = dbCluster.GetProfiles(ctx, tx.Tx(), filter)
+			if err != nil {
+				return err
+			}
+		} else {
+			profiles, err = dbCluster.GetProfiles(ctx, tx.Tx())
+			if err != nil {
+				return err
+			}
 		}
 
 		if recursion {
@@ -259,6 +289,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 				}
 
 				apiProfiles = append(apiProfiles, apiProfile)
+				urlToProfile[entity.ProfileURL(requestProjectName, profile.Name)] = apiProfile
 			}
 		} else {
 			profileURLs = make([]string, 0, len(profiles))
@@ -282,6 +313,13 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 
 	for _, apiProfile := range apiProfiles {
 		apiProfile.UsedBy = project.FilterUsedBy(s.Authorizer, r, apiProfile.UsedBy)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProfile, withEntitlements, urlToProfile)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponse(true, apiProfiles)
@@ -467,6 +505,11 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeProfile, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var resp *api.Profile
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -502,6 +545,13 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resp.UsedBy = project.FilterUsedBy(s.Authorizer, r, resp.UsedBy)
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProfile, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ProfileURL(details.effectiveProject.Name, details.profileName): resp})
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
 
 	etag := []any{resp.Config, resp.Description, resp.Devices}
 	return response.SyncResponseETag(true, resp, etag)

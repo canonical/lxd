@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rsa"
+	"crypto/subtle"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -145,9 +146,15 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeCertificate, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	if recursion {
-		var certResponses []api.Certificate
+		var certResponses []*api.Certificate
 		var baseCerts []dbCluster.Certificate
+		urlToCertificate := make(map[*api.URL]auth.EntitlementReporter)
 		var err error
 		err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			baseCerts, err = dbCluster.GetCertificates(ctx, tx.Tx())
@@ -155,7 +162,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			certResponses = make([]api.Certificate, 0, len(baseCerts))
+			certResponses = make([]*api.Certificate, 0, len(baseCerts))
 			for _, baseCert := range baseCerts {
 				if !userHasPermission(entity.CertificateURL(baseCert.Fingerprint)) {
 					continue
@@ -166,13 +173,21 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 					return err
 				}
 
-				certResponses = append(certResponses, *apiCert)
+				certResponses = append(certResponses, apiCert)
+				urlToCertificate[entity.CertificateURL(apiCert.Fingerprint)] = apiCert
 			}
 
 			return nil
 		})
 		if err != nil {
 			return response.SmartError(err)
+		}
+
+		if len(withEntitlements) > 0 {
+			err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeCertificate, withEntitlements, urlToCertificate)
+			if err != nil {
+				return response.SmartError(err)
+			}
 		}
 
 		return response.SyncResponse(true, certResponses)
@@ -184,7 +199,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 			continue
 		}
 
-		certificateURL := fmt.Sprintf("/%s/certificates/%s", version.APIVersion, identity.Identifier)
+		certificateURL := "/" + version.APIVersion + "/certificates/" + identity.Identifier
 		body = append(body, certificateURL)
 	}
 
@@ -219,7 +234,17 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, projectName st
 			continue
 		}
 
-		if opServerName == joinToken.ServerName && opSecret == joinToken.Secret {
+		if opServerName != joinToken.ServerName {
+			continue
+		}
+
+		// Assert opSecret is a string then convert to []byte for constant time comparison.
+		opSecretStr, ok := opSecret.(string)
+		if !ok {
+			continue
+		}
+
+		if subtle.ConstantTimeCompare([]byte(opSecretStr), []byte(joinToken.Secret)) == 1 {
 			foundOp = op
 			break
 		}
@@ -287,7 +312,13 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 			continue
 		}
 
-		if opSecret == addToken.Secret {
+		// Assert opSecret is a string then convert to []byte for constant time comparison.
+		opSecretStr, ok := opSecret.(string)
+		if !ok {
+			continue
+		}
+
+		if subtle.ConstantTimeCompare([]byte(opSecretStr), []byte(addToken.Secret)) == 1 {
 			foundOp = op
 			break
 		}
@@ -536,13 +567,13 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// A password/token is required for non-admin users.
-		if req.Password == "" && req.TrustToken == "" {
+		if req.Password == "" && req.TrustToken == "" { //nolint:staticcheck
 			return response.Forbidden(nil)
 		}
 
 		var joinTokenEncoded string
-		if req.Password != "" {
-			joinTokenEncoded = req.Password
+		if req.Password != "" { //nolint:staticcheck
+			joinTokenEncoded = req.Password //nolint:staticcheck
 		} else if req.TrustToken != "" {
 			joinTokenEncoded = req.TrustToken
 		}
@@ -582,7 +613,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 				}
 			} else {
 				// Otherwise check if password matches trust password.
-				if util.PasswordCheck(secret, req.Password) != nil {
+				if util.PasswordCheck(secret, req.Password) != nil { //nolint:staticcheck
 					logger.Warn("Bad trust password", logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 					return response.Forbidden(nil)
 				}
@@ -794,6 +825,11 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeCertificate, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var cert *api.Certificate
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbCertInfo, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
@@ -811,6 +847,13 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 	err = s.Authorizer.CheckPermission(r.Context(), entity.CertificateURL(cert.Fingerprint), auth.EntitlementCanView)
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeCertificate, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.CertificateURL(cert.Fingerprint): cert})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponseETag(true, cert, cert)

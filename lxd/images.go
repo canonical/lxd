@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -233,7 +235,6 @@ var imagePublishLock sync.Mutex
 var imageTaskMu sync.Mutex
 
 func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
-	reproducible := []string{"gzip"}
 	var cmd *exec.Cmd
 
 	// Parse the command.
@@ -254,18 +255,18 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		defer func() { _ = os.Remove(tempfile.Name()) }()
 
 		// Prepare 'tar2sqfs' arguments
-		args := []string{"tar2sqfs"}
+		args := make([]string, 0, len(fields))
 		if len(fields) > 1 {
 			args = append(args, fields[1:]...)
 		}
 
-		args = append(args, "--no-skip", "--force", "--compressor", "xz", tempfile.Name())
-		cmd = exec.Command(args[0], args[1:]...)
+		args = append(args, "--quiet", "--no-skip", "--force", "--compressor", "xz", tempfile.Name())
+		cmd = exec.Command("tar2sqfs", args...)
 		cmd.Stdin = infile
 
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("tar2sqfs: %v (%v)", err, strings.TrimSpace(string(output)))
+			return fmt.Errorf("tar2sqfs: %w (%v)", err, strings.TrimSpace(string(output)))
 		}
 		// Replay the result to outfile
 		_, err = tempfile.Seek(0, io.SeekStart)
@@ -283,7 +284,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 			args = append(args, fields[1:]...)
 		}
 
-		if shared.ValueInSlice(fields[0], reproducible) {
+		if fields[0] == "gzip" {
 			args = append(args, "-n")
 		}
 
@@ -440,11 +441,19 @@ func imgPostInstanceInfo(s *state.State, r *http.Request, req api.ImagesPost, op
 		writer = io.MultiWriter(imageProgressWriter, sha256)
 	}
 
+	// Tracker instance for the export phase.
+	tracker := &ioprogress.ProgressTracker{
+		Handler: func(value, speed int64) {
+			shared.SetProgressMetadata(metadata, "create_image_from_container_pack", "Exporting", value, 0, 0)
+			_ = op.UpdateMetadata(metadata)
+		},
+	}
+
 	// Export instance to writer.
 	var meta api.ImageMetadata
 
 	writer = shared.NewQuotaWriter(writer, budget)
-	meta, err = c.Export(writer, req.Properties, req.ExpiresAt)
+	meta, err = c.Export(writer, req.Properties, req.ExpiresAt, tracker)
 
 	// Get ExpiresAt
 	if meta.ExpiryDate != 0 {
@@ -1140,8 +1149,8 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	// Possibly set a quota on the amount of disk space this project is
 	// allowed to use.
 	var budget int64
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		budget, err = limits.GetImageSpaceBudget(s.GlobalConfig, tx, projectName)
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		budget, err = limits.GetImageSpaceBudget(ctx, s.GlobalConfig, tx, projectName)
 		return err
 	})
 	if err != nil {
@@ -1193,7 +1202,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(fmt.Errorf("Invalid images JSON"))
 	}
 
-	/* Forward requests for containers on other nodes */
+	// Forward requests for containers on other nodes.
 	if !imageUpload && shared.ValueInSlice(req.Source.Type, []string{"container", "instance", "virtual-machine", "snapshot"}) {
 		name := req.Source.Name
 		if name != "" {
@@ -1451,30 +1460,53 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	return &result, imageType, nil
 }
 
-func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses *filter.ClauseSet, hasPermission auth.PermissionChecker) (any, error) {
+func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses *filter.ClauseSet, hasPermission auth.PermissionChecker, allProjects bool) (any, error) {
 	mustLoadObjects := recursion || (clauses != nil && len(clauses.Clauses) > 0)
 
-	fingerprints, err := tx.GetImagesFingerprints(ctx, projectName, public)
-	if err != nil {
-		return err, err
+	imagesProjectsMap := map[string][]string{}
+	if allProjects {
+		var err error
+
+		imagesProjectsMap, err = tx.GetImages(ctx)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		fingerprints, err := tx.GetImagesFingerprints(ctx, projectName, public)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, fingerprint := range fingerprints {
+			imagesProjectsMap[fingerprint] = []string{projectName}
+		}
 	}
 
 	var resultString []string
 	var resultMap []*api.Image
 
 	if recursion {
-		resultMap = make([]*api.Image, 0, len(fingerprints))
+		resultMap = make([]*api.Image, 0, len(imagesProjectsMap))
 	} else {
-		resultString = make([]string, 0, len(fingerprints))
+		resultString = make([]string, 0, len(imagesProjectsMap))
 	}
 
-	for _, fingerprint := range fingerprints {
-		image, err := doImageGet(ctx, tx, projectName, fingerprint, public)
+	for fingerprint, projects := range imagesProjectsMap {
+		hasAccess := false
+
+		image, err := doImageGet(ctx, tx, projects[0], fingerprint, public)
 		if err != nil {
 			continue
 		}
 
-		if !image.Public && !hasPermission(entity.ImageURL(projectName, fingerprint)) {
+		for _, project := range projects {
+			if image.Public || hasPermission(entity.ImageURL(project, fingerprint)) {
+				hasAccess = true
+				break
+			}
+		}
+
+		if !hasAccess {
 			continue
 		}
 
@@ -1527,6 +1559,10 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 //      description: Collection filter
 //      type: string
 //      example: default
+//    - in: query
+//      name: all-projects
+//      description: Retrieve images from all projects
+//      type: boolean
 //  responses:
 //    "200":
 //      description: API endpoints
@@ -1581,6 +1617,10 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 //      description: Collection filter
 //      type: string
 //      example: default
+//    - in: query
+//      name: all-projects
+//      description: Retrieve images from all projects
+//      type: boolean
 //  responses:
 //    "200":
 //      description: API endpoints
@@ -1630,6 +1670,10 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 //      description: Collection filter
 //      type: string
 //      example: default
+//    - in: query
+//      name: all-projects
+//      description: Retrieve images from all projects
+//      type: boolean
 //  responses:
 //    "200":
 //      description: API endpoints
@@ -1684,6 +1728,11 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 //	    description: Collection filter
 //	    type: string
 //	    example: default
+//	  - in: query
+//	    name: all-projects
+//	    description: Retrieve images from all projects
+//	    type: boolean
+//	    example: default
 //	responses:
 //	  "200":
 //	    description: API endpoints
@@ -1714,11 +1763,23 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 //	    $ref: "#/responses/InternalServerError"
 func imagesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := request.ProjectParam(r)
+	allProjects := shared.IsTrue(r.FormValue("all-projects"))
 	filterStr := r.FormValue("filter")
+
+	recursion := util.IsRecursionRequest(r)
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeImage, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// ProjectParam returns default if not set
+	if allProjects && projectName != api.ProjectDefaultName {
+		return response.BadRequest(fmt.Errorf("Cannot specify a project when requesting all projects"))
+	}
 
 	s := d.State()
 	var effectiveProjectName string
-	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
 		return err
@@ -1729,8 +1790,14 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 
-	// If the caller is not trusted, we only want to list public images.
-	publicOnly := !auth.IsTrusted(r.Context())
+	// If the caller is not trusted, we only want to list public images in the default project.
+	trusted := auth.IsTrusted(r.Context())
+	publicOnly := !trusted
+
+	// Untrusted callers can't request images from all projects or projects other than default.
+	if !trusted && (allProjects || projectName != api.ProjectDefaultName) {
+		return response.Forbidden(errors.New("Untrusted callers may only access public images in the default project"))
+	}
 
 	// Get a permission checker. If the caller is not authenticated, the permission checker will deny all.
 	// However, the permission checker is only called when an image is private. Both trusted and untrusted clients will
@@ -1747,7 +1814,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	var result any
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		result, err = doImagesGet(ctx, tx, util.IsRecursionRequest(r), projectName, publicOnly, clauses, canViewImage)
+		result, err = doImagesGet(ctx, tx, recursion, projectName, publicOnly, clauses, canViewImage, allProjects)
 		if err != nil {
 			return err
 		}
@@ -1756,6 +1823,27 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if len(withEntitlements) > 0 {
+		// We need to get each image project and fingerprint to construct its entity URL,
+		// so we need to cast the result to a slice of `api.Image` pointers.
+		// This cast should work as we would have never entered this if block if the request was not set with recursion=1,
+		// thanks to the `extractEntitlementsFromQuery` function passed with `allowRecursion=true`.
+		images, ok := result.([]*api.Image)
+		if !ok {
+			return response.InternalError(fmt.Errorf("Images response is not a slice of Image pointer structs"))
+		}
+
+		urlToImage := make(map[*api.URL]auth.EntitlementReporter, len(images))
+		for _, image := range images {
+			urlToImage[entity.ImageURL(image.Project, image.Fingerprint)] = image
+		}
+
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImage, withEntitlements, urlToImage)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponse(true, result)
@@ -2944,6 +3032,8 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 		return nil, fmt.Errorf("Failed getting image token operations: %w", err)
 	}
 
+	fingerprintURLPath := api.NewURL().Path(version.APIVersion, "images", fingerprint).String()
+
 	for _, op := range ops {
 		if op.Resources == nil {
 			continue
@@ -2954,7 +3044,7 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 			continue
 		}
 
-		if !shared.StringPrefixInSlice(api.NewURL().Path(version.APIVersion, "images", fingerprint).String(), opImages) {
+		if !shared.StringPrefixInSlice(fingerprintURLPath, opImages) {
 			continue
 		}
 
@@ -2963,7 +3053,13 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 			continue
 		}
 
-		if opSecret == secret {
+		// Assert opSecret is a string then convert to []byte for constant time comparison.
+		opSecretStr, ok := opSecret.(string)
+		if !ok {
+			continue
+		}
+
+		if subtle.ConstantTimeCompare([]byte(opSecretStr), []byte(secret)) == 1 {
 			// Token is single-use, so cancel it now.
 			err = operationCancel(s, r, projectName, op)
 			if err != nil {
@@ -3072,6 +3168,11 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeImage, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	trusted := auth.IsTrusted(r.Context())
 	secret := r.FormValue("secret")
 
@@ -3139,6 +3240,13 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	// If the client still cannot view the image, return a generic not found error.
 	if !userCanViewImage {
 		return response.NotFound(nil)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImage, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageURL(projectName, fingerprint): info})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	etag := []any{info.Public, info.AutoUpdate, info.Properties}
@@ -3529,9 +3637,14 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeImageAlias, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	projectName := request.ProjectParam(r)
 	var effectiveProjectName string
-	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
 		return err
@@ -3547,7 +3660,8 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var responseStr []string
-	var responseMap []api.ImageAliasesEntry
+	var responseMap []*api.ImageAliasesEntry
+	urlToImageAlias := make(map[*api.URL]auth.EntitlementReporter)
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		names, err := tx.GetImageAliases(ctx, projectName)
 		if err != nil {
@@ -3555,7 +3669,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if recursion {
-			responseMap = make([]api.ImageAliasesEntry, 0, len(names))
+			responseMap = make([]*api.ImageAliasesEntry, 0, len(names))
 		} else {
 			responseStr = make([]string, 0, len(names))
 		}
@@ -3573,7 +3687,8 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 					continue
 				}
 
-				responseMap = append(responseMap, alias)
+				responseMap = append(responseMap, &alias)
+				urlToImageAlias[entity.ImageAliasURL(projectName, name)] = &alias
 			}
 		}
 
@@ -3585,6 +3700,13 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 
 	if !recursion {
 		return response.SyncResponse(true, responseStr)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImageAlias, withEntitlements, urlToImageAlias)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponse(true, responseMap)
@@ -3680,6 +3802,12 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
+
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeImageAlias, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var effectiveProjectName string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
@@ -3711,7 +3839,14 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 		return response.NotFound(nil)
 	}
 
-	return response.SyncResponseETag(true, alias, alias)
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImageAlias, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageAliasURL(projectName, name): &alias})
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	return response.SyncResponseETag(true, &alias, alias)
 }
 
 // swagger:operation DELETE /1.0/images/aliases/{name} images image_alias_delete
@@ -4224,7 +4359,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		ext = ""
 	}
 
-	filename := fmt.Sprintf("%s%s", imgInfo.Fingerprint, ext)
+	filename := imgInfo.Fingerprint + ext
 
 	if shared.PathExists(rootfsPath) {
 		files := make([]response.FileResponseEntry, 2)
@@ -4240,7 +4375,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 			ext = ""
 		}
 
-		filename = fmt.Sprintf("%s%s", imgInfo.Fingerprint, ext)
+		filename = imgInfo.Fingerprint + ext
 
 		if imgInfo.Type == "virtual-machine" {
 			files[1].Identifier = "rootfs.img"

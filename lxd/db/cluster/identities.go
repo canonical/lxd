@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -574,6 +575,24 @@ WHERE auth_groups.name IN %s
 	}
 
 	if int(rowsAffected) != len(groupNames) {
+		// No longer on happy "fast" path.
+		// Check each group name exists to return a nice error
+		missingGroups := make([]string, 0, len(groupNames))
+		for _, groupName := range groupNames {
+			exists, err := AuthGroupExists(ctx, tx, groupName)
+			if err != nil {
+				return err
+			}
+
+			if !exists {
+				missingGroups = append(missingGroups, `"`+groupName+`"`)
+			}
+		}
+
+		if len(missingGroups) > 0 {
+			return api.NewStatusError(http.StatusNotFound, "One or more groups were not found: "+strings.Join(missingGroups, ", "))
+		}
+
 		return fmt.Errorf("Failed to write expected number of rows to identity auth group association table (expected %d, got %d)", len(groupNames), rowsAffected)
 	}
 

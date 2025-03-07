@@ -1458,3 +1458,44 @@ func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 
 	return newProxyAddr, nil
 }
+
+// AllowedUplinkNetworks returns a list of allowed networks to use as uplinks based on project restrictions.
+func AllowedUplinkNetworks(ctx context.Context, tx *db.ClusterTx, projectConfig map[string]string) ([]string, error) {
+	var uplinkNetworkNames []string
+
+	// There are no allowed networks if project is restricted and restricted.networks.uplinks is not set.
+	if shared.IsTrue(projectConfig["restricted"]) && projectConfig["restricted.networks.uplinks"] == "" {
+		return []string{}, nil
+	}
+
+	// Uplink networks are always from the default project.
+	networks, err := tx.GetCreatedNetworksByProject(ctx, api.ProjectDefaultName)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting uplink networks: %w", err)
+	}
+
+	// Add any compatible networks to the uplink network list.
+	for _, network := range networks {
+		if network.Type == "bridge" || network.Type == "physical" {
+			uplinkNetworkNames = append(uplinkNetworkNames, network.Name)
+		}
+	}
+
+	// If project is not restricted, return full network list.
+	if shared.IsFalseOrEmpty(projectConfig["restricted"]) {
+		return uplinkNetworkNames, nil
+	}
+
+	allowedUplinkNetworkNames := []string{}
+
+	// Parse the allowed uplinks and return any that are present in the actual defined networks.
+	allowedRestrictedUplinks := shared.SplitNTrimSpace(projectConfig["restricted.networks.uplinks"], ",", -1, false)
+
+	for _, allowedRestrictedUplink := range allowedRestrictedUplinks {
+		if shared.ValueInSlice(allowedRestrictedUplink, uplinkNetworkNames) {
+			allowedUplinkNetworkNames = append(allowedUplinkNetworkNames, allowedRestrictedUplink)
+		}
+	}
+
+	return allowedUplinkNetworkNames, nil
+}

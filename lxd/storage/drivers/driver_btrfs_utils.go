@@ -3,6 +3,7 @@ package drivers
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -165,11 +166,12 @@ func (d *btrfs) getSubvolumes(path string) ([]string, error) {
 				continue
 			}
 
-			if !strings.HasPrefix(fields[8], path) {
+			subvolPath, found := strings.CutPrefix(fields[8], path)
+			if !found {
 				continue
 			}
 
-			result = append(result, strings.TrimPrefix(fields[8], path))
+			result = append(result, subvolPath)
 		}
 	}
 
@@ -184,7 +186,7 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) (rev
 
 	// Single subvolume creation.
 	snapshot := func(path string, dest string) error {
-		_, err := shared.RunCommand("btrfs", "subvolume", "snapshot", path, dest)
+		_, err := shared.RunCommandContext(context.TODO(), "btrfs", "subvolume", "snapshot", path, dest)
 		if err != nil {
 			return err
 		}
@@ -238,7 +240,7 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 		// Attempt (but don't fail on) to delete any qgroup on the subvolume.
 		qgroup, _, err := d.getQGroup(path)
 		if err == nil {
-			_, _ = shared.RunCommand("btrfs", "qgroup", "destroy", qgroup, path)
+			_, _ = shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "destroy", qgroup, path)
 		}
 
 		// Temporarily change ownership & mode to help with nesting.
@@ -246,7 +248,7 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 		_ = os.Chown(path, 0, 0)
 
 		// Delete the subvolume itself.
-		_, err = shared.RunCommand("btrfs", "subvolume", "delete", path)
+		_, err = shared.RunCommandContext(context.TODO(), "btrfs", "subvolume", "delete", path)
 
 		return err
 	}
@@ -304,7 +306,7 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 
 func (d *btrfs) getQGroup(path string) (string, int64, error) {
 	// Try to get the qgroup details.
-	output, err := shared.RunCommand("btrfs", "qgroup", "show", "-e", "-f", "--raw", path)
+	output, err := shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "show", "-e", "-f", "--raw", path)
 	if err != nil {
 		return "", -1, errBtrfsNoQuota
 	}
@@ -402,9 +404,9 @@ func (d *btrfs) setSubvolumeReadonlyProperty(path string, readonly bool) error {
 		args = append(args, "-f")
 	}
 
-	args = append(args, "-ts", path, "ro", fmt.Sprintf("%t", readonly))
+	args = append(args, "-ts", path, "ro", fmt.Sprint(readonly))
 
-	_, err := shared.RunCommand("btrfs", args...)
+	_, err := shared.RunCommandContext(context.TODO(), "btrfs", args...)
 	return err
 }
 
@@ -420,19 +422,10 @@ type BTRFSSubVolume struct {
 // getSubvolumesMetaData retrieves subvolume meta data with paths relative to the root volume.
 // The first item in the returned list is the root subvolume itself.
 func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
-	var subVols []BTRFSSubVolume
-
 	snapName := ""
 	if vol.IsSnapshot() {
 		_, snapName, _ = api.GetParentAndSnapshotName(vol.name)
 	}
-
-	// Add main root volume to subvolumes list first.
-	subVols = append(subVols, BTRFSSubVolume{
-		Snapshot: snapName,
-		Path:     string(filepath.Separator),
-		Readonly: BTRFSSubVolumeIsRo(vol.MountPath()),
-	})
 
 	// Find any subvolumes in volume.
 	subVolPaths, err := d.getSubvolumes(vol.MountPath())
@@ -442,12 +435,20 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 
 	sort.Strings(subVolPaths)
 
+	// Add main root volume to subvolumes list first.
+	subVols := make([]BTRFSSubVolume, 0, len(subVolPaths)+1)
+	subVols = append(subVols, BTRFSSubVolume{
+		Snapshot: snapName,
+		Path:     string(filepath.Separator),
+		Readonly: btrfsSubVolumeIsRo(vol.MountPath()),
+	})
+
 	// Add any subvolumes under the root subvolume with relative path to root.
 	for _, subVolPath := range subVolPaths {
 		subVols = append(subVols, BTRFSSubVolume{
 			Snapshot: snapName,
-			Path:     fmt.Sprintf("%s%s", string(filepath.Separator), subVolPath),
-			Readonly: BTRFSSubVolumeIsRo(filepath.Join(vol.MountPath(), subVolPath)),
+			Path:     string(filepath.Separator) + subVolPath,
+			Readonly: btrfsSubVolumeIsRo(filepath.Join(vol.MountPath(), subVolPath)),
 		})
 	}
 

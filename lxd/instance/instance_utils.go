@@ -16,7 +16,6 @@ import (
 
 	"github.com/flosch/pongo2"
 	"github.com/google/uuid"
-	liblxc "github.com/lxc/go-lxc"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/backup"
@@ -128,6 +127,40 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 }
 
 func validConfigKey(os *sys.OS, key string, value string, instanceType instancetype.Type) error {
+	// Disallow keys with container-specific prefixes such as "linux.sysctl." and "limits.kernel." for VMs.
+	if instanceType == instancetype.VM && shared.StringHasPrefix(key, instancetype.ConfigKeyPrefixesContainer...) {
+		return fmt.Errorf("%q isn't supported for %q", key, instanceType)
+	}
+
+	// Check if the key is a valid prefix and whether or not it requires a subkey.
+	knownPrefixes := append(instancetype.ConfigKeyPrefixesAny, instancetype.ConfigKeyPrefixesContainer...)
+	if strings.HasSuffix(key, ".") {
+		if !(key == instancetype.ConfigVolatilePrefix || shared.ValueInSlice(key, knownPrefixes)) {
+			// Not a known prefix.
+			return fmt.Errorf("Unknown configuration key: %q", key)
+		}
+
+		return fmt.Errorf("%q requires a subkey", key)
+	}
+
+	// Validate the configuration key against instance type for containers and VMs.
+	// Ignore configuration keys with known prefixes since usage has already been validated, and ConfigKeyChecker validates keys syntactically.
+	if instanceType != instancetype.Any && !shared.StringHasPrefix(key, knownPrefixes...) && !strings.HasPrefix(key, instancetype.ConfigVolatilePrefix) {
+		// Ensure key is present in instance config key map based on type.
+		exists := false
+		switch instanceType {
+		case instancetype.VM:
+			_, exists = instancetype.InstanceConfigKeysVM[key]
+		case instancetype.Container:
+			_, exists = instancetype.InstanceConfigKeysContainer[key]
+		}
+
+		_, existsAny := instancetype.InstanceConfigKeysAny[key]
+		if !(exists || existsAny) {
+			return fmt.Errorf("%q isn't supported for %q", key, instanceType)
+		}
+	}
+
 	f, err := instancetype.ConfigKeyChecker(key, instanceType)
 	if err != nil {
 		return err
@@ -135,10 +168,6 @@ func validConfigKey(os *sys.OS, key string, value string, instanceType instancet
 
 	if err = f(value); err != nil {
 		return err
-	}
-
-	if strings.HasPrefix(key, "limits.kernel.") && instanceType == instancetype.VM {
-		return fmt.Errorf("%s isn't supported for VMs", key)
 	}
 
 	if key == "raw.lxc" {
@@ -222,33 +251,17 @@ func lxcValidConfig(rawLxc string) error {
 		}
 
 		networkKeyPrefix := "lxc.net."
-		if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
-			networkKeyPrefix = "lxc.network."
-		}
-
 		if strings.HasPrefix(key, networkKeyPrefix) {
 			fields := strings.Split(key, ".")
 
-			if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
-				// lxc.network.X.ipv4 or lxc.network.X.ipv6
-				if len(fields) == 4 && shared.ValueInSlice(fields[3], []string{"ipv4", "ipv6"}) {
-					continue
-				}
+			// lxc.net.X.ipv4.address or lxc.net.X.ipv6.address
+			if len(fields) == 5 && shared.ValueInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "address" {
+				continue
+			}
 
-				// lxc.network.X.ipv4.gateway or lxc.network.X.ipv6.gateway
-				if len(fields) == 5 && shared.ValueInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "gateway" {
-					continue
-				}
-			} else {
-				// lxc.net.X.ipv4.address or lxc.net.X.ipv6.address
-				if len(fields) == 5 && shared.ValueInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "address" {
-					continue
-				}
-
-				// lxc.net.X.ipv4.gateway or lxc.net.X.ipv6.gateway
-				if len(fields) == 5 && shared.ValueInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "gateway" {
-					continue
-				}
+			// lxc.net.X.ipv4.gateway or lxc.net.X.ipv6.gateway
+			if len(fields) == 5 && shared.ValueInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "gateway" {
+				continue
 			}
 
 			return fmt.Errorf("Only interface-specific ipv4/ipv6 %s keys are allowed", networkKeyPrefix)
@@ -420,6 +433,9 @@ func LoadFromBackup(s *state.State, projectName string, instancePath string) (In
 	// backup file to local config. This way we can still see the devices even if DB not available.
 	instDBArgs.Config = backupConf.Container.ExpandedConfig
 	instDBArgs.Devices = deviceConfig.NewDevices(backupConf.Container.ExpandedDevices)
+
+	// Set Node field to local node.
+	instDBArgs.Node = s.ServerName
 
 	p := api.Project{
 		Name: backupConf.Container.Project,

@@ -914,7 +914,8 @@ func (c *cmdConfigUnset) command() *cobra.Command {
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			if strings.Contains(toComplete, ".") {
-				return c.global.cmpServerAllKeys(toComplete)
+				// Only complete config keys which are currently set.
+				return c.global.cmpServerSetKeys(toComplete)
 			}
 
 			return c.global.cmpInstances(toComplete)

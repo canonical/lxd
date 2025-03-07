@@ -520,7 +520,7 @@ func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.
 	}
 
 	timeout := 2 * time.Second
-	url := fmt.Sprintf("https://%s%s", address, databaseEndpoint)
+	url := "https://" + address + databaseEndpoint
 	transport, cleanup := tlsTransport(config)
 	defer cleanup()
 	client := &http.Client{

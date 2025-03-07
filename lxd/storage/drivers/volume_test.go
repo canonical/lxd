@@ -46,7 +46,7 @@ func Test_Volume_ConfigSizeFromSource(t *testing.T) {
 			vol:    Volume{driver: &nonBlockBackedDriver, volType: VolumeTypeVM, contentType: ContentTypeBlock},
 			srcVol: Volume{volType: VolumeTypeImage},
 			err:    nil,
-			size:   DefaultBlockSize,
+			size:   defaultBlockSize,
 		},
 		{
 			// Check that the volume's smaller size than source image's rootfs size causes error.
@@ -93,7 +93,7 @@ func Test_Volume_ConfigSizeFromSource(t *testing.T) {
 			vol:    Volume{driver: &blockBackedDriver, volType: VolumeTypeVM, config: map[string]string{}},
 			srcVol: Volume{volType: VolumeTypeImage, config: map[string]string{"volatile.rootfs.size": "5GiB"}},
 			err:    nil,
-			size:   DefaultBlockSize,
+			size:   defaultBlockSize,
 		},
 		{
 			// Check volume's size is used when VM filesystem volume is supplied with image source.

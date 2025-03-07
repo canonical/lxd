@@ -146,7 +146,7 @@ update-schema:
 ifeq ($(shell command -v goimports),)
 	(cd / ; go install golang.org/x/tools/cmd/goimports@latest)
 endif
-	cd lxd/db/generate && go build -v -trimpath -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG) && cd -
+	go build -C lxd/db/generate -v -trimpath -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG)
 	go generate ./...
 	@echo "Code generation completed"
 
@@ -183,7 +183,7 @@ doc: doc-clean doc-install doc-html doc-objects
 doc-incremental: doc-html
 
 doc-%:
-	cd doc && $(MAKE) -f Makefile $*
+	$(MAKE) -C doc -f Makefile $*
 
 .PHONY: debug
 debug:

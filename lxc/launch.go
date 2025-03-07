@@ -118,7 +118,7 @@ func (c *cmdLaunch) run(cmd *cobra.Command, args []string) error {
 			progress.Done("")
 			prettyName := name
 			if remote != "" {
-				prettyName = fmt.Sprintf("%s:%s", remote, name)
+				prettyName = remote + ":" + name
 			}
 
 			return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, prettyName)

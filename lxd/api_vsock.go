@@ -44,9 +44,10 @@ func authenticateAgentCert(s *state.State, r *http.Request) (bool, instance.Inst
 	}
 
 	agentCert := inst.(instance.VM).AgentCertificate()
+	trustedCerts := map[string]x509.Certificate{"0": *agentCert}
 
 	for _, cert := range r.TLS.PeerCertificates {
-		trusted, _ = util.CheckMutualTLS(*cert, map[string]x509.Certificate{"0": *agentCert})
+		trusted, _ = util.CheckMutualTLS(*cert, trustedCerts)
 		if trusted {
 			return true, inst, nil
 		}

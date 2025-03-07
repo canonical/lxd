@@ -176,7 +176,7 @@ func (c *cmdRemoteAdd) runToken(addr string, server string, token string, rawTok
 
 	// Otherwise, iterate over all addresses within the token.
 	for _, addr := range rawToken.Addresses {
-		addr = fmt.Sprintf("https://%s", addr)
+		addr = "https://" + addr
 
 		err := c.addRemoteFromToken(addr, server, token, *rawToken)
 		if err != nil {
@@ -272,7 +272,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 		if d.HasExtension("explicit_trust_token") {
 			req.TrustToken = token
 		} else {
-			req.Password = token
+			req.Password = token //nolint:staticcheck
 		}
 
 		err = d.CreateCertificate(req)
@@ -432,7 +432,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		rHost = host
 		rPort = port
 	} else {
-		rPort = fmt.Sprintf("%d", shared.HTTPSDefaultPort)
+		rPort = fmt.Sprint(shared.HTTPSDefaultPort)
 	}
 
 	if rScheme == "unix" {
@@ -441,7 +441,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if strings.Contains(rHost, ":") && !strings.HasPrefix(rHost, "[") {
-		rHost = fmt.Sprintf("[%s]", rHost)
+		rHost = "[" + rHost + "]"
 	}
 
 	if rPort != "" {
@@ -838,7 +838,7 @@ func (c *cmdRemoteList) run(cmd *cobra.Command, args []string) error {
 
 		strName := name
 		if name == conf.DefaultRemote {
-			strName = fmt.Sprintf("%s (%s)", name, i18n.G("current"))
+			strName = name + " (" + i18n.G("current") + ")"
 		}
 
 		data = append(data, []string{strName, rc.Addr, rc.Protocol, rc.AuthType, strPublic, strStatic, strGlobal})
@@ -878,7 +878,7 @@ func (c *cmdRemoteRename) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemoteNames()
+			return c.global.cmpRemoteNames(true)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -959,7 +959,7 @@ func (c *cmdRemoteRemove) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemoteNames()
+			return c.global.cmpRemoteNames(false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1023,7 +1023,7 @@ func (c *cmdRemoteSwitch) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemoteNames()
+			return c.global.cmpRemoteNames(false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1071,7 +1071,7 @@ func (c *cmdRemoteSetURL) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemoteNames()
+			return c.global.cmpRemoteNames(true)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp

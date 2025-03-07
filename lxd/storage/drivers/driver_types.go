@@ -5,6 +5,7 @@ type Info struct {
 	Name                         string
 	Version                      string
 	VolumeTypes                  []VolumeType // Supported volume types.
+	DefaultBlockSize             string       // Default block volume size.
 	DefaultVMBlockFilesystemSize string       // Default volume size for VM block filesystems.
 	Buckets                      bool         // Buckets supported.
 	Remote                       bool         // Whether the driver uses a remote backing store.
@@ -18,6 +19,7 @@ type Info struct {
 	DirectIO                     bool         // Whether the driver supports direct I/O.
 	IOUring                      bool         // Whether the driver supports io_uring.
 	MountedRoot                  bool         // Whether the pool directory itself is a mount.
+	PopulateParentVolumeUUID     bool         // Whether the volume should have parent UUID populated before any action.
 }
 
 // VolumeFiller provides a struct for filling a volume.

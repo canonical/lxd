@@ -56,7 +56,7 @@ func (d *btrfs) load() error {
 
 	// Detect and record the version.
 	if btrfsVersion == "" {
-		out, err := shared.RunCommand("btrfs", "version")
+		out, err := shared.RunCommandContext(context.TODO(), "btrfs", "version")
 		if err != nil {
 			return err
 		}
@@ -92,6 +92,7 @@ func (d *btrfs) Info() Info {
 	return Info{
 		Name:                         "btrfs",
 		Version:                      btrfsVersion,
+		DefaultBlockSize:             d.defaultBlockVolumeSize(),
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              true,
 		OptimizedBackups:             true,
@@ -105,6 +106,7 @@ func (d *btrfs) Info() Info {
 		IOUring:                      true,
 		MountedRoot:                  true,
 		Buckets:                      true,
+		PopulateParentVolumeUUID:     false,
 	}
 }
 
@@ -119,7 +121,7 @@ func (d *btrfs) FillConfig() error {
 				return err
 			}
 
-			d.config["size"] = fmt.Sprintf("%dGiB", defaultSize)
+			d.config["size"] = fmt.Sprint(defaultSize, "GiB")
 		}
 	} else {
 		// Unset size property since it's irrelevant.
@@ -211,7 +213,7 @@ func (d *btrfs) Create() error {
 		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 10*time.Second)
 		defer cancel()
 
-		if tryExists(ctx, fmt.Sprintf("/dev/disk/by-uuid/%s", devUUID)) {
+		if tryExists(ctx, "/dev/disk/by-uuid/"+devUUID) {
 			// Override the config to use the UUID.
 			d.config["source"] = devUUID
 		} else {
@@ -260,7 +262,7 @@ func (d *btrfs) Create() error {
 			}
 
 			// Create the subvolume.
-			_, err := shared.RunCommand("btrfs", "subvolume", "create", hostPath)
+			_, err := shared.RunCommandContext(context.TODO(), "btrfs", "subvolume", "create", hostPath)
 			if err != nil {
 				return err
 			}
@@ -346,6 +348,7 @@ func (d *btrfs) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `user_subvol_rm_allowed`
 		//  shortdesc: Mount options for block devices
+		//  scope: global
 		"btrfs.mount_options": validate.IsAny,
 	}
 
@@ -409,7 +412,7 @@ func (d *btrfs) Update(changedConfig map[string]string) error {
 			return err
 		}
 
-		_, err = shared.RunCommand("btrfs", "filesystem", "resize", "max", GetPoolMountPath(d.name))
+		_, err = shared.RunCommandContext(context.TODO(), "btrfs", "filesystem", "resize", "max", GetPoolMountPath(d.name))
 		if err != nil {
 			return err
 		}
@@ -453,7 +456,7 @@ func (d *btrfs) Mount() (bool, error) {
 		}
 	} else {
 		// Mount using UUID.
-		mntSrc = fmt.Sprintf("/dev/disk/by-uuid/%s", d.config["source"])
+		mntSrc = "/dev/disk/by-uuid/" + d.config["source"]
 	}
 
 	// Get the custom mount flags/options.

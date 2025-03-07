@@ -28,6 +28,12 @@ const (
 // ConfigVolatilePrefix indicates the prefix used for volatile config keys.
 const ConfigVolatilePrefix = "volatile."
 
+// ConfigKeyPrefixesAny indicates valid prefixes for configuration options.
+var ConfigKeyPrefixesAny = []string{"environment.", "user.", "image.", "cloud-init.ssh-keys."}
+
+// ConfigKeyPrefixesContainer indicates valid prefixes for container configuration options.
+var ConfigKeyPrefixesContainer = []string{"linux.sysctl.", "limits.kernel."}
+
 // ValidName validates an instance name. There are different validation rules for instance snapshot names
 // so it takes an argument indicating whether the name is to be used for a snapshot or not.
 func ValidName(instanceName string, isSnapshot bool) error {
@@ -38,19 +44,32 @@ func ValidName(instanceName string, isSnapshot bool) error {
 			return fmt.Errorf("Invalid instance name %q: %w", parentName, err)
 		}
 
-		// Snapshot part is more flexible, but doesn't allow "..", space or / characters.
-		if snapshotName == ".." {
-			return fmt.Errorf("Invalid instance snapshot name %q", snapshotName)
-		}
-
-		if strings.ContainsAny(snapshotName, " /") {
-			return fmt.Errorf("Invalid instance snapshot name %q: Cannot contain spaces or slashes", snapshotName)
+		err = ValidSnapName(snapshotName)
+		if err != nil {
+			return fmt.Errorf("Invalid instance snapshot name %q: %w", snapshotName, err)
 		}
 	} else {
 		err := validate.IsHostname(instanceName)
 		if err != nil {
 			return fmt.Errorf("Invalid instance name %q: %w", instanceName, err)
 		}
+	}
+
+	return nil
+}
+
+// ValidSnapName validates a snnapshot instance name which must not include the instance prefix.
+func ValidSnapName(snapshotName string) error {
+	if snapshotName == "" {
+		return fmt.Errorf("Invalid instance snapshot name, cannot be empty")
+	}
+
+	if snapshotName == ".." {
+		return fmt.Errorf("Invalid instance snapshot name %q", snapshotName)
+	}
+
+	if strings.ContainsAny(snapshotName, "* /\\") {
+		return fmt.Errorf("Invalid instance snapshot name %q: Cannot contain *, spaces, forward or back slashes", snapshotName)
 	}
 
 	return nil
@@ -207,20 +226,14 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	//  shortdesc: Legacy version of `cloud-init.vendor-data`
 
 	// lxdmeta:generate(entities=instance; group=miscellaneous; key=cluster.evacuate)
-	// The `cluster.evacuate` provides control over how instances are handled when a cluster member is being
-	// evacuated.
+	// The `cluster.evacuate` provides control over how instances are handled when a cluster member is being evacuated.
 	//
 	// Available Modes:
-	//   - `auto` *(default)*: The system will automatically decide the best evacuation method based on the
-	//      instance's type and configured devices:
+	//   - `auto` *(default)*: The system will automatically decide the best evacuation method based on the instance's type and configured devices:
 	//     + If any device is not suitable for migration, the instance will not be migrated (only stopped).
-	//     + Live migration will be used only for virtual machines with the `migration.stateful` setting
-	//       enabled and for which all its devices can be migrated as well.
-	//   - `live-migrate`: Instances are live-migrated to another node. This means the instance remains running
-	//      and operational during the migration process, ensuring minimal disruption.
-	//   - `migrate`: In this mode, instances are migrated to another node in the cluster. The migration
-	//      process will not be live, meaning there will be a brief downtime for the instance during the
-	//      migration.
+	//     + Live migration will be used only for virtual machines with the `migration.stateful` setting enabled and for which all its devices can be migrated as well.
+	//   - `live-migrate`: Instances are live-migrated to another node. This means the instance remains running and operational during the migration process, ensuring minimal disruption.
+	//   - `migrate`: In this mode, instances are migrated to another node in the cluster. The migration process will not be live, meaning there will be a brief downtime for the instance during the migration.
 	//   -  `stop`: Instances are not migrated. Instead, they are stopped on the current node.
 	//
 	// See {ref}`cluster-evacuate` for more information.
@@ -345,7 +358,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// ---
 	//  type: bool
 	//  defaultdesc: `false`
-	//  liveupdate: yes
+	//  liveupdate: container
 	//  shortdesc: Whether to prevent the instance from being deleted
 	"security.protection.delete": validate.Optional(validate.IsBool),
 
@@ -354,7 +367,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// ---
 	//  type: bool
 	//  defaultdesc: `false`
-	//  liveupdate: yes
+	//  liveupdate: container
 	//  shortdesc: Whether to prevent the instance from being started
 	"security.protection.start": validate.Optional(validate.IsBool),
 
@@ -400,6 +413,20 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 		_, err := shared.GetExpiry(time.Time{}, value)
 		return err
 	},
+
+	// lxdmeta:generate(entities=instance; group=miscellaneous; key=ubuntu_pro.guest_attach)
+	// Indicate whether the guest should auto-attach Ubuntu Pro at start up.
+	// The allowed values are `off`, `on`, and `available`.
+	// If set to `off`, it will not be possible for the Ubuntu Pro client in the guest to obtain guest token via `devlxd`.
+	// If set to `available`, attachment via guest token is possible but will not be performed automatically by the Ubuntu Pro client in the guest at startup.
+	// If set to `on`, attachment will be performed automatically by the Ubuntu Pro client in the guest at startup.
+	// To allow guest attachment, the host must be an Ubuntu machine that is Pro attached, and guest attachment must be enabled via the Pro client.
+	// To do this, run `pro config set lxd_guest_attach=on`.
+	// ---
+	// type: string
+	// liveupdate: no
+	// shortdesc: Whether to auto-attach Ubuntu Pro.
+	"ubuntu_pro.guest_attach": validate.Optional(validate.IsOneOf("off", "on", "available")),
 
 	// Volatile keys.
 
@@ -912,31 +939,37 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	"security.syscalls.intercept.sysinfo": validate.Optional(validate.IsBool),
 
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.last_state.idmap)
-	//
+	// The UID/GID map that has been applied to the container's underlying storage.
+	// This is usually set for containers created on older kernels that don't
+	// support idmapped mounts.
 	// ---
 	//  type: string
-	//  shortdesc: Serialized instance UID/GID map
+	//  condition: container
+	//  shortdesc: On-disk UID/GID map for the container's rootfs
 	"volatile.last_state.idmap": validate.IsAny,
 
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.idmap.base)
 	//
 	// ---
 	//  type: integer
-	//  shortdesc: The first ID in the instance's primary idmap range
+	//  condition: container
+	//  shortdesc: The first ID in the container's primary idmap range
 	"volatile.idmap.base": validate.IsAny,
 
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.idmap.current)
 	//
 	// ---
 	//  type: string
-	//  shortdesc: The idmap currently in use by the instance
+	//  condition: container
+	//  shortdesc: The idmap currently in use by the container
 	"volatile.idmap.current": validate.IsAny,
 
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.idmap.next)
 	//
 	// ---
 	//  type: string
-	//  shortdesc: The idmap to use the next time the instance starts
+	//  condition: container
+	//  shortdesc: The idmap to use the next time the container starts
 	"volatile.idmap.next": validate.IsAny,
 }
 
@@ -1073,8 +1106,7 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  shortdesc: Free-form user key/value storage
 
 	// lxdmeta:generate(entities=instance; group=miscellaneous; key=agent.nic_config)
-	// For containers, the name and MTU of the default network interfaces is used for the instance devices.
-	// For virtual machines, set this option to `true` to set the name and MTU of the default network interfaces to be the same as the instance devices.
+	// When set to true, the name and MTU of the default network interfaces inside the virtual machine will match those of the instance devices.
 	// ---
 	//  type: bool
 	//  defaultdesc: `false`
@@ -1130,6 +1162,21 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		if ok {
 			return f, nil
 		}
+	}
+
+	// lxdmeta:generate(entities=instance; group=cloud-init; key=cloud-init.ssh-keys.KEYNAME)
+	// Represents an additional SSH public key to be merged into existing `cloud-init` seed data
+	// and injected into an instance. Has the format `{user}:{key}`, where {user} is a Linux username and
+	// {key} can be either a pure SSH public key or an import ID for a key hosted elsewhere.
+	// // For example: `root:gh:githubUser`, `myUser:ssh-keyAlg publicKeyHash`
+	// ---
+	//  type: string
+	//  liveupdate: no
+	//  condition: If supported by image
+	//  shortdesc: Additional SSH key to be injected on the instance by `cloud-init`
+	sshKeyName := strings.TrimPrefix(key, "cloud-init.ssh-keys.")
+	if sshKeyName != key && sshKeyName != "" {
+		return validate.Optional(validate.IsUserSSHKey), nil
 	}
 
 	if strings.HasPrefix(key, ConfigVolatilePrefix) {
@@ -1270,29 +1317,16 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		}
 	}
 
-	if strings.HasPrefix(key, "environment.") {
+	if (instanceType == Any || instanceType == Container) && strings.HasPrefix(key, "linux.sysctl.") {
 		return validate.IsAny, nil
 	}
 
-	if strings.HasPrefix(key, "user.") {
+	knownPrefixes := append(ConfigKeyPrefixesAny, ConfigKeyPrefixesContainer...)
+	if shared.StringHasPrefix(key, knownPrefixes...) {
 		return validate.IsAny, nil
 	}
 
-	if strings.HasPrefix(key, "image.") {
-		return validate.IsAny, nil
-	}
-
-	if strings.HasPrefix(key, "limits.kernel.") &&
-		(len(key) > len("limits.kernel.")) {
-		return validate.IsAny, nil
-	}
-
-	if (instanceType == Any || instanceType == Container) &&
-		strings.HasPrefix(key, "linux.sysctl.") {
-		return validate.IsAny, nil
-	}
-
-	return nil, fmt.Errorf("Unknown configuration key: %s", key)
+	return nil, fmt.Errorf("Unknown configuration key: %q", key)
 }
 
 // InstanceIncludeWhenCopying is used to decide whether to include a config item or not when copying an instance.

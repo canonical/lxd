@@ -1,7 +1,6 @@
 package apparmor
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,7 +29,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 // FeatureCheck tries to generate feature check profile and process it with apparmor_parser.
 func FeatureCheck(sysOS *sys.OS, feature string) (bool, error) {
 	randomUUID := uuid.New().String()
-	name := fmt.Sprintf("<%s-%s>", randomUUID, feature)
+	name := "<" + randomUUID + "-" + feature + ">"
 	profileName := profileName("featurecheck", name)
 	profilePath := filepath.Join(aaPath, "profiles", profileName)
 	content, err := os.ReadFile(profilePath)

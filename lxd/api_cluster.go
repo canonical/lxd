@@ -610,7 +610,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		// Connect to the target cluster node.
-		client, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", req.ClusterAddress), args)
+		client, err := lxd.ConnectLXD("https://"+req.ClusterAddress, args)
 		if err != nil {
 			return err
 		}
@@ -4366,6 +4366,18 @@ func clusterGroupValidateName(name string) error {
 		return fmt.Errorf("No name provided")
 	}
 
+	if name == "*" {
+		return fmt.Errorf("Reserved cluster group name")
+	}
+
+	if name == "." || name == ".." {
+		return fmt.Errorf("Invalid cluster group name %q", name)
+	}
+
+	if strings.Contains(name, "\\") {
+		return fmt.Errorf("Cluster group names may not contain back slashes")
+	}
+
 	if strings.Contains(name, "/") {
 		return fmt.Errorf("Cluster group names may not contain slashes")
 	}
@@ -4380,14 +4392,6 @@ func clusterGroupValidateName(name string) error {
 
 	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
 		return fmt.Errorf("Cluster group names may not contain quotes")
-	}
-
-	if name == "*" {
-		return fmt.Errorf("Reserved cluster group name")
-	}
-
-	if shared.ValueInSlice(name, []string{".", ".."}) {
-		return fmt.Errorf("Invalid cluster group name %q", name)
 	}
 
 	return nil
@@ -4548,7 +4552,7 @@ func autoHealCluster(ctx context.Context, s *state.State, offlineMembers []db.No
 
 	for _, member := range offlineMembers {
 		logger.Info("Healing cluster member instances", logger.Ctx{"member": member.Name})
-		_, _, err = dest.RawQuery("POST", fmt.Sprintf("/internal/cluster/heal/%s", member.Name), nil, "")
+		_, _, err = dest.RawQuery("POST", "/internal/cluster/heal/"+member.Name, nil, "")
 		if err != nil {
 			return fmt.Errorf("Failed evacuating cluster member %q: %w", member.Name, err)
 		}

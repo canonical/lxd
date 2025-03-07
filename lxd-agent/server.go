@@ -36,9 +36,9 @@ func restServer(tlsConfig *tls.Config, cert *x509.Certificate, d *Daemon) *http.
 func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Certificate, d *Daemon) {
 	var uri string
 	if c.Path == "" {
-		uri = fmt.Sprintf("/%s", version)
+		uri = "/" + version
 	} else {
-		uri = fmt.Sprintf("/%s/%s", version, c.Path)
+		uri = "/" + version + "/" + c.Path
 	}
 
 	route := restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {

@@ -527,7 +527,8 @@ SELECT nodes.address FROM nodes
   LEFT JOIN images ON images_nodes.image_id = images.id
 WHERE images.fingerprint = ?
 `
-	var localAddress string // Address of this node
+	// Address of this node
+	var localAddress string
 
 	offlineThreshold, err := c.GetNodeOfflineThreshold(ctx)
 	if err != nil {
@@ -544,7 +545,9 @@ WHERE images.fingerprint = ?
 		return "", err
 	}
 
-	addresses := make([]string, 0, len(allAddresses)-1) // Addresses of online nodes with the image
+	// Addresses of online nodes with the image
+	addresses := make([]string, 0, len(allAddresses))
+
 	for _, address := range allAddresses {
 		node, err := c.GetNodeByAddress(ctx, address)
 		if err != nil {
@@ -1000,7 +1003,7 @@ func (c *ClusterTx) GetPoolNamesFromIDs(ctx context.Context, poolIDs []int64) ([
 		args[i] = id
 	}
 
-	q := fmt.Sprintf("SELECT name FROM storage_pools WHERE id IN (%s)", strings.Join(params, ","))
+	q := "SELECT name FROM storage_pools WHERE id IN (" + strings.Join(params, ",") + ")"
 
 	poolNames, err := query.SelectStrings(ctx, c.tx, q, args...)
 	if err != nil {
@@ -1128,7 +1131,9 @@ func (c *ClusterTx) getNodesByImageFingerprint(ctx context.Context, stmt string,
 		return nil, err
 	}
 
-	addresses := make([]string, 0, len(allAddresses)) // Addresses of online nodes with the image
+	// Addresses of online nodes with the image
+	addresses := make([]string, 0, len(allAddresses))
+
 	for _, address := range allAddresses {
 		node, err := c.GetNodeByAddress(ctx, address)
 		if err != nil {

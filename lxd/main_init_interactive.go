@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/pem"
 	"fmt"
 	"net"
@@ -614,7 +615,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 				return err
 			}
 
-			net.Config["ipv4.nat"] = fmt.Sprintf("%v", netIPv4UseNAT)
+			net.Config["ipv4.nat"] = fmt.Sprint(netIPv4UseNAT)
 		}
 
 		// IPv6
@@ -635,7 +636,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 				return err
 			}
 
-			net.Config["ipv6.nat"] = fmt.Sprintf("%v", netIPv6UseNAT)
+			net.Config["ipv6.nat"] = fmt.Sprint(netIPv6UseNAT)
 		}
 
 		// Add the new network
@@ -787,7 +788,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 
 		// Optimization for zfs on zfs (when using Ubuntu's bpool/rpool)
 		if pool.Driver == "zfs" && backingFs == "zfs" {
-			poolName, _ := shared.RunCommand("zpool", "get", "-H", "-o", "value", "name", "rpool")
+			poolName, _ := shared.RunCommandContext(context.TODO(), "zpool", "get", "-H", "-o", "value", "name", "rpool")
 			if strings.TrimSpace(poolName) == "rpool" {
 				zfsDataset, err := c.global.asker.AskBool("Would you like to create a new zfs dataset under rpool/lxd? (yes/no) [default=yes]: ", "yes")
 				if err != nil {
@@ -915,7 +916,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 
 				pool.Config["ceph.osd.pool_name"] = pool.Config["source"]
 			} else {
-				question := fmt.Sprintf("Name of the existing %s pool or dataset: ", strings.ToUpper(pool.Driver))
+				question := "Name of the existing " + strings.ToUpper(pool.Driver) + " pool or dataset: "
 				pool.Config["source"], err = c.global.asker.AskString(question, "", nil)
 				if err != nil {
 					return err
@@ -1007,7 +1008,7 @@ they otherwise would.
 			}
 
 			if net.ParseIP(netAddr).To4() == nil {
-				netAddr = fmt.Sprintf("[%s]", netAddr)
+				netAddr = "[" + netAddr + "]"
 			}
 
 			netPort, err := c.global.asker.AskInt(fmt.Sprintf("Port to bind LXD to [default=%d]: ", shared.HTTPSDefaultPort), 1, 65535, fmt.Sprintf("%d", shared.HTTPSDefaultPort), func(netPort int64) error {

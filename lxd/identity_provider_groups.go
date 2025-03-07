@@ -144,7 +144,7 @@ var identityProviderGroupCmd = APIEndpoint{
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
-	recursion := r.URL.Query().Get("recursion")
+	recursion := util.IsRecursionRequest(r)
 	s := d.State()
 
 	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
@@ -157,8 +157,14 @@ func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeIdentityProviderGroup, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var apiIDPGroups []*api.IdentityProviderGroup
 	var idpGroups []dbCluster.IdentityProviderGroup
+	urlToIDPGroup := make(map[*api.URL]auth.EntitlementReporter)
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		allIDPGroups, err := dbCluster.GetIdentityProviderGroups(ctx, tx.Tx())
 		if err != nil {
@@ -172,7 +178,7 @@ func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		if recursion == "1" {
+		if recursion {
 			apiIDPGroups = make([]*api.IdentityProviderGroup, 0, len(idpGroups))
 			for _, idpGroup := range idpGroups {
 				apiIDPGroup, err := idpGroup.ToAPI(ctx, tx.Tx(), canViewGroup)
@@ -181,6 +187,7 @@ func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
 				}
 
 				apiIDPGroups = append(apiIDPGroups, apiIDPGroup)
+				urlToIDPGroup[entity.IdentityProviderGroupURL(idpGroup.Name)] = apiIDPGroup
 			}
 		}
 
@@ -190,7 +197,14 @@ func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if recursion == "1" {
+	if recursion {
+		if len(withEntitlements) > 0 {
+			err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeIdentityProviderGroup, withEntitlements, urlToIDPGroup)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
 		return response.SyncResponse(true, apiIDPGroups)
 	}
 
@@ -247,6 +261,11 @@ func getIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeIdentityProviderGroup, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var apiIDPGroup *api.IdentityProviderGroup
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		idpGroup, err := dbCluster.GetIdentityProviderGroup(ctx, tx.Tx(), idpGroupName)
@@ -263,6 +282,13 @@ func getIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeIdentityProviderGroup, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.IdentityProviderGroupURL(idpGroupName): apiIDPGroup})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponseETag(true, apiIDPGroup, apiIDPGroup)

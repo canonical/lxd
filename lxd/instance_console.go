@@ -587,10 +587,6 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
-		return response.BadRequest(fmt.Errorf("Querying the console buffer requires liblxc >= 3.0"))
-	}
-
 	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
@@ -671,10 +667,6 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
-	if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
-		return response.BadRequest(fmt.Errorf("Clearing the console buffer requires liblxc >= 3.0"))
-	}
-
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)

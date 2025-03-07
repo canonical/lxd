@@ -82,6 +82,7 @@ ip link set dev "${veth2}" name eth0
 ip link set eth0 up
 ip addr add "10.1.1.10${id}/16" dev eth0
 ip route add default via 10.1.1.1
+ip link add localBridge${id} type bridge
 EOF
 }
 

@@ -55,6 +55,7 @@ func (r *ProtocolLXD) UpdateServer(server api.ServerPut, ETag string) error {
 }
 
 // HasExtension returns true if the server supports a given API extension.
+//
 // Deprecated: Use CheckExtension instead.
 func (r *ProtocolLXD) HasExtension(extension string) bool {
 	// If no cached API information, just assume we're good
@@ -156,7 +157,7 @@ func (r *ProtocolLXD) GetMetrics() (string, error) {
 	}
 
 	// Prepare the request.
-	requestURL, err := r.setQueryAttributes(fmt.Sprintf("%s/1.0/metrics", r.httpBaseURL.String()))
+	requestURL, err := r.setQueryAttributes(r.httpBaseURL.String() + "/1.0/metrics")
 	if err != nil {
 		return "", err
 	}

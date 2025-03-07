@@ -150,7 +150,7 @@ redirects = {
 }
 
 ############################################################
-### Link checker exceptions
+### Link checker
 ############################################################
 
 # Links to ignore when checking links
@@ -164,6 +164,7 @@ linkcheck_ignore = [
     # Those links may fail from time to time
     'https://www.dell.com/',
     'https://www.dell.com/en-us/shop/powerflex/sf/powerflex',
+    'https://www.gnu.org/licenses/agpl-3.0.en.html',
     ]
 
 # Pages on which to ignore anchors
@@ -175,6 +176,14 @@ custom_linkcheck_anchors_ignore_for_url = [
     ]
 
 linkcheck_exclude_documents = [r'.*/manpages/.*']
+
+# Increase linkcheck rate limit timeout max, default when unset is 300
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-linkcheck_timeout
+linkcheck_rate_limit_timeout = 600
+
+# Increase linkcheck retries, default when unset is 1
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-linkcheck_retries
+linkcheck_retries = 3
 
 ############################################################
 ### Additions to default configuration

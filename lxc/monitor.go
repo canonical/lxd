@@ -218,9 +218,9 @@ func (c *cmdMonitor) unpackCtx(ctx []any) logrus.Fields {
 	var key string
 	for _, entry := range ctx {
 		if key == "" {
-			key = fmt.Sprintf("%v", entry)
+			key = fmt.Sprint(entry)
 		} else {
-			out[key] = fmt.Sprintf("%v", entry)
+			out[key] = fmt.Sprint(entry)
 			key = ""
 		}
 	}

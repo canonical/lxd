@@ -133,40 +133,60 @@ func daemonStorageMount(s *state.State) error {
 }
 
 func daemonStorageSplitVolume(volume string) (poolName string, volumeName string, err error) {
-	fields := strings.Split(volume, "/")
-	if len(fields) != 2 {
+	if strings.Count(volume, "/") != 1 {
 		return "", "", fmt.Errorf("Invalid syntax for volume, must be <pool>/<volume>")
 	}
 
-	poolName = fields[0]
-	volumeName = fields[1]
+	poolName, volumeName, _ = strings.Cut(volume, "/")
+
+	// Validate pool name.
+	if strings.Contains(poolName, "\\") || strings.Contains(poolName, "..") {
+		return "", "", fmt.Errorf("Invalid pool name: %q", poolName)
+	}
+
+	// Validate volume name.
+	if strings.Contains(volumeName, "\\") || strings.Contains(volumeName, "..") {
+		return "", "", fmt.Errorf("Invalid volume name: %q", volumeName)
+	}
 
 	return poolName, volumeName, nil
 }
 
-func daemonStorageValidate(s *state.State, target string) error {
+// daemonStorageValidate checks target "<poolName>/<volumeName>" value and returns the validated target from DB.
+func daemonStorageValidate(s *state.State, target string) (validatedTarget string, err error) {
 	// Check syntax.
 	if target == "" {
-		return nil
+		return "", nil
 	}
 
 	poolName, volumeName, err := daemonStorageSplitVolume(target)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	var poolID int64
+	// Validate pool exists.
+	pool, err := storagePools.LoadByName(s, poolName)
+	if err != nil {
+		return "", fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
+	}
+
+	poolState := pool.Status()
+	if poolState != api.StoragePoolStatusCreated {
+		return "", fmt.Errorf("Storage pool %q cannot be used when in %q status", poolName, poolState)
+	}
+
+	// Checking only for remote storage drivers isn't sufficient as drivers
+	// like CephFS can be safely used as the volume can be used on multiple nodes concurrently.
+	if pool.Driver().Info().Remote && !pool.Driver().Info().VolumeMultiNode {
+		return "", fmt.Errorf("Remote storage pool %q cannot be used", poolName)
+	}
+
 	var snapshots []db.StorageVolumeArgs
+	var dbVol *db.StorageVolume
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Validate pool exists.
-		poolID, _, _, err = tx.GetStoragePool(ctx, poolName)
-		if err != nil {
-			return fmt.Errorf("Unable to load storage pool %q: %w", poolName, err)
-		}
-
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Confirm volume exists.
-		dbVol, err := tx.GetStoragePoolVolume(ctx, poolID, api.ProjectDefaultName, cluster.StoragePoolVolumeTypeCustom, volumeName, true)
+		dbVol, err = tx.GetStoragePoolVolume(ctx, pool.ID(), api.ProjectDefaultName, cluster.StoragePoolVolumeTypeCustom, volumeName, true)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage volume %q in %q project: %w", target, api.ProjectDefaultName, err)
 		}
@@ -175,7 +195,7 @@ func daemonStorageValidate(s *state.State, target string) error {
 			return fmt.Errorf("Storage volume %q in %q project is not filesystem content type", target, api.ProjectDefaultName)
 		}
 
-		snapshots, err = tx.GetLocalStoragePoolVolumeSnapshotsWithType(ctx, api.ProjectDefaultName, volumeName, cluster.StoragePoolVolumeTypeCustom, poolID)
+		snapshots, err = tx.GetLocalStoragePoolVolumeSnapshotsWithType(ctx, api.ProjectDefaultName, volumeName, cluster.StoragePoolVolumeTypeCustom, pool.ID())
 		if err != nil {
 			return fmt.Errorf("Unable to load storage volume snapshots %q in %q project: %w", target, api.ProjectDefaultName, err)
 		}
@@ -183,22 +203,17 @@ func daemonStorageValidate(s *state.State, target string) error {
 		return nil
 	})
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if len(snapshots) != 0 {
-		return fmt.Errorf("Storage volumes for use by LXD itself cannot have snapshots")
-	}
-
-	pool, err := storagePools.LoadByName(s, poolName)
-	if err != nil {
-		return err
+		return "", fmt.Errorf("Storage volumes for use by LXD itself cannot have snapshots")
 	}
 
 	// Mount volume.
 	_, err = pool.MountCustomVolume(api.ProjectDefaultName, volumeName, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to mount storage volume %q: %w", target, err)
+		return "", fmt.Errorf("Failed to mount storage volume %q: %w", target, err)
 	}
 
 	defer func() { _, _ = pool.UnmountCustomVolume(api.ProjectDefaultName, volumeName, nil) }()
@@ -209,7 +224,7 @@ func daemonStorageValidate(s *state.State, target string) error {
 
 	entries, err := os.ReadDir(mountpoint)
 	if err != nil {
-		return fmt.Errorf("Failed to list %q: %w", mountpoint, err)
+		return "", fmt.Errorf("Failed to list %q: %w", mountpoint, err)
 	}
 
 	for _, entry := range entries {
@@ -225,10 +240,10 @@ func daemonStorageValidate(s *state.State, target string) error {
 			continue
 		}
 
-		return fmt.Errorf("Storage volume %q isn't empty", target)
+		return "", fmt.Errorf("Storage volume %q isn't empty", target)
 	}
 
-	return nil
+	return pool.Name() + "/" + dbVol.Name, nil
 }
 
 func daemonStorageMove(s *state.State, storageType string, target string) error {

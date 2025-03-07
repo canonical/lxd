@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -61,7 +60,7 @@ func (c *cmdRename) run(cmd *cobra.Command, args []string) error {
 		}
 
 		// Don't require the remote to be passed as both source and target
-		args[1] = fmt.Sprintf("%s:%s", sourceRemote, args[1])
+		args[1] = sourceRemote + ":" + args[1]
 	}
 
 	// Call move

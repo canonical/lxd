@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -53,7 +54,7 @@ func (d *lvm) load() error {
 
 	// Detect and record the version.
 	if lvmVersion == "" {
-		output, err := shared.RunCommand("lvm", "version")
+		output, err := shared.RunCommandContext(d.state.ShutdownCtx, "lvm", "version")
 		if err != nil {
 			return fmt.Errorf("Error getting LVM version: %w", err)
 		}
@@ -86,6 +87,7 @@ func (d *lvm) Info() Info {
 	return Info{
 		Name:                         "lvm",
 		Version:                      lvmVersion,
+		DefaultBlockSize:             d.defaultBlockVolumeSize(),
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              d.usesThinpool(), // Only thinpool pools support optimized images.
 		PreservesInodes:              false,
@@ -97,6 +99,7 @@ func (d *lvm) Info() Info {
 		IOUring:                      true,
 		MountedRoot:                  false,
 		Buckets:                      true,
+		PopulateParentVolumeUUID:     false,
 	}
 }
 
@@ -146,7 +149,7 @@ func (d *lvm) Create() error {
 				return err
 			}
 
-			d.config["size"] = fmt.Sprintf("%dGiB", defaultSize)
+			d.config["size"] = fmt.Sprint(defaultSize) + "GiB"
 		}
 
 		size, err := units.ParseByteSizeString(d.config["size"])
@@ -513,6 +516,7 @@ func (d *lvm) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: name of the pool
 		//  shortdesc: Name of the volume group to create
+		//  scope: local
 		"lvm.vg_name": validate.IsAny,
 		// lxdmeta:generate(entities=storage-lvm; group=pool-conf; key=lvm.thinpool_name)
 		//
@@ -520,6 +524,7 @@ func (d *lvm) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `LXDThinPool`
 		//  shortdesc: Thin pool where volumes are created
+		//  scope: local
 		"lvm.thinpool_name": validate.IsAny,
 		// lxdmeta:generate(entities=storage-lvm; group=pool-conf; key=lvm.thinpool_metadata_size)
 		// By default, LVM calculates an appropriate size.
@@ -527,6 +532,7 @@ func (d *lvm) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `0` (auto)
 		//  shortdesc: The size of the thin pool metadata volume
+		//  scope: global
 		"lvm.thinpool_metadata_size": validate.Optional(validate.IsSize),
 		// lxdmeta:generate(entities=storage-lvm; group=pool-conf; key=lvm.use_thinpool)
 		//
@@ -534,6 +540,7 @@ func (d *lvm) Validate(config map[string]string) error {
 		//  type: bool
 		//  defaultdesc: `true`
 		//  shortdesc: Whether the storage pool uses a thin pool for logical volumes
+		//  scope: global
 		"lvm.use_thinpool": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-lvm; group=pool-conf; key=lvm.vg.force_reuse)
 		//
@@ -541,6 +548,7 @@ func (d *lvm) Validate(config map[string]string) error {
 		//  type: bool
 		//  defaultdesc: `false`
 		//  shortdesc: Force using an existing non-empty volume group
+		//  scope: global
 		"lvm.vg.force_reuse": validate.Optional(validate.IsBool),
 	}
 
@@ -637,7 +645,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 		}
 
 		// Resize physical volume so that lvresize is able to resize as well.
-		_, err = shared.RunCommand("pvresize", "-y", loopDevPath)
+		_, err = shared.RunCommandContext(context.TODO(), "pvresize", "-y", loopDevPath)
 		if err != nil {
 			return err
 		}
@@ -646,7 +654,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 			lvPath := d.lvmDevPath(d.config["lvm.vg_name"], "", "", d.thinpoolName())
 
 			// Use the remaining space in the volume group.
-			_, err = shared.RunCommand("lvresize", "-f", "-l", "+100%FREE", lvPath)
+			_, err = shared.RunCommandContext(context.TODO(), "lvresize", "-f", "-l", "+100%FREE", lvPath)
 			if err != nil {
 				return fmt.Errorf("Error resizing LV named %q: %w", lvPath, err)
 			}
@@ -755,7 +763,7 @@ func (d *lvm) GetResources() (*api.ResourcesStoragePool, error) {
 			"-o", "vg_size,vg_free",
 		}
 
-		out, err := shared.RunCommand("vgs", args...)
+		out, err := shared.RunCommandContext(d.state.ShutdownCtx, "vgs", args...)
 		if err != nil {
 			return nil, err
 		}

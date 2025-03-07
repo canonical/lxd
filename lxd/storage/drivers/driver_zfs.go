@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -118,6 +119,7 @@ func (d *zfs) Info() Info {
 	info := Info{
 		Name:                         "zfs",
 		Version:                      zfsVersion,
+		DefaultBlockSize:             d.defaultBlockVolumeSize(),
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              true,
 		OptimizedBackups:             true,
@@ -129,6 +131,7 @@ func (d *zfs) Info() Info {
 		DirectIO:                     zfsDirectIO,
 		MountedRoot:                  false,
 		Buckets:                      true,
+		PopulateParentVolumeUUID:     false,
 	}
 
 	return info
@@ -140,7 +143,7 @@ func (d *zfs) Info() Info {
 func (d zfs) ensureInitialDatasets(warnOnExistingPolicyApplyError bool) error {
 	properties := make([]string, 0, len(zfsDefaultSettings))
 	for k, v := range zfsDefaultSettings {
-		properties = append(properties, fmt.Sprintf("%s=%s", k, v))
+		properties = append(properties, k+"="+v)
 	}
 
 	properties, err := d.filterRedundantOptions(d.config["zfs.pool_name"], properties...)
@@ -217,7 +220,7 @@ func (d *zfs) FillConfig() error {
 				return err
 			}
 
-			d.config["size"] = fmt.Sprintf("%dGiB", defaultSize)
+			d.config["size"] = fmt.Sprint(defaultSize) + "GiB"
 		}
 	} else if filepath.IsAbs(d.config["source"]) {
 		// Set default pool_name.
@@ -270,14 +273,14 @@ func (d *zfs) Create() error {
 		}
 
 		// Create the zpool.
-		_, err = shared.RunCommand("zpool", "create", "-m", "none", "-O", "compression=on", d.config["zfs.pool_name"], loopPath)
+		_, err = shared.RunCommandContext(d.state.ShutdownCtx, "zpool", "create", "-m", "none", "-O", "compression=on", d.config["zfs.pool_name"], loopPath)
 		if err != nil {
 			return err
 		}
 
 		// Apply auto-trim if supported.
 		if zfsTrim {
-			_, err := shared.RunCommand("zpool", "set", "autotrim=on", d.config["zfs.pool_name"])
+			_, err := shared.RunCommandContext(d.state.ShutdownCtx, "zpool", "set", "autotrim=on", d.config["zfs.pool_name"])
 			if err != nil {
 				return err
 			}
@@ -303,13 +306,13 @@ func (d *zfs) Create() error {
 			d.config["source.wipe"] = ""
 
 			// Create the zpool.
-			_, err = shared.RunCommand("zpool", "create", "-f", "-m", "none", "-O", "compression=on", d.config["zfs.pool_name"], d.config["source"])
+			_, err = shared.RunCommandContext(d.state.ShutdownCtx, "zpool", "create", "-f", "-m", "none", "-O", "compression=on", d.config["zfs.pool_name"], d.config["source"])
 			if err != nil {
 				return err
 			}
 		} else {
 			// Create the zpool.
-			_, err := shared.RunCommand("zpool", "create", "-m", "none", "-O", "compression=on", d.config["zfs.pool_name"], d.config["source"])
+			_, err := shared.RunCommandContext(d.state.ShutdownCtx, "zpool", "create", "-m", "none", "-O", "compression=on", d.config["zfs.pool_name"], d.config["source"])
 			if err != nil {
 				return err
 			}
@@ -317,7 +320,7 @@ func (d *zfs) Create() error {
 
 		// Apply auto-trim if supported.
 		if zfsTrim {
-			_, err := shared.RunCommand("zpool", "set", "autotrim=on", d.config["zfs.pool_name"])
+			_, err := shared.RunCommandContext(d.state.ShutdownCtx, "zpool", "set", "autotrim=on", d.config["zfs.pool_name"])
 			if err != nil {
 				return err
 			}
@@ -413,13 +416,13 @@ func (d *zfs) Delete(op *operations.Operation) error {
 
 	if strings.Contains(d.config["zfs.pool_name"], "/") {
 		// Delete the dataset.
-		_, err := shared.RunCommand("zfs", "destroy", "-r", d.config["zfs.pool_name"])
+		_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", d.config["zfs.pool_name"])
 		if err != nil {
 			return err
 		}
 	} else {
 		// Delete the pool.
-		_, err := shared.RunCommand("zpool", "destroy", d.config["zfs.pool_name"])
+		_, err := shared.RunCommandContext(context.TODO(), "zpool", "destroy", d.config["zfs.pool_name"])
 		if err != nil {
 			return err
 		}
@@ -451,6 +454,7 @@ func (d *zfs) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: name of the pool
 		//  shortdesc: Name of the zpool
+		//  scope: local
 		"zfs.pool_name": validate.IsAny,
 		// lxdmeta:generate(entities=storage-zfs; group=pool-conf; key=zfs.clone_copy)
 		// Set this option to `true` or `false` to enable or disable using ZFS lightweight clones rather
@@ -460,6 +464,7 @@ func (d *zfs) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to use ZFS lightweight clones
+		//  scope: global
 		"zfs.clone_copy": validate.Optional(func(value string) error {
 			if value == "rebase" {
 				return nil
@@ -472,7 +477,8 @@ func (d *zfs) Validate(config map[string]string) error {
 		// ---
 		//  type: bool
 		//  defaultdesc: `true`
-		//  shortdesc: Disable zpool export while an unmount is being performed
+		//  shortdesc: Whether to export the zpool when an unmount is being performed
+		//  scope: global
 		"zfs.export": validate.Optional(validate.IsBool),
 	}
 
@@ -510,7 +516,7 @@ func (d *zfs) Update(changedConfig map[string]string) error {
 			return err
 		}
 
-		_, err = shared.RunCommand("zpool", "online", "-e", d.config["zfs.pool_name"], loopPath)
+		_, err = shared.RunCommandContext(d.state.ShutdownCtx, "zpool", "online", "-e", d.config["zfs.pool_name"], loopPath)
 		if err != nil {
 			return err
 		}
@@ -549,12 +555,12 @@ func (d *zfs) importPool() (bool, error) {
 	// Import the pool.
 	if filepath.IsAbs(d.config["source"]) {
 		disksPath := shared.VarPath("disks")
-		_, err := shared.RunCommand("zpool", "import", "-f", "-d", disksPath, poolName)
+		_, err := shared.RunCommandContext(d.state.ShutdownCtx, "zpool", "import", "-f", "-d", disksPath, poolName)
 		if err != nil {
 			return false, err
 		}
 	} else {
-		_, err := shared.RunCommand("zpool", "import", poolName)
+		_, err := shared.RunCommandContext(d.state.ShutdownCtx, "zpool", "import", poolName)
 		if err != nil {
 			return false, err
 		}
@@ -614,7 +620,7 @@ func (d *zfs) Unmount() (bool, error) {
 
 	// Export the pool.
 	poolName := strings.Split(d.config["zfs.pool_name"], "/")[0]
-	_, err = shared.RunCommand("zpool", "export", poolName)
+	_, err = shared.RunCommandContext(context.TODO(), "zpool", "export", poolName)
 	if err != nil {
 		return false, err
 	}
@@ -716,13 +722,13 @@ func (d *zfs) patchDropBlockVolumeFilesystemExtension() error {
 		poolName = d.name
 	}
 
-	out, err := shared.RunCommand("zfs", "list", "-H", "-r", "-o", "name", "-t", "volume", fmt.Sprintf("%s/images", poolName))
+	out, err := shared.RunCommandContext(d.state.ShutdownCtx, "zfs", "list", "-H", "-r", "-o", "name", "-t", "volume", poolName+"/images")
 	if err != nil {
 		return fmt.Errorf("Failed listing images: %w", err)
 	}
 
 	for _, volume := range strings.Split(out, "\n") {
-		fields := strings.SplitN(volume, fmt.Sprintf("%s/images/", poolName), 2)
+		fields := strings.SplitN(volume, poolName+"/images/", 2)
 
 		if len(fields) != 2 || fields[1] == "" {
 			continue
@@ -734,9 +740,9 @@ func (d *zfs) patchDropBlockVolumeFilesystemExtension() error {
 		}
 
 		// Rename zfs dataset. Snapshots will automatically be renamed.
-		newName := fmt.Sprintf("%s/images/%s.block", poolName, strings.Split(fields[1], "_")[0])
+		newName := poolName + "/images/" + strings.Split(fields[1], "_")[0] + ".block"
 
-		_, err = shared.RunCommand("zfs", "rename", volume, newName)
+		_, err = shared.RunCommandContext(context.TODO(), "zfs", "rename", volume, newName)
 		if err != nil {
 			return fmt.Errorf("Failed renaming zfs dataset: %w", err)
 		}

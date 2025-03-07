@@ -37,7 +37,7 @@ func (c *cmdVersion) run(cmd *cobra.Command, args []string) error {
 	// Client version
 	clientVersion := version.Version
 	if version.IsLTSVersion {
-		clientVersion = fmt.Sprintf("%s LTS", clientVersion)
+		clientVersion = clientVersion + " LTS"
 	}
 
 	// Remote version
@@ -57,7 +57,7 @@ func (c *cmdVersion) run(cmd *cobra.Command, args []string) error {
 		if err == nil {
 			serverVersion = info.Environment.ServerVersion
 			if info.Environment.ServerLTS {
-				serverVersion = fmt.Sprintf("%s LTS", serverVersion)
+				serverVersion = serverVersion + " LTS"
 			}
 		}
 	}

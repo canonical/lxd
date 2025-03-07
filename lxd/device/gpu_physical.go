@@ -3,6 +3,7 @@ package device
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -139,6 +140,31 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 			_ = f.Close()
 		}
 	}()
+
+	hooksFilePath := d.generateCDIHooksFilePath()
+	deviceConfigFilePath := d.generateCDIConfigDevicesFilePath()
+
+	// Check if there are any remaining CDI devices in the instance devices directory.
+	// If there are, we need to remove them. These can be present in the case where the device stop hook was not called
+	// (e.g. due to an abrupt host shutdown).
+	err := filepath.WalkDir(d.inst.DevicesPath(), func(path string, e fs.DirEntry, _ error) error {
+		if e.IsDir() {
+			return nil
+		}
+
+		// Remove the CDI device files (both unix-char and disk devices as long as JSON CDI metadata files).
+		if strings.HasPrefix(e.Name(), cdi.CDIUnixPrefix) || strings.HasPrefix(e.Name(), cdi.CDIDiskPrefix) || path == hooksFilePath || path == deviceConfigFilePath {
+			err := os.Remove(path)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
 
 	for _, conf := range configDevices.UnixCharDevs {
 		if conf["source"] == "" {
@@ -288,11 +314,11 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 }
 
 func (d *gpuPhysical) generateCDIHooksFilePath() string {
-	return filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s%s", d.name, cdi.CDIHooksFileSuffix))
+	return filepath.Join(d.inst.DevicesPath(), d.name+cdi.CDIHooksFileSuffix)
 }
 
 func (d *gpuPhysical) generateCDIConfigDevicesFilePath() string {
-	return filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s%s", d.name, cdi.CDIConfigDevicesFileSuffix))
+	return filepath.Join(d.inst.DevicesPath(), d.name+cdi.CDIConfigDevicesFileSuffix)
 }
 
 // startContainer detects the requested GPU devices and sets up unix-char devices.

@@ -37,6 +37,7 @@ func (d *dir) Info() Info {
 	return Info{
 		Name:                         "dir",
 		Version:                      "1",
+		DefaultBlockSize:             d.defaultBlockVolumeSize(),
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              false,
 		PreservesInodes:              false,
@@ -48,6 +49,7 @@ func (d *dir) Info() Info {
 		IOUring:                      true,
 		MountedRoot:                  true,
 		Buckets:                      true,
+		PopulateParentVolumeUUID:     false,
 	}
 }
 

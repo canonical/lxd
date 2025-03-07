@@ -22,7 +22,7 @@ const tmpVolSuffix = ".lxdtmp"
 const isoVolSuffix = ".iso"
 
 // DefaultBlockSize is the default size of block volumes.
-const DefaultBlockSize = "10GiB"
+const defaultBlockSize = "10GiB"
 
 // DefaultFilesystem filesytem to use for block devices by default.
 const DefaultFilesystem = "ext4"
@@ -141,7 +141,7 @@ func (v Volume) ExpandedConfig(key string) string {
 		return volVal
 	}
 
-	return v.poolConfig[fmt.Sprintf("volume.%s", key)]
+	return v.poolConfig["volume."+key]
 }
 
 // NewSnapshot instantiates a new Volume struct representing a snapshot of the parent volume.
@@ -191,7 +191,7 @@ func (v Volume) MountPath() string {
 	volName := v.name
 
 	if v.volType == VolumeTypeCustom && v.contentType == ContentTypeISO {
-		volName = fmt.Sprintf("%s%s", volName, isoVolSuffix)
+		volName = volName + isoVolSuffix
 	}
 
 	return GetVolumeMountPath(v.pool, v.volType, volName)
@@ -475,7 +475,7 @@ func (v Volume) ConfigSize() string {
 	// If volume size isn't defined in either volume or pool config, then for block volumes or block-backed
 	// volumes return the defaultBlockSize.
 	if (size == "" || size == "0") && (v.contentType == ContentTypeBlock || v.IsBlockBacked()) {
-		return DefaultBlockSize
+		return v.driver.Info().DefaultBlockSize
 	}
 
 	// Return defined size or empty string if not defined.
@@ -563,6 +563,16 @@ func (v *Volume) SetHasSource(hasSource bool) {
 // SetParentUUID sets the parent volume's UUID for snapshots.
 func (v *Volume) SetParentUUID(parentUUID string) {
 	v.parentUUID = parentUUID
+}
+
+// GetParent returns a parent volume that has volatile.uuid set to the current's volume parent UUID.
+func (v *Volume) GetParent() Volume {
+	parentName, _, _ := api.GetParentAndSnapshotName(v.name)
+	parentVolConfig := map[string]string{
+		"volatile.uuid": v.parentUUID,
+	}
+
+	return NewVolume(v.driver, v.pool, v.volType, v.contentType, parentName, parentVolConfig, nil)
 }
 
 // Clone returns a copy of the volume.

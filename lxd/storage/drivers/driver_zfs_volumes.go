@@ -20,6 +20,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/archive"
 	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
@@ -73,7 +74,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 					return err
 				}
 
-				poolVolSize := DefaultBlockSize
+				poolVolSize := d.Info().DefaultBlockSize
 				if vol.poolConfig["volume.size"] != "" {
 					poolVolSize = vol.poolConfig["volume.size"]
 				}
@@ -93,7 +94,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 					d.logger.Debug("Renaming deleted cached image volume so that regeneration is used", logger.Ctx{"fingerprint": vol.Name()})
 					randomVol := NewVolume(d, d.name, vol.volType, vol.contentType, d.randomVolumeName(vol), vol.config, vol.poolConfig)
 
-					_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, true), d.dataset(randomVol, true))
+					_, err := shared.RunCommandContext(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, true), d.dataset(randomVol, true))
 					if err != nil {
 						return err
 					}
@@ -102,7 +103,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 						fsVol := vol.NewVMBlockFilesystemVolume()
 						randomFsVol := randomVol.NewVMBlockFilesystemVolume()
 
-						_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(fsVol, true), d.dataset(randomFsVol, true))
+						_, err := shared.RunCommandContext(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", d.dataset(fsVol, true), d.dataset(randomFsVol, true))
 						if err != nil {
 							return err
 						}
@@ -117,7 +118,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			// Restore the image.
 			if canRestore {
 				d.logger.Debug("Restoring previously deleted cached image volume", logger.Ctx{"fingerprint": vol.Name()})
-				_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, true), d.dataset(vol, false))
+				_, err := shared.RunCommandContext(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, true), d.dataset(vol, false))
 				if err != nil {
 					return err
 				}
@@ -125,7 +126,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 				if vol.IsVMBlock() {
 					fsVol := vol.NewVMBlockFilesystemVolume()
 
-					_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(fsVol, true), d.dataset(fsVol, false))
+					_, err := shared.RunCommandContext(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", d.dataset(fsVol, true), d.dataset(fsVol, false))
 					if err != nil {
 						return err
 					}
@@ -171,7 +172,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 
 		// Add custom property lxd:content_type which allows distinguishing between regular volumes, block_mode enabled volumes, and ISO volumes.
 		if vol.volType == VolumeTypeCustom {
-			opts = append(opts, fmt.Sprintf("lxd:content_type=%s", vol.contentType))
+			opts = append(opts, "lxd:content_type="+string(vol.contentType))
 		}
 
 		// Avoid double caching in the ARC cache and in the guest OS filesystem cache.
@@ -308,7 +309,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	// Setup snapshot and unset mountpoint on image.
 	if vol.volType == VolumeTypeImage {
 		// Create snapshot of the main dataset.
-		_, err := shared.RunCommand("zfs", "snapshot", "-r", fmt.Sprintf("%s@readonly", d.dataset(vol, false)))
+		_, err := shared.RunCommandContext(context.TODO(), "zfs", "snapshot", "-r", d.dataset(vol, false)+"@readonly")
 		if err != nil {
 			return err
 		}
@@ -318,12 +319,12 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			// and unpacked into both config and block volumes.
 			fsVol := vol.NewVMBlockFilesystemVolume()
 
-			_, err := shared.RunCommand("zfs", "destroy", "-r", fmt.Sprintf("%s@readonly", d.dataset(fsVol, false)))
+			_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", d.dataset(fsVol, false)+"@readonly")
 			if err != nil {
 				return err
 			}
 
-			_, err = shared.RunCommand("zfs", "snapshot", "-r", fmt.Sprintf("%s@readonly", d.dataset(fsVol, false)))
+			_, err = shared.RunCommandContext(context.TODO(), "zfs", "snapshot", "-r", d.dataset(fsVol, false)+"@readonly")
 			if err != nil {
 				return err
 			}
@@ -375,7 +376,7 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 	unpackVolume := func(v Volume, r io.ReadSeeker, unpacker []string, srcFile string, target string) error {
 		d.Logger().Debug("Unpacking optimized volume", logger.Ctx{"source": srcFile, "target": target})
 
-		targetPath := fmt.Sprintf("%s/storage-pools/%s", shared.VarPath(""), target)
+		targetPath := shared.VarPath("") + "/storage-pools/" + target
 		tr, cancelFunc, err := archive.CompressedTarReader(context.Background(), r, unpacker, d.state.OS, targetPath)
 		if err != nil {
 			return err
@@ -445,19 +446,25 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 
 		// Restore backups from oldest to newest.
 		for _, snapName := range srcBackup.Snapshots {
+			// Defend against path traversal attacks.
+			err := instancetype.ValidSnapName(snapName)
+			if err != nil {
+				return nil, nil, fmt.Errorf("Invalid snapshot name %q: %w", snapName, err)
+			}
+
 			prefix := "snapshots"
-			fileName := fmt.Sprintf("%s.bin", snapName)
+			fileName := snapName + ".bin"
 			if v.volType == VolumeTypeVM {
 				prefix = "virtual-machine-snapshots"
 				if v.contentType == ContentTypeFS {
-					fileName = fmt.Sprintf("%s-config.bin", snapName)
+					fileName = snapName + "-config.bin"
 				}
 			} else if v.volType == VolumeTypeCustom {
 				prefix = "volume-snapshots"
 			}
 
-			srcFile := fmt.Sprintf("backup/%s/%s", prefix, fileName)
-			dstSnapshot := fmt.Sprintf("%s@snapshot-%s", d.dataset(v, false), snapName)
+			srcFile := "backup/" + prefix + "/" + fileName
+			dstSnapshot := d.dataset(v, false) + "@snapshot-" + snapName
 			err = unpackVolume(v, srcData, unpacker, srcFile, dstSnapshot)
 			if err != nil {
 				return nil, nil, err
@@ -476,7 +483,7 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 			fileName = "volume.bin"
 		}
 
-		err = unpackVolume(v, srcData, unpacker, fmt.Sprintf("backup/%s", fileName), d.dataset(v, false))
+		err = unpackVolume(v, srcData, unpacker, "backup/"+fileName, d.dataset(v, false))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -494,7 +501,7 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 			}
 
 			if strings.Contains(entry, "@") {
-				_, err := shared.RunCommand("zfs", "destroy", fmt.Sprintf("%s%s", d.dataset(v, false), entry))
+				_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", d.dataset(v, false)+entry)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -604,14 +611,14 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 
 	var srcSnapshot string
 	if srcVol.volType == VolumeTypeImage {
-		srcSnapshot = fmt.Sprintf("%s@readonly", d.dataset(srcVol.Volume, false))
+		srcSnapshot = d.dataset(srcVol.Volume, false) + "@readonly"
 	} else if srcVol.IsSnapshot() {
 		srcSnapshot = d.dataset(srcVol.Volume, false)
 	} else {
 		// Create a new snapshot for copy.
-		srcSnapshot = fmt.Sprintf("%s@copy-%s", d.dataset(srcVol.Volume, false), uuid.New().String())
+		srcSnapshot = d.dataset(srcVol.Volume, false) + "@copy-" + uuid.New().String()
 
-		_, err := shared.RunCommand("zfs", "snapshot", "-r", srcSnapshot)
+		_, err := shared.RunCommandContext(context.TODO(), "zfs", "snapshot", "-r", srcSnapshot)
 		if err != nil {
 			return err
 		}
@@ -621,7 +628,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 			// Delete the snapshot at the end.
 			defer func() {
 				// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
-				_, err := shared.RunCommand("zfs", "destroy", "-r", "-d", srcSnapshot)
+				_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", "-d", srcSnapshot)
 				if err != nil {
 					d.logger.Warn("Failed deleting temporary snapshot for copy", logger.Ctx{"snapshot": srcSnapshot, "err": err})
 				}
@@ -630,7 +637,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 			// Delete the snapshot on revert.
 			revert.Add(func() {
 				// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
-				_, err := shared.RunCommand("zfs", "destroy", "-r", "-d", srcSnapshot)
+				_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", "-d", srcSnapshot)
 				if err != nil {
 					d.logger.Warn("Failed deleting temporary snapshot for copy", logger.Ctx{"snapshot": srcSnapshot, "err": err})
 				}
@@ -773,7 +780,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		}
 
 		// Delete the snapshot.
-		_, err = shared.RunCommand("zfs", "destroy", "-r", fmt.Sprintf("%s@%s", d.dataset(vol.Volume, false), snapName))
+		_, err = shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", d.dataset(vol.Volume, false)+"@"+snapName)
 		if err != nil {
 			return err
 		}
@@ -795,7 +802,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 				}
 
 				// Delete the rest.
-				_, err := shared.RunCommand("zfs", "destroy", fmt.Sprintf("%s%s", d.dataset(vol.Volume, false), entry))
+				_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", d.dataset(vol.Volume, false)+entry)
 				if err != nil {
 					return err
 				}
@@ -813,7 +820,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		args = append(args, srcSnapshot, d.dataset(vol.Volume, false))
 
 		// Clone the snapshot.
-		_, err := shared.RunCommand("zfs", args...)
+		_, err := shared.RunCommandContext(context.TODO(), "zfs", args...)
 		if err != nil {
 			return err
 		}
@@ -1138,7 +1145,7 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 
 	if volTargetArgs.Refresh {
 		// Only delete the latest migration snapshot.
-		_, err := shared.RunCommand("zfs", "destroy", "-r", fmt.Sprintf("%s%s", d.dataset(vol, false), entries[len(entries)-1]))
+		_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", d.dataset(vol, false)+entries[len(entries)-1])
 		if err != nil {
 			return err
 		}
@@ -1146,7 +1153,7 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 		// Remove any snapshots that were transferred but are not needed.
 		for _, entry := range entries {
 			if !keepDataset(entry) {
-				_, err := shared.RunCommand("zfs", "destroy", fmt.Sprintf("%s%s", d.dataset(vol, false), entry))
+				_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", d.dataset(vol, false)+entry)
 				if err != nil {
 					return err
 				}
@@ -1507,7 +1514,7 @@ func (d *zfs) deleteVolume(vol Volume, op *operations.Operation) error {
 
 		if len(clones) > 0 {
 			// Move to the deleted path.
-			_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, false), d.dataset(vol, true))
+			_, err := shared.RunCommandContext(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, false), d.dataset(vol, true))
 			if err != nil {
 				return err
 			}
@@ -1562,6 +1569,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  condition: block-based volume with content type `filesystem` (`zfs.block_mode` enabled)
 		//  defaultdesc: same as `volume.block.filesystem`
 		//  shortdesc: File system of the storage volume
+		//  scope: global
 		"block.filesystem": validate.Optional(validate.IsOneOf(blockBackedAllowedFilesystems...)),
 		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=block.mount_options)
 		//
@@ -1570,6 +1578,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  condition: block-based volume with content type `filesystem` (`zfs.block_mode` enabled)
 		//  defaultdesc: same as `volume.block.mount_options`
 		//  shortdesc: Mount options for block-backed file system volumes
+		//  scope: global
 		"block.mount_options": validate.IsAny,
 		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.block_mode)
 		// `zfs.block_mode` can be set only for custom storage volumes.
@@ -1579,6 +1588,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  type: bool
 		//  defaultdesc: same as `volume.zfs.block_mode`
 		//  shortdesc: Whether to use a formatted `zvol` rather than a dataset
+		//  scope: global
 		"zfs.block_mode": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.blocksize)
 		// The size must be between 512 bytes and 16 MiB and must be a power of 2.
@@ -1590,6 +1600,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  type: string
 		//  defaultdesc: same as `volume.zfs.blocksize`
 		//  shortdesc: Size of the ZFS block
+		//  scope: global
 		"zfs.blocksize": validate.Optional(ValidateZfsBlocksize),
 		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.remove_snapshots)
 		//
@@ -1597,6 +1608,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  type: bool
 		//  defaultdesc: same as `volume.zfs.remove_snapshots` or `false`
 		//  shortdesc: Remove snapshots as needed
+		//  scope: global
 		"zfs.remove_snapshots": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.reserve_space)
 		//
@@ -1604,6 +1616,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  type: bool
 		//  defaultdesc: same as `volume.zfs.reserve_space` or `false`
 		//  shortdesc: Use `reservation`/`refreservation` along with `quota`/`refquota`
+		//  scope: global
 		"zfs.reserve_space": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.use_refquota)
 		//
@@ -1611,6 +1624,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  type: bool
 		//  defaultdesc: same as `volume.zfs.use_refquota` or `false`
 		//  shortdesc: Use `refquota` instead of `quota` for space
+		//  scope: global
 		"zfs.use_refquota": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.delegate)
 		// This option controls whether to delegate the ZFS dataset and anything underneath it to the
@@ -1622,6 +1636,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  condition: ZFS 2.2 or higher
 		//  defaultdesc: same as `volume.zfs.delegate`
 		//  shortdesc: Whether to delegate the ZFS dataset
+		//  scope: global
 		"zfs.delegate": validate.Optional(validate.IsBool),
 	}
 }
@@ -1872,13 +1887,13 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 
 	// Clear the existing quota.
 	for _, property := range []string{"quota", "refquota", "reservation", "refreservation"} {
-		err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("%s=none", property))
+		err = d.setDatasetProperties(d.dataset(vol, false), property+"=none")
 		if err != nil {
 			return err
 		}
 	}
 
-	value := fmt.Sprintf("%d", sizeBytes)
+	value := fmt.Sprint(sizeBytes)
 	if sizeBytes == 0 {
 		return nil
 	}
@@ -1891,13 +1906,13 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		reservationKey = "refreservation"
 	}
 
-	err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("%s=%s", quotaKey, value))
+	err = d.setDatasetProperties(d.dataset(vol, false), quotaKey+"="+value)
 	if err != nil {
 		return err
 	}
 
 	if shared.IsTrue(vol.ExpandedConfig("zfs.reserve_space")) {
-		err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("%s=%s", reservationKey, value))
+		err = d.setDatasetProperties(d.dataset(vol, false), reservationKey+"="+value)
 		if err != nil {
 			return err
 		}
@@ -1960,7 +1975,7 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 
 		// Resolve the dataset path.
 		entryPath := filepath.Join("/dev", entryName)
-		output, err := shared.RunCommand(zvolid, entryPath)
+		output, err := shared.RunCommandContext(context.TODO(), zvolid, entryPath)
 		if err != nil {
 			continue
 		}
@@ -2028,7 +2043,7 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 		var volName string
 
 		for _, volumeType := range d.Info().VolumeTypes {
-			prefix := fmt.Sprintf("%s/%s/", d.config["zfs.pool_name"], volumeType)
+			prefix := d.config["zfs.pool_name"] + "/" + string(volumeType) + "/"
 			if strings.HasPrefix(zfsVolName, prefix) {
 				volType = volumeType
 				volName = strings.TrimPrefix(zfsVolName, prefix)
@@ -2127,7 +2142,7 @@ func (d *zfs) activateVolume(vol Volume) (bool, error) {
 			return false, err
 		}
 
-		revert.Add(func() { _ = d.setDatasetProperties(dataset, fmt.Sprintf("volmode=%s", current)) })
+		revert.Add(func() { _ = d.setDatasetProperties(dataset, "volmode="+current) })
 
 		_, err := d.GetVolumeDiskPath(vol)
 		if err != nil {
@@ -2402,13 +2417,13 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 	})
 
 	// Rename the ZFS datasets.
-	_, err = shared.RunCommand("zfs", "rename", d.dataset(vol, false), d.dataset(newVol, false))
+	_, err = shared.RunCommandContext(context.TODO(), "zfs", "rename", d.dataset(vol, false), d.dataset(newVol, false))
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
-		_, _ = shared.RunCommand("zfs", "rename", d.dataset(newVol, false), d.dataset(vol, false))
+		_, _ = shared.RunCommandContext(context.TODO(), "zfs", "rename", d.dataset(newVol, false), d.dataset(vol, false))
 	})
 
 	// Ensure the volume has correct mountpoint settings.
@@ -2631,7 +2646,7 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 					continue
 				}
 
-				if snap.name == fmt.Sprintf("%s/%s", vol.name, snapName) {
+				if snap.name == vol.name+"/"+snapName {
 					parent = d.dataset(snapshots[k-1], false)
 					break
 				}
@@ -2665,15 +2680,15 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 	srcSnapshot := d.dataset(vol, false)
 	if !vol.IsSnapshot() {
 		// Create a temporary read-only snapshot.
-		srcSnapshot = fmt.Sprintf("%s@migration-%s", d.dataset(vol, false), uuid.New().String())
-		_, err := shared.RunCommand("zfs", "snapshot", "-r", srcSnapshot)
+		srcSnapshot = d.dataset(vol, false) + "@migration-" + uuid.New().String()
+		_, err := shared.RunCommandContext(context.TODO(), "zfs", "snapshot", "-r", srcSnapshot)
 		if err != nil {
 			return err
 		}
 
 		defer func() {
 			// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
-			_, err := shared.RunCommand("zfs", "destroy", "-r", "-d", srcSnapshot)
+			_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", "-d", srcSnapshot)
 			if err != nil {
 				d.logger.Warn("Failed deleting temporary snapshot for migration", logger.Ctx{"snapshot": srcSnapshot, "err": err})
 			}
@@ -2720,24 +2735,24 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 		return "", nil, err
 	}
 
-	snapshotOnlyName := fmt.Sprintf("temp_ro-%s", uuid.New().String())
+	snapshotOnlyName := "temp_ro-" + uuid.New().String()
 
 	snapVol, err := vol.NewSnapshot(snapshotOnlyName)
 	if err != nil {
 		return "", nil, err
 	}
 
-	snapshotDataset := fmt.Sprintf("%s@%s", d.dataset(vol, false), snapshotOnlyName)
+	snapshotDataset := d.dataset(vol, false) + "@" + snapshotOnlyName
 
 	// Create a temporary snapshot.
-	_, err = shared.RunCommand("zfs", "snapshot", "-r", snapshotDataset)
+	_, err = shared.RunCommandContext(context.TODO(), "zfs", "snapshot", "-r", snapshotDataset)
 	if err != nil {
 		return "", nil, err
 	}
 
 	revert.Add(func() {
 		// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
-		_, err := shared.RunCommand("zfs", "destroy", "-r", "-d", snapshotDataset)
+		_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", "-d", snapshotDataset)
 		if err != nil {
 			d.logger.Warn("Failed deleting read-only snapshot", logger.Ctx{"snapshot": snapshotDataset, "err": err})
 		}
@@ -2819,7 +2834,7 @@ func (d *zfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTar
 
 		// Create temporary file to store output of ZFS send.
 		backupsPath := shared.VarPath("backups")
-		tmpFile, err := os.CreateTemp(backupsPath, fmt.Sprintf("%s_zfs", backup.WorkingDirPrefix))
+		tmpFile, err := os.CreateTemp(backupsPath, backup.WorkingDirPrefix+"_zfs")
 		if err != nil {
 			return fmt.Errorf("Failed to open temporary file for ZFS backup: %w", err)
 		}
@@ -2865,17 +2880,17 @@ func (d *zfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTar
 
 			// Make a binary zfs backup.
 			prefix := "snapshots"
-			fileName := fmt.Sprintf("%s.bin", snapName)
+			fileName := snapName + ".bin"
 			if vol.volType == VolumeTypeVM {
 				prefix = "virtual-machine-snapshots"
 				if vol.contentType == ContentTypeFS {
-					fileName = fmt.Sprintf("%s-config.bin", snapName)
+					fileName = snapName + "-config.bin"
 				}
 			} else if vol.volType == VolumeTypeCustom {
 				prefix = "volume-snapshots"
 			}
 
-			target := fmt.Sprintf("backup/%s/%s", prefix, fileName)
+			target := "backup/" + prefix + "/" + fileName
 			err := sendToFile(d.dataset(snapshot, false), parent, target)
 			if err != nil {
 				return err
@@ -2886,15 +2901,15 @@ func (d *zfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTar
 	}
 
 	// Create a temporary read-only snapshot.
-	srcSnapshot := fmt.Sprintf("%s@backup-%s", d.dataset(vol.Volume, false), uuid.New().String())
-	_, err := shared.RunCommand("zfs", "snapshot", "-r", srcSnapshot)
+	srcSnapshot := d.dataset(vol.Volume, false) + "@backup-" + uuid.New().String()
+	_, err := shared.RunCommandContext(context.TODO(), "zfs", "snapshot", "-r", srcSnapshot)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
 		// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
-		_, err := shared.RunCommand("zfs", "destroy", "-r", "-d", srcSnapshot)
+		_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", "-d", srcSnapshot)
 		if err != nil {
 			d.logger.Warn("Failed deleting temporary snapshot for backup", logger.Ctx{"snapshot": srcSnapshot, "err": err})
 		}
@@ -2912,7 +2927,7 @@ func (d *zfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTar
 		fileName = "volume.bin"
 	}
 
-	err = sendToFile(srcSnapshot, finalParent, fmt.Sprintf("backup/%s", fileName))
+	err = sendToFile(srcSnapshot, finalParent, "backup/"+fileName)
 	if err != nil {
 		return err
 	}
@@ -2941,7 +2956,7 @@ func (d *zfs) CreateVolumeSnapshot(vol Volume, op *operations.Operation) error {
 	}
 
 	// Make the snapshot.
-	_, err = shared.RunCommand("zfs", "snapshot", "-r", d.dataset(vol, false))
+	_, err = shared.RunCommandContext(context.TODO(), "zfs", "snapshot", "-r", d.dataset(vol, false))
 	if err != nil {
 		return err
 	}
@@ -2977,13 +2992,13 @@ func (d *zfs) DeleteVolumeSnapshot(vol Volume, op *operations.Operation) error {
 
 	if len(clones) > 0 {
 		// Move to the deleted path.
-		_, err := shared.RunCommand("zfs", "rename", d.dataset(vol, false), d.dataset(vol, true))
+		_, err := shared.RunCommandContext(context.TODO(), "zfs", "rename", d.dataset(vol, false), d.dataset(vol, true))
 		if err != nil {
 			return err
 		}
 	} else {
 		// Delete the snapshot.
-		_, err := shared.RunCommand("zfs", "destroy", "-r", d.dataset(vol, false))
+		_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", d.dataset(vol, false))
 		if err != nil {
 			return err
 		}
@@ -3118,13 +3133,13 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 			regenerateFSUUID := renegerateFilesystemUUIDNeeded(snapVol.ConfigBlockFilesystem())
 			if regenerateFSUUID {
 				// Instantiate a new volume to be the temporary writable snapshot.
-				tmpVolName := fmt.Sprintf("%s%s", snapVol.name, tmpVolSuffix)
+				tmpVolName := snapVol.name + tmpVolSuffix
 				tmpVol := NewVolume(d, d.name, snapVol.volType, snapVol.contentType, tmpVolName, snapVol.config, snapVol.poolConfig)
 
-				dataset = fmt.Sprintf("%s_%s%s", parentDataset, snapshotOnlyName, tmpVolSuffix)
+				dataset = parentDataset + "_" + snapshotOnlyName + tmpVolSuffix
 
 				// Clone snapshot.
-				_, err = shared.RunCommand("zfs", "clone", snapshotDataset, dataset)
+				_, err = shared.RunCommandContext(context.TODO(), "zfs", "clone", snapshotDataset, dataset)
 				if err != nil {
 					return nil, err
 				}
@@ -3260,7 +3275,7 @@ func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 			parent, snapshotOnlyName, _ := api.GetParentAndSnapshotName(snapVol.Name())
 			parentVol := NewVolume(d, d.Name(), snapVol.volType, snapVol.contentType, parent, snapVol.config, snapVol.poolConfig)
 			parentDataset := d.dataset(parentVol, false)
-			dataset := fmt.Sprintf("%s_%s%s", parentDataset, snapshotOnlyName, tmpVolSuffix)
+			dataset := parentDataset + "_" + snapshotOnlyName + tmpVolSuffix
 
 			exists, err := d.datasetExists(dataset)
 			if err != nil {
@@ -3360,7 +3375,7 @@ func (d *zfs) restoreVolume(vol Volume, snapVol Volume, migration bool, op *oper
 	idx := -1
 	snapshots := []string{}
 	for i, entry := range entries {
-		if entry == fmt.Sprintf("@snapshot-%s", snapshotName) {
+		if entry == "@snapshot-"+snapshotName {
 			// Located the current snapshot.
 			idx = i
 			continue
@@ -3400,11 +3415,11 @@ func (d *zfs) restoreVolume(vol Volume, snapVol Volume, migration bool, op *oper
 	}
 
 	for _, dataset := range datasets {
-		if !strings.HasSuffix(dataset, fmt.Sprintf("@snapshot-%s", snapshotName)) {
+		if !strings.HasSuffix(dataset, "@snapshot-"+snapshotName) {
 			continue
 		}
 
-		_, err = shared.RunCommand("zfs", "rollback", fmt.Sprintf("%s%s", d.dataset(vol, false), dataset))
+		_, err = shared.RunCommandContext(context.TODO(), "zfs", "rollback", d.dataset(vol, false)+dataset)
 		if err != nil {
 			return err
 		}
@@ -3446,7 +3461,7 @@ func (d *zfs) restoreVolume(vol Volume, snapVol Volume, migration bool, op *oper
 // RenameVolumeSnapshot renames a volume snapshot.
 func (d *zfs) RenameVolumeSnapshot(vol Volume, newSnapshotName string, op *operations.Operation) error {
 	parentName, _, _ := api.GetParentAndSnapshotName(vol.name)
-	newVol := NewVolume(d, d.name, vol.volType, vol.contentType, fmt.Sprintf("%s/%s", parentName, newSnapshotName), vol.config, vol.poolConfig)
+	newVol := NewVolume(d, d.name, vol.volType, vol.contentType, parentName+"/"+newSnapshotName, vol.config, vol.poolConfig)
 
 	// Revert handling.
 	revert := revert.New()
@@ -3463,13 +3478,13 @@ func (d *zfs) RenameVolumeSnapshot(vol Volume, newSnapshotName string, op *opera
 	})
 
 	// Rename the ZFS datasets.
-	_, err = shared.RunCommand("zfs", "rename", d.dataset(vol, false), d.dataset(newVol, false))
+	_, err = shared.RunCommandContext(context.TODO(), "zfs", "rename", d.dataset(vol, false), d.dataset(newVol, false))
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
-		_, _ = shared.RunCommand("zfs", "rename", d.dataset(newVol, false), d.dataset(vol, false))
+		_, _ = shared.RunCommandContext(context.TODO(), "zfs", "rename", d.dataset(newVol, false), d.dataset(vol, false))
 	})
 
 	// For VM images, create a filesystem volume too.

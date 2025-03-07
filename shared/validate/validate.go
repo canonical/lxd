@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -800,6 +801,22 @@ func IsCloudInitUserData(value string) error {
 	}
 
 	// Since there are various other user-data formats besides cloud-config, consider those valid.
+	return nil
+}
+
+// IsUserSSHKey checks value is a valid SSH public key for cloud-init.ssh-keys.
+// This should take the format {user}:{key}, and neither part can be empty.
+func IsUserSSHKey(value string) error {
+	user, key, _ := strings.Cut(value, ":")
+
+	if key == "" {
+		return errors.New("Key part must not be empty")
+	}
+
+	if user == "" {
+		return errors.New("User part must not be empty")
+	}
+
 	return nil
 }
 

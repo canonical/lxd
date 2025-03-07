@@ -99,25 +99,14 @@ func (m *MetricSet) String() string {
 	}
 
 	for _, metricType := range metricTypes {
-		// Add HELP message as specified by OpenMetrics
-		_, err := out.WriteString(MetricHeaders[metricType] + "\n")
-		if err != nil {
-			return ""
-		}
-
-		metricTypeName := ""
-
 		// ProcsTotal is a gauge according to the OpenMetrics spec as its value can decrease.
-		if shared.ValueInSlice(metricType, gaugeMetrics) {
-			metricTypeName = "gauge"
-		} else if strings.HasSuffix(MetricNames[metricType], "_total") || strings.HasSuffix(MetricNames[metricType], "_seconds") {
-			metricTypeName = "counter"
-		} else if strings.HasSuffix(MetricNames[metricType], "_bytes") {
-			metricTypeName = "gauge"
+		metricTypeNameSuffix := " counter\n"
+		if shared.ValueInSlice(metricType, gaugeMetrics) || strings.HasSuffix(MetricNames[metricType], "_bytes") {
+			metricTypeNameSuffix = " gauge\n"
 		}
 
-		// Add TYPE message as specified by OpenMetrics
-		_, err = out.WriteString(fmt.Sprintf("# TYPE %s %s\n", MetricNames[metricType], metricTypeName))
+		// Add HELP and TYPE messages as specified by OpenMetrics
+		_, err := out.WriteString(MetricHeaders[metricType] + "\n# TYPE " + MetricNames[metricType] + metricTypeNameSuffix)
 		if err != nil {
 			return ""
 		}
@@ -125,7 +114,7 @@ func (m *MetricSet) String() string {
 		for _, sample := range m.set[metricType] {
 			firstLabel := true
 			labels := ""
-			labelNames := []string{}
+			labelNames := make([]string, 0, len(sample.Labels))
 
 			// Add and sort labels if there are any
 			for labelName := range sample.Labels {
@@ -139,16 +128,16 @@ func (m *MetricSet) String() string {
 					labels += ","
 				}
 
-				labels += fmt.Sprintf(`%s="%s"`, labelName, sample.Labels[labelName])
+				labels += labelName + `="` + sample.Labels[labelName] + `"`
 				firstLabel = false
 			}
 
 			valueStr := strconv.FormatFloat(sample.Value, 'g', -1, 64)
 
 			if labels != "" {
-				_, err = out.WriteString(fmt.Sprintf("%s{%s} %s\n", MetricNames[metricType], labels, valueStr))
+				_, err = out.WriteString(MetricNames[metricType] + "{" + labels + "} " + valueStr + "\n")
 			} else {
-				_, err = out.WriteString(fmt.Sprintf("%s %s\n", MetricNames[metricType], valueStr))
+				_, err = out.WriteString(MetricNames[metricType] + " " + valueStr + "\n")
 			}
 
 			if err != nil {

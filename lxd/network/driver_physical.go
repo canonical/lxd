@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"strconv"
 
 	"github.com/canonical/lxd/lxd/cluster/request"
@@ -35,18 +36,21 @@ func (n *physical) Validate(config map[string]string) error {
 		// ---
 		//  type: string
 		//  shortdesc: Existing interface to use for network
+		//  scope: local
 		"parent": validate.Required(validate.IsNotEmpty, validate.IsInterfaceName),
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=mtu)
 		//
 		// ---
 		//  type: integer
 		//  shortdesc: MTU of the new interface
+		//  scope: global
 		"mtu": validate.Optional(validate.IsNetworkMTU),
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=vlan)
 		//
 		// ---
 		//  type: integer
 		//  shortdesc: VLAN ID to attach to
+		//  scope: global
 		"vlan": validate.Optional(validate.IsNetworkVLAN),
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=gvrp)
 		// This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.
@@ -54,6 +58,7 @@ func (n *physical) Validate(config map[string]string) error {
 		//  type: bool
 		//  defaultdesc: `false`
 		//  shortdesc: Whether to use GARP VLAN Registration Protocol
+		//  scope: global
 		"gvrp": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=maas.subnet.ipv4)
 		//
@@ -61,6 +66,7 @@ func (n *physical) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: IPv4 address; using the `network` property on the NIC
 		//  shortdesc: MAAS IPv4 subnet to register instances in
+		//  scope: global
 		"maas.subnet.ipv4": validate.IsAny,
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=maas.subnet.ipv6)
 		//
@@ -68,6 +74,7 @@ func (n *physical) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: IPv6 address; using the `network` property on the NIC
 		//  shortdesc: MAAS IPv6 subnet to register instances in
+		//  scope: global
 		"maas.subnet.ipv6": validate.IsAny,
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv4.gateway)
 		// Use CIDR notation.
@@ -75,6 +82,7 @@ func (n *physical) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: standard mode
 		//  shortdesc: IPv4 address for the gateway and network
+		//  scope: global
 		"ipv4.gateway": validate.Optional(validate.IsNetworkAddressCIDRV4),
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv6.gateway)
 		// Use CIDR notation.
@@ -82,18 +90,21 @@ func (n *physical) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: standard mode
 		//  shortdesc: IPv6 address for the gateway and network
+		//  scope: global
 		"ipv6.gateway": validate.Optional(validate.IsNetworkAddressCIDRV6),
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv4.ovn.ranges)
 		// Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
 		// ---
 		//  type: string
 		//  shortdesc: IPv4 ranges to use for child OVN network routers
+		//  scope: global
 		"ipv4.ovn.ranges": validate.Optional(validate.IsListOf(validate.IsNetworkRangeV4)),
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv6.ovn.ranges)
 		// Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
 		// ---
 		//  type: string
 		//  shortdesc: IPv6 ranges to use for child OVN network routers
+		//  scope: global
 		"ipv6.ovn.ranges": validate.Optional(validate.IsListOf(validate.IsNetworkRangeV6)),
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv4.routes)
 		// Specify a comma-separated list of IPv4 CIDR subnets that can be used with child OVN network forwarders, load-balancers and {config:option}`device-nic-ovn-device-conf:ipv4.routes.external` setting.
@@ -101,6 +112,7 @@ func (n *physical) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: IPv4 address
 		//  shortdesc: Additional IPv4 CIDR subnets
+		//  scope: global
 		"ipv4.routes": validate.Optional(validate.IsListOf(validate.IsNetworkV4)),
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv4.routes.anycast)
 		// If set to `true`, this option allows the overlapping routes to be used on multiple networks/NICs at the same time.
@@ -109,6 +121,7 @@ func (n *physical) Validate(config map[string]string) error {
 		//  condition: IPv4 address
 		//  defaultdesc: `false`
 		//  shortdesc: Whether to allow IPv4 routes on multiple networks/NICs
+		//  scope: global
 		"ipv4.routes.anycast": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv6.routes)
 		// Specify a comma-separated list of IPv6 CIDR subnets that can be used with child OVN network forwarders, load-balancers and {config:option}`device-nic-ovn-device-conf:ipv6.routes.external` setting.
@@ -116,6 +129,7 @@ func (n *physical) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: IPv6 address
 		//  shortdesc: Additional IPv6 CIDR subnets
+		//  scope: global
 		"ipv6.routes": validate.Optional(validate.IsListOf(validate.IsNetworkV6)),
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv6.routes.anycast)
 		// If set to `true`, this option allows the overlapping routes to be used on multiple networks/NICs at the same time.
@@ -124,6 +138,7 @@ func (n *physical) Validate(config map[string]string) error {
 		//  condition: IPv6 address
 		//  defaultdesc: `false`
 		//  shortdesc: Whether to allow IPv6 routes on multiple networks/NICs
+		//  scope: global
 		"ipv6.routes.anycast": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=dns.nameservers)
 		// Specify a list of DNS server IPs.
@@ -131,6 +146,7 @@ func (n *physical) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: standard mode
 		//  shortdesc: DNS server IPs on physical network
+		//  scope: global
 		"dns.nameservers": validate.Optional(validate.IsListOf(validate.IsNetworkAddress)),
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ovn.ingress_mode)
 		// Possible values are `l2proxy` (proxy ARP/NDP) and `routed`.
@@ -139,6 +155,7 @@ func (n *physical) Validate(config map[string]string) error {
 		//  condition: standard mode
 		//  defaultdesc: `l2proxy`
 		//  shortdesc: How OVN NIC external IPs are advertised on uplink network
+		//  scope: global
 		"ovn.ingress_mode":            validate.Optional(validate.IsOneOf("l2proxy", "routed")),
 		"volatile.last_state.created": validate.Optional(validate.IsBool),
 
@@ -147,6 +164,7 @@ func (n *physical) Validate(config map[string]string) error {
 		// ---
 		//  type: string
 		//  shortdesc: User-provided free-form key/value pairs
+		//  scope: global
 	}
 
 	// Add the BGP validation rules.
@@ -157,6 +175,7 @@ func (n *physical) Validate(config map[string]string) error {
 	//  type: string
 	//  condition: BGP server
 	//  shortdesc: Peer address for use by `ovn` downstream networks
+	//  scope: global
 
 	// lxdmeta:generate(entities=network-physical; group=network-conf; key=bgp.peers.NAME.asn)
 	//
@@ -164,6 +183,7 @@ func (n *physical) Validate(config map[string]string) error {
 	//  type: integer
 	//  condition: BGP server
 	//  shortdesc: Peer AS number for use by `ovn` downstream networks
+	//  scope: global
 
 	// lxdmeta:generate(entities=network-physical; group=network-conf; key=bgp.peers.NAME.password)
 	//
@@ -173,6 +193,7 @@ func (n *physical) Validate(config map[string]string) error {
 	//  defaultdesc: (no password)
 	//  required: no
 	//  shortdesc: Peer session password for use by `ovn` downstream networks
+	//  scope: global
 
 	// lxdmeta:generate(entities=network-physical; group=network-conf; key=bgp.peers.NAME.holdtime)
 	// Specify the peer session hold time in seconds.
@@ -182,6 +203,7 @@ func (n *physical) Validate(config map[string]string) error {
 	//  defaultdesc: `180`
 	//  required: no
 	//  shortdesc: Peer session hold time
+	//  scope: global
 	bgpRules, err := n.bgpValidationRules(config)
 	if err != nil {
 		return err
@@ -341,7 +363,7 @@ func (n *physical) setup(oldConfig map[string]string) error {
 	// Record if we created this device or not (if we have not already recorded that we created it previously),
 	// so it can be removed on stop. This way we won't overwrite the setting on LXD restart.
 	if shared.IsFalseOrEmpty(n.config["volatile.last_state.created"]) {
-		n.config["volatile.last_state.created"] = fmt.Sprintf("%t", created)
+		n.config["volatile.last_state.created"] = fmt.Sprint(created)
 		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpdateNetwork(ctx, n.project, n.name, n.description, n.config)
 		})
@@ -515,7 +537,7 @@ func (n *physical) State() (*api.NetworkState, error) {
 	state, err := resources.GetNetworkState(GetHostDevice(n.config["parent"], n.config["vlan"]))
 	if err != nil {
 		// If the parent is not found, return a response indicating the network is unavailable.
-		if api.StatusErrorCheck(err, 404) {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			return &api.NetworkState{
 				State: "unavailable",
 				Type:  "unknown",

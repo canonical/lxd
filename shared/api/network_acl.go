@@ -243,6 +243,8 @@ type NetworkACLPut struct {
 //
 // API extension: network_acl.
 type NetworkACL struct {
+	WithEntitlements `yaml:",inline"`
+
 	// The new name for the ACL
 	// Example: bar
 	Name string `json:"name" yaml:"name"` // Name of ACL.

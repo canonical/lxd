@@ -136,7 +136,7 @@ lxc list -c ns,user.comment:comment
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(false)
+			return c.global.cmpRemotes(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -668,7 +668,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 
 			maxWidth := -1
 			if len(cc) > 2 {
-				temp, err := strconv.ParseInt(cc[2], 10, 64)
+				temp, err := strconv.ParseInt(cc[2], 10, 32)
 				if err != nil {
 					return nil, false, fmt.Errorf(i18n.G("Invalid max width (must be an integer) '%s' in '%s'"), cc[2], columnEntry)
 				}
@@ -778,7 +778,7 @@ func (c *cmdList) ipv4ColumnData(cInfo api.InstanceFull) string {
 				}
 
 				if addr.Family == "inet" {
-					ipv4s = append(ipv4s, fmt.Sprintf("%s (%s)", addr.Address, netName))
+					ipv4s = append(ipv4s, addr.Address+" ("+netName+")")
 				}
 			}
 		}
@@ -804,7 +804,7 @@ func (c *cmdList) ipv6ColumnData(cInfo api.InstanceFull) string {
 				}
 
 				if addr.Family == "inet6" {
-					ipv6s = append(ipv6s, fmt.Sprintf("%s (%s)", addr.Address, netName))
+					ipv6s = append(ipv6s, addr.Address+" ("+netName+")")
 				}
 			}
 		}
@@ -849,7 +849,7 @@ func (c *cmdList) memoryUsagePercentColumnData(cInfo api.InstanceFull) string {
 
 func (c *cmdList) cpuUsageSecondsColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.CPU.Usage > 0 {
-		return fmt.Sprintf("%ds", cInfo.State.CPU.Usage/1000000000)
+		return fmt.Sprint(cInfo.State.CPU.Usage/1000000000, "s")
 	}
 
 	return ""
@@ -866,20 +866,21 @@ func (c *cmdList) diskUsageColumnData(cInfo api.InstanceFull) string {
 }
 
 func (c *cmdList) typeColumnData(cInfo api.InstanceFull) string {
-	if cInfo.Type == "" {
-		cInfo.Type = "container"
+	instType := "CONTAINER"
+	if cInfo.Type == string(api.InstanceTypeVM) {
+		instType = "VIRTUAL-MACHINE"
 	}
 
 	if cInfo.Ephemeral {
-		return fmt.Sprintf("%s (%s)", strings.ToUpper(cInfo.Type), i18n.G("EPHEMERAL"))
+		return instType + " (" + i18n.G("EPHEMERAL") + ")"
 	}
 
-	return strings.ToUpper(cInfo.Type)
+	return instType
 }
 
 func (c *cmdList) numberSnapshotsColumnData(cInfo api.InstanceFull) string {
 	if cInfo.Snapshots != nil {
-		return fmt.Sprintf("%d", len(cInfo.Snapshots))
+		return fmt.Sprint(len(cInfo.Snapshots))
 	}
 
 	return "0"
@@ -887,7 +888,7 @@ func (c *cmdList) numberSnapshotsColumnData(cInfo api.InstanceFull) string {
 
 func (c *cmdList) pidColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil {
-		return fmt.Sprintf("%d", cInfo.State.Pid)
+		return fmt.Sprint(cInfo.State.Pid)
 	}
 
 	return ""
@@ -933,7 +934,7 @@ func (c *cmdList) lastUsedColumnData(cInfo api.InstanceFull) string {
 
 func (c *cmdList) numberOfProcessesColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil {
-		return fmt.Sprintf("%d", cInfo.State.Processes)
+		return fmt.Sprint(cInfo.State.Processes)
 	}
 
 	return ""

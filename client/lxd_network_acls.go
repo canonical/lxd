@@ -1,7 +1,6 @@
 package lxd
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -56,7 +55,7 @@ func (r *ProtocolLXD) GetNetworkACL(name string) (*api.NetworkACL, string, error
 	acl := api.NetworkACL{}
 
 	// Fetch the raw value.
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/network-acls/%s", url.PathEscape(name)), nil, "", &acl)
+	etag, err := r.queryStruct("GET", "/network-acls/"+url.PathEscape(name), nil, "", &acl)
 	if err != nil {
 		return nil, "", err
 	}
@@ -74,7 +73,7 @@ func (r *ProtocolLXD) GetNetworkACLLogfile(name string) (io.ReadCloser, error) {
 	}
 
 	// Prepare the HTTP request
-	url := fmt.Sprintf("%s/1.0/network-acls/%s/log", r.httpBaseURL.String(), url.PathEscape(name))
+	url := r.httpBaseURL.String() + "/1.0/network-acls/" + url.PathEscape(name) + "/log"
 	url, err = r.setQueryAttributes(url)
 	if err != nil {
 		return nil, err
@@ -126,7 +125,7 @@ func (r *ProtocolLXD) UpdateNetworkACL(name string, acl api.NetworkACLPut, ETag 
 	}
 
 	// Send the request.
-	_, _, err = r.query("PUT", fmt.Sprintf("/network-acls/%s", url.PathEscape(name)), acl, ETag)
+	_, _, err = r.query("PUT", "/network-acls/"+url.PathEscape(name), acl, ETag)
 	if err != nil {
 		return err
 	}
@@ -142,7 +141,7 @@ func (r *ProtocolLXD) RenameNetworkACL(name string, acl api.NetworkACLPost) erro
 	}
 
 	// Send the request.
-	_, _, err = r.query("POST", fmt.Sprintf("/network-acls/%s", url.PathEscape(name)), acl, "")
+	_, _, err = r.query("POST", "/network-acls/"+url.PathEscape(name), acl, "")
 	if err != nil {
 		return err
 	}
@@ -158,7 +157,7 @@ func (r *ProtocolLXD) DeleteNetworkACL(name string) error {
 	}
 
 	// Send the request.
-	_, _, err = r.query("DELETE", fmt.Sprintf("/network-acls/%s", url.PathEscape(name)), nil, "")
+	_, _, err = r.query("DELETE", "/network-acls/"+url.PathEscape(name), nil, "")
 	if err != nil {
 		return err
 	}

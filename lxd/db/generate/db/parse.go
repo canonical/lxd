@@ -85,10 +85,10 @@ func GetVars(pkg *packages.Package) map[string]*ast.ValueSpec {
 // FiltersFromStmt parses all filtering statement defined for the given entity. It
 // returns all supported combinations of filters, sorted by number of criteria, and
 // the corresponding set of unused filters from the Filter struct.
-func FiltersFromStmt(pkg *packages.Package, kind string, entity string, filters []*Field) ([][]string, [][]string) {
+func FiltersFromStmt(pkg *packages.Package, kind string, entity string, filters []*Field) (stmtFilters [][]string, ignoredFilters [][]string) {
 	objects := GetVars(pkg)
-	stmtFilters := [][]string{}
-	prefix := fmt.Sprintf("%s%sBy", lex.Minuscule(lex.Camel(entity)), lex.Camel(kind))
+	stmtFilters = [][]string{}
+	prefix := lex.Minuscule(lex.Camel(entity)) + lex.Camel(kind) + "By"
 
 	for name := range objects {
 		if !strings.HasPrefix(name, prefix) {
@@ -100,7 +100,7 @@ func FiltersFromStmt(pkg *packages.Package, kind string, entity string, filters 
 	}
 
 	stmtFilters = sortFilters(stmtFilters)
-	ignoredFilters := [][]string{}
+	ignoredFilters = [][]string{}
 
 	for _, filterGroup := range stmtFilters {
 		ignoredFilterGroup := []string{}
@@ -116,11 +116,11 @@ func FiltersFromStmt(pkg *packages.Package, kind string, entity string, filters 
 }
 
 // RefFiltersFromStmt parses all filtering statement defined for the given entity reference.
-func RefFiltersFromStmt(pkg *packages.Package, entity string, ref string, filters []*Field) ([][]string, [][]string) {
+func RefFiltersFromStmt(pkg *packages.Package, entity string, ref string, filters []*Field) (stmtFilters [][]string, ignoredFilters [][]string) {
 	objects := GetVars(pkg)
-	stmtFilters := [][]string{}
+	stmtFilters = [][]string{}
 
-	prefix := fmt.Sprintf("%s%sRefBy", lex.Minuscule(lex.Camel(entity)), lex.Capital(ref))
+	prefix := lex.Minuscule(lex.Camel(entity)) + lex.Capital(ref) + "RefBy"
 
 	for name := range objects {
 		if !strings.HasPrefix(name, prefix) {
@@ -132,7 +132,7 @@ func RefFiltersFromStmt(pkg *packages.Package, entity string, ref string, filter
 	}
 
 	stmtFilters = sortFilters(stmtFilters)
-	ignoredFilters := [][]string{}
+	ignoredFilters = [][]string{}
 
 	for _, filterGroup := range stmtFilters {
 		ignoredFilterGroup := []string{}
