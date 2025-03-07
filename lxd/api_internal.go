@@ -657,8 +657,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	}
 
 	// Read in the backup.yaml file.
-	backupYamlPath := filepath.Join(instanceMountPoint, "backup.yaml")
-	backupConf, err := backup.ParseConfigYamlFile(backupYamlPath)
+	backupConf, _, err := backup.ParseConfigYamlFile(instanceMountPoint)
 	if err != nil {
 		return err
 	}
