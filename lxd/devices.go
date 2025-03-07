@@ -50,7 +50,7 @@ func (pinning instanceCPUPinningMap) add(inst instance.Instance, cpu deviceTaskC
 	*cpu.count += 1
 }
 
-func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent, chan device.UnixHotplugEvent, error) {
+func deviceNetlinkListener() (chCPU chan []string, chNetwork chan []string, chUSB chan device.USBEvent, chUnix chan device.UnixHotplugEvent, err error) {
 	NETLINK_KOBJECT_UEVENT := 15 //nolint:revive
 	UEVENT_BUFFER_SIZE := 2048   //nolint:revive
 
@@ -73,10 +73,10 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 		return nil, nil, nil, nil, err
 	}
 
-	chCPU := make(chan []string, 1)
-	chNetwork := make(chan []string)
-	chUSB := make(chan device.USBEvent)
-	chUnix := make(chan device.UnixHotplugEvent)
+	chCPU = make(chan []string, 1)
+	chNetwork = make(chan []string)
+	chUSB = make(chan device.USBEvent)
+	chUnix = make(chan device.UnixHotplugEvent)
 
 	go func(chCPU chan []string, chNetwork chan []string, chUSB chan device.USBEvent, chUnix chan device.UnixHotplugEvent) {
 		b := make([]byte, UEVENT_BUFFER_SIZE*2)
