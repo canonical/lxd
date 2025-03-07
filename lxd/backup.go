@@ -272,23 +272,36 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 		}
 	}
 
-	// Convert to YAML.
-	indexData, err := yaml.Marshal(&indexInfo)
+	write := func(name string) error {
+		// Convert to YAML.
+		indexData, err := yaml.Marshal(&indexInfo)
+		if err != nil {
+			return err
+		}
+
+		r := bytes.NewReader(indexData)
+
+		indexFileInfo := instancewriter.FileInfo{
+			FileName:    name,
+			FileSize:    int64(len(indexData)),
+			FileMode:    0644,
+			FileModTime: time.Now(),
+		}
+
+		// Write to tarball.
+		return tarWriter.WriteFileFromReader(r, &indexFileInfo)
+	}
+
+	// Write index format.
+	err = write(backup.BackupIndexPathNew)
 	if err != nil {
 		return err
 	}
 
-	r := bytes.NewReader(indexData)
-
-	indexFileInfo := instancewriter.FileInfo{
-		FileName:    "backup/index.yaml",
-		FileSize:    int64(len(indexData)),
-		FileMode:    0644,
-		FileModTime: time.Now(),
-	}
-
-	// Write to tarball.
-	err = tarWriter.WriteFileFromReader(r, &indexFileInfo)
+	// Write old index format.
+	// This is to ensure backwards compatibility with older versions of LXD.
+	backup.DowngradeConfigFile(indexInfo.Config)
+	err = write(backup.BackupIndexPath)
 	if err != nil {
 		return err
 	}
@@ -543,8 +556,13 @@ func volumeBackupWriteIndex(s *state.State, projectName string, volumeName strin
 		return fmt.Errorf("Failed generating volume backup config: %w", err)
 	}
 
+	rootVol, err := config.RootVolume()
+	if err != nil {
+		return fmt.Errorf("Failed getting the root volume: %w", err)
+	}
+
 	indexInfo := backup.Info{
-		Name:             config.Volume.Name,
+		Name:             rootVol.Name,
 		Pool:             pool.Name(),
 		Backend:          pool.Driver().Info().Name,
 		OptimizedStorage: &optimized,
@@ -554,29 +572,42 @@ func volumeBackupWriteIndex(s *state.State, projectName string, volumeName strin
 	}
 
 	if snapshots {
-		indexInfo.Snapshots = make([]string, 0, len(config.VolumeSnapshots))
-		for _, s := range config.VolumeSnapshots {
+		indexInfo.Snapshots = make([]string, 0, len(rootVol.Snapshots))
+		for _, s := range rootVol.Snapshots {
 			indexInfo.Snapshots = append(indexInfo.Snapshots, s.Name)
 		}
 	}
 
-	// Convert to YAML.
-	indexData, err := yaml.Marshal(indexInfo)
+	write := func(name string) error {
+		// Convert to YAML.
+		indexData, err := yaml.Marshal(indexInfo)
+		if err != nil {
+			return err
+		}
+
+		r := bytes.NewReader(indexData)
+
+		indexFileInfo := instancewriter.FileInfo{
+			FileName:    name,
+			FileSize:    int64(len(indexData)),
+			FileMode:    0644,
+			FileModTime: time.Now(),
+		}
+
+		// Write to tarball.
+		return tarWriter.WriteFileFromReader(r, &indexFileInfo)
+	}
+
+	// Write index format.
+	err = write(backup.BackupIndexPathNew)
 	if err != nil {
 		return err
 	}
 
-	r := bytes.NewReader(indexData)
-
-	indexFileInfo := instancewriter.FileInfo{
-		FileName:    "backup/index.yaml",
-		FileSize:    int64(len(indexData)),
-		FileMode:    0644,
-		FileModTime: time.Now(),
-	}
-
-	// Write to tarball.
-	err = tarWriter.WriteFileFromReader(r, &indexFileInfo)
+	// Write old index format.
+	// This is to ensure backwards compatibility with older versions of LXD.
+	backup.DowngradeConfigFile(indexInfo.Config)
+	err = write(backup.BackupIndexPath)
 	if err != nil {
 		return err
 	}
