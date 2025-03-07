@@ -271,7 +271,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 		if d.HasExtension("explicit_trust_token") {
 			req.TrustToken = token
 		} else {
-			req.Password = token
+			req.Password = token //nolint:staticcheck
 		}
 
 		err = d.CreateCertificate(req)
