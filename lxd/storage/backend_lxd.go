@@ -7050,11 +7050,6 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 		return err
 	}
 
-	data, err := yaml.Marshal(config)
-	if err != nil {
-		return err
-	}
-
 	// Get the volume name on storage.
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 	volType, err := InstanceTypeToVolumeType(inst.Type())
@@ -7075,10 +7070,14 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 		vol = vol.NewVMBlockFilesystemVolume()
 	}
 
-	// Update pool information in the backup.yaml file.
-	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+	write := func(name string) error {
+		data, err := yaml.Marshal(config)
+		if err != nil {
+			return err
+		}
+
 		// Write the YAML
-		path := filepath.Join(inst.Path(), "backup.yaml")
+		path := filepath.Join(inst.Path(), name)
 		f, err := os.Create(path)
 		if err != nil {
 			return fmt.Errorf("Failed to create file %q: %w", path, err)
