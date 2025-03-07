@@ -269,6 +269,7 @@ test_projects_backups() {
 
   # Check tarball content
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
+  [ -f "${LXD_DIR}/non-optimized/backup/index2.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/container" ]
 
   # Delete the container
