@@ -2167,7 +2167,7 @@ func (d *ceph) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, 
 		return nil, err
 	}
 
-	var ret []string
+	var ret []string //nolint:prealloc
 
 	for _, snap := range snapshots {
 		// Ignore zombie snapshots as these are only used internally and

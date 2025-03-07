@@ -580,7 +580,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 		}
 
 		// Compose the expected tuples relating the server/project to the entities.
-		var tuples []*openfgav1.Tuple
+		var tuples []*openfgav1.Tuple //nolint:prealloc
 		for _, entityURL := range entityURLs[entityType] {
 			tupleKey := &openfgav1.TupleKey{Object: string(entityType) + ":" + entityURL.String(), Relation: filter.Relation}
 			switch relationEntityType {
@@ -725,7 +725,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 // readStartingWithUserTuples returns a slice of Tuple objects that relate the members of a given group to a list of entities of a given type via an entitlement.
 func readStartingWithUserTuples(entityType entity.Type, entityURLs []string, entitlement auth.Entitlement, groupName string) []*openfgav1.Tuple {
 	// Construct the tuples relating the group to the entities via the expected entitlement.
-	var tuples []*openfgav1.Tuple
+	tuples := make([]*openfgav1.Tuple, 0, len(entityURLs))
 	for _, entityURL := range entityURLs {
 		tuples = append(tuples, &openfgav1.Tuple{
 			Key: &openfgav1.TupleKey{

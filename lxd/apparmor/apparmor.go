@@ -1,6 +1,7 @@
 package apparmor
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -27,7 +28,7 @@ func runApparmor(sysOS *sys.OS, command string, name string) error {
 		return nil
 	}
 
-	_, err := shared.RunCommand("apparmor_parser", []string{
+	_, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", []string{
 		command,
 		"--write-cache", "--cache-loc", filepath.Join(aaPath, "cache"),
 		filepath.Join(aaPath, "profiles", name),
@@ -210,7 +211,7 @@ func getVersion(sysOS *sys.OS) (*version.DottedVersion, error) {
 		return version.NewDottedVersion("0.0")
 	}
 
-	out, err := shared.RunCommand("apparmor_parser", "--version")
+	out, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", "--version")
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +243,7 @@ func getCacheDir(sysOS *sys.OS) (string, error) {
 		return basePath, nil
 	}
 
-	output, err := shared.RunCommand("apparmor_parser", "-L", basePath, "--print-cache-dir")
+	output, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", "-L", basePath, "--print-cache-dir")
 	if err != nil {
 		return "", err
 	}

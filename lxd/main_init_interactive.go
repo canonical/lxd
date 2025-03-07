@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/pem"
 	"fmt"
 	"net"
@@ -711,7 +712,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 
 		// Optimization for zfs on zfs (when using Ubuntu's bpool/rpool)
 		if pool.Driver == "zfs" && backingFs == "zfs" {
-			poolName, _ := shared.RunCommand("zpool", "get", "-H", "-o", "value", "name", "rpool")
+			poolName, _ := shared.RunCommandContext(context.TODO(), "zpool", "get", "-H", "-o", "value", "name", "rpool")
 			if strings.TrimSpace(poolName) == "rpool" {
 				zfsDataset, err := c.global.asker.AskBool("Would you like to create a new zfs dataset under rpool/lxd? (yes/no) [default=yes]: ", "yes")
 				if err != nil {
