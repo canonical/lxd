@@ -34,6 +34,47 @@ func (r *ProtocolLXD) GetImages() ([]api.Image, error) {
 	return images, nil
 }
 
+// GetImagesAllProjects returns a list of images across all projects as Image structs.
+func (r *ProtocolLXD) GetImagesAllProjects() ([]api.Image, error) {
+	images := []api.Image{}
+
+	err := r.CheckExtension("images_all_projects")
+	if err != nil {
+		return nil, err
+	}
+
+	u := api.NewURL().Path("images").WithQuery("recursion", "1").WithQuery("all-projects", "true")
+	_, err = r.queryStruct("GET", u.String(), nil, "", &images)
+	if err != nil {
+		return nil, err
+	}
+
+	return images, nil
+}
+
+// GetImagesAllProjectsWithFilter returns a filtered list of images across all projects as Image structs.
+func (r *ProtocolLXD) GetImagesAllProjectsWithFilter(filters []string) ([]api.Image, error) {
+	err := r.CheckExtension("api_filtering")
+	if err != nil {
+		return nil, err
+	}
+
+	images := []api.Image{}
+
+	err = r.CheckExtension("images_all_projects")
+	if err != nil {
+		return nil, err
+	}
+
+	u := api.NewURL().Path("images").WithQuery("recursion", "1").WithQuery("all-projects", "true").WithQuery("filter", parseFilters(filters))
+	_, err = r.queryStruct("GET", u.String(), nil, "", &images)
+	if err != nil {
+		return nil, err
+	}
+
+	return images, nil
+}
+
 // GetImagesWithFilter returns a filtered list of available images as Image structs.
 func (r *ProtocolLXD) GetImagesWithFilter(filters []string) ([]api.Image, error) {
 	err := r.CheckExtension("api_filtering")
