@@ -26,7 +26,13 @@ const TypeVM = Type("virtual-machine")
 // TypeCustom defines the backup type value for a custom volume.
 const TypeCustom = Type("custom")
 
-const backupIndexPath = "backup/index.yaml"
+const (
+	// BackupIndexPath represents the original (old) index file name.
+	BackupIndexPath = "backup/index.yaml"
+
+	// BackupIndexPathNew represents the new index file name.
+	BackupIndexPathNew = "backup/index2.yaml"
+)
 
 // InstanceTypeToBackupType converts instance type to backup type.
 func InstanceTypeToBackupType(instanceType api.InstanceType) Type {
