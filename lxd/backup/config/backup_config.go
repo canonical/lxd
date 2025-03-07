@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -32,4 +34,117 @@ type Config struct {
 	Volume *api.StorageVolume `yaml:"volume,omitempty"`
 	// Deprecated: Use the list of Snapshots under Volumes.
 	VolumeSnapshots []*api.StorageVolumeSnapshot `yaml:"volume_snapshots,omitempty"`
+}
+
+func (c *Config) rootVolPoolName() (string, error) {
+	if c.Instance == nil {
+		return "", fmt.Errorf("Instance config is missing")
+	}
+
+	for deviceName, deviceConfig := range c.Instance.ExpandedDevices {
+		if deviceName == "root" {
+			poolName, ok := deviceConfig["pool"]
+			if ok {
+				return poolName, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("Root volume pool does not exist")
+}
+
+// RootVolumePool returns the pool of the root volume.
+// The pool is derived from the volume whose name matches the one of the instance.
+func (c *Config) RootVolumePool() (*api.StoragePool, error) {
+	rootVolPoolName, err := c.rootVolPoolName()
+	if err != nil {
+		return nil, err
+	}
+
+	var rootVolPool *api.StoragePool
+	for _, pool := range c.Pools {
+		if pool.Name == rootVolPoolName {
+			rootVolPool = pool
+			break
+		}
+	}
+
+	if rootVolPool == nil {
+		return nil, fmt.Errorf("Pool config of the root volume does not exist")
+	}
+
+	return rootVolPool, nil
+}
+
+// UpdateRootVolumePool updates the root volume's storage pool.
+func (c *Config) UpdateRootVolumePool(pool *api.StoragePool) error {
+	rootVolPoolName, err := c.rootVolPoolName()
+	if err != nil {
+		return err
+	}
+
+	// Create the pool if it not yet exists.
+	if c.Pools == nil {
+		c.Pools = []*api.StoragePool{pool}
+		return nil
+	}
+
+	for i, existingPool := range c.Pools {
+		if existingPool.Name == rootVolPoolName {
+			c.Pools[i] = pool
+			return nil
+		}
+	}
+
+	// There already exists a root volume pool and it's name doesn't match the given pool.
+	return fmt.Errorf("Cannot apply invalid root volume pool")
+}
+
+// RootVolume returns an instance's root volume from the list of volumes.
+// The volume's name matches the one of the instance.
+func (c *Config) RootVolume() (*Volume, error) {
+	// First try obtaining the root volume for non-snapshot instances.
+	// In this case the Instance field is populated.
+	for _, volume := range c.Volumes {
+		if c.Instance == nil {
+			continue
+		}
+
+		if volume.Name == c.Instance.Name {
+			return volume, nil
+		}
+	}
+
+	// Second try fetching the single volume for snapshot instances.
+	// Snapshot instances don't have the Instance field populated.
+	// A snapshot is always represented by a single volume.
+	// Therefore reuse the same tooling as when retrieving a custom volume.
+	volume, _ := c.CustomVolume()
+	if volume != nil {
+		return volume, nil
+	}
+
+	return nil, fmt.Errorf("Config of the root volume does not exist")
+}
+
+// CustomVolume returns the single custom volume.
+// Unlike RootVolume, CustomVolume always returns the first and only volume in the list.
+func (c *Config) CustomVolume() (*Volume, error) {
+	if c.Instance != nil {
+		return nil, fmt.Errorf("Instance config cannot be set for custom volumes")
+	}
+
+	if len(c.Volumes) == 0 {
+		return nil, fmt.Errorf("No custom volumes are defined in backup config")
+	}
+
+	if len(c.Volumes) > 1 {
+		return nil, fmt.Errorf("More than one custom volume is defined in backup config")
+	}
+
+	if c.Volumes[0] == nil {
+		return nil, fmt.Errorf("Custom volume config does not exist")
+	}
+
+	return c.Volumes[0], nil
 }
