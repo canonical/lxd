@@ -7265,24 +7265,20 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		return fmt.Errorf("Instance %q in project %q already has storage DB record", instName, projectName)
 	}
 
-	backupYamlPath := filepath.Join(vol.MountPath(), "backup.yaml")
 	var backupConf *backupConfig.Config
 
 	// If the instance is running, it should already be mounted, so check if the backup file
 	// is already accessible, and if so parse it directly, without disturbing the mount count.
-	if shared.PathExists(backupYamlPath) {
-		backupConf, err = backup.ParseConfigYamlFile(backupYamlPath)
-		if err != nil {
-			return fmt.Errorf("Failed parsing backup file %q: %w", backupYamlPath, err)
-		}
-	} else {
+	backupConf, _, err = backup.ParseConfigYamlFile(vol.MountPath())
+	if err != nil {
 		// If backup file not accessible, we take this to mean the instance isn't running
 		// and so we need to mount the volume to access the backup file and then unmount.
 		// This will also create the mount path if needed.
 		err = vol.MountTask(func(_ string, _ *operations.Operation) error {
-			backupConf, err = backup.ParseConfigYamlFile(backupYamlPath)
+			var backupYamlPath string
+			backupConf, backupYamlPath, err = backup.ParseConfigYamlFile(vol.MountPath())
 			if err != nil {
-				return fmt.Errorf("Failed parsing backup file %q: %w", backupYamlPath, err)
+				return fmt.Errorf("Failed parsing backup file from %q: %w", backupYamlPath, err)
 			}
 
 			return nil
