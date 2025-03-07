@@ -5631,6 +5631,12 @@ func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersio
 
 	// Send migration index header frame to target if applicable and wait for receipt.
 	if indexHeaderVersion > 0 {
+		// In case the remote is using header version 1,
+		// rewrite from the new to the old format to stay backwards compatible.
+		if indexHeaderVersion == 1 {
+			backup.DowngradeConfigFile(info.Config)
+		}
+
 		headerJSON, err := json.Marshal(info)
 		if err != nil {
 			return nil, fmt.Errorf("Failed encoding migration index header: %w", err)
@@ -5704,6 +5710,9 @@ func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVer
 		if err != nil {
 			return nil, fmt.Errorf("Failed closing migration index header response frame: %w", err)
 		}
+
+		// In all cases upgrade the format into the new one.
+		backup.UpgradeConfigFile(info.Config)
 
 		l.Debug("Sent migration index header response", logger.Ctx{"version": indexHeaderVersion})
 	}
