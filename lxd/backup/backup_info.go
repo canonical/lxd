@@ -86,11 +86,14 @@ func GetInfo(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*Info, error) {
 			return nil, fmt.Errorf("Error reading backup file info: %w", err)
 		}
 
-		if hdr.Name == backupIndexPath {
+		if hdr.Name == BackupIndexPath || hdr.Name == BackupIndexPathNew {
 			err = yaml.NewDecoder(tr).Decode(&result)
 			if err != nil {
 				return nil, err
 			}
+
+			// Upgrade from the old to the new format in case the metadata file is from an old backup.
+			UpgradeConfigFile(result.Config)
 
 			hasIndexFile = true
 
@@ -133,7 +136,7 @@ func GetInfo(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*Info, error) {
 	cancelFunc() // Done reading archive.
 
 	if !hasIndexFile {
-		return nil, fmt.Errorf("Backup is missing at %q", backupIndexPath)
+		return nil, fmt.Errorf("Backup index file is missing at either %q or %q", BackupIndexPath, BackupIndexPathNew)
 	}
 
 	return &result, nil
