@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -736,7 +737,7 @@ func (c *cmdImageImport) packImageDir(path string) (string, error) {
 	defer func() { _ = outFile.Close() }()
 
 	outFileName := outFile.Name()
-	_, err = shared.RunCommand("tar", "-C", path, "--numeric-owner", "--restrict", "--force-local", "--xattrs", "-cJf", outFileName, "rootfs", "templates", "metadata.yaml")
+	_, err = shared.RunCommandContext(context.TODO(), "tar", "-C", path, "--numeric-owner", "--restrict", "--force-local", "--xattrs", "-cJf", outFileName, "rootfs", "templates", "metadata.yaml")
 	if err != nil {
 		return "", err
 	}
