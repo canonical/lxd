@@ -597,7 +597,7 @@ func (d Xtables) NetworkApplyACLRules(networkName string, rules []ACLRule) error
 // aclRuleCriteriaToArgs converts an ACL rule into an set of arguments for an xtables rule.
 // Returns the arguments to use for the action command and separately the arguments for logging if enabled.
 // Returns nil arguments if the rule is not appropriate for the ipVersion.
-func (d Xtables) aclRuleCriteriaToArgs(networkName string, ipVersion uint, rule *ACLRule) ([]string, []string, error) {
+func (d Xtables) aclRuleCriteriaToArgs(networkName string, ipVersion uint, rule *ACLRule) (actionArgs []string, logArgs []string, err error) {
 	var args []string
 
 	if rule.Direction == "ingress" {
@@ -697,10 +697,9 @@ func (d Xtables) aclRuleCriteriaToArgs(networkName string, ipVersion uint, rule 
 		action = "accept"
 	}
 
-	actionArgs := append(args, "-j", strings.ToUpper(action))
+	actionArgs = append(args, "-j", strings.ToUpper(action))
 
 	// Handle logging.
-	var logArgs []string
 	if rule.Log {
 		logArgs = append(args, "-j", "LOG")
 
