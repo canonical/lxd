@@ -1162,6 +1162,7 @@ parts:
         - libssl-dev
         - uuid-dev
         - zlib1g-dev
+        - libtirpc-dev
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
@@ -1211,6 +1212,7 @@ parts:
         - libssl-dev
         - uuid-dev
         - zlib1g-dev
+        - libtirpc-dev
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
