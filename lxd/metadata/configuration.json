@@ -3051,6 +3051,7 @@
 							"condition": "BGP server",
 							"defaultdesc": "local address",
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Override the IPv4 next-hop for advertised prefixes",
 							"type": "string"
 						}
@@ -3060,6 +3061,7 @@
 							"condition": "BGP server",
 							"defaultdesc": "local address",
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Override the IPv6 next-hop for advertised prefixes",
 							"type": "string"
 						}
@@ -3068,6 +3070,7 @@
 						"bgp.peers.NAME.address": {
 							"condition": "BGP server",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Peer address (IPv4 or IPv6)",
 							"type": "string"
 						}
@@ -3076,6 +3079,7 @@
 						"bgp.peers.NAME.asn": {
 							"condition": "BGP server",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Peer AS number",
 							"type": "integer"
 						}
@@ -3086,6 +3090,7 @@
 							"defaultdesc": "`180`",
 							"longdesc": "Specify the hold time in seconds.",
 							"required": "no",
+							"scope": "global",
 							"shortdesc": "Peer session hold time",
 							"type": "integer"
 						}
@@ -3096,6 +3101,7 @@
 							"defaultdesc": "(no password)",
 							"longdesc": "",
 							"required": "no",
+							"scope": "global",
 							"shortdesc": "Peer session password",
 							"type": "string"
 						}
@@ -3104,6 +3110,7 @@
 						"bridge.driver": {
 							"defaultdesc": "`native`",
 							"longdesc": "Possible values are `native` and `openvswitch`.",
+							"scope": "global",
 							"shortdesc": "Bridge driver",
 							"type": "string"
 						}
@@ -3111,6 +3118,7 @@
 					{
 						"bridge.external_interfaces": {
 							"longdesc": "Specify a comma-separated list of unconfigured network interfaces to include in the bridge.",
+							"scope": "local",
 							"shortdesc": "Unconfigured network interfaces to include in the bridge",
 							"type": "string"
 						}
@@ -3118,6 +3126,7 @@
 					{
 						"bridge.hwaddr": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "MAC address for the bridge",
 							"type": "string"
 						}
@@ -3126,6 +3135,7 @@
 						"bridge.mode": {
 							"defaultdesc": "`standard`",
 							"longdesc": "Possible values are `standard` and `fan`.",
+							"scope": "global",
 							"shortdesc": "Bridge operation mode",
 							"type": "string"
 						}
@@ -3134,6 +3144,7 @@
 						"bridge.mtu": {
 							"defaultdesc": "`1500` if `bridge.mode=standard`, `1480` if `bridge.mode=fan` and `fan.type=ipip`, or `1450` if `bridge.mode=fan` and `fan.type=vxlan`",
 							"longdesc": "The default value varies depending on whether the bridge uses a tunnel or a fan setup.",
+							"scope": "global",
 							"shortdesc": "Bridge MTU",
 							"type": "integer"
 						}
@@ -3142,6 +3153,7 @@
 						"dns.domain": {
 							"defaultdesc": "`lxd`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Domain to advertise to DHCP clients and use for DNS resolution",
 							"type": "string"
 						}
@@ -3150,6 +3162,7 @@
 						"dns.mode": {
 							"defaultdesc": "`managed`",
 							"longdesc": "Possible values are `none` for no DNS record, `managed` for LXD-generated static records, and `dynamic` for client-generated records.",
+							"scope": "global",
 							"shortdesc": "DNS registration mode",
 							"type": "string"
 						}
@@ -3158,6 +3171,7 @@
 						"dns.search": {
 							"defaultdesc": "`dns.domain` value",
 							"longdesc": "Specify a comma-separated list of domains.",
+							"scope": "global",
 							"shortdesc": "Full domain search list",
 							"type": "string"
 						}
@@ -3165,6 +3179,7 @@
 					{
 						"dns.zone.forward": {
 							"longdesc": "Specify a comma-separated list of DNS zone names.",
+							"scope": "global",
 							"shortdesc": "DNS zone names for forward DNS records",
 							"type": "string"
 						}
@@ -3172,6 +3187,7 @@
 					{
 						"dns.zone.reverse.ipv4": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "DNS zone name for IPv4 reverse DNS records",
 							"type": "string"
 						}
@@ -3179,6 +3195,7 @@
 					{
 						"dns.zone.reverse.ipv6": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "DNS zone name for IPv6 reverse DNS records",
 							"type": "string"
 						}
@@ -3188,6 +3205,7 @@
 							"condition": "fan mode",
 							"defaultdesc": "`240.0.0.0/8`",
 							"longdesc": "Use CIDR notation.",
+							"scope": "global",
 							"shortdesc": "Subnet to use as the overlay for the FAN",
 							"type": "string"
 						}
@@ -3197,6 +3215,7 @@
 							"condition": "fan mode",
 							"defaultdesc": "`vxlan`",
 							"longdesc": "Possible values are `vxlan` and `ipip`.",
+							"scope": "global",
 							"shortdesc": "Tunneling type for the FAN",
 							"type": "string"
 						}
@@ -3206,6 +3225,7 @@
 							"condition": "fan mode",
 							"defaultdesc": "initial value on creation: `auto`",
 							"longdesc": "Use CIDR notation.\n\nYou can set the option to `auto` to use the default gateway subnet.",
+							"scope": "global",
 							"shortdesc": "Subnet to use as the underlay for the FAN",
 							"type": "string"
 						}
@@ -3215,6 +3235,7 @@
 							"condition": "standard mode",
 							"defaultdesc": "initial value on creation: `auto`",
 							"longdesc": "Use CIDR notation.\n\nYou can set the option to `none` to turn off IPv4, or to `auto` to generate a new random unused subnet.",
+							"scope": "global",
 							"shortdesc": "IPv4 address for the bridge",
 							"type": "string"
 						}
@@ -3224,6 +3245,7 @@
 							"condition": "IPv4 address",
 							"defaultdesc": "`true`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether to allocate IPv4 addresses using DHCP",
 							"type": "bool"
 						}
@@ -3233,6 +3255,7 @@
 							"condition": "IPv4 DHCP",
 							"defaultdesc": "`1h`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "When to expire DHCP leases",
 							"type": "string"
 						}
@@ -3242,6 +3265,7 @@
 							"condition": "IPv4 DHCP",
 							"defaultdesc": "IPv4 address",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Address of the gateway for the IPv4 subnet",
 							"type": "string"
 						}
@@ -3251,6 +3275,7 @@
 							"condition": "IPv4 DHCP",
 							"defaultdesc": "all addresses",
 							"longdesc": "Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.",
+							"scope": "global",
 							"shortdesc": "IPv4 ranges to use for DHCP",
 							"type": "string"
 						}
@@ -3260,6 +3285,7 @@
 							"condition": "IPv4 address",
 							"defaultdesc": "`true`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether to generate filtering firewall rules for this network",
 							"type": "bool"
 						}
@@ -3269,6 +3295,7 @@
 							"condition": "IPv4 address",
 							"defaultdesc": "`false` (initial value on creation if `ipv4.address` is set to `auto`: `true`)",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether to use NAT for IPv4",
 							"type": "bool"
 						}
@@ -3277,6 +3304,7 @@
 						"ipv4.nat.address": {
 							"condition": "IPv4 address",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Source address used for outbound traffic from the bridge",
 							"type": "string"
 						}
@@ -3286,6 +3314,7 @@
 							"condition": "IPv4 address",
 							"defaultdesc": "`before`",
 							"longdesc": "Set this option to `before` to add the NAT rules before any pre-existing rules, or to `after` to add them after the pre-existing rules.",
+							"scope": "global",
 							"shortdesc": "Where to add the required NAT rules",
 							"type": "string"
 						}
@@ -3293,6 +3322,7 @@
 					{
 						"ipv4.ovn.ranges": {
 							"longdesc": "Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.",
+							"scope": "global",
 							"shortdesc": "IPv4 ranges to use for child OVN network routers",
 							"type": "string"
 						}
@@ -3301,6 +3331,7 @@
 						"ipv4.routes": {
 							"condition": "IPv4 address",
 							"longdesc": "Specify a comma-separated list of IPv4 CIDR subnets.",
+							"scope": "global",
 							"shortdesc": "Additional IPv4 CIDR subnets to route to the bridge",
 							"type": "string"
 						}
@@ -3310,6 +3341,7 @@
 							"condition": "IPv4 address",
 							"defaultdesc": "`true`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether to route IPv4 traffic in and out of the bridge",
 							"type": "bool"
 						}
@@ -3319,6 +3351,7 @@
 							"condition": "standard mode",
 							"defaultdesc": "initial value on creation: `auto`",
 							"longdesc": "Use CIDR notation.\n\nYou can set the option to `none` to turn off IPv6, or to `auto` to generate a new random unused subnet.",
+							"scope": "global",
 							"shortdesc": "IPv6 address for the bridge",
 							"type": "string"
 						}
@@ -3328,6 +3361,7 @@
 							"condition": "IPv6 address",
 							"defaultdesc": "`true`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether to provide additional network configuration over DHCP",
 							"type": "bool"
 						}
@@ -3337,6 +3371,7 @@
 							"condition": "IPv6 DHCP",
 							"defaultdesc": "`1h`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "When to expire DHCP leases",
 							"type": "string"
 						}
@@ -3346,6 +3381,7 @@
 							"condition": "IPv6 stateful DHCP",
 							"defaultdesc": "all addresses",
 							"longdesc": "Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.",
+							"scope": "global",
 							"shortdesc": "IPv6 ranges to use for DHCP",
 							"type": "string"
 						}
@@ -3355,6 +3391,7 @@
 							"condition": "IPv6 DHCP",
 							"defaultdesc": "`false`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether to allocate IPv6 addresses using DHCP",
 							"type": "bool"
 						}
@@ -3364,6 +3401,7 @@
 							"condition": "IPv6 DHCP",
 							"defaultdesc": "`true`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether to generate filtering firewall rules for this network",
 							"type": "bool"
 						}
@@ -3373,6 +3411,7 @@
 							"condition": "IPv6 address",
 							"defaultdesc": "`false` (initial value on creation if `ipv6.address` is set to `auto`: `true`)",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether to use NAT for IPv6",
 							"type": "bool"
 						}
@@ -3381,6 +3420,7 @@
 						"ipv6.nat.address": {
 							"condition": "IPv6 address",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Source address used for outbound traffic from the bridge",
 							"type": "string"
 						}
@@ -3390,6 +3430,7 @@
 							"condition": "IPv6 address",
 							"defaultdesc": "`before`",
 							"longdesc": "Set this option to `before` to add the NAT rules before any pre-existing rules, or to `after` to add them after the pre-existing rules.",
+							"scope": "global",
 							"shortdesc": "Where to add the required NAT rules",
 							"type": "string"
 						}
@@ -3397,6 +3438,7 @@
 					{
 						"ipv6.ovn.ranges": {
 							"longdesc": "Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.",
+							"scope": "global",
 							"shortdesc": "IPv6 ranges to use for child OVN network routers",
 							"type": "string"
 						}
@@ -3405,6 +3447,7 @@
 						"ipv6.routes": {
 							"condition": "IPv6 address",
 							"longdesc": "Specify a comma-separated list of IPv6 CIDR subnets.",
+							"scope": "global",
 							"shortdesc": "Additional IPv6 CIDR subnets to route to the bridge",
 							"type": "string"
 						}
@@ -3413,6 +3456,7 @@
 						"ipv6.routing": {
 							"condition": "IPv6 address",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether to route IPv6 traffic in and out of the bridge",
 							"type": "bool"
 						}
@@ -3421,6 +3465,7 @@
 						"maas.subnet.ipv4": {
 							"condition": "IPv4 address; using the `network` property on the NIC",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "MAAS IPv4 subnet to register instances in",
 							"type": "string"
 						}
@@ -3429,6 +3474,7 @@
 						"maas.subnet.ipv6": {
 							"condition": "IPv6 address; using the `network` property on the NIC",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "MAAS IPv6 subnet to register instances in",
 							"type": "string"
 						}
@@ -3436,6 +3482,7 @@
 					{
 						"raw.dnsmasq": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Additional `dnsmasq` configuration to append to the configuration file",
 							"type": "string"
 						}
@@ -3443,6 +3490,7 @@
 					{
 						"security.acls": {
 							"longdesc": "Specify a comma-separated list of network ACLs.\n\nAlso see {ref}`network-acls-bridge-limitations`.",
+							"scope": "global",
 							"shortdesc": "Network ACLs to apply to NICs connected to this network",
 							"type": "string"
 						}
@@ -3451,6 +3499,7 @@
 						"security.acls.default.egress.action": {
 							"condition": "`security.acls`",
 							"longdesc": "The specified action is used for all egress traffic that doesn’t match any ACL rule.",
+							"scope": "global",
 							"shortdesc": "Default action to use for egress traffic",
 							"type": "string"
 						}
@@ -3459,6 +3508,7 @@
 						"security.acls.default.egress.logged": {
 							"condition": "`security.acls`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether to log egress traffic that doesn’t match any ACL rule",
 							"type": "bool"
 						}
@@ -3467,6 +3517,7 @@
 						"security.acls.default.ingress.action": {
 							"condition": "`security.acls`",
 							"longdesc": "The specified action is used for all ingress traffic that doesn’t match any ACL rule.",
+							"scope": "global",
 							"shortdesc": "Default action to use for ingress traffic",
 							"type": "string"
 						}
@@ -3475,6 +3526,7 @@
 						"security.acls.default.ingress.logged": {
 							"condition": "`security.acls`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether to log ingress traffic that doesn’t match any ACL rule",
 							"type": "bool"
 						}
@@ -3550,6 +3602,7 @@
 					{
 						"user.*": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
@@ -3766,6 +3819,7 @@
 						"gvrp": {
 							"defaultdesc": "`false`",
 							"longdesc": "This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.",
+							"scope": "global",
 							"shortdesc": "Whether to use GARP VLAN Registration Protocol",
 							"type": "bool"
 						}
@@ -3774,6 +3828,7 @@
 						"maas.subnet.ipv4": {
 							"condition": "IPv4 address; using the `network` property on the NIC",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "MAAS IPv4 subnet to register instances in",
 							"type": "string"
 						}
@@ -3782,6 +3837,7 @@
 						"maas.subnet.ipv6": {
 							"condition": "IPv4 address; using the `network` property on the NIC",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "MAAS IPv6 subnet to register instances in",
 							"type": "string"
 						}
@@ -3789,6 +3845,7 @@
 					{
 						"mtu": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "MTU of the new interface",
 							"type": "integer"
 						}
@@ -3796,6 +3853,7 @@
 					{
 						"parent": {
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Parent interface to create `macvlan` NICs on",
 							"type": "string"
 						}
@@ -3803,6 +3861,7 @@
 					{
 						"user.*": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
@@ -3810,6 +3869,7 @@
 					{
 						"vlan": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "VLAN ID to attach to",
 							"type": "integer"
 						}
@@ -4090,6 +4150,7 @@
 						"bgp.peers.NAME.address": {
 							"condition": "BGP server",
 							"longdesc": "The address can be IPv4 or IPv6.",
+							"scope": "global",
 							"shortdesc": "Peer address for use by `ovn` downstream networks",
 							"type": "string"
 						}
@@ -4098,6 +4159,7 @@
 						"bgp.peers.NAME.asn": {
 							"condition": "BGP server",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Peer AS number for use by `ovn` downstream networks",
 							"type": "integer"
 						}
@@ -4108,6 +4170,7 @@
 							"defaultdesc": "`180`",
 							"longdesc": "Specify the peer session hold time in seconds.",
 							"required": "no",
+							"scope": "global",
 							"shortdesc": "Peer session hold time",
 							"type": "integer"
 						}
@@ -4118,6 +4181,7 @@
 							"defaultdesc": "(no password)",
 							"longdesc": "",
 							"required": "no",
+							"scope": "global",
 							"shortdesc": "Peer session password for use by `ovn` downstream networks",
 							"type": "string"
 						}
@@ -4126,6 +4190,7 @@
 						"dns.nameservers": {
 							"condition": "standard mode",
 							"longdesc": "Specify a list of DNS server IPs.",
+							"scope": "global",
 							"shortdesc": "DNS server IPs on physical network",
 							"type": "string"
 						}
@@ -4134,6 +4199,7 @@
 						"gvrp": {
 							"defaultdesc": "`false`",
 							"longdesc": "This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.",
+							"scope": "global",
 							"shortdesc": "Whether to use GARP VLAN Registration Protocol",
 							"type": "bool"
 						}
@@ -4142,6 +4208,7 @@
 						"ipv4.gateway": {
 							"condition": "standard mode",
 							"longdesc": "Use CIDR notation.",
+							"scope": "global",
 							"shortdesc": "IPv4 address for the gateway and network",
 							"type": "string"
 						}
@@ -4149,6 +4216,7 @@
 					{
 						"ipv4.ovn.ranges": {
 							"longdesc": "Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.",
+							"scope": "global",
 							"shortdesc": "IPv4 ranges to use for child OVN network routers",
 							"type": "string"
 						}
@@ -4157,6 +4225,7 @@
 						"ipv4.routes": {
 							"condition": "IPv4 address",
 							"longdesc": "Specify a comma-separated list of IPv4 CIDR subnets that can be used with child OVN network forwarders, load-balancers and {config:option}`device-nic-ovn-device-conf:ipv4.routes.external` setting.",
+							"scope": "global",
 							"shortdesc": "Additional IPv4 CIDR subnets",
 							"type": "string"
 						}
@@ -4166,6 +4235,7 @@
 							"condition": "IPv4 address",
 							"defaultdesc": "`false`",
 							"longdesc": "If set to `true`, this option allows the overlapping routes to be used on multiple networks/NICs at the same time.",
+							"scope": "global",
 							"shortdesc": "Whether to allow IPv4 routes on multiple networks/NICs",
 							"type": "bool"
 						}
@@ -4174,6 +4244,7 @@
 						"ipv6.gateway": {
 							"condition": "standard mode",
 							"longdesc": "Use CIDR notation.",
+							"scope": "global",
 							"shortdesc": "IPv6 address for the gateway and network",
 							"type": "string"
 						}
@@ -4181,6 +4252,7 @@
 					{
 						"ipv6.ovn.ranges": {
 							"longdesc": "Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.",
+							"scope": "global",
 							"shortdesc": "IPv6 ranges to use for child OVN network routers",
 							"type": "string"
 						}
@@ -4189,6 +4261,7 @@
 						"ipv6.routes": {
 							"condition": "IPv6 address",
 							"longdesc": "Specify a comma-separated list of IPv6 CIDR subnets that can be used with child OVN network forwarders, load-balancers and {config:option}`device-nic-ovn-device-conf:ipv6.routes.external` setting.",
+							"scope": "global",
 							"shortdesc": "Additional IPv6 CIDR subnets",
 							"type": "string"
 						}
@@ -4198,6 +4271,7 @@
 							"condition": "IPv6 address",
 							"defaultdesc": "`false`",
 							"longdesc": "If set to `true`, this option allows the overlapping routes to be used on multiple networks/NICs at the same time.",
+							"scope": "global",
 							"shortdesc": "Whether to allow IPv6 routes on multiple networks/NICs",
 							"type": "bool"
 						}
@@ -4206,6 +4280,7 @@
 						"maas.subnet.ipv4": {
 							"condition": "IPv4 address; using the `network` property on the NIC",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "MAAS IPv4 subnet to register instances in",
 							"type": "string"
 						}
@@ -4214,6 +4289,7 @@
 						"maas.subnet.ipv6": {
 							"condition": "IPv6 address; using the `network` property on the NIC",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "MAAS IPv6 subnet to register instances in",
 							"type": "string"
 						}
@@ -4221,6 +4297,7 @@
 					{
 						"mtu": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "MTU of the new interface",
 							"type": "integer"
 						}
@@ -4230,6 +4307,7 @@
 							"condition": "standard mode",
 							"defaultdesc": "`l2proxy`",
 							"longdesc": "Possible values are `l2proxy` (proxy ARP/NDP) and `routed`.",
+							"scope": "global",
 							"shortdesc": "How OVN NIC external IPs are advertised on uplink network",
 							"type": "string"
 						}
@@ -4237,6 +4315,7 @@
 					{
 						"parent": {
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Existing interface to use for network",
 							"type": "string"
 						}
@@ -4244,6 +4323,7 @@
 					{
 						"user.*": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
@@ -4251,6 +4331,7 @@
 					{
 						"vlan": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "VLAN ID to attach to",
 							"type": "integer"
 						}
@@ -4265,6 +4346,7 @@
 						"maas.subnet.ipv4": {
 							"condition": "IPv4 address; using the `network` property on the NIC",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "MAAS IPv4 subnet to register instances in",
 							"type": "string"
 						}
@@ -4273,6 +4355,7 @@
 						"maas.subnet.ipv6": {
 							"condition": "IPv6 address; using the `network` property on the NIC",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "MAAS IPv6 subnet to register instances in",
 							"type": "string"
 						}
@@ -4280,6 +4363,7 @@
 					{
 						"mtu": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "MTU of the new interface",
 							"type": "integer"
 						}
@@ -4287,6 +4371,7 @@
 					{
 						"parent": {
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Parent interface to create `sriov` NICs on",
 							"type": "string"
 						}
@@ -4294,6 +4379,7 @@
 					{
 						"user.*": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
@@ -4301,6 +4387,7 @@
 					{
 						"vlan": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "VLAN ID to attach to",
 							"type": "integer"
 						}
@@ -5364,6 +5451,7 @@
 							"condition": "appropriate driver",
 							"defaultdesc": "same as `volume.size`",
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Size/quota of the storage bucket",
 							"type": "string"
 						}
@@ -5376,6 +5464,7 @@
 						"btrfs.mount_options": {
 							"defaultdesc": "`user_subvol_rm_allowed`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Mount options for block devices",
 							"type": "string"
 						}
@@ -5384,6 +5473,7 @@
 						"size": {
 							"defaultdesc": "auto (20% of free disk space, \u003e= 5 GiB and \u003c= 30 GiB)",
 							"longdesc": "When creating loop-based pools, specify the size in bytes ({ref}`suffixes \u003cinstances-limit-units\u003e` are supported).\nYou can increase the size to grow the storage pool.\n\nThe default (`auto`) creates a storage pool that uses 20% of the free disk space,\nwith a minimum of 5 GiB and a maximum of 30 GiB.",
+							"scope": "local",
 							"shortdesc": "Size of the storage pool (for loop-based pools)",
 							"type": "string"
 						}
@@ -5391,6 +5481,7 @@
 					{
 						"source": {
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Path to an existing block device, loop file, or Btrfs subvolume",
 							"type": "string"
 						}
@@ -5399,6 +5490,7 @@
 						"source.wipe": {
 							"defaultdesc": "`false`",
 							"longdesc": "Set this option to `true` to wipe the block device specified in `source`\nprior to creating the storage pool.",
+							"scope": "local",
 							"shortdesc": "Whether to wipe the block device before creating the pool",
 							"type": "bool"
 						}
@@ -5412,6 +5504,7 @@
 							"condition": "custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
+							"scope": "global",
 							"shortdesc": "Enable volume sharing",
 							"type": "bool"
 						}
@@ -5421,6 +5514,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.security.shifted` or `false`",
 							"longdesc": "Enabling this option allows attaching the volume to multiple isolated instances.",
+							"scope": "global",
 							"shortdesc": "Enable ID shifting overlay",
 							"type": "bool"
 						}
@@ -5430,6 +5524,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.security.unmappped` or `false`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Disable ID mapping for the volume",
 							"type": "bool"
 						}
@@ -5439,6 +5534,7 @@
 							"condition": "appropriate driver",
 							"defaultdesc": "same as `volume.size`",
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Size/quota of the storage volume",
 							"type": "string"
 						}
@@ -5448,6 +5544,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
+							"scope": "global",
 							"shortdesc": "When snapshots are to be deleted",
 							"type": "string"
 						}
@@ -5457,6 +5554,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
 							"longdesc": "You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nFor the first snapshot, the placeholder is replaced with `0`.\nFor subsequent snapshots, the existing snapshot names are taken into account to find the highest number at the placeholder's position.\nThis number is then incremented by one for the new name.",
+							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
 						}
@@ -5466,6 +5564,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `snapshots.schedule`",
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
+							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
 							"type": "string"
 						}
@@ -5474,6 +5573,7 @@
 						"volatile.uuid": {
 							"defaultdesc": "random UUID",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "The volume's UUID",
 							"type": "string"
 						}
@@ -5488,6 +5588,7 @@
 						"ceph.cluster_name": {
 							"defaultdesc": "`ceph`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Name of the Ceph cluster in which to create new storage pools",
 							"type": "string"
 						}
@@ -5495,6 +5596,7 @@
 					{
 						"ceph.osd.data_pool_name": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Name of the OSD data pool",
 							"type": "string"
 						}
@@ -5503,6 +5605,7 @@
 						"ceph.osd.pg_num": {
 							"defaultdesc": "`32`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Number of placement groups for the OSD storage pool",
 							"type": "string"
 						}
@@ -5511,6 +5614,7 @@
 						"ceph.osd.pool_name": {
 							"defaultdesc": "name of the pool",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Name of the OSD storage pool",
 							"type": "string"
 						}
@@ -5519,6 +5623,7 @@
 						"ceph.rbd.clone_copy": {
 							"defaultdesc": "`true`",
 							"longdesc": "Enable this option to use RBD lightweight clones rather than full dataset copies.",
+							"scope": "global",
 							"shortdesc": "Whether to use RBD lightweight clones",
 							"type": "bool"
 						}
@@ -5527,6 +5632,7 @@
 						"ceph.rbd.du": {
 							"defaultdesc": "`true`",
 							"longdesc": "This option specifies whether to use RBD `du` to obtain disk usage data for stopped instances.",
+							"scope": "global",
 							"shortdesc": "Whether to use RBD `du`",
 							"type": "bool"
 						}
@@ -5535,6 +5641,7 @@
 						"ceph.rbd.features": {
 							"defaultdesc": "`layering`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Comma-separated list of RBD features to enable on the volumes",
 							"type": "string"
 						}
@@ -5543,6 +5650,7 @@
 						"ceph.user.name": {
 							"defaultdesc": "`admin`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "The Ceph user to use when creating storage pools and volumes",
 							"type": "string"
 						}
@@ -5550,6 +5658,7 @@
 					{
 						"source": {
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Existing OSD storage pool to use",
 							"type": "string"
 						}
@@ -5558,6 +5667,7 @@
 						"volatile.pool.pristine": {
 							"defaultdesc": "`true`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether the pool was empty on creation time",
 							"type": "string"
 						}
@@ -5571,6 +5681,7 @@
 							"condition": "block-based volume with content type `filesystem`",
 							"defaultdesc": "same as `volume.block.filesystem`",
 							"longdesc": "Valid options are: `btrfs`, `ext4`, `xfs`\nIf not set, `ext4` is assumed.",
+							"scope": "global",
 							"shortdesc": "File system of the storage volume",
 							"type": "string"
 						}
@@ -5580,6 +5691,7 @@
 							"condition": "block-based volume with content type `filesystem`",
 							"defaultdesc": "same as `volume.block.mount_options`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Mount options for block-backed file system volumes",
 							"type": "string"
 						}
@@ -5589,6 +5701,7 @@
 							"condition": "custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
+							"scope": "global",
 							"shortdesc": "Enable volume sharing",
 							"type": "bool"
 						}
@@ -5598,6 +5711,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.security.shifted` or `false`",
 							"longdesc": "Enabling this option allows attaching the volume to multiple isolated instances.",
+							"scope": "global",
 							"shortdesc": "Enable ID shifting overlay",
 							"type": "bool"
 						}
@@ -5607,6 +5721,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.security.unmappped` or `false`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Disable ID mapping for the volume",
 							"type": "bool"
 						}
@@ -5616,6 +5731,7 @@
 							"condition": "appropriate driver",
 							"defaultdesc": "same as `volume.size`",
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Size/quota of the storage volume",
 							"type": "string"
 						}
@@ -5625,6 +5741,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
+							"scope": "global",
 							"shortdesc": "When snapshots are to be deleted",
 							"type": "string"
 						}
@@ -5634,6 +5751,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
 							"longdesc": "You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nFor the first snapshot, the placeholder is replaced with `0`.\nFor subsequent snapshots, the existing snapshot names are taken into account to find the highest number at the placeholder's position.\nThis number is then incremented by one for the new name.",
+							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
 						}
@@ -5643,6 +5761,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `snapshots.schedule`",
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
+							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
 							"type": "string"
 						}
@@ -5651,6 +5770,7 @@
 						"volatile.uuid": {
 							"defaultdesc": "random UUID",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "The volume's UUID",
 							"type": "string"
 						}
@@ -5665,6 +5785,7 @@
 						"cephfs.cluster_name": {
 							"defaultdesc": "`ceph`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Name of the Ceph cluster that contains the CephFS file system",
 							"type": "string"
 						}
@@ -5673,6 +5794,7 @@
 						"cephfs.create_missing": {
 							"defaultdesc": "`false`",
 							"longdesc": "Use this option if the CephFS file system does not exist yet.\nLXD will then automatically create the file system and the missing data and metadata OSD pools.",
+							"scope": "global",
 							"shortdesc": "Automatically create the CephFS file system",
 							"type": "bool"
 						}
@@ -5680,6 +5802,7 @@
 					{
 						"cephfs.data_pool": {
 							"longdesc": "This option specifies the name for the data OSD pool that should be used when creating\na file system automatically.",
+							"scope": "global",
 							"shortdesc": "Data OSD pool name",
 							"type": "string"
 						}
@@ -5688,6 +5811,7 @@
 						"cephfs.fscache": {
 							"defaultdesc": "`false`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Enable use of kernel `fscache` and `cachefilesd`",
 							"type": "bool"
 						}
@@ -5695,6 +5819,7 @@
 					{
 						"cephfs.meta_pool": {
 							"longdesc": "This option specifies the name for the file metadata OSD pool that should be used when\ncreating a file system automatically.",
+							"scope": "global",
 							"shortdesc": "Metadata OSD pool name",
 							"type": "string"
 						}
@@ -5702,6 +5827,7 @@
 					{
 						"cephfs.osd_pg_num": {
 							"longdesc": "This option specifies the number of OSD pool placement groups (`pg_num`) to use\nwhen creating a missing OSD pool.",
+							"scope": "global",
 							"shortdesc": "Number of placement groups when creating missing OSD pools",
 							"type": "string"
 						}
@@ -5710,6 +5836,7 @@
 						"cephfs.path": {
 							"defaultdesc": "`/`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "The base path for the CephFS mount",
 							"type": "string"
 						}
@@ -5718,6 +5845,7 @@
 						"cephfs.user.name": {
 							"defaultdesc": "`admin`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "The Ceph user to use",
 							"type": "string"
 						}
@@ -5725,6 +5853,7 @@
 					{
 						"source": {
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Existing CephFS file system or file system path to use",
 							"type": "string"
 						}
@@ -5733,6 +5862,7 @@
 						"volatile.pool.pristine": {
 							"defaultdesc": "`true`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether the CephFS file system was empty on creation time",
 							"type": "string"
 						}
@@ -5746,6 +5876,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.security.shifted` or `false`",
 							"longdesc": "Enabling this option allows attaching the volume to multiple isolated instances.",
+							"scope": "global",
 							"shortdesc": "Enable ID shifting overlay",
 							"type": "bool"
 						}
@@ -5755,6 +5886,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.security.unmappped` or `false`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Disable ID mapping for the volume",
 							"type": "bool"
 						}
@@ -5764,6 +5896,7 @@
 							"condition": "appropriate driver",
 							"defaultdesc": "same as `volume.size`",
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Size/quota of the storage volume",
 							"type": "string"
 						}
@@ -5773,6 +5906,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
+							"scope": "global",
 							"shortdesc": "When snapshots are to be deleted",
 							"type": "string"
 						}
@@ -5782,6 +5916,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
 							"longdesc": "You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nFor the first snapshot, the placeholder is replaced with `0`.\nFor subsequent snapshots, the existing snapshot names are taken into account to find the highest number at the placeholder's position.\nThis number is then incremented by one for the new name.",
+							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
 						}
@@ -5791,6 +5926,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `snapshots.schedule`",
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
+							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
 							"type": "string"
 						}
@@ -5799,6 +5935,7 @@
 						"volatile.uuid": {
 							"defaultdesc": "random UUID",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "The volume's UUID",
 							"type": "string"
 						}
@@ -5812,6 +5949,7 @@
 					{
 						"size": {
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Quota of the storage bucket",
 							"type": "string"
 						}
@@ -5823,6 +5961,7 @@
 					{
 						"cephobject.bucket.name_prefix": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Prefix to add to bucket names in Ceph",
 							"type": "string"
 						}
@@ -5830,6 +5969,7 @@
 					{
 						"cephobject.cluster_name": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "The Ceph cluster to use",
 							"type": "string"
 						}
@@ -5837,6 +5977,7 @@
 					{
 						"cephobject.radosgw.endpoint": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "URL of the `radosgw` gateway process",
 							"type": "string"
 						}
@@ -5844,6 +5985,7 @@
 					{
 						"cephobject.radosgw.endpoint_cert_file": {
 							"longdesc": "Specify the path to the file that contains the TLS client certificate.",
+							"scope": "global",
 							"shortdesc": "TLS client certificate to use for endpoint communication",
 							"type": "string"
 						}
@@ -5852,6 +5994,7 @@
 						"cephobject.user.name": {
 							"defaultdesc": "`admin`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "The Ceph user to use",
 							"type": "string"
 						}
@@ -5860,6 +6003,7 @@
 						"volatile.pool.pristine": {
 							"defaultdesc": "`true`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether the `radosgw` `lxd-admin` user existed at creation time",
 							"type": "string"
 						}
@@ -5874,6 +6018,7 @@
 						"rsync.bwlimit": {
 							"defaultdesc": "`0` (no limit)",
 							"longdesc": "When `rsync` must be used to transfer storage entities, this option specifies the upper limit\nto be placed on the socket I/O.",
+							"scope": "global",
 							"shortdesc": "Upper limit on the socket I/O for `rsync`",
 							"type": "string"
 						}
@@ -5882,6 +6027,7 @@
 						"rsync.compression": {
 							"defaultdesc": "`true`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether to use compression while migrating storage pools",
 							"type": "bool"
 						}
@@ -5889,6 +6035,7 @@
 					{
 						"source": {
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Path to an existing directory",
 							"type": "string"
 						}
@@ -5902,6 +6049,7 @@
 							"condition": "custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
+							"scope": "global",
 							"shortdesc": "Enable volume sharing",
 							"type": "bool"
 						}
@@ -5911,6 +6059,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.security.shifted` or `false`",
 							"longdesc": "Enabling this option allows attaching the volume to multiple isolated instances.",
+							"scope": "global",
 							"shortdesc": "Enable ID shifting overlay",
 							"type": "bool"
 						}
@@ -5920,6 +6069,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.security.unmappped` or `false`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Disable ID mapping for the volume",
 							"type": "bool"
 						}
@@ -5929,6 +6079,7 @@
 							"condition": "appropriate driver",
 							"defaultdesc": "same as `volume.size`",
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Size/quota of the storage volume",
 							"type": "string"
 						}
@@ -5938,6 +6089,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
+							"scope": "global",
 							"shortdesc": "When snapshots are to be deleted",
 							"type": "string"
 						}
@@ -5947,6 +6099,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
 							"longdesc": "You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nFor the first snapshot, the placeholder is replaced with `0`.\nFor subsequent snapshots, the existing snapshot names are taken into account to find the highest number at the placeholder's position.\nThis number is then incremented by one for the new name.",
+							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
 						}
@@ -5956,6 +6109,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `snapshots.schedule`",
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
+							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
 							"type": "string"
 						}
@@ -5964,6 +6118,7 @@
 						"volatile.uuid": {
 							"defaultdesc": "random UUID",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "The volume's UUID",
 							"type": "string"
 						}
@@ -5979,6 +6134,7 @@
 							"condition": "appropriate driver",
 							"defaultdesc": "same as `volume.size`",
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Size/quota of the storage bucket",
 							"type": "string"
 						}
@@ -5991,6 +6147,7 @@
 						"lvm.thinpool_metadata_size": {
 							"defaultdesc": "`0` (auto)",
 							"longdesc": "By default, LVM calculates an appropriate size.",
+							"scope": "global",
 							"shortdesc": "The size of the thin pool metadata volume",
 							"type": "string"
 						}
@@ -5999,6 +6156,7 @@
 						"lvm.thinpool_name": {
 							"defaultdesc": "`LXDThinPool`",
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Thin pool where volumes are created",
 							"type": "string"
 						}
@@ -6007,6 +6165,7 @@
 						"lvm.use_thinpool": {
 							"defaultdesc": "`true`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether the storage pool uses a thin pool for logical volumes",
 							"type": "bool"
 						}
@@ -6015,6 +6174,7 @@
 						"lvm.vg.force_reuse": {
 							"defaultdesc": "`false`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Force using an existing non-empty volume group",
 							"type": "bool"
 						}
@@ -6023,6 +6183,7 @@
 						"lvm.vg_name": {
 							"defaultdesc": "name of the pool",
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Name of the volume group to create",
 							"type": "string"
 						}
@@ -6031,6 +6192,7 @@
 						"rsync.bwlimit": {
 							"defaultdesc": "`0` (no limit)",
 							"longdesc": "When `rsync` must be used to transfer storage entities, this option specifies the upper limit\nto be placed on the socket I/O.",
+							"scope": "global",
 							"shortdesc": "Upper limit on the socket I/O for `rsync`",
 							"type": "string"
 						}
@@ -6039,6 +6201,7 @@
 						"rsync.compression": {
 							"defaultdesc": "`true`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether to use compression while migrating storage pools",
 							"type": "bool"
 						}
@@ -6047,6 +6210,7 @@
 						"size": {
 							"defaultdesc": "auto (20% of free disk space, \u003e= 5 GiB and \u003c= 30 GiB)",
 							"longdesc": "When creating loop-based pools, specify the size in bytes ({ref}`suffixes \u003cinstances-limit-units\u003e` are supported).\nYou can increase the size to grow the storage pool.\n\nThe default (`auto`) creates a storage pool that uses 20% of the free disk space,\nwith a minimum of 5 GiB and a maximum of 30 GiB.",
+							"scope": "local",
 							"shortdesc": "Size of the storage pool (for loop-based pools)",
 							"type": "string"
 						}
@@ -6054,6 +6218,7 @@
 					{
 						"source": {
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Path to an existing block device, loop file, or LVM volume group",
 							"type": "string"
 						}
@@ -6062,6 +6227,7 @@
 						"source.wipe": {
 							"defaultdesc": "`false`",
 							"longdesc": "Set this option to `true` to wipe the block device specified in `source`\nprior to creating the storage pool.",
+							"scope": "local",
 							"shortdesc": "Whether to wipe the block device before creating the pool",
 							"type": "bool"
 						}
@@ -6075,6 +6241,7 @@
 							"condition": "block-based volume with content type `filesystem`",
 							"defaultdesc": "same as `volume.block.filesystem`",
 							"longdesc": "Valid options are: `btrfs`, `ext4`, `xfs`\nIf not set, `ext4` is assumed.",
+							"scope": "global",
 							"shortdesc": "File system of the storage volume",
 							"type": "string"
 						}
@@ -6084,6 +6251,7 @@
 							"condition": "block-based volume with content type `filesystem`",
 							"defaultdesc": "same as `volume.block.mount_options`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Mount options for block-backed file system volumes",
 							"type": "string"
 						}
@@ -6092,6 +6260,7 @@
 						"lvm.stripes": {
 							"defaultdesc": "same as `volume.lvm.stripes`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Number of stripes to use for new volumes (or thin pool volume)",
 							"type": "string"
 						}
@@ -6100,6 +6269,7 @@
 						"lvm.stripes.size": {
 							"defaultdesc": "same as `volume.lvm.stripes.size`",
 							"longdesc": "The size must be at least 4096 bytes, and a multiple of 512 bytes.",
+							"scope": "global",
 							"shortdesc": "Size of stripes to use",
 							"type": "string"
 						}
@@ -6109,6 +6279,7 @@
 							"condition": "custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
+							"scope": "global",
 							"shortdesc": "Enable volume sharing",
 							"type": "bool"
 						}
@@ -6118,6 +6289,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.security.shifted` or `false`",
 							"longdesc": "Enabling this option allows attaching the volume to multiple isolated instances.",
+							"scope": "global",
 							"shortdesc": "Enable ID shifting overlay",
 							"type": "bool"
 						}
@@ -6127,6 +6299,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.security.unmappped` or `false`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Disable ID mapping for the volume",
 							"type": "bool"
 						}
@@ -6136,6 +6309,7 @@
 							"condition": "appropriate driver",
 							"defaultdesc": "same as `volume.size`",
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Size/quota of the storage volume",
 							"type": "string"
 						}
@@ -6145,6 +6319,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
+							"scope": "global",
 							"shortdesc": "When snapshots are to be deleted",
 							"type": "string"
 						}
@@ -6154,6 +6329,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
 							"longdesc": "You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nFor the first snapshot, the placeholder is replaced with `0`.\nFor subsequent snapshots, the existing snapshot names are taken into account to find the highest number at the placeholder's position.\nThis number is then incremented by one for the new name.",
+							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
 						}
@@ -6163,6 +6339,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `snapshots.schedule`",
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
+							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
 							"type": "string"
 						}
@@ -6171,6 +6348,7 @@
 						"volatile.uuid": {
 							"defaultdesc": "random UUID",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "The volume's UUID",
 							"type": "string"
 						}
@@ -6185,6 +6363,7 @@
 						"powerflex.clone_copy": {
 							"defaultdesc": "`true`",
 							"longdesc": "If this option is set to `true`, PowerFlex makes a non-sparse copy when creating a snapshot of an instance or custom volume.\nSee {ref}`storage-powerflex-limitations` for more information.",
+							"scope": "global",
 							"shortdesc": "Whether to use non-sparse copies for snapshots",
 							"type": "bool"
 						}
@@ -6192,6 +6371,7 @@
 					{
 						"powerflex.domain": {
 							"longdesc": "This option is required only if {config:option}`storage-powerflex-pool-conf:powerflex.pool` is specified using its name.",
+							"scope": "global",
 							"shortdesc": "Name of the PowerFlex protection domain",
 							"type": "string"
 						}
@@ -6199,6 +6379,7 @@
 					{
 						"powerflex.gateway": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Address of the PowerFlex Gateway",
 							"type": "string"
 						}
@@ -6207,6 +6388,7 @@
 						"powerflex.gateway.verify": {
 							"defaultdesc": "`true`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether to verify the PowerFlex Gateway's certificate",
 							"type": "bool"
 						}
@@ -6215,6 +6397,7 @@
 						"powerflex.mode": {
 							"defaultdesc": "the discovered mode",
 							"longdesc": "The mode gets discovered automatically if the system provides the necessary kernel modules.\nThis can be either `nvme` or `sdc`.",
+							"scope": "global",
 							"shortdesc": "How volumes are mapped to the local server",
 							"type": "string"
 						}
@@ -6222,6 +6405,7 @@
 					{
 						"powerflex.pool": {
 							"longdesc": "If you want to specify the storage pool via its name, also set {config:option}`storage-powerflex-pool-conf:powerflex.domain`.",
+							"scope": "global",
 							"shortdesc": "ID of the PowerFlex storage pool",
 							"type": "string"
 						}
@@ -6230,6 +6414,7 @@
 						"powerflex.sdt": {
 							"defaultdesc": "one of the SDT",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "PowerFlex NVMe/TCP SDT",
 							"type": "string"
 						}
@@ -6238,6 +6423,7 @@
 						"powerflex.user.name": {
 							"defaultdesc": "`admin`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "User for PowerFlex Gateway authentication",
 							"type": "string"
 						}
@@ -6245,6 +6431,7 @@
 					{
 						"powerflex.user.password": {
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Password for PowerFlex Gateway authentication",
 							"type": "string"
 						}
@@ -6253,6 +6440,7 @@
 						"rsync.bwlimit": {
 							"defaultdesc": "`0` (no limit)",
 							"longdesc": "When `rsync` must be used to transfer storage entities, this option specifies the upper limit\nto be placed on the socket I/O.",
+							"scope": "global",
 							"shortdesc": "Upper limit on the socket I/O for `rsync`",
 							"type": "string"
 						}
@@ -6261,6 +6449,7 @@
 						"rsync.compression": {
 							"defaultdesc": "`true`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether to use compression while migrating storage pools",
 							"type": "bool"
 						}
@@ -6269,6 +6458,7 @@
 						"volume.size": {
 							"defaultdesc": "`8GiB`",
 							"longdesc": "The size must be in multiples of 8 GiB.\nSee {ref}`storage-powerflex-limitations` for more information.",
+							"scope": "global",
 							"shortdesc": "Size/quota of the storage volume",
 							"type": "string"
 						}
@@ -6282,6 +6472,7 @@
 							"condition": "block-based volume with content type `filesystem`",
 							"defaultdesc": "same as `volume.block.filesystem`",
 							"longdesc": "Valid options are: `btrfs`, `ext4`, `xfs`\nIf not set, `ext4` is assumed.",
+							"scope": "global",
 							"shortdesc": "File system of the storage volume",
 							"type": "string"
 						}
@@ -6291,6 +6482,7 @@
 							"condition": "block-based volume with content type `filesystem`",
 							"defaultdesc": "same as `volume.block.mount_options`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Mount options for block-backed file system volumes",
 							"type": "string"
 						}
@@ -6299,6 +6491,7 @@
 						"block.type": {
 							"defaultdesc": "same as `volume.block.type` or `thick`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Whether to create a `thin` or `thick` provisioned volume",
 							"type": "string"
 						}
@@ -6308,6 +6501,7 @@
 							"condition": "custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
+							"scope": "global",
 							"shortdesc": "Enable volume sharing",
 							"type": "bool"
 						}
@@ -6317,6 +6511,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.security.shifted` or `false`",
 							"longdesc": "Enabling this option allows attaching the volume to multiple isolated instances.",
+							"scope": "global",
 							"shortdesc": "Enable ID shifting overlay",
 							"type": "bool"
 						}
@@ -6326,6 +6521,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.security.unmappped` or `false`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Disable ID mapping for the volume",
 							"type": "bool"
 						}
@@ -6334,6 +6530,7 @@
 						"size": {
 							"defaultdesc": "same as `volume.size`",
 							"longdesc": "The size must be in multiples of 8 GiB.\nSee {ref}`storage-powerflex-limitations` for more information.",
+							"scope": "global",
 							"shortdesc": "Size/quota of the storage volume",
 							"type": "string"
 						}
@@ -6343,6 +6540,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
+							"scope": "global",
 							"shortdesc": "When snapshots are to be deleted",
 							"type": "string"
 						}
@@ -6352,6 +6550,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
 							"longdesc": "You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nFor the first snapshot, the placeholder is replaced with `0`.\nFor subsequent snapshots, the existing snapshot names are taken into account to find the highest number at the placeholder's position.\nThis number is then incremented by one for the new name.",
+							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
 						}
@@ -6361,6 +6560,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `snapshots.schedule`",
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
+							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
 							"type": "string"
 						}
@@ -6369,6 +6569,7 @@
 						"volatile.uuid": {
 							"defaultdesc": "random UUID",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "The volume's UUID",
 							"type": "string"
 						}
@@ -6384,6 +6585,7 @@
 							"condition": "appropriate driver",
 							"defaultdesc": "same as `volume.size`",
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Size/quota of the storage bucket",
 							"type": "string"
 						}
@@ -6396,6 +6598,7 @@
 						"size": {
 							"defaultdesc": "auto (20% of free disk space, \u003e= 5 GiB and \u003c= 30 GiB)",
 							"longdesc": "When creating loop-based pools, specify the size in bytes ({ref}`suffixes \u003cinstances-limit-units\u003e` are supported).\nYou can increase the size to grow the storage pool.\n\nThe default (`auto`) creates a storage pool that uses 20% of the free disk space,\nwith a minimum of 5 GiB and a maximum of 30 GiB.",
+							"scope": "local",
 							"shortdesc": "Size of the storage pool (for loop-based pools)",
 							"type": "string"
 						}
@@ -6403,6 +6606,7 @@
 					{
 						"source": {
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Path to an existing block device, loop file, or ZFS dataset/pool",
 							"type": "string"
 						}
@@ -6411,6 +6615,7 @@
 						"source.wipe": {
 							"defaultdesc": "`false`",
 							"longdesc": "Set this option to `true` to wipe the block device specified in `source`\nprior to creating the storage pool.",
+							"scope": "local",
 							"shortdesc": "Whether to wipe the block device before creating the pool",
 							"type": "bool"
 						}
@@ -6419,6 +6624,7 @@
 						"zfs.clone_copy": {
 							"defaultdesc": "`true`",
 							"longdesc": "Set this option to `true` or `false` to enable or disable using ZFS lightweight clones rather\nthan full dataset copies.\nSet the option to `rebase` to copy based on the initial image.",
+							"scope": "global",
 							"shortdesc": "Whether to use ZFS lightweight clones",
 							"type": "string"
 						}
@@ -6427,6 +6633,7 @@
 						"zfs.export": {
 							"defaultdesc": "`true`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Disable zpool export while an unmount is being performed",
 							"type": "bool"
 						}
@@ -6435,6 +6642,7 @@
 						"zfs.pool_name": {
 							"defaultdesc": "name of the pool",
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Name of the zpool",
 							"type": "string"
 						}
@@ -6448,6 +6656,7 @@
 							"condition": "block-based volume with content type `filesystem` (`zfs.block_mode` enabled)",
 							"defaultdesc": "same as `volume.block.filesystem`",
 							"longdesc": "Valid options are: `btrfs`, `ext4`, `xfs`\nIf not set, `ext4` is assumed.",
+							"scope": "global",
 							"shortdesc": "File system of the storage volume",
 							"type": "string"
 						}
@@ -6457,6 +6666,7 @@
 							"condition": "block-based volume with content type `filesystem` (`zfs.block_mode` enabled)",
 							"defaultdesc": "same as `volume.block.mount_options`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Mount options for block-backed file system volumes",
 							"type": "string"
 						}
@@ -6466,6 +6676,7 @@
 							"condition": "custom block volume",
 							"defaultdesc": "same as `volume.security.shared` or `false`",
 							"longdesc": "Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.\n",
+							"scope": "global",
 							"shortdesc": "Enable volume sharing",
 							"type": "bool"
 						}
@@ -6475,6 +6686,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.security.shifted` or `false`",
 							"longdesc": "Enabling this option allows attaching the volume to multiple isolated instances.",
+							"scope": "global",
 							"shortdesc": "Enable ID shifting overlay",
 							"type": "bool"
 						}
@@ -6484,6 +6696,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.security.unmappped` or `false`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Disable ID mapping for the volume",
 							"type": "bool"
 						}
@@ -6493,6 +6706,7 @@
 							"condition": "appropriate driver",
 							"defaultdesc": "same as `volume.size`",
 							"longdesc": "",
+							"scope": "local",
 							"shortdesc": "Size/quota of the storage volume",
 							"type": "string"
 						}
@@ -6502,6 +6716,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
+							"scope": "global",
 							"shortdesc": "When snapshots are to be deleted",
 							"type": "string"
 						}
@@ -6511,6 +6726,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
 							"longdesc": "You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nFor the first snapshot, the placeholder is replaced with `0`.\nFor subsequent snapshots, the existing snapshot names are taken into account to find the highest number at the placeholder's position.\nThis number is then incremented by one for the new name.",
+							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
 						}
@@ -6520,6 +6736,7 @@
 							"condition": "custom volume",
 							"defaultdesc": "same as `snapshots.schedule`",
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
+							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
 							"type": "string"
 						}
@@ -6528,6 +6745,7 @@
 						"volatile.uuid": {
 							"defaultdesc": "random UUID",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "The volume's UUID",
 							"type": "string"
 						}
@@ -6536,6 +6754,7 @@
 						"zfs.block_mode": {
 							"defaultdesc": "same as `volume.zfs.block_mode`",
 							"longdesc": "`zfs.block_mode` can be set only for custom storage volumes.\nTo enable ZFS block mode for all storage volumes in the pool, including instance volumes,\nuse `volume.zfs.block_mode`.",
+							"scope": "global",
 							"shortdesc": "Whether to use a formatted `zvol` rather than a dataset",
 							"type": "bool"
 						}
@@ -6544,6 +6763,7 @@
 						"zfs.blocksize": {
 							"defaultdesc": "same as `volume.zfs.blocksize`",
 							"longdesc": "The size must be between 512 bytes and 16 MiB and must be a power of 2.\nFor a block volume, a maximum value of 128 KiB will be used even if a higher value is set.\n\nDepending on the value of {config:option}`storage-zfs-volume-conf:zfs.block_mode`,\nthe specified size is used to set either `volblocksize` or `recordsize` in ZFS.",
+							"scope": "global",
 							"shortdesc": "Size of the ZFS block",
 							"type": "string"
 						}
@@ -6553,6 +6773,7 @@
 							"condition": "ZFS 2.2 or higher",
 							"defaultdesc": "same as `volume.zfs.delegate`",
 							"longdesc": "This option controls whether to delegate the ZFS dataset and anything underneath it to the\ncontainer or containers that use it. When used in conjunction with\n{config:option}`instance-security:security.nesting`, this allows\nusing the `zfs` command in the container.",
+							"scope": "global",
 							"shortdesc": "Whether to delegate the ZFS dataset",
 							"type": "bool"
 						}
@@ -6561,6 +6782,7 @@
 						"zfs.remove_snapshots": {
 							"defaultdesc": "same as `volume.zfs.remove_snapshots` or `false`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Remove snapshots as needed",
 							"type": "bool"
 						}
@@ -6569,6 +6791,7 @@
 						"zfs.reserve_space": {
 							"defaultdesc": "same as `volume.zfs.reserve_space` or `false`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Use `reservation`/`refreservation` along with `quota`/`refquota`",
 							"type": "bool"
 						}
@@ -6577,6 +6800,7 @@
 						"zfs.use_refquota": {
 							"defaultdesc": "same as `volume.zfs.use_refquota` or `false`",
 							"longdesc": "",
+							"scope": "global",
 							"shortdesc": "Use `refquota` instead of `quota` for space",
 							"type": "bool"
 						}
