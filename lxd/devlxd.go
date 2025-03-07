@@ -71,29 +71,41 @@ func devlxdConfigGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrite
 
 	filtered := []string{}
 	hasSSHKeys := false
-	hasCustomConfig := false
+	hasVendorData := false
+	hasUserData := false
 	for k := range c.ExpandedConfig() {
-		// cloud-init.ssh-keys keys are not to be retrieved by cloud-init directly, but instead LXD converts them
-		// into cloud-init config and merges it into cloud-init.[vendor|user]-data.
-		// This way we can make use of the full array of options proivded by cloud-config for injecting keys
-		// and not compromise any cloud-init config defined on the instance's expanded config.
-		if strings.HasPrefix(k, "cloud-init.ssh-keys.") {
-			hasSSHKeys = true
-		} else if strings.HasPrefix(k, "user.") || strings.HasPrefix(k, "cloud-init.") {
-			if strings.HasSuffix(k, ".vendor-data") || strings.HasSuffix(k, ".user-data") {
-				hasCustomConfig = true
-			}
-
-			filtered = append(filtered, "/1.0/config/"+k)
+		if !(strings.HasPrefix(k, "user.") || strings.HasPrefix(k, "cloud-init.")) {
+			continue
 		}
+
+		if strings.HasPrefix(k, "cloud-init.ssh-keys.") {
+			// cloud-init.ssh-keys keys are not to be retrieved by cloud-init directly, but instead LXD converts them
+			// into cloud-init config and merges it into cloud-init.[vendor|user]-data.
+			// This way we can make use of the full array of options proivded by cloud-config for injecting keys
+			// and not compromise any cloud-init config defined on the instance's expanded config.
+			hasSSHKeys = true
+			continue
+		}
+
+		if shared.ValueInSlice(k, cloudinit.VendorDataKeys) {
+			hasVendorData = true
+		} else if shared.ValueInSlice(k, cloudinit.UserDataKeys) {
+			hasUserData = true
+		}
+
+		filtered = append(filtered, "/1.0/config/"+k)
 	}
 
-	// If the instance has SSH keys to be injected into it and do not have any custom seed data for cloud-init defined,
-	// include cloud-init.vendor-data in the response, since the SSH keys will be included in it.
-	// We are including vendor-data because it makes more sense conceptually, as the vendor (LXD) is generating the
-	// configuration for `cloud-init` to fetch.
-	if hasSSHKeys && !hasCustomConfig {
+	// If [vendor|user]-data are not defined, cloud-init should still request for them if there are SSH keys defined via
+	// "cloud-init.ssh.keys". Use both user.* and cloud-init.* for compatibitily with older cloud-init.
+	if hasSSHKeys && !hasVendorData {
 		filtered = append(filtered, "/1.0/config/cloud-init.vendor-data")
+		filtered = append(filtered, "/1.0/config/user.vendor-data")
+	}
+
+	if hasSSHKeys && !hasUserData {
+		filtered = append(filtered, "/1.0/config/cloud-init.user-data")
+		filtered = append(filtered, "/1.0/config/user.user-data")
 	}
 
 	return response.DevLxdResponse(http.StatusOK, filtered, "json", c.Type() == instancetype.VM)
