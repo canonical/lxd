@@ -211,7 +211,7 @@ func getVersion(sysOS *sys.OS) (*version.DottedVersion, error) {
 		return version.NewDottedVersion("0.0")
 	}
 
-	out, err := shared.RunCommand("apparmor_parser", "--version")
+	out, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", "--version")
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +243,7 @@ func getCacheDir(sysOS *sys.OS) (string, error) {
 		return basePath, nil
 	}
 
-	output, err := shared.RunCommand("apparmor_parser", "-L", basePath, "--print-cache-dir")
+	output, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", "-L", basePath, "--print-cache-dir")
 	if err != nil {
 		return "", err
 	}
