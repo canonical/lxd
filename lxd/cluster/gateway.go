@@ -529,6 +529,10 @@ func (g *Gateway) Shutdown() error {
 	}
 
 	err = g.server.Close()
+	if err != nil {
+		logger.Error("Failed stopping dqlite", logger.Ctx{"err": err})
+	}
+
 	close(g.stopCh)
 
 	// Unset the memory dial, since Shutdown() is also called for
