@@ -3730,7 +3730,7 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]string, mountInfo *storageP
 	// Generate a new device config with the root device path expanded.
 	driveConf := deviceConfig.MountEntryItem{
 		DevName:    rootDriveConf.DevName,
-		DevPath:    mountInfo.DiskPath,
+		DevSource:  device.DevSourcePath{Path: mountInfo.DiskPath},
 		Opts:       rootDriveConf.Opts,
 		TargetPath: rootDriveConf.TargetPath,
 		Limits:     rootDriveConf.Limits,
@@ -3752,9 +3752,15 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]string, mountInfo *storageP
 				clusterName = storageDrivers.CephDefaultUser
 			}
 
-			rbdImageName := storageDrivers.CephGetRBDImageName(vol, "", false)
+			rbdImageName, snapName := storageDrivers.CephGetRBDImageName(vol, false)
 
-			driveConf.DevPath = device.DiskGetRBDFormat(clusterName, userName, config["ceph.osd.pool_name"], rbdImageName)
+			driveConf.DevSource = device.DevSourceRBD{
+				ClusterName: clusterName,
+				UserName:    userName,
+				PoolName:    config["ceph.osd.pool_name"],
+				ImageName:   rbdImageName,
+				Snapshot:    snapName,
+			}
 		}
 	}
 
@@ -3829,12 +3835,12 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 	// Add 9p share config.
 	devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
-	fd, err := strconv.Atoi(driveConf.DevPath)
-	if err != nil {
-		return fmt.Errorf("Invalid file descriptor %q for drive %q: %w", driveConf.DevPath, driveConf.DevName, err)
+	fdSource, ok := driveConf.DevSource.(device.DevSourceFD)
+	if !ok {
+		return fmt.Errorf("Drive config for %q was not a file descriptor", driveConf.DevName)
 	}
 
-	proxyFD := d.addFileDescriptor(fdFiles, os.NewFile(uintptr(fd), driveConf.DevName))
+	proxyFD := d.addFileDescriptor(fdFiles, os.NewFile(fdSource.FD, driveConf.DevName))
 
 	driveDir9pOpts := qemuDriveDirOpts{
 		dev: qemuDevOpts{
@@ -3859,7 +3865,9 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 	aioMode := "native" // Use native kernel async IO and O_DIRECT by default.
 	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics by default.
 	media := "disk"
-	isRBDImage := strings.HasPrefix(driveConf.DevPath, device.RBDFormatPrefix)
+	rbdSource, isRBDImage := driveConf.DevSource.(device.DevSourceRBD)
+	fdSource, isFd := driveConf.DevSource.(device.DevSourceFD)
+	pathSource, _ := driveConf.DevSource.(device.DevSourcePath)
 
 	// Check supported features.
 	// Use io_uring over native for added performance (if supported by QEMU and kernel is recent enough).
@@ -3878,32 +3886,17 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		// For RBD, we want writeback to allow for the system-configured "rbd cache" to take effect if present.
 		cacheMode = "writeback"
 	} else {
-		srcDevPath := driveConf.DevPath // This should not be used for passing to QEMU, only for probing.
+		// This should not be used for passing to QEMU, only for probing.
+		srcDevPath := pathSource.Path
 
-		// Detect if existing file descriptor format is being supplied.
-		if strings.HasPrefix(driveConf.DevPath, device.DiskFileDescriptorMountPrefix+":") {
-			// Expect devPath in format "fd:<fdNum>:<devPath>".
-			devPathParts := strings.SplitN(driveConf.DevPath, ":", 3)
-			if len(devPathParts) != 3 || !strings.HasPrefix(driveConf.DevPath, device.DiskFileDescriptorMountPrefix+":") {
-				return nil, fmt.Errorf("Unexpected devPath file descriptor format %q", driveConf.DevPath)
-			}
-
-			// Map the file descriptor to the file descriptor path it will be in the QEMU process.
-			fd, err := strconv.Atoi(devPathParts[1])
-			if err != nil {
-				return nil, fmt.Errorf("Invalid file descriptor %q: %w", devPathParts[1], err)
-			}
-
+		if isFd {
 			// Extract original dev path for additional probing below.
-			srcDevPath = devPathParts[2]
-			if srcDevPath == "" {
-				return nil, fmt.Errorf("Device source path is empty")
-			}
+			srcDevPath = fdSource.Path
 
-			driveConf.DevPath = fmt.Sprintf("/proc/self/fd/%d", fd)
+			pathSource.Path = fmt.Sprintf("/proc/self/fd/%d", fdSource.FD)
 		} else if driveConf.TargetPath != "/" {
 			// Only the root disk device is allowed to pass local devices to us without using an FD.
-			return nil, fmt.Errorf("Invalid device path format %q", driveConf.DevPath)
+			return nil, fmt.Errorf("Disk device %q was not a file descriptor", driveConf.DevName)
 		}
 
 		srcDevPathInfo, err := os.Stat(srcDevPath)
@@ -4007,46 +4000,32 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 	} else if isRBDImage {
 		blockDev["driver"] = "rbd"
 
-		_, rbdImageName, opts, err := device.DiskParseRBDFormat(driveConf.DevPath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed parsing rbd string: %w", err)
+		if rbdSource.UserName == "" {
+			rbdSource.UserName = storageDrivers.CephDefaultUser
 		}
 
-		// Parse the options (ceph credentials).
-		userName := storageDrivers.CephDefaultUser
-		clusterName := storageDrivers.CephDefaultCluster
-		poolName := ""
-
-		for _, option := range opts {
-			fields := strings.Split(option, "=")
-			if len(fields) != 2 {
-				return nil, fmt.Errorf("Unexpected volume rbd option %q", option)
-			}
-
-			if fields[0] == "id" {
-				userName = fields[1]
-			} else if fields[0] == "pool" {
-				poolName = fields[1]
-			} else if fields[0] == "conf" {
-				baseName := filepath.Base(fields[1])
-				clusterName = strings.TrimSuffix(baseName, ".conf")
-			}
+		if rbdSource.ClusterName == "" {
+			rbdSource.ClusterName = storageDrivers.CephDefaultCluster
 		}
 
-		if poolName == "" {
+		if rbdSource.PoolName == "" {
 			return nil, fmt.Errorf("Missing pool name")
 		}
 
 		// The aio option isn't available when using the rbd driver.
 		delete(blockDev, "aio")
-		blockDev["pool"] = poolName
-		blockDev["image"] = rbdImageName
-		blockDev["user"] = userName
+		blockDev["pool"] = rbdSource.PoolName
+		blockDev["image"] = rbdSource.ImageName
+		blockDev["user"] = rbdSource.UserName
 		blockDev["server"] = []map[string]string{}
-		blockDev["conf"] = "/etc/ceph/" + clusterName + ".conf"
+		blockDev["conf"] = "/etc/ceph/" + rbdSource.ClusterName + ".conf"
+
+		if rbdSource.Snapshot != "" {
+			blockDev["snapshot"] = rbdSource.Snapshot
+		}
 
 		// Setup the Ceph cluster config (monitors and keyring).
-		monitors, err := storageDrivers.CephMonitors(clusterName)
+		monitors, err := storageDrivers.CephMonitors(rbdSource.ClusterName)
 		if err != nil {
 			return nil, err
 		}
@@ -4062,7 +4041,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 			})
 		}
 
-		rbdSecret, err = storageDrivers.CephKeyring(clusterName, userName)
+		rbdSecret, err = storageDrivers.CephKeyring(rbdSource.ClusterName, rbdSource.UserName)
 		if err != nil {
 			return nil, err
 		}
@@ -4154,7 +4133,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 				permissions = unix.O_RDONLY
 			}
 
-			f, err := os.OpenFile(driveConf.DevPath, permissions, 0)
+			f, err := os.OpenFile(pathSource.Path, permissions, 0)
 			if err != nil {
 				return fmt.Errorf("Failed opening file descriptor for disk device %q: %w", driveConf.DevName, err)
 			}

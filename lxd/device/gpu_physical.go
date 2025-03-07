@@ -281,7 +281,7 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 
 		runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
 			DevName:    deviceName,
-			DevPath:    devPath,
+			DevSource:  DevSourcePath{Path: devPath},
 			TargetPath: relativeDestPath,
 			FSType:     "none",
 			Opts:       options,
