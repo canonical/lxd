@@ -19,10 +19,16 @@ type RunConfigItem struct {
 	Value string
 }
 
+// DevSource is either:
+// - A path on the LXD host.
+// - A file descriptor held by the LXD process.
+// - A Ceph RBD Image description.
+type DevSource any
+
 // MountEntryItem represents a single mount entry item.
 type MountEntryItem struct {
 	DevName    string      // The internal name for the device.
-	DevPath    string      // Describes the block special device or remote filesystem to be mounted.
+	DevSource  DevSource   // Describes the block special device or remote filesystem to be mounted.
 	TargetPath string      // Describes the mount point (target) for the filesystem.
 	FSType     string      // Describes the type of the filesystem.
 	Opts       []string    // Describes the mount options associated with the filesystem.

@@ -11,11 +11,23 @@ import (
 )
 
 // CephGetRBDImageName returns the RBD image name as it is used in ceph.
+//
+// Separate the snapshot component because of the two ways LXD uses Ceph:
+//   - The `rbd` cli utility
+//   - Via Qemu QMP
+//
+// The rbd utility requires the snapshot's name to be appended to the volume
+// name with an '@'. QMP expects a snapshot name to be passed as a separate
+// parameter.
+//
 // Example:
 // A custom block volume named vol1 in project default will return custom_default_vol1.block.
-func CephGetRBDImageName(vol Volume, snapName string, zombie bool) string {
-	var out string
-	parentName, snapshotName, isSnapshot := api.GetParentAndSnapshotName(vol.name)
+func CephGetRBDImageName(vol Volume, zombie bool) (imageName string, snapName string) {
+	parentName, snapName, isSnapshot := api.GetParentAndSnapshotName(vol.name)
+
+	if isSnapshot {
+		snapName = "snapshot_" + snapName
+	}
 
 	// Only use filesystem suffix on filesystem type image volumes (for all content types).
 	if vol.volType == VolumeTypeImage || vol.volType == cephVolumeTypeZombieImage {
@@ -35,27 +47,15 @@ func CephGetRBDImageName(vol Volume, snapName string, zombie bool) string {
 		volumeTypePrefix = volumeTypePrefixOverride
 	}
 
-	if snapName != "" {
-		// Always use the provided snapshot name if specified.
-		out = volumeTypePrefix + "_" + parentName + "@" + snapName
-	} else {
-		if isSnapshot {
-			// If volumeName is a snapshot (<vol>/<snap>) and snapName is not set,
-			// assume that it's a normal snapshot (not a zombie) and prefix it with
-			// "snapshot_".
-			out = volumeTypePrefix + "_" + parentName + "@snapshot_" + snapshotName
-		} else {
-			out = volumeTypePrefix + "_" + parentName
-		}
-	}
+	imageName = volumeTypePrefix + "_" + parentName
 
 	// If the volume is to be in zombie state (i.e. not tracked by the LXD database),
 	// prefix the output with "zombie_".
 	if zombie {
-		out = "zombie_" + out
+		imageName = "zombie_" + imageName
 	}
 
-	return out
+	return imageName, snapName
 }
 
 // CephMonitors gets the mon-host field for the relevant cluster and extracts the list of addresses and ports.

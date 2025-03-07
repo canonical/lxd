@@ -979,7 +979,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		// Instruct LXD to perform the mount.
 		runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
 			DevName:    d.name,
-			DevPath:    sourceDevPath,
+			DevSource:  DevSourcePath{Path: sourceDevPath},
 			TargetPath: relativeDestPath,
 			FSType:     "none",
 			Opts:       options,
@@ -1112,10 +1112,10 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		// Encode the file descriptor and original isoPath into the DevPath field.
 		runConf.Mounts = []deviceConfig.MountEntryItem{
 			{
-				DevPath: fmt.Sprintf("%s:%d:%s", DiskFileDescriptorMountPrefix, f.Fd(), isoPath),
-				DevName: d.name,
-				FSType:  "iso9660",
-				Opts:    opts,
+				DevSource: DevSourceFD{FD: f.Fd(), Path: isoPath},
+				DevName:   d.name,
+				FSType:    "iso9660",
+				Opts:      opts,
 			},
 		}
 
@@ -1129,21 +1129,24 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			clusterName, userName := d.cephCreds()
 			runConf.Mounts = []deviceConfig.MountEntryItem{
 				{
-					DevPath: DiskGetRBDFormat(clusterName, userName, fields[0], fields[1]),
+					DevSource: DevSourceRBD{
+						ClusterName: clusterName,
+						UserName:    userName,
+						PoolName:    fields[0],
+						ImageName:   fields[1],
+					},
 					DevName: d.name,
 					Opts:    opts,
 					Limits:  diskLimits,
 				},
 			}
 		} else {
-			var err error
-
 			// Default to block device or image file passthrough first.
 			mount := deviceConfig.MountEntryItem{
-				DevPath: shared.HostPath(d.config["source"]),
-				DevName: d.name,
-				Opts:    opts,
-				Limits:  diskLimits,
+				DevSource: DevSourcePath{Path: shared.HostPath(d.config["source"])},
+				DevName:   d.name,
+				Opts:      opts,
+				Limits:    diskLimits,
 			}
 
 			// Mount the pool volume and update srcPath to mount path so it can be recognised as dir
@@ -1204,10 +1207,16 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					projectStorageVolumeName := project.StorageVolume(d.inst.Project().Name, volumeName)
 
 					vol := d.pool.GetVolume(volumeType, contentType, projectStorageVolumeName, dbVolume.Config)
-					rbdImageName := storageDrivers.CephGetRBDImageName(vol, "", false)
+					rbdImageName, snapName := storageDrivers.CephGetRBDImageName(vol, false)
 
 					mount := deviceConfig.MountEntryItem{
-						DevPath: DiskGetRBDFormat(clusterName, userName, poolName, rbdImageName),
+						DevSource: DevSourceRBD{
+							ClusterName: clusterName,
+							UserName:    userName,
+							PoolName:    poolName,
+							ImageName:   rbdImageName,
+							Snapshot:    snapName,
+						},
 						DevName: d.name,
 						Opts:    opts,
 						Limits:  diskLimits,
@@ -1222,10 +1231,12 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return &runConf, nil
 				}
 
-				revertFunc, mount.DevPath, _, err = d.mountPoolVolume()
+				revertFunc, mountedPath, _, err := d.mountPoolVolume()
 				if err != nil {
 					return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 				}
+
+				mount.DevSource = DevSourcePath{Path: mountedPath}
 
 				revert.Add(revertFunc)
 
@@ -1235,7 +1246,8 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			// If the source being added is a directory or cephfs share, then we will use the lxd-agent
 			// directory sharing feature to mount the directory inside the VM, and as such we need to
 			// indicate to the VM the target path to mount to.
-			if shared.IsDir(mount.DevPath) || d.sourceIsCephFs() {
+			pathSource, isPath := mount.DevSource.(DevSourcePath)
+			if (isPath && shared.IsDir(pathSource.Path)) || d.sourceIsCephFs() {
 				if d.config["path"] == "" {
 					return nil, fmt.Errorf(`Missing mount "path" setting`)
 				}
@@ -1245,10 +1257,12 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// takes effect event if using virtio-fs (which doesn't support read only mode) by
 				// having the underlying mount setup as readonly.
 				var revertFunc func()
-				revertFunc, mount.DevPath, _, err = d.createDevice(mount.DevPath)
+				revertFunc, mountedPath, _, err := d.createDevice(pathSource.Path)
 				if err != nil {
 					return nil, err
 				}
+
+				mount.DevSource = DevSourcePath{Path: mountedPath}
 
 				revert.Add(revertFunc)
 
@@ -1276,7 +1290,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					logPath := filepath.Join(d.inst.LogPath(), "disk."+filesystem.PathNameEncode(d.name)+".log")
 					_ = os.Remove(logPath) // Remove old log if needed.
 
-					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.state.OS.KernelVersion, d.inst, sockPath, pidPath, logPath, mount.DevPath, rawIDMaps)
+					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.state.OS.KernelVersion, d.inst, sockPath, pidPath, logPath, mountedPath, rawIDMaps)
 					if err != nil {
 						var errUnsupported UnsupportedError
 						if errors.As(err, &errUnsupported) {
@@ -1326,7 +1340,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					// Start virtfs-proxy-helper for 9p share (this will rewrite mount.DevPath with
 					// socket FD number so must come after starting virtiofsd).
 					err = func() error {
-						unixListener, cleanup, err := DiskVMVirtfsProxyStart(d.state.OS.ExecPath, d.vmVirtfsProxyHelperPaths(), mount.DevPath, rawIDMaps)
+						unixListener, cleanup, err := DiskVMVirtfsProxyStart(d.state.OS.ExecPath, d.vmVirtfsProxyHelperPaths(), mountedPath, rawIDMaps)
 						if err != nil {
 							return err
 						}
@@ -1339,7 +1353,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						runConf.PostHooks = append(runConf.PostHooks, unixListener.Close)
 
 						// Use 9p socket FD number as dev path so qemu can connect to the proxy.
-						mount.DevPath = fmt.Sprint(unixListener.Fd())
+						mount.DevSource = DevSourceFD{FD: unixListener.Fd()}
 
 						return nil
 					}()
@@ -1347,8 +1361,8 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						return nil, fmt.Errorf("Failed to setup virtfs-proxy-helper for device %q: %w", d.name, err)
 					}
 				}
-			} else {
-				f, err := d.localSourceOpen(mount.DevPath)
+			} else if isPath {
+				f, err := d.localSourceOpen(pathSource.Path)
 				if err != nil {
 					return nil, err
 				}
@@ -1357,14 +1371,15 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				runConf.PostHooks = append(runConf.PostHooks, f.Close)
 				runConf.Revert = func() { _ = f.Close() } // Close file on VM start failure.
 
-				// Detect ISO files to set correct FSType before DevPath is encoded below.
+				// Detect ISO files to set correct FSType.
 				// This is very important to support Windows ISO images (amongst other).
-				if strings.HasSuffix(mount.DevPath, ".iso") {
+				if strings.HasSuffix(pathSource.Path, ".iso") {
 					mount.FSType = "iso9660"
 				}
 
-				// Encode the file descriptor and original srcPath into the DevPath field.
-				mount.DevPath = fmt.Sprintf("%s:%d:%s", DiskFileDescriptorMountPrefix, f.Fd(), mount.DevPath)
+				mount.DevSource = DevSourceFD{FD: f.Fd(), Path: pathSource.Path}
+			} else {
+				return nil, fmt.Errorf("Unexpected DevSource for runConf.Mount; expected %T, got %T", DevSourcePath{}, mount.DevSource)
 			}
 
 			// Add successfully setup mount config to runConf.
