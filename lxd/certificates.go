@@ -567,13 +567,13 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// A password/token is required for non-admin users.
-		if req.Password == "" && req.TrustToken == "" {
+		if req.Password == "" && req.TrustToken == "" { //nolint:staticcheck
 			return response.Forbidden(nil)
 		}
 
 		var joinTokenEncoded string
-		if req.Password != "" {
-			joinTokenEncoded = req.Password
+		if req.Password != "" { //nolint:staticcheck
+			joinTokenEncoded = req.Password //nolint:staticcheck
 		} else if req.TrustToken != "" {
 			joinTokenEncoded = req.TrustToken
 		}
@@ -613,7 +613,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 				}
 			} else {
 				// Otherwise check if password matches trust password.
-				if util.PasswordCheck(secret, req.Password) != nil {
+				if util.PasswordCheck(secret, req.Password) != nil { //nolint:staticcheck
 					logger.Warn("Bad trust password", logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 					return response.Forbidden(nil)
 				}
