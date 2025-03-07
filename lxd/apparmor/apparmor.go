@@ -1,6 +1,7 @@
 package apparmor
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -27,7 +28,7 @@ func runApparmor(sysOS *sys.OS, command string, name string) error {
 		return nil
 	}
 
-	_, err := shared.RunCommand("apparmor_parser", []string{
+	_, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", []string{
 		command,
 		"--write-cache", "--cache-loc", filepath.Join(aaPath, "cache"),
 		filepath.Join(aaPath, "profiles", name),
