@@ -275,7 +275,8 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 	revert := revert.New()
 	defer revert.Fail()
 
-	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
+	// We keep the ContainerOnly for backward compatibility.
+	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck,unused
 
 	if inst == nil {
 		_, err := storagePools.LoadByName(s, storagePool)
@@ -616,9 +617,10 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 	run := func(op *operations.Operation) error {
 		// Actually create the instance.
 		_, err := instanceCreateAsCopy(s, instanceCreateAsCopyOpts{
-			sourceInstance:       source,
-			targetInstance:       args,
-			instanceOnly:         req.Source.InstanceOnly || req.Source.ContainerOnly,
+			sourceInstance: source,
+			targetInstance: args,
+			// We keep the ContainerOnly for backward compatibility.
+			instanceOnly:         req.Source.InstanceOnly || req.Source.ContainerOnly, //nolint:staticcheck,unused
 			refresh:              req.Source.Refresh,
 			applyTemplateTrigger: true,
 			allowInconsistent:    req.Source.AllowInconsistent,
@@ -1479,7 +1481,8 @@ func clusterCopyContainerInternal(s *state.State, r *http.Request, source instan
 
 		opAPI = op.Get()
 	} else {
-		instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
+		// We keep the ContainerOnly for backward compatibility.
+		instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck,unused
 		pullReq := api.InstancePost{
 			Migration:     true,
 			Live:          req.Source.Live,
