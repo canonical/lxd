@@ -1,5 +1,5 @@
 ---
-discourse: ubuntu:[Building&#32;custom&#32;LXD&#32;binaries&#32;for&#32;side&#32;loading&#32;into&#32;an&#32;existing&#32;snap&#32;installation](37327)
+discourse: "[Building&#32;custom&#32;LXD&#32;binaries&#32;for&#32;side&#32;loading&#32;into&#32;an&#32;existing&#32;snap&#32;installation](37327)"
 ---
 
 (installing)=
