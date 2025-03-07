@@ -1799,6 +1799,10 @@ func networkShutdown(s *state.State) {
 	// Get a list of projects.
 	var projectNames []string
 
+	if s.DB.Cluster == nil {
+		return
+	}
+
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		projectNames, err = dbCluster.GetProjectNames(ctx, tx.Tx())
 		return err
