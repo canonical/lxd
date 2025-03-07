@@ -132,6 +132,7 @@ type Daemon struct {
 	serverCertInt *shared.CertInfo // Do not use this directly, use servertCert func.
 
 	// Status control.
+	startStopLock  sync.Mutex         // Prevent concurrent starts and stops.
 	setupChan      chan struct{}      // Closed when basic Daemon setup is completed
 	waitReady      *cancel.Canceller  // Cancelled when LXD is fully ready
 	shutdownCtx    context.Context    // Cancelled when shutdown starts.
@@ -1065,6 +1066,9 @@ func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, i
 }
 
 func (d *Daemon) init() error {
+	d.startStopLock.Lock()
+	defer d.startStopLock.Unlock()
+
 	var err error
 
 	var dbWarnings []dbCluster.Warning
@@ -2034,6 +2038,9 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	// Cancelling the context will make everyone aware that we're shutting down.
 	d.shutdownCancel()
 
+	d.startStopLock.Lock()
+	defer d.startStopLock.Unlock()
+
 	if d.gateway != nil {
 		d.stopClusterTasks()
 
@@ -2169,7 +2176,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		trackError(d.db.Node.Close(), "Close local database")
 	}
 
-	if d.gateway != nil {
+	if d.gateway != nil && d.gateway.Cluster != nil {
 		trackError(d.gateway.Shutdown(), "Shutdown dqlite")
 	}
 
