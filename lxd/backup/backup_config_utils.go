@@ -143,27 +143,34 @@ func DowngradeConfigFile(backupConf *config.Config) {
 }
 
 // ParseConfigYamlFile decodes the YAML file at path specified into a Config.
-func ParseConfigYamlFile(path string) (*config.Config, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
+func ParseConfigYamlFile(dir string) (backupConf *config.Config, file string, err error) {
+	// First probe if a file using the new format exists.
+	// If not fallback to the old format.
+	path := filepath.Join(dir, BackupFileNameNew)
+	if !shared.PathExists(path) {
+		path = filepath.Join(dir, BackupFileName)
 	}
 
-	backupConf := config.Config{}
-	err = yaml.Unmarshal(data, &backupConf)
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, "", err
+	}
+
+	backupConf = &config.Config{}
+	err = yaml.Unmarshal(data, backupConf)
+	if err != nil {
+		return nil, "", err
 	}
 
 	// Rewrite from the old to the new format in case the metadata file hasn't been updated yet.
-	UpgradeConfigFile(&backupConf)
+	UpgradeConfigFile(backupConf)
 
 	// Default to container if type not specified in backup config.
 	if backupConf.Instance != nil && backupConf.Instance.Type == "" {
 		backupConf.Instance.Type = string(api.InstanceTypeContainer)
 	}
 
-	return &backupConf, nil
+	return backupConf, path, nil
 }
 
 // updateRootDevicePool updates the root disk device in the supplied list of devices to the pool
