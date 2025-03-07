@@ -183,6 +183,7 @@ OpenSSL
 OpenSUSE
 OpenVSwitch
 OptiPNG
+Ory
 OSD
 overcommitting
 OverlayFS
