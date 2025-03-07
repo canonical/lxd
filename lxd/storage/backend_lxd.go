@@ -7094,6 +7094,19 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 		}
 
 		return f.Close()
+	}
+
+	// Update pool information in the backup.yaml file.
+	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		// Write the new format.
+		err := write(backup.BackupFileNameNew)
+		if err != nil {
+			return err
+		}
+
+		// Write the old format to stay backwards compatible.
+		backup.DowngradeConfigFile(config)
+		return write(backup.BackupFileName)
 	}, op)
 
 	return err
