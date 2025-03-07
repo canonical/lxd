@@ -2621,3 +2621,7 @@ Note that the `openid` and `email` scopes are always required.
 ## `project_default_network_and_storage`
 
 Adds flags --network and --storage. The --network flag adds a network device connected to the specified network to the default profile. The --storage flag adds a root disk device using the specified storage pool to the default profile.
+
+## `client_cert_presence`
+
+Adds the field `client_certificate` to `GET /1.0` to indicate if the current request has a client certificate in it. This is for informational purposes only and does not affect the behavior of the API.
