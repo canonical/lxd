@@ -281,7 +281,7 @@ func (d *unixHotplug) loadUnixDevices() []udev.Device {
 	}
 
 	devices, _ := e.Devices()
-	var matchingDevices []udev.Device
+	var matchingDevices []udev.Device //nolint:prealloc
 	for i := range devices {
 		device := devices[i]
 
