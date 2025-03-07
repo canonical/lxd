@@ -203,6 +203,12 @@ type Image struct {
 	//
 	// API extension: image_profiles
 	Profiles []string `json:"profiles" yaml:"profiles"`
+
+	// Project name
+	// Example: project1
+	//
+	// API extension: images_all_projects
+	Project string `json:"project" yaml:"project"`
 }
 
 // Writable converts a full Image struct into a ImagePut struct (filters read-only fields).
