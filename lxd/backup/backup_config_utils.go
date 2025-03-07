@@ -18,6 +18,14 @@ import (
 	"github.com/canonical/lxd/shared/osarch"
 )
 
+const (
+	// BackupFileName represents the original (old) file name.
+	BackupFileName = "backup.yaml"
+
+	// BackupFileNameNew represents the new file name.
+	BackupFileNameNew = "backup2.yaml"
+)
+
 // ConfigToInstanceDBArgs converts the instance config in the backup config to DB InstanceArgs.
 func ConfigToInstanceDBArgs(state *state.State, c *config.Config, projectName string, applyProfiles bool) (*db.InstanceArgs, error) {
 	if c.Instance == nil {
