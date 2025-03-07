@@ -265,6 +265,7 @@ jobs:
         uses: ./.github/actions/setup-microceph
         with:
           microceph-channel: "squid/candidate"
+          osd-count: 3
 
       - name: Setup MicroOVN
         uses: ./.github/actions/setup-microovn
