@@ -6,6 +6,10 @@ inputs:
     description: MicroCeph snap channel to install
     default: "latest/edge"
     type: string
+  osd-count:
+    description: Number of OSDs to add to MicroCeph
+    default: 1
+    type: integer
 
 runs:
   using: composite
@@ -51,6 +55,7 @@ runs:
           }
           trap cleanup ERR HUP INT TERM
 
+          ephemeral_disk="${{ steps.free_ephemeral_disk.outputs.ephemeral_disk }}"
           sudo snap install microceph --channel "${{ inputs.microceph-channel }}"
           sudo microceph cluster bootstrap
           sudo microceph.ceph config set global mon_allow_pool_size_one true
