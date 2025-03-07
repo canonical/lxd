@@ -1211,7 +1211,8 @@ func (r *ProtocolLXD) MigrateInstance(name string, instance api.InstancePost) (O
 		return nil, err
 	}
 
-	if instance.InstanceOnly || instance.ContainerOnly {
+	// We keep the ContainerOnly for backward compatibility.
+	if instance.InstanceOnly || instance.ContainerOnly { //nolint:staticcheck,unused
 		err := r.CheckExtension("container_only_migration")
 		if err != nil {
 			return nil, err
