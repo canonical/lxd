@@ -14,8 +14,7 @@ Network forwards are available for the {ref}`network-ovn` and the {ref}`network-
 
 Network forwards allow an external IP address (or specific ports on it) to be forwarded to an internal IP address (or specific ports on it) in the network that the forward belongs to.
 
-This feature can be useful if you have limited external IP addresses and want to share a single external address between multiple instances.
-There are two different ways how you can use network forwards in this case:
+This feature can be useful if you have limited external IP addresses and want to share a single external address between multiple instances. In this case, you have two options:
 
 - Forward all traffic from the external address to the internal address of one instance.
   This method makes it easy to move the traffic destined for the external address to another instance by simply reconfiguring the network forward.
@@ -51,6 +50,30 @@ This list displays the listen address of the network forward and its default tar
 ```
 ````
 
+````{group-tab} API
+
+Query the `/1.0/networks/{networkName}` endpoint to list all forwards for a network.
+
+```
+lxc query --request GET /1.0/networks/{networkName}/forwards
+```
+
+Example:
+
+```
+lxc query --request GET /1.0/networks/lxdbr0/forwards
+```
+
+See [the API reference](swagger:/network-forwards/network_forwards_get) for more information.
+
+You can also use {ref}`recursion <rest-api-recursion>` to list the forwards with a higher level of detail:
+
+```
+lxc query --request GET /1.0/networks/{networkName}/forwards?recursion=1
+```
+
+````
+
 ````{group-tab} UI
 
 In {ref}`the web UI <access-ui>`, select {guilabel}`Networks` in the left sidebar, then select the desired network. On the resulting screen, view the {guilabel}`Forwards` tab:
@@ -80,6 +103,24 @@ Example:
 ```
 lxc network forward show lxdbr0 192.0.2.1
 ```
+````
+
+````{group-tab} API
+
+Query the following endpoint for details about a specific forward:
+
+```
+lxc query --request GET /1.0/networks/{networkName}/forwards/{listenAddress}
+```
+
+See [the API reference](swagger:/network-forwards/network_forward_get) for more information.
+
+Example:
+
+```
+lxc query --request GET /1.0/networks/ovn1/forwards/10.152.119.200
+```
+
 ````
 
 ````{group-tab} UI
@@ -147,16 +188,76 @@ lxc network forward create <ovn_network_name> <listen_address>|--allocate=ipv{4,
 - Optionally provide a default `target_address` (no port number). Any traffic that does not match a port specification is forwarded to this address. This must be an IP address within the OVN network's subnet; typically, the static IP address of an instance is used.
 - Optionally provide custom user.* keys to be stored in the network forward's configuration.
 
+#### Examples
+
 This example shows how to create a network forward on a network named `ovn1` with an allocated listen address and no default target address:
 
 ```
 lxc network forward create ovn1 --allocate=ipv4
 ```
 
-This example shows how to create a network forward on a network named `ovn1` with a specific listen address and a target address:
+This example shows how to create a network forward on a network named `ovn1` with a specific listen address and a default target address:
 
 ```
 lxc network forward create ovn1 192.0.2.1 target_address=10.41.211.2
+```
+
+````
+
+````{group-tab} API
+
+To create a network forward in an OVN network, send a POST request to the `/1.0/networks/{networkName}/forwards` endpoint:
+
+```
+lxc query --request POST /1.0/networks/{networkName}/forwards --data '{
+  "listen_address": "<listen_address>",            # required
+  "description": "<description of the forward>",   # optional
+  "config": {
+     "target_address": "<default_target_address>",  # optional
+     "user.<key>": "<value>"                        # optional
+  },
+  "ports": [                                        # optional
+    {
+      "description": "<description of the forward to this port>",
+      "listen_port": "<listen_port>",
+      "protocol": "<tcp|udp>",
+      "target_address": "<target address>",
+      "target_port": "<target port or ports>"
+    }
+  ]
+}'
+```
+
+- For `{networkName}`, specify the name of the OVN network on which to create the forward.
+- For `<listen_address>`, provide only one of the following:
+   - A listen IP address allowed by the {ref}`network-forwards-listen-addresses` (no port number)
+   - For automatic allocation of an allowed IP address, use `"0.0.0.0"` for IPv4 and `"::"` for IPv6.
+- Optionally provide a description of the forward.
+- Optionally provide a default `target_address` as part of the `config` object (no port number). Any traffic that does not match a port specification is forwarded to this address. This must be an IP address within the OVN network's subnet; typically, the static IP address of an instance is used.
+- Optionally provide custom `user.*` keys, also as part of the `config` object.
+- Optionally set up port specifications during forward creation. These specifications allow forwarding traffic from specific ports on the listen address to ports on a target address. For details on how to configure ports, see: {ref}`network-forwards-port-specifications`.
+
+See [the API reference](swagger:/network-forwards/network_forward_post) for more information.
+
+#### Examples
+
+This example shows how to create a network forward on a network named `ovn1` with an allocated listen address and no default target address:
+
+```
+lxc query --request POST /1.0/networks/ovn1/forwards --data '{
+  "listen_address": "0.0.0.0"
+}'
+```
+
+This example shows how to create a network forward on a network named `ovn1` with a specific listen address and a default target address:
+
+```
+lxc query --request POST /1.0/networks/ovn1/forwards --data '{
+  "listen_address": "192.0.2.1",
+  "config": {
+    "target_address": "10.41.211.2"
+  }
+}'
 ```
 
 ````
@@ -203,10 +304,61 @@ lxc network forward create <bridge_network_name> <listen_address> [target_addres
 - Optionally provide custom user.* keys to be stored in the network forward's configuration.
 - You cannot use the `--allocate` flag with bridge networks.
 
-This example shows how to create a forward on a network named `bridge1` with a specific listen address and a target address:
+#### Example
+
+This example shows how to create a forward on a network named `bridge1`. The listen address is required, and the default target address is optional:
 
 ```
 lxc network forward create bridge1 192.0.2.1 target_address=10.41.211.2
+```
+
+````
+
+````{group-tab} API
+
+To create a network forward in a bridge network, send a POST request to the `/1.0/networks/{networkName}/forwards` endpoint:
+
+```
+lxc query --request POST /1.0/networks/{networkName}/forwards --data '{
+  "listen_address": "<listen_address>",            # required
+  "description": "<description of the forward>",   # optional
+  "config": {
+     "target_address": "<default_target_address>",  # optional
+     "user.<key>": "<value>"                        # optional
+  },
+  "ports": [                                        # optional
+    {
+      "description": "<description of the forward to this port>",
+      "listen_port": "<listen_port>",
+      "protocol": "<tcp|udp>",
+      "target_address": "<target address>",
+      "target_port": "<target port or ports>"
+    }
+  ]
+}'
+```
+
+- For `{networkName}`, specify the name of the bridge network on which to create the forward.
+- For `<listen_address>`, provide an IP address allowed by the {ref}`network-forwards-listen-addresses` (no port number).
+  - With bridge networks, you cannot dynamically allocate the listen address. You must input a specific address.
+- Optionally provide a description of the forward.
+- Optionally provide a default `target_address` as part of the `config` object (no port number). Any traffic that does not match a port specification is forwarded to this address. This must be an IP address within the OVN network's subnet; typically, the static IP address of an instance is used.
+- Optionally provide custom `user.*` keys, also as part of the `config` object.
+- Optionally set up port specifications during forward creation. These specifications allow forwarding traffic from specific ports on the listen address to ports on a target address. For details on how to configure ports, see: {ref}`network-forwards-port-specifications`.
+
+See [the API reference](swagger:/network-forwards/network_forward_post) for more information.
+
+#### Example
+
+This example shows how to create a forward on a network named `bridge1`. The listen address is required, and the default target address is optional:
+
+```
+lxc query --request POST /1.0/networks/bridge1/forwards --data '{
+  "listen_address": "192.0.2.1",
+  "config": {
+    "target_address": "10.41.211.2"
+  }
+}'
 ```
 
 ````
@@ -266,6 +418,9 @@ lxc network forward port add <network_name> <listen_address> <protocol> <listen_
    - Specify a single target port to forward traffic from all listen ports to this target port.
    - Specify a set of target ports with the same number of set items as the listen ports. This forwards traffic from the first listen port to the first target port, the second listen port to the second target port, and so on.
 - If no target port is specified, the listen port value is used for the target port.
+- You can add multiple port configurations to the same network forward.
+
+### Examples
 
 The example below shows how to configure a forward with a single listen port. Since no target port is specified, the target port defaults to the value of the listen port:
 
@@ -287,9 +442,76 @@ lxc network forward port add network1 192.0.2.1 tcp 22,80 10.41.211.2 22,443
 
 ````
 
+````{group-tab} API
+
+Using the API, you can configure port specifications on a network forward at the time you {ref}`create the forward <network-forward-create>`, or by {ref}`editing the forward <network-forward-edit>` after creation.
+
+In either case, you must configure the `ports` object shown below:
+
+{lineno-start=1 emphasize-lines="8-15"}
+```
+{
+  "listen_address": "<listen_address>",
+  "description": "<description of the forward>",
+  "config": {
+     "target_address": "<default_target_address>",
+     "user.<key>": "<value>"
+  },
+  "ports": [
+    {
+      "description": "<description of the forward to this port>",
+      "listen_port": "<listen_port>",
+      "protocol": "<tcp|udp>",
+      "target_address": "<target address>",
+      "target_port": "<target port or ports>"
+    }
+  ]
+}
+```
+
+- For `"listen_port"`, you can specify a single listen port, a port range, or a comma-separated set of ports/port ranges.
+- Use either `"tcp"` or `"udp"` as the `"protocol"`.
+- Specify a `"target_address"`. This address must be within the network's subnet, and it must be different from the forward's default target address that is configured in the `config` object. Typically, the static IP address of an instance is used.
+- Optionally specify a target port or ports. You can:
+   - Specify a single target port to forward traffic from all listen ports to this target port.
+   - Specify a set of target ports with the same number of set items as the listen ports. This forwards traffic from the first listen port to the first target port, the second listen port to the second target port, and so on.
+- If no target port is specified, the listen port value is used for the target port.
+- The `"ports"` JSON property is configured as an array (list) of objects. You can set multiple port configurations on the same network forward, each as a separate JSON object in the array.
+
+### Examples
+
+```
+"ports": [
+   {
+      "description": "My web server forward",
+      "listen_port": "80,81,8080-8090",
+      "protocol": "tcp",
+      "target_address": "198.51.100.2",
+      "target_port": "80,81,8080-8090"
+   },
+   {
+      "description": "My API server forward",
+      "listen_port": "3000",
+      "protocol": "tcp",
+      "target_address": "198.51.100.3",
+      "target_port": "8080"
+   }
+]
+```
+
+In the example above, traffic to the network forward's listen ports of 80, 81, or 8080-8090 is explicitly forwarded to the same ports on the target address. Traffic to the forward's listen port of 3000 is explicitly forwarded to port 8080 on the target address.
+
+More examples;
+
+- If the `"listen_port"` is set to `"22"` and no `"target_port`" is specified, the target port value defaults to `"22"`.
+- If the `"listen_port"` is set to `"80,90-100"` and the `"target_port`" is set to `"442"`, all traffic to the listen address at ports 80 and 90 through 100 is forwarded to port 443 of the target address.
+- If the `"listen_port"` is set to `"22,80"` and the `"target_port`" is set to `"22,443"`, all traffic to the listen address at port 22 is forwarded to port 22 of the target address, whereas traffic to port 80 is forwarded to port 443.
+
+````
+
 ````{group-tab} UI
 
-These specifications allow forwarding traffic from ports on the listen address to ports on a target address. In the web UI, you can configure port specifications on a network forward at the time you {ref}`create the forward <network-forward-create>`, or by {ref}`editing the forward <network-forward-edit>` after creation.
+In the web UI, you can configure port specifications on a network forward at the time you {ref}`create the forward <network-forward-create>`, or by {ref}`editing the forward <network-forward-edit>` after creation.
 
 ```{figure} /images/UI/forward_create_port.png
 :width: 95%
@@ -304,7 +526,7 @@ These specifications allow forwarding traffic from ports on the listen address t
    - Specify a set of target ports with the same number of set items as the listen ports. This forwards traffic from the first listen port to the first target port, the second listen port to the second target port, and so on.
 - If no target port is specified, the listen port value is used for the target port.
 
-Examples:
+### Examples
 
 - If the {guilabel}`Listen port` is set to `22` and no {guilabel}`Target port` is specified, the target port value defaults to 22.
 - If the {guilabel}`Listen port` is set to `80,90-100` and the {guilabel}`Target port` is set to {guilabel}`442`, all traffic to the listen address at ports 80 and 90 through 100 is forwarded to port 443 of the target address.
@@ -340,6 +562,128 @@ You can edit both the general configuration and the port specifications.
 
 ````
 
+````{group-tab} API
+
+### Partial update
+
+To update a subset of the network forward configuration, send a PATCH request to the `/1.0/networks/{networkName}/forwards/{listenAddress}` endpoint:
+
+```
+lxc query --request PATCH /1.0/networks/{networkName}/forwards/{listenAddress} --data '{
+  "config": {
+     "target_address": "<default_target_address>",
+     "user.<key>": "<value>"
+  },
+  "description": "<description of the forward>",
+  "ports": [
+    {
+      "description": "<description of the forward to this port>",
+      "listen_port": "<listen_port>",
+      "protocol": "<tcp|udp>",
+      "target_address": "<target address>",
+      "target_port": "<target port or ports>"
+    }
+  ]
+}'
+```
+
+See [the API reference](swagger:/network-forwards/network_forward_patch) for more information.
+
+#### Example
+
+Update only the default target address of a forward:
+
+```
+lxc query --request PATCH /1.0/networks/ovn1/forwards/10.152.119.200 --data '{
+  "config": {
+    "target_address": "10.41.211.3"
+  }
+}'
+```
+
+### Full update
+
+To replace the entire configuration of an existing network forward, send a PUT request to the `/1.0/networks/{networkName}/forwards/{listenAddress}` endpoint:
+
+```
+lxc query --request PUT /1.0/networks/{networkName}/forwards/{listenAddress} --data '{
+  "config": {
+     "target_address": "<default_target_address>",
+     "user.<key>": "<value>"
+  },
+  "description": "<description of the forward>",
+  "ports": [
+    {
+      "description": "<description of the forward to this port>",
+      "listen_port": "<listen_port>",
+      "protocol": "<tcp|udp>",
+      "target_address": "<target address>",
+      "target_port": "<target port or ports>"
+    }
+  ]
+}'
+```
+
+Unlike a `PATCH` request, the `PUT` request replaces the entire configuration.
+
+See [the API reference](swagger:/network-forwards/network_forward_put) for more information.
+
+#### Example
+
+When using PUT, take care to send any data should be kept in the configuration. Consider the following configuration for a network forward:
+
+```
+{
+  "listen_address": "10.152.119.200",
+  "config": {
+     "target_address": "10.41.211.3",
+  },
+  "ports": [
+    {
+      "listen_port": "80",
+      "protocol": "tcp",
+      "target_address": "10.41.211.4",
+      "target_port": "443"
+    }
+  ]
+}'
+```
+
+The following PUT request updates the entire configuration:
+```
+lxc query --request PUT /1.0/networks/ovntest/forwards/10.152.119.200 --data '{
+  "ports": [
+    {
+      "listen_port": "80",
+      "protocol": "tcp",
+      "target_address": "10.41.211.5",
+      "target_port": "443"
+    }
+  ]
+}'
+```
+
+The forward's configuration after the PUT update:
+
+```
+{
+  "listen_address": "10.152.119.200",
+  "config": {},
+  "ports": [
+    {
+      "listen_port": "80",
+      "protocol": "tcp",
+      "target_address": "10.41.211.5",
+      "target_port": "443"
+    }
+  ]
+}
+```
+
+Notice that the `config` object no longer contains any values. This is because none were sent as part of the PUT update.
+
+````
+
 ````{group-tab} UI
 
 In {ref}`the web UI <access-ui>`, select {guilabel}`Networks` in the left sidebar, then select the desired network. On the resulting screen, view the {guilabel}`Forwards` tab. This tab shows you information about all forwards on the network. Click the {guilabel}`Edit` icon next to a forward to edit it:
@@ -369,6 +713,24 @@ Use the following command to delete a network forward:
 ```bash
 lxc network forward delete <network_name> <listen_address>
 ```
+
+````
+
+````{group-tab} API
+
+To delete a network forward, send a DELETE request to the `/1.0/networks/{networkName}/forwards/{listenAddress}` endpoint:
+
+```
+lxc query --request DELETE /1.0/networks/{networkName}/forwards/{listenAddress}
+```
+
+Example:
+
+```
+lxc query --request DELETE /1.0/networks/ovn1/forwards/192.0.2.21
+```
+
+See [the API reference](swagger:/network-forwards/network_forward_delete) for more information.
 
 ````
 

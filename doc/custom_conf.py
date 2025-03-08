@@ -193,7 +193,7 @@ linkcheck_retries = 3
 ## Use them to extend the default functionality.
 
 # Remove this variable to disable the MyST parser extensions.
-custom_myst_extensions = []
+custom_myst_extensions = ["attrs_block"]
 
 # Add custom Sphinx extensions as needed.
 # This array contains recommended extensions that should be used.
@@ -211,7 +211,7 @@ custom_extensions = [
     'canonical.config-options',
     'sphinx_remove_toctrees',
     'canonical.filtered-toc',
-    'sphinxcontrib.cairosvgconverter'
+    'sphinxcontrib.cairosvgconverter',
 ]
 
 # Add custom required Python modules that must be added to the
