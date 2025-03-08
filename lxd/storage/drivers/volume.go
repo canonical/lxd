@@ -38,11 +38,7 @@ type VolumeType string
 
 // IsInstance indicates if the VolumeType represents an instance type.
 func (t VolumeType) IsInstance() bool {
-	if t == VolumeTypeContainer || t == VolumeTypeVM {
-		return true
-	}
-
-	return false
+	return t == VolumeTypeContainer || t == VolumeTypeVM
 }
 
 // VolumeTypeBucket represents a bucket storage volume.
