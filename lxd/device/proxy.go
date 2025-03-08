@@ -397,6 +397,7 @@ func (d *proxy) checkProcStarted(logPath string) (bool, error) {
 	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
+	var firstError string
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
@@ -405,13 +406,23 @@ func (d *proxy) checkProcStarted(logPath string) (bool, error) {
 		}
 
 		if strings.HasPrefix(line, "Error:") {
-			return false, errors.New(line)
+			if strings.Contains(line, "Failed to listen on") {
+				return false, errors.New(line)
+			}
+
+			if firstError == "" {
+				firstError = line
+			}
 		}
 	}
 
 	err = scanner.Err()
 	if err != nil {
 		return false, err
+	}
+
+	if firstError != "" {
+		return false, errors.New(firstError)
 	}
 
 	return false, nil
@@ -651,21 +662,36 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 
 func (d *proxy) killProxyProc(pidPath string) error {
 	// If the pid file doesn't exist, there is no process to kill.
-	if !shared.PathExists(pidPath) {
-		return nil
+	if shared.PathExists(pidPath) {
+		p, err := subprocess.ImportProcess(pidPath)
+		if err != nil {
+			return fmt.Errorf("Could not read pid file %q: %w", pidPath, err)
+		}
+
+		err = p.Stop()
+		if err != nil && err != subprocess.ErrNotRunning {
+			return fmt.Errorf("Unable to kill forkproxy: %w", err)
+		}
+
+		err = os.Remove(pidPath)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("Failed to remove pid file %q: %w", pidPath, err)
+		}
 	}
 
-	p, err := subprocess.ImportProcess(pidPath)
+	listenAddr, err := network.ProxyParseAddr(d.config["listen"])
 	if err != nil {
-		return fmt.Errorf("Could not read pid file: %s", err)
+		return err
 	}
 
-	err = p.Stop()
-	if err != nil && err != subprocess.ErrNotRunning {
-		return fmt.Errorf("Unable to kill forkproxy: %s", err)
+	// Remove socket file if needed.
+	if listenAddr.ConnType == "unix" && !listenAddr.Abstract {
+		err = os.Remove(listenAddr.Address)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("Failed to remove socket file: %w", err)
+		}
 	}
 
-	_ = os.Remove(pidPath)
 	return nil
 }
 
