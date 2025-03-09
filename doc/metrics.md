@@ -1,5 +1,5 @@
 ---
-discourse: lxc:12281,lxc:11735
+discourse: lxc:[Retrieve&#32;LXD&#32;metrics&#32;with&#32;Telegraf&#32;and&#32;InfluxDB&#32;2.x](12281),lxc:[Metric&#32;exporter&#32;for&#32;instances](11735)
 ---
 
 (metrics)=

@@ -1,5 +1,5 @@
 ---
-discourse: lxc:7735
+discourse: lxc:[Share&#32;folders&#32;and&#32;volumes&#32;between&#32;host&#32;and&#32;containers](7735)
 ---
 
 (storage)=
