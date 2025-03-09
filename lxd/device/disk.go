@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/cgroup"
+	"github.com/canonical/lxd/lxd/cloudinit"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/warningtype"
@@ -27,7 +28,6 @@ import (
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
-	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -2591,55 +2591,30 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 
 	instanceConfig := d.inst.ExpandedConfig()
 
-	// Use an empty vendor-data file if no custom vendor-data supplied.
-	vendorDataKey := "cloud-init.vendor-data"
-	vendorData, ok := instanceConfig[vendorDataKey]
-	if !ok {
-		vendorDataKey := "user.vendor-data"
-		vendorData = instanceConfig[vendorDataKey]
-		if vendorData == "" {
-			vendorData = "#cloud-config\n{}"
-		}
+	// Get raw data from instance config.
+	cloudInitData := cloudinit.GetEffectiveConfig(instanceConfig, "", d.inst.Name(), d.inst.Project().Name)
+
+	// Use an empty cloud-config file if no custom *-data is supplied.
+	if cloudInitData.VendorData == "" {
+		cloudInitData.VendorData = "#cloud-config\n{}"
 	}
 
-	// Merge additional SSH keys present on the instance config into vendorData.
-	vendorData, err = util.MergeSSHKeyCloudConfig(instanceConfig, vendorData)
-	if err != nil {
-		logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": err, "project": d.inst.Project().Name, "instance": d.inst.Name(), "dataConfigKey": vendorDataKey})
+	if cloudInitData.UserData == "" {
+		cloudInitData.UserData = "#cloud-config\n{}"
 	}
 
-	err = os.WriteFile(filepath.Join(scratchDir, "vendor-data"), []byte(vendorData), 0400)
+	err = os.WriteFile(filepath.Join(scratchDir, "vendor-data"), []byte(cloudInitData.VendorData), 0400)
 	if err != nil {
 		return "", err
 	}
 
-	// Use an empty user-data file if no custom user-data supplied.
-	userDataKey := "cloud-init.user-data"
-	userData, ok := instanceConfig[userDataKey]
-	if !ok {
-		userDataKey = "user.user-data"
-		userData = instanceConfig[userDataKey]
-		if userData == "" {
-			userData = "#cloud-config\n{}"
-		}
-	}
-
-	// Merge additional SSH keys present on the instance config into userData.
-	userData, err = util.MergeSSHKeyCloudConfig(instanceConfig, userData)
-	if err != nil {
-		logger.Warn("Failed merging SSH keys into cloud-init seed data, abstain from injecting additional keys", logger.Ctx{"err": err, "project": d.inst.Project().Name, "instance": d.inst.Name(), "dataConfigKey": userDataKey})
-	}
-
-	err = os.WriteFile(filepath.Join(scratchDir, "user-data"), []byte(userData), 0400)
+	err = os.WriteFile(filepath.Join(scratchDir, "user-data"), []byte(cloudInitData.UserData), 0400)
 	if err != nil {
 		return "", err
 	}
 
 	// Include a network-config file if the user configured it.
-	networkConfig, ok := instanceConfig["cloud-init.network-config"]
-	if !ok {
-		networkConfig = instanceConfig["user.network-config"]
-	}
+	networkConfig := instanceConfig[cloudinit.GetEffectiveConfigKey(instanceConfig, "network-config")]
 
 	if networkConfig != "" {
 		err = os.WriteFile(filepath.Join(scratchDir, "network-config"), []byte(networkConfig), 0400)
