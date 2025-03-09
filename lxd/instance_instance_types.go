@@ -155,28 +155,12 @@ func instanceRefreshTypes(ctx context.Context, s *state.State) error {
 		_ = instanceLoadCache()
 	}
 
-	// Get the list of instance type sources
-	sources := map[string]string{}
-	err := downloadParse(".yaml", &sources)
+	// Parse the "all.yaml" file and update the global map
+	err := downloadParse("all.yaml", &instanceTypes)
 	if err != nil {
+		logger.Warnf("Failed to update instance types: %v", err)
 		return err
 	}
-
-	// Parse the individual files
-	newInstanceTypes := map[string]map[string]*instanceType{}
-	for name, filename := range sources {
-		types := map[string]*instanceType{}
-		err = downloadParse(filename, &types)
-		if err != nil {
-			logger.Warnf("Failed to update instance types: %v", err)
-			return err
-		}
-
-		newInstanceTypes[name] = types
-	}
-
-	// Update the global map
-	instanceTypes = newInstanceTypes
 
 	// And save in the cache
 	err = instanceSaveCache()
