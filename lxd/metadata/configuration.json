@@ -2877,6 +2877,14 @@
 						}
 					},
 					{
+						"volatile.cpu_flags": {
+							"condition": "virtual machine",
+							"longdesc": "When exporting a virtual machine, LXD populates the `volatile.cpu_flags` with the CPU flags of the LXD node it is running on.\nThis information is used during a start after an import, to compute a CPU baseline for QEMU between the source and destination nodes.",
+							"shortdesc": "Instance CPU flags in a comma-separated list format.",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.evacuate.origin": {
 							"longdesc": "The cluster member that the instance lived on before evacuation.",
 							"shortdesc": "The origin of the evacuated instance",

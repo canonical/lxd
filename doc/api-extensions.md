@@ -2621,3 +2621,7 @@ Note that the `openid` and `email` scopes are always required.
 ## `project_default_network_and_storage`
 
 Adds flags --network and --storage. The --network flag adds a network device connected to the specified network to the default profile. The --storage flag adds a root disk device using the specified storage pool to the default profile.
+
+## `resources_cpu_flags`
+
+Adds CPU flags to resources API.

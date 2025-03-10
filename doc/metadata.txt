@@ -2557,6 +2557,14 @@ The hash of the image that the instance was created from (empty if the instance 
 
 ```
 
+```{config:option} volatile.cpu_flags instance-volatile
+:condition: "virtual machine"
+:shortdesc: "Instance CPU flags in a comma-separated list format."
+:type: "string"
+When exporting a virtual machine, LXD populates the `volatile.cpu_flags` with the CPU flags of the LXD node it is running on.
+This information is used during a start after an import, to compute a CPU baseline for QEMU between the source and destination nodes.
+```
+
 ```{config:option} volatile.evacuate.origin instance-volatile
 :shortdesc: "The origin of the evacuated instance"
 :type: "string"
