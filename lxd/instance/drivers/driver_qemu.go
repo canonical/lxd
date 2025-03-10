@@ -74,6 +74,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
@@ -723,6 +724,21 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		return err
 	}
 
+	// Wait 500ms for the first event to be received by the guest.
+	time.Sleep(500 * time.Millisecond)
+
+	// Send a second system_powerdown command (required to get Windows to shutdown).
+	err = monitor.Powerdown()
+	if err != nil {
+		if err == qmp.ErrMonitorDisconnect {
+			op.Done(nil)
+			return nil
+		}
+
+		op.Done(err)
+		return err
+	}
+
 	d.logger.Debug("Shutdown request sent to instance")
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -1227,17 +1243,25 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	if d.architectureSupportsUEFI(d.architecture) {
 		// ovmfNeedsUpdate checks if nvram file needs to be regenerated using new template.
 		ovmfNeedsUpdate := func(nvramTarget string) bool {
-			if shared.InSnap() && strings.Contains(nvramTarget, "OVMF") {
-				// The 2MB firmware was deprecated in the LXD snap.
-				// Detect this by the absence of "4MB" in the nvram file target.
-				if !strings.Contains(nvramTarget, "4MB") {
+			if shared.InSnap() {
+				if filepath.Base(nvramTarget) == "qemu.nvram" {
+					// Older versions of LXD didn't setup a symlink from qemu.nvram to a named
+					// firmware variant specific file, but rather copied the template directly.
+					// So if the resolved target is infact still just the qemu.nvram file we
+					// know its an older version of the firmware and it needs regenerating.
 					return true
-				}
+				} else if strings.Contains(nvramTarget, "OVMF") {
+					// The 2MB firmware was deprecated in the LXD snap.
+					// Detect this by the absence of "4MB" in the nvram file target.
+					if !strings.Contains(nvramTarget, "4MB") {
+						return true
+					}
 
-				// The EDK2-based CSM firmwares were replaced with Seabios in the LXD snap.
-				// Detect this by the presence of "CSM" in the nvram file target.
-				if strings.Contains(nvramTarget, "CSM") {
-					return true
+					// The EDK2-based CSM firmwares were replaced with Seabios in the LXD snap.
+					// Detect this by the presence of "CSM" in the nvram file target.
+					if strings.Contains(nvramTarget, "CSM") {
+						return true
+					}
 				}
 			}
 
@@ -2137,7 +2161,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 						return nil, err
 					}
 
-					runConf.Mounts[i].Opts = append(runConf.Mounts[i].Opts, fmt.Sprintf("mountTag=%s", mountTag))
+					runConf.Mounts[i].Opts = append(runConf.Mounts[i].Opts, "mountTag="+mountTag)
 				} else {
 					err = d.deviceAttachBlockDevice(mount)
 					if err != nil {
@@ -2171,7 +2195,7 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	mountTag = qemuDeviceNameOrID(qemuDeviceNamePrefix, deviceName, "", qemuDeviceNameMaxLength)
 
 	// Detect virtiofsd path.
-	virtiofsdSockPath := filepath.Join(d.DevicesPath(), fmt.Sprintf("virtio-fs.%s.sock", filesystem.PathNameEncode(deviceName)))
+	virtiofsdSockPath := filepath.Join(d.DevicesPath(), "virtio-fs."+filesystem.PathNameEncode(deviceName)+".sock")
 	if !shared.PathExists(virtiofsdSockPath) {
 		return "", fmt.Errorf("Virtiofsd isn't running")
 	}
@@ -2321,7 +2345,7 @@ func (d *qemu) deviceDetachPath(deviceName string) error {
 		}
 
 		if time.Now().After(waitUntil) {
-			return fmt.Errorf("Failed to detach path device after %v: %w", waitDuration, err)
+			return fmt.Errorf("Failed to detach path device after %v", waitDuration)
 		}
 	}
 
@@ -2335,7 +2359,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 		return err
 	}
 
-	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, filesystem.PathNameEncode(deviceName))
+	deviceID := qemuDeviceIDPrefix + filesystem.PathNameEncode(deviceName)
 	blockDevName := qemuDeviceNameOrID(qemuDeviceNamePrefix, deviceName, "", qemuDeviceNameMaxLength)
 
 	err = monitor.RemoveFDFromFDSet(blockDevName)
@@ -2362,7 +2386,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 		}
 
 		if time.Now().After(waitUntil) {
-			return fmt.Errorf("Failed to detach block device after %v: %w", waitDuration, err)
+			return fmt.Errorf("Failed to detach block device after %v", waitDuration)
 		}
 	}
 
@@ -2525,8 +2549,8 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 	}
 
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
-	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	netDevID := fmt.Sprintf("%s%s", qemuDeviceNamePrefix, escapedDeviceName)
+	deviceID := qemuDeviceIDPrefix + escapedDeviceName
+	netDevID := qemuDeviceNamePrefix + escapedDeviceName
 
 	// Request removal of device.
 	err = monitor.RemoveDevice(deviceID)
@@ -2559,7 +2583,7 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 			}
 
 			if time.Now().After(waitUntil) {
-				return fmt.Errorf("Failed to detach NIC after %v: %w", waitDuration, err)
+				return fmt.Errorf("Failed to detach NIC after %v", waitDuration)
 			}
 
 			d.logger.Debug("Waiting for NIC device to be detached", logger.Ctx{"device": deviceName})
@@ -2574,6 +2598,7 @@ func (d *qemu) monitorPath() string {
 	return filepath.Join(d.LogPath(), "qemu.monitor")
 }
 
+// nvramPath returns the path to the UEFI firmware variables file.
 func (d *qemu) nvramPath() string {
 	return filepath.Join(d.Path(), "qemu.nvram")
 }
@@ -2647,7 +2672,7 @@ func (d *qemu) spicePath() string {
 }
 
 func (d *qemu) spiceCmdlineConfig() string {
-	return fmt.Sprintf("unix=on,disable-ticketing=on,addr=%s", d.spicePath())
+	return "unix=on,disable-ticketing=on,addr=" + d.spicePath()
 }
 
 // generateConfigShare generates the config share directory that will be exported to the VM via
@@ -3034,7 +3059,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 			}
 
 			// Create the file itself.
-			w, err = os.Create(filepath.Join(path, fmt.Sprintf("%s.out", tpl.Template)))
+			w, err = os.Create(filepath.Join(path, tpl.Template+".out"))
 			if err != nil {
 				return err
 			}
@@ -3054,7 +3079,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 			}
 
 			// Restrict filesystem access to within the instance's rootfs.
-			tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", d.name, tpl.Template), pongoTemplate.ChrootLoader{Path: d.TemplatesPath()})
+			tplSet := pongo2.NewSet(d.name+"-"+tpl.Template, pongoTemplate.ChrootLoader{Path: d.TemplatesPath()})
 			tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
 			if err != nil {
 				return fmt.Errorf("Failed to render template: %w", err)
@@ -3705,7 +3730,7 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]string, mountInfo *storageP
 	// Generate a new device config with the root device path expanded.
 	driveConf := deviceConfig.MountEntryItem{
 		DevName:    rootDriveConf.DevName,
-		DevPath:    mountInfo.DiskPath,
+		DevSource:  device.DevSourcePath{Path: mountInfo.DiskPath},
 		Opts:       rootDriveConf.Opts,
 		TargetPath: rootDriveConf.TargetPath,
 		Limits:     rootDriveConf.Limits,
@@ -3727,7 +3752,15 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]string, mountInfo *storageP
 				clusterName = storageDrivers.CephDefaultUser
 			}
 
-			driveConf.DevPath = device.DiskGetRBDFormat(clusterName, userName, config["ceph.osd.pool_name"], vol.Name())
+			rbdImageName, snapName := storageDrivers.CephGetRBDImageName(vol, false)
+
+			driveConf.DevSource = device.DevSourceRBD{
+				ClusterName: clusterName,
+				UserName:    userName,
+				PoolName:    config["ceph.osd.pool_name"],
+				ImageName:   rbdImageName,
+				Snapshot:    snapName,
+			}
 		}
 	}
 
@@ -3764,9 +3797,9 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 	// Check if the disk device has provided a virtiofsd socket path.
 	var virtiofsdSockPath string
 	for _, opt := range driveConf.Opts {
-		if strings.HasPrefix(opt, fmt.Sprintf("%s=", device.DiskVirtiofsdSockMountOpt)) {
-			parts := strings.SplitN(opt, "=", 2)
-			virtiofsdSockPath = parts[1]
+		if strings.HasPrefix(opt, device.DiskVirtiofsdSockMountOpt+"=") {
+			_, virtiofsdSockPath, _ = strings.Cut(opt, "=")
+			break
 		}
 	}
 
@@ -3802,12 +3835,12 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 	// Add 9p share config.
 	devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
-	fd, err := strconv.Atoi(driveConf.DevPath)
-	if err != nil {
-		return fmt.Errorf("Invalid file descriptor %q for drive %q: %w", driveConf.DevPath, driveConf.DevName, err)
+	fdSource, ok := driveConf.DevSource.(device.DevSourceFD)
+	if !ok {
+		return fmt.Errorf("Drive config for %q was not a file descriptor", driveConf.DevName)
 	}
 
-	proxyFD := d.addFileDescriptor(fdFiles, os.NewFile(uintptr(fd), driveConf.DevName))
+	proxyFD := d.addFileDescriptor(fdFiles, os.NewFile(fdSource.FD, driveConf.DevName))
 
 	driveDir9pOpts := qemuDriveDirOpts{
 		dev: qemuDevOpts{
@@ -3832,7 +3865,9 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 	aioMode := "native" // Use native kernel async IO and O_DIRECT by default.
 	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics by default.
 	media := "disk"
-	isRBDImage := strings.HasPrefix(driveConf.DevPath, device.RBDFormatPrefix)
+	rbdSource, isRBDImage := driveConf.DevSource.(device.DevSourceRBD)
+	fdSource, isFd := driveConf.DevSource.(device.DevSourceFD)
+	pathSource, _ := driveConf.DevSource.(device.DevSourcePath)
 
 	// Check supported features.
 	// Use io_uring over native for added performance (if supported by QEMU and kernel is recent enough).
@@ -3851,32 +3886,17 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		// For RBD, we want writeback to allow for the system-configured "rbd cache" to take effect if present.
 		cacheMode = "writeback"
 	} else {
-		srcDevPath := driveConf.DevPath // This should not be used for passing to QEMU, only for probing.
+		// This should not be used for passing to QEMU, only for probing.
+		srcDevPath := pathSource.Path
 
-		// Detect if existing file descriptor format is being supplied.
-		if strings.HasPrefix(driveConf.DevPath, fmt.Sprintf("%s:", device.DiskFileDescriptorMountPrefix)) {
-			// Expect devPath in format "fd:<fdNum>:<devPath>".
-			devPathParts := strings.SplitN(driveConf.DevPath, ":", 3)
-			if len(devPathParts) != 3 || !strings.HasPrefix(driveConf.DevPath, fmt.Sprintf("%s:", device.DiskFileDescriptorMountPrefix)) {
-				return nil, fmt.Errorf("Unexpected devPath file descriptor format %q", driveConf.DevPath)
-			}
-
-			// Map the file descriptor to the file descriptor path it will be in the QEMU process.
-			fd, err := strconv.Atoi(devPathParts[1])
-			if err != nil {
-				return nil, fmt.Errorf("Invalid file descriptor %q: %w", devPathParts[1], err)
-			}
-
+		if isFd {
 			// Extract original dev path for additional probing below.
-			srcDevPath = devPathParts[2]
-			if srcDevPath == "" {
-				return nil, fmt.Errorf("Device source path is empty")
-			}
+			srcDevPath = fdSource.Path
 
-			driveConf.DevPath = fmt.Sprintf("/proc/self/fd/%d", fd)
+			pathSource.Path = fmt.Sprintf("/proc/self/fd/%d", fdSource.FD)
 		} else if driveConf.TargetPath != "/" {
 			// Only the root disk device is allowed to pass local devices to us without using an FD.
-			return nil, fmt.Errorf("Invalid device path format %q", driveConf.DevPath)
+			return nil, fmt.Errorf("Disk device %q was not a file descriptor", driveConf.DevName)
 		}
 
 		srcDevPathInfo, err := os.Stat(srcDevPath)
@@ -3980,66 +4000,32 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 	} else if isRBDImage {
 		blockDev["driver"] = "rbd"
 
-		_, volName, opts, err := device.DiskParseRBDFormat(driveConf.DevPath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed parsing rbd string: %w", err)
+		if rbdSource.UserName == "" {
+			rbdSource.UserName = storageDrivers.CephDefaultUser
 		}
 
-		// Driver and pool name arguments can be ignored as CephGetRBDImageName doesn't need them.
-		volumeType := storageDrivers.VolumeTypeCustom
-		volumeName := project.StorageVolume(d.project.Name, volName)
-
-		// Handle different name for instance volumes.
-		if driveConf.TargetPath == "/" {
-			volumeType = storageDrivers.VolumeTypeVM
-			volumeName = volName
+		if rbdSource.ClusterName == "" {
+			rbdSource.ClusterName = storageDrivers.CephDefaultCluster
 		}
 
-		// Identify the right content type.
-		rbdContentType := storageDrivers.ContentTypeBlock
-		if driveConf.FSType == "iso9660" {
-			rbdContentType = storageDrivers.ContentTypeISO
-		}
-
-		// Get the RBD image name.
-		vol := storageDrivers.NewVolume(nil, "", volumeType, rbdContentType, volumeName, nil, nil)
-		rbdImageName := storageDrivers.CephGetRBDImageName(vol, "", false)
-
-		// Parse the options (ceph credentials).
-		userName := storageDrivers.CephDefaultUser
-		clusterName := storageDrivers.CephDefaultCluster
-		poolName := ""
-
-		for _, option := range opts {
-			fields := strings.Split(option, "=")
-			if len(fields) != 2 {
-				return nil, fmt.Errorf("Unexpected volume rbd option %q", option)
-			}
-
-			if fields[0] == "id" {
-				userName = fields[1]
-			} else if fields[0] == "pool" {
-				poolName = fields[1]
-			} else if fields[0] == "conf" {
-				baseName := filepath.Base(fields[1])
-				clusterName = strings.TrimSuffix(baseName, ".conf")
-			}
-		}
-
-		if poolName == "" {
+		if rbdSource.PoolName == "" {
 			return nil, fmt.Errorf("Missing pool name")
 		}
 
 		// The aio option isn't available when using the rbd driver.
 		delete(blockDev, "aio")
-		blockDev["pool"] = poolName
-		blockDev["image"] = rbdImageName
-		blockDev["user"] = userName
+		blockDev["pool"] = rbdSource.PoolName
+		blockDev["image"] = rbdSource.ImageName
+		blockDev["user"] = rbdSource.UserName
 		blockDev["server"] = []map[string]string{}
-		blockDev["conf"] = fmt.Sprintf("/etc/ceph/%s.conf", clusterName)
+		blockDev["conf"] = "/etc/ceph/" + rbdSource.ClusterName + ".conf"
+
+		if rbdSource.Snapshot != "" {
+			blockDev["snapshot"] = rbdSource.Snapshot
+		}
 
 		// Setup the Ceph cluster config (monitors and keyring).
-		monitors, err := storageDrivers.CephMonitors(clusterName)
+		monitors, err := storageDrivers.CephMonitors(rbdSource.ClusterName)
 		if err != nil {
 			return nil, err
 		}
@@ -4055,7 +4041,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 			})
 		}
 
-		rbdSecret, err = storageDrivers.CephKeyring(clusterName, userName)
+		rbdSecret, err = storageDrivers.CephKeyring(rbdSource.ClusterName, rbdSource.UserName)
 		if err != nil {
 			return nil, err
 		}
@@ -4077,14 +4063,14 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 
 	escapedDeviceName := filesystem.PathNameEncode(driveConf.DevName)
 
-	qemuDev["id"] = fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
+	qemuDev["id"] = qemuDeviceIDPrefix + escapedDeviceName
 	qemuDevDrive, ok := blockDev["node-name"].(string)
 	if !ok {
 		return nil, fmt.Errorf("Failed getting block device node-name")
 	}
 
 	qemuDev["drive"] = qemuDevDrive
-	qemuDev["serial"] = fmt.Sprintf("%s%s", qemuDeviceNamePrefix, escapedDeviceName)
+	qemuDev["serial"] = qemuDeviceNamePrefix + escapedDeviceName
 
 	if bus == "virtio-scsi" {
 		qemuDev["channel"] = "0"
@@ -4147,7 +4133,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 				permissions = unix.O_RDONLY
 			}
 
-			f, err := os.OpenFile(driveConf.DevPath, permissions, 0)
+			f, err := os.OpenFile(pathSource.Path, permissions, 0)
 			if err != nil {
 				return fmt.Errorf("Failed opening file descriptor for disk device %q: %w", driveConf.DevName, err)
 			}
@@ -4224,7 +4210,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 	}
 
 	escapedDeviceName := filesystem.PathNameEncode(devName)
-	qemuDev["id"] = fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
+	qemuDev["id"] = qemuDeviceIDPrefix + escapedDeviceName
 
 	if len(bootIndexes) > 0 {
 		bootIndex, found := bootIndexes[devName]
@@ -4325,7 +4311,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 			}
 
 			qemuNetDev := map[string]any{
-				"id":    fmt.Sprintf("%s%s", qemuDeviceNamePrefix, escapedDeviceName),
+				"id":    qemuDeviceNamePrefix + escapedDeviceName,
 				"type":  "tap",
 				"vhost": vhostNetEnabled,
 			}
@@ -4362,8 +4348,8 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 
 	// Detect MACVTAP interface types and figure out which tap device is being used.
 	// This is so we can open a file handle to the tap device and pass it to the qemu process.
-	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/macvtap", nicName)) {
-		content, err := os.ReadFile(fmt.Sprintf("/sys/class/net/%s/ifindex", nicName))
+	if shared.PathExists("/sys/class/net/" + nicName + "/macvtap") {
+		content, err := os.ReadFile("/sys/class/net/" + nicName + "/ifindex")
 		if err != nil {
 			return nil, fmt.Errorf("Error getting tap device ifindex: %w", err)
 		}
@@ -4378,7 +4364,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 		}
 
 		monHook = tapMonHook(devFile)
-	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/tun_flags", nicName)) {
+	} else if shared.PathExists("/sys/class/net/" + nicName + "/tun_flags") {
 		// Detect TAP interface and use IOCTL TUNSETIFF on /dev/net/tun to get the file handle to it.
 		// This is so we can open a file handle to the tap device and pass it to the qemu process.
 		devFile := func() (*os.File, error) {
@@ -4424,7 +4410,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 
 			defer func() { _ = vdpaDevFile.Close() }() // Close file after device has been added.
 
-			vDPADevFDName := fmt.Sprintf("%s.0", vdpaDevFile.Name())
+			vDPADevFDName := vdpaDevFile.Name() + ".0"
 			err = m.SendFile(vDPADevFDName, vdpaDevFile)
 			if err != nil {
 				return fmt.Errorf("Failed to send %q file descriptor: %w", vDPADevFDName, err)
@@ -4438,7 +4424,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 			}
 
 			qemuNetDev := map[string]any{
-				"id":      fmt.Sprintf("vhost-%s", vDPADevName),
+				"id":      "vhost-" + vDPADevName,
 				"type":    "vhost-vdpa",
 				"vhostfd": vDPADevFDName,
 				"queues":  queues,
@@ -4483,7 +4469,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 				return nil, fmt.Errorf("No PCI IOMMU group supplied")
 			}
 
-			vfioGroupFile := fmt.Sprintf("/dev/vfio/%s", pciIOMMUGroup)
+			vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
 			err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
@@ -4539,7 +4525,7 @@ func (d *qemu) writeNICDevConfig(mtuStr string, devName string, nicName string, 
 		return fmt.Errorf("Failed encoding NIC config: %w", err)
 	}
 
-	nicFile := filepath.Join(d.Path(), "config", deviceConfig.NICConfigDir, fmt.Sprintf("%s.json", filesystem.PathNameEncode(nicConfig.DeviceName)))
+	nicFile := filepath.Join(d.Path(), "config", deviceConfig.NICConfigDir, filesystem.PathNameEncode(nicConfig.DeviceName)+".json")
 
 	err = os.WriteFile(nicFile, nicConfigBytes, 0700)
 	if err != nil {
@@ -4560,7 +4546,7 @@ func (d *qemu) addPCIDevConfig(cfg *[]cfgSection, bus *qemuBus, pciConfig []devi
 		}
 	}
 
-	devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
+	devBus, devAddr, multi := bus.allocate("lxd_" + devName)
 	pciPhysicalOpts := qemuPCIPhysicalOpts{
 		dev: qemuDevOpts{
 			busName:       bus.name,
@@ -4613,7 +4599,7 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []devi
 		return true
 	}()
 
-	devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
+	devBus, devAddr, multi := bus.allocate("lxd_" + devName)
 	gpuDevPhysicalOpts := qemuGPUDevPhysicalOpts{
 		dev: qemuDevOpts{
 			busName:       bus.name,
@@ -4655,7 +4641,7 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []devi
 			// Match any VFs that are related to the GPU device (but not the GPU device itself).
 			if strings.HasPrefix(iommuSlotName, prefix) && iommuSlotName != pciSlotName {
 				// Add VF device without VGA mode to qemu config.
-				devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
+				devBus, devAddr, multi := bus.allocate("lxd_" + devName)
 				gpuDevPhysicalOpts := qemuGPUDevPhysicalOpts{
 					dev: qemuDevOpts{
 						busName:       bus.name,
@@ -4664,7 +4650,7 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []devi
 						multifunction: multi,
 					},
 					// Generate associated device name by combining main device name and VF ID.
-					devName:     fmt.Sprintf("%s_%s", devName, devAddr),
+					devName:     devName + "_" + devAddr,
 					pciSlotName: iommuSlotName,
 					vga:         false,
 					vgpu:        "",
@@ -4685,7 +4671,7 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []devi
 
 func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHook, error) {
 	device := map[string]string{
-		"id":     fmt.Sprintf("%s%s", qemuDeviceIDPrefix, usbDev.DeviceName),
+		"id":     qemuDeviceIDPrefix + usbDev.DeviceName,
 		"driver": "usb-host",
 		"bus":    "qemu_usb.0",
 	}
@@ -5190,6 +5176,11 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 		return err
 	}
 
+	err = d.checkRootVolumeNotInUse()
+	if err != nil {
+		return err
+	}
+
 	if d.IsRunning() {
 		return fmt.Errorf("Renaming of running instance not allowed")
 	}
@@ -5305,7 +5296,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 		b := backup
 		oldName := b.Name()
 		backupName := strings.Split(oldName, "/")[1]
-		newName := fmt.Sprintf("%s/%s", newName, backupName)
+		newName := newName + "/" + backupName
 
 		err = b.Rename(newName)
 		if err != nil {
@@ -5344,6 +5335,47 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	}
 
 	revert.Success()
+	return nil
+}
+
+// allowRemoveSecurityProtectionStart: security.protection.start can be removed
+// from a VM when the root disk device has security.shared=true OR it is not
+// attached to any other VMs.
+func allowRemoveSecurityProtectionStart(state *state.State, poolName string, volumeName string, proj *api.Project) error {
+	pool, err := storagePools.LoadByName(state, poolName)
+	if err != nil {
+		return err
+	}
+
+	volumeType := dbCluster.StoragePoolVolumeTypeVM
+	volumeProject := project.StorageVolumeProjectFromRecord(proj, volumeType)
+
+	var dbVolume *db.StorageVolume
+	err = state.DB.Cluster.Transaction(state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), volumeProject, volumeType, volumeName, true)
+		return err
+	})
+	if err != nil {
+		volumeTypeName := dbCluster.StoragePoolVolumeTypeNames[volumeType]
+		return fmt.Errorf(`Failed loading "%s/%s" from project %q: %w`, volumeTypeName, volumeName, volumeProject, err)
+	}
+
+	if shared.IsFalseOrEmpty(dbVolume.Config["security.shared"]) {
+		// Only check instances here, as a VM root volume cannot be part of a profile
+		// when not using security.shared
+		err := storagePools.VolumeUsedByInstanceDevices(state, pool.Name(), volumeProject, &dbVolume.StorageVolume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+			// The volume is always attached to its instance
+			if proj.Name == inst.Project && volumeName == inst.Name {
+				return nil
+			}
+
+			return fmt.Errorf("Cannot unset security.protection.start while the root device is attached to another instance")
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -5597,6 +5629,15 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		// Ensure the instance has a root disk.
 		if newErr != nil {
 			return fmt.Errorf("Invalid root disk device: %w", newErr)
+		}
+
+		// If security.protection.start is being removed, we need to make sure that
+		// our root disk device is not attached to another instance.
+		if shared.IsTrue(oldExpandedConfig["security.protection.start"]) && shared.IsFalseOrEmpty(d.expandedConfig["security.protection.start"]) {
+			err := allowRemoveSecurityProtectionStart(d.state, newRootDev["pool"], d.common.name, &d.common.project)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -6071,8 +6112,13 @@ func (d *qemu) delete(force bool) error {
 		return fmt.Errorf("Instance is protected from being deleted")
 	}
 
+	err := d.checkRootVolumeNotInUse()
+	if err != nil {
+		return err
+	}
+
 	// Delete any persistent warnings for instance.
-	err := d.warningsDelete()
+	err = d.warningsDelete()
 	if err != nil {
 		return err
 	}
@@ -6159,7 +6205,7 @@ func (d *qemu) delete(force bool) error {
 }
 
 // Export publishes the instance.
-func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time.Time) (api.ImageMetadata, error) {
+func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time.Time, tracker *ioprogress.ProgressTracker) (api.ImageMetadata, error) {
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -6366,12 +6412,12 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		return meta, fmt.Errorf("No disk path available from mount")
 	}
 
-	fPath := fmt.Sprintf("%s/rootfs.img", tmpPath)
+	fPath := tmpPath + "/rootfs.img"
 
 	// Convert to qcow2 image.
 	cmd := []string{
 		"nice", "-n19", // Run with low priority to reduce CPU impact on other processes.
-		"qemu-img", "convert", "-f", "raw", "-O", "qcow2", "-c",
+		"qemu-img", "convert", "-p", "-f", "raw", "-O", "qcow2", "-c",
 	}
 
 	revert := revert.New()
@@ -6394,7 +6440,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 	cmd = append(cmd, mountInfo.DiskPath, fPath)
 
-	_, err = apparmor.QemuImg(d.state.OS, cmd, mountInfo.DiskPath, fPath, nil)
+	_, err = apparmor.QemuImg(d.state.OS, cmd, mountInfo.DiskPath, fPath, tracker)
 	if err != nil {
 		return meta, fmt.Errorf("Failed converting instance to qcow2: %w", err)
 	}
@@ -6713,15 +6759,16 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 			return err
 		}
 
+		// Always remove the snapshotFile so that if qemu-img fails the partially written file is removed.
+		defer func() { _ = os.Remove(snapshotFile) }()
+
 		// Create qcow2 disk image with the maximum size set to the instance's root disk size for use as
 		// a CoW target for the migration snapshot. This will be used during migration to store writes in
 		// the guest whilst the storage driver is transferring the root disk and snapshots to the taget.
-		_, err = shared.RunCommand("qemu-img", "create", "-f", "qcow2", snapshotFile, fmt.Sprintf("%d", rootDiskSize))
+		_, err = shared.RunCommandContext(d.state.ShutdownCtx, "qemu-img", "create", "-f", "qcow2", snapshotFile, strconv.FormatInt(rootDiskSize, 10))
 		if err != nil {
 			return fmt.Errorf("Failed opening file image for migration storage snapshot %q: %w", snapshotFile, err)
 		}
-
-		defer func() { _ = os.Remove(snapshotFile) }()
 
 		// Pass the snapshot file to the running QEMU process.
 		snapFile, err := os.OpenFile(snapshotFile, unix.O_RDWR, 0)
@@ -7777,21 +7824,23 @@ func (d *qemu) Render(options ...func(response any) error) (state any, etag any,
 		etag := []any{d.expiryDate}
 
 		snapState := api.InstanceSnapshot{
-			CreatedAt:       d.creationDate,
-			ExpandedConfig:  d.expandedConfig,
-			ExpandedDevices: d.expandedDevices.CloneNative(),
-			LastUsedAt:      d.lastUsedDate,
 			Name:            strings.SplitN(d.name, "/", 2)[1],
+			Architecture:    d.architectureName,
+			Profiles:        profileNames,
+			Config:          d.localConfig,
+			ExpandedConfig:  d.expandedConfig,
+			Devices:         d.localDevices.CloneNative(),
+			ExpandedDevices: d.expandedDevices.CloneNative(),
+			CreatedAt:       d.creationDate,
+			LastUsedAt:      d.lastUsedDate,
+			ExpiresAt:       d.expiryDate,
+			Ephemeral:       d.ephemeral,
 			Stateful:        d.stateful,
-			Size:            -1, // Default to uninitialised/error state (0 means no CoW usage).
-		}
 
-		snapState.Architecture = d.architectureName
-		snapState.Config = d.localConfig
-		snapState.Devices = d.localDevices.CloneNative()
-		snapState.Ephemeral = d.ephemeral
-		snapState.Profiles = profileNames
-		snapState.ExpiresAt = d.expiryDate
+			// Default to uninitialised/error state (0 means no CoW usage).
+			// The size can then be populated optionally via the options argument.
+			Size: -1,
+		}
 
 		for _, option := range options {
 			err := option(&snapState)
@@ -7805,28 +7854,32 @@ func (d *qemu) Render(options ...func(response any) error) (state any, etag any,
 
 	// Prepare the ETag
 	etag = []any{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
-	statusCode := d.statusCode()
 
 	instState := api.Instance{
-		ExpandedConfig:  d.expandedConfig,
-		ExpandedDevices: d.expandedDevices.CloneNative(),
 		Name:            d.name,
-		Status:          statusCode.String(),
-		StatusCode:      statusCode,
+		Description:     d.description,
+		Architecture:    d.architectureName,
+		Profiles:        profileNames,
+		Config:          d.localConfig,
+		ExpandedConfig:  d.expandedConfig,
+		Devices:         d.localDevices.CloneNative(),
+		ExpandedDevices: d.expandedDevices.CloneNative(),
+		CreatedAt:       d.creationDate,
+		LastUsedAt:      d.lastUsedDate,
+		Ephemeral:       d.ephemeral,
+		Stateful:        d.stateful,
+		Project:         d.project.Name,
 		Location:        d.node,
 		Type:            d.Type().String(),
+		StatusCode:      api.Error, // Default to error status for remote instances that are unreachable.
 	}
 
-	instState.Description = d.description
-	instState.Architecture = d.architectureName
-	instState.Config = d.localConfig
-	instState.CreatedAt = d.creationDate
-	instState.Devices = d.localDevices.CloneNative()
-	instState.Ephemeral = d.ephemeral
-	instState.LastUsedAt = d.lastUsedDate
-	instState.Profiles = profileNames
-	instState.Stateful = d.stateful
-	instState.Project = d.project.Name
+	// If instance is local then request status.
+	if d.state.ServerName == d.Location() {
+		instState.StatusCode = d.statusCode()
+	}
+
+	instState.Status = instState.StatusCode.String()
 
 	for _, option := range options {
 		err := option(&instState)
@@ -7941,7 +7994,7 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 			// Get hwaddr from static or volatile config.
 			hwaddr := m["hwaddr"]
 			if hwaddr == "" {
-				hwaddr = d.localConfig[fmt.Sprintf("volatile.%s.hwaddr", k)]
+				hwaddr = d.localConfig["volatile."+k+".hwaddr"]
 			}
 
 			// We have to match on hwaddr as device name can be different from the configured device
@@ -7949,7 +8002,7 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 			for netName, netStatus := range status.Network {
 				if netStatus.Hwaddr == hwaddr {
 					if netStatus.HostName == "" {
-						netStatus.HostName = d.localConfig[fmt.Sprintf("volatile.%s.host_name", k)]
+						netStatus.HostName = d.localConfig["volatile."+k+".host_name"]
 						status.Network[netName] = netStatus
 					}
 				}
@@ -8110,7 +8163,7 @@ func (d *qemu) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 		}
 
 		// Figure out the QEMU device ID.
-		devID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, filesystem.PathNameEncode(mount.DevName))
+		devID := qemuDeviceIDPrefix + filesystem.PathNameEncode(mount.DevName)
 
 		// Apply the limits.
 		err = m.SetBlockThrottle(devID, int(mount.Limits.ReadBytes), int(mount.Limits.WriteBytes), int(mount.Limits.ReadIOps), int(mount.Limits.WriteIOps))
@@ -8334,7 +8387,7 @@ func (d *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConf
 
 	// Fill in the MAC address.
 	if !shared.ValueInSlice(nicType, []string{"physical", "ipvlan", "sriov"}) && m["hwaddr"] == "" {
-		configKey := fmt.Sprintf("volatile.%s.hwaddr", name)
+		configKey := "volatile." + name + ".hwaddr"
 		volatileHwaddr := d.localConfig[configKey]
 		if volatileHwaddr == "" {
 			// Generate a new MAC address.
@@ -8642,7 +8695,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 		"-nographic",
 		"-nodefaults",
 		"-no-user-config",
-		"-chardev", fmt.Sprintf("socket,id=monitor,path=%s,server=on,wait=off", monitorPath.Name()),
+		"-chardev", "socket,id=monitor,path=" + monitorPath.Name() + ",server=on,wait=off",
 		"-mon", "chardev=monitor,mode=control",
 		"-machine", qemuMachineType(hostArch),
 	}
@@ -8670,7 +8723,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 			return nil, fmt.Errorf("Unable to locate a VM UEFI firmware")
 		}
 
-		qemuArgs = append(qemuArgs, "-drive", fmt.Sprintf("if=pflash,format=raw,readonly=on,file=%s", efiPath))
+		qemuArgs = append(qemuArgs, "-drive", "if=pflash,format=raw,readonly=on,file="+efiPath)
 	}
 
 	var stderr bytes.Buffer
@@ -8747,7 +8800,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 
 	// Check io_uring feature.
 	blockDev := map[string]any{
-		"node-name": fmt.Sprintf("%s%s", qemuDeviceNamePrefix, "feature-check"),
+		"node-name": qemuDeviceNamePrefix + "feature-check",
 		"driver":    "file",
 		"filename":  blockDevPath.Name(),
 		"aio":       "io_uring",
@@ -8953,7 +9006,7 @@ func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 		return err
 	}
 
-	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, usbDev.DeviceName)
+	deviceID := qemuDeviceIDPrefix + usbDev.DeviceName
 
 	err = monitor.RemoveDevice(deviceID)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
@@ -9029,13 +9082,13 @@ func (d *qemu) setCPUs(count int) error {
 			dev := map[string]string{
 				"id":      devID,
 				"driver":  cpu.Type,
-				"core-id": fmt.Sprintf("%d", cpu.Props.CoreID),
+				"core-id": fmt.Sprint(cpu.Props.CoreID),
 			}
 
 			// No such thing as sockets and threads on s390x.
 			if d.architecture != osarch.ARCH_64BIT_S390_BIG_ENDIAN {
-				dev["socket-id"] = fmt.Sprintf("%d", cpu.Props.SocketID)
-				dev["thread-id"] = fmt.Sprintf("%d", cpu.Props.ThreadID)
+				dev["socket-id"] = fmt.Sprint(cpu.Props.SocketID)
+				dev["thread-id"] = fmt.Sprint(cpu.Props.ThreadID)
 			}
 
 			err := monitor.AddDevice(dev)
@@ -9070,9 +9123,9 @@ func (d *qemu) setCPUs(count int) error {
 				err := monitor.AddDevice(map[string]string{
 					"id":        devID,
 					"driver":    cpu.Type,
-					"socket-id": fmt.Sprintf("%d", cpu.Props.SocketID),
-					"core-id":   fmt.Sprintf("%d", cpu.Props.CoreID),
-					"thread-id": fmt.Sprintf("%d", cpu.Props.ThreadID),
+					"socket-id": fmt.Sprint(cpu.Props.SocketID),
+					"core-id":   fmt.Sprint(cpu.Props.CoreID),
+					"thread-id": fmt.Sprint(cpu.Props.ThreadID),
 				})
 				d.logger.Warn("Failed to add CPU device", logger.Ctx{"err": err})
 			})

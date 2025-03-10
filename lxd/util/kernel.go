@@ -2,6 +2,7 @@ package util
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -12,11 +13,11 @@ import (
 // LoadModule loads the kernel module with the given name, by invoking
 // modprobe. This respects any modprobe configuration on the system.
 func LoadModule(module string) error {
-	if shared.PathExists(fmt.Sprintf("/sys/module/%s", module)) {
+	if shared.PathExists("/sys/module/" + module) {
 		return nil
 	}
 
-	_, err := shared.RunCommand("modprobe", "-b", module)
+	_, err := shared.RunCommandContext(context.TODO(), "modprobe", "-b", module)
 	return err
 }
 

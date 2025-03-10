@@ -774,9 +774,13 @@ func StringHasPrefix(value string, prefixes ...string) bool {
 	return false
 }
 
-// IsTrue returns true if value is "true", "1", "yes" or "on" (case insensitive).
+// IsTrue returns true if value is "1", "true", "yes" or "on" (case insensitive).
 func IsTrue(value string) bool {
-	return ValueInSlice(strings.ToLower(value), []string{"true", "1", "yes", "on"})
+	if value == "1" {
+		return true
+	}
+
+	return ValueInSlice(strings.ToLower(value), []string{"true", "yes", "on"})
 }
 
 // IsTrueOrEmpty returns true if value is empty or if IsTrue() returns true.
@@ -784,9 +788,13 @@ func IsTrueOrEmpty(value string) bool {
 	return value == "" || IsTrue(value)
 }
 
-// IsFalse returns true if value is "false", "0", "no" or "off" (case insensitive).
+// IsFalse returns true if value is "0", "false", "no" or "off" (case insensitive).
 func IsFalse(value string) bool {
-	return ValueInSlice(strings.ToLower(value), []string{"false", "0", "no", "off"})
+	if value == "0" {
+		return true
+	}
+
+	return ValueInSlice(strings.ToLower(value), []string{"false", "no", "off"})
 }
 
 // IsFalseOrEmpty returns true if value is empty or if IsFalse() returns true.
@@ -826,6 +834,11 @@ func IsBlockdevPath(pathName string) bool {
 
 	fm := sb.Mode()
 	return ((fm&os.ModeDevice != 0) && (fm&os.ModeCharDevice == 0))
+}
+
+// IsFileName checks if the given string is a valid file name (no "/", ".." or "\\").
+func IsFileName(name string) bool {
+	return !strings.Contains(name, "/") && !strings.Contains(name, "\\") && !strings.Contains(name, "..")
 }
 
 // DeepCopy copies src to dest by using encoding/gob so its not that fast.
@@ -897,7 +910,7 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 
 	if inPath == "" {
 		// If provided input, create a new file
-		f, err = os.CreateTemp("", "lxd_editor_")
+		f, err = os.CreateTemp("", "lxd_editor_*.yaml")
 		if err != nil {
 			return []byte{}, err
 		}
@@ -919,11 +932,7 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 			return []byte{}, err
 		}
 
-		path = f.Name() + ".yaml"
-		err = os.Rename(f.Name(), path)
-		if err != nil {
-			return []byte{}, err
-		}
+		path = f.Name()
 
 		revert.Success()
 		revert.Add(func() { _ = os.Remove(path) })
@@ -1072,7 +1081,8 @@ func RunCommandContext(ctx context.Context, name string, arg ...string) (string,
 
 // RunCommand runs a command with optional arguments and returns stdout. If the command fails to
 // start or returns a non-zero exit code then an error is returned containing the output of stderr.
-// Deprecated: Use RunCommandContext.
+//
+// Deprecated: Use RunCommandContext().
 func RunCommand(name string, arg ...string) (string, error) {
 	stdout, _, err := RunCommandSplit(context.TODO(), nil, nil, name, arg...)
 	return stdout, err

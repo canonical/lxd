@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -69,6 +70,7 @@ import (
 	"github.com/canonical/lxd/lxd/storage/s3/miniod"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/lxd/task"
+	"github.com/canonical/lxd/lxd/ubuntupro"
 	"github.com/canonical/lxd/lxd/ucred"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/lxd/warnings"
@@ -164,6 +166,9 @@ type Daemon struct {
 
 	// Syslog listener cancel function.
 	syslogSocketCancel context.CancelFunc
+
+	// Ubuntu Pro settings
+	ubuntuPro *ubuntupro.Client
 }
 
 // DaemonConfig holds configuration values for Daemon.
@@ -350,6 +355,99 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// reportEntitlements takes a map of entity URLs to EntitlementReporters (in practice, API types that implement the ReportEntitlements method), and
+// reports the entitlements that the caller has on each entity URL to the corresponding EntitlementReporter.
+func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, identityCache *identity.Cache, entityType entity.Type, requestedEntitlements []auth.Entitlement, entityURLToEntitlementReporter map[*api.URL]auth.EntitlementReporter) error {
+	// Nothing to do
+	if len(entityURLToEntitlementReporter) == 0 {
+		return nil
+	}
+
+	id, err := auth.GetIdentityFromCtx(ctx, identityCache)
+	if err != nil {
+		return fmt.Errorf("Failed to get caller identity: %w", err)
+	}
+
+	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
+		return fmt.Errorf("Not fine grained")
+	}
+
+	// In the case where we have only one entity URL, we'll use the authorizer's CheckPermission method
+	// whereas if we have multiple entity URLs, we'll use the authorizer's GetPermissionChecker method that
+	// is more efficient for returning entitlements for a batch of entities.
+	if len(entityURLToEntitlementReporter) == 1 {
+		for u, r := range entityURLToEntitlementReporter {
+			entitlements := make([]string, 0, len(requestedEntitlements))
+			for _, entitlement := range requestedEntitlements {
+				err = authorizer.CheckPermission(ctx, u, entitlement)
+				if err != nil {
+					if auth.IsDeniedError(err) {
+						continue
+					}
+
+					return fmt.Errorf("Failed to check entitlement %q for entity URL %q: %w", entitlement, u, err)
+				}
+
+				entitlements = append(entitlements, string(entitlement))
+			}
+
+			r.ReportEntitlements(entitlements)
+		}
+
+		return nil
+	}
+
+	checkersByEntitlement := make(map[auth.Entitlement]auth.PermissionChecker)
+	for _, entitlement := range requestedEntitlements {
+		checker, err := authorizer.GetPermissionChecker(ctx, entitlement, entityType)
+		if err != nil {
+			return fmt.Errorf("Failed to get a permission checker for entitlement %q and for entity type %q: %w", entitlement, entityType, err)
+		}
+
+		checkersByEntitlement[entitlement] = checker
+	}
+
+	for u, reporter := range entityURLToEntitlementReporter {
+		entitlements := make([]string, 0, len(requestedEntitlements))
+		for entitlement, checker := range checkersByEntitlement {
+			if checker(u) {
+				entitlements = append(entitlements, string(entitlement))
+			}
+		}
+
+		reporter.ReportEntitlements(entitlements)
+	}
+
+	return nil
+}
+
+// extractEntitlementsFromQuery extracts the entitlements from the query string of the request.
+func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allowRecursion bool) ([]auth.Entitlement, error) {
+	rawEntitlements := request.QueryParam(r, "with-access-entitlements")
+	if rawEntitlements == "" {
+		return nil, nil
+	}
+
+	allowedEntitlements := auth.EntityTypeToEntitlements[entityType]
+	entitlements := strings.Split(rawEntitlements, ",")
+	validEntitlements := make([]auth.Entitlement, 0, len(entitlements))
+	for _, e := range entitlements {
+		if !shared.ValueInSlice(auth.Entitlement(e), allowedEntitlements) {
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Requested entitlement %q is not valid for entity type %q", e, entityType)
+		}
+
+		validEntitlements = append(validEntitlements, auth.Entitlement(e))
+	}
+
+	// Entitlements can only be requested when recursion is enabled for a request returning multiple entities (this function call uses `allowRecursion=true`).
+	// If the request is meant to return a single entity, the entitlements can be requested regardless of the recursion setting (in this case, the function is called with `allowRecursion=false`).
+	if len(validEntitlements) > 0 && (!util.IsRecursionRequest(r) && allowRecursion) {
+		return nil, fmt.Errorf("Entitlements can only be requested when recursion is enabled")
+	}
+
+	return validEntitlements, nil
+}
+
 // Authenticate validates an incoming http Request
 // It will check over what protocol it came, what type of request it is and
 // will validate the TLS certificate or OIDC token.
@@ -377,9 +475,9 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 				return false, "", "", nil, err
 			}
 
-			u, err := user.LookupId(fmt.Sprintf("%d", cred.Uid))
+			u, err := user.LookupId(fmt.Sprint(cred.Uid))
 			if err != nil {
-				return true, fmt.Sprintf("uid=%d", cred.Uid), auth.AuthenticationMethodUnix, nil, nil
+				return true, fmt.Sprint("uid=", cred.Uid), auth.AuthenticationMethodUnix, nil, nil
 			}
 
 			return true, u.Username, auth.AuthenticationMethodUnix, nil, nil
@@ -589,6 +687,7 @@ func (d *Daemon) State() *state.State {
 		Proxy:               d.proxy,
 		ServerCert:          d.serverCert,
 		UpdateIdentityCache: func() { updateIdentityCache(d) },
+		IdentityCache:       d.identityCache,
 		InstanceTypes:       instanceTypes,
 		DevMonitor:          d.devmonitor,
 		GlobalConfig:        globalConfig,
@@ -598,6 +697,7 @@ func (d *Daemon) State() *state.State {
 		ServerUUID:          d.serverUUID,
 		StartTime:           d.startTime,
 		Authorizer:          d.authorizer,
+		UbuntuPro:           d.ubuntuPro,
 	}
 
 	s.LeaderInfo = func() (*state.LeaderInfo, error) {
@@ -644,11 +744,11 @@ func (d *Daemon) UnixSocket() string {
 func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 	var uri string
 	if c.Path == "" {
-		uri = fmt.Sprintf("/%s", version)
+		uri = "/" + version
 	} else if version != "" {
-		uri = fmt.Sprintf("/%s/%s", version, c.Path)
+		uri = "/" + version + "/" + c.Path
 	} else {
-		uri = fmt.Sprintf("/%s", c.Path)
+		uri = "/" + c.Path
 	}
 
 	route := restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
@@ -743,7 +843,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 
 			r = r.WithContext(ctx)
 		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
-			logger.Debug(fmt.Sprintf("Allowing untrusted %s", r.Method), logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
+			logger.Debug("Allowing untrusted "+r.Method, logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else {
 			if d.oidcVerifier != nil {
 				_ = d.oidcVerifier.WriteHeaders(w)
@@ -753,6 +853,9 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			_ = response.Forbidden(nil).Render(w, r)
 			return
 		}
+
+		// Set OpenFGA cache in request context.
+		request.SetCtxValue(r, request.CtxOpenFGARequestCache, &openfga.RequestCache{})
 
 		// Dump full request JSON when in debug mode
 		if daemon.Debug && r.Method != "GET" && util.IsJSONRequest(r) {
@@ -950,7 +1053,10 @@ func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, i
 	}
 
 	// Start a new client.
-	d.lokiClient = loki.NewClient(d.shutdownCtx, u, cert, key, caCert, instanceName, location, logLevel, labels, types)
+	d.lokiClient, err = loki.NewClient(d.shutdownCtx, u, cert, key, caCert, instanceName, location, logLevel, labels, types)
+	if err != nil {
+		return err
+	}
 
 	// Attach the new client to the log handler.
 	d.internalListener.AddHandler("loki", d.lokiClient.HandleEvent)
@@ -1552,7 +1658,6 @@ func (d *Daemon) init() error {
 	// Get daemon configuration.
 	bgpAddress := d.localConfig.BGPAddress()
 	bgpRouterID := d.localConfig.BGPRouterID()
-	bgpASN := int64(0)
 
 	maasAPIURL := ""
 	maasAPIKey := ""
@@ -1560,14 +1665,14 @@ func (d *Daemon) init() error {
 
 	// Get specific config keys.
 	d.globalConfigMu.Lock()
-	bgpASN = d.globalConfig.BGPASN()
+	bgpASN := d.globalConfig.BGPASN()
 
 	d.proxy = shared.ProxyFromConfig(d.globalConfig.ProxyHTTPS(), d.globalConfig.ProxyHTTP(), d.globalConfig.ProxyIgnoreHosts())
 
 	maasAPIURL, maasAPIKey = d.globalConfig.MAASController()
 	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
 	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes := d.globalConfig.LokiServer()
-	oidcIssuer, oidcClientID, oidcAudience, oidcGroupsClaim := d.globalConfig.OIDCServer()
+	oidcIssuer, oidcClientID, oidcScopes, oidcAudience, oidcGroupsClaim := d.globalConfig.OIDCServer()
 	syslogSocketEnabled := d.localConfig.SyslogSocket()
 	instancePlacementScriptlet := d.globalConfig.InstancesPlacementScriptlet()
 
@@ -1595,7 +1700,7 @@ func (d *Daemon) init() error {
 			return util.HTTPClient("", d.proxy)
 		}
 
-		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience, d.serverCert, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
+		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcScopes, oidcAudience, d.serverCert, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
 		if err != nil {
 			return err
 		}
@@ -1604,6 +1709,10 @@ func (d *Daemon) init() error {
 	// Setup BGP listener.
 	d.bgp = bgp.NewServer()
 	if bgpAddress != "" && bgpASN != 0 && bgpRouterID != "" {
+		if bgpASN > math.MaxUint32 {
+			return fmt.Errorf("Cannot convert BGP ASN to uint32: Upper bound exceeded")
+		}
+
 		err := d.bgp.Start(bgpAddress, uint32(bgpASN), net.ParseIP(bgpRouterID))
 		if err != nil {
 			return err
@@ -1861,6 +1970,9 @@ func (d *Daemon) init() error {
 	// Start all background tasks
 	d.tasks.Start(d.shutdownCtx)
 
+	// Load Ubuntu Pro configuration before starting any instances.
+	d.ubuntuPro = ubuntupro.New(d.shutdownCtx, d.os.ReleaseInfo["NAME"])
+
 	// Restore instances
 	instancesStart(d.State(), instances)
 
@@ -2084,7 +2196,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	if n > 0 {
 		format := "%v"
 		if n > 1 {
-			format += fmt.Sprintf(" (and %d more errors)", n)
+			format += fmt.Sprint(" (and ", n, " more errors)")
 		}
 
 		err = fmt.Errorf(format, errs[0])
@@ -2374,8 +2486,8 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	if isLeader && unavailableMembers != nil && len(heartbeatData.Members) > 1 {
 		isDegraded := false
 		hasNodesNotPartOfRaft := false
-		onlineVoters := 0
-		onlineStandbys := 0
+		onlineVoters := int64(0)
+		onlineStandbys := int64(0)
 
 		for _, node := range heartbeatData.Members {
 			role := db.RaftRole(node.RaftRole)
@@ -2402,7 +2514,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		// If there are offline members that have voter or stand-by database roles, let's see if we can
 		// replace them with spare ones. Also, if we don't have enough voters or standbys, let's see if we
 		// can upgrade some member.
-		if isDegraded || onlineVoters < int(maxVoters) || onlineStandbys < int(maxStandBy) {
+		if isDegraded || onlineVoters < maxVoters || onlineStandbys < maxStandBy {
 			d.clusterMembershipMutex.Lock()
 			logger.Debug("Rebalancing member roles in heartbeat", logger.Ctx{"local": localClusterAddress})
 			err := rebalanceMemberRoles(d.State(), d.gateway, nil, unavailableMembers)

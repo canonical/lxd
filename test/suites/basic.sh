@@ -431,8 +431,19 @@ test_basic_usage() {
 
   # check that we can set the environment
   lxc exec foo -- pwd | grep /root
-  lxc exec --env BEST_BAND=meshuggah foo -- env | grep meshuggah
+  lxc exec --env BEST_BAND=meshuggah foo -- env | grep -xF BEST_BAND=meshuggah
   lxc exec foo -- ip link show | grep eth0
+
+  # check that environment variables work with profiles
+  lxc profile create clash
+  lxc profile set clash environment.BEST_BAND=clash
+  lxc profile add foo clash
+  lxc exec foo -- env | grep -xF BEST_BAND=clash
+  lxc exec --env BEST_BAND=meshuggah foo -- env | grep -xF BEST_BAND=meshuggah
+  lxc profile remove foo clash
+  ! lxc exec foo -- env | grep -F BEST_BAND= || false
+  lxc exec --env BEST_BAND=meshuggah foo -- env | grep -xF BEST_BAND=meshuggah
+  lxc profile delete clash
 
   # check that we can get the return code for a non- wait-for-websocket exec
   op=$(my_curl -X POST "https://${LXD_ADDR}/1.0/containers/foo/exec" -d '{"command": ["echo", "test"], "environment": {}, "wait-for-websocket": false, "interactive": false}' | jq -r .operation)

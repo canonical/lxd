@@ -56,25 +56,26 @@ WHERE '' = ?
 		WHEN %d THEN '%s' 
 	END = ? 
 	AND identities.identifier = ?
-	AND identities.type IN (%d)
+	AND identities.type IN (%d, %d, %d)
 `, authMethodTLS, api.AuthenticationMethodTLS,
 		authMethodOIDC, api.AuthenticationMethodOIDC,
-		identityTypeOIDCClient,
+		identityTypeOIDCClient, identityTypeCertificateClient, identityTypeCertificateClientPending,
 	)
 }
 
 func (e entityTypeIdentity) onDeleteTriggerSQL() (name string, sql string) {
+	typeCertificate := entityTypeCertificate{}
 	name = "on_identity_delete"
 	return name, fmt.Sprintf(`
 CREATE TRIGGER %s
 	AFTER DELETE ON identities
 	BEGIN
 	DELETE FROM auth_groups_permissions 
-		WHERE entity_type = %d 
+		WHERE entity_type IN (%d, %d) 
 		AND entity_id = OLD.id;
 	DELETE FROM warnings
-		WHERE entity_type_code = %d
+		WHERE entity_type_code IN (%d, %d)
 		AND entity_id = OLD.id;
 	END
-`, name, e.code(), e.code())
+`, name, e.code(), typeCertificate.code(), e.code(), typeCertificate.code())
 }

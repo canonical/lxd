@@ -2519,3 +2519,101 @@ Adds a new {config:option}`instance-resource-limits:limits.cpu.pin_strategy` con
 ## `gpu_cdi`
 
 Adds support for using the Container Device Interface (CDI) specification to configure GPU passthrough in LXD containers. The `id` field of GPU devices now accepts CDI identifiers (for example, `{VENDOR_DOMAIN_NAME}/gpu=gpu{INDEX}`) for containers, in addition to DRM card IDs. This enables GPU passthrough for devices that don't use PCI addressing (like NVIDIA Tegra iGPUs) and provides a more flexible way to identify and configure GPU devices.
+
+## `metadata_configuration_scope`
+
+This adds scope metadata to `GET /1.0/metadata/configuration`. Options marked with a `global` scope are applied to all cluster members. Options with a `local` scope must be set on a per-member basis.
+
+## `unix_device_hotplug_ownership_inherit`
+
+Adds a new {config:option}`device-unix-hotplug-device-conf:ownership.inherit` configuration option for `unix-hotplug` devices. This option controls whether the device inherits ownership (GID and/or UID) from the host. When set to `true` and GID and/or UID are unset, host ownership is inherited. When set to `false`, host ownership is not inherited and ownership can be configured by setting {config:option}`device-unix-hotplug-device-conf:gid` and {config:option}`device-unix-hotplug-device-conf:uid`.
+
+## `unix_device_hotplug_subsystem_device_option`
+
+Adds a new {config:option}`device-unix-hotplug-device-conf:subsystem` configuration option for `unix-hotplug` devices. This adds support for detecting `unix-hotplug` devices by subsystem, and can be used in conjunction with {config:option}`device-unix-hotplug-device-conf:productid` and {config:option}`device-unix-hotplug-device-conf:vendorid`.
+
+## `storage_ceph_osd_pool_size`
+This introduces the configuration keys {config:option}`storage-ceph-pool-conf:ceph.osd.pool_size`, and {config:option}`storage-cephfs-pool-conf:cephfs.osd_pool_size` to be used when adding or updating a `ceph` or `cephfs` storage pool to instruct LXD to create set the replication size for the underlying OSD pools.
+
+## `network_get_target`
+
+Adds optional `target` parameter to `GET /1.0/network`. When target is set, forward the request to the specified cluster member and return the non-managed interfaces from that member.
+
+## `network_zones_all_projects`
+
+This adds support for listing network zones across all projects using the `all-projects` parameter in `GET /1.0/network-zones` requests.
+
+## `vm_root_volume_attachment`
+
+Adds support for virtual-machine root volumes and snapshots to be attached to other instances as disk devices. Introduces the `source.type` and `source.snapshot` keys for disk devices.
+
+## `projects_limits_uplink_ips`
+
+Introduces per-project uplink IP limits for each available uplink network, adding `limits.networks.uplink_ips.ipv4.NETWORK_NAME` and `limits.networks.uplink_ips.ipv6.NETWORK_NAME` configuration keys for projects with `features.networks` enabled.
+These keys define the maximum value of IPs made available on a network named NETWORK_NAME to be assigned as uplink IPs for entities inside a certain project. These entities can be other networks, network forwards or load balancers.
+
+## `entities_with_entitlements`
+
+Adds `fine_grained` field to `GET /1.0/auth/identities/current` to indicate if the current identity
+interacting with the LXD API is fine-grained (that is, associated permissions are managed via group membership).
+Allows LXD entities to be returned with an `access_entitlements` field if the current identity is fine-grained and the
+GET request to fetch the LXD entities has the `with-access-entitlements=<comma_separated_list_of_candidate_entitlements>` query parameter.
+
+## `profiles_all_projects`
+
+This adds support for listing profiles across all projects using the `all-projects` parameter in `GET /1.0/profiles` requests.
+
+## `storage_driver_powerflex`
+
+Adds a new `powerflex` storage driver which allows the consumption of storage volumes from a Dell PowerFlex storage array using NVMe/TCP and SDC.
+The following new pool level configuration keys have been added:
+
+1. {config:option}`storage-powerflex-pool-conf:powerflex.clone_copy`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.domain`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.gateway`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.gateway.verify`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.mode`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.pool`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.sdt`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.user.name`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.user.password`
+
+The following configuration keys have been added for volumes backed by PowerFlex:
+
+1. {config:option}`storage-powerflex-volume-conf:block.type`
+
+## `storage_driver_pure`
+
+Adds a new `pure` storage driver which allows the consumption of storage volumes from a Pure Storage storage array using either iSCSI or NVMe/TCP.
+
+The following pool level configuration keys have been added:
+
+1. {config:option}`storage-pure-pool-conf:pure.gateway`
+1. {config:option}`storage-pure-pool-conf:pure.gateway.verify`
+1. {config:option}`storage-pure-pool-conf:pure.api.token`
+1. {config:option}`storage-pure-pool-conf:pure.mode`
+1. {config:option}`storage-pure-pool-conf:pure.target`
+
+## `cloud_init_ssh_keys`
+
+Adds support for injecting additional SSH public keys into instances through {ref}`cloud-init <instance-options-cloud-init>` without conflicting with any configuration present on {config:option}`instance-cloud-init:cloud-init.vendor-data` or {config:option}`instance-cloud-init:cloud-init.user-data`.
+
+To achieve this, the `cloud-init.ssh-keys.KEYNAME` configuration key is added for both instances and profiles. This key is used to define a public key to be injected. `KEYNAME` can be any arbitrary name for the injected key.
+
+The value for `cloud-init.ssh-keys.KEYNAME` should be `<user>:<key>`, where `<user>` is the name of the user for whom to inject the key. For `<key>`, provide either the public key or a `cloud-init` import ID for a key hosted elsewhere. Example valid values for `cloud-init.ssh-keys.KEYNAME` are `root:gh:githubUser` or `myUser:ssh-keyAlg base64PublicKey`.
+
+## `oidc_scopes`
+
+This API extension enables setting an {config:option}`server-oidc:oidc.scopes` configuration key, which accepts a space-separated list of OIDC scopes to request from the identity provider.
+This configuration option can be used to request additional scopes that might be required for retrieving {ref}`identity provider groups <identity-provider-groups>` from the identity provider.
+Additionally, the optional scopes `profile` and `offline_access` can be unset via this setting.
+Note that the `openid` and `email` scopes are always required.
+
+## `project_default_network_and_storage`
+
+Adds flags --network and --storage. The --network flag adds a network device connected to the specified network to the default profile. The --storage flag adds a root disk device using the specified storage pool to the default profile.
+
+## `ubuntu_pro_guest_attach`
+
+Adds a new {config:option}`instance-miscellaneous:ubuntu_pro.guest_attach` configuration option for instances.
+When set to `on`, if the host has guest attachment enabled, the guest can request a guest token for Ubuntu Pro via `devlxd`.

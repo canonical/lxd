@@ -102,6 +102,8 @@ type StorageVolumePostTarget struct {
 //
 // API extension: storage.
 type StorageVolume struct {
+	WithEntitlements `yaml:",inline"`
+
 	// Volume name
 	// Example: foo
 	Name string `json:"name" yaml:"name"`

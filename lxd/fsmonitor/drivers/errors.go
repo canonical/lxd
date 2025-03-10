@@ -20,5 +20,5 @@ type ErrInvalidPath struct {
 
 // Error returns the error string.
 func (e *ErrInvalidPath) Error() string {
-	return fmt.Sprintf("Path needs to be in %s", e.PrefixPath)
+	return "Path needs to be in " + e.PrefixPath
 }

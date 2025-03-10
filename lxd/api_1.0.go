@@ -230,7 +230,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	// Get the authentication methods.
 	authMethods := []string{api.AuthenticationMethodTLS}
 
-	oidcIssuer, oidcClientID, _, _ := s.GlobalConfig.OIDCServer()
+	oidcIssuer, oidcClientID, _, _, _ := s.GlobalConfig.OIDCServer()
 	if oidcIssuer != "" && oidcClientID != "" {
 		authMethods = append(authMethods, api.AuthenticationMethodOIDC)
 	}
@@ -247,6 +247,11 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	// If not authenticated, return now.
 	if !auth.IsTrusted(r.Context()) {
 		return response.SyncResponseETag(true, srv, nil)
+	}
+
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeServer, false)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// If a target was specified, forward the request to the relevant node.
@@ -324,13 +329,13 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	env.KernelFeatures = map[string]string{
-		"netnsid_getifaddrs":        fmt.Sprintf("%v", s.OS.NetnsGetifaddrs),
-		"uevent_injection":          fmt.Sprintf("%v", s.OS.UeventInjection),
-		"unpriv_binfmt":             fmt.Sprintf("%v", s.OS.UnprivBinfmt),
-		"unpriv_fscaps":             fmt.Sprintf("%v", s.OS.VFS3Fscaps),
-		"seccomp_listener":          fmt.Sprintf("%v", s.OS.SeccompListener),
-		"seccomp_listener_continue": fmt.Sprintf("%v", s.OS.SeccompListenerContinue),
-		"idmapped_mounts":           fmt.Sprintf("%v", s.OS.IdmappedMounts),
+		"netnsid_getifaddrs":        fmt.Sprint(s.OS.NetnsGetifaddrs),
+		"uevent_injection":          fmt.Sprint(s.OS.UeventInjection),
+		"unpriv_binfmt":             fmt.Sprint(s.OS.UnprivBinfmt),
+		"unpriv_fscaps":             fmt.Sprint(s.OS.VFS3Fscaps),
+		"seccomp_listener":          fmt.Sprint(s.OS.SeccompListener),
+		"seccomp_listener_continue": fmt.Sprint(s.OS.SeccompListenerContinue),
+		"idmapped_mounts":           fmt.Sprint(s.OS.IdmappedMounts),
 	}
 
 	drivers := instanceDrivers.DriverStatuses()
@@ -374,7 +379,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	if s.OS.LXCFeatures != nil {
 		env.LXCFeatures = map[string]string{}
 		for k, v := range s.OS.LXCFeatures {
-			env.LXCFeatures[k] = fmt.Sprintf("%v", v)
+			env.LXCFeatures[k] = fmt.Sprint(v)
 		}
 	}
 
@@ -396,7 +401,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	env.StorageSupportedDrivers = supportedStorageDrivers
 
-	fullSrv := api.Server{ServerUntrusted: srv}
+	fullSrv := &api.Server{ServerUntrusted: srv}
 	fullSrv.Environment = env
 	requestor := request.CreateRequestor(r)
 	fullSrv.AuthUserName = requestor.Username
@@ -410,6 +415,13 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		fullSrv.Config, err = daemonConfigRender(s)
 		if err != nil {
 			return response.InternalError(err)
+		}
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeServer, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ServerURL(): fullSrv})
+		if err != nil {
+			return response.SmartError(err)
 		}
 	}
 
@@ -636,14 +648,26 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 		// Validate the storage volumes
 		if nodeValues["storage.backups_volume"] != nil && nodeValues["storage.backups_volume"] != newNodeConfig.StorageBackupsVolume() {
-			err := daemonStorageValidate(s, nodeValues["storage.backups_volume"].(string))
+			backupsPoolVolume, ok := nodeValues["storage.backups_volume"].(string)
+			if !ok {
+				return fmt.Errorf(`Unexpected type for "storage.backups_volume": %T`, nodeValues["storage.backups_volume"])
+			}
+
+			// Store validated name back into nodeValues to ensure its not classifed as raw user input.
+			nodeValues["storage.backups_volume"], err = daemonStorageValidate(s, backupsPoolVolume)
 			if err != nil {
 				return fmt.Errorf("Failed validation of %q: %w", "storage.backups_volume", err)
 			}
 		}
 
 		if nodeValues["storage.images_volume"] != nil && nodeValues["storage.images_volume"] != newNodeConfig.StorageImagesVolume() {
-			err := daemonStorageValidate(s, nodeValues["storage.images_volume"].(string))
+			imagesPoolVolume, ok := nodeValues["storage.images_volume"].(string)
+			if !ok {
+				return fmt.Errorf(`Unexpected type for "storage.images_volume": %T`, nodeValues["storage.images_volume"])
+			}
+
+			// Store validated name back into nodeValues to ensure its not classifed as raw user input.
+			nodeValues["storage.images_volume"], err = daemonStorageValidate(s, imagesPoolVolume)
 			if err != nil {
 				return fmt.Errorf("Failed validation of %q: %w", "storage.images_volume", err)
 			}
@@ -868,7 +892,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			acmeCAURLChanged = true
 		case "acme.domain":
 			acmeDomainChanged = true
-		case "oidc.issuer", "oidc.client.id", "oidc.audience", "oidc.groups.claim":
+		case "oidc.issuer", "oidc.client.id", "oidc.scopes", "oidc.audience", "oidc.groups.claim":
 			oidcChanged = true
 		}
 	}
@@ -1016,7 +1040,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	}
 
 	if oidcChanged {
-		oidcIssuer, oidcClientID, oidcAudience, oidcGroupsClaim := clusterConfig.OIDCServer()
+		oidcIssuer, oidcClientID, oidcScopes, oidcAudience, oidcGroupsClaim := clusterConfig.OIDCServer()
 
 		if oidcIssuer == "" || oidcClientID == "" {
 			d.oidcVerifier = nil
@@ -1027,7 +1051,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 				return util.HTTPClient("", d.proxy)
 			}
 
-			d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience, s.ServerCert, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
+			d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcScopes, oidcAudience, s.ServerCert, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
 			if err != nil {
 				return fmt.Errorf("Failed creating verifier: %w", err)
 			}

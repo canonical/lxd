@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,6 +17,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/cloudinit"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -69,10 +70,42 @@ func devlxdConfigGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrite
 	}
 
 	filtered := []string{}
+	hasSSHKeys := false
+	hasVendorData := false
+	hasUserData := false
 	for k := range c.ExpandedConfig() {
-		if strings.HasPrefix(k, "user.") || strings.HasPrefix(k, "cloud-init.") {
-			filtered = append(filtered, fmt.Sprintf("/1.0/config/%s", k))
+		if !(strings.HasPrefix(k, "user.") || strings.HasPrefix(k, "cloud-init.")) {
+			continue
 		}
+
+		if strings.HasPrefix(k, "cloud-init.ssh-keys.") {
+			// cloud-init.ssh-keys keys are not to be retrieved by cloud-init directly, but instead LXD converts them
+			// into cloud-init config and merges it into cloud-init.[vendor|user]-data.
+			// This way we can make use of the full array of options proivded by cloud-config for injecting keys
+			// and not compromise any cloud-init config defined on the instance's expanded config.
+			hasSSHKeys = true
+			continue
+		}
+
+		if shared.ValueInSlice(k, cloudinit.VendorDataKeys) {
+			hasVendorData = true
+		} else if shared.ValueInSlice(k, cloudinit.UserDataKeys) {
+			hasUserData = true
+		}
+
+		filtered = append(filtered, "/1.0/config/"+k)
+	}
+
+	// If [vendor|user]-data are not defined, cloud-init should still request for them if there are SSH keys defined via
+	// "cloud-init.ssh.keys". Use both user.* and cloud-init.* for compatibitily with older cloud-init.
+	if hasSSHKeys && !hasVendorData {
+		filtered = append(filtered, "/1.0/config/cloud-init.vendor-data")
+		filtered = append(filtered, "/1.0/config/user.vendor-data")
+	}
+
+	if hasSSHKeys && !hasUserData {
+		filtered = append(filtered, "/1.0/config/cloud-init.user-data")
+		filtered = append(filtered, "/1.0/config/user.user-data")
 	}
 
 	return response.DevLxdResponse(http.StatusOK, filtered, "json", c.Type() == instancetype.VM)
@@ -97,8 +130,26 @@ func devlxdConfigKeyGetHandler(d *Daemon, c instance.Instance, w http.ResponseWr
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
 
-	value, ok := c.ExpandedConfig()[key]
-	if !ok {
+	var value string
+
+	isVendorDataKey := shared.ValueInSlice(key, cloudinit.VendorDataKeys)
+	isUserDataKey := shared.ValueInSlice(key, cloudinit.UserDataKeys)
+
+	// For values containing cloud-init seed data, try to merge into them additional SSH keys present on the instance config.
+	// If parsing the config is not possible, abstain from merging the additional keys.
+	if isVendorDataKey || isUserDataKey {
+		cloudInitData := cloudinit.GetEffectiveConfig(c.ExpandedConfig(), key, c.Name(), c.Project().Name)
+		if isVendorDataKey {
+			value = cloudInitData.VendorData
+		} else {
+			value = cloudInitData.UserData
+		}
+	} else {
+		value = c.ExpandedConfig()[key]
+	}
+
+	// If the resulting value is empty, return Not Found.
+	if value == "" {
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusNotFound, "not found"), c.Type() == instancetype.VM)
 	}
 
@@ -119,14 +170,7 @@ func devlxdImageExportHandler(d *Daemon, c instance.Instance, w http.ResponseWri
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
 
-	resp := imageExport(d, r)
-
-	err := resp.Render(w, r)
-	if err != nil {
-		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
-	}
-
-	return response.DevLxdResponse(http.StatusOK, "", "raw", c.Type() == instancetype.VM)
+	return imageExport(d, r)
 }
 
 var devlxdMetadataGet = devLxdHandler{
@@ -141,7 +185,7 @@ func devlxdMetadataGetHandler(d *Daemon, inst instance.Instance, w http.Response
 
 	value := inst.ExpandedConfig()["user.meta-data"]
 
-	return response.DevLxdResponse(http.StatusOK, fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", inst.CloudInitID(), inst.Name(), value), "raw", inst.Type() == instancetype.VM)
+	return response.DevLxdResponse(http.StatusOK, "instance-id: "+inst.CloudInitID()+"\nlocal-hostname: "+inst.Name()+"\n"+value, "raw", inst.Type() == instancetype.VM)
 }
 
 var devlxdEventsGet = devLxdHandler{
@@ -285,12 +329,56 @@ func devlxdDevicesGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrit
 	localConfig := c.LocalConfig()
 	devices := c.ExpandedDevices()
 	for devName, devConfig := range devices {
-		if devConfig["type"] == "nic" && devConfig["hwaddr"] == "" && localConfig[fmt.Sprintf("volatile.%s.hwaddr", devName)] != "" {
-			devices[devName]["hwaddr"] = localConfig[fmt.Sprintf("volatile.%s.hwaddr", devName)]
+		if devConfig["type"] == "nic" && devConfig["hwaddr"] == "" && localConfig["volatile."+devName+".hwaddr"] != "" {
+			devices[devName]["hwaddr"] = localConfig["volatile."+devName+".hwaddr"]
 		}
 	}
 
 	return response.DevLxdResponse(http.StatusOK, c.ExpandedDevices(), "json", c.Type() == instancetype.VM)
+}
+
+var devlxdUbuntuProGet = devLxdHandler{
+	path:        "/1.0/ubuntu-pro",
+	handlerFunc: devlxdUbuntuProGetHandler,
+}
+
+func devlxdUbuntuProGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.NewGenericStatusError(http.StatusForbidden), c.Type() == instancetype.VM)
+	}
+
+	if r.Method != http.MethodGet {
+		return response.DevLxdErrorResponse(api.NewGenericStatusError(http.StatusMethodNotAllowed), c.Type() == instancetype.VM)
+	}
+
+	settings := d.State().UbuntuPro.GuestAttachSettings(c.ExpandedConfig()["ubuntu_pro.guest_attach"])
+
+	// Otherwise, return the value from the instance configuration.
+	return response.DevLxdResponse(http.StatusOK, settings, "json", c.Type() == instancetype.VM)
+}
+
+var devlxdUbuntuProTokenPost = devLxdHandler{
+	path:        "/1.0/ubuntu-pro/token",
+	handlerFunc: devlxdUbuntuProTokenPostHandler,
+}
+
+func devlxdUbuntuProTokenPostHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.NewGenericStatusError(http.StatusForbidden), c.Type() == instancetype.VM)
+	}
+
+	if r.Method != http.MethodPost {
+		return response.DevLxdErrorResponse(api.NewGenericStatusError(http.StatusMethodNotAllowed), c.Type() == instancetype.VM)
+	}
+
+	// Return http.StatusForbidden if the host does not have guest attachment enabled.
+	tokenJSON, err := d.State().UbuntuPro.GetGuestToken(r.Context(), c.ExpandedConfig()["ubuntu_pro.guest_attach"])
+	if err != nil {
+		return response.DevLxdErrorResponse(fmt.Errorf("Failed to get an Ubuntu Pro guest token: %w", err), c.Type() == instancetype.VM)
+	}
+
+	// Pass it back to the guest.
+	return response.DevLxdResponse(http.StatusOK, tokenJSON, "json", c.Type() == instancetype.VM)
 }
 
 var handlers = []devLxdHandler{
@@ -307,6 +395,8 @@ var handlers = []devLxdHandler{
 	devlxdEventsGet,
 	devlxdImageExport,
 	devlxdDevicesGet,
+	devlxdUbuntuProGet,
+	devlxdUbuntuProTokenPost,
 }
 
 func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
@@ -345,7 +435,15 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 		}
 
 		resp := f(d, c, w, r)
-		_ = resp.Render(w, r)
+		if resp != nil {
+			err = resp.Render(w, r)
+			if err != nil {
+				writeErr := response.DevLxdErrorResponse(err, false).Render(w, r)
+				if writeErr != nil {
+					logger.Warn("Failed writing error for HTTP response", logger.Ctx{"url": r.URL, "err": err, "writeErr": writeErr})
+				}
+			}
+		}
 	}
 }
 
@@ -470,7 +568,8 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 	origpid := pid
 
 	for pid > 1 {
-		cmdline, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
+		procPID := "/proc/" + fmt.Sprint(pid)
+		cmdline, err := os.ReadFile(procPID + "/cmdline")
 		if err != nil {
 			return nil, err
 		}
@@ -482,9 +581,7 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 
 			projectName := api.ProjectDefaultName
 			if strings.Contains(name, "_") {
-				fields := strings.SplitN(name, "_", 2)
-				projectName = fields[0]
-				name = fields[1]
+				projectName, name, _ = strings.Cut(name, "_")
 			}
 
 			inst, err := instance.LoadByProjectAndName(s, projectName, name)
@@ -501,27 +598,29 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 			return c, nil
 		}
 
-		status, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
-		if err != nil {
-			return nil, err
-		}
-
-		re, err := regexp.Compile(`^PPid:\s+([0-9]+)$`)
+		status, err := os.ReadFile(procPID + "/status")
 		if err != nil {
 			return nil, err
 		}
 
 		for _, line := range strings.Split(string(status), "\n") {
-			m := re.FindStringSubmatch(line)
-			if len(m) > 1 {
-				result, err := strconv.Atoi(m[1])
-				if err != nil {
-					return nil, err
-				}
-
-				pid = int32(result)
-				break
+			ppidStr, found := strings.CutPrefix(line, "PPid:")
+			if !found {
+				continue
 			}
+
+			// ParseUint avoid scanning for `-` sign.
+			ppid, err := strconv.ParseUint(strings.TrimSpace(ppidStr), 10, 32)
+			if err != nil {
+				return nil, err
+			}
+
+			if ppid > math.MaxInt32 {
+				return nil, fmt.Errorf("PPid value too large: Upper bound exceeded")
+			}
+
+			pid = int32(ppid)
+			break
 		}
 	}
 

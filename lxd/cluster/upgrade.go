@@ -33,7 +33,7 @@ func NotifyUpgradeCompleted(state *state.State, networkCert *shared.CertInfo, se
 			return fmt.Errorf("failed to get connection info: %w", err)
 		}
 
-		url := fmt.Sprintf("%s%s", info.Addresses[0], databaseEndpoint)
+		url := info.Addresses[0] + databaseEndpoint
 		request, err := http.NewRequest("PATCH", url, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create database notify upgrade request: %w", err)
@@ -117,7 +117,7 @@ func triggerUpdate() error {
 	time.Sleep(wait)
 
 	logger.Info("Triggering cluster auto-update now")
-	_, err := shared.RunCommand(updateExecutable)
+	_, err := shared.RunCommandContext(context.TODO(), updateExecutable)
 	if err != nil {
 		logger.Error("Triggering cluster update failed", logger.Ctx{"err": err})
 		return err

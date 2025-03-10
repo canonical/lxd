@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -29,6 +30,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -143,6 +145,10 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	recursion := util.IsRecursionRequest(r)
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeProject, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeProject)
 	if err != nil {
@@ -198,6 +204,19 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 	for _, apiProject := range apiProjects {
 		apiProject.UsedBy = projecthelpers.FilterUsedBy(s.Authorizer, r, apiProject.UsedBy)
+	}
+
+	if len(withEntitlements) > 0 {
+		urlToProject := make(map[*api.URL]auth.EntitlementReporter, len(apiProjects))
+		for _, p := range apiProjects {
+			u := entity.ProjectURL(p.Name)
+			urlToProject[u] = p
+		}
+
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProject, withEntitlements, urlToProject)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponse(true, apiProjects)
@@ -288,13 +307,13 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Quick checks.
-	err = projectValidateName(project.Name)
+	err = projecthelpers.ValidName(project.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
 	// Validate the configuration.
-	err = projectValidateConfig(s, project.Config)
+	err = projectValidateConfig(s, project.Config, project.Network)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -312,7 +331,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if shared.IsTrue(project.Config["features.profiles"]) {
-			err = projectCreateDefaultProfile(tx, project.Name)
+			err = projectCreateDefaultProfile(tx, project.Name, project.StoragePool, project.Network)
 			if err != nil {
 				return err
 			}
@@ -339,16 +358,49 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 }
 
 // Create the default profile of a project.
-func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
+func projectCreateDefaultProfile(tx *db.ClusterTx, project string, storagePool string, network string) error {
 	// Create a default profile
 	profile := cluster.Profile{}
 	profile.Project = project
 	profile.Name = api.ProjectDefaultName
-	profile.Description = fmt.Sprintf("Default LXD profile for project %s", project)
+	profile.Description = "Default LXD profile for project " + project
 
-	_, err := cluster.CreateProfile(context.TODO(), tx.Tx(), profile)
+	profileID, err := cluster.CreateProfile(context.TODO(), tx.Tx(), profile)
 	if err != nil {
 		return fmt.Errorf("Add default profile to database: %w", err)
+	}
+
+	devices := map[string]cluster.Device{}
+	if storagePool != "" {
+		rootDev := map[string]string{}
+		rootDev["path"] = "/"
+		rootDev["pool"] = storagePool
+		device := cluster.Device{
+			Name:   "root",
+			Type:   cluster.TypeDisk,
+			Config: rootDev,
+		}
+
+		devices["root"] = device
+	}
+
+	if network != "" {
+		networkDev := map[string]string{}
+		networkDev["network"] = network
+		device := cluster.Device{
+			Name:   "eth0",
+			Type:   cluster.TypeNIC,
+			Config: networkDev,
+		}
+
+		devices["eth0"] = device
+	}
+
+	if len(devices) > 0 {
+		err = cluster.CreateProfileDevices(context.TODO(), tx.Tx(), profileID, devices)
+		if err != nil {
+			return fmt.Errorf("Add root device to default profile of new project: %w", err)
+		}
 	}
 
 	return nil
@@ -396,6 +448,11 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeProject, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the database entry
 	var project *api.Project
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -414,6 +471,13 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProject, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ProjectURL(name): project})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	etag := []any{
@@ -682,14 +746,14 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 	}
 
 	// Validate the configuration.
-	err := projectValidateConfig(s, req.Config)
+	err := projectValidateConfig(s, req.Config, "")
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
 	// Update the database entry.
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		err := limits.AllowProjectUpdate(s.GlobalConfig, tx, project.Name, req.Config, configChanged)
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		err := limits.AllowProjectUpdate(ctx, s.GlobalConfig, tx, project.Name, req.Config, configChanged)
 		if err != nil {
 			return err
 		}
@@ -701,7 +765,7 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 
 		if shared.ValueInSlice("features.profiles", configChanged) {
 			if shared.IsTrue(req.Config["features.profiles"]) {
-				err = projectCreateDefaultProfile(tx, project.Name)
+				err = projectCreateDefaultProfile(tx, project.Name, "", "")
 				if err != nil {
 					return err
 				}
@@ -805,7 +869,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Only empty projects can be renamed")
 			}
 
-			err = projectValidateName(req.Name)
+			err = projecthelpers.ValidName(req.Name)
 			if err != nil {
 				return err
 			}
@@ -935,8 +999,8 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	state := api.ProjectState{}
 
 	// Get current limits and usage.
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		result, err := limits.GetCurrentAllocations(s.GlobalConfig.Dump(), ctx, tx, name)
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		result, err := limits.GetCurrentAllocations(ctx, s.GlobalConfig.Dump(), tx, name)
 		if err != nil {
 			return err
 		}
@@ -1024,7 +1088,10 @@ func isEitherAllowOrBlockOrManaged(value string) error {
 	return validate.Optional(validate.IsOneOf("block", "allow", "managed"))(value)
 }
 
-func projectValidateConfig(s *state.State, config map[string]string) error {
+// projectValidateConfig validates whether project config keys follow the expected format.
+// Any value checks that rely on the state of the database should be performed on AllowProjectUpdate,
+// so that we are performing these checks and updating the project in a single transaction.
+func projectValidateConfig(s *state.State, config map[string]string, defaultNetwork string) error {
 	// Validate the project configuration.
 	projectConfigKeys := map[string]func(value string) error{
 		// lxdmeta:generate(entities=project; group=specific; key=backups.compression_algorithm)
@@ -1360,6 +1427,8 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.networks.subnets)
 		// Specify a comma-delimited list of CIDR network routes from the uplink network's {config:option}`network-physical-network-conf:ipv4.routes` {config:option}`network-physical-network-conf:ipv6.routes` that are allowed for use in this project.
 		// Use the form `<uplink>:<subnet>`.
+		//
+		// Example value: `lxdbr0:192.0.168.0/24,lxdbr0:10.1.19.5/32`
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
@@ -1384,13 +1453,13 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 	}
 
 	// Add the storage pool keys.
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Load all the pools.
 		pools, err := tx.GetStoragePoolNames(ctx)
-		if err != nil {
-			return err
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return fmt.Errorf("Failed loading storage pool names: %w", err)
 		}
 
 		// Add the storage-pool specific config keys.
@@ -1405,13 +1474,47 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 			// ---
 			//  type: string
 			//  shortdesc: Maximum disk space used by the project on this pool
-			projectConfigKeys[fmt.Sprintf("limits.disk.pool.%s", poolName)] = validate.Optional(validate.IsSize)
+			projectConfigKeys["limits.disk.pool."+poolName] = validate.Optional(validate.IsSize)
+		}
+
+		// Per-network project limits for uplink IPs only make sense for projects with their own networks.
+		if shared.IsTrue(config["features.networks"]) {
+			if defaultNetwork != "" {
+				return errors.New(i18n.G("A default network device cannot be specified if the networks feature is enabled"))
+			}
+
+			// Get networks that are allowed to be used as uplinks by this project.
+			allowedUplinkNetworks, err := network.AllowedUplinkNetworks(ctx, tx, config)
+			if err != nil {
+				return err
+			}
+
+			// Add network-specific config keys.
+			for _, networkName := range allowedUplinkNetworks {
+				// lxdmeta:generate(entities=project; group=limits; key=limits.networks.uplink_ips.ipv4.NETWORK_NAME)
+				// Maximum number of IPv4 addresses that this project can consume from the specified uplink network.
+				// This number of IPs can be consumed by networks, forwards and load balancers in this project.
+				//
+				// ---
+				//  type: string
+				//  shortdesc: Quota of IPv4 addresses from a specified uplink network that can be used by entities in this project
+				projectConfigKeys["limits.networks.uplink_ips.ipv4."+networkName] = validate.Optional(validate.IsUint32)
+
+				// lxdmeta:generate(entities=project; group=limits; key=limits.networks.uplink_ips.ipv6.NETWORK_NAME)
+				// Maximum number of IPv6 addresses that this project can consume from the specified uplink network.
+				// This number of IPs can be consumed by networks, forwards and load balancers in this project.
+				//
+				// ---
+				//  type: string
+				//  shortdesc: Quota of IPv6 addresses from a specified uplink network that can be used by entities in this project
+				projectConfigKeys["limits.networks.uplink_ips.ipv6."+networkName] = validate.Optional(validate.IsUint32)
+			}
 		}
 
 		return nil
 	})
-	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-		return fmt.Errorf("Failed loading storage pool names: %w", err)
+	if err != nil {
+		return err
 	}
 
 	for k, v := range config {
@@ -1445,38 +1548,6 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 	// restrictions when they are configured.
 	if shared.IsTrue(config["restricted"]) && shared.IsFalse(config["features.profiles"]) {
 		return fmt.Errorf("Projects without their own profiles cannot be restricted")
-	}
-
-	return nil
-}
-
-func projectValidateName(name string) error {
-	if name == "" {
-		return fmt.Errorf("No name provided")
-	}
-
-	if strings.Contains(name, "/") {
-		return fmt.Errorf("Project names may not contain slashes")
-	}
-
-	if strings.Contains(name, " ") {
-		return fmt.Errorf("Project names may not contain spaces")
-	}
-
-	if strings.Contains(name, "_") {
-		return fmt.Errorf("Project names may not contain underscores")
-	}
-
-	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
-		return fmt.Errorf("Project names may not contain quotes")
-	}
-
-	if name == "*" {
-		return fmt.Errorf("Reserved project name")
-	}
-
-	if shared.ValueInSlice(name, []string{".", ".."}) {
-		return fmt.Errorf("Invalid project name %q", name)
 	}
 
 	return nil

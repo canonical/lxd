@@ -36,6 +36,10 @@ test_storage_local_volume_handling() {
       lxc storage create "${pool_base}-zfs" zfs size=1GiB
     fi
 
+    if storage_backend_available "pure"; then
+      configure_pure_pool "${pool_base}-pure"
+    fi
+
     # Test all combinations of our storage drivers
 
     driver="${lxd_backend}"
@@ -51,11 +55,13 @@ test_storage_local_volume_handling() {
       pool_opts="volume.size=25MiB ceph.osd.pg_num=16"
     fi
 
-    if [ "$driver" = "lvm" ]; then
+    if [ "$driver" = "lvm" ] || [ "$driver" = "pure" ]; then
       pool_opts="volume.size=25MiB"
     fi
 
-    if [ -n "${pool_opts}" ]; then
+    if [ "$driver" = "pure" ]; then
+      configure_pure_pool "${pool}1" "${pool_opts}"
+    elif [ -n "${pool_opts}" ]; then
       # shellcheck disable=SC2086
       lxc storage create "${pool}1" "${driver}" $pool_opts
     else
@@ -65,6 +71,18 @@ test_storage_local_volume_handling() {
     lxc storage volume create "${pool}" vol1
     lxc storage volume set "${pool}" vol1 user.foo=snap0
     lxc storage volume set "${pool}" vol1 snapshots.expiry=1H
+
+    lxc storage volume create "${pool}" blockVol --type=block
+    truncate -s 25MiB foo.iso
+    lxc storage volume import "${pool}" ./foo.iso isoVol
+
+    # security.shared is only allowed for block volumes
+    ! lxc storage volume set "${pool}" vol1 security.shared true || false
+    ! lxc storage volume set "${pool}" isoVol security.shared true || false
+    lxc storage volume set "${pool}" blockVol security.shared true
+
+    lxc storage volume delete "${pool}" blockVol
+    lxc storage volume delete "${pool}" isoVol
 
     # This will create the snapshot vol1/snap0
     lxc storage volume snapshot "${pool}" vol1
@@ -167,8 +185,8 @@ test_storage_local_volume_handling() {
     lxc storage volume delete "${pool}1" vol1
     lxc storage delete "${pool}1"
 
-    for source_driver in "btrfs" "ceph" "cephfs" "dir" "lvm" "zfs"; do
-      for target_driver in "btrfs" "ceph" "cephfs" "dir" "lvm" "zfs"; do
+    for source_driver in "btrfs" "ceph" "cephfs" "dir" "lvm" "zfs" "pure"; do
+      for target_driver in "btrfs" "ceph" "cephfs" "dir" "lvm" "zfs" "pure"; do
         # shellcheck disable=SC2235
         if [ "$source_driver" != "$target_driver" ] \
             && ([ "$lxd_backend" = "$source_driver" ] || ([ "$lxd_backend" = "ceph" ] && [ "$source_driver" = "cephfs" ] && [ -n "${LXD_CEPH_CEPHFS:-}" ])) \
@@ -292,7 +310,6 @@ test_storage_local_volume_handling() {
           [ "$(lxc storage volume get "${target_pool}" vol5/snap0 volatile.uuid)" = "${old_snap0_uuid}" ]
 
           # copy ISO custom volumes
-          truncate -s 25MiB foo.iso
           lxc storage volume import "${source_pool}" ./foo.iso iso1
           lxc storage volume copy "${source_pool}/iso1" "${target_pool}/iso1"
           lxc storage volume show "${target_pool}" iso1 | grep -q 'content_type: iso'
@@ -311,10 +328,11 @@ test_storage_local_volume_handling() {
           lxc storage volume delete "${source_pool}" vol6
           lxc storage volume delete "${target_pool}" iso1
           lxc storage volume delete "${target_pool}" iso2
-          rm -f foo.iso
         fi
       done
     done
+
+    rm -f foo.iso
   )
 
   # shellcheck disable=SC2031,2269

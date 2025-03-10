@@ -41,6 +41,8 @@ type ProfilePut struct {
 //
 // swagger:model
 type Profile struct {
+	WithEntitlements `yaml:",inline"`
+
 	// The profile name
 	// Read only: true
 	// Example: foo
@@ -64,6 +66,12 @@ type Profile struct {
 	//
 	// API extension: profile_usedby
 	UsedBy []string `json:"used_by" yaml:"used_by"`
+
+	// Project name
+	// Example: project1
+	//
+	// API extension: profiles_all_projects
+	Project string `json:"project" yaml:"project"`
 }
 
 // Writable converts a full Profile struct into a ProfilePut struct (filters read-only fields).

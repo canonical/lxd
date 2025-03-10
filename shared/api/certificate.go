@@ -50,7 +50,9 @@ type CertificatesPost struct {
 
 	// Server trust password (used to add an untrusted client, deprecated, use trust_token)
 	// Example: blah
-	Password string `json:"password" yaml:"password"` // Deprecated, use TrustToken.
+	//
+	// Deprecated: Use TrustToken.
+	Password string `json:"password" yaml:"password"`
 
 	// Trust token (used to add an untrusted client)
 	// Example: blah
@@ -102,6 +104,8 @@ type CertificatePut struct {
 //
 // swagger:model
 type Certificate struct {
+	WithEntitlements `yaml:",inline"`
+
 	// Name associated with the certificate
 	// Example: castiana
 	Name string `json:"name" yaml:"name"`

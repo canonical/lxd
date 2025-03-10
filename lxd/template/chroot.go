@@ -20,7 +20,7 @@ type ChrootLoader struct {
 // might be a path of a template which includes another template) or
 // the current working directory.
 func (l ChrootLoader) Abs(base string, name string) string {
-	return filepath.Clean(fmt.Sprintf("%s/%s", l.Path, name))
+	return filepath.Clean(l.Path + "/" + name)
 }
 
 // Get reads the path's content from your local filesystem.

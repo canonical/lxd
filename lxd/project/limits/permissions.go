@@ -56,13 +56,8 @@ func HiddenStoragePools(ctx context.Context, tx *db.ClusterTx, projectName strin
 
 // AllowInstanceCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new instance.
-func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
+	info, err := fetchProject(ctx, tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -265,13 +260,8 @@ func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instanc
 
 // AllowVolumeCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new custom volume in a project.
-func AllowVolumeCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, poolName string, req api.StorageVolumesPost) error {
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+func AllowVolumeCreation(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, poolName string, req api.StorageVolumesPost) error {
+	info, err := fetchProject(ctx, tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -304,13 +294,13 @@ func AllowVolumeCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 // for writing images.
 //
 // If no limit is in place, return -1.
-func GetImageSpaceBudget(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string) (int64, error) {
+func GetImageSpaceBudget(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string) (int64, error) {
 	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
 	}
 
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+	info, err := fetchProject(ctx, tx, projectName, true)
 	if err != nil {
 		return -1, err
 	}
@@ -396,7 +386,7 @@ func checkRestrictionsAndAggregateLimits(globalConfig *clusterConfig.Config, tx 
 	}
 
 	if isRestricted {
-		err = checkRestrictions(info.Project, info.Instances, info.Profiles)
+		err = checkInstanceRestrictions(info.Project, info.Instances, info.Profiles)
 		if err != nil {
 			return err
 		}
@@ -480,9 +470,10 @@ func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 
 // parseHostIDMapRange parse the supplied list of host ID map ranges into a idmap.IdmapEntry slice.
 func parseHostIDMapRange(isUID bool, isGID bool, listValue string) ([]idmap.IdmapEntry, error) {
-	var idmaps []idmap.IdmapEntry
+	mapRanges := shared.SplitNTrimSpace(listValue, ",", -1, true)
+	idmaps := make([]idmap.IdmapEntry, 0, len(mapRanges))
 
-	for _, listItem := range shared.SplitNTrimSpace(listValue, ",", -1, true) {
+	for _, listItem := range mapRanges {
 		rangeStart, rangeSize, err := validate.ParseUint32Range(listItem)
 		if err != nil {
 			return nil, err
@@ -502,7 +493,7 @@ func parseHostIDMapRange(isUID bool, isGID bool, listValue string) ([]idmap.Idma
 
 // Check that the project's restrictions are not violated across the given
 // instances and profiles.
-func checkRestrictions(proj api.Project, instances []api.Instance, profiles []api.Profile) error {
+func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profiles []api.Profile) error {
 	containerConfigChecks := map[string]func(value string) error{}
 	devicesChecks := map[string]func(value map[string]string) error{}
 
@@ -905,15 +896,10 @@ func isVMLowLevelOptionForbidden(key string) bool {
 
 // AllowInstanceUpdate returns an error if any project-specific limit or
 // restriction is violated when updating an existing instance.
-func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut, currentConfig map[string]string) error {
+func AllowInstanceUpdate(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut, currentConfig map[string]string) error {
 	var updatedInstance *api.Instance
 
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+	info, err := fetchProject(ctx, tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -957,13 +943,8 @@ func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 
 // AllowVolumeUpdate returns an error if any project-specific limit or
 // restriction is violated when updating an existing custom volume.
-func AllowVolumeUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, volumeName string, req api.StorageVolumePut, currentConfig map[string]string) error {
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+func AllowVolumeUpdate(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, volumeName string, req api.StorageVolumePut, currentConfig map[string]string) error {
+	info, err := fetchProject(ctx, tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -996,13 +977,8 @@ func AllowVolumeUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pro
 
 // AllowProfileUpdate checks that project limits and restrictions are not
 // violated when changing a profile.
-func AllowProfileUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, profileName string, req api.ProfilePut) error {
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
-	info, err := fetchProject(globalConfigDump, tx, projectName, true)
+func AllowProfileUpdate(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, profileName string, req api.ProfilePut) error {
+	info, err := fetchProject(ctx, tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -1029,14 +1005,85 @@ func AllowProfileUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pr
 	return nil
 }
 
+// checkUplinkUse checks if an uplink that is not allowed by project restrictions is in use and
+// if limits for uplink IP consumption are respected.
+func checkUplinkUse(ctx context.Context, tx *db.ClusterTx, projectName string, config map[string]string) error {
+	// If project does not have its own networks, no further checks are needed.
+	if shared.IsFalseOrEmpty(config["features.networks"]) {
+		return nil
+	}
+
+	projectNetworks, err := tx.GetCreatedNetworksByProject(ctx, projectName)
+	if err != nil {
+		return err
+	}
+
+	uplinksInUseSet := make(map[string]struct{})
+
+	for _, network := range projectNetworks {
+		// Check if uplink in use is allowed.
+		uplinkInUse := network.Config["network"]
+		if uplinkInUse != "" {
+			uplinksInUseSet[uplinkInUse] = struct{}{}
+		}
+	}
+
+	// Check uplink IP quota limits.
+	for uplink := range uplinksInUseSet {
+		ivp4LimitsRaw, hasIPV4Limits := config["limits.networks.uplink_ips.ipv4."+uplink]
+		ivp6LimitsRaw, hasIPV6Limits := config["limits.networks.uplink_ips.ipv6."+uplink]
+
+		ivp4Limits, err := strconv.Atoi(ivp4LimitsRaw)
+		if err != nil {
+			// Limit for this protocol is not defined
+			hasIPV4Limits = false
+			ivp4Limits = -1
+		}
+
+		ivp6Limits, err := strconv.Atoi(ivp6LimitsRaw)
+		if err != nil {
+			// Limit for this protocol is not defined
+			hasIPV6Limits = false
+			ivp6Limits = -1
+		}
+
+		// Check if the provided value is equal or lower to the number of uplink addresses currently in use
+		// on the provided project and in the specified network.
+		// We are only interested on the result for protocols with limits defined.
+		invalidIPV4Quota, invalidIPV6Quota, err := UplinkAddressQuotasExceeded(ctx, tx, projectName, uplink, ivp4Limits, ivp6Limits, projectNetworks)
+		if err != nil {
+			return err
+		}
+
+		if hasIPV4Limits && invalidIPV4Quota || hasIPV6Limits && invalidIPV6Quota {
+			return fmt.Errorf("Uplink IP limit is below current number of used uplink addresses")
+		}
+	}
+
+	// If project is not restricted, no further checks are needed.
+	if shared.IsFalseOrEmpty(config["restricted"]) {
+		return nil
+	}
+
+	allowedNets := shared.SplitNTrimSpace(config["restricted.networks.uplinks"], ",", -1, false)
+
+	for network := range uplinksInUseSet {
+		if !shared.ValueInSlice(network, allowedNets) {
+			return fmt.Errorf("Restrictions cannot be enforced as project is already using %q as uplink", network)
+		}
+	}
+
+	return nil
+}
+
 // AllowProjectUpdate checks the new config to be set on a project is valid.
-func AllowProjectUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, config map[string]string, changed []string) error {
+func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, config map[string]string, changed []string) error {
 	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
 	}
 
-	info, err := fetchProject(globalConfigDump, tx, projectName, false)
+	info, err := fetchProject(ctx, tx, projectName, false)
 	if err != nil {
 		return err
 	}
@@ -1050,6 +1097,14 @@ func AllowProjectUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pr
 	// instances.
 	aggregateKeys := []string{}
 
+	// This checks if restricted uplinks are used within this project.
+	// This is done separately because this may require getting network info from the database and
+	// restricted.networks.uplinks is an allowlist, so restrictions are enforced even if it is not set.
+	err = checkUplinkUse(ctx, tx, projectName, config)
+	if err != nil {
+		return err
+	}
+
 	for _, key := range changed {
 		if strings.HasPrefix(key, "restricted.") {
 			project := api.Project{
@@ -1057,7 +1112,7 @@ func AllowProjectUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pr
 				Config: config,
 			}
 
-			err := checkRestrictions(project, info.Instances, info.Profiles)
+			err := checkInstanceRestrictions(project, info.Instances, info.Profiles)
 			if err != nil {
 				return fmt.Errorf("Conflict detected when changing %q in project %q: %w", key, projectName, err)
 			}
@@ -1235,8 +1290,7 @@ type projectInfo struct {
 // If the skipIfNoLimits flag is true, then profiles, instances and volumes
 // won't be loaded if the profile has no limits set on it, and nil will be
 // returned.
-func fetchProject(globalConfig map[string]any, tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
-	ctx := context.Background()
+func fetchProject(ctx context.Context, tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
 	dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
 	if err != nil {
 		return nil, fmt.Errorf("Fetch project database object: %w", err)
@@ -1251,66 +1305,17 @@ func fetchProject(globalConfig map[string]any, tx *db.ClusterTx, projectName str
 		return nil, nil
 	}
 
-	profilesFilter := cluster.ProfileFilter{}
-
-	// If the project has the profiles feature enabled, we use its own
-	// profiles to expand the instances configs, otherwise we use the
-	// profiles from the default project.
-	defaultProject := api.ProjectDefaultName
-	if projectName == api.ProjectDefaultName || shared.IsTrue(project.Config["features.profiles"]) {
-		profilesFilter.Project = &projectName
-	} else {
-		profilesFilter.Project = &defaultProject
-	}
-
-	dbProfiles, err := cluster.GetProfiles(ctx, tx.Tx(), profilesFilter)
+	projectArgs, err := tx.GetProjectInstancesAndProfiles(ctx, project)
 	if err != nil {
-		return nil, fmt.Errorf("Fetch profiles from database: %w", err)
+		return nil, fmt.Errorf("Failed to fetch instances from database: %w", err)
 	}
 
-	dbProfileConfigs, err := cluster.GetConfig(ctx, tx.Tx(), "profile")
-	if err != nil {
-		return nil, fmt.Errorf("Fetch profile configs from database: %w", err)
-	}
-
-	dbProfileDevices, err := cluster.GetDevices(ctx, tx.Tx(), "profile")
-	if err != nil {
-		return nil, fmt.Errorf("Fetch profile devices from database: %w", err)
-	}
-
-	profiles := make([]api.Profile, 0, len(dbProfiles))
-	for _, profile := range dbProfiles {
-		apiProfile, err := profile.ToAPI(ctx, tx.Tx(), dbProfileConfigs, dbProfileDevices)
-		if err != nil {
-			return nil, err
-		}
-
-		profiles = append(profiles, *apiProfile)
-	}
+	args := projectArgs[projectName]
 
 	info := &projectInfo{
-		Project:  *project,
-		Profiles: profiles,
-	}
-
-	instanceFilter := cluster.InstanceFilter{
-		Project: &projectName,
-	}
-
-	instanceFunc := func(inst db.InstanceArgs, project api.Project) error {
-		apiInstance, err := inst.ToAPI()
-		if err != nil {
-			return err
-		}
-
-		info.Instances = append(info.Instances, *apiInstance)
-
-		return nil
-	}
-
-	err = tx.InstanceList(ctx, instanceFunc, instanceFilter)
-	if err != nil {
-		return nil, fmt.Errorf("Fetch instances from database: %w", err)
+		Project:   *project,
+		Profiles:  args.Profiles,
+		Instances: args.Instances,
 	}
 
 	info.StoragePoolDrivers, err = tx.GetStoragePoolDrivers(ctx)
@@ -1733,4 +1738,105 @@ func CheckTarget(ctx context.Context, authorizer auth.Authorizer, r *http.Reques
 	}
 
 	return nil, "", nil
+}
+
+// uplinkIPLimits is a type used to help check uplink IP quota usage.
+type uplinkIPLimits struct {
+	quotaIPV4         int
+	quotaIPV6         int
+	usedIPV4Addresses int
+	usedIPV6Addresses int
+}
+
+func (q *uplinkIPLimits) increment(incrementIPV4 bool, incrementIPV6 bool) {
+	if incrementIPV4 {
+		q.usedIPV4Addresses++
+	}
+
+	if incrementIPV6 {
+		q.usedIPV6Addresses++
+	}
+}
+
+func (q *uplinkIPLimits) hasExceeded() bool {
+	return q.usedIPV4Addresses > q.quotaIPV4 && q.usedIPV6Addresses > q.quotaIPV6
+}
+
+// UplinkAddressQuotasExceeded checks whether the number of current uplink addresses used in project
+// projectName on network networkName is higher than their provided quota for each IP protocol.
+// Uplink addresses can be consumed by load balancers, network forwards and networks.
+// For simplicity, this function assumes both limits are provided and returns early if both provided
+// quotas are exceeded. So if one of the limits is not of the caller's interest, -1 should be provided
+// and the result for that protocol should be ignored.
+// The projectNetworks argument accepts cached networks for the provided project to avoid redundant DB queries.
+func UplinkAddressQuotasExceeded(ctx context.Context, tx *db.ClusterTx, projectName string, networkName string, uplinkIPV4Quota int, uplinkIPV6Quota int, projectNetworks map[int64]api.Network) (V4QuotaExceeded bool, V6QuotaExceeded bool, err error) {
+	quotas := uplinkIPLimits{
+		quotaIPV4: uplinkIPV4Quota,
+		quotaIPV6: uplinkIPV6Quota,
+	}
+
+	// If both provided quotas are below 0, return right away.
+	if quotas.hasExceeded() {
+		return true, true, nil
+	}
+
+	// If cached networks were not provided, retrieve them from the database.
+	if projectNetworks == nil {
+		// First count uplink addresses for other networks.
+		projectNetworks, err = tx.GetCreatedNetworksByProject(ctx, projectName)
+		if err != nil {
+			return false, false, nil
+		}
+	}
+
+	for _, network := range projectNetworks {
+		// Check if each network is using our target network as an uplink.
+		if network.Config["network"] == networkName {
+			_, hasIPV6 := network.Config["volatile.network.ipv6.address"]
+			_, hasIPV4 := network.Config["volatile.network.ipv4.address"]
+			quotas.increment(hasIPV4, hasIPV6)
+			if quotas.hasExceeded() {
+				return true, true, nil
+			}
+		}
+	}
+
+	// Count listen addresses for network forwards.
+	forwardListenAddressesMap, err := tx.GetProjectNetworkForwardListenAddressesByUplink(ctx, networkName, false)
+	if err != nil {
+		return false, false, err
+	}
+
+	// Iterate through each network on the provided project while counting the uplink addresses used by their
+	// network forwards.
+	for _, addresses := range forwardListenAddressesMap[projectName] {
+		for _, address := range addresses {
+			isIPV6 := validate.IsNetworkAddressV6(address) == nil
+			quotas.increment(!isIPV6, isIPV6)
+			if quotas.hasExceeded() {
+				return true, true, nil
+			}
+		}
+	}
+
+	// Count listen addresses for load balancers.
+	loadBalancerAddressesMap, err := tx.GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx, networkName, false)
+	if err != nil {
+		return false, false, err
+	}
+
+	// Iterate through each network on the provided project while counting the uplink addresses used by their
+	// load balancers.
+	for _, addresses := range loadBalancerAddressesMap[projectName] {
+		for _, address := range addresses {
+			isIPV6 := validate.IsNetworkAddressV6(address) == nil
+			quotas.increment(!isIPV6, isIPV6)
+			if quotas.hasExceeded() {
+				return true, true, nil
+			}
+		}
+	}
+
+	// At least one of the quotas were not exceeded.
+	return quotas.usedIPV4Addresses > quotas.quotaIPV4, quotas.usedIPV6Addresses > quotas.quotaIPV6, err
 }

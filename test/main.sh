@@ -45,7 +45,7 @@ import_subdir_files() {
 import_subdir_files includes
 
 echo "==> Checking for dependencies"
-check_dependencies lxd lxc curl dnsmasq jq git sqlite3 msgmerge msgfmt shuf setfacl socat dig
+check_dependencies lxd lxc curl dnsmasq jq git sqlite3 msgmerge msgfmt shuf setfacl socat swtpm dig
 
 if [ "${USER:-'root'}" != "root" ]; then
   echo "The testsuite must be run as root." >&2
@@ -120,6 +120,7 @@ cleanup() {
   else
     echo "==> Cleaning up"
 
+    kill_oidc
     umount -l "${TEST_DIR}/dev"
     cleanup_lxds "$TEST_DIR"
   fi
@@ -170,6 +171,10 @@ export LXD_SKIP_TESTS
 
 LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
 export LXD_REQUIRED_TESTS
+
+# This must be enough to accomodate the busybox testimage
+SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
+export SMALL_ROOT_DISK
 
 run_test() {
   TEST_CURRENT=${1}
@@ -395,6 +400,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_storage_driver_cephfs "cephfs storage driver"
     run_test test_storage_driver_dir "dir storage driver"
     run_test test_storage_driver_zfs "zfs storage driver"
+    run_test test_storage_driver_pure "pure storage driver"
     run_test test_storage_buckets "storage buckets"
     run_test test_storage_volume_import "storage volume import"
     run_test test_storage_volume_initial_config "storage volume initial configuration"
@@ -409,7 +415,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_backup_volume_export "backup volume export"
     run_test test_backup_export_import_instance_only "backup export and import instance only"
     run_test test_backup_volume_rename_delete "backup volume rename and delete"
-    run_test test_backup_different_instance_uuid "backup instance and check instance UUIDs"
+    run_test test_backup_instance_uuid "backup instance and check instance UUIDs"
     run_test test_backup_volume_expiry "backup volume expiry"
     run_test test_backup_export_import_recover "backup export, import, and recovery"
     run_test test_container_local_cross_pool_handling "container local cross pool handling"

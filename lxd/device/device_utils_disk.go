@@ -24,50 +24,35 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-// RBDFormatPrefix is the prefix used in disk paths to identify RBD.
-const RBDFormatPrefix = "rbd"
-
-// RBDFormatSeparator is the field separate used in disk paths for RBD devices.
-const RBDFormatSeparator = " "
-
-// DiskParseRBDFormat parses an rbd formatted string, and returns the pool name, volume name, and list of options.
-func DiskParseRBDFormat(rbd string) (poolName string, volumeName string, options []string, err error) {
-	if !strings.HasPrefix(rbd, fmt.Sprintf("%s%s", RBDFormatPrefix, RBDFormatSeparator)) {
-		return "", "", nil, fmt.Errorf("Invalid rbd format, missing prefix")
-	}
-
-	fields := strings.SplitN(rbd, RBDFormatSeparator, 3)
-	if len(fields) != 3 {
-		return "", "", nil, fmt.Errorf("Invalid rbd format, invalid number of fields")
-	}
-
-	opts := fields[2]
-
-	fields = strings.SplitN(fields[1], "/", 2)
-	if len(fields) != 2 {
-		return "", "", nil, fmt.Errorf("Invalid rbd format, invalid pool or volume")
-	}
-
-	return fields[0], fields[1], strings.Split(opts, ":"), nil
+// DevSourcePath is a path on the LXD host.
+// See `deviceConfig.DevSource`.
+type DevSourcePath struct {
+	Path string
 }
 
-// DiskGetRBDFormat returns a rbd formatted string with the given values.
-func DiskGetRBDFormat(clusterName string, userName string, poolName string, volumeName string) string {
-	// Configuration values containing :, @, or = can be escaped with a leading \ character.
-	// According to https://docs.ceph.com/docs/hammer/rbd/qemu-rbd/#usage
-	optEscaper := strings.NewReplacer(":", `\:`, "@", `\@`, "=", `\=`)
-	opts := []string{
-		fmt.Sprintf("id=%s", optEscaper.Replace(userName)),
-		fmt.Sprintf("pool=%s", optEscaper.Replace(poolName)),
-		fmt.Sprintf("conf=/etc/ceph/%s.conf", optEscaper.Replace(clusterName)),
-	}
+// DevSourceFD is a file descriptor held by the LXD process.
+// See `deviceConfig.DevSource`.
+type DevSourceFD struct {
+	FD   uintptr
+	Path string
+}
 
-	return fmt.Sprintf("%s%s%s/%s%s%s", RBDFormatPrefix, RBDFormatSeparator, optEscaper.Replace(poolName), optEscaper.Replace(volumeName), RBDFormatSeparator, strings.Join(opts, ":"))
+// DevSourceRBD describes an RBD image.
+// See `deviceConfig.DevSource`.
+//
+// This structure roughly corresponds to a qmp BlockdevOptionsRbd:
+// https://www.qemu.org/docs/master/interop/qemu-storage-daemon-qmp-ref.html#qapidoc-708
+type DevSourceRBD struct {
+	ClusterName string
+	UserName    string
+	PoolName    string
+	ImageName   string
+	Snapshot    string
 }
 
 // BlockFsDetect detects the type of block device.
 func BlockFsDetect(dev string) (string, error) {
-	out, err := shared.RunCommand("blkid", "-s", "TYPE", "-o", "value", dev)
+	out, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "TYPE", "-o", "value", dev)
 	if err != nil {
 		return "", err
 	}
@@ -162,7 +147,8 @@ func DiskMountClear(mntPath string) error {
 }
 
 func diskCephRbdMap(clusterName string, userName string, poolName string, volumeName string) (string, error) {
-	devPath, err := shared.RunCommand(
+	devPath, err := shared.RunCommandContext(
+		context.TODO(),
 		"rbd",
 		"--id", userName,
 		"--cluster", clusterName,
@@ -186,7 +172,8 @@ func diskCephRbdUnmap(deviceName string) error {
 	unmapImageName := deviceName
 	busyCount := 0
 again:
-	_, err := shared.RunCommand(
+	_, err := shared.RunCommandContext(
+		context.TODO(),
 		"rbd",
 		"unmap",
 		unmapImageName)
@@ -236,9 +223,9 @@ func diskCephfsOptions(clusterName string, userName string, fsName string, fsPat
 
 	// Prepare mount entry.
 	fsOptions := []string{
-		fmt.Sprintf("name=%v", userName),
-		fmt.Sprintf("secret=%v", secret),
-		fmt.Sprintf("mds_namespace=%v", fsName),
+		"name=" + userName,
+		"secret=" + secret,
+		"mds_namespace=" + fsName,
 	}
 
 	srcPath := strings.Join(monAddresses, ",") + ":/" + fsPath
@@ -489,7 +476,7 @@ func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Ins
 		"--fd=3",
 		// use -o flags for support in wider versions of virtiofsd.
 		"-o", "xattr",
-		"-o", fmt.Sprintf("source=%s", sharePath),
+		"-o", "source=" + sharePath,
 	}
 
 	// Virtiofsd defaults to namespace sandbox mode which requires pidfd_open support.

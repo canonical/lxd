@@ -17,10 +17,12 @@ import (
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/firewall"
 	"github.com/canonical/lxd/lxd/fsmonitor"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/maas"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/sys"
+	"github.com/canonical/lxd/lxd/ubuntupro"
 	"github.com/canonical/lxd/shared"
 )
 
@@ -60,6 +62,9 @@ type State struct {
 	// Server certificate
 	ServerCert func() *shared.CertInfo
 
+	// Identity cache
+	IdentityCache *identity.Cache
+
 	// UpdateIdentityCache refreshes the local cache of identities.
 	// This should be called whenever an identity is added, modified, or removed.
 	// The cache is also refreshed on dqlite heartbeat to synchronise with other members.
@@ -94,6 +99,9 @@ type State struct {
 
 	// Authorizer.
 	Authorizer auth.Authorizer
+
+	// Ubuntu pro settings.
+	UbuntuPro *ubuntupro.Client
 }
 
 // LeaderInfo represents information regarding cluster member leadership.

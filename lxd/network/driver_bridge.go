@@ -203,6 +203,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: BGP server
 		//  shortdesc: Peer address (IPv4 or IPv6)
+		//  scope: global
 
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bgp.peers.NAME.asn)
 		//
@@ -210,6 +211,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  type: integer
 		//  condition: BGP server
 		//  shortdesc: Peer AS number
+		//  scope: global
 
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bgp.peers.NAME.password)
 		//
@@ -219,6 +221,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  defaultdesc: (no password)
 		//  required: no
 		//  shortdesc: Peer session password
+		//  scope: global
 
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bgp.peers.NAME.holdtime)
 		// Specify the hold time in seconds.
@@ -228,6 +231,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  defaultdesc: `180`
 		//  required: no
 		//  shortdesc: Peer session hold time
+		//  scope: global
 
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bgp.ipv4.nexthop)
 		//
@@ -236,6 +240,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: BGP server
 		//  defaultdesc: local address
 		//  shortdesc: Override the IPv4 next-hop for advertised prefixes
+		//  scope: local
 		"bgp.ipv4.nexthop": validate.Optional(validate.IsNetworkAddressV4),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bgp.ipv6.nexthop)
 		//
@@ -244,6 +249,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: BGP server
 		//  defaultdesc: local address
 		//  shortdesc: Override the IPv6 next-hop for advertised prefixes
+		//  scope: local
 		"bgp.ipv6.nexthop": validate.Optional(validate.IsNetworkAddressV6),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bridge.driver)
 		// Possible values are `native` and `openvswitch`.
@@ -251,12 +257,14 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `native`
 		//  shortdesc: Bridge driver
+		//  scope: global
 		"bridge.driver": validate.Optional(validate.IsOneOf("native", "openvswitch")),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bridge.external_interfaces)
 		// Specify a comma-separated list of unconfigured network interfaces to include in the bridge.
 		// ---
 		//  type: string
 		//  shortdesc: Unconfigured network interfaces to include in the bridge
+		//  scope: local
 		"bridge.external_interfaces": validate.Optional(func(value string) error {
 			for _, entry := range strings.Split(value, ",") {
 				entry = strings.TrimSpace(entry)
@@ -273,6 +281,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		// ---
 		//  type: string
 		//  shortdesc: MAC address for the bridge
+		//  scope: global
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bridge.mtu)
 		// The default value varies depending on whether the bridge uses a tunnel or a fan setup.
@@ -280,6 +289,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  type: integer
 		//  defaultdesc: `1500` if `bridge.mode=standard`, `1480` if `bridge.mode=fan` and `fan.type=ipip`, or `1450` if `bridge.mode=fan` and `fan.type=vxlan`
 		//  shortdesc: Bridge MTU
+		//  scope: global
 		"bridge.mtu": validate.Optional(validate.IsNetworkMTU),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bridge.mode)
 		// Possible values are `standard` and `fan`.
@@ -287,6 +297,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `standard`
 		//  shortdesc: Bridge operation mode
+		//  scope: global
 		"bridge.mode": validate.Optional(validate.IsOneOf("standard", "fan")),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=fan.overlay_subnet)
 		// Use CIDR notation.
@@ -295,6 +306,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: fan mode
 		//  defaultdesc: `240.0.0.0/8`
 		//  shortdesc: Subnet to use as the overlay for the FAN
+		//  scope: global
 		"fan.overlay_subnet": validate.Optional(validate.IsNetworkV4),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=fan.underlay_subnet)
 		// Use CIDR notation.
@@ -305,6 +317,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: fan mode
 		//  defaultdesc: initial value on creation: `auto`
 		//  shortdesc: Subnet to use as the underlay for the FAN
+		//  scope: global
 		"fan.underlay_subnet": validate.Optional(func(value string) error {
 			if value == "auto" {
 				return nil
@@ -319,6 +332,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: fan mode
 		//  defaultdesc: `vxlan`
 		//  shortdesc: Tunneling type for the FAN
+		//  scope: global
 		"fan.type": validate.Optional(validate.IsOneOf("vxlan", "ipip")),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.address)
 		// Use CIDR notation.
@@ -329,6 +343,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: standard mode
 		//  defaultdesc: initial value on creation: `auto`
 		//  shortdesc: IPv4 address for the bridge
+		//  scope: global
 		"ipv4.address": validate.Optional(func(value string) error {
 			if validate.IsOneOf("none", "auto")(value) == nil {
 				return nil
@@ -343,6 +358,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv4 address
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to generate filtering firewall rules for this network
+		//  scope: global
 		"ipv4.firewall": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.nat)
 		//
@@ -351,6 +367,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv4 address
 		//  defaultdesc: `false` (initial value on creation if `ipv4.address` is set to `auto`: `true`)
 		//  shortdesc: Whether to use NAT for IPv4
+		//  scope: global
 		"ipv4.nat": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.nat.order)
 		// Set this option to `before` to add the NAT rules before any pre-existing rules, or to `after` to add them after the pre-existing rules.
@@ -359,6 +376,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv4 address
 		//  defaultdesc: `before`
 		//  shortdesc: Where to add the required NAT rules
+		//  scope: global
 		"ipv4.nat.order": validate.Optional(validate.IsOneOf("before", "after")),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.nat.address)
 		//
@@ -366,6 +384,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: IPv4 address
 		//  shortdesc: Source address used for outbound traffic from the bridge
+		//  scope: global
 		"ipv4.nat.address": validate.Optional(validate.IsNetworkAddressV4),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.dhcp)
 		//
@@ -374,6 +393,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv4 address
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to allocate IPv4 addresses using DHCP
+		//  scope: global
 		"ipv4.dhcp": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.dhcp.gateway)
 		//
@@ -382,6 +402,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv4 DHCP
 		//  defaultdesc: IPv4 address
 		//  shortdesc: Address of the gateway for the IPv4 subnet
+		//  scope: global
 		"ipv4.dhcp.gateway": validate.Optional(validate.IsNetworkAddressV4),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.dhcp.expiry)
 		//
@@ -390,6 +411,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv4 DHCP
 		//  defaultdesc: `1h`
 		//  shortdesc: When to expire DHCP leases
+		//  scope: global
 		"ipv4.dhcp.expiry": validate.IsAny,
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.dhcp.ranges)
 		// Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
@@ -398,6 +420,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv4 DHCP
 		//  defaultdesc: all addresses
 		//  shortdesc: IPv4 ranges to use for DHCP
+		//  scope: global
 		"ipv4.dhcp.ranges": validate.Optional(validate.IsListOf(validate.IsNetworkRangeV4)),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.routes)
 		// Specify a comma-separated list of IPv4 CIDR subnets.
@@ -405,6 +428,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: IPv4 address
 		//  shortdesc: Additional IPv4 CIDR subnets to route to the bridge
+		//  scope: global
 		"ipv4.routes": validate.Optional(validate.IsListOf(validate.IsNetworkV4)),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.routing)
 		//
@@ -413,12 +437,14 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv4 address
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to route IPv4 traffic in and out of the bridge
+		//  scope: global
 		"ipv4.routing": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.ovn.ranges)
 		// Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
 		// ---
 		//  type: string
 		//  shortdesc: IPv4 ranges to use for child OVN network routers
+		//  scope: global
 		"ipv4.ovn.ranges": validate.Optional(validate.IsListOf(validate.IsNetworkRangeV4)),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.address)
 		// Use CIDR notation.
@@ -429,6 +455,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: standard mode
 		//  defaultdesc: initial value on creation: `auto`
 		//  shortdesc: IPv6 address for the bridge
+		//  scope: global
 		"ipv6.address": validate.Optional(func(value string) error {
 			if validate.IsOneOf("none", "auto")(value) == nil {
 				return nil
@@ -443,6 +470,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv6 DHCP
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to generate filtering firewall rules for this network
+		//  scope: global
 		"ipv6.firewall": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.nat)
 		//
@@ -451,6 +479,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv6 address
 		//  defaultdesc: `false` (initial value on creation if `ipv6.address` is set to `auto`: `true`)
 		//  shortdesc: Whether to use NAT for IPv6
+		//  scope: global
 		"ipv6.nat": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.nat.order)
 		// Set this option to `before` to add the NAT rules before any pre-existing rules, or to `after` to add them after the pre-existing rules.
@@ -459,6 +488,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv6 address
 		//  defaultdesc: `before`
 		//  shortdesc: Where to add the required NAT rules
+		//  scope: global
 		"ipv6.nat.order": validate.Optional(validate.IsOneOf("before", "after")),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.nat.address)
 		//
@@ -466,6 +496,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: IPv6 address
 		//  shortdesc: Source address used for outbound traffic from the bridge
+		//  scope: global
 		"ipv6.nat.address": validate.Optional(validate.IsNetworkAddressV6),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.dhcp)
 		//
@@ -474,6 +505,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv6 address
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to provide additional network configuration over DHCP
+		//  scope: global
 		"ipv6.dhcp": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.dhcp.expiry)
 		//
@@ -482,6 +514,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv6 DHCP
 		//  defaultdesc: `1h`
 		//  shortdesc: When to expire DHCP leases
+		//  scope: global
 		"ipv6.dhcp.expiry": validate.IsAny,
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.dhcp.stateful)
 		//
@@ -490,6 +523,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv6 DHCP
 		//  defaultdesc: `false`
 		//  shortdesc: Whether to allocate IPv6 addresses using DHCP
+		//  scope: global
 		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.dhcp.ranges)
 		// Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
@@ -498,6 +532,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv6 stateful DHCP
 		//  defaultdesc: all addresses
 		//  shortdesc: IPv6 ranges to use for DHCP
+		//  scope: global
 		"ipv6.dhcp.ranges": validate.Optional(validate.IsListOf(validate.IsNetworkRangeV6)),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.routes)
 		// Specify a comma-separated list of IPv6 CIDR subnets.
@@ -505,6 +540,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  type: string
 		//  condition: IPv6 address
 		//  shortdesc: Additional IPv6 CIDR subnets to route to the bridge
+		//  scope: global
 		"ipv6.routes": validate.Optional(validate.IsListOf(validate.IsNetworkV6)),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.routing)
 		//
@@ -513,12 +549,14 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv6 address
 		//  shortdesc: `true`
 		//  shortdesc: Whether to route IPv6 traffic in and out of the bridge
+		//  scope: global
 		"ipv6.routing": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.ovn.ranges)
 		// Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
 		// ---
 		//  type: string
 		//  shortdesc: IPv6 ranges to use for child OVN network routers
+		//  scope: global
 		"ipv6.ovn.ranges": validate.Optional(validate.IsListOf(validate.IsNetworkRangeV6)),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=dns.domain)
 		//
@@ -526,6 +564,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `lxd`
 		//  shortdesc: Domain to advertise to DHCP clients and use for DNS resolution
+		//  scope: global
 		"dns.domain": validate.IsAny,
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=dns.mode)
 		// Possible values are `none` for no DNS record, `managed` for LXD-generated static records, and `dynamic` for client-generated records.
@@ -533,6 +572,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `managed`
 		//  shortdesc: DNS registration mode
+		//  scope: global
 		"dns.mode": validate.Optional(validate.IsOneOf("dynamic", "managed", "none")),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=dns.search)
 		// Specify a comma-separated list of domains.
@@ -540,30 +580,35 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `dns.domain` value
 		//  shortdesc: Full domain search list
+		//  scope: global
 		"dns.search": validate.IsAny,
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=dns.zone.forward)
 		// Specify a comma-separated list of DNS zone names.
 		// ---
 		//  type: string
 		//  shortdesc: DNS zone names for forward DNS records
+		//  scope: global
 		"dns.zone.forward": validate.IsAny,
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=dns.zone.reverse.ipv4)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: DNS zone name for IPv4 reverse DNS records
+		//  scope: global
 		"dns.zone.reverse.ipv4": validate.IsAny,
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=dns.zone.reverse.ipv6)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: DNS zone name for IPv6 reverse DNS records
+		//  scope: global
 		"dns.zone.reverse.ipv6": validate.IsAny,
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=raw.dnsmasq)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: Additional `dnsmasq` configuration to append to the configuration file
+		//  scope: global
 		"raw.dnsmasq": validate.IsAny,
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=maas.subnet.ipv4)
 		//
@@ -572,6 +617,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv4 address; using the `network` property on the NIC
 		//  shortdesc: `true`
 		//  shortdesc: MAAS IPv4 subnet to register instances in
+		//  scope: global
 		"maas.subnet.ipv4": validate.IsAny,
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=maas.subnet.ipv6)
 		//
@@ -580,6 +626,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: IPv6 address; using the `network` property on the NIC
 		//  shortdesc: `true`
 		//  shortdesc: MAAS IPv6 subnet to register instances in
+		//  scope: global
 		"maas.subnet.ipv6": validate.IsAny,
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=security.acls)
 		// Specify a comma-separated list of network ACLs.
@@ -588,6 +635,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		// ---
 		//  type: string
 		//  shortdesc: Network ACLs to apply to NICs connected to this network
+		//  scope: global
 		"security.acls": validate.IsAny,
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=security.acls.default.ingress.action)
 		// The specified action is used for all ingress traffic that doesn’t match any ACL rule.
@@ -596,6 +644,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: `security.acls`
 		//  shortdesc: `reject`
 		//  shortdesc: Default action to use for ingress traffic
+		//  scope: global
 		"security.acls.default.ingress.action": validate.Optional(validate.IsOneOf(acl.ValidActions...)),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=security.acls.default.egress.action)
 		// The specified action is used for all egress traffic that doesn’t match any ACL rule.
@@ -604,6 +653,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: `security.acls`
 		//  shortdesc: `reject`
 		//  shortdesc: Default action to use for egress traffic
+		//  scope: global
 		"security.acls.default.egress.action": validate.Optional(validate.IsOneOf(acl.ValidActions...)),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=security.acls.default.ingress.logged)
 		//
@@ -612,6 +662,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: `security.acls`
 		//  shortdesc: `false`
 		//  shortdesc: Whether to log ingress traffic that doesn’t match any ACL rule
+		//  scope: global
 		"security.acls.default.ingress.logged": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=security.acls.default.egress.logged)
 		//
@@ -620,6 +671,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  condition: `security.acls`
 		//  shortdesc: `false`
 		//  shortdesc: Whether to log egress traffic that doesn’t match any ACL rule
+		//  scope: global
 		"security.acls.default.egress.logged": validate.Optional(validate.IsBool),
 
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=user.*)
@@ -627,6 +679,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		// ---
 		//  type: string
 		//  shortdesc: User-provided free-form key/value pairs
+		//  scope: global
 	}
 
 	// Add dynamic validation rules.
@@ -924,6 +977,11 @@ func (n *bridge) Delete(clientType request.ClientType) error {
 func (n *bridge) Rename(newName string) error {
 	n.logger.Debug("Rename", logger.Ctx{"newName": newName})
 
+	// Reject known bad names that might cause problem when dealing with paths.
+	if strings.Contains(newName, "/") || strings.Contains(newName, "\\") || strings.Contains(newName, "..") {
+		return fmt.Errorf("Invalid network name: %q", newName)
+	}
+
 	if InterfaceExists(newName) {
 		return fmt.Errorf("Network interface %q already exists", newName)
 	}
@@ -937,9 +995,9 @@ func (n *bridge) Rename(newName string) error {
 	}
 
 	// Rename forkdns log file.
-	forkDNSLogPath := fmt.Sprintf("forkdns.%s.log", n.name)
+	forkDNSLogPath := "forkdns." + n.name + ".log"
 	if shared.PathExists(shared.LogPath(forkDNSLogPath)) {
-		err := os.Rename(forkDNSLogPath, shared.LogPath(fmt.Sprintf("forkdns.%s.log", newName)))
+		err := os.Rename(forkDNSLogPath, shared.LogPath("forkdns."+newName+".log"))
 		if err != nil {
 			return err
 		}
@@ -1164,7 +1222,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Cleanup any existing tunnel device.
 	for _, iface := range ifaces {
-		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
+		if strings.HasPrefix(iface.Name, n.name+"-") {
 			tunLink := &ip.Link{Name: iface.Name}
 			err = tunLink.Delete()
 			if err != nil {
@@ -1177,7 +1235,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	if bridge.MTU != bridgeMTUDefault && n.config["bridge.driver"] != "openvswitch" {
 		dummy := &ip.Dummy{
 			Link: ip.Link{
-				Name: fmt.Sprintf("%s-mtu", n.name),
+				Name: n.name + "-mtu",
 				MTU:  bridge.MTU,
 			},
 		}
@@ -1187,7 +1245,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			revert.Add(func() { _ = dummy.Delete() })
 			err = dummy.SetUp()
 			if err == nil {
-				_ = AttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
+				_ = AttachInterface(n.name, n.name+"-mtu")
 			}
 		}
 	}
@@ -1329,7 +1387,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		"--except-interface=lo",
 		"--pid-file=", // Disable attempt at writing a PID file.
 		"--no-ping",   // --no-ping is very important to prevent delays to lease file updates.
-		fmt.Sprintf("--interface=%s", n.name)}
+		"--interface=" + n.name}
 
 	dnsmasqVersion, err := dnsmasq.GetVersion()
 	if err != nil {
@@ -1370,7 +1428,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Update the dnsmasq config.
-		dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--listen-address=%s", ipv4Address.String()))
+		dnsmasqCmd = append(dnsmasqCmd, "--listen-address="+ipv4Address.String())
 		if n.DHCPv4Subnet() != nil {
 			if !shared.ValueInSlice("--dhcp-no-override", dnsmasqCmd) {
 				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")), fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts"))}...)
@@ -2341,6 +2399,11 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 }
 
 func (n *bridge) spawnForkDNS(listenAddress string) error {
+	// Reject known bad names that might cause problem when dealing with paths.
+	if strings.Contains(n.Name(), "/") || strings.Contains(n.Name(), "\\") || strings.Contains(n.Name(), "..") {
+		return fmt.Errorf("Invalid network name: %q", n.Name())
+	}
+
 	// Setup the dnsmasq domain
 	dnsDomain := n.config["dns.domain"]
 	if dnsDomain == "" {
@@ -2354,7 +2417,7 @@ func (n *bridge) spawnForkDNS(listenAddress string) error {
 		dnsDomain,
 		n.name}
 
-	logPath := shared.LogPath(fmt.Sprintf("forkdns.%s.log", n.name))
+	logPath := shared.LogPath("forkdns." + n.name + ".log")
 
 	p, err := subprocess.NewProcess(command, forkdnsargs, logPath, logPath)
 	if err != nil {
@@ -2581,7 +2644,7 @@ func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (cidr strin
 
 	ipBytes[3] = 1
 
-	return fmt.Sprintf("%s/%d", ipBytes.String(), overlaySize), dev, ipStr, err
+	return ipBytes.String() + fmt.Sprint(overlaySize), dev, ipStr, err
 }
 
 func (n *bridge) addressForSubnet(subnet *net.IPNet) (net.IP, string, error) {
@@ -2771,7 +2834,7 @@ func (n *bridge) DHCPv6Subnet() *net.IPNet {
 
 // forwardConvertToFirewallForward converts forwards into format compatible with the firewall package.
 func (n *bridge) forwardConvertToFirewallForwards(listenAddress net.IP, defaultTargetAddress net.IP, portMaps []*forwardPortMap) []firewallDrivers.AddressForward {
-	var vips []firewallDrivers.AddressForward
+	vips := make([]firewallDrivers.AddressForward, 0, len(portMaps)+1)
 
 	if defaultTargetAddress != nil {
 		vips = append(vips, firewallDrivers.AddressForward{
@@ -3456,7 +3519,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 				ip, _, _ := net.ParseCIDR(addr)
 				if ip != nil {
 					leases = append(leases, api.NetworkLease{
-						Hostname: fmt.Sprintf("%s.gw", n.Name()),
+						Hostname: n.Name() + ".gw",
 						Address:  ip.String(),
 						Type:     "gateway",
 					})
@@ -3485,7 +3548,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 						v := network.Config[k]
 						if v != "" {
 							leases = append(leases, api.NetworkLease{
-								Hostname: fmt.Sprintf("%s-%s.uplink", projectName, network.Name),
+								Hostname: projectName + "-" + network.Name + ".uplink",
 								Address:  v,
 								Type:     "uplink",
 								Project:  projectName,

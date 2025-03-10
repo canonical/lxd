@@ -491,6 +491,37 @@ func (c *ClusterTx) instanceDevicesFill(ctx context.Context, snapshotsMode bool,
 // instanceProfiles loads the profile IDs to apply to an instance (in the application order) for all
 // instanceIDs in a single query and then updates the instanceApplyProfileIDs and profilesByID maps.
 func (c *ClusterTx) instanceProfilesFill(ctx context.Context, snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
+	profilesByID := make(map[int]*api.Profile)
+
+	// Get all profiles.
+	profiles, err := cluster.GetProfiles(ctx, c.Tx())
+	if err != nil {
+		return fmt.Errorf("Failed loading profiles: %w", err)
+	}
+
+	// Get all the profile configs.
+	profileConfigs, err := cluster.GetConfig(ctx, c.Tx(), "profile")
+	if err != nil {
+		return fmt.Errorf("Failed loading profile configs: %w", err)
+	}
+
+	// Get all the profile devices.
+	profileDevices, err := cluster.GetDevices(ctx, c.Tx(), "profile")
+	if err != nil {
+		return fmt.Errorf("Failed loading profile devices: %w", err)
+	}
+
+	for _, profile := range profiles {
+		profilesByID[profile.ID], err = profile.ToAPI(ctx, c.tx, profileConfigs, profileDevices)
+		if err != nil {
+			return err
+		}
+	}
+
+	return c.instanceProfilesFillWithProfiles(ctx, snapshotsMode, instanceArgs, profilesByID)
+}
+
+func (c *ClusterTx) instanceProfilesFillWithProfiles(ctx context.Context, snapshotsMode bool, instanceArgs *map[int]InstanceArgs, profilesByID map[int]*api.Profile) error {
 	instances := *instanceArgs
 
 	// Get profiles referenced by instances.
@@ -532,7 +563,6 @@ func (c *ClusterTx) instanceProfilesFill(ctx context.Context, snapshotsMode bool
 	q.WriteString(`)
 		ORDER BY instances_profiles.instance_id, instances_profiles.apply_order`)
 
-	profilesByID := make(map[int]*api.Profile)
 	instanceApplyProfileIDs := make(map[int64][]int, len(instances))
 
 	err := query.Scan(ctx, c.Tx(), q.String(), func(scan func(dest ...any) error) error {
@@ -546,49 +576,10 @@ func (c *ClusterTx) instanceProfilesFill(ctx context.Context, snapshotsMode bool
 
 		instanceApplyProfileIDs[instanceID] = append(instanceApplyProfileIDs[instanceID], profileID)
 
-		// Record that this profile is referenced by at least one instance in the list.
-		_, ok := profilesByID[profileID]
-		if !ok {
-			profilesByID[profileID] = nil
-		}
-
 		return nil
 	})
 	if err != nil {
 		return err
-	}
-
-	// Get all profiles.
-	profiles, err := cluster.GetProfiles(context.TODO(), c.Tx())
-	if err != nil {
-		return fmt.Errorf("Failed loading profiles: %w", err)
-	}
-
-	// Get all the profile configs.
-	profileConfigs, err := cluster.GetConfig(context.TODO(), c.Tx(), "profile")
-	if err != nil {
-		return fmt.Errorf("Failed loading profile configs: %w", err)
-	}
-
-	// Get all the profile devices.
-	profileDevices, err := cluster.GetDevices(context.TODO(), c.Tx(), "profile")
-	if err != nil {
-		return fmt.Errorf("Failed loading profile devices: %w", err)
-	}
-
-	// Populate profilesByID map entry for referenced profiles.
-	// This way we only call ToAPI() on the profiles actually referenced by the instances in
-	// the list, which can reduce the number of queries run.
-	for _, profile := range profiles {
-		_, ok := profilesByID[profile.ID]
-		if !ok {
-			continue
-		}
-
-		profilesByID[profile.ID], err = profile.ToAPI(context.TODO(), c.tx, profileConfigs, profileDevices)
-		if err != nil {
-			return err
-		}
 	}
 
 	// Populate instance profiles list in apply order.

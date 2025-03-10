@@ -8,9 +8,9 @@ import (
 
 // Count returns the number of rows in the given table.
 func Count(ctx context.Context, tx *sql.Tx, table string, where string, args ...any) (int, error) {
-	stmt := fmt.Sprintf("SELECT COUNT(*) FROM %s", table)
+	stmt := "SELECT COUNT(*) FROM " + table
 	if where != "" {
-		stmt += fmt.Sprintf(" WHERE %s", where)
+		stmt += " WHERE " + where
 	}
 
 	rows, err := tx.QueryContext(ctx, stmt, args...)

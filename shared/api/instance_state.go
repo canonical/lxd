@@ -64,11 +64,11 @@ type InstanceState struct {
 //
 // API extension: instances.
 type InstanceStateDisk struct {
-	// Disk usage in bytes
+	// Disk usage in bytes. Uses 0 to indicate that the storage driver for the pool does not support retrieving disk usage.
 	// Example: 502239232
 	Usage int64 `json:"usage" yaml:"usage"`
 
-	// Total size in bytes
+	// Total size in bytes. Uses 0 to convey that the instance has access to the entire pool's storage.
 	// Example: 502239232
 	//
 	// API extension: instances_state_total

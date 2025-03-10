@@ -393,6 +393,10 @@ test_container_metadata() {
     lxc config template create c my.tpl
     lxc config template list c | grep -q my.tpl
 
+    # templates cannot contain some illegal chars
+    ! lxc config template create c foo/bar || false
+    ! lxc config template create c foo..bar || false
+
     # template content can be updated
     echo "some content" | lxc config template edit c my.tpl
     lxc config template show c my.tpl | grep -q "some content"

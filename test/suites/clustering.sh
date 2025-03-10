@@ -537,6 +537,12 @@ test_clustering_containers() {
   sleep 12
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q ERROR
 
+  # For an instance on an offline member, we can get its config but not use recursion nor get instance state.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config show foo
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo" | jq '.status == "Error"')" = "true" ]
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo?recursion=1" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo/state" || false
+
   # Start a container without specifying any target. It will be placed
   # on node1 since node2 is offline and both node1 and node3 have zero
   # containers, but node1 has a lower node ID.
@@ -659,6 +665,9 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create pool1 vol1 --target=node1
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume copy pool1/vol1 pool1/vol1 --target=node1 --destination-target=node2
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume copy pool1/vol1 pool1/vol1 --target=node1 --destination-target=node2 --refresh
+    LXD_DIR="${LXD_ONE_DIR}" lxc project create foo
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume copy pool1/vol1 pool1/vol1 --target=node1 --destination-target=node2 --target-project foo
+    LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo
 
     # Check renaming storage volume works.
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create pool1 vol2 --target=node1
@@ -937,12 +946,47 @@ test_clustering_storage() {
     ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename data web webbaz || false
     ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data web || false
 
-    # Specifying the --target parameter shows, renames and deletes the
-    # proper volume.
+    LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c1 --target node1
+    LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c2 --target node2
+    LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c3 --target node2
+
+    LXD_DIR="${LXD_TWO_DIR}" lxc config device add c1 web disk pool=data source=web path=/mnt/web
+    LXD_DIR="${LXD_TWO_DIR}" lxc config device add c2 web disk pool=data source=web path=/mnt/web
+
+    # Specifying the --target parameter shows the proper volume.
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node1 data web | grep -q "location: node1"
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node2 data web | grep -q "location: node2"
+
+    # rename updates the disk devices that refer to the disk
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node1 data web webbaz
+
+    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c1 web source)" = "webbaz" ]
+    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c2 web source)" = "web" ]
+
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node2 data web webbaz
+
+    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c1 web source)" = "webbaz" ]
+    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c2 web source)" = "webbaz" ]
+
+    LXD_DIR="${LXD_TWO_DIR}" lxc config device remove c1 web
+
+    # renaming a local storage volume when attached via profile fails
+    LXD_DIR="${LXD_TWO_DIR}" lxc profile create stovol-webbaz
+    LXD_DIR="${LXD_TWO_DIR}" lxc profile device add stovol-webbaz webbaz disk pool=data source=webbaz path=/mnt/web
+
+    LXD_DIR="${LXD_TWO_DIR}" lxc profile add c3 stovol-webbaz # c2 and c3 both have webbaz attached
+
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node2 data webbaz webbaz2 || false
+
+    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc profile device get stovol-webbaz webbaz source)" = "webbaz" ]
+    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c2 web source)" = "webbaz" ]
+
+    LXD_DIR="${LXD_TWO_DIR}" lxc profile remove c3 stovol-webbaz
+    LXD_DIR="${LXD_TWO_DIR}" lxc profile delete stovol-webbaz
+
+    # clean up
+    LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 c2 c3
+
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete --target node2 data webbaz
 
     # Since now there's only one volume in the pool left named webbaz,
@@ -1215,6 +1259,13 @@ test_clustering_network() {
   # Check duplicate static MAC assignment is allowed for instance on a different server.
   LXD_DIR="${LXD_ONE_DIR}" lxc config device remove c3 eth0
   LXD_DIR="${LXD_ONE_DIR}" lxc config device add c3 eth0 nic hwaddr="${c1MAC}" nictype=bridged parent="${net}"
+
+  # Check networks local to a cluster member show up when targeting that member
+  # and hidden when targeting other cluster members. Setup is in includes/clustering.sh
+  LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node1 | grep localBridge1
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node1 | grep localBridge2 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node2 | grep localBridge1 || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node2 | grep localBridge2
 
   # Cleanup instances and image.
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1 c2 c3

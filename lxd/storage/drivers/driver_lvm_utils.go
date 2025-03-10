@@ -96,7 +96,7 @@ func (d *lvm) isLVMNotFoundExitError(err error) bool {
 
 // pysicalVolumeExists checks if an LVM Physical Volume exists.
 func (d *lvm) pysicalVolumeExists(pvName string) (bool, error) {
-	_, err := shared.RunCommand("pvs", "--noheadings", "-o", "pv_name", pvName)
+	_, err := shared.RunCommandContext(context.TODO(), "pvs", "--noheadings", "-o", "pv_name", pvName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return false, nil
@@ -110,7 +110,7 @@ func (d *lvm) pysicalVolumeExists(pvName string) (bool, error) {
 
 // volumeGroupExists checks if an LVM Volume Group exists and returns any tags on that volume group.
 func (d *lvm) volumeGroupExists(vgName string) (bool, []string, error) {
-	output, err := shared.RunCommand("vgs", "--noheadings", "-o", "vg_tags", vgName)
+	output, err := shared.RunCommandContext(context.TODO(), "vgs", "--noheadings", "-o", "vg_tags", vgName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return false, nil, nil
@@ -127,7 +127,7 @@ func (d *lvm) volumeGroupExists(vgName string) (bool, []string, error) {
 
 // volumeGroupExtentSize gets the volume group's physical extent size in bytes.
 func (d *lvm) volumeGroupExtentSize(vgName string) (int64, error) {
-	output, err := shared.RunCommand("vgs", "--noheadings", "--nosuffix", "--units", "b", "-o", "vg_extent_size", vgName)
+	output, err := shared.RunCommandContext(context.TODO(), "vgs", "--noheadings", "--nosuffix", "--units", "b", "-o", "vg_extent_size", vgName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return -1, api.StatusErrorf(http.StatusNotFound, "LVM volume group not found")
@@ -142,7 +142,7 @@ func (d *lvm) volumeGroupExtentSize(vgName string) (int64, error) {
 
 // countLogicalVolumes gets the count of volumes (both normal and thin) in a volume group.
 func (d *lvm) countLogicalVolumes(vgName string) (int, error) {
-	output, err := shared.RunCommand("vgs", "--noheadings", "-o", "lv_count", vgName)
+	output, err := shared.RunCommandContext(context.TODO(), "vgs", "--noheadings", "-o", "lv_count", vgName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return -1, api.StatusErrorf(http.StatusNotFound, "LVM volume group not found")
@@ -157,7 +157,7 @@ func (d *lvm) countLogicalVolumes(vgName string) (int, error) {
 
 // countThinVolumes gets the count of thin volumes in a thin pool.
 func (d *lvm) countThinVolumes(vgName, poolName string) (int, error) {
-	output, err := shared.RunCommand("lvs", "--noheadings", "-o", "thin_count", fmt.Sprintf("%s/%s", vgName, poolName))
+	output, err := shared.RunCommandContext(context.TODO(), "lvs", "--noheadings", "-o", "thin_count", vgName+"/"+poolName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return -1, api.StatusErrorf(http.StatusNotFound, "LVM volume group not found")
@@ -172,7 +172,7 @@ func (d *lvm) countThinVolumes(vgName, poolName string) (int, error) {
 
 // thinpoolExists checks whether the specified thinpool exists in a volume group.
 func (d *lvm) thinpoolExists(vgName string, poolName string) (bool, error) {
-	output, err := shared.RunCommand("lvs", "--noheadings", "-o", "lv_attr", fmt.Sprintf("%s/%s", vgName, poolName))
+	output, err := shared.RunCommandContext(context.TODO(), "lvs", "--noheadings", "-o", "lv_attr", vgName+"/"+poolName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return false, nil
@@ -192,7 +192,7 @@ func (d *lvm) thinpoolExists(vgName string, poolName string) (bool, error) {
 
 // logicalVolumeExists checks whether the specified logical volume exists.
 func (d *lvm) logicalVolumeExists(volDevPath string) (bool, error) {
-	_, err := shared.RunCommand("lvs", "--noheadings", "-o", "lv_name", volDevPath)
+	_, err := shared.RunCommandContext(context.TODO(), "lvs", "--noheadings", "-o", "lv_name", volDevPath)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return false, nil
@@ -215,7 +215,7 @@ func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string, thinpoolSiz
 		return fmt.Errorf("Error checking LVM version: %w", err)
 	}
 
-	lvmThinPool := fmt.Sprintf("%s/%s", d.config["lvm.vg_name"], thinPoolName)
+	lvmThinPool := d.config["lvm.vg_name"] + "/" + thinPoolName
 
 	args := []string{
 		"--yes",
@@ -229,11 +229,11 @@ func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string, thinpoolSiz
 	}
 
 	if thinpoolMetadataSizeBytes > 0 {
-		args = append(args, "--poolmetadatasize", fmt.Sprintf("%db", thinpoolMetadataSizeBytes))
+		args = append(args, "--poolmetadatasize", strconv.FormatInt(thinpoolMetadataSizeBytes, 10)+"b")
 	}
 
 	if thinpoolSizeBytes > 0 {
-		args = append(args, "--size", fmt.Sprintf("%db", thinpoolSizeBytes))
+		args = append(args, "--size", strconv.FormatInt(thinpoolSizeBytes, 10)+"b")
 	} else if isRecent {
 		args = append(args, "--extents", "100%FREE")
 	} else {
@@ -251,7 +251,7 @@ func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string, thinpoolSiz
 				return fmt.Errorf("Invalid volume stripe size %q: %w", d.config["volume.lvm.stripes.size"], err)
 			}
 
-			args = append(args, "--stripesize", fmt.Sprintf("%db", stripSizeBytes))
+			args = append(args, "--stripesize", strconv.FormatInt(stripSizeBytes, 10)+"b")
 		}
 	}
 
@@ -334,15 +334,15 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 	}
 
 	if makeThinLv {
-		targetVg := fmt.Sprintf("%s/%s", vgName, thinPoolName)
+		targetVg := vgName + "/" + thinPoolName
 		args = append(args,
 			"--thin",
-			"--virtualsize", fmt.Sprintf("%db", lvSizeBytes),
+			"--virtualsize", strconv.FormatInt(lvSizeBytes, 10)+"b",
 			targetVg,
 		)
 	} else {
 		args = append(args,
-			"--size", fmt.Sprintf("%db", lvSizeBytes),
+			"--size", strconv.FormatInt(lvSizeBytes, 10)+"b",
 			vgName,
 		)
 
@@ -358,7 +358,7 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 					return fmt.Errorf("Invalid volume stripe size %q: %w", stripeSize, err)
 				}
 
-				args = append(args, "--stripesize", fmt.Sprintf("%db", stripSizeBytes))
+				args = append(args, "--stripesize", strconv.FormatInt(stripSizeBytes, 10)+"b")
 			}
 		}
 	}
@@ -391,13 +391,13 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 	if isRecent {
 		// Disable auto activation of volume on LVM versions that support it.
 		// Must be done after volume create so that zeroing and signature wiping can take place.
-		_, err := shared.RunCommand("lvchange", "--setactivationskip", "y", volDevPath)
+		_, err := shared.RunCommandContext(context.TODO(), "lvchange", "--setactivationskip", "y", volDevPath)
 		if err != nil {
 			return fmt.Errorf("Failed to set activation skip on LVM logical volume %q: %w", volDevPath, err)
 		}
 	}
 
-	d.logger.Debug("Logical volume created", logger.Ctx{"vg_name": vgName, "lv_name": lvFullName, "size": fmt.Sprintf("%db", lvSizeBytes), "fs": vol.ConfigBlockFilesystem()})
+	d.logger.Debug("Logical volume created", logger.Ctx{"vg_name": vgName, "lv_name": lvFullName, "size": strconv.FormatInt(lvSizeBytes, 10) + "b", "fs": vol.ConfigBlockFilesystem()})
 	return nil
 }
 
@@ -493,7 +493,7 @@ func (d *lvm) lvmFullVolumeName(volType VolumeType, contentType ContentType, vol
 	// Escape the volume name to a name suitable for using as a logical volume.
 	lvName := strings.Replace(strings.Replace(volName, "-", lvmEscapedHyphen, -1), shared.SnapshotDelimiter, lvmSnapshotSeparator, -1)
 
-	return fmt.Sprintf("%s_%s%s", volType, lvName, contentTypeSuffix)
+	return string(volType) + "_" + lvName + contentTypeSuffix
 }
 
 // lvmDevPath returns the path to the LVM volume device. Empty string is returned if invalid volType supplied.
@@ -503,17 +503,27 @@ func (d *lvm) lvmDevPath(vgName string, volType VolumeType, contentType ContentT
 		return "" // Invalid volType supplied.
 	}
 
-	return fmt.Sprintf("/dev/%s/%s", vgName, fullVolName)
+	return "/dev/" + vgName + "/" + fullVolName
 }
 
 // resizeLogicalVolume resizes an LVM logical volume. This function does not resize any filesystem inside the LV.
 func (d *lvm) resizeLogicalVolume(lvPath string, sizeBytes int64) error {
-	_, err := shared.TryRunCommand("lvresize", "-L", fmt.Sprintf("%db", sizeBytes), "-f", lvPath)
+	isRecent, err := d.lvmVersionIsAtLeast(lvmVersion, "2.03.17")
+	if err != nil {
+		return fmt.Errorf("Error checking LVM version: %w", err)
+	}
+
+	args := []string{"-L", strconv.FormatInt(sizeBytes, 10) + "b", "-f", lvPath}
+	if isRecent {
+		args = append(args, "--fs=ignore")
+	}
+
+	_, err = shared.TryRunCommand("lvresize", args...)
 	if err != nil {
 		return err
 	}
 
-	d.logger.Debug("Logical volume resized", logger.Ctx{"dev": lvPath, "size": fmt.Sprintf("%db", sizeBytes)})
+	d.logger.Debug("Logical volume resized", logger.Ctx{"dev": lvPath, "size": strconv.FormatInt(sizeBytes, 10) + "b"})
 	return nil
 }
 
@@ -669,7 +679,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []string, refr
 
 // logicalVolumeSize gets the size in bytes of a logical volume.
 func (d *lvm) logicalVolumeSize(volDevPath string) (int64, error) {
-	output, err := shared.RunCommand("lvs", "--noheadings", "--nosuffix", "--units", "b", "-o", "lv_size", volDevPath)
+	output, err := shared.RunCommandContext(context.TODO(), "lvs", "--noheadings", "--nosuffix", "--units", "b", "-o", "lv_size", volDevPath)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return -1, api.StatusErrorf(http.StatusNotFound, "LVM volume not found")
@@ -692,7 +702,7 @@ func (d *lvm) thinPoolVolumeUsage(volDevPath string) (totalSize uint64, usedSize
 		"-o", "lv_size,data_percent,metadata_percent",
 	}
 
-	out, err := shared.RunCommand("lvs", args...)
+	out, err := shared.RunCommandContext(context.TODO(), "lvs", args...)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -752,10 +762,10 @@ func (d *lvm) parseLogicalVolumeSnapshot(parent Volume, lvmVolName string) strin
 	}
 
 	// Prefix we would expect for a snapshot of the parent volume.
-	snapPrefix := fmt.Sprintf("%s%s", fullVolName, lvmSnapshotSeparator)
+	snapPrefix := fullVolName + lvmSnapshotSeparator
 
 	// Prefix used when escaping "-" in volume names. Doesn't indicate a snapshot of parent.
-	badPrefix := fmt.Sprintf("%s%s", fullVolName, lvmEscapedHyphen)
+	badPrefix := fullVolName + lvmEscapedHyphen
 
 	// Check the volume matches the snapshot prefix, but doesn't match the prefix that indicates a similarly
 	// named volume that just has escaped "-" characters in it.
@@ -780,7 +790,7 @@ func (d *lvm) activateVolume(vol Volume) (bool, error) {
 	}
 
 	if !shared.PathExists(volDevPath) {
-		_, err := shared.RunCommand("lvchange", "--activate", "y", "--ignoreactivationskip", volDevPath)
+		_, err := shared.RunCommandContext(context.TODO(), "lvchange", "--activate", "y", "--ignoreactivationskip", volDevPath)
 		if err != nil {
 			return false, fmt.Errorf("Failed to activate LVM logical volume %q: %w", volDevPath, err)
 		}
@@ -818,7 +828,7 @@ func (d *lvm) deactivateVolume(vol Volume) (bool, error) {
 		// Keep trying to deactivate a few times in case the device is still being flushed.
 		var err error
 		for i := 0; i < 20; i++ {
-			_, err = shared.RunCommand("lvchange", "--activate", "n", "--ignoreactivationskip", volDevPath)
+			_, err = shared.RunCommandContext(context.TODO(), "lvchange", "--activate", "n", "--ignoreactivationskip", volDevPath)
 			if err == nil {
 				break
 			}

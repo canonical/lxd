@@ -623,6 +623,12 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Detect if we want to also return entitlements for each volume.
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStorageVolume, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Check if current route is in /1.0/storage-volumes
 	allPools := poolName == ""
 
@@ -814,6 +820,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 	if util.IsRecursionRequest(r) {
 		volumes := make([]*api.StorageVolume, 0, len(dbVolumes))
+		urlToVolume := make(map[*api.URL]auth.EntitlementReporter)
 		for _, dbVol := range dbVolumes {
 			vol := &dbVol.StorageVolume
 
@@ -833,6 +840,14 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			volumes = append(volumes, vol)
+			urlToVolume[entity.StorageVolumeURL(vol.Project, vol.Location, vol.Pool, vol.Type, vol.Name)] = vol
+		}
+
+		if len(withEntitlements) > 0 {
+			err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStorageVolume, withEntitlements, urlToVolume)
+			if err != nil {
+				return response.SmartError(err)
+			}
 		}
 
 		return response.SyncResponse(true, volumes)
@@ -1051,7 +1066,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = limits.AllowVolumeCreation(s.GlobalConfig, tx, projectName, poolName, req)
+		err = limits.AllowVolumeCreation(ctx, s.GlobalConfig, tx, projectName, poolName, req)
 		if err != nil {
 			return err
 		}
@@ -1128,7 +1143,7 @@ func clusterCopyCustomVolumeInternal(s *state.State, r *http.Request, sourceAddr
 		Pool:       req.Source.Pool,
 		Migration:  true,
 		VolumeOnly: req.Source.VolumeOnly,
-		Project:    req.Source.Project,
+		Project:    projectName,
 		Source: api.StorageVolumeSource{
 			Location: req.Source.Location,
 		},
@@ -1154,7 +1169,7 @@ func clusterCopyCustomVolumeInternal(s *state.State, r *http.Request, sourceAddr
 	req.Source.Type = api.SourceTypeMigration
 	req.Source.Certificate = string(s.Endpoints.NetworkCert().PublicKey())
 	req.Source.Mode = "pull"
-	req.Source.Operation = fmt.Sprintf("https://%s/%s/operations/%s", sourceAddress, version.APIVersion, opAPI.ID)
+	req.Source.Operation = "https://" + sourceAddress + "/" + version.APIVersion + "/operations/" + opAPI.ID
 	req.Source.Websockets = websockets
 	req.Source.Project = ""
 
@@ -1430,7 +1445,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(fmt.Errorf("Target project does not have features.storage.volumes enabled"))
 		}
 
-		if effectiveProjectName == targetProjectName {
+		if targetProjectName != api.ProjectDefaultName && effectiveProjectName == targetProjectName {
 			return response.BadRequest(fmt.Errorf("Project and target project are the same"))
 		}
 
@@ -1808,7 +1823,7 @@ func storageVolumePostClusteringMigrate(s *state.State, r *http.Request, srcPool
 			Source: api.StorageVolumeSource{
 				Type:        api.SourceTypeMigration,
 				Mode:        "pull",
-				Operation:   fmt.Sprintf("https://%s%s", srcMember.Address, srcOp.URL()),
+				Operation:   "https://" + srcMember.Address + srcOp.URL(),
 				Websockets:  sourceSecrets,
 				Certificate: string(networkCert.PublicKey()),
 				Name:        newVolumeName,
@@ -1878,10 +1893,12 @@ func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, poolName s
 	defer revert.Fail()
 
 	// Update devices using the volume in instances and profiles.
-	err = storagePoolVolumeUpdateUsers(s, projectName, pool.Name(), vol, pool.Name(), &newVol)
+	cleanup, err := storagePoolVolumeUpdateUsers(s, projectName, pool.Name(), vol, pool.Name(), &newVol)
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	revert.Add(cleanup)
 
 	// Use an empty operation for this sync response to pass the requestor
 	op := &operations.Operation{}
@@ -1919,14 +1936,12 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, poolName str
 		defer revert.Fail()
 
 		// Update devices using the volume in instances and profiles.
-		err = storagePoolVolumeUpdateUsers(s, requestProjectName, pool.Name(), vol, newPool.Name(), &newVol)
+		cleanup, err := storagePoolVolumeUpdateUsers(s, requestProjectName, pool.Name(), vol, newPool.Name(), &newVol)
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() {
-			_ = storagePoolVolumeUpdateUsers(s, projectName, newPool.Name(), &newVol, pool.Name(), vol)
-		})
+		revert.Add(cleanup)
 
 		// Provide empty description and nil config to instruct CreateCustomVolumeFromCopy to copy it
 		// from source volume.
@@ -2016,6 +2031,12 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Detect if we want to also return entitlements for each volume.
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStorageVolume, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
@@ -2043,6 +2064,13 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	dbVolume.UsedBy = project.FilterUsedBy(s.Authorizer, r, volumeUsedBy)
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStorageVolume, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.StorageVolumeURL(dbVolume.Project, dbVolume.Location, dbVolume.Pool, dbVolume.Type, dbVolume.Name): dbVolume})
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
 
 	etag := []any{details.volumeName, dbVolume.Type, dbVolume.Config}
 
@@ -2161,7 +2189,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		if req.Config != nil || req.Restore == "" {
 			// Possibly check if project limits are honored.
 			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return limits.AllowVolumeUpdate(s.GlobalConfig, tx, effectiveProjectName, details.volumeName, req, dbVolume.Config)
+				return limits.AllowVolumeUpdate(ctx, s.GlobalConfig, tx, effectiveProjectName, details.volumeName, req, dbVolume.Config)
 			})
 			if err != nil {
 				return response.SmartError(err)
@@ -2450,7 +2478,7 @@ func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProj
 	}
 
 	// Create temporary file to store uploaded ISO data.
-	isoFile, err := os.CreateTemp(shared.VarPath("isos"), fmt.Sprintf("%s_", "lxd_iso"))
+	isoFile, err := os.CreateTemp(shared.VarPath("isos"), "lxd_iso_")
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -2503,7 +2531,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 	defer revert.Fail()
 
 	// Create temporary file to store uploaded backup data.
-	backupFile, err := os.CreateTemp(shared.VarPath("backups"), fmt.Sprintf("%s_", backup.WorkingDirPrefix))
+	backupFile, err := os.CreateTemp(shared.VarPath("backups"), backup.WorkingDirPrefix+"_")
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -2533,7 +2561,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 		decomArgs := append(decomArgs, backupFile.Name())
 
 		// Create temporary file to store the decompressed tarball in.
-		tarFile, err := os.CreateTemp(shared.VarPath("backups"), fmt.Sprintf("%s_decompress_", backup.WorkingDirPrefix))
+		tarFile, err := os.CreateTemp(shared.VarPath("backups"), backup.WorkingDirPrefix+"_decompress_")
 		if err != nil {
 			return response.InternalError(err)
 		}

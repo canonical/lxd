@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -68,6 +69,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/netutils"
 	"github.com/canonical/lxd/shared/osarch"
@@ -81,57 +83,6 @@ import (
 func lxcSetConfigItem(c *liblxc.Container, key string, value string) error {
 	if c == nil {
 		return fmt.Errorf("Uninitialized go-lxc struct")
-	}
-
-	if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
-		switch key {
-		case "lxc.uts.name":
-			key = "lxc.utsname"
-		case "lxc.pty.max":
-			key = "lxc.pts"
-		case "lxc.tty.dir":
-			key = "lxc.devttydir"
-		case "lxc.tty.max":
-			key = "lxc.tty"
-		case "lxc.apparmor.profile":
-			key = "lxc.aa_profile"
-		case "lxc.apparmor.allow_incomplete":
-			key = "lxc.aa_allow_incomplete"
-		case "lxc.selinux.context":
-			key = "lxc.se_context"
-		case "lxc.mount.fstab":
-			key = "lxc.mount"
-		case "lxc.console.path":
-			key = "lxc.console"
-		case "lxc.seccomp.profile":
-			key = "lxc.seccomp"
-		case "lxc.signal.halt":
-			key = "lxc.haltsignal"
-		case "lxc.signal.reboot":
-			key = "lxc.rebootsignal"
-		case "lxc.signal.stop":
-			key = "lxc.stopsignal"
-		case "lxc.log.syslog":
-			key = "lxc.syslog"
-		case "lxc.log.level":
-			key = "lxc.loglevel"
-		case "lxc.log.file":
-			key = "lxc.logfile"
-		case "lxc.init.cmd":
-			key = "lxc.init_cmd"
-		case "lxc.init.uid":
-			key = "lxc.init_uid"
-		case "lxc.init.gid":
-			key = "lxc.init_gid"
-		case "lxc.idmap":
-			key = "lxc.id_map"
-		}
-	}
-
-	if strings.HasPrefix(key, "lxc.prlimit.") {
-		if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
-			return fmt.Errorf(`Process limits require liblxc >= 2.1`)
-		}
 	}
 
 	err := c.SetConfigItem(key, value)
@@ -287,7 +238,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.In
 
 	v := map[string]string{
 		"volatile.idmap.next": jsonIdmap,
-		"volatile.idmap.base": fmt.Sprintf("%v", base),
+		"volatile.idmap.base": strconv.FormatInt(base, 10),
 	}
 
 	// Invalid idmap cache.
@@ -692,25 +643,23 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		return nil, err
 	}
 
-	if liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
-		// Default size log buffer
-		err = lxcSetConfigItem(cc, "lxc.console.buffer.size", "auto")
-		if err != nil {
-			return nil, err
-		}
+	// Default size log buffer
+	err = lxcSetConfigItem(cc, "lxc.console.buffer.size", "auto")
+	if err != nil {
+		return nil, err
+	}
 
-		err = lxcSetConfigItem(cc, "lxc.console.size", "auto")
-		if err != nil {
-			return nil, err
-		}
+	err = lxcSetConfigItem(cc, "lxc.console.size", "auto")
+	if err != nil {
+		return nil, err
+	}
 
-		// File to dump ringbuffer contents to when requested or
-		// container shutdown.
-		consoleBufferLogFile := d.ConsoleBufferLogPath()
-		err = lxcSetConfigItem(cc, "lxc.console.logfile", consoleBufferLogFile)
-		if err != nil {
-			return nil, err
-		}
+	// File to dump ringbuffer contents to when requested or
+	// container shutdown.
+	consoleBufferLogFile := d.ConsoleBufferLogPath()
+	err = lxcSetConfigItem(cc, "lxc.console.logfile", consoleBufferLogFile)
+	if err != nil {
+		return nil, err
 	}
 
 	if d.state.OS.ContainerCoreScheduling {
@@ -825,12 +774,12 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		}
 
 		if shared.IsDir(mnt) {
-			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none rbind,create=dir,optional 0 0", mnt, strings.TrimPrefix(mnt, "/")))
+			err = lxcSetConfigItem(cc, "lxc.mount.entry", mnt+" "+strings.TrimPrefix(mnt, "/")+" none rbind,create=dir,optional 0 0")
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file,optional 0 0", mnt, strings.TrimPrefix(mnt, "/")))
+			err = lxcSetConfigItem(cc, "lxc.mount.entry", mnt+" "+strings.TrimPrefix(mnt, "/")+" none rbind,create=file,optional 0 0")
 			if err != nil {
 				return nil, err
 			}
@@ -843,8 +792,8 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		templateConfDir = "/usr/share/lxc/config"
 	}
 
-	if shared.PathExists(fmt.Sprintf("%s/common.conf.d/", templateConfDir)) {
-		err = lxcSetConfigItem(cc, "lxc.include", fmt.Sprintf("%s/common.conf.d/", templateConfDir))
+	if shared.PathExists(templateConfDir + "/common.conf.d/") {
+		err = lxcSetConfigItem(cc, "lxc.include", templateConfDir+"/common.conf.d/")
 		if err != nil {
 			return nil, err
 		}
@@ -973,7 +922,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 
 	// Setup devlxd
 	if shared.IsTrueOrEmpty(d.expandedConfig["security.devlxd"]) {
-		err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s dev/lxd none bind,create=dir 0 0", shared.VarPath("devlxd")))
+		err = lxcSetConfigItem(cc, "lxc.mount.entry", shared.VarPath("devlxd")+" dev/lxd none bind,create=dir 0 0")
 		if err != nil {
 			return nil, err
 		}
@@ -1001,7 +950,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 			 * profile.
 			 */
 			if d.state.OS.AppArmorStacking && !d.state.OS.AppArmorStacked {
-				profile = fmt.Sprintf("%s//&:%s:", profile, apparmor.InstanceNamespaceName(d))
+				profile = profile + "//&:" + apparmor.InstanceNamespaceName(d) + ":"
 			}
 
 			err := lxcSetConfigItem(cc, "lxc.apparmor.profile", profile)
@@ -1026,7 +975,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		// System requirement errors are handled during policy generation instead of here
 		ok, err := seccomp.InstanceNeedsIntercept(d.state, d)
 		if err == nil && ok {
-			err = lxcSetConfigItem(cc, "lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
+			err = lxcSetConfigItem(cc, "lxc.seccomp.notify.proxy", "unix:"+shared.VarPath("seccomp.socket"))
 			if err != nil {
 				return nil, err
 			}
@@ -1049,8 +998,8 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		}
 	}
 
-	// Setup environment
 	for k, v := range d.expandedConfig {
+		// Setup environment
 		// lxdmeta:generate(entities=instance; group=miscellaneous; key=environment.*)
 		// The specified key/value environment variables are exported to the instance and set for `lxc exec`.
 
@@ -1058,11 +1007,42 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		//  type: string
 		//  liveupdate: yes (exec)
 		//  shortdesc: Environment variables to export
-		if strings.HasPrefix(k, "environment.") {
-			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("%s=%s", strings.TrimPrefix(k, "environment."), v))
+		environmentKey, found := strings.CutPrefix(k, "environment.")
+		if found {
+			err = lxcSetConfigItem(cc, "lxc.environment", environmentKey+"="+v)
 			if err != nil {
 				return nil, err
 			}
+
+			continue
+		}
+
+		// Setup process limits
+		prlimitSuffix, found := strings.CutPrefix(k, "limits.kernel.")
+		if found {
+			err = lxcSetConfigItem(cc, "lxc.prlimit."+prlimitSuffix, v)
+			if err != nil {
+				return nil, err
+			}
+
+			continue
+		}
+
+		// Setup sysctls
+		// lxdmeta:generate(entities=instance; group=miscellaneous; key=linux.sysctl.*)
+		//
+		// ---
+		//  type: string
+		//  liveupdate: no
+		//  condition: container
+		//  shortdesc: Override for the corresponding `sysctl` setting in the container
+		if strings.HasPrefix(k, "linux.sysctl.") {
+			err = lxcSetConfigItem(cc, k, v)
+			if err != nil {
+				return nil, err
+			}
+
+			continue
 		}
 	}
 
@@ -1091,27 +1071,25 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		nvidiaDriver := d.expandedConfig["nvidia.driver.capabilities"]
 		if nvidiaDriver == "" {
 			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_DRIVER_CAPABILITIES=compute,utility")
-			if err != nil {
-				return nil, err
-			}
 		} else {
-			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_DRIVER_CAPABILITIES=%s", nvidiaDriver))
-			if err != nil {
-				return nil, err
-			}
+			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_DRIVER_CAPABILITIES="+nvidiaDriver)
+		}
+
+		if err != nil {
+			return nil, err
 		}
 
 		nvidiaRequireCuda := d.expandedConfig["nvidia.require.cuda"]
-		if nvidiaRequireCuda == "" {
-			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_REQUIRE_CUDA=%s", nvidiaRequireCuda))
+		if nvidiaRequireCuda != "" {
+			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_REQUIRE_CUDA="+nvidiaRequireCuda)
 			if err != nil {
 				return nil, err
 			}
 		}
 
 		nvidiaRequireDriver := d.expandedConfig["nvidia.require.driver"]
-		if nvidiaRequireDriver == "" {
-			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_REQUIRE_DRIVER=%s", nvidiaRequireDriver))
+		if nvidiaRequireDriver != "" {
+			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_REQUIRE_DRIVER="+nvidiaRequireDriver)
 			if err != nil {
 				return nil, err
 			}
@@ -1298,42 +1276,11 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		}
 	}
 
-	// Setup process limits
-	for k, v := range d.expandedConfig {
-		if strings.HasPrefix(k, "limits.kernel.") {
-			prlimitSuffix := strings.TrimPrefix(k, "limits.kernel.")
-			prlimitKey := fmt.Sprintf("lxc.prlimit.%s", prlimitSuffix)
-			err = lxcSetConfigItem(cc, prlimitKey, v)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	// Setup sysctls
-	for k, v := range d.expandedConfig {
-		// lxdmeta:generate(entities=instance; group=miscellaneous; key=linux.sysctl.*)
-		//
-		// ---
-		//  type: string
-		//  liveupdate: no
-		//  condition: container
-		//  shortdesc: Override for the corresponding `sysctl` setting in the container
-		if strings.HasPrefix(k, "linux.sysctl.") {
-			sysctlSuffix := strings.TrimPrefix(k, "linux.sysctl.")
-			sysctlKey := fmt.Sprintf("lxc.sysctl.%s", sysctlSuffix)
-			err = lxcSetConfigItem(cc, sysctlKey, v)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
 	// Setup shmounts
 	if d.state.OS.LXCFeatures["mount_injection_file"] {
-		err = lxcSetConfigItem(cc, "lxc.mount.auto", fmt.Sprintf("shmounts:%s:/dev/.lxd-mounts", d.ShmountsPath()))
+		err = lxcSetConfigItem(cc, "lxc.mount.auto", "shmounts:"+d.ShmountsPath()+":/dev/.lxd-mounts")
 	} else {
-		err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s dev/.lxd-mounts none bind,create=dir 0 0", d.ShmountsPath()))
+		err = lxcSetConfigItem(cc, "lxc.mount.entry", d.ShmountsPath()+" dev/.lxd-mounts none bind,create=dir 0 0")
 	}
 
 	if err != nil {
@@ -1503,16 +1450,21 @@ func (d *lxc) deviceStaticShiftMounts(mounts []deviceConfig.MountEntryItem) erro
 	// device files before they are mounted.
 	if idmapSet != nil && !d.state.OS.RunningInUserNS {
 		for _, mount := range mounts {
+			pathSource, isPath := mount.DevSource.(device.DevSourcePath)
+			if mount.DevSource != nil && !isPath {
+				return fmt.Errorf("Device source for device %q was not a host path (was %T)", mount.DevName, mount.DevSource)
+			}
+
 			// Skip UID/GID shifting if OwnerShift mode is not static, or the host-side
 			// DevPath is empty (meaning an unmount request that doesn't need shifting).
-			if mount.OwnerShift != deviceConfig.MountOwnerShiftStatic || mount.DevPath == "" {
+			if mount.OwnerShift != deviceConfig.MountOwnerShiftStatic || pathSource.Path == "" {
 				continue
 			}
 
-			err := idmapSet.ShiftFile(mount.DevPath)
+			err := idmapSet.ShiftFile(pathSource.Path)
 			if err != nil {
 				// uidshift failing is weird, but not a big problem. Log and proceed.
-				d.logger.Debug("Failed to uidshift device", logger.Ctx{"mountDevPath": mount.DevPath, "err": err})
+				d.logger.Debug("Failed to uidshift device", logger.Ctx{"mountDevPath": pathSource.Path, "err": err})
 			}
 		}
 	}
@@ -1681,7 +1633,7 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 		// that device doesn't already exist on the host as if a device exists on the host
 		// we can't know whether that is because liblxc has moved it back already or whether
 		// it is a conflicting device.
-		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", devName)) {
+		if !shared.PathExists("/sys/class/net/" + devName) {
 			if stopHookNetnsPath == "" {
 				return fmt.Errorf("Cannot detach NIC device %q without stopHookNetnsPath being provided", devName)
 			}
@@ -1703,8 +1655,14 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 	reverter := revert.New()
 	defer reverter.Fail()
+
 	for _, mount := range mounts {
-		if mount.DevPath != "" {
+		pathSource, isPath := mount.DevSource.(device.DevSourcePath)
+		if mount.DevSource != nil && !isPath {
+			return fmt.Errorf("Device source for device %q was not a host path (was %T)", mount.DevName, mount.DevSource)
+		}
+
+		if pathSource.Path != "" {
 			flags := 0
 
 			// Convert options into flags.
@@ -1720,14 +1678,14 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 
 			var idmapType idmap.IdmapStorageType = idmap.IdmapStorageNone
 			if !d.IsPrivileged() && mount.OwnerShift == deviceConfig.MountOwnerShiftDynamic {
-				idmapType = d.IdmappedStorage(mount.DevPath, mount.FSType)
+				idmapType = d.IdmappedStorage(pathSource.Path, mount.FSType)
 				if idmapType == idmap.IdmapStorageNone {
 					return fmt.Errorf("Required idmapping abilities not available")
 				}
 			}
 
 			// Mount it into the container.
-			err := d.insertMount(mount.DevPath, mount.TargetPath, mount.FSType, flags, idmapType)
+			err := d.insertMount(pathSource.Path, mount.TargetPath, mount.FSType, flags, idmapType)
 			if err != nil {
 				return fmt.Errorf("Failed to add mount for device inside container: %s", err)
 			}
@@ -2122,30 +2080,14 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 
 		// Process rootfs setup.
 		if runConf.RootFS.Path != "" {
-			if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
-				// Set the rootfs backend type if supported (must happen before any other lxc.rootfs)
-				err := lxcSetConfigItem(cc, "lxc.rootfs.backend", "dir")
-				if err == nil {
-					value := cc.ConfigItem("lxc.rootfs.backend")
-					if len(value) == 0 || value[0] != "dir" {
-						_ = lxcSetConfigItem(cc, "lxc.rootfs.backend", "")
-					}
-				}
-			}
-
 			// Get an absolute path for the rootfs (avoid constantly traversing the symlink).
 			absoluteRootfs, err := filepath.EvalSymlinks(runConf.RootFS.Path)
 			if err != nil {
 				return "", nil, fmt.Errorf("Unable to resolve container rootfs: %w", err)
 			}
 
-			if liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
-				rootfsPath := fmt.Sprintf("dir:%s", absoluteRootfs)
-				err = lxcSetConfigItem(cc, "lxc.rootfs.path", rootfsPath)
-			} else {
-				err = lxcSetConfigItem(cc, "lxc.rootfs", absoluteRootfs)
-			}
-
+			rootfsPath := "dir:" + absoluteRootfs
+			err = lxcSetConfigItem(cc, "lxc.rootfs.path", rootfsPath)
 			if err != nil {
 				return "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
 			}
@@ -2173,9 +2115,9 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 				}
 
 				if d.state.OS.CGInfo.Layout == cgroup.CgroupsUnified {
-					err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.cgroup2.%s", rule.Key), rule.Value)
+					err = lxcSetConfigItem(cc, "lxc.cgroup2."+rule.Key, rule.Value)
 				} else {
-					err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.cgroup.%s", rule.Key), rule.Value)
+					err = lxcSetConfigItem(cc, "lxc.cgroup."+rule.Key, rule.Value)
 				}
 
 				if err != nil {
@@ -2187,14 +2129,15 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		// Pass any mounts into LXC.
 		if len(runConf.Mounts) > 0 {
 			for _, mount := range runConf.Mounts {
-				if shared.ValueInSlice("propagation", mount.Opts) && !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
-					return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), fmt.Errorf("liblxc 3.0 is required for mount propagation configuration"))
+				pathSource, isPath := mount.DevSource.(device.DevSourcePath)
+				if mount.DevSource != nil && !isPath {
+					return "", nil, fmt.Errorf("Device source for device %q was not a host path (was %T)", mount.DevName, mount.DevSource)
 				}
 
 				mntOptions := strings.Join(mount.Opts, ",")
 
 				if !d.IsPrivileged() && mount.OwnerShift == deviceConfig.MountOwnerShiftDynamic {
-					switch d.IdmappedStorage(mount.DevPath, mount.FSType) {
+					switch d.IdmappedStorage(pathSource.Path, mount.FSType) {
 					case idmap.IdmapStorageIdmapped:
 						mntOptions = strings.Join([]string{mntOptions, "idmap=container"}, ",")
 					case idmap.IdmapStorageNone:
@@ -2202,7 +2145,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 					}
 				}
 
-				mntVal := fmt.Sprintf("%s %s %s %s %d %d", shared.EscapePathFstab(mount.DevPath), shared.EscapePathFstab(mount.TargetPath), mount.FSType, mntOptions, mount.Freq, mount.PassNo)
+				mntVal := shared.EscapePathFstab(pathSource.Path) + " " + shared.EscapePathFstab(mount.TargetPath) + " " + mount.FSType + " " + mntOptions + " " + fmt.Sprint(mount.Freq, " ", mount.PassNo)
 				err = lxcSetConfigItem(cc, "lxc.mount.entry", mntVal)
 				if err != nil {
 					return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), err)
@@ -2215,13 +2158,8 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			// Increment nicID so that LXC network index is unique per device.
 			nicID++
 
-			networkKeyPrefix := "lxc.net"
-			if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
-				networkKeyPrefix = "lxc.network"
-			}
-
 			for _, nicItem := range runConf.NetworkInterface {
-				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.%s", networkKeyPrefix, nicID, nicItem.Key), nicItem.Value)
+				err = lxcSetConfigItem(cc, "lxc.net."+fmt.Sprint(nicID)+"."+nicItem.Key, nicItem.Value)
 				if err != nil {
 					return "", nil, fmt.Errorf("Failed to setup device network interface %q: %w", dev.Name(), err)
 				}
@@ -2249,14 +2187,14 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 
 	// Override NVIDIA_VISIBLE_DEVICES if we have devices that need it.
 	if len(nvidiaDevices) > 0 {
-		err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_VISIBLE_DEVICES=%s", strings.Join(nvidiaDevices, ",")))
+		err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_VISIBLE_DEVICES="+strings.Join(nvidiaDevices, ","))
 		if err != nil {
 			return "", nil, fmt.Errorf("Unable to set NVIDIA_VISIBLE_DEVICES in LXC environment: %w", err)
 		}
 	}
 
 	if len(cdiConfigFiles) > 0 {
-		err = lxcSetConfigItem(cc, "lxc.hook.mount", fmt.Sprintf("%s callhook %s %s %s startmountns --devicesRootFolder %s %s", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name()), d.DevicesPath(), strings.Join(cdiConfigFiles, " ")))
+		err = lxcSetConfigItem(cc, "lxc.hook.mount", d.state.OS.ExecPath+" callhook "+shared.VarPath("")+" "+strconv.Quote(d.Project().Name)+" "+strconv.Quote(d.Name())+" startmountns --devicesRootFolder "+d.DevicesPath()+" "+strings.Join(cdiConfigFiles, " "))
 		if err != nil {
 			return "", nil, fmt.Errorf("Unable to set the startmountns callhook to process CDI hooks files (%q) for instance %q in project %q: %w", strings.Join(cdiConfigFiles, ","), d.Name(), d.Project().Name, err)
 		}
@@ -2334,13 +2272,14 @@ func (d *lxc) detachInterfaceRename(netns string, ifName string, hostName string
 	lxdPID := os.Getpid()
 
 	// Run forknet detach
-	_, err := shared.RunCommand(
+	_, err := shared.RunCommandContext(
+		context.TODO(),
 		d.state.OS.ExecPath,
 		"forknet",
 		"detach",
 		"--",
 		netns,
-		fmt.Sprintf("%d", lxdPID),
+		fmt.Sprint(lxdPID),
 		ifName,
 		hostName,
 	)
@@ -2474,7 +2413,8 @@ func (d *lxc) Start(stateful bool) error {
 	name := project.Instance(d.Project().Name, d.name)
 
 	// Start the LXC container
-	_, err = shared.RunCommand(
+	_, err = shared.RunCommandContext(
+		context.TODO(),
 		d.state.OS.ExecPath,
 		"forkstart",
 		name,
@@ -2503,7 +2443,7 @@ func (d *lxc) Start(stateful bool) error {
 						lxcLog += "\n"
 					}
 
-					lxcLog += fmt.Sprintf("  %s\n", strings.Join(fields[0:], " "))
+					lxcLog += "  " + strings.Join(fields[0:], " ") + "\n"
 				}
 			}
 		}
@@ -3254,21 +3194,23 @@ func (d *lxc) Render(options ...func(response any) error) (state any, etag any, 
 		etag := []any{d.expiryDate}
 
 		snapState := api.InstanceSnapshot{
-			CreatedAt:       d.creationDate,
-			ExpandedConfig:  d.expandedConfig,
-			ExpandedDevices: d.expandedDevices.CloneNative(),
-			LastUsedAt:      d.lastUsedDate,
 			Name:            strings.SplitN(d.name, "/", 2)[1],
+			Architecture:    architectureName,
+			Profiles:        profileNames,
+			Config:          d.localConfig,
+			ExpandedConfig:  d.expandedConfig,
+			Devices:         d.localDevices.CloneNative(),
+			ExpandedDevices: d.expandedDevices.CloneNative(),
+			CreatedAt:       d.creationDate,
+			LastUsedAt:      d.lastUsedDate,
+			ExpiresAt:       d.expiryDate,
+			Ephemeral:       d.ephemeral,
 			Stateful:        d.stateful,
-			Size:            -1, // Default to uninitialised/error state (0 means no CoW usage).
-		}
 
-		snapState.Architecture = architectureName
-		snapState.Config = d.localConfig
-		snapState.Devices = d.localDevices.CloneNative()
-		snapState.Ephemeral = d.ephemeral
-		snapState.Profiles = profileNames
-		snapState.ExpiresAt = d.expiryDate
+			// Default to uninitialised/error state (0 means no CoW usage).
+			// The size can then be populated optionally via the options argument.
+			Size: -1,
+		}
 
 		for _, option := range options {
 			err := option(&snapState)
@@ -3283,27 +3225,31 @@ func (d *lxc) Render(options ...func(response any) error) (state any, etag any, 
 	// Prepare the ETag
 	etag = []any{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
 
-	statusCode := d.statusCode()
 	instState := api.Instance{
-		ExpandedConfig:  d.expandedConfig,
-		ExpandedDevices: d.expandedDevices.CloneNative(),
 		Name:            d.name,
-		Status:          statusCode.String(),
-		StatusCode:      statusCode,
+		Description:     d.description,
+		Architecture:    architectureName,
+		Profiles:        profileNames,
+		Config:          d.localConfig,
+		ExpandedConfig:  d.expandedConfig,
+		Devices:         d.LocalDevices().CloneNative(),
+		ExpandedDevices: d.expandedDevices.CloneNative(),
+		CreatedAt:       d.creationDate,
+		LastUsedAt:      d.lastUsedDate,
+		Ephemeral:       d.ephemeral,
+		Stateful:        d.stateful,
+		Project:         d.project.Name,
 		Location:        d.node,
 		Type:            d.Type().String(),
+		StatusCode:      api.Error, // Default to error status for remote instances that are unreachable.
 	}
 
-	instState.Description = d.description
-	instState.Architecture = architectureName
-	instState.Config = d.localConfig
-	instState.CreatedAt = d.creationDate
-	instState.Devices = d.localDevices.CloneNative()
-	instState.Ephemeral = d.ephemeral
-	instState.LastUsedAt = d.lastUsedDate
-	instState.Profiles = profileNames
-	instState.Stateful = d.stateful
-	instState.Project = d.project.Name
+	// If instance is local then request status.
+	if d.state.ServerName == d.Location() {
+		instState.StatusCode = d.statusCode()
+	}
+
+	instState.Status = instState.StatusCode.String()
 
 	for _, option := range options {
 		err := option(&instState)
@@ -4004,7 +3950,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 		b := backup
 		oldName := b.Name()
 		backupName := strings.Split(oldName, "/")[1]
-		newName := fmt.Sprintf("%s/%s", newName, backupName)
+		newName := newName + "/" + backupName
 
 		err = b.Rename(newName)
 		if err != nil {
@@ -4899,7 +4845,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 }
 
 // Export backs up the instance.
-func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.Time) (api.ImageMetadata, error) {
+func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.Time, tracker *ioprogress.ProgressTracker) (api.ImageMetadata, error) {
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -5134,12 +5080,12 @@ func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.
 
 func collectCRIULogFile(d instance.Instance, imagesDir string, function string, method string) error {
 	t := time.Now().Format(time.RFC3339)
-	newPath := filepath.Join(d.LogPath(), fmt.Sprintf("%s_%s_%s.log", function, method, t))
-	return shared.FileCopy(filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)), newPath)
+	newPath := filepath.Join(d.LogPath(), function+"_"+method+"_"+t+".log")
+	return shared.FileCopy(filepath.Join(imagesDir, method+".log"), newPath)
 }
 
 func getCRIULogErrors(imagesDir string, method string) (string, error) {
-	f, err := os.Open(path.Join(imagesDir, fmt.Sprintf("%s.log", method)))
+	f, err := os.Open(path.Join(imagesDir, method+".log"))
 	if err != nil {
 		return "", err
 	}
@@ -5161,7 +5107,7 @@ func getCRIULogErrors(imagesDir string, method string) (string, error) {
 // Check if CRIU supports pre-dumping and number of pre-dump iterations.
 func (d *lxc) migrationSendCheckForPreDumpSupport() (bool, int) {
 	// Check if this architecture/kernel/criu combination supports pre-copy dirty memory tracking feature.
-	_, err := shared.RunCommand("criu", "check", "--feature", "mem_dirty_track")
+	_, err := shared.RunCommandContext(context.TODO(), "criu", "check", "--feature", "mem_dirty_track")
 	if err != nil {
 		// CRIU says it does not know about dirty memory tracking.
 		// This means the rest of this function is irrelevant.
@@ -5463,163 +5409,144 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 				return err
 			}
 
-			if liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 0, 4) {
-				// What happens below is slightly convoluted. Due to various complications
-				// with networking, there's no easy way for criu to exit and leave the
-				// container in a frozen state for us to somehow resume later.
-				// Instead, we use what criu calls an "action-script", which is basically a
-				// callback that lets us know when the dump is done. (Unfortunately, we
-				// can't pass arguments, just an executable path, so we write a custom
-				// action script with the real command we want to run.)
-				// This script then blocks until the migration operation either finishes
-				// successfully or fails, and exits 1 or 0, which causes criu to either
-				// leave the container running or kill it as we asked.
-				dumpDone := make(chan bool, 1)
-				actionScriptOpSecret, err := shared.RandomCryptoString()
-				if err != nil {
-					_ = os.RemoveAll(checkpointDir)
-					return err
-				}
+			// What happens below is slightly convoluted. Due to various complications
+			// with networking, there's no easy way for criu to exit and leave the
+			// container in a frozen state for us to somehow resume later.
+			// Instead, we use what criu calls an "action-script", which is basically a
+			// callback that lets us know when the dump is done. (Unfortunately, we
+			// can't pass arguments, just an executable path, so we write a custom
+			// action script with the real command we want to run.)
+			// This script then blocks until the migration operation either finishes
+			// successfully or fails, and exits 1 or 0, which causes criu to either
+			// leave the container running or kill it as we asked.
+			dumpDone := make(chan bool, 1)
+			actionScriptOpSecret, err := shared.RandomCryptoString()
+			if err != nil {
+				_ = os.RemoveAll(checkpointDir)
+				return err
+			}
 
-				actionScriptOp, err := operations.OperationCreate(
-					d.state,
-					d.Project().Name,
-					operations.OperationClassWebsocket,
-					operationtype.InstanceLiveMigrate,
-					nil,
-					nil,
-					func(op *operations.Operation) error {
-						result := <-restoreSuccess
-						if !result {
-							return fmt.Errorf("restore failed, failing CRIU")
-						}
-
-						return nil
-					},
-					nil,
-					func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
-						secret := r.FormValue("secret")
-						if secret == "" {
-							return fmt.Errorf("Missing action script secret")
-						}
-
-						if secret != actionScriptOpSecret {
-							return os.ErrPermission
-						}
-
-						c, err := ws.Upgrader.Upgrade(w, r, nil)
-						if err != nil {
-							return err
-						}
-
-						dumpDone <- true
-
-						closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-						return c.WriteMessage(websocket.CloseMessage, closeMsg)
-					},
-					nil,
-				)
-				if err != nil {
-					_ = os.RemoveAll(checkpointDir)
-					return err
-				}
-
-				err = d.migrationSendWriteActionScript(checkpointDir, actionScriptOp.URL(), actionScriptOpSecret, d.state.OS.ExecPath)
-				if err != nil {
-					_ = os.RemoveAll(checkpointDir)
-					return err
-				}
-
-				preDumpCounter := 0
-				preDumpDir := ""
-
-				// Check if the other side knows about pre-dumping and the associated
-				// rsync protocol.
-				if respHeader.GetPredump() {
-					d.logger.Debug("The other side does support pre-copy")
-					final := false
-					for !final {
-						preDumpCounter++
-						if preDumpCounter < maxDumpIterations {
-							final = false
-						} else {
-							final = true
-						}
-
-						dumpDir := fmt.Sprintf("%03d", preDumpCounter)
-						loopArgs := preDumpLoopArgs{
-							stateConn:     stateConn,
-							checkpointDir: checkpointDir,
-							bwlimit:       rsyncBwlimit,
-							preDumpDir:    preDumpDir,
-							dumpDir:       dumpDir,
-							final:         final,
-							rsyncFeatures: rsyncFeatures,
-						}
-
-						final, err = d.migrateSendPreDumpLoop(&loopArgs)
-						if err != nil {
-							_ = os.RemoveAll(checkpointDir)
-							return err
-						}
-
-						preDumpDir = fmt.Sprintf("%03d", preDumpCounter)
-						preDumpCounter++
-					}
-				} else {
-					d.logger.Debug("The other side does not support pre-copy")
-				}
-
-				err = actionScriptOp.Start()
-				if err != nil {
-					_ = os.RemoveAll(checkpointDir)
-					return err
-				}
-
-				go func() {
-					d.logger.Debug("Final CRIU dump started")
-					defer d.logger.Debug("Final CRIU dump stopped")
-					criuMigrationArgs := instance.CriuMigrationArgs{
-						Cmd:          liblxc.MIGRATE_DUMP,
-						Stop:         true,
-						ActionScript: true,
-						PreDumpDir:   preDumpDir,
-						DumpDir:      "final",
-						StateDir:     checkpointDir,
-						Function:     "migration",
+			actionScriptOp, err := operations.OperationCreate(
+				d.state,
+				d.Project().Name,
+				operations.OperationClassWebsocket,
+				operationtype.InstanceLiveMigrate,
+				nil,
+				nil,
+				func(op *operations.Operation) error {
+					result := <-restoreSuccess
+					if !result {
+						return fmt.Errorf("restore failed, failing CRIU")
 					}
 
-					// Do the final CRIU dump. This is needs no special handling if
-					// pre-dumps are used or not.
-					dumpSuccess <- d.migrate(&criuMigrationArgs)
-					_ = os.RemoveAll(checkpointDir)
-				}()
+					return nil
+				},
+				nil,
+				func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+					secret := r.FormValue("secret")
+					if secret == "" {
+						return fmt.Errorf("Missing action script secret")
+					}
 
-				select {
-				// The checkpoint failed, let's just abort.
-				case err = <-dumpSuccess:
-					return err
-				// The dump finished, let's continue on to the restore.
-				case <-dumpDone:
-					d.logger.Debug("Dump finished, continuing with restore...")
+					if secret != actionScriptOpSecret {
+						return os.ErrPermission
+					}
+
+					c, err := ws.Upgrader.Upgrade(w, r, nil)
+					if err != nil {
+						return err
+					}
+
+					dumpDone <- true
+
+					closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+					return c.WriteMessage(websocket.CloseMessage, closeMsg)
+				},
+				nil,
+			)
+			if err != nil {
+				_ = os.RemoveAll(checkpointDir)
+				return err
+			}
+
+			err = d.migrationSendWriteActionScript(checkpointDir, actionScriptOp.URL(), actionScriptOpSecret, d.state.OS.ExecPath)
+			if err != nil {
+				_ = os.RemoveAll(checkpointDir)
+				return err
+			}
+
+			preDumpCounter := 0
+			preDumpDir := ""
+
+			// Check if the other side knows about pre-dumping and the associated
+			// rsync protocol.
+			if respHeader.GetPredump() {
+				d.logger.Debug("The other side does support pre-copy")
+				final := false
+				for !final {
+					preDumpCounter++
+					if preDumpCounter < maxDumpIterations {
+						final = false
+					} else {
+						final = true
+					}
+
+					dumpDir := fmt.Sprintf("%03d", preDumpCounter)
+					loopArgs := preDumpLoopArgs{
+						stateConn:     stateConn,
+						checkpointDir: checkpointDir,
+						bwlimit:       rsyncBwlimit,
+						preDumpDir:    preDumpDir,
+						dumpDir:       dumpDir,
+						final:         final,
+						rsyncFeatures: rsyncFeatures,
+					}
+
+					final, err = d.migrateSendPreDumpLoop(&loopArgs)
+					if err != nil {
+						_ = os.RemoveAll(checkpointDir)
+						return err
+					}
+
+					preDumpDir = fmt.Sprintf("%03d", preDumpCounter)
+					preDumpCounter++
 				}
 			} else {
-				d.logger.Debug("The version of liblxc is older than 2.0.4 and the live migration will probably fail")
-				defer func() { _ = os.RemoveAll(checkpointDir) }()
+				d.logger.Debug("The other side does not support pre-copy")
+			}
+
+			err = actionScriptOp.Start()
+			if err != nil {
+				_ = os.RemoveAll(checkpointDir)
+				return err
+			}
+
+			go func() {
+				d.logger.Debug("Final CRIU dump started")
+				defer d.logger.Debug("Final CRIU dump stopped")
 				criuMigrationArgs := instance.CriuMigrationArgs{
 					Cmd:          liblxc.MIGRATE_DUMP,
+					Stop:         true,
+					ActionScript: true,
+					PreDumpDir:   preDumpDir,
+					DumpDir:      "final",
 					StateDir:     checkpointDir,
 					Function:     "migration",
-					Stop:         true,
-					ActionScript: false,
-					DumpDir:      "final",
-					PreDumpDir:   "",
 				}
 
-				err = d.migrate(&criuMigrationArgs)
-				if err != nil {
-					return err
-				}
+				// Do the final CRIU dump. This is needs no special handling if
+				// pre-dumps are used or not.
+				dumpSuccess <- d.migrate(&criuMigrationArgs)
+				_ = os.RemoveAll(checkpointDir)
+			}()
+
+			select {
+			// The checkpoint failed, let's just abort.
+			case err = <-dumpSuccess:
+				return err
+			// The dump finished, let's continue on to the restore.
+			case <-dumpDone:
+				d.logger.Debug("Dump finished, continuing with restore...")
 			}
 
 			// We do the transfer serially right now, but there's really no reason for us to;
@@ -6441,14 +6368,6 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 	}
 
 	preservesInodes := pool.Driver().Info().PreservesInodes
-
-	/* This feature was only added in 2.0.1, let's not ask for it
-	 * before then or migrations will fail.
-	 */
-	if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 0, 1) {
-		preservesInodes = false
-	}
-
 	finalStateDir := args.StateDir
 	var migrateErr error
 
@@ -6503,17 +6422,18 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 		}
 
 		if args.DumpDir != "" {
-			finalStateDir = fmt.Sprintf("%s/%s", args.StateDir, args.DumpDir)
+			finalStateDir = args.StateDir + "/" + args.DumpDir
 		}
 
-		_, migrateErr = shared.RunCommand(
+		_, migrateErr = shared.RunCommandContext(
+			context.TODO(),
 			d.state.OS.ExecPath,
 			"forkmigrate",
 			d.name,
 			d.state.OS.LxcPath,
 			configPath,
 			finalStateDir,
-			fmt.Sprintf("%v", preservesInodes),
+			fmt.Sprint(preservesInodes),
 		)
 
 		if migrateErr == nil {
@@ -6556,7 +6476,7 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 		}
 
 		if args.DumpDir != "" {
-			finalStateDir = fmt.Sprintf("%s/%s", args.StateDir, args.DumpDir)
+			finalStateDir = args.StateDir + "/" + args.DumpDir
 		}
 
 		// TODO: make this configurable? Ultimately I think we don't
@@ -6577,7 +6497,7 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 		}
 
 		if args.PreDumpDir != "" {
-			opts.PredumpDir = fmt.Sprintf("../%s", args.PreDumpDir)
+			opts.PredumpDir = "../" + args.PreDumpDir
 		}
 
 		if !d.IsRunning() {
@@ -6744,7 +6664,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			}
 
 			// Restrict filesystem access to within the container's rootfs
-			tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", d.name, tpl.Template), template.ChrootLoader{Path: d.RootfsPath()})
+			tplSet := pongo2.NewSet(d.name+"-"+tpl.Template, template.ChrootLoader{Path: d.RootfsPath()})
 
 			tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
 			if err != nil {
@@ -6799,7 +6719,7 @@ func (d *lxc) inheritInitPidFd() (int, *os.File) {
 // FileSFTPConn returns a connection to the forkfile handler.
 func (d *lxc) FileSFTPConn() (net.Conn, error) {
 	// Lock to avoid concurrent spawning.
-	spawnUnlock, err := locking.Lock(context.TODO(), fmt.Sprintf("forkfile_%d", d.id))
+	spawnUnlock, err := locking.Lock(context.TODO(), fmt.Sprint("forkfile_", d.id))
 	if err != nil {
 		return nil, err
 	}
@@ -6928,7 +6848,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		}
 
 		// Finalize the args.
-		args = append(args, fmt.Sprintf("%d", d.InitPID()))
+		args = append(args, fmt.Sprint(d.InitPID()))
 
 		// Prepare sftp server.
 		forkfile := exec.Cmd{
@@ -6970,7 +6890,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 
 		// Write PID file.
 		pidFile := filepath.Join(d.LogPath(), "forkfile.pid")
-		err = os.WriteFile(pidFile, []byte(fmt.Sprintf("%d\n", forkfile.Process.Pid)), 0600)
+		err = os.WriteFile(pidFile, []byte(fmt.Sprint(forkfile.Process.Pid, "\n")), 0600)
 		if err != nil {
 			chReady <- fmt.Errorf("Failed to write forkfile PID: %w", err)
 			return
@@ -7054,19 +6974,26 @@ func (d *lxc) stopForkfile(force bool) {
 		return
 	}
 
-	pid, err := strconv.ParseInt(strings.TrimSpace(string(content)), 10, 64)
+	pid, err := strconv.ParseUint(strings.TrimSpace(string(content)), 10, 32)
 	if err != nil {
 		return
 	}
 
-	d.logger.Debug("Stopping forkfile", logger.Ctx{"pid": pid, "force": force})
+	// Bound check the PID.
+	if pid > math.MaxInt {
+		return
+	}
+
+	validPID := int(pid)
+
+	d.logger.Debug("Stopping forkfile", logger.Ctx{"pid": validPID, "force": force})
 
 	if force {
 		// Forcefully kill the running process.
-		_ = unix.Kill(int(pid), unix.SIGTERM)
+		_ = unix.Kill(validPID, unix.SIGTERM)
 	} else {
 		// Try to send SIGINT to forkfile to indicate it should not accept any new connection.
-		_ = unix.Kill(int(pid), unix.SIGINT)
+		_ = unix.Kill(validPID, unix.SIGINT)
 	}
 }
 
@@ -7179,7 +7106,7 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 	envSlice := []string{}
 
 	for k, v := range req.Environment {
-		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
+		envSlice = append(envSlice, k+"="+v)
 	}
 
 	// Setup logfile
@@ -7200,8 +7127,8 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 		d.state.OS.LxcPath,
 		filepath.Join(d.LogPath(), "lxc.conf"),
 		req.Cwd,
-		fmt.Sprintf("%d", req.User),
-		fmt.Sprintf("%d", req.Group),
+		fmt.Sprint(req.User),
+		fmt.Sprint(req.Group),
 	}
 
 	if d.state.OS.CoreScheduling && !d.state.OS.ContainerCoreScheduling {
@@ -7453,8 +7380,8 @@ func (d *lxc) networkState(hostInterfaces []net.Interface) map[string]api.Instan
 			"forknet",
 			"info",
 			"--",
-			fmt.Sprintf("%d", pid),
-			fmt.Sprintf("%d", pidFdNr))
+			fmt.Sprint(pid),
+			fmt.Sprint(pidFdNr))
 
 		// Process forkgetnet response
 		if err != nil {
@@ -7480,7 +7407,7 @@ func (d *lxc) networkState(hostInterfaces []net.Interface) map[string]api.Instan
 	// Get host_name from volatile data if not set already.
 	for name, dev := range result {
 		if dev.HostName == "" {
-			dev.HostName = d.localConfig[fmt.Sprintf("volatile.%s.host_name", name)]
+			dev.HostName = d.localConfig["volatile."+name+".host_name"]
 			result[name] = dev
 		}
 	}
@@ -7657,7 +7584,7 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 
 	// Move the mount inside the container
 	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
-	pidStr := fmt.Sprintf("%d", pid)
+	pidStr := fmt.Sprint(pid)
 
 	pidFdNr, pidFd := seccomp.MakePidFd(pid, d.state)
 	if pidFdNr >= 0 {
@@ -7676,11 +7603,11 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 		"lxd-mount",
 		"--",
 		pidStr,
-		fmt.Sprintf("%d", pidFdNr),
+		fmt.Sprint(pidFdNr),
 		mntsrc,
 		target,
 		string(idmapType),
-		fmt.Sprintf("%d", shiftfsFlags))
+		fmt.Sprint(shiftfsFlags))
 	if err != nil {
 		return err
 	}
@@ -7699,7 +7626,8 @@ func (d *lxc) insertMountLXC(source, target, fstype string, flags int) error {
 		target = "/" + target
 	}
 
-	_, err := shared.RunCommand(
+	_, err := shared.RunCommandContext(
+		context.TODO(),
 		d.state.OS.ExecPath,
 		"forkmount",
 		"lxc-mount",
@@ -7710,7 +7638,7 @@ func (d *lxc) insertMountLXC(source, target, fstype string, flags int) error {
 		source,
 		target,
 		fstype,
-		fmt.Sprintf("%d", flags))
+		fmt.Sprint(flags))
 	if err != nil {
 		return err
 	}
@@ -7738,7 +7666,7 @@ func (d *lxc) moveMount(source, target, fstype string, flags int, idmapType idma
 		defer func() { _ = pidFd.Close() }()
 	}
 
-	pidStr := fmt.Sprintf("%d", pid)
+	pidStr := fmt.Sprint(pid)
 
 	if !strings.HasPrefix(target, "/") {
 		target = "/" + target
@@ -7752,12 +7680,12 @@ func (d *lxc) moveMount(source, target, fstype string, flags int, idmapType idma
 		"move-mount",
 		"--",
 		pidStr,
-		fmt.Sprintf("%d", pidFdNr),
+		fmt.Sprint(pidFdNr),
 		fstype,
 		source,
 		target,
 		string(idmapType),
-		fmt.Sprintf("%d", flags))
+		fmt.Sprint(flags))
 	if err != nil {
 		return err
 	}
@@ -7793,7 +7721,8 @@ func (d *lxc) removeMount(mount string) error {
 			mount = "/" + mount
 		}
 
-		_, err := shared.RunCommand(
+		_, err := shared.RunCommandContext(
+			context.TODO(),
 			d.state.OS.ExecPath,
 			"forkmount",
 			"lxc-umount",
@@ -7819,8 +7748,8 @@ func (d *lxc) removeMount(mount string) error {
 			"forkmount",
 			"lxd-umount",
 			"--",
-			fmt.Sprintf("%d", pid),
-			fmt.Sprintf("%d", pidFdNr),
+			fmt.Sprint(pid),
+			fmt.Sprint(pidFdNr),
 			mount)
 		if err != nil {
 			return err
@@ -7853,8 +7782,8 @@ func (d *lxc) InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid 
 	}
 
 	nsuid, nsgid := idmapset.ShiftFromNs(uid, gid)
-	m["uid"] = fmt.Sprintf("%d", nsuid)
-	m["gid"] = fmt.Sprintf("%d", nsgid)
+	m["uid"] = fmt.Sprint(nsuid)
+	m["gid"] = fmt.Sprint(nsgid)
 
 	if !path.IsAbs(m["path"]) {
 		cwdLink := fmt.Sprintf("/proc/%d/cwd", pid)
@@ -7944,9 +7873,9 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 		name := ""
 		for {
 			if m["type"] == "infiniband" {
-				name = fmt.Sprintf("ib%d", i)
+				name = fmt.Sprint("ib", i)
 			} else {
-				name = fmt.Sprintf("eth%d", i)
+				name = fmt.Sprint("eth", i)
 			}
 
 			// Find a free device name
@@ -7965,7 +7894,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 
 	// Fill in the MAC address.
 	if !shared.ValueInSlice(nicType, []string{"physical", "ipvlan", "sriov"}) && m["hwaddr"] == "" {
-		configKey := fmt.Sprintf("volatile.%s.hwaddr", name)
+		configKey := "volatile." + name + ".hwaddr"
 		volatileHwaddr := d.localConfig[configKey]
 		if volatileHwaddr == "" {
 			// Generate a new MAC address.
@@ -7994,7 +7923,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 
 	// Fill in the interface name.
 	if m["name"] == "" {
-		configKey := fmt.Sprintf("volatile.%s.name", name)
+		configKey := "volatile." + name + ".name"
 		volatileName := d.localConfig[configKey]
 		if volatileName == "" {
 			// Generate a new interface name.
@@ -8205,9 +8134,6 @@ func (d *lxc) CGroup() (*cgroup.CGroup, error) {
 
 // SetAffinity sets affinity in the container according with a set provided.
 func (d *lxc) SetAffinity(set []string) error {
-	sort.Strings(set)
-	affinitySet := strings.Join(set, ",")
-
 	// Confirm the container didn't just stop
 	if d.InitPID() <= 0 {
 		return nil
@@ -8217,6 +8143,9 @@ func (d *lxc) SetAffinity(set []string) error {
 	if err != nil {
 		return fmt.Errorf("Unable to get cgroup struct: %w", err)
 	}
+
+	sort.Strings(set)
+	affinitySet := strings.Join(set, ",")
 
 	err = cg.SetCpuset(affinitySet)
 	if err != nil {
@@ -8252,10 +8181,10 @@ type lxcCgroupReadWriter struct {
 // Get retrieves the value of a cgroup key for a specific controller and version.
 func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, key string) (string, error) {
 	if !rw.running {
-		lxcKey := fmt.Sprintf("lxc.cgroup.%s", key)
+		lxcKey := "lxc.cgroup." + key
 
 		if version == cgroup.V2 {
-			lxcKey = fmt.Sprintf("lxc.cgroup2.%s", key)
+			lxcKey = "lxc.cgroup2." + key
 		}
 
 		return strings.Join(rw.cc.ConfigItem(lxcKey), "\n"), nil
@@ -8268,10 +8197,10 @@ func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, ke
 func (rw *lxcCgroupReadWriter) Set(version cgroup.Backend, controller string, key string, value string) error {
 	if !rw.running {
 		if version == cgroup.V1 {
-			return lxcSetConfigItem(rw.cc, fmt.Sprintf("lxc.cgroup.%s", key), value)
+			return lxcSetConfigItem(rw.cc, "lxc.cgroup."+key, value)
 		}
 
-		return lxcSetConfigItem(rw.cc, fmt.Sprintf("lxc.cgroup2.%s", key), value)
+		return lxcSetConfigItem(rw.cc, "lxc.cgroup2."+key, value)
 	}
 
 	return rw.cc.SetCgroupItem(key, value)
@@ -8359,7 +8288,13 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 				metricType = metrics.MemoryShmemBytes
 			case "cache":
 				metricType = metrics.MemoryCachedBytes
-				memoryCached = int64(v)
+
+				// Bound checking before converting from uint64 to int64.
+				if v > math.MaxInt64 {
+					memoryCached = math.MaxInt64
+				} else {
+					memoryCached = int64(v)
+				}
 			}
 
 			out.AddSamples(metricType, metrics.Sample{Value: float64(v)})
@@ -8378,16 +8313,10 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 		out.AddSamples(metrics.MemoryMemFreeBytes, metrics.Sample{Value: float64(memoryLimit - memoryUsage)})
 	}
 
-	// Get oom kills.
+	// Get OOM kills. If we fail to get the OOM kills count, 0 is returned.
 	oomKills, err := cg.GetOOMKills()
 	if err != nil {
-		d.logger.Warn("Failed to get oom kills", logger.Ctx{"err": err})
-	}
-
-	// If we failed to get OOM kills, because of a couple of reasons (instance stopped, cgroup controller not available, etc),
-	// we default to 0 instead of -1 for the MemoryOOMKillsTotal metric (a total of `-1` would be misleading).
-	if oomKills < 0 {
-		oomKills = 0
+		d.logger.Warn("Failed to get OOM kills", logger.Ctx{"err": err})
 	}
 
 	out.AddSamples(metrics.MemoryOOMKillsTotal, metrics.Sample{Value: float64(oomKills)})
@@ -8414,7 +8343,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 		d.logger.Warn("Failed to get CPU usage", logger.Ctx{"err": err})
 	} else {
 		for cpu, stats := range usage {
-			cpuID := strconv.Itoa(int(cpu))
+			cpuID := strconv.FormatInt(cpu, 10)
 
 			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: float64(stats.System) / 1000000000, Labels: map[string]string{"mode": "system", "cpu": cpuID}})
 			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: float64(stats.User) / 1000000000, Labels: map[string]string{"mode": "user", "cpu": cpuID}})
@@ -8660,5 +8589,5 @@ func (d *lxc) loadRawLXCConfig(cc *liblxc.Container) error {
 
 // forfileRunningLockName returns the forkfile-running_ID lock name.
 func (d *common) forkfileRunningLockName() string {
-	return fmt.Sprintf("forkfile-running_%d", d.id)
+	return "forkfile-running_" + strconv.FormatInt(int64(d.id), 10)
 }

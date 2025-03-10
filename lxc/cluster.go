@@ -128,7 +128,7 @@ func (c *cmdClusterList) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(false)
+			return c.global.cmpRemotes(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -411,6 +411,10 @@ func (c *cmdClusterSet) command() *cobra.Command {
 			return c.global.cmpClusterMembers(toComplete)
 		}
 
+		if len(args) == 1 {
+			return c.global.cmpClusterMemberAllConfigKeys(args[0])
+		}
+
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
@@ -689,7 +693,7 @@ func (c *cmdClusterEnable) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(false)
+			return c.global.cmpRemotes(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -982,7 +986,7 @@ func (c *cmdClusterListTokens) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(false)
+			return c.global.cmpRemotes(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp

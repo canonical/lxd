@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -146,23 +147,40 @@ func eventsProcess(event api.Event) {
 	}
 
 	// Attempt to perform the mount.
-	mntSource := fmt.Sprintf("lxd_%s", e.Name)
+	mntSource := "lxd_" + e.Name
 	if e.Mount.Source != "" {
 		mntSource = e.Mount.Source
 	}
 
 	l := logger.AddContext(logger.Ctx{"type": "virtiofs", "source": mntSource, "path": e.Config["path"]})
-	// If the path is not absolute, the mount will be created at `/run/lxd_agent/<path>`
+
+	// Reject path containing "..".
+	if strings.Contains(e.Config["path"], "..") {
+		l.Error("Invalid path containing '..'")
+		return
+	}
+
+	// If the path is not absolute, the mount will be created relative to the current directory.
 	// (since the mount command executed below originates from the `lxd-agent` binary that is in the `/run/lxd_agent` directory).
-	// This is not ideal and not consistent with the way mounts are handled with containers. We then make the path absolute.
-	if !filepath.IsAbs(e.Config["path"]) {
-		e.Config["path"] = filepath.Join("/", e.Config["path"])
+	// This is not ideal and not consistent with the way mounts are handled with containers. For consistency make the path absolute.
+	e.Config["path"], err = filepath.Abs(e.Config["path"])
+	if err != nil || !strings.HasPrefix(e.Config["path"], "/") {
+		l.Error("Failed to make path absolute")
+		return
 	}
 
 	_ = os.MkdirAll(e.Config["path"], 0755)
 
+	// Parse mount options, if provided.
+	var args []string
+	if len(e.Mount.Options) > 0 {
+		args = append(args, "-o", strings.Join(e.Mount.Options, ","))
+	}
+
+	args = append(args, "-t", "virtiofs", mntSource, e.Config["path"])
+
 	for i := 0; i < 5; i++ {
-		_, err = shared.RunCommand("mount", "-t", "virtiofs", mntSource, e.Config["path"])
+		_, err = shared.RunCommandContext(context.Background(), "mount", args...)
 		if err == nil {
 			l.Info("Mounted hotplug")
 			return

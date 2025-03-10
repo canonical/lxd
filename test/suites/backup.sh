@@ -6,8 +6,13 @@ test_storage_volume_recover() {
   poolName=$(lxc profile device get default root pool)
   poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
 
+  if [ "${poolDriver}" = "pure" ]; then
+    echo "==> SKIP: Storage driver does not support recovery"
+    return
+  fi
+
   # Create custom block volume.
-  lxc storage volume create "${poolName}" vol1 --type=block
+  lxc storage volume create "${poolName}" vol1 --type=block size=32MiB
 
   # Import ISO.
   truncate -s 8MiB foo.iso
@@ -23,7 +28,7 @@ test_storage_volume_recover() {
 
   if [ "$poolDriver" = "zfs" ]; then
     # Create filesystem volume.
-    lxc storage volume create "${poolName}" vol3
+    lxc storage volume create "${poolName}" vol3 size=32MiB
 
     # Create block_mode enabled volume.
     lxc storage volume create "${poolName}" vol4 zfs.block_mode=true size=200MiB
@@ -77,6 +82,11 @@ test_container_recover() {
     LXD_DIR=${LXD_IMPORT_DIR}
     lxd_backend=$(storage_backend "$LXD_DIR")
 
+    if [ "${lxd_backend}" = "pure" ]; then
+      echo "==> SKIP: Storage driver does not support recovery"
+      return
+    fi
+
     ensure_import_testimage
 
     poolName=$(lxc profile device get default root pool)
@@ -95,8 +105,8 @@ yes
 EOF
 
     # Recover container and custom volume that isn't mounted.
-    lxc init testimage c1
-    lxc storage volume create "${poolName}" vol1_test
+    lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
+    lxc storage volume create "${poolName}" vol1_test size=32MiB
     lxc storage volume attach "${poolName}" vol1_test c1 /mnt
     lxc start c1
     lxc exec c1 --project test -- mount | grep /mnt
@@ -368,8 +378,8 @@ _backup_import_with_project() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  lxc launch testimage c1
-  lxc launch testimage c2
+  lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
+  lxc launch testimage c2 -d "${SMALL_ROOT_DISK}"
 
   # Check invalid snapshot names
   ! lxc snapshot c2 ".." || false
@@ -476,7 +486,7 @@ _backup_import_with_project() {
   # Also check that the container storage volume config is correctly captured and restored.
   default_pool="$(lxc profile device get default root pool)"
 
-  lxc launch testimage c1-foo
+  lxc launch testimage c1-foo -d "${SMALL_ROOT_DISK}"
   lxc storage volume set "${default_pool}" container/c1-foo user.foo=c1-foo-snap0
   lxc snapshot c1-foo c1-foo-snap0
   lxc storage volume set "${default_pool}" container/c1-foo user.foo=c1-foo-snap1
@@ -498,7 +508,7 @@ _backup_import_with_project() {
   lxc storage create pool_2 dir
 
   # Export created container
-  lxc init testimage c3 -s pool_1
+  lxc init testimage c3 -d "${SMALL_ROOT_DISK}" -s pool_1
   lxc export c3 "${LXD_DIR}/c3.tar.gz"
 
   # Remove container and storage pool
@@ -565,7 +575,7 @@ _backup_export_with_project() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  lxc launch testimage c1
+  lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
 
   mkdir "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized"
@@ -618,7 +628,7 @@ _backup_export_with_project() {
   rm -rf "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized"
 
   # Check if hyphens cause issues when creating backups
-  lxc launch testimage c1-foo
+  lxc launch testimage c1-foo -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1-foo
 
   lxc export c1-foo "${LXD_DIR}/c1-foo.tar.gz"
@@ -644,7 +654,7 @@ test_backup_rename() {
     false
   fi
 
-  lxc init testimage c1
+  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
 
   if ! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -q "Error: Instance backup not found" ; then
     echo "invalid rename response for missing backup"
@@ -655,7 +665,7 @@ test_backup_rename() {
   lxc query -X POST --wait -d '{\"name\":\"foo\"}' /1.0/instances/c1/backups
 
   # All backups should be listed
-  lxc query /1.0/instances/c1/backups | jq .'[0]' | grep instances/c1/backups/foo
+  [ "$(lxc query /1.0/instances/c1/backups | jq -r '.[]')" = "/1.0/instances/c1/backups/foo" ]
 
   # The specific backup should exist
   lxc query /1.0/instances/c1/backups/foo
@@ -664,7 +674,7 @@ test_backup_rename() {
   lxc mv c1 c2
 
   # All backups should be listed
-  lxc query /1.0/instances/c2/backups | jq .'[0]' | grep instances/c2/backups/foo
+  [ "$(lxc query /1.0/instances/c2/backups | jq -r '.[]')" = "/1.0/instances/c2/backups/foo" ]
 
   # The specific backup should exist
   lxc query /1.0/instances/c2/backups/foo
@@ -715,10 +725,10 @@ _backup_volume_export_with_project() {
   lxd_backend=$(storage_backend "$LXD_DIR")
 
   # Create test container.
-  lxc init testimage c1
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
 
   # Create custom storage volume.
-  lxc storage volume create "${custom_vol_pool}" testvol
+  lxc storage volume create "${custom_vol_pool}" testvol size=32MiB
 
   # Attach storage volume to the test container and start.
   lxc storage volume attach "${custom_vol_pool}" testvol c1 /mnt
@@ -901,7 +911,7 @@ test_backup_volume_rename_delete() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
 
   # Create test volume.
-  lxc storage volume create "${pool}" vol1
+  lxc storage volume create "${pool}" vol1 size=32MiB
 
   if ! lxc query -X POST /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -q "Error: Storage volume backup not found" ; then
     echo "invalid rename response for missing storage volume"
@@ -954,16 +964,16 @@ test_backup_volume_rename_delete() {
   ! stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol2 || false
 }
 
-test_backup_different_instance_uuid() {
+test_backup_instance_uuid() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  echo "==> Checking instances UUID during backup operation"
-  lxc launch testimage c1
+  echo "==> Checking instance UUIDs during backup operation"
+  lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
   initialUUID=$(lxc config get c1 volatile.uuid)
   initialGenerationID=$(lxc config get c1 volatile.uuid.generation)
 
-  # export and import to trigger new UUID generation
+  # export and import should preserve the UUID and generation UUID
   lxc export c1 "${LXD_DIR}/c1.tar.gz"
   lxc delete -f c1
   lxc import "${LXD_DIR}/c1.tar.gz"
@@ -972,7 +982,7 @@ test_backup_different_instance_uuid() {
   newGenerationID=$(lxc config get c1 volatile.uuid.generation)
 
   if [ "${initialGenerationID}" != "${newGenerationID}" ] || [ "${initialUUID}" != "${newUUID}" ]; then
-    echo "==> UUID of the instance should remain the same after importing the backup file"
+    echo "==> UUID and generation UUID of the instance should remain the same after importing the backup file"
     false
   fi
 
@@ -986,7 +996,7 @@ test_backup_volume_expiry() {
   poolName=$(lxc profile device get default root pool)
 
   # Create custom volume.
-  lxc storage volume create "${poolName}" vol1
+  lxc storage volume create "${poolName}" vol1 size=32MiB
 
   # Create storage volume backups using the API directly.
   # The first one is created with an expiry date, the second one never expires.
@@ -1008,6 +1018,13 @@ test_backup_volume_expiry() {
 }
 
 test_backup_export_import_recover() {
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  if [ "$lxd_backend" = "pure" ]; then
+    echo "==> SKIP: Storage driver does not support recovery"
+    return
+  fi
+
   (
     set -e
 
@@ -1017,7 +1034,7 @@ test_backup_export_import_recover() {
     ensure_has_localhost_remote "${LXD_ADDR}"
 
     # Create and export an instance.
-    lxc launch testimage c1
+    lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
     lxc export c1 "${LXD_DIR}/c1.tar.gz"
     lxc delete -f c1
 
@@ -1048,8 +1065,11 @@ test_backup_export_import_instance_only() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Create an instance with snapshot.
-  lxc init testimage c1
+  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
+
+  # Verify the original instance has snapshots.
+  [ "$(lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq -r 'length')" = "1" ]
 
   # Export the instance and remove it.
   lxc export c1 "${LXD_DIR}/c1.tar.gz" --instance-only
@@ -1059,7 +1079,7 @@ test_backup_export_import_instance_only() {
   lxc import "${LXD_DIR}/c1.tar.gz"
 
   # Verify imported instance has no snapshots.
-  [ "$(lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq "length == 0")" = "true" ]
+  [ "$(lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq -r 'length')" = "0" ]
 
   rm "${LXD_DIR}/c1.tar.gz"
   lxc delete -f c1

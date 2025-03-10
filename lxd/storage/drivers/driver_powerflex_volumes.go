@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -45,6 +46,12 @@ func (d *powerflex) CreateVolume(vol Volume, filler *VolumeFiller, op *operation
 	pool, err := d.resolvePool()
 	if err != nil {
 		return err
+	}
+
+	// The pool isn't configured to use zero-padding which might yield non pristine data when reading from the volume.
+	// Don't allow the creation of new volumes.
+	if !pool.ZeroPaddingEnabled {
+		return errors.New("The pool doesn't have zero-padding enabled")
 	}
 
 	volName, err := d.getVolumeName(vol)
@@ -102,23 +109,15 @@ func (d *powerflex) CreateVolume(vol Volume, filler *VolumeFiller, op *operation
 				}
 			}
 
-			allowUnsafeResize := false
-			if vol.volType == VolumeTypeImage {
-				// Allow filler to resize initial image volume as needed.
-				// Some storage drivers don't normally allow image volumes to be resized due to
-				// them having read-only snapshots that cannot be resized. However when creating
-				// the initial image volume and filling it before the snapshot is taken resizing
-				// can be allowed and is required in order to support unpacking images larger than
-				// the default volume size. The filler function is still expected to obey any
-				// volume size restrictions configured on the pool.
-				// Unsafe resize is also needed to disable filesystem resize safety checks.
-				// This is safe because if for some reason an error occurs the volume will be
-				// discarded rather than leaving a corrupt filesystem.
-				allowUnsafeResize = true
-			}
-
 			// Run the filler.
-			err = d.runFiller(vol, devPath, filler, allowUnsafeResize)
+			// Allow the filler to resize the volume in case its size doesn't fit the
+			// to be filled contents.
+			// As PowerFlex does not support optimized image storage we cannot check for the
+			// same condition as on the other remote storage drivers.
+			// When creating an instance from image the volume will never be of type image.
+			// Instead we always deal with the actual device so perform the same action
+			// as in case of LVM when thinpool is disabled.
+			err = d.runFiller(vol, devPath, filler, true)
 			if err != nil {
 				return err
 			}
@@ -241,7 +240,7 @@ func (d *powerflex) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allo
 		return nil
 	}
 
-	var srcVolumeSnapshots []string
+	srcVolumeSnapshots := make([]string, 0, len(vol.Snapshots))
 	for _, snapshot := range vol.Snapshots {
 		_, snapshotName, _ := api.GetParentAndSnapshotName(snapshot.name)
 		srcVolumeSnapshots = append(srcVolumeSnapshots, snapshotName)
@@ -350,7 +349,7 @@ func (d *powerflex) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 		err = os.Remove(mountPath)
 		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove '%s': %w", mountPath, err)
+			return fmt.Errorf("Failed to remove %q: %w", mountPath, err)
 		}
 	}
 
@@ -431,6 +430,7 @@ func (d *powerflex) commonVolumeRules() map[string]func(value string) error {
 		//  condition: block-based volume with content type `filesystem`
 		//  defaultdesc: same as `volume.block.filesystem`
 		//  shortdesc: File system of the storage volume
+		//  scope: global
 		"block.filesystem": validate.Optional(validate.IsOneOf(blockBackedAllowedFilesystems...)),
 		// lxdmeta:generate(entities=storage-powerflex; group=volume-conf; key=block.mount_options)
 		//
@@ -439,6 +439,7 @@ func (d *powerflex) commonVolumeRules() map[string]func(value string) error {
 		//  condition: block-based volume with content type `filesystem`
 		//  defaultdesc: same as `volume.block.mount_options`
 		//  shortdesc: Mount options for block-backed file system volumes
+		//  scope: global
 		"block.mount_options": validate.IsAny,
 		// lxdmeta:generate(entities=storage-powerflex; group=volume-conf; key=block.type)
 		//
@@ -446,6 +447,7 @@ func (d *powerflex) commonVolumeRules() map[string]func(value string) error {
 		//  type: string
 		//  defaultdesc: same as `volume.block.type` or `thick`
 		//  shortdesc: Whether to create a `thin` or `thick` provisioned volume
+		//  scope: global
 		"block.type": validate.Optional(validate.IsOneOf("thin", "thick")),
 		// lxdmeta:generate(entities=storage-powerflex; group=volume-conf; key=size)
 		// The size must be in multiples of 8 GiB.
@@ -454,6 +456,7 @@ func (d *powerflex) commonVolumeRules() map[string]func(value string) error {
 		//  type: string
 		//  defaultdesc: same as `volume.size`
 		//  shortdesc: Size/quota of the storage volume
+		//  scope: global
 		"size": validate.Optional(validate.IsMultipleOfUnit("8GiB")),
 	}
 }
@@ -528,7 +531,7 @@ func (d *powerflex) GetVolumeUsage(vol Volume) (int64, error) {
 
 	// Getting the usage of an unmounted volume is not supported.
 	// PowerFlex reports the usage on pool level only.
-	return 0, ErrNotSupported
+	return -1, ErrNotSupported
 }
 
 // SetVolumeQuota applies a size limit on volume.
@@ -545,35 +548,6 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 		return nil
 	}
 
-	devPath, cleanup, err := d.getMappedDevPath(vol, true)
-	if err != nil {
-		return err
-	}
-
-	defer cleanup()
-
-	oldSizeBytes, err := block.DiskSizeBytes(devPath)
-	if err != nil {
-		return fmt.Errorf("Error getting current size: %w", err)
-	}
-
-	// Do nothing if volume is already specified size (+/- 512 bytes).
-	if oldSizeBytes+512 > sizeBytes && oldSizeBytes-512 < sizeBytes {
-		return nil
-	}
-
-	// PowerFlex supports increasing of size only.
-	if sizeBytes < oldSizeBytes {
-		return fmt.Errorf("Volume capacity can only be increased")
-	}
-
-	// Block image volumes cannot be resized because they have a readonly snapshot that doesn't get
-	// updated when the volume's size is changed, and this is what instances are created from.
-	// During initial volume fill allowUnsafeResize is enabled because snapshot hasn't been taken yet.
-	if !allowUnsafeResize && vol.volType == VolumeTypeImage {
-		return ErrNotSupported
-	}
-
 	volName, err := d.getVolumeName(vol)
 	if err != nil {
 		return err
@@ -585,6 +559,34 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 		return err
 	}
 
+	volume, err := d.client().getVolume(volumeID)
+	if err != nil {
+		return err
+	}
+
+	// Try to fetch the current size of the volume from the PowerFlex API.
+	// If the volume is not yet mapped to the system this speeds up the
+	// process as the volume doesn't have to be mapped to get its size
+	// from the actual block device.
+	oldSizeBytes := volume.SizeInKiB * 1024
+
+	// Do nothing if volume is already specified size (+/- 512 bytes).
+	if oldSizeBytes+512 > sizeBytes && oldSizeBytes-512 < sizeBytes {
+		return nil
+	}
+
+	// PowerFlex supports increasing of size only.
+	if sizeBytes < oldSizeBytes {
+		return errors.New("Volume capacity can only be increased")
+	}
+
+	// Block image volumes cannot be resized because they have a readonly snapshot that doesn't get
+	// updated when the volume's size is changed, and this is what instances are created from.
+	// During initial volume fill allowUnsafeResize is enabled because snapshot hasn't been taken yet.
+	if !allowUnsafeResize && vol.volType == VolumeTypeImage {
+		return ErrNotSupported
+	}
+
 	// Resize filesystem if needed.
 	if vol.contentType == ContentTypeFS {
 		fsType := vol.ConfigBlockFilesystem()
@@ -594,6 +596,22 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 			err = client.setVolumeSize(volumeID, sizeBytes/factorGiB)
 			if err != nil {
 				return err
+			}
+
+			devPath, cleanup, err := d.getMappedDevPath(vol, true)
+			if err != nil {
+				return err
+			}
+
+			defer cleanup()
+
+			// Always wait for the disk to reflect the new size.
+			// In case SetVolumeQuota is called on an already mapped volume,
+			// it might take some time until the actual size of the device is reflected on the host.
+			// This is for example the case when creating a volume and the filler performs a resize in case the image exceeds the volume's size.
+			err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+			if err != nil {
+				return fmt.Errorf("Failed waiting for volume %q to change its size: %w", vol.name, err)
 			}
 
 			// Grow the filesystem to fill block device.
@@ -616,6 +634,18 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 		err = client.setVolumeSize(volumeID, sizeBytes/factorGiB)
 		if err != nil {
 			return err
+		}
+
+		devPath, cleanup, err := d.getMappedDevPath(vol, true)
+		if err != nil {
+			return err
+		}
+
+		defer cleanup()
+
+		err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+		if err != nil {
+			return fmt.Errorf("Failed waiting for volume %q to change its size: %w", vol.name, err)
 		}
 
 		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
@@ -649,6 +679,11 @@ func (d *powerflex) ListVolumes() ([]Volume, error) {
 
 // DefaultVMBlockFilesystemSize returns the size of a VM root device block volume's associated filesystem volume.
 func (d *powerflex) defaultVMBlockFilesystemSize() string {
+	return powerFlexDefaultSize
+}
+
+// defaultBlockVolumeSize returns the default size for block volumes in this pool.
+func (d *powerflex) defaultBlockVolumeSize() string {
 	return powerFlexDefaultSize
 }
 
@@ -975,7 +1010,7 @@ func (d *powerflex) VolumeSnapshots(vol Volume, op *operations.Operation) ([]str
 		return nil, err
 	}
 
-	var snapshotNames []string
+	snapshotNames := make([]string, 0, len(volumeSnapshots))
 	for _, snapshot := range volumeSnapshots {
 		snapshotNames = append(snapshotNames, snapshot.Name)
 	}

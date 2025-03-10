@@ -377,11 +377,6 @@ func (b *mockBackend) CreateCustomVolumeFromMigration(projectName string, conn i
 	return nil
 }
 
-// GetCustomVolumeDisk ...
-func (b *mockBackend) GetCustomVolumeDisk(projectName string, volName string) (string, error) {
-	return "", nil
-}
-
 // GetCustomVolumeUsage ...
 func (b *mockBackend) GetCustomVolumeUsage(projectName string, volName string) (*VolumeUsage, error) {
 	return nil, nil

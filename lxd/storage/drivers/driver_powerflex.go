@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/validate"
@@ -19,16 +21,20 @@ const powerFlexDefaultUser = "admin"
 // powerFlexDefaultSize represents the default PowerFlex volume size.
 const powerFlexDefaultSize = "8GiB"
 
-const (
-	powerFlexModeNVMe = "nvme"
-	powerFlexModeSDC  = "sdc"
-)
+var powerflexSupportedConnectors = []string{
+	connectors.TypeNVME,
+	connectors.TypeSDC,
+}
 
 var powerFlexLoaded bool
 var powerFlexVersion string
 
 type powerflex struct {
 	common
+
+	// Holds the low level connector for the PowerFlex driver.
+	// Use powerflex.connector() to retrieve the initialized connector.
+	storageConnector connectors.Connector
 
 	// Holds the low level HTTP client for the PowerFlex API.
 	// Use powerflex.client() to retrieve the client struct.
@@ -37,6 +43,9 @@ type powerflex struct {
 	// Holds the SDC GUID of this specific host.
 	// Use powerflex.getHostGUID() to retrieve the actual value.
 	sdcGUID string
+
+	// Holds the targetQN used by the SDTs.
+	nvmeTargetQN string
 }
 
 // load is used to run one-time action per-driver rather than per-pool.
@@ -46,26 +55,35 @@ func (d *powerflex) load() error {
 		return nil
 	}
 
-	// Detect and record the version.
-	// The NVMe CLI is shipped with the snap.
-	out, err := shared.RunCommand("nvme", "version")
-	if err != nil {
-		return fmt.Errorf("Failed to get nvme-cli version: %w", err)
-	}
-
-	fields := strings.Split(strings.TrimSpace(out), " ")
-	if strings.HasPrefix(out, "nvme version ") && len(fields) > 2 {
-		powerFlexVersion = fmt.Sprintf("%s (nvme-cli)", fields[2])
-	}
-
-	// Load the NVMe/TCP kernel modules.
-	// Ignore if the modules cannot be loaded.
-	// Support for the NVMe/TCP mode is checked during pool creation.
-	// When a LXD host gets rebooted this ensures that the kernel modules are still loaded.
-	_ = d.loadNVMeModules()
-
+	versions := connectors.GetSupportedVersions(powerflexSupportedConnectors)
+	powerFlexVersion = strings.Join(versions, " / ")
 	powerFlexLoaded = true
+
+	// Load the kernel modules of the respective connector.
+	// Ignore if the modules cannot be loaded.
+	// Support for a specific connector is checked during pool creation.
+	// When a LXD host gets rebooted this ensures that the kernel modules are still loaded.
+	connector, err := d.connector()
+	if err == nil {
+		_ = connector.LoadModules()
+	}
+
 	return nil
+}
+
+// connector retrieves an initialized storage connector based on the configured
+// PowerFlex mode. The connector is cached in the driver struct.
+func (d *powerflex) connector() (connectors.Connector, error) {
+	if d.storageConnector == nil {
+		connector, err := connectors.NewConnector(d.config["powerflex.mode"], d.state.ServerUUID)
+		if err != nil {
+			return nil, err
+		}
+
+		d.storageConnector = connector
+	}
+
+	return d.storageConnector, nil
 }
 
 // isRemote returns true indicating this driver uses remote storage.
@@ -78,6 +96,7 @@ func (d *powerflex) Info() Info {
 	return Info{
 		Name:                         "powerflex",
 		Version:                      powerFlexVersion,
+		DefaultBlockSize:             d.defaultBlockVolumeSize(),
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              false,
 		PreservesInodes:              false,
@@ -88,6 +107,7 @@ func (d *powerflex) Info() Info {
 		DirectIO:                     true,
 		IOUring:                      true,
 		MountedRoot:                  false,
+		PopulateParentVolumeUUID:     false,
 	}
 }
 
@@ -101,10 +121,19 @@ func (d *powerflex) FillConfig() error {
 	// First try if the NVMe/TCP kernel modules can be loaed.
 	// Second try if the SDC kernel module is setup.
 	if d.config["powerflex.mode"] == "" {
-		if d.loadNVMeModules() {
-			d.config["powerflex.mode"] = powerFlexModeNVMe
+		// Create temporary connector to check if NVMe/TCP kernel modules can be loaded.
+		nvmeConnector, err := connectors.NewConnector(connectors.TypeNVME, "")
+		if err != nil {
+			return err
+		}
+
+		if nvmeConnector.LoadModules() == nil {
+			d.config["powerflex.mode"] = connectors.TypeNVME
 		} else if goscaleio.DrvCfgIsSDCInstalled() {
-			d.config["powerflex.mode"] = powerFlexModeSDC
+			d.config["powerflex.mode"] = connectors.TypeSDC
+		} else {
+			// Fail if no PowerFlex mode can be discovered.
+			return errors.New("Failed to discover PowerFlex mode")
 		}
 	}
 
@@ -128,52 +157,18 @@ func (d *powerflex) Create() error {
 	// Since those aren't any cluster member specific keys the general validation
 	// rules allow empty strings in order to create the pending storage pools.
 	if d.config["powerflex.pool"] == "" {
-		return fmt.Errorf("The powerflex.pool cannot be empty")
+		return errors.New("The powerflex.pool cannot be empty")
 	}
 
 	if d.config["powerflex.gateway"] == "" {
-		return fmt.Errorf("The powerflex.gateway cannot be empty")
+		return errors.New("The powerflex.gateway cannot be empty")
 	}
 
-	client := d.client()
-
-	switch d.config["powerflex.mode"] {
-	case powerFlexModeNVMe:
-		// Discover one of the storage pools SDT services.
-		if d.config["powerflex.sdt"] == "" {
-			pool, err := d.resolvePool()
-			if err != nil {
-				return err
-			}
-
-			relations, err := client.getProtectionDomainSDTRelations(pool.ProtectionDomainID)
-			if err != nil {
-				return err
-			}
-
-			if len(relations) == 0 {
-				return fmt.Errorf("Failed to retrieve at least one SDT for the given storage pool: %q", pool.ID)
-			}
-
-			if len(relations[0].IPList) == 0 {
-				return fmt.Errorf("Failed to retrieve IP from SDT: %q", relations[0].Name)
-			}
-
-			d.config["powerflex.sdt"] = relations[0].IPList[0].IP
-		}
-
-	case powerFlexModeSDC:
+	if d.config["powerflex.mode"] == connectors.TypeSDC {
+		// In case the SDC mode is used the SDTs cannot be set.
 		if d.config["powerflex.sdt"] != "" {
-			return fmt.Errorf("The powerflex.sdt config key is specific to the NVMe/TCP mode")
+			return fmt.Errorf("The %q config key is specific to the %q mode", "powerflex.sdt", connectors.TypeNVME)
 		}
-
-		if !goscaleio.DrvCfgIsSDCInstalled() {
-			return fmt.Errorf("PowerFlex SDC is not available on the host")
-		}
-
-	default:
-		// Fail if no PowerFlex mode can be discovered.
-		return fmt.Errorf("Failed to discover PowerFlex mode")
 	}
 
 	return nil
@@ -194,23 +189,26 @@ func (d *powerflex) Delete(op *operations.Operation) error {
 func (d *powerflex) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.user.name)
-		//
+		// Must have at least SystemAdmin role to give LXD full control over managed storage pools.
 		// ---
 		//  type: string
 		//  defaultdesc: `admin`
 		//  shortdesc: User for PowerFlex Gateway authentication
+		//  scope: global
 		"powerflex.user.name": validate.IsAny,
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.user.password)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: Password for PowerFlex Gateway authentication
+		//  scope: global
 		"powerflex.user.password": validate.IsAny,
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.gateway)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: Address of the PowerFlex Gateway
+		//  scope: global
 		"powerflex.gateway": validate.Optional(validate.IsRequestURL),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.gateway.verify)
 		//
@@ -218,18 +216,21 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  type: bool
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to verify the PowerFlex Gateway's certificate
+		//  scope: global
 		"powerflex.gateway.verify": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.pool)
 		// If you want to specify the storage pool via its name, also set {config:option}`storage-powerflex-pool-conf:powerflex.domain`.
 		// ---
 		//  type: string
 		//  shortdesc: ID of the PowerFlex storage pool
+		//  scope: global
 		"powerflex.pool": validate.IsAny,
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.domain)
 		// This option is required only if {config:option}`storage-powerflex-pool-conf:powerflex.pool` is specified using its name.
 		// ---
 		//  type: string
 		//  shortdesc: Name of the PowerFlex protection domain
+		//  scope: global
 		"powerflex.domain": validate.IsAny,
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.mode)
 		// The mode gets discovered automatically if the system provides the necessary kernel modules.
@@ -238,14 +239,15 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: the discovered mode
 		//  shortdesc: How volumes are mapped to the local server
+		//  scope: global
 		"powerflex.mode": validate.Optional(validate.IsOneOf("nvme", "sdc")),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.sdt)
 		//
 		// ---
 		//  type: string
-		//  defaultdesc: one of the SDT
-		//  shortdesc: PowerFlex NVMe/TCP SDT
-		"powerflex.sdt": validate.Optional(validate.IsNetworkAddress),
+		//  shortdesc: Comma separated list of PowerFlex NVMe/TCP SDTs
+		//  scope: global
+		"powerflex.sdt": validate.Optional(validate.IsListOf(validate.IsNetworkAddress)),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.clone_copy)
 		// If this option is set to `true`, PowerFlex makes a non-sparse copy when creating a snapshot of an instance or custom volume.
 		// See {ref}`storage-powerflex-limitations` for more information.
@@ -253,6 +255,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  type: bool
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to use non-sparse copies for snapshots
+		//  scope: global
 		"powerflex.clone_copy": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=volume.size)
 		// The size must be in multiples of 8 GiB.
@@ -261,6 +264,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  type: string
 		//  defaultdesc: `8GiB`
 		//  shortdesc: Size/quota of the storage volume
+		//  scope: global
 		"volume.size": validate.Optional(validate.IsMultipleOfUnit("8GiB")),
 	}
 
@@ -269,14 +273,33 @@ func (d *powerflex) Validate(config map[string]string) error {
 		return err
 	}
 
+	newMode := config["powerflex.mode"]
+	oldMode := d.config["powerflex.mode"]
+
+	// Ensure powerflex.mode cannot be changed to avoid leaving volume mappings
+	// and to prevent disturbing running instances.
+	if oldMode != "" && oldMode != newMode {
+		return errors.New("PowerFlex mode cannot be changed")
+	}
+
 	// Check if the selected PowerFlex mode is supported on this node.
 	// Also when forming the storage pool on a LXD cluster, the mode
 	// that got discovered on the creating machine needs to be validated
 	// on the other cluster members too. This can be done here since Validate
 	// gets executed on every cluster member when receiving the cluster
 	// notification to finally create the pool.
-	if d.config["powerflex.mode"] == powerFlexModeNVMe && !d.loadNVMeModules() {
-		return fmt.Errorf("NVMe/TCP is not supported")
+	if newMode != "" {
+		connector, err := connectors.NewConnector(newMode, "")
+		if err != nil {
+			return fmt.Errorf("PowerFlex mode %q is not supported: %w", newMode, err)
+		}
+
+		// In case of NVMe this will actually try to load the respective kernel modules.
+		// In case of SDC it will check if the kernel module got loaded outside of LXD.
+		err = connector.LoadModules()
+		if err != nil {
+			return fmt.Errorf("PowerFlex mode %q is not supported due to missing kernel modules: %w", newMode, err)
+		}
 	}
 
 	return nil

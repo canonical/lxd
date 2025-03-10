@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -225,7 +226,7 @@ func CheckMutualTLS(cert x509.Certificate, trustedCerts map[string]x509.Certific
 
 	// Check whether client certificate is in the map of trusted certs.
 	for fingerprint, v := range trustedCerts {
-		if bytes.Equal(cert.Raw, v.Raw) {
+		if subtle.ConstantTimeCompare(cert.Raw, v.Raw) == 1 {
 			logger.Debug("Matched trusted cert", logger.Ctx{"fingerprint": fingerprint, "subject": v.Subject})
 			return true, fingerprint
 		}
@@ -267,7 +268,7 @@ func ListenAddresses(configListenAddress string) ([]string, error) {
 	listenIP := net.ParseIP(unwrappedConfigListenAddress)
 	if listenIP != nil || !strings.Contains(unwrappedConfigListenAddress, ":") {
 		// Use net.JoinHostPort so that IPv6 addresses are correctly wrapped ready for parsing below.
-		configListenAddress = net.JoinHostPort(unwrappedConfigListenAddress, fmt.Sprintf("%d", shared.HTTPSDefaultPort))
+		configListenAddress = net.JoinHostPort(unwrappedConfigListenAddress, strconv.Itoa(shared.HTTPSDefaultPort))
 	}
 
 	// By this point we should always have the configListenAddress in form <host>:<port>, so lets check that.
@@ -345,7 +346,7 @@ func GetListeners(start int) []net.Listener {
 	for i := start; i < start+fds; i++ {
 		unix.CloseOnExec(i)
 
-		file := os.NewFile(uintptr(i), fmt.Sprintf("inherited-fd%d", i))
+		file := os.NewFile(uintptr(i), "inherited-fd"+strconv.Itoa(i))
 		listener, err := net.FileListener(file)
 		if err != nil {
 			continue
@@ -367,8 +368,11 @@ const SystemdListenFDsStart = 3
 // IsJSONRequest returns true if the content type of the HTTP request is JSON.
 func IsJSONRequest(r *http.Request) bool {
 	for k, vs := range r.Header {
-		if strings.ToLower(k) == "content-type" &&
-			len(vs) == 1 && strings.ToLower(vs[0]) == "application/json" {
+		if len(vs) != 1 {
+			continue
+		}
+
+		if strings.ToLower(k) == "content-type" && strings.ToLower(vs[0]) == "application/json" {
 			return true
 		}
 	}

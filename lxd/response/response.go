@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/canonical/lxd/client"
@@ -52,11 +53,9 @@ type devLxdResponse struct {
 }
 
 // Render renders a response for requests against the /dev/lxd socket.
-func (r *devLxdResponse) Render(w http.ResponseWriter, req *http.Request) error {
-	var err error
-
+func (r *devLxdResponse) Render(w http.ResponseWriter, req *http.Request) (err error) {
 	if r.code != http.StatusOK {
-		http.Error(w, fmt.Sprintf("%s", r.content), r.code)
+		http.Error(w, fmt.Sprint(r.content), r.code)
 	} else if r.contentType == "json" {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -72,11 +71,7 @@ func (r *devLxdResponse) Render(w http.ResponseWriter, req *http.Request) error 
 		_, err = fmt.Fprint(w, r.content.(string))
 	}
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (r *devLxdResponse) String() string {
@@ -163,7 +158,7 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	if r.etag != nil {
 		etag, err := util.EtagHash(r.etag)
 		if err == nil {
-			w.Header().Set("ETag", fmt.Sprintf("\"%s\"", etag))
+			w.Header().Set("ETag", `"`+etag+`"`)
 		}
 	}
 
@@ -496,8 +491,8 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		}
 
 		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", sz))
-		w.Header().Set("Content-Disposition", fmt.Sprintf("inline;filename=%s", r.files[0].Filename))
+		w.Header().Set("Content-Length", strconv.FormatInt(sz, 10))
+		w.Header().Set("Content-Disposition", "inline;filename="+r.files[0].Filename)
 
 		http.ServeContent(w, req, r.files[0].Filename, mt, rs)
 
@@ -549,7 +544,7 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 }
 
 func (r *fileResponse) String() string {
-	return fmt.Sprintf("%d files", len(r.files))
+	return strconv.FormatInt(int64(len(r.files)), 10) + " files"
 }
 
 type forwardedResponse struct {
@@ -571,7 +566,7 @@ func (r *forwardedResponse) Render(w http.ResponseWriter, req *http.Request) err
 		return err
 	}
 
-	url := fmt.Sprintf("%s%s", info.Addresses[0], req.URL.RequestURI())
+	url := info.Addresses[0] + req.URL.RequestURI()
 	forwarded, err := http.NewRequest(req.Method, url, req.Body)
 	if err != nil {
 		return err

@@ -87,10 +87,11 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filters ...Devic
 	// Result slice.
 	objects := make([]Device, 0)
 
-	deviceObjectsLocal := strings.Replace(deviceObjects, "%s_id", fmt.Sprintf("%s_id", parent), -1)
+	deviceObjectsLocal := strings.Replace(deviceObjects, "%s_id", parent+"_id", -1)
 	fillParent := make([]any, strings.Count(deviceObjectsLocal, "%s"))
+	mangledParent := strings.Replace(parent, "_", "s_", -1) + "s"
 	for i := range fillParent {
-		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
+		fillParent[i] = mangledParent
 	}
 
 	queryStr := fmt.Sprintf(deviceObjectsLocal, fillParent...)
@@ -172,7 +173,7 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filters ...Devic
 // CreateDevices adds a new device to the database.
 // generator: device Create
 func CreateDevices(ctx context.Context, tx *sql.Tx, parent string, objects map[string]Device) error {
-	deviceCreateLocal := strings.Replace(deviceCreate, "%s_id", fmt.Sprintf("%s_id", parent), -1)
+	deviceCreateLocal := strings.Replace(deviceCreate, "%s_id", parent+"_id", -1)
 	fillParent := make([]any, strings.Count(deviceCreateLocal, "%s"))
 	for i := range fillParent {
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
@@ -234,7 +235,7 @@ func UpdateDevices(ctx context.Context, tx *sql.Tx, parent string, referenceID i
 // DeleteDevices deletes the device matching the given key parameters.
 // generator: device DeleteMany
 func DeleteDevices(ctx context.Context, tx *sql.Tx, parent string, referenceID int) error {
-	deviceDeleteLocal := strings.Replace(deviceDelete, "%s_id", fmt.Sprintf("%s_id", parent), -1)
+	deviceDeleteLocal := strings.Replace(deviceDelete, "%s_id", parent+"_id", -1)
 	fillParent := make([]any, strings.Count(deviceDeleteLocal, "%s"))
 	for i := range fillParent {
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"

@@ -186,6 +186,22 @@ See {ref}`devices-disk-types` for details.
 
 ```
 
+```{config:option} source.snapshot device-disk-device-conf
+:required: "no"
+:shortdesc: "`source` snapshot name"
+:type: "string"
+Snapshot of the volume given by `source`.
+```
+
+```{config:option} source.type device-disk-device-conf
+:defaultdesc: "`custom`"
+:required: "no"
+:shortdesc: "Type of the backing storage volume"
+:type: "string"
+Possible values are `custom` (the default) or `virtual-machine`. This
+key is only valid when `source` is the name of a storage volume.
+```
+
 <!-- config group device-disk-device-conf end -->
 <!-- config group device-gpu-mdev-device-conf start -->
 ```{config:option} id device-gpu-mdev-device-conf
@@ -1007,7 +1023,8 @@ This option specifies whether to register the VLAN using the GARP VLAN Registrat
 ```
 
 ```{config:option} hwaddr device-nic-physical-device-conf
-:defaultdesc: "randomly assigned"
+:condition: "container"
+:defaultdesc: "parent MAC address"
 :managed: "no"
 :shortdesc: "MAC address of the new interface"
 :type: "string"
@@ -1029,6 +1046,7 @@ This option specifies whether to register the VLAN using the GARP VLAN Registrat
 ```
 
 ```{config:option} mtu device-nic-physical-device-conf
+:condition: "container"
 :defaultdesc: "parent MTU"
 :managed: "no"
 :shortdesc: "MTU of the new interface"
@@ -1060,6 +1078,7 @@ You can specify this option instead of specifying the `nictype` directly.
 ```
 
 ```{config:option} vlan device-nic-physical-device-conf
+:condition: "container"
 :managed: "no"
 :shortdesc: "VLAN ID to attach to"
 :type: "integer"
@@ -1543,6 +1562,13 @@ See {ref}`devices-unix-char-hotplugging` for more information.
 
 ```
 
+```{config:option} ownership.inherit device-unix-hotplug-device-conf
+:defaultdesc: "`false`"
+:shortdesc: "Whether this device inherits ownership (GID and/or UID) from the host"
+:type: "bool"
+
+```
+
 ```{config:option} productid device-unix-hotplug-device-conf
 :shortdesc: "Product ID of the Unix device"
 :type: "string"
@@ -1554,6 +1580,12 @@ See {ref}`devices-unix-char-hotplugging` for more information.
 :shortdesc: "Whether this device is required to start the container"
 :type: "bool"
 The default is `false`, which means that all devices can be hotplugged.
+```
+
+```{config:option} subsystem device-unix-hotplug-device-conf
+:shortdesc: "Subsystem of the Unix device"
+:type: "string"
+
 ```
 
 ```{config:option} uid device-unix-hotplug-device-conf
@@ -1691,6 +1723,17 @@ The instance with the highest value is shut down first.
 The content is used as seed value for `cloud-init`.
 ```
 
+```{config:option} cloud-init.ssh-keys.KEYNAME instance-cloud-init
+:condition: "If supported by image"
+:liveupdate: "no"
+:shortdesc: "Additional SSH key to be injected on the instance by `cloud-init`"
+:type: "string"
+Represents an additional SSH public key to be merged into existing `cloud-init` seed data
+and injected into an instance. Has the format `{user}:{key}`, where {user} is a Linux username and
+{key} can be either a pure SSH public key or an import ID for a key hosted elsewhere.
+// For example: `root:gh:githubUser`, `myUser:ssh-keyAlg publicKeyHash`
+```
+
 ```{config:option} cloud-init.user-data instance-cloud-init
 :condition: "If supported by image"
 :defaultdesc: "`#cloud-config`"
@@ -1782,8 +1825,7 @@ Enabling this option prevents the use of some features that are incompatible wit
 :liveupdate: "no"
 :shortdesc: "Whether to use the name and MTU of the default network interfaces"
 :type: "bool"
-For containers, the name and MTU of the default network interfaces is used for the instance devices.
-For virtual machines, set this option to `true` to set the name and MTU of the default network interfaces to be the same as the instance devices.
+When set to true, the name and MTU of the default network interfaces inside the virtual machine will match those of the instance devices.
 ```
 
 ```{config:option} cluster.evacuate instance-miscellaneous
@@ -1791,20 +1833,14 @@ For virtual machines, set this option to `true` to set the name and MTU of the d
 :liveupdate: "no"
 :shortdesc: "What to do when evacuating the instance"
 :type: "string"
-The `cluster.evacuate` provides control over how instances are handled when a cluster member is being
-evacuated.
+The `cluster.evacuate` provides control over how instances are handled when a cluster member is being evacuated.
 
 Available Modes:
-  - `auto` *(default)*: The system will automatically decide the best evacuation method based on the
-     instance's type and configured devices:
+  - `auto` *(default)*: The system will automatically decide the best evacuation method based on the instance's type and configured devices:
     + If any device is not suitable for migration, the instance will not be migrated (only stopped).
-    + Live migration will be used only for virtual machines with the `migration.stateful` setting
-      enabled and for which all its devices can be migrated as well.
-  - `live-migrate`: Instances are live-migrated to another node. This means the instance remains running
-     and operational during the migration process, ensuring minimal disruption.
-  - `migrate`: In this mode, instances are migrated to another node in the cluster. The migration
-     process will not be live, meaning there will be a brief downtime for the instance during the
-     migration.
+    + Live migration will be used only for virtual machines with the `migration.stateful` setting enabled and for which all its devices can be migrated as well.
+  - `live-migrate`: Instances are live-migrated to another node. This means the instance remains running and operational during the migration process, ensuring minimal disruption.
+  - `migrate`: In this mode, instances are migrated to another node in the cluster. The migration process will not be live, meaning there will be a brief downtime for the instance during the migration.
   -  `stop`: Instances are not migrated. Instead, they are stopped on the current node.
 
 See {ref}`cluster-evacuate` for more information.
@@ -1836,6 +1872,19 @@ Possible values are `boot` (load the modules when booting the container) and `on
 :shortdesc: "Override for the corresponding `sysctl` setting in the container"
 :type: "string"
 
+```
+
+```{config:option} ubuntu_pro.guest_attach instance-miscellaneous
+:liveupdate: "no"
+:shortdesc: "Whether to auto-attach Ubuntu Pro."
+:type: "string"
+Indicate whether the guest should auto-attach Ubuntu Pro at start up.
+The allowed values are `off`, `on`, and `available`.
+If set to `off`, it will not be possible for the Ubuntu Pro client in the guest to obtain guest token via `devlxd`.
+If set to `available`, attachment via guest token is possible but will not be performed automatically by the Ubuntu Pro client in the guest at startup.
+If set to `on`, attachment will be performed automatically by the Ubuntu Pro client in the guest at startup.
+To allow guest attachment, the host must be an Ubuntu machine that is Pro attached, and guest attachment must be enabled via the Pro client.
+To do this, run `pro config set lxd_guest_attach=on`.
 ```
 
 ```{config:option} user.* instance-miscellaneous
@@ -2180,7 +2229,7 @@ See {ref}`container-security` for more information.
 
 ```{config:option} security.protection.delete instance-security
 :defaultdesc: "`false`"
-:liveupdate: "yes"
+:liveupdate: "container"
 :shortdesc: "Whether to prevent the instance from being deleted"
 :type: "bool"
 
@@ -2197,7 +2246,7 @@ Set this option to `true` to prevent the instance's file system from being UID/G
 
 ```{config:option} security.protection.start instance-security
 :defaultdesc: "`false`"
-:liveupdate: "yes"
+:liveupdate: "container"
 :shortdesc: "Whether to prevent the instance from being started"
 :type: "bool"
 
@@ -2515,27 +2564,33 @@ The cluster member that the instance lived on before evacuation.
 ```
 
 ```{config:option} volatile.idmap.base instance-volatile
-:shortdesc: "The first ID in the instance's primary idmap range"
+:condition: "container"
+:shortdesc: "The first ID in the container's primary idmap range"
 :type: "integer"
 
 ```
 
 ```{config:option} volatile.idmap.current instance-volatile
-:shortdesc: "The idmap currently in use by the instance"
+:condition: "container"
+:shortdesc: "The idmap currently in use by the container"
 :type: "string"
 
 ```
 
 ```{config:option} volatile.idmap.next instance-volatile
-:shortdesc: "The idmap to use the next time the instance starts"
+:condition: "container"
+:shortdesc: "The idmap to use the next time the container starts"
 :type: "string"
 
 ```
 
 ```{config:option} volatile.last_state.idmap instance-volatile
-:shortdesc: "Serialized instance UID/GID map"
+:condition: "container"
+:shortdesc: "On-disk UID/GID map for the container's rootfs"
 :type: "string"
-
+The UID/GID map that has been applied to the container's underlying storage.
+This is usually set for containers created on older kernels that don't
+support idmapped mounts.
 ```
 
 ```{config:option} volatile.last_state.power instance-volatile
@@ -2699,6 +2754,7 @@ Possible values are `enabled`, `disabled`, and `logged`.
 ```{config:option} bgp.ipv4.nexthop network-bridge-network-conf
 :condition: "BGP server"
 :defaultdesc: "local address"
+:scope: "local"
 :shortdesc: "Override the IPv4 next-hop for advertised prefixes"
 :type: "string"
 
@@ -2707,6 +2763,7 @@ Possible values are `enabled`, `disabled`, and `logged`.
 ```{config:option} bgp.ipv6.nexthop network-bridge-network-conf
 :condition: "BGP server"
 :defaultdesc: "local address"
+:scope: "local"
 :shortdesc: "Override the IPv6 next-hop for advertised prefixes"
 :type: "string"
 
@@ -2714,6 +2771,7 @@ Possible values are `enabled`, `disabled`, and `logged`.
 
 ```{config:option} bgp.peers.NAME.address network-bridge-network-conf
 :condition: "BGP server"
+:scope: "global"
 :shortdesc: "Peer address (IPv4 or IPv6)"
 :type: "string"
 
@@ -2721,6 +2779,7 @@ Possible values are `enabled`, `disabled`, and `logged`.
 
 ```{config:option} bgp.peers.NAME.asn network-bridge-network-conf
 :condition: "BGP server"
+:scope: "global"
 :shortdesc: "Peer AS number"
 :type: "integer"
 
@@ -2730,6 +2789,7 @@ Possible values are `enabled`, `disabled`, and `logged`.
 :condition: "BGP server"
 :defaultdesc: "`180`"
 :required: "no"
+:scope: "global"
 :shortdesc: "Peer session hold time"
 :type: "integer"
 Specify the hold time in seconds.
@@ -2739,6 +2799,7 @@ Specify the hold time in seconds.
 :condition: "BGP server"
 :defaultdesc: "(no password)"
 :required: "no"
+:scope: "global"
 :shortdesc: "Peer session password"
 :type: "string"
 
@@ -2746,18 +2807,21 @@ Specify the hold time in seconds.
 
 ```{config:option} bridge.driver network-bridge-network-conf
 :defaultdesc: "`native`"
+:scope: "global"
 :shortdesc: "Bridge driver"
 :type: "string"
 Possible values are `native` and `openvswitch`.
 ```
 
 ```{config:option} bridge.external_interfaces network-bridge-network-conf
+:scope: "local"
 :shortdesc: "Unconfigured network interfaces to include in the bridge"
 :type: "string"
 Specify a comma-separated list of unconfigured network interfaces to include in the bridge.
 ```
 
 ```{config:option} bridge.hwaddr network-bridge-network-conf
+:scope: "global"
 :shortdesc: "MAC address for the bridge"
 :type: "string"
 
@@ -2765,6 +2829,7 @@ Specify a comma-separated list of unconfigured network interfaces to include in 
 
 ```{config:option} bridge.mode network-bridge-network-conf
 :defaultdesc: "`standard`"
+:scope: "global"
 :shortdesc: "Bridge operation mode"
 :type: "string"
 Possible values are `standard` and `fan`.
@@ -2772,6 +2837,7 @@ Possible values are `standard` and `fan`.
 
 ```{config:option} bridge.mtu network-bridge-network-conf
 :defaultdesc: "`1500` if `bridge.mode=standard`, `1480` if `bridge.mode=fan` and `fan.type=ipip`, or `1450` if `bridge.mode=fan` and `fan.type=vxlan`"
+:scope: "global"
 :shortdesc: "Bridge MTU"
 :type: "integer"
 The default value varies depending on whether the bridge uses a tunnel or a fan setup.
@@ -2779,6 +2845,7 @@ The default value varies depending on whether the bridge uses a tunnel or a fan 
 
 ```{config:option} dns.domain network-bridge-network-conf
 :defaultdesc: "`lxd`"
+:scope: "global"
 :shortdesc: "Domain to advertise to DHCP clients and use for DNS resolution"
 :type: "string"
 
@@ -2786,6 +2853,7 @@ The default value varies depending on whether the bridge uses a tunnel or a fan 
 
 ```{config:option} dns.mode network-bridge-network-conf
 :defaultdesc: "`managed`"
+:scope: "global"
 :shortdesc: "DNS registration mode"
 :type: "string"
 Possible values are `none` for no DNS record, `managed` for LXD-generated static records, and `dynamic` for client-generated records.
@@ -2793,24 +2861,28 @@ Possible values are `none` for no DNS record, `managed` for LXD-generated static
 
 ```{config:option} dns.search network-bridge-network-conf
 :defaultdesc: "`dns.domain` value"
+:scope: "global"
 :shortdesc: "Full domain search list"
 :type: "string"
 Specify a comma-separated list of domains.
 ```
 
 ```{config:option} dns.zone.forward network-bridge-network-conf
+:scope: "global"
 :shortdesc: "DNS zone names for forward DNS records"
 :type: "string"
 Specify a comma-separated list of DNS zone names.
 ```
 
 ```{config:option} dns.zone.reverse.ipv4 network-bridge-network-conf
+:scope: "global"
 :shortdesc: "DNS zone name for IPv4 reverse DNS records"
 :type: "string"
 
 ```
 
 ```{config:option} dns.zone.reverse.ipv6 network-bridge-network-conf
+:scope: "global"
 :shortdesc: "DNS zone name for IPv6 reverse DNS records"
 :type: "string"
 
@@ -2819,6 +2891,7 @@ Specify a comma-separated list of DNS zone names.
 ```{config:option} fan.overlay_subnet network-bridge-network-conf
 :condition: "fan mode"
 :defaultdesc: "`240.0.0.0/8`"
+:scope: "global"
 :shortdesc: "Subnet to use as the overlay for the FAN"
 :type: "string"
 Use CIDR notation.
@@ -2827,6 +2900,7 @@ Use CIDR notation.
 ```{config:option} fan.type network-bridge-network-conf
 :condition: "fan mode"
 :defaultdesc: "`vxlan`"
+:scope: "global"
 :shortdesc: "Tunneling type for the FAN"
 :type: "string"
 Possible values are `vxlan` and `ipip`.
@@ -2835,6 +2909,7 @@ Possible values are `vxlan` and `ipip`.
 ```{config:option} fan.underlay_subnet network-bridge-network-conf
 :condition: "fan mode"
 :defaultdesc: "initial value on creation: `auto`"
+:scope: "global"
 :shortdesc: "Subnet to use as the underlay for the FAN"
 :type: "string"
 Use CIDR notation.
@@ -2845,6 +2920,7 @@ You can set the option to `auto` to use the default gateway subnet.
 ```{config:option} ipv4.address network-bridge-network-conf
 :condition: "standard mode"
 :defaultdesc: "initial value on creation: `auto`"
+:scope: "global"
 :shortdesc: "IPv4 address for the bridge"
 :type: "string"
 Use CIDR notation.
@@ -2855,6 +2931,7 @@ You can set the option to `none` to turn off IPv4, or to `auto` to generate a ne
 ```{config:option} ipv4.dhcp network-bridge-network-conf
 :condition: "IPv4 address"
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether to allocate IPv4 addresses using DHCP"
 :type: "bool"
 
@@ -2863,6 +2940,7 @@ You can set the option to `none` to turn off IPv4, or to `auto` to generate a ne
 ```{config:option} ipv4.dhcp.expiry network-bridge-network-conf
 :condition: "IPv4 DHCP"
 :defaultdesc: "`1h`"
+:scope: "global"
 :shortdesc: "When to expire DHCP leases"
 :type: "string"
 
@@ -2871,6 +2949,7 @@ You can set the option to `none` to turn off IPv4, or to `auto` to generate a ne
 ```{config:option} ipv4.dhcp.gateway network-bridge-network-conf
 :condition: "IPv4 DHCP"
 :defaultdesc: "IPv4 address"
+:scope: "global"
 :shortdesc: "Address of the gateway for the IPv4 subnet"
 :type: "string"
 
@@ -2879,6 +2958,7 @@ You can set the option to `none` to turn off IPv4, or to `auto` to generate a ne
 ```{config:option} ipv4.dhcp.ranges network-bridge-network-conf
 :condition: "IPv4 DHCP"
 :defaultdesc: "all addresses"
+:scope: "global"
 :shortdesc: "IPv4 ranges to use for DHCP"
 :type: "string"
 Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
@@ -2887,6 +2967,7 @@ Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
 ```{config:option} ipv4.firewall network-bridge-network-conf
 :condition: "IPv4 address"
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether to generate filtering firewall rules for this network"
 :type: "bool"
 
@@ -2895,6 +2976,7 @@ Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
 ```{config:option} ipv4.nat network-bridge-network-conf
 :condition: "IPv4 address"
 :defaultdesc: "`false` (initial value on creation if `ipv4.address` is set to `auto`: `true`)"
+:scope: "global"
 :shortdesc: "Whether to use NAT for IPv4"
 :type: "bool"
 
@@ -2902,6 +2984,7 @@ Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
 
 ```{config:option} ipv4.nat.address network-bridge-network-conf
 :condition: "IPv4 address"
+:scope: "global"
 :shortdesc: "Source address used for outbound traffic from the bridge"
 :type: "string"
 
@@ -2910,12 +2993,14 @@ Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
 ```{config:option} ipv4.nat.order network-bridge-network-conf
 :condition: "IPv4 address"
 :defaultdesc: "`before`"
+:scope: "global"
 :shortdesc: "Where to add the required NAT rules"
 :type: "string"
 Set this option to `before` to add the NAT rules before any pre-existing rules, or to `after` to add them after the pre-existing rules.
 ```
 
 ```{config:option} ipv4.ovn.ranges network-bridge-network-conf
+:scope: "global"
 :shortdesc: "IPv4 ranges to use for child OVN network routers"
 :type: "string"
 Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
@@ -2923,6 +3008,7 @@ Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
 
 ```{config:option} ipv4.routes network-bridge-network-conf
 :condition: "IPv4 address"
+:scope: "global"
 :shortdesc: "Additional IPv4 CIDR subnets to route to the bridge"
 :type: "string"
 Specify a comma-separated list of IPv4 CIDR subnets.
@@ -2931,6 +3017,7 @@ Specify a comma-separated list of IPv4 CIDR subnets.
 ```{config:option} ipv4.routing network-bridge-network-conf
 :condition: "IPv4 address"
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether to route IPv4 traffic in and out of the bridge"
 :type: "bool"
 
@@ -2939,6 +3026,7 @@ Specify a comma-separated list of IPv4 CIDR subnets.
 ```{config:option} ipv6.address network-bridge-network-conf
 :condition: "standard mode"
 :defaultdesc: "initial value on creation: `auto`"
+:scope: "global"
 :shortdesc: "IPv6 address for the bridge"
 :type: "string"
 Use CIDR notation.
@@ -2949,6 +3037,7 @@ You can set the option to `none` to turn off IPv6, or to `auto` to generate a ne
 ```{config:option} ipv6.dhcp network-bridge-network-conf
 :condition: "IPv6 address"
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether to provide additional network configuration over DHCP"
 :type: "bool"
 
@@ -2957,6 +3046,7 @@ You can set the option to `none` to turn off IPv6, or to `auto` to generate a ne
 ```{config:option} ipv6.dhcp.expiry network-bridge-network-conf
 :condition: "IPv6 DHCP"
 :defaultdesc: "`1h`"
+:scope: "global"
 :shortdesc: "When to expire DHCP leases"
 :type: "string"
 
@@ -2965,6 +3055,7 @@ You can set the option to `none` to turn off IPv6, or to `auto` to generate a ne
 ```{config:option} ipv6.dhcp.ranges network-bridge-network-conf
 :condition: "IPv6 stateful DHCP"
 :defaultdesc: "all addresses"
+:scope: "global"
 :shortdesc: "IPv6 ranges to use for DHCP"
 :type: "string"
 Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
@@ -2973,6 +3064,7 @@ Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
 ```{config:option} ipv6.dhcp.stateful network-bridge-network-conf
 :condition: "IPv6 DHCP"
 :defaultdesc: "`false`"
+:scope: "global"
 :shortdesc: "Whether to allocate IPv6 addresses using DHCP"
 :type: "bool"
 
@@ -2981,6 +3073,7 @@ Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
 ```{config:option} ipv6.firewall network-bridge-network-conf
 :condition: "IPv6 DHCP"
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether to generate filtering firewall rules for this network"
 :type: "bool"
 
@@ -2989,6 +3082,7 @@ Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
 ```{config:option} ipv6.nat network-bridge-network-conf
 :condition: "IPv6 address"
 :defaultdesc: "`false` (initial value on creation if `ipv6.address` is set to `auto`: `true`)"
+:scope: "global"
 :shortdesc: "Whether to use NAT for IPv6"
 :type: "bool"
 
@@ -2996,6 +3090,7 @@ Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
 
 ```{config:option} ipv6.nat.address network-bridge-network-conf
 :condition: "IPv6 address"
+:scope: "global"
 :shortdesc: "Source address used for outbound traffic from the bridge"
 :type: "string"
 
@@ -3004,12 +3099,14 @@ Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
 ```{config:option} ipv6.nat.order network-bridge-network-conf
 :condition: "IPv6 address"
 :defaultdesc: "`before`"
+:scope: "global"
 :shortdesc: "Where to add the required NAT rules"
 :type: "string"
 Set this option to `before` to add the NAT rules before any pre-existing rules, or to `after` to add them after the pre-existing rules.
 ```
 
 ```{config:option} ipv6.ovn.ranges network-bridge-network-conf
+:scope: "global"
 :shortdesc: "IPv6 ranges to use for child OVN network routers"
 :type: "string"
 Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
@@ -3017,6 +3114,7 @@ Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
 
 ```{config:option} ipv6.routes network-bridge-network-conf
 :condition: "IPv6 address"
+:scope: "global"
 :shortdesc: "Additional IPv6 CIDR subnets to route to the bridge"
 :type: "string"
 Specify a comma-separated list of IPv6 CIDR subnets.
@@ -3024,6 +3122,7 @@ Specify a comma-separated list of IPv6 CIDR subnets.
 
 ```{config:option} ipv6.routing network-bridge-network-conf
 :condition: "IPv6 address"
+:scope: "global"
 :shortdesc: "Whether to route IPv6 traffic in and out of the bridge"
 :type: "bool"
 
@@ -3031,6 +3130,7 @@ Specify a comma-separated list of IPv6 CIDR subnets.
 
 ```{config:option} maas.subnet.ipv4 network-bridge-network-conf
 :condition: "IPv4 address; using the `network` property on the NIC"
+:scope: "global"
 :shortdesc: "MAAS IPv4 subnet to register instances in"
 :type: "string"
 
@@ -3038,18 +3138,21 @@ Specify a comma-separated list of IPv6 CIDR subnets.
 
 ```{config:option} maas.subnet.ipv6 network-bridge-network-conf
 :condition: "IPv6 address; using the `network` property on the NIC"
+:scope: "global"
 :shortdesc: "MAAS IPv6 subnet to register instances in"
 :type: "string"
 
 ```
 
 ```{config:option} raw.dnsmasq network-bridge-network-conf
+:scope: "global"
 :shortdesc: "Additional `dnsmasq` configuration to append to the configuration file"
 :type: "string"
 
 ```
 
 ```{config:option} security.acls network-bridge-network-conf
+:scope: "global"
 :shortdesc: "Network ACLs to apply to NICs connected to this network"
 :type: "string"
 Specify a comma-separated list of network ACLs.
@@ -3059,6 +3162,7 @@ Also see {ref}`network-acls-bridge-limitations`.
 
 ```{config:option} security.acls.default.egress.action network-bridge-network-conf
 :condition: "`security.acls`"
+:scope: "global"
 :shortdesc: "Default action to use for egress traffic"
 :type: "string"
 The specified action is used for all egress traffic that doesn’t match any ACL rule.
@@ -3066,6 +3170,7 @@ The specified action is used for all egress traffic that doesn’t match any ACL
 
 ```{config:option} security.acls.default.egress.logged network-bridge-network-conf
 :condition: "`security.acls`"
+:scope: "global"
 :shortdesc: "Whether to log egress traffic that doesn’t match any ACL rule"
 :type: "bool"
 
@@ -3073,6 +3178,7 @@ The specified action is used for all egress traffic that doesn’t match any ACL
 
 ```{config:option} security.acls.default.ingress.action network-bridge-network-conf
 :condition: "`security.acls`"
+:scope: "global"
 :shortdesc: "Default action to use for ingress traffic"
 :type: "string"
 The specified action is used for all ingress traffic that doesn’t match any ACL rule.
@@ -3080,6 +3186,7 @@ The specified action is used for all ingress traffic that doesn’t match any AC
 
 ```{config:option} security.acls.default.ingress.logged network-bridge-network-conf
 :condition: "`security.acls`"
+:scope: "global"
 :shortdesc: "Whether to log ingress traffic that doesn’t match any ACL rule"
 :type: "bool"
 
@@ -3146,6 +3253,7 @@ Possible values are `vxlan` and `gre`.
 ```
 
 ```{config:option} user.* network-bridge-network-conf
+:scope: "global"
 :shortdesc: "User-provided free-form key/value pairs"
 :type: "string"
 
@@ -3158,6 +3266,9 @@ Possible values are `vxlan` and `gre`.
 :shortdesc: "User-provided free-form key/value pairs"
 :type: "string set"
 The only supported keys are `target_address` and `user.*` custom keys.
+
+The `target_address` key is for the default target address of the network forward.
+It must be an IP address within the subnet of the network the forward belongs to.
 ```
 
 ```{config:option} description network-forward-forward-properties
@@ -3171,7 +3282,7 @@ The only supported keys are `target_address` and `user.*` custom keys.
 :required: "no"
 :shortdesc: "IP address to listen on"
 :type: "string"
-
+See {ref}`network-forwards-listen-addresses`.
 ```
 
 ```{config:option} ports network-forward-forward-properties
@@ -3208,7 +3319,8 @@ For example: `80,90-100`
 :required: "yes"
 :shortdesc: "IP address to forward to"
 :type: "string"
-
+This `target_address` must be within the subnet of the network the forward belongs to.
+Also, it must be different from the forward’s default target address.
 ```
 
 ```{config:option} target_port network-forward-port-properties
@@ -3321,6 +3433,7 @@ See {ref}`network-load-balancers-port-specifications`.
 <!-- config group network-macvlan-network-conf start -->
 ```{config:option} gvrp network-macvlan-network-conf
 :defaultdesc: "`false`"
+:scope: "global"
 :shortdesc: "Whether to use GARP VLAN Registration Protocol"
 :type: "bool"
 This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.
@@ -3328,6 +3441,7 @@ This option specifies whether to register the VLAN using the GARP VLAN Registrat
 
 ```{config:option} maas.subnet.ipv4 network-macvlan-network-conf
 :condition: "IPv4 address; using the `network` property on the NIC"
+:scope: "global"
 :shortdesc: "MAAS IPv4 subnet to register instances in"
 :type: "string"
 
@@ -3335,30 +3449,35 @@ This option specifies whether to register the VLAN using the GARP VLAN Registrat
 
 ```{config:option} maas.subnet.ipv6 network-macvlan-network-conf
 :condition: "IPv4 address; using the `network` property on the NIC"
+:scope: "global"
 :shortdesc: "MAAS IPv6 subnet to register instances in"
 :type: "string"
 
 ```
 
 ```{config:option} mtu network-macvlan-network-conf
+:scope: "global"
 :shortdesc: "MTU of the new interface"
 :type: "integer"
 
 ```
 
 ```{config:option} parent network-macvlan-network-conf
+:scope: "local"
 :shortdesc: "Parent interface to create `macvlan` NICs on"
 :type: "string"
 
 ```
 
 ```{config:option} user.* network-macvlan-network-conf
+:scope: "global"
 :shortdesc: "User-provided free-form key/value pairs"
 :type: "string"
 
 ```
 
 ```{config:option} vlan network-macvlan-network-conf
+:scope: "global"
 :shortdesc: "VLAN ID to attach to"
 :type: "integer"
 
@@ -3600,6 +3719,7 @@ This option must be set at create time.
 <!-- config group network-physical-network-conf start -->
 ```{config:option} bgp.peers.NAME.address network-physical-network-conf
 :condition: "BGP server"
+:scope: "global"
 :shortdesc: "Peer address for use by `ovn` downstream networks"
 :type: "string"
 The address can be IPv4 or IPv6.
@@ -3607,6 +3727,7 @@ The address can be IPv4 or IPv6.
 
 ```{config:option} bgp.peers.NAME.asn network-physical-network-conf
 :condition: "BGP server"
+:scope: "global"
 :shortdesc: "Peer AS number for use by `ovn` downstream networks"
 :type: "integer"
 
@@ -3616,6 +3737,7 @@ The address can be IPv4 or IPv6.
 :condition: "BGP server"
 :defaultdesc: "`180`"
 :required: "no"
+:scope: "global"
 :shortdesc: "Peer session hold time"
 :type: "integer"
 Specify the peer session hold time in seconds.
@@ -3625,6 +3747,7 @@ Specify the peer session hold time in seconds.
 :condition: "BGP server"
 :defaultdesc: "(no password)"
 :required: "no"
+:scope: "global"
 :shortdesc: "Peer session password for use by `ovn` downstream networks"
 :type: "string"
 
@@ -3632,6 +3755,7 @@ Specify the peer session hold time in seconds.
 
 ```{config:option} dns.nameservers network-physical-network-conf
 :condition: "standard mode"
+:scope: "global"
 :shortdesc: "DNS server IPs on physical network"
 :type: "string"
 Specify a list of DNS server IPs.
@@ -3639,6 +3763,7 @@ Specify a list of DNS server IPs.
 
 ```{config:option} gvrp network-physical-network-conf
 :defaultdesc: "`false`"
+:scope: "global"
 :shortdesc: "Whether to use GARP VLAN Registration Protocol"
 :type: "bool"
 This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.
@@ -3646,12 +3771,14 @@ This option specifies whether to register the VLAN using the GARP VLAN Registrat
 
 ```{config:option} ipv4.gateway network-physical-network-conf
 :condition: "standard mode"
+:scope: "global"
 :shortdesc: "IPv4 address for the gateway and network"
 :type: "string"
 Use CIDR notation.
 ```
 
 ```{config:option} ipv4.ovn.ranges network-physical-network-conf
+:scope: "global"
 :shortdesc: "IPv4 ranges to use for child OVN network routers"
 :type: "string"
 Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
@@ -3659,6 +3786,7 @@ Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
 
 ```{config:option} ipv4.routes network-physical-network-conf
 :condition: "IPv4 address"
+:scope: "global"
 :shortdesc: "Additional IPv4 CIDR subnets"
 :type: "string"
 Specify a comma-separated list of IPv4 CIDR subnets that can be used with child OVN network forwarders, load-balancers and {config:option}`device-nic-ovn-device-conf:ipv4.routes.external` setting.
@@ -3667,6 +3795,7 @@ Specify a comma-separated list of IPv4 CIDR subnets that can be used with child 
 ```{config:option} ipv4.routes.anycast network-physical-network-conf
 :condition: "IPv4 address"
 :defaultdesc: "`false`"
+:scope: "global"
 :shortdesc: "Whether to allow IPv4 routes on multiple networks/NICs"
 :type: "bool"
 If set to `true`, this option allows the overlapping routes to be used on multiple networks/NICs at the same time.
@@ -3674,12 +3803,14 @@ If set to `true`, this option allows the overlapping routes to be used on multip
 
 ```{config:option} ipv6.gateway network-physical-network-conf
 :condition: "standard mode"
+:scope: "global"
 :shortdesc: "IPv6 address for the gateway and network"
 :type: "string"
 Use CIDR notation.
 ```
 
 ```{config:option} ipv6.ovn.ranges network-physical-network-conf
+:scope: "global"
 :shortdesc: "IPv6 ranges to use for child OVN network routers"
 :type: "string"
 Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
@@ -3687,6 +3818,7 @@ Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
 
 ```{config:option} ipv6.routes network-physical-network-conf
 :condition: "IPv6 address"
+:scope: "global"
 :shortdesc: "Additional IPv6 CIDR subnets"
 :type: "string"
 Specify a comma-separated list of IPv6 CIDR subnets that can be used with child OVN network forwarders, load-balancers and {config:option}`device-nic-ovn-device-conf:ipv6.routes.external` setting.
@@ -3695,6 +3827,7 @@ Specify a comma-separated list of IPv6 CIDR subnets that can be used with child 
 ```{config:option} ipv6.routes.anycast network-physical-network-conf
 :condition: "IPv6 address"
 :defaultdesc: "`false`"
+:scope: "global"
 :shortdesc: "Whether to allow IPv6 routes on multiple networks/NICs"
 :type: "bool"
 If set to `true`, this option allows the overlapping routes to be used on multiple networks/NICs at the same time.
@@ -3702,6 +3835,7 @@ If set to `true`, this option allows the overlapping routes to be used on multip
 
 ```{config:option} maas.subnet.ipv4 network-physical-network-conf
 :condition: "IPv4 address; using the `network` property on the NIC"
+:scope: "global"
 :shortdesc: "MAAS IPv4 subnet to register instances in"
 :type: "string"
 
@@ -3709,12 +3843,14 @@ If set to `true`, this option allows the overlapping routes to be used on multip
 
 ```{config:option} maas.subnet.ipv6 network-physical-network-conf
 :condition: "IPv6 address; using the `network` property on the NIC"
+:scope: "global"
 :shortdesc: "MAAS IPv6 subnet to register instances in"
 :type: "string"
 
 ```
 
 ```{config:option} mtu network-physical-network-conf
+:scope: "global"
 :shortdesc: "MTU of the new interface"
 :type: "integer"
 
@@ -3723,24 +3859,28 @@ If set to `true`, this option allows the overlapping routes to be used on multip
 ```{config:option} ovn.ingress_mode network-physical-network-conf
 :condition: "standard mode"
 :defaultdesc: "`l2proxy`"
+:scope: "global"
 :shortdesc: "How OVN NIC external IPs are advertised on uplink network"
 :type: "string"
 Possible values are `l2proxy` (proxy ARP/NDP) and `routed`.
 ```
 
 ```{config:option} parent network-physical-network-conf
+:scope: "local"
 :shortdesc: "Existing interface to use for network"
 :type: "string"
 
 ```
 
 ```{config:option} user.* network-physical-network-conf
+:scope: "global"
 :shortdesc: "User-provided free-form key/value pairs"
 :type: "string"
 
 ```
 
 ```{config:option} vlan network-physical-network-conf
+:scope: "global"
 :shortdesc: "VLAN ID to attach to"
 :type: "integer"
 
@@ -3750,6 +3890,7 @@ Possible values are `l2proxy` (proxy ARP/NDP) and `routed`.
 <!-- config group network-sriov-network-conf start -->
 ```{config:option} maas.subnet.ipv4 network-sriov-network-conf
 :condition: "IPv4 address; using the `network` property on the NIC"
+:scope: "global"
 :shortdesc: "MAAS IPv4 subnet to register instances in"
 :type: "string"
 
@@ -3757,30 +3898,35 @@ Possible values are `l2proxy` (proxy ARP/NDP) and `routed`.
 
 ```{config:option} maas.subnet.ipv6 network-sriov-network-conf
 :condition: "IPv6 address; using the `network` property on the NIC"
+:scope: "global"
 :shortdesc: "MAAS IPv6 subnet to register instances in"
 :type: "string"
 
 ```
 
 ```{config:option} mtu network-sriov-network-conf
+:scope: "global"
 :shortdesc: "MTU of the new interface"
 :type: "integer"
 
 ```
 
 ```{config:option} parent network-sriov-network-conf
+:scope: "local"
 :shortdesc: "Parent interface to create `sriov` NICs on"
 :type: "string"
 
 ```
 
 ```{config:option} user.* network-sriov-network-conf
+:scope: "global"
 :shortdesc: "User-provided free-form key/value pairs"
 :type: "string"
 
 ```
 
 ```{config:option} vlan network-sriov-network-conf
+:scope: "global"
 :shortdesc: "VLAN ID to attach to"
 :type: "integer"
 
@@ -3950,6 +4096,22 @@ The value is the maximum value for the sum of the individual {config:option}`ins
 ```{config:option} limits.networks project-limits
 :shortdesc: "Maximum number of networks that the project can have"
 :type: "integer"
+
+```
+
+```{config:option} limits.networks.uplink_ips.ipv4.NETWORK_NAME project-limits
+:shortdesc: "Quota of IPv4 addresses from a specified uplink network that can be used by entities in this project"
+:type: "string"
+Maximum number of IPv4 addresses that this project can consume from the specified uplink network.
+This number of IPs can be consumed by networks, forwards and load balancers in this project.
+
+```
+
+```{config:option} limits.networks.uplink_ips.ipv6.NETWORK_NAME project-limits
+:shortdesc: "Quota of IPv6 addresses from a specified uplink network that can be used by entities in this project"
+:type: "string"
+Maximum number of IPv6 addresses that this project can consume from the specified uplink network.
+This number of IPs can be consumed by networks, forwards and load balancers in this project.
 
 ```
 
@@ -4154,6 +4316,8 @@ Note that this setting depends on the {config:option}`project-restricted:restric
 :type: "string"
 Specify a comma-delimited list of CIDR network routes from the uplink network's {config:option}`network-physical-network-conf:ipv4.routes` {config:option}`network-physical-network-conf:ipv6.routes` that are allowed for use in this project.
 Use the form `<uplink>:<subnet>`.
+
+Example value: `lxdbr0:192.0.168.0/24,lxdbr0:10.1.19.5/32`
 ```
 
 ```{config:option} restricted.networks.uplinks project-restricted
@@ -4723,10 +4887,9 @@ This value is required by some providers.
 :scope: "global"
 :shortdesc: "A claim used for mapping identity provider groups to LXD groups."
 :type: "string"
-Specify a custom claim to be requested when performing OIDC flows.
-Configure a corresponding custom claim in your identity provider and
-add organization level groups to it. These can be mapped to LXD groups
-for automatic access control.
+Specify a custom token claim to denote groups defined at the identity provider.
+The contents of this claim can be mapped to LXD groups for managing access control.
+The value of the claim is expected to be a JSON string array.
 ```
 
 ```{config:option} oidc.issuer server-oidc
@@ -4736,11 +4899,24 @@ for automatic access control.
 
 ```
 
+```{config:option} oidc.scopes server-oidc
+:scope: "global"
+:shortdesc: "Space-separated list of OpenID Connect scopes"
+:type: "space-delimited string"
+A list of OpenID Connect scopes to request from the identity provider.
+This must include the `openid` and `email` scopes.
+The remaining optional scopes are `offline_access` and `profile`.
+If you remove the `offline_access` scope, users might be required to log in more frequently.
+If you remove the `profile` scope, user information may not be displayed in LXD UI (or in `lxc auth identity` commands).
+You may add additional scopes if this is required by your identity provider, or if necessary for configuration of {ref}`identity provider groups <identity-provider-groups>`.
+```
+
 <!-- config group server-oidc end -->
 <!-- config group storage-btrfs-bucket-conf start -->
 ```{config:option} size storage-btrfs-bucket-conf
 :condition: "appropriate driver"
 :defaultdesc: "same as `volume.size`"
+:scope: "local"
 :shortdesc: "Size/quota of the storage bucket"
 :type: "string"
 
@@ -4750,6 +4926,7 @@ for automatic access control.
 <!-- config group storage-btrfs-pool-conf start -->
 ```{config:option} btrfs.mount_options storage-btrfs-pool-conf
 :defaultdesc: "`user_subvol_rm_allowed`"
+:scope: "global"
 :shortdesc: "Mount options for block devices"
 :type: "string"
 
@@ -4757,6 +4934,7 @@ for automatic access control.
 
 ```{config:option} size storage-btrfs-pool-conf
 :defaultdesc: "auto (20% of free disk space, >= 5 GiB and <= 30 GiB)"
+:scope: "local"
 :shortdesc: "Size of the storage pool (for loop-based pools)"
 :type: "string"
 When creating loop-based pools, specify the size in bytes ({ref}`suffixes <instances-limit-units>` are supported).
@@ -4767,6 +4945,7 @@ with a minimum of 5 GiB and a maximum of 30 GiB.
 ```
 
 ```{config:option} source storage-btrfs-pool-conf
+:scope: "local"
 :shortdesc: "Path to an existing block device, loop file, or Btrfs subvolume"
 :type: "string"
 
@@ -4774,6 +4953,7 @@ with a minimum of 5 GiB and a maximum of 30 GiB.
 
 ```{config:option} source.wipe storage-btrfs-pool-conf
 :defaultdesc: "`false`"
+:scope: "local"
 :shortdesc: "Whether to wipe the block device before creating the pool"
 :type: "bool"
 Set this option to `true` to wipe the block device specified in `source`
@@ -4783,8 +4963,9 @@ prior to creating the storage pool.
 <!-- config group storage-btrfs-pool-conf end -->
 <!-- config group storage-btrfs-volume-conf start -->
 ```{config:option} security.shared storage-btrfs-volume-conf
-:condition: "custom block volume"
+:condition: "virtual-machine or custom block volume"
 :defaultdesc: "same as `volume.security.shared` or `false`"
+:scope: "global"
 :shortdesc: "Enable volume sharing"
 :type: "bool"
 Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
@@ -4794,6 +4975,7 @@ Enabling this option allows sharing the volume across multiple instances despite
 ```{config:option} security.shifted storage-btrfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
+:scope: "global"
 :shortdesc: "Enable ID shifting overlay"
 :type: "bool"
 Enabling this option allows attaching the volume to multiple isolated instances.
@@ -4802,6 +4984,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} security.unmapped storage-btrfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.unmappped` or `false`"
+:scope: "global"
 :shortdesc: "Disable ID mapping for the volume"
 :type: "bool"
 
@@ -4810,6 +4993,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} size storage-btrfs-volume-conf
 :condition: "appropriate driver"
 :defaultdesc: "same as `volume.size`"
+:scope: "global"
 :shortdesc: "Size/quota of the storage volume"
 :type: "string"
 
@@ -4818,6 +5002,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} snapshots.expiry storage-btrfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
+:scope: "global"
 :shortdesc: "When snapshots are to be deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
@@ -4826,6 +5011,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```{config:option} snapshots.pattern storage-btrfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.pattern` or `snap%d`"
+:scope: "global"
 :shortdesc: "Template for the snapshot name"
 :type: "string"
 You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.
@@ -4845,13 +5031,29 @@ This number is then incremented by one for the new name.
 ```{config:option} snapshots.schedule storage-btrfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `snapshots.schedule`"
+:scope: "global"
 :shortdesc: "Schedule for automatic volume snapshots"
 :type: "string"
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
 ```
 
+```{config:option} volatile.idmap.last storage-btrfs-volume-conf
+:condition: "filesystem"
+:shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
+```{config:option} volatile.idmap.next storage-btrfs-volume-conf
+:condition: "filesystem"
+:shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
 ```{config:option} volatile.uuid storage-btrfs-volume-conf
 :defaultdesc: "random UUID"
+:scope: "global"
 :shortdesc: "The volume's UUID"
 :type: "string"
 
@@ -4861,12 +5063,14 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 <!-- config group storage-ceph-pool-conf start -->
 ```{config:option} ceph.cluster_name storage-ceph-pool-conf
 :defaultdesc: "`ceph`"
+:scope: "global"
 :shortdesc: "Name of the Ceph cluster in which to create new storage pools"
 :type: "string"
 
 ```
 
 ```{config:option} ceph.osd.data_pool_name storage-ceph-pool-conf
+:scope: "global"
 :shortdesc: "Name of the OSD data pool"
 :type: "string"
 
@@ -4874,6 +5078,7 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 
 ```{config:option} ceph.osd.pg_num storage-ceph-pool-conf
 :defaultdesc: "`32`"
+:scope: "global"
 :shortdesc: "Number of placement groups for the OSD storage pool"
 :type: "string"
 
@@ -4881,13 +5086,23 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 
 ```{config:option} ceph.osd.pool_name storage-ceph-pool-conf
 :defaultdesc: "name of the pool"
+:scope: "global"
 :shortdesc: "Name of the OSD storage pool"
 :type: "string"
 
 ```
 
+```{config:option} ceph.osd.pool_size storage-ceph-pool-conf
+:defaultdesc: "`3`"
+:shortdesc: "Number of RADOS object replicas. Set to 1 for no replication."
+:type: "string"
+This option specifies the name for the file metadata OSD pool that should be used when
+creating a file system automatically.
+```
+
 ```{config:option} ceph.rbd.clone_copy storage-ceph-pool-conf
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether to use RBD lightweight clones"
 :type: "bool"
 Enable this option to use RBD lightweight clones rather than full dataset copies.
@@ -4895,6 +5110,7 @@ Enable this option to use RBD lightweight clones rather than full dataset copies
 
 ```{config:option} ceph.rbd.du storage-ceph-pool-conf
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether to use RBD `du`"
 :type: "bool"
 This option specifies whether to use RBD `du` to obtain disk usage data for stopped instances.
@@ -4902,6 +5118,7 @@ This option specifies whether to use RBD `du` to obtain disk usage data for stop
 
 ```{config:option} ceph.rbd.features storage-ceph-pool-conf
 :defaultdesc: "`layering`"
+:scope: "global"
 :shortdesc: "Comma-separated list of RBD features to enable on the volumes"
 :type: "string"
 
@@ -4909,12 +5126,14 @@ This option specifies whether to use RBD `du` to obtain disk usage data for stop
 
 ```{config:option} ceph.user.name storage-ceph-pool-conf
 :defaultdesc: "`admin`"
+:scope: "global"
 :shortdesc: "The Ceph user to use when creating storage pools and volumes"
 :type: "string"
 
 ```
 
 ```{config:option} source storage-ceph-pool-conf
+:scope: "local"
 :shortdesc: "Existing OSD storage pool to use"
 :type: "string"
 
@@ -4922,6 +5141,7 @@ This option specifies whether to use RBD `du` to obtain disk usage data for stop
 
 ```{config:option} volatile.pool.pristine storage-ceph-pool-conf
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether the pool was empty on creation time"
 :type: "string"
 
@@ -4932,6 +5152,7 @@ This option specifies whether to use RBD `du` to obtain disk usage data for stop
 ```{config:option} block.filesystem storage-ceph-volume-conf
 :condition: "block-based volume with content type `filesystem`"
 :defaultdesc: "same as `volume.block.filesystem`"
+:scope: "global"
 :shortdesc: "File system of the storage volume"
 :type: "string"
 Valid options are: `btrfs`, `ext4`, `xfs`
@@ -4941,14 +5162,16 @@ If not set, `ext4` is assumed.
 ```{config:option} block.mount_options storage-ceph-volume-conf
 :condition: "block-based volume with content type `filesystem`"
 :defaultdesc: "same as `volume.block.mount_options`"
+:scope: "global"
 :shortdesc: "Mount options for block-backed file system volumes"
 :type: "string"
 
 ```
 
 ```{config:option} security.shared storage-ceph-volume-conf
-:condition: "custom block volume"
+:condition: "virtual-machine or custom block volume"
 :defaultdesc: "same as `volume.security.shared` or `false`"
+:scope: "global"
 :shortdesc: "Enable volume sharing"
 :type: "bool"
 Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
@@ -4958,6 +5181,7 @@ Enabling this option allows sharing the volume across multiple instances despite
 ```{config:option} security.shifted storage-ceph-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
+:scope: "global"
 :shortdesc: "Enable ID shifting overlay"
 :type: "bool"
 Enabling this option allows attaching the volume to multiple isolated instances.
@@ -4966,6 +5190,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} security.unmapped storage-ceph-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.unmappped` or `false`"
+:scope: "global"
 :shortdesc: "Disable ID mapping for the volume"
 :type: "bool"
 
@@ -4974,6 +5199,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} size storage-ceph-volume-conf
 :condition: "appropriate driver"
 :defaultdesc: "same as `volume.size`"
+:scope: "global"
 :shortdesc: "Size/quota of the storage volume"
 :type: "string"
 
@@ -4982,6 +5208,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} snapshots.expiry storage-ceph-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
+:scope: "global"
 :shortdesc: "When snapshots are to be deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
@@ -4990,6 +5217,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```{config:option} snapshots.pattern storage-ceph-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.pattern` or `snap%d`"
+:scope: "global"
 :shortdesc: "Template for the snapshot name"
 :type: "string"
 You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.
@@ -5009,13 +5237,29 @@ This number is then incremented by one for the new name.
 ```{config:option} snapshots.schedule storage-ceph-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `snapshots.schedule`"
+:scope: "global"
 :shortdesc: "Schedule for automatic volume snapshots"
 :type: "string"
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
 ```
 
+```{config:option} volatile.idmap.last storage-ceph-volume-conf
+:condition: "filesystem"
+:shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
+```{config:option} volatile.idmap.next storage-ceph-volume-conf
+:condition: "filesystem"
+:shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
 ```{config:option} volatile.uuid storage-ceph-volume-conf
 :defaultdesc: "random UUID"
+:scope: "global"
 :shortdesc: "The volume's UUID"
 :type: "string"
 
@@ -5025,6 +5269,7 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 <!-- config group storage-cephfs-pool-conf start -->
 ```{config:option} cephfs.cluster_name storage-cephfs-pool-conf
 :defaultdesc: "`ceph`"
+:scope: "global"
 :shortdesc: "Name of the Ceph cluster that contains the CephFS file system"
 :type: "string"
 
@@ -5032,6 +5277,7 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 
 ```{config:option} cephfs.create_missing storage-cephfs-pool-conf
 :defaultdesc: "`false`"
+:scope: "global"
 :shortdesc: "Automatically create the CephFS file system"
 :type: "bool"
 Use this option if the CephFS file system does not exist yet.
@@ -5039,6 +5285,7 @@ LXD will then automatically create the file system and the missing data and meta
 ```
 
 ```{config:option} cephfs.data_pool storage-cephfs-pool-conf
+:scope: "global"
 :shortdesc: "Data OSD pool name"
 :type: "string"
 This option specifies the name for the data OSD pool that should be used when creating
@@ -5047,12 +5294,14 @@ a file system automatically.
 
 ```{config:option} cephfs.fscache storage-cephfs-pool-conf
 :defaultdesc: "`false`"
+:scope: "global"
 :shortdesc: "Enable use of kernel `fscache` and `cachefilesd`"
 :type: "bool"
 
 ```
 
 ```{config:option} cephfs.meta_pool storage-cephfs-pool-conf
+:scope: "global"
 :shortdesc: "Metadata OSD pool name"
 :type: "string"
 This option specifies the name for the file metadata OSD pool that should be used when
@@ -5060,14 +5309,24 @@ creating a file system automatically.
 ```
 
 ```{config:option} cephfs.osd_pg_num storage-cephfs-pool-conf
+:scope: "global"
 :shortdesc: "Number of placement groups when creating missing OSD pools"
 :type: "string"
 This option specifies the number of OSD pool placement groups (`pg_num`) to use
 when creating a missing OSD pool.
 ```
 
+```{config:option} cephfs.osd_pool_size storage-cephfs-pool-conf
+:defaultdesc: "`3`"
+:shortdesc: "Number of RADOS object replicas. Set to 1 for no replication."
+:type: "string"
+This option specifies the number of OSD pool replicas to use
+when creating an OSD pool.
+```
+
 ```{config:option} cephfs.path storage-cephfs-pool-conf
 :defaultdesc: "`/`"
+:scope: "global"
 :shortdesc: "The base path for the CephFS mount"
 :type: "string"
 
@@ -5075,12 +5334,14 @@ when creating a missing OSD pool.
 
 ```{config:option} cephfs.user.name storage-cephfs-pool-conf
 :defaultdesc: "`admin`"
+:scope: "global"
 :shortdesc: "The Ceph user to use"
 :type: "string"
 
 ```
 
 ```{config:option} source storage-cephfs-pool-conf
+:scope: "local"
 :shortdesc: "Existing CephFS file system or file system path to use"
 :type: "string"
 
@@ -5088,6 +5349,7 @@ when creating a missing OSD pool.
 
 ```{config:option} volatile.pool.pristine storage-cephfs-pool-conf
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether the CephFS file system was empty on creation time"
 :type: "string"
 
@@ -5098,6 +5360,7 @@ when creating a missing OSD pool.
 ```{config:option} security.shifted storage-cephfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
+:scope: "global"
 :shortdesc: "Enable ID shifting overlay"
 :type: "bool"
 Enabling this option allows attaching the volume to multiple isolated instances.
@@ -5106,6 +5369,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} security.unmapped storage-cephfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.unmappped` or `false`"
+:scope: "global"
 :shortdesc: "Disable ID mapping for the volume"
 :type: "bool"
 
@@ -5114,6 +5378,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} size storage-cephfs-volume-conf
 :condition: "appropriate driver"
 :defaultdesc: "same as `volume.size`"
+:scope: "global"
 :shortdesc: "Size/quota of the storage volume"
 :type: "string"
 
@@ -5122,6 +5387,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} snapshots.expiry storage-cephfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
+:scope: "global"
 :shortdesc: "When snapshots are to be deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
@@ -5130,6 +5396,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```{config:option} snapshots.pattern storage-cephfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.pattern` or `snap%d`"
+:scope: "global"
 :shortdesc: "Template for the snapshot name"
 :type: "string"
 You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.
@@ -5149,13 +5416,29 @@ This number is then incremented by one for the new name.
 ```{config:option} snapshots.schedule storage-cephfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `snapshots.schedule`"
+:scope: "global"
 :shortdesc: "Schedule for automatic volume snapshots"
 :type: "string"
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
 ```
 
+```{config:option} volatile.idmap.last storage-cephfs-volume-conf
+:condition: "filesystem"
+:shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
+```{config:option} volatile.idmap.next storage-cephfs-volume-conf
+:condition: "filesystem"
+:shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
 ```{config:option} volatile.uuid storage-cephfs-volume-conf
 :defaultdesc: "random UUID"
+:scope: "global"
 :shortdesc: "The volume's UUID"
 :type: "string"
 
@@ -5164,6 +5447,7 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 <!-- config group storage-cephfs-volume-conf end -->
 <!-- config group storage-cephobject-bucket-conf start -->
 ```{config:option} size storage-cephobject-bucket-conf
+:scope: "local"
 :shortdesc: "Quota of the storage bucket"
 :type: "string"
 
@@ -5172,24 +5456,28 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 <!-- config group storage-cephobject-bucket-conf end -->
 <!-- config group storage-cephobject-pool-conf start -->
 ```{config:option} cephobject.bucket.name_prefix storage-cephobject-pool-conf
+:scope: "global"
 :shortdesc: "Prefix to add to bucket names in Ceph"
 :type: "string"
 
 ```
 
 ```{config:option} cephobject.cluster_name storage-cephobject-pool-conf
+:scope: "global"
 :shortdesc: "The Ceph cluster to use"
 :type: "string"
 
 ```
 
 ```{config:option} cephobject.radosgw.endpoint storage-cephobject-pool-conf
+:scope: "global"
 :shortdesc: "URL of the `radosgw` gateway process"
 :type: "string"
 
 ```
 
 ```{config:option} cephobject.radosgw.endpoint_cert_file storage-cephobject-pool-conf
+:scope: "global"
 :shortdesc: "TLS client certificate to use for endpoint communication"
 :type: "string"
 Specify the path to the file that contains the TLS client certificate.
@@ -5197,6 +5485,7 @@ Specify the path to the file that contains the TLS client certificate.
 
 ```{config:option} cephobject.user.name storage-cephobject-pool-conf
 :defaultdesc: "`admin`"
+:scope: "global"
 :shortdesc: "The Ceph user to use"
 :type: "string"
 
@@ -5204,6 +5493,7 @@ Specify the path to the file that contains the TLS client certificate.
 
 ```{config:option} volatile.pool.pristine storage-cephobject-pool-conf
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether the `radosgw` `lxd-admin` user existed at creation time"
 :type: "string"
 
@@ -5213,6 +5503,7 @@ Specify the path to the file that contains the TLS client certificate.
 <!-- config group storage-dir-pool-conf start -->
 ```{config:option} rsync.bwlimit storage-dir-pool-conf
 :defaultdesc: "`0` (no limit)"
+:scope: "global"
 :shortdesc: "Upper limit on the socket I/O for `rsync`"
 :type: "string"
 When `rsync` must be used to transfer storage entities, this option specifies the upper limit
@@ -5221,12 +5512,14 @@ to be placed on the socket I/O.
 
 ```{config:option} rsync.compression storage-dir-pool-conf
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether to use compression while migrating storage pools"
 :type: "bool"
 
 ```
 
 ```{config:option} source storage-dir-pool-conf
+:scope: "local"
 :shortdesc: "Path to an existing directory"
 :type: "string"
 
@@ -5235,8 +5528,9 @@ to be placed on the socket I/O.
 <!-- config group storage-dir-pool-conf end -->
 <!-- config group storage-dir-volume-conf start -->
 ```{config:option} security.shared storage-dir-volume-conf
-:condition: "custom block volume"
+:condition: "virtual-machine or custom block volume"
 :defaultdesc: "same as `volume.security.shared` or `false`"
+:scope: "global"
 :shortdesc: "Enable volume sharing"
 :type: "bool"
 Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
@@ -5246,6 +5540,7 @@ Enabling this option allows sharing the volume across multiple instances despite
 ```{config:option} security.shifted storage-dir-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
+:scope: "global"
 :shortdesc: "Enable ID shifting overlay"
 :type: "bool"
 Enabling this option allows attaching the volume to multiple isolated instances.
@@ -5254,6 +5549,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} security.unmapped storage-dir-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.unmappped` or `false`"
+:scope: "global"
 :shortdesc: "Disable ID mapping for the volume"
 :type: "bool"
 
@@ -5262,6 +5558,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} size storage-dir-volume-conf
 :condition: "appropriate driver"
 :defaultdesc: "same as `volume.size`"
+:scope: "global"
 :shortdesc: "Size/quota of the storage volume"
 :type: "string"
 
@@ -5270,6 +5567,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} snapshots.expiry storage-dir-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
+:scope: "global"
 :shortdesc: "When snapshots are to be deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
@@ -5278,6 +5576,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```{config:option} snapshots.pattern storage-dir-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.pattern` or `snap%d`"
+:scope: "global"
 :shortdesc: "Template for the snapshot name"
 :type: "string"
 You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.
@@ -5297,13 +5596,29 @@ This number is then incremented by one for the new name.
 ```{config:option} snapshots.schedule storage-dir-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `snapshots.schedule`"
+:scope: "global"
 :shortdesc: "Schedule for automatic volume snapshots"
 :type: "string"
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
 ```
 
+```{config:option} volatile.idmap.last storage-dir-volume-conf
+:condition: "filesystem"
+:shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
+```{config:option} volatile.idmap.next storage-dir-volume-conf
+:condition: "filesystem"
+:shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
 ```{config:option} volatile.uuid storage-dir-volume-conf
 :defaultdesc: "random UUID"
+:scope: "global"
 :shortdesc: "The volume's UUID"
 :type: "string"
 
@@ -5314,6 +5629,7 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 ```{config:option} size storage-lvm-bucket-conf
 :condition: "appropriate driver"
 :defaultdesc: "same as `volume.size`"
+:scope: "local"
 :shortdesc: "Size/quota of the storage bucket"
 :type: "string"
 
@@ -5323,6 +5639,7 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 <!-- config group storage-lvm-pool-conf start -->
 ```{config:option} lvm.thinpool_metadata_size storage-lvm-pool-conf
 :defaultdesc: "`0` (auto)"
+:scope: "global"
 :shortdesc: "The size of the thin pool metadata volume"
 :type: "string"
 By default, LVM calculates an appropriate size.
@@ -5330,6 +5647,7 @@ By default, LVM calculates an appropriate size.
 
 ```{config:option} lvm.thinpool_name storage-lvm-pool-conf
 :defaultdesc: "`LXDThinPool`"
+:scope: "local"
 :shortdesc: "Thin pool where volumes are created"
 :type: "string"
 
@@ -5337,6 +5655,7 @@ By default, LVM calculates an appropriate size.
 
 ```{config:option} lvm.use_thinpool storage-lvm-pool-conf
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether the storage pool uses a thin pool for logical volumes"
 :type: "bool"
 
@@ -5344,6 +5663,7 @@ By default, LVM calculates an appropriate size.
 
 ```{config:option} lvm.vg.force_reuse storage-lvm-pool-conf
 :defaultdesc: "`false`"
+:scope: "global"
 :shortdesc: "Force using an existing non-empty volume group"
 :type: "bool"
 
@@ -5351,6 +5671,7 @@ By default, LVM calculates an appropriate size.
 
 ```{config:option} lvm.vg_name storage-lvm-pool-conf
 :defaultdesc: "name of the pool"
+:scope: "local"
 :shortdesc: "Name of the volume group to create"
 :type: "string"
 
@@ -5358,6 +5679,7 @@ By default, LVM calculates an appropriate size.
 
 ```{config:option} rsync.bwlimit storage-lvm-pool-conf
 :defaultdesc: "`0` (no limit)"
+:scope: "global"
 :shortdesc: "Upper limit on the socket I/O for `rsync`"
 :type: "string"
 When `rsync` must be used to transfer storage entities, this option specifies the upper limit
@@ -5366,6 +5688,7 @@ to be placed on the socket I/O.
 
 ```{config:option} rsync.compression storage-lvm-pool-conf
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether to use compression while migrating storage pools"
 :type: "bool"
 
@@ -5373,6 +5696,7 @@ to be placed on the socket I/O.
 
 ```{config:option} size storage-lvm-pool-conf
 :defaultdesc: "auto (20% of free disk space, >= 5 GiB and <= 30 GiB)"
+:scope: "local"
 :shortdesc: "Size of the storage pool (for loop-based pools)"
 :type: "string"
 When creating loop-based pools, specify the size in bytes ({ref}`suffixes <instances-limit-units>` are supported).
@@ -5383,6 +5707,7 @@ with a minimum of 5 GiB and a maximum of 30 GiB.
 ```
 
 ```{config:option} source storage-lvm-pool-conf
+:scope: "local"
 :shortdesc: "Path to an existing block device, loop file, or LVM volume group"
 :type: "string"
 
@@ -5390,6 +5715,7 @@ with a minimum of 5 GiB and a maximum of 30 GiB.
 
 ```{config:option} source.wipe storage-lvm-pool-conf
 :defaultdesc: "`false`"
+:scope: "local"
 :shortdesc: "Whether to wipe the block device before creating the pool"
 :type: "bool"
 Set this option to `true` to wipe the block device specified in `source`
@@ -5401,6 +5727,7 @@ prior to creating the storage pool.
 ```{config:option} block.filesystem storage-lvm-volume-conf
 :condition: "block-based volume with content type `filesystem`"
 :defaultdesc: "same as `volume.block.filesystem`"
+:scope: "global"
 :shortdesc: "File system of the storage volume"
 :type: "string"
 Valid options are: `btrfs`, `ext4`, `xfs`
@@ -5410,6 +5737,7 @@ If not set, `ext4` is assumed.
 ```{config:option} block.mount_options storage-lvm-volume-conf
 :condition: "block-based volume with content type `filesystem`"
 :defaultdesc: "same as `volume.block.mount_options`"
+:scope: "global"
 :shortdesc: "Mount options for block-backed file system volumes"
 :type: "string"
 
@@ -5417,6 +5745,7 @@ If not set, `ext4` is assumed.
 
 ```{config:option} lvm.stripes storage-lvm-volume-conf
 :defaultdesc: "same as `volume.lvm.stripes`"
+:scope: "global"
 :shortdesc: "Number of stripes to use for new volumes (or thin pool volume)"
 :type: "string"
 
@@ -5424,14 +5753,16 @@ If not set, `ext4` is assumed.
 
 ```{config:option} lvm.stripes.size storage-lvm-volume-conf
 :defaultdesc: "same as `volume.lvm.stripes.size`"
+:scope: "global"
 :shortdesc: "Size of stripes to use"
 :type: "string"
 The size must be at least 4096 bytes, and a multiple of 512 bytes.
 ```
 
 ```{config:option} security.shared storage-lvm-volume-conf
-:condition: "custom block volume"
+:condition: "virtual-machine or custom block volume"
 :defaultdesc: "same as `volume.security.shared` or `false`"
+:scope: "global"
 :shortdesc: "Enable volume sharing"
 :type: "bool"
 Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
@@ -5441,6 +5772,7 @@ Enabling this option allows sharing the volume across multiple instances despite
 ```{config:option} security.shifted storage-lvm-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
+:scope: "global"
 :shortdesc: "Enable ID shifting overlay"
 :type: "bool"
 Enabling this option allows attaching the volume to multiple isolated instances.
@@ -5449,6 +5781,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} security.unmapped storage-lvm-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.unmappped` or `false`"
+:scope: "global"
 :shortdesc: "Disable ID mapping for the volume"
 :type: "bool"
 
@@ -5457,6 +5790,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} size storage-lvm-volume-conf
 :condition: "appropriate driver"
 :defaultdesc: "same as `volume.size`"
+:scope: "global"
 :shortdesc: "Size/quota of the storage volume"
 :type: "string"
 
@@ -5465,6 +5799,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} snapshots.expiry storage-lvm-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
+:scope: "global"
 :shortdesc: "When snapshots are to be deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
@@ -5473,6 +5808,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```{config:option} snapshots.pattern storage-lvm-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.pattern` or `snap%d`"
+:scope: "global"
 :shortdesc: "Template for the snapshot name"
 :type: "string"
 You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.
@@ -5492,13 +5828,29 @@ This number is then incremented by one for the new name.
 ```{config:option} snapshots.schedule storage-lvm-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `snapshots.schedule`"
+:scope: "global"
 :shortdesc: "Schedule for automatic volume snapshots"
 :type: "string"
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
 ```
 
+```{config:option} volatile.idmap.last storage-lvm-volume-conf
+:condition: "filesystem"
+:shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
+```{config:option} volatile.idmap.next storage-lvm-volume-conf
+:condition: "filesystem"
+:shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
 ```{config:option} volatile.uuid storage-lvm-volume-conf
 :defaultdesc: "random UUID"
+:scope: "global"
 :shortdesc: "The volume's UUID"
 :type: "string"
 
@@ -5508,6 +5860,7 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 <!-- config group storage-powerflex-pool-conf start -->
 ```{config:option} powerflex.clone_copy storage-powerflex-pool-conf
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether to use non-sparse copies for snapshots"
 :type: "bool"
 If this option is set to `true`, PowerFlex makes a non-sparse copy when creating a snapshot of an instance or custom volume.
@@ -5515,12 +5868,14 @@ See {ref}`storage-powerflex-limitations` for more information.
 ```
 
 ```{config:option} powerflex.domain storage-powerflex-pool-conf
+:scope: "global"
 :shortdesc: "Name of the PowerFlex protection domain"
 :type: "string"
 This option is required only if {config:option}`storage-powerflex-pool-conf:powerflex.pool` is specified using its name.
 ```
 
 ```{config:option} powerflex.gateway storage-powerflex-pool-conf
+:scope: "global"
 :shortdesc: "Address of the PowerFlex Gateway"
 :type: "string"
 
@@ -5528,6 +5883,7 @@ This option is required only if {config:option}`storage-powerflex-pool-conf:powe
 
 ```{config:option} powerflex.gateway.verify storage-powerflex-pool-conf
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether to verify the PowerFlex Gateway's certificate"
 :type: "bool"
 
@@ -5535,6 +5891,7 @@ This option is required only if {config:option}`storage-powerflex-pool-conf:powe
 
 ```{config:option} powerflex.mode storage-powerflex-pool-conf
 :defaultdesc: "the discovered mode"
+:scope: "global"
 :shortdesc: "How volumes are mapped to the local server"
 :type: "string"
 The mode gets discovered automatically if the system provides the necessary kernel modules.
@@ -5542,26 +5899,29 @@ This can be either `nvme` or `sdc`.
 ```
 
 ```{config:option} powerflex.pool storage-powerflex-pool-conf
+:scope: "global"
 :shortdesc: "ID of the PowerFlex storage pool"
 :type: "string"
 If you want to specify the storage pool via its name, also set {config:option}`storage-powerflex-pool-conf:powerflex.domain`.
 ```
 
 ```{config:option} powerflex.sdt storage-powerflex-pool-conf
-:defaultdesc: "one of the SDT"
-:shortdesc: "PowerFlex NVMe/TCP SDT"
+:scope: "global"
+:shortdesc: "Comma separated list of PowerFlex NVMe/TCP SDTs"
 :type: "string"
 
 ```
 
 ```{config:option} powerflex.user.name storage-powerflex-pool-conf
 :defaultdesc: "`admin`"
+:scope: "global"
 :shortdesc: "User for PowerFlex Gateway authentication"
 :type: "string"
-
+Must have at least SystemAdmin role to give LXD full control over managed storage pools.
 ```
 
 ```{config:option} powerflex.user.password storage-powerflex-pool-conf
+:scope: "global"
 :shortdesc: "Password for PowerFlex Gateway authentication"
 :type: "string"
 
@@ -5569,6 +5929,7 @@ If you want to specify the storage pool via its name, also set {config:option}`s
 
 ```{config:option} rsync.bwlimit storage-powerflex-pool-conf
 :defaultdesc: "`0` (no limit)"
+:scope: "global"
 :shortdesc: "Upper limit on the socket I/O for `rsync`"
 :type: "string"
 When `rsync` must be used to transfer storage entities, this option specifies the upper limit
@@ -5577,6 +5938,7 @@ to be placed on the socket I/O.
 
 ```{config:option} rsync.compression storage-powerflex-pool-conf
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether to use compression while migrating storage pools"
 :type: "bool"
 
@@ -5584,6 +5946,7 @@ to be placed on the socket I/O.
 
 ```{config:option} volume.size storage-powerflex-pool-conf
 :defaultdesc: "`8GiB`"
+:scope: "global"
 :shortdesc: "Size/quota of the storage volume"
 :type: "string"
 The size must be in multiples of 8 GiB.
@@ -5595,6 +5958,7 @@ See {ref}`storage-powerflex-limitations` for more information.
 ```{config:option} block.filesystem storage-powerflex-volume-conf
 :condition: "block-based volume with content type `filesystem`"
 :defaultdesc: "same as `volume.block.filesystem`"
+:scope: "global"
 :shortdesc: "File system of the storage volume"
 :type: "string"
 Valid options are: `btrfs`, `ext4`, `xfs`
@@ -5604,6 +5968,7 @@ If not set, `ext4` is assumed.
 ```{config:option} block.mount_options storage-powerflex-volume-conf
 :condition: "block-based volume with content type `filesystem`"
 :defaultdesc: "same as `volume.block.mount_options`"
+:scope: "global"
 :shortdesc: "Mount options for block-backed file system volumes"
 :type: "string"
 
@@ -5611,14 +5976,16 @@ If not set, `ext4` is assumed.
 
 ```{config:option} block.type storage-powerflex-volume-conf
 :defaultdesc: "same as `volume.block.type` or `thick`"
+:scope: "global"
 :shortdesc: "Whether to create a `thin` or `thick` provisioned volume"
 :type: "string"
 
 ```
 
 ```{config:option} security.shared storage-powerflex-volume-conf
-:condition: "custom block volume"
+:condition: "virtual-machine or custom block volume"
 :defaultdesc: "same as `volume.security.shared` or `false`"
+:scope: "global"
 :shortdesc: "Enable volume sharing"
 :type: "bool"
 Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
@@ -5628,6 +5995,7 @@ Enabling this option allows sharing the volume across multiple instances despite
 ```{config:option} security.shifted storage-powerflex-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
+:scope: "global"
 :shortdesc: "Enable ID shifting overlay"
 :type: "bool"
 Enabling this option allows attaching the volume to multiple isolated instances.
@@ -5636,6 +6004,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} security.unmapped storage-powerflex-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.unmappped` or `false`"
+:scope: "global"
 :shortdesc: "Disable ID mapping for the volume"
 :type: "bool"
 
@@ -5643,6 +6012,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 
 ```{config:option} size storage-powerflex-volume-conf
 :defaultdesc: "same as `volume.size`"
+:scope: "global"
 :shortdesc: "Size/quota of the storage volume"
 :type: "string"
 The size must be in multiples of 8 GiB.
@@ -5652,6 +6022,7 @@ See {ref}`storage-powerflex-limitations` for more information.
 ```{config:option} snapshots.expiry storage-powerflex-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
+:scope: "global"
 :shortdesc: "When snapshots are to be deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
@@ -5660,6 +6031,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```{config:option} snapshots.pattern storage-powerflex-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.pattern` or `snap%d`"
+:scope: "global"
 :shortdesc: "Template for the snapshot name"
 :type: "string"
 You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.
@@ -5679,23 +6051,155 @@ This number is then incremented by one for the new name.
 ```{config:option} snapshots.schedule storage-powerflex-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `snapshots.schedule`"
+:scope: "global"
 :shortdesc: "Schedule for automatic volume snapshots"
 :type: "string"
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
 ```
 
+```{config:option} volatile.idmap.last storage-powerflex-volume-conf
+:condition: "filesystem"
+:shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
+```{config:option} volatile.idmap.next storage-powerflex-volume-conf
+:condition: "filesystem"
+:shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
 ```{config:option} volatile.uuid storage-powerflex-volume-conf
 :defaultdesc: "random UUID"
+:scope: "global"
 :shortdesc: "The volume's UUID"
 :type: "string"
 
 ```
 
 <!-- config group storage-powerflex-volume-conf end -->
+<!-- config group storage-pure-pool-conf start -->
+```{config:option} pure.api.token storage-pure-pool-conf
+:shortdesc: "API authorization token for Pure Storage gateway"
+:type: "string"
+API authorization token for Pure Storage gateway. Must have array_admin role to give LXD full control over managed storage pools (Pure Storage pods).
+```
+
+```{config:option} pure.gateway storage-pure-pool-conf
+:shortdesc: "Address of the Pure Storage gateway"
+:type: "string"
+
+```
+
+```{config:option} pure.gateway.verify storage-pure-pool-conf
+:defaultdesc: "`true`"
+:shortdesc: "Whether to verify the Pure Storage gateway's certificate"
+:type: "bool"
+
+```
+
+```{config:option} pure.mode storage-pure-pool-conf
+:defaultdesc: "the discovered mode"
+:shortdesc: "How volumes are mapped to the local server"
+:type: "string"
+The mode to use to map Pure Storage volumes to the local server.
+Supported values are `iscsi` and `nvme`.
+```
+
+```{config:option} pure.target storage-pure-pool-conf
+:defaultdesc: "the discovered mode"
+:shortdesc: "List of target addresses."
+:type: "string"
+A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
+```
+
+```{config:option} volume.size storage-pure-pool-conf
+:defaultdesc: "`10GiB`"
+:shortdesc: "Size/quota of the storage volume"
+:type: "string"
+Default Pure Storage volume size rounded to 512B. The minimum size is 1MiB.
+```
+
+<!-- config group storage-pure-pool-conf end -->
+<!-- config group storage-pure-volume-conf start -->
+```{config:option} block.filesystem storage-pure-volume-conf
+:condition: "block-based volume with content type `filesystem`"
+:defaultdesc: "same as `volume.block.filesystem`"
+:shortdesc: "File system of the storage volume"
+:type: "string"
+Valid options are: `btrfs`, `ext4`, `xfs`
+If not set, `ext4` is assumed.
+```
+
+```{config:option} block.mount_options storage-pure-volume-conf
+:condition: "block-based volume with content type `filesystem`"
+:defaultdesc: "same as `volume.block.mount_options`"
+:shortdesc: "Mount options for block-backed file system volumes"
+:type: "string"
+
+```
+
+```{config:option} size storage-pure-volume-conf
+:defaultdesc: "same as `volume.size`"
+:shortdesc: "Size/quota of the storage volume"
+:type: "string"
+Default Pure Storage volume size rounded to 512B. The minimum size is 1MiB.
+```
+
+```{config:option} snapshots.expiry storage-pure-volume-conf
+:condition: "custom volume"
+:defaultdesc: "same as `volume.snapshots.expiry`"
+:scope: "global"
+:shortdesc: "When snapshots are to be deleted"
+:type: "string"
+Specify an expression like `1M 2H 3d 4w 5m 6y`.
+```
+
+```{config:option} snapshots.pattern storage-pure-volume-conf
+:condition: "custom volume"
+:defaultdesc: "same as `volume.snapshots.pattern` or `snap%d`"
+:scope: "global"
+:shortdesc: "Template for the snapshot name"
+:type: "string"
+You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.
+
+The `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.
+
+To add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.
+Make sure to format the date in your template string to avoid forbidden characters in the snapshot name.
+For example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.
+
+Another way to avoid name collisions is to use the placeholder `%d` in the pattern.
+For the first snapshot, the placeholder is replaced with `0`.
+For subsequent snapshots, the existing snapshot names are taken into account to find the highest number at the placeholder's position.
+This number is then incremented by one for the new name.
+```
+
+```{config:option} snapshots.schedule storage-pure-volume-conf
+:condition: "custom volume"
+:defaultdesc: "same as `snapshots.schedule`"
+:scope: "global"
+:shortdesc: "Schedule for automatic volume snapshots"
+:type: "string"
+Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
+```
+
+```{config:option} volatile.uuid storage-pure-volume-conf
+:defaultdesc: "random UUID"
+:scope: "global"
+:shortdesc: "The volume's UUID"
+:type: "string"
+
+```
+
+<!-- config group storage-pure-volume-conf end -->
 <!-- config group storage-zfs-bucket-conf start -->
 ```{config:option} size storage-zfs-bucket-conf
 :condition: "appropriate driver"
 :defaultdesc: "same as `volume.size`"
+:scope: "local"
 :shortdesc: "Size/quota of the storage bucket"
 :type: "string"
 
@@ -5705,6 +6209,7 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 <!-- config group storage-zfs-pool-conf start -->
 ```{config:option} size storage-zfs-pool-conf
 :defaultdesc: "auto (20% of free disk space, >= 5 GiB and <= 30 GiB)"
+:scope: "local"
 :shortdesc: "Size of the storage pool (for loop-based pools)"
 :type: "string"
 When creating loop-based pools, specify the size in bytes ({ref}`suffixes <instances-limit-units>` are supported).
@@ -5715,6 +6220,7 @@ with a minimum of 5 GiB and a maximum of 30 GiB.
 ```
 
 ```{config:option} source storage-zfs-pool-conf
+:scope: "local"
 :shortdesc: "Path to an existing block device, loop file, or ZFS dataset/pool"
 :type: "string"
 
@@ -5722,6 +6228,7 @@ with a minimum of 5 GiB and a maximum of 30 GiB.
 
 ```{config:option} source.wipe storage-zfs-pool-conf
 :defaultdesc: "`false`"
+:scope: "local"
 :shortdesc: "Whether to wipe the block device before creating the pool"
 :type: "bool"
 Set this option to `true` to wipe the block device specified in `source`
@@ -5730,6 +6237,7 @@ prior to creating the storage pool.
 
 ```{config:option} zfs.clone_copy storage-zfs-pool-conf
 :defaultdesc: "`true`"
+:scope: "global"
 :shortdesc: "Whether to use ZFS lightweight clones"
 :type: "string"
 Set this option to `true` or `false` to enable or disable using ZFS lightweight clones rather
@@ -5739,13 +6247,15 @@ Set the option to `rebase` to copy based on the initial image.
 
 ```{config:option} zfs.export storage-zfs-pool-conf
 :defaultdesc: "`true`"
-:shortdesc: "Disable zpool export while an unmount is being performed"
+:scope: "global"
+:shortdesc: "Whether to export the zpool when an unmount is being performed"
 :type: "bool"
 
 ```
 
 ```{config:option} zfs.pool_name storage-zfs-pool-conf
 :defaultdesc: "name of the pool"
+:scope: "local"
 :shortdesc: "Name of the zpool"
 :type: "string"
 
@@ -5756,6 +6266,7 @@ Set the option to `rebase` to copy based on the initial image.
 ```{config:option} block.filesystem storage-zfs-volume-conf
 :condition: "block-based volume with content type `filesystem` (`zfs.block_mode` enabled)"
 :defaultdesc: "same as `volume.block.filesystem`"
+:scope: "global"
 :shortdesc: "File system of the storage volume"
 :type: "string"
 Valid options are: `btrfs`, `ext4`, `xfs`
@@ -5765,14 +6276,16 @@ If not set, `ext4` is assumed.
 ```{config:option} block.mount_options storage-zfs-volume-conf
 :condition: "block-based volume with content type `filesystem` (`zfs.block_mode` enabled)"
 :defaultdesc: "same as `volume.block.mount_options`"
+:scope: "global"
 :shortdesc: "Mount options for block-backed file system volumes"
 :type: "string"
 
 ```
 
 ```{config:option} security.shared storage-zfs-volume-conf
-:condition: "custom block volume"
+:condition: "virtual-machine or custom block volume"
 :defaultdesc: "same as `volume.security.shared` or `false`"
+:scope: "global"
 :shortdesc: "Enable volume sharing"
 :type: "bool"
 Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
@@ -5782,6 +6295,7 @@ Enabling this option allows sharing the volume across multiple instances despite
 ```{config:option} security.shifted storage-zfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
+:scope: "global"
 :shortdesc: "Enable ID shifting overlay"
 :type: "bool"
 Enabling this option allows attaching the volume to multiple isolated instances.
@@ -5790,6 +6304,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} security.unmapped storage-zfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.unmappped` or `false`"
+:scope: "global"
 :shortdesc: "Disable ID mapping for the volume"
 :type: "bool"
 
@@ -5798,6 +6313,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} size storage-zfs-volume-conf
 :condition: "appropriate driver"
 :defaultdesc: "same as `volume.size`"
+:scope: "global"
 :shortdesc: "Size/quota of the storage volume"
 :type: "string"
 
@@ -5806,6 +6322,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 ```{config:option} snapshots.expiry storage-zfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
+:scope: "global"
 :shortdesc: "When snapshots are to be deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
@@ -5814,6 +6331,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```{config:option} snapshots.pattern storage-zfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.pattern` or `snap%d`"
+:scope: "global"
 :shortdesc: "Template for the snapshot name"
 :type: "string"
 You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.
@@ -5833,13 +6351,29 @@ This number is then incremented by one for the new name.
 ```{config:option} snapshots.schedule storage-zfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `snapshots.schedule`"
+:scope: "global"
 :shortdesc: "Schedule for automatic volume snapshots"
 :type: "string"
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
 ```
 
+```{config:option} volatile.idmap.last storage-zfs-volume-conf
+:condition: "filesystem"
+:shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
+```{config:option} volatile.idmap.next storage-zfs-volume-conf
+:condition: "filesystem"
+:shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
 ```{config:option} volatile.uuid storage-zfs-volume-conf
 :defaultdesc: "random UUID"
+:scope: "global"
 :shortdesc: "The volume's UUID"
 :type: "string"
 
@@ -5847,6 +6381,7 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 
 ```{config:option} zfs.block_mode storage-zfs-volume-conf
 :defaultdesc: "same as `volume.zfs.block_mode`"
+:scope: "global"
 :shortdesc: "Whether to use a formatted `zvol` rather than a dataset"
 :type: "bool"
 `zfs.block_mode` can be set only for custom storage volumes.
@@ -5856,6 +6391,7 @@ use `volume.zfs.block_mode`.
 
 ```{config:option} zfs.blocksize storage-zfs-volume-conf
 :defaultdesc: "same as `volume.zfs.blocksize`"
+:scope: "global"
 :shortdesc: "Size of the ZFS block"
 :type: "string"
 The size must be between 512 bytes and 16 MiB and must be a power of 2.
@@ -5868,6 +6404,7 @@ the specified size is used to set either `volblocksize` or `recordsize` in ZFS.
 ```{config:option} zfs.delegate storage-zfs-volume-conf
 :condition: "ZFS 2.2 or higher"
 :defaultdesc: "same as `volume.zfs.delegate`"
+:scope: "global"
 :shortdesc: "Whether to delegate the ZFS dataset"
 :type: "bool"
 This option controls whether to delegate the ZFS dataset and anything underneath it to the
@@ -5878,6 +6415,7 @@ using the `zfs` command in the container.
 
 ```{config:option} zfs.remove_snapshots storage-zfs-volume-conf
 :defaultdesc: "same as `volume.zfs.remove_snapshots` or `false`"
+:scope: "global"
 :shortdesc: "Remove snapshots as needed"
 :type: "bool"
 
@@ -5885,6 +6423,7 @@ using the `zfs` command in the container.
 
 ```{config:option} zfs.reserve_space storage-zfs-volume-conf
 :defaultdesc: "same as `volume.zfs.reserve_space` or `false`"
+:scope: "global"
 :shortdesc: "Use `reservation`/`refreservation` along with `quota`/`refquota`"
 :type: "bool"
 
@@ -5892,6 +6431,7 @@ using the `zfs` command in the container.
 
 ```{config:option} zfs.use_refquota storage-zfs-volume-conf
 :defaultdesc: "same as `volume.zfs.use_refquota` or `false`"
+:scope: "global"
 :shortdesc: "Use `refquota` instead of `quota` for space"
 :type: "bool"
 

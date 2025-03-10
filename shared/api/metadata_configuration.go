@@ -64,6 +64,12 @@ type MetadataConfigurationConfigKey struct {
 	//
 	// Example: yes.
 	Managed string `json:"managed"`
+
+	// Scope describes the cluster member specificity of a configuration key. Options marked with a `global` scope are applied to all cluster members. Options marked with a `local` scope are set on a per-member basis.
+	//
+	// Example: global
+	// API extension: metadata_configuration_scope
+	Scope string `json:"scope" yaml:"scope"`
 }
 
 // MetadataConfigurationEntity contains metadata about LXD server entities and available entitlements for authorization.

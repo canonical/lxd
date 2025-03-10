@@ -79,6 +79,7 @@ type InstanceServer interface {
 	GetServerResources() (resources *api.Resources, err error)
 	UpdateServer(server api.ServerPut, ETag string) (err error)
 	HasExtension(extension string) (exists bool)
+	CheckExtension(extension string) (err error)
 	RequireAuthenticated(authenticated bool)
 	IsClustered() (clustered bool)
 	UseTarget(name string) (client InstanceServer)
@@ -243,6 +244,8 @@ type InstanceServer interface {
 	UpdateImageAlias(name string, alias api.ImageAliasesEntryPut, ETag string) (err error)
 	RenameImageAlias(name string, alias api.ImageAliasesEntryPost) (err error)
 	DeleteImageAlias(name string) (err error)
+	GetImagesAllProjects() (images []api.Image, err error)
+	GetImagesAllProjectsWithFilter(filters []string) (images []api.Image, err error)
 
 	// Network functions ("network" API extension)
 	GetNetworkNames() (names []string, err error)
@@ -293,6 +296,7 @@ type InstanceServer interface {
 	GetNetworkAllocations(allProjects bool) (allocations []api.NetworkAllocations, err error)
 
 	// Network zone functions ("network_dns" API extension)
+	GetNetworkZonesAllProjects() (zones []api.NetworkZone, err error)
 	GetNetworkZoneNames() (names []string, err error)
 	GetNetworkZones() (zones []api.NetworkZone, err error)
 	GetNetworkZone(name string) (zone *api.NetworkZone, ETag string, err error)
@@ -318,6 +322,7 @@ type InstanceServer interface {
 	DeleteOperation(uuid string) (err error)
 
 	// Profile functions
+	GetProfilesAllProjects() (profiles []api.Profile, err error)
 	GetProfileNames() (names []string, err error)
 	GetProfiles() (profiles []api.Profile, err error)
 	GetProfile(name string) (profile *api.Profile, ETag string, err error)

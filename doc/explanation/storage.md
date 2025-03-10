@@ -24,6 +24,7 @@ The following storage drivers are supported:
 - [CephFS - `cephfs`](storage-cephfs)
 - [Ceph Object - `cephobject`](storage-cephobject)
 - [Dell PowerFlex - `powerflex`](storage-powerflex)
+- [Pure Storage - `pure`](storage-pure)
 
 See the following how-to guides for additional information:
 
@@ -36,12 +37,12 @@ See the following how-to guides for additional information:
 Where the LXD data is stored depends on the configuration and the selected storage driver.
 Depending on the storage driver that is used, LXD can either share the file system with its host or keep its data separate.
 
-Storage location         | Directory | Btrfs    | LVM      | ZFS      | Ceph (all) | Dell PowerFlex |
-:---                     | :-:       | :-:      | :-:      | :-:      | :-:        | :-:            |
-Shared with the host     | &#x2713;  | &#x2713; | -        | &#x2713; | -          | -              |
-Dedicated disk/partition | -         | &#x2713; | &#x2713; | &#x2713; | -          | -              |
-Loop disk                | -         | &#x2713; | &#x2713; | &#x2713; | -          | -              |
-Remote storage           | -         | -        | -        | -        | &#x2713;   | &#x2713;       |
+Storage location         | Directory | Btrfs    | LVM      | ZFS      | Ceph (all) | Dell PowerFlex | Pure Storage |
+:---                     | :-:       | :-:      | :-:      | :-:      | :-:        | :-:            | :-:         |
+Shared with the host     | &#x2713;  | &#x2713; | -        | &#x2713; | -          | -              | -           |
+Dedicated disk/partition | -         | &#x2713; | &#x2713; | &#x2713; | -          | -              | -           |
+Loop disk                | -         | &#x2713; | &#x2713; | &#x2713; | -          | -              | -           |
+Remote storage           | -         | -        | -        | -        | &#x2713;   | &#x2713;       | &#x2713;    |
 
 #### Shared with the host
 
@@ -71,7 +72,7 @@ You can increase their size (quota) though; see {ref}`storage-resize-pool`.
 #### Remote storage
 
 The `ceph`, `cephfs` and `cephobject` drivers store the data in a completely independent Ceph storage cluster that must be set up separately.
-The same applies to the `powerflex` driver.
+The same applies to the `powerflex` and `pure` drivers.
 
 (storage-default-pool)=
 ### Default storage pool
@@ -120,10 +121,10 @@ Storage volumes can be of the following types:
 
 `container`/`virtual-machine`
 : LXD automatically creates one of these storage volumes when you launch an instance.
-  It is used as the root disk for the instance, and it is destroyed when the instance is deleted.
+  It is used as the root disk for the instance and is destroyed when the instance is deleted.
 
-  This storage volume is created in the storage pool that is specified in the profile used when launching the instance (or the default profile, if no profile is specified).
-  The storage pool can be explicitly specified by providing the `--storage` flag to the launch command.
+  The storage pool can be explicitly specified by providing the `--storage` flag to the {ref}`launch command <lxc_launch.md>`.
+  If no pool or profile is specified, LXD uses the storage pool of the default profile's root disk device.
 
 `image`
 : LXD automatically creates one of these storage volumes when it unpacks an image to launch one or more instances from it.
@@ -157,7 +158,7 @@ Each storage volume uses one of the following content types:
 
   Custom storage volumes of content type `block` can only be attached to virtual machines.
   By default, they can only be attached to one instance at a time, because simultaneous access can lead to data corruption.
-  Sharing a custom storage volumes of content type `block` is made possible through the usage of the `security.shared` configuration key.
+  Sharing custom storage volumes of content type `block` is made possible through the usage of the `security.shared` configuration key.
 
 `iso`
 : This content type is used for custom ISO volumes.

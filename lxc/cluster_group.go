@@ -179,7 +179,7 @@ lxc cluster group create g1 < config.yaml
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(false)
+			return c.global.cmpRemotes(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -445,7 +445,7 @@ func (c *cmdClusterGroupList) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(false)
+			return c.global.cmpRemotes(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -493,7 +493,7 @@ func (c *cmdClusterGroupList) run(cmd *cobra.Command, args []string) error {
 	// Render the table
 	data := [][]string{}
 	for _, group := range groups {
-		line := []string{group.Name, group.Description, fmt.Sprintf("%d", len(group.Members))}
+		line := []string{group.Name, group.Description, fmt.Sprint(len(group.Members))}
 		data = append(data, line)
 	}
 

@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -67,6 +68,21 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 				devPath, err = d.GetVolumeDiskPath(vol)
 				if err != nil {
 					return err
+				}
+
+				// Check the block size for image volumes.
+				if vol.volType == VolumeTypeImage {
+					blockSize, err := block.DiskBlockSize(devPath)
+					if err != nil {
+						return err
+					}
+
+					// Our images are all built using 512 bytes physical block sizes.
+					// When those are written to a 4k physical block size device,
+					// the partition table makes no sense and leads to an unbootable VM.
+					if blockSize != 512 {
+						return fmt.Errorf("Underlying storage uses %d bytes sector size when virtual machine images require 512 bytes", blockSize)
+					}
 				}
 			}
 
@@ -314,6 +330,7 @@ func (d *lvm) commonVolumeRules() map[string]func(value string) error {
 		//  type: string
 		//  defaultdesc: same as `volume.lvm.stripes`
 		//  shortdesc: Number of stripes to use for new volumes (or thin pool volume)
+		//  scope: global
 		"lvm.stripes": validate.Optional(validate.IsUint32),
 		// lxdmeta:generate(entities=storage-lvm; group=volume-conf; key=lvm.stripes.size)
 		// The size must be at least 4096 bytes, and a multiple of 512 bytes.
@@ -321,6 +338,7 @@ func (d *lvm) commonVolumeRules() map[string]func(value string) error {
 		//  type: string
 		//  defaultdesc: same as `volume.lvm.stripes.size`
 		//  shortdesc: Size of stripes to use
+		//  scope: global
 		"lvm.stripes.size": validate.Optional(validate.IsSize),
 	}
 }
@@ -448,7 +466,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		return nil
 	}
 
-	l := d.logger.AddContext(logger.Ctx{"dev": volDevPath, "size": fmt.Sprintf("%db", sizeBytes)})
+	l := d.logger.AddContext(logger.Ctx{"dev": volDevPath, "size": strconv.FormatInt(sizeBytes, 10) + "b"})
 
 	inUse := vol.MountInUse()
 
@@ -630,7 +648,7 @@ func (d *lvm) ListVolumes() ([]Volume, error) {
 		var volName string
 
 		for _, volumeType := range d.Info().VolumeTypes {
-			prefix := fmt.Sprintf("%s_", volumeType)
+			prefix := string(volumeType) + "_"
 			if strings.HasPrefix(rawName, prefix) {
 				volType = volumeType
 				volName = strings.TrimPrefix(rawName, prefix)
@@ -1059,7 +1077,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 		regenerateFSUUID := renegerateFilesystemUUIDNeeded(snapVol.ConfigBlockFilesystem())
 		if regenerateFSUUID {
 			// Instantiate a new volume to be the temporary writable snapshot.
-			tmpVolName := fmt.Sprintf("%s%s", snapVol.name, tmpVolSuffix)
+			tmpVolName := snapVol.name + tmpVolSuffix
 			tmpVol := NewVolume(d, d.name, snapVol.volType, snapVol.contentType, tmpVolName, snapVol.config, snapVol.poolConfig)
 
 			// Create writable snapshot from source snapshot named with a tmpVolSuffix suffix.
@@ -1162,7 +1180,7 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 		d.logger.Debug("Unmounted logical volume snapshot", logger.Ctx{"path": mountPath})
 
 		// Check if a temporary snapshot exists, and if so remove it.
-		tmpVolName := fmt.Sprintf("%s%s", snapVol.name, tmpVolSuffix)
+		tmpVolName := snapVol.name + tmpVolSuffix
 		tmpVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, tmpVolName)
 		exists, err := d.logicalVolumeExists(tmpVolDevPath)
 		if err != nil {
@@ -1276,7 +1294,7 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation
 		}
 
 		originalVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], restoreVol.volType, restoreVol.contentType, restoreVol.name)
-		tmpVolName := fmt.Sprintf("%s%s", restoreVol.name, tmpVolSuffix)
+		tmpVolName := restoreVol.name + tmpVolSuffix
 		tmpVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], restoreVol.volType, restoreVol.contentType, tmpVolName)
 
 		reverter := revert.New()

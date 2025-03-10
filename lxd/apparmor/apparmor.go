@@ -1,6 +1,7 @@
 package apparmor
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -14,9 +15,9 @@ import (
 )
 
 const (
-	cmdLoad   = "r"
-	cmdUnload = "R"
-	cmdParse  = "Q"
+	cmdLoad   = "--replace"
+	cmdUnload = "--remove"
+	cmdParse  = "--skip-kernel-load"
 )
 
 var aaPath = shared.VarPath("security", "apparmor")
@@ -27,9 +28,9 @@ func runApparmor(sysOS *sys.OS, command string, name string) error {
 		return nil
 	}
 
-	_, err := shared.RunCommand("apparmor_parser", []string{
-		fmt.Sprintf("-%sWL", command),
-		filepath.Join(aaPath, "cache"),
+	_, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", []string{
+		command,
+		"--write-cache", "--cache-loc", filepath.Join(aaPath, "cache"),
 		filepath.Join(aaPath, "profiles", name),
 	}...)
 
@@ -210,7 +211,7 @@ func getVersion(sysOS *sys.OS) (*version.DottedVersion, error) {
 		return version.NewDottedVersion("0.0")
 	}
 
-	out, err := shared.RunCommand("apparmor_parser", "--version")
+	out, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", "--version")
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +243,7 @@ func getCacheDir(sysOS *sys.OS) (string, error) {
 		return basePath, nil
 	}
 
-	output, err := shared.RunCommand("apparmor_parser", "-L", basePath, "--print-cache-dir")
+	output, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", "-L", basePath, "--print-cache-dir")
 	if err != nil {
 		return "", err
 	}
@@ -265,8 +266,8 @@ func profileName(prefix string, name string) string {
 	}
 
 	if len(prefix) > 0 {
-		return fmt.Sprintf("lxd_%s-%s", prefix, name)
+		return "lxd_" + prefix + "-" + name
 	}
 
-	return fmt.Sprintf("lxd-%s", name)
+	return "lxd-" + name
 }

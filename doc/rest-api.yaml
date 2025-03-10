@@ -1,6 +1,15 @@
 definitions:
     AuthGroup:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             description:
                 description: Description is a short description of the group.
                 example: Viewers of instance c1 in the default project.
@@ -89,6 +98,15 @@ definitions:
     Certificate:
         description: Certificate represents a LXD certificate
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             certificate:
                 description: The certificate itself, as PEM encoded X509 certificate
                 example: X509 PEM certificate
@@ -757,6 +775,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     Identity:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             authentication_method:
                 description: |-
                     AuthenticationMethod is the authentication method that the identity
@@ -803,6 +830,15 @@ definitions:
     IdentityInfo:
         description: These fields can only be evaluated for the currently authenticated identity.
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             authentication_method:
                 description: |-
                     AuthenticationMethod is the authentication method that the identity
@@ -829,6 +865,12 @@ definitions:
                     $ref: '#/definitions/Permission'
                 type: array
                 x-go-name: EffectivePermissions
+            fine_grained:
+                description: |-
+                    FineGrained is a boolean indicating whether the identity is fine-grained,
+                    meaning that permissions are managed via group membership.
+                type: boolean
+                x-go-name: FineGrained
             groups:
                 description: Groups is the list of groups for which the identity is a member.
                 example:
@@ -867,6 +909,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     IdentityProviderGroup:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             groups:
                 description: Groups are the groups the IdP group resolves to.
                 example:
@@ -930,6 +981,15 @@ definitions:
     Image:
         description: Image represents a LXD image
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             aliases:
                 description: List of aliases
                 items:
@@ -987,6 +1047,11 @@ definitions:
                     type: string
                 type: array
                 x-go-name: Profiles
+            project:
+                description: Project name
+                example: project1
+                type: string
+                x-go-name: Project
             properties:
                 additionalProperties:
                     type: string
@@ -1041,6 +1106,15 @@ definitions:
     ImageAliasesEntry:
         description: ImageAliasesEntry represents a LXD image alias
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             description:
                 description: Alias description
                 example: Our preferred Ubuntu image
@@ -1091,6 +1165,15 @@ definitions:
     ImageAliasesPost:
         description: ImageAliasesPost represents a new LXD image alias
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             description:
                 description: Alias description
                 example: Our preferred Ubuntu image
@@ -1607,6 +1690,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     Instance:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             architecture:
                 description: Architecture name
                 example: x86_64
@@ -1890,6 +1982,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     InstanceFull:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             architecture:
                 description: Architecture name
                 example: x86_64
@@ -2511,13 +2612,13 @@ definitions:
     InstanceStateDisk:
         properties:
             total:
-                description: Total size in bytes
+                description: Total size in bytes. Uses 0 to convey that the instance has access to the entire pool's storage.
                 example: 502239232
                 format: int64
                 type: integer
                 x-go-name: Total
             usage:
-                description: Disk usage in bytes
+                description: Disk usage in bytes. Uses 0 to indicate that the storage driver for the pool does not support retrieving disk usage.
                 example: 502239232
                 format: int64
                 type: integer
@@ -2886,6 +2987,11 @@ definitions:
                 example: On device creation.
                 type: string
                 x-go-name: Required
+            scope:
+                description: Scope describes the cluster member specificity of a configuration key. Options marked with a `global` scope are applied to all cluster members. Options marked with a `local` scope are set on a per-member basis.
+                example: global
+                type: string
+                x-go-name: Scope
             shortdesc:
                 description: ShortDescription contains a short-form description of the configuration key.
                 example: A key for doing X.
@@ -2945,6 +3051,15 @@ definitions:
     Network:
         description: Network represents a LXD network
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
@@ -3009,6 +3124,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     NetworkACL:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
@@ -3223,6 +3347,7 @@ definitions:
                     type: string
                 description: Forward configuration map (refer to doc/network-forwards.md)
                 example:
+                    target_address: 198.51.100.99
                     user.mykey: foo
                 type: object
                 x-go-name: Config
@@ -3288,6 +3413,7 @@ definitions:
                     type: string
                 description: Forward configuration map (refer to doc/network-forwards.md)
                 example:
+                    target_address: 198.51.100.99
                     user.mykey: foo
                 type: object
                 x-go-name: Config
@@ -3312,6 +3438,7 @@ definitions:
                     type: string
                 description: Forward configuration map (refer to doc/network-forwards.md)
                 example:
+                    target_address: 198.51.100.99
                     user.mykey: foo
                 type: object
                 x-go-name: Config
@@ -3321,7 +3448,12 @@ definitions:
                 type: string
                 x-go-name: Description
             listen_address:
-                description: The listen address of the forward
+                description: |-
+                    The listen address of the forward
+                    For OVN networks only, you can dynamically allocate the listen address from a pre-defined range.
+                    To do so for an IPv4 address, provide a listen_address of `0.0.0.0`.
+                    For an IPv6 address, provide a listen_address of `::`.
+                    These are equivalent to the `allocate=ipv{4|6}` flag used to create a network forward via the CLI.
                 example: 192.0.2.1
                 type: string
                 x-go-name: ListenAddress
@@ -3871,6 +4003,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     NetworkZone:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
@@ -3889,6 +4030,11 @@ definitions:
                 example: example.net
                 type: string
                 x-go-name: Name
+            project:
+                description: Project name
+                example: project1
+                type: string
+                x-go-name: Project
             used_by:
                 description: List of URLs of objects using this network zone
                 example:
@@ -4213,6 +4359,15 @@ definitions:
     Profile:
         description: Profile represents a LXD profile
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
@@ -4250,6 +4405,11 @@ definitions:
                 readOnly: true
                 type: string
                 x-go-name: Name
+            project:
+                description: Project name
+                example: project1
+                type: string
+                x-go-name: Project
             used_by:
                 description: List of URLs of objects using this profile
                 example:
@@ -4352,6 +4512,15 @@ definitions:
     Project:
         description: Project represents a LXD project
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
@@ -4472,6 +4641,16 @@ definitions:
                 example: foo
                 type: string
                 x-go-name: Name
+            network:
+                description: Add a network device connected to the specified network to the default profile
+                example: lxdbr0
+                type: string
+                x-go-name: Network
+            storage:
+                description: Add a root disk device using the specified storage pool to the default profile
+                example: default
+                type: string
+                x-go-name: StoragePool
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     Resources:
@@ -5718,6 +5897,15 @@ definitions:
     Server:
         description: Server represents a LXD server
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             api_extensions:
                 description: List of supported API extensions
                 example:
@@ -6034,6 +6222,15 @@ definitions:
     StorageBucket:
         description: StorageBucket represents the fields of a LXD storage pool bucket
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
@@ -6192,6 +6389,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     StoragePool:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
@@ -6377,6 +6583,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     StorageVolume:
         properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
             config:
                 additionalProperties:
                     type: string
@@ -6688,13 +6903,13 @@ definitions:
         description: StorageVolumeStateUsage represents the disk usage of a volume
         properties:
             total:
-                description: Storage volume size in bytes
+                description: Storage volume size in bytes. Uses 0 to convey that the volume has access to the entire pool's storage.
                 example: 5189222192
                 format: int64
                 type: integer
                 x-go-name: Total
             used:
-                description: Used space in bytes
+                description: Used space in bytes. Uses 0 to indicate that the storage driver for the pool does not support retrieving volume usage.
                 example: 1693552640
                 format: uint64
                 type: integer
@@ -6813,6 +7028,21 @@ definitions:
                 type: string
                 x-go-name: Status
         title: WarningPut represents the modifiable fields of a warning.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    WithEntitlements:
+        description: that is, entities that can have access entitlements granted to the requesting user.
+        properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
+        title: WithEntitlements is meant to be an embedded struct to API types eligible for entitlement enrichment,
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
 info:
@@ -9019,6 +9249,10 @@ paths:
                   in: query
                   name: filter
                   type: string
+                - description: Retrieve images from all projects
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -9770,6 +10004,10 @@ paths:
                   in: query
                   name: filter
                   type: string
+                - description: Retrieve images from all projects
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -9858,6 +10096,10 @@ paths:
                   in: query
                   name: filter
                   type: string
+                - description: Retrieve images from all projects
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -9906,6 +10148,11 @@ paths:
                   in: query
                   name: filter
                   type: string
+                - description: Retrieve images from all projects
+                  example: default
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -12246,6 +12493,11 @@ paths:
                   in: query
                   name: project
                   type: string
+                - description: Retrieve network zones from all projects
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -12705,6 +12957,11 @@ paths:
                   in: query
                   name: project
                   type: string
+                - description: Retrieve network zones from all projects
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -13857,6 +14114,11 @@ paths:
                   in: query
                   name: project
                   type: string
+                - description: Cluster member name
+                  example: lxd01
+                  in: query
+                  name: target
+                  type: string
             produces:
                 - application/json
             responses:
@@ -14196,6 +14458,11 @@ paths:
                   in: query
                   name: project
                   type: string
+                - description: Retrieve profiles from all projects
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -14435,6 +14702,11 @@ paths:
                   in: query
                   name: project
                   type: string
+                - description: Retrieve profiles from all projects
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:

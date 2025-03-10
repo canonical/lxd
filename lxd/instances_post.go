@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"os"
 	"slices"
-	"strings"
+	"strconv"
 
 	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/google/uuid"
@@ -53,8 +53,8 @@ func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *o
 	}
 
 	var budget int64
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		budget, err = limits.GetImageSpaceBudget(s.GlobalConfig, tx, p.Name)
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		budget, err = limits.GetImageSpaceBudget(ctx, s.GlobalConfig, tx, p.Name)
 		return err
 	})
 	if err != nil {
@@ -275,7 +275,8 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 	revert := revert.New()
 	defer revert.Fail()
 
-	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
+	// We keep the ContainerOnly for backward compatibility.
+	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck,unused
 
 	if inst == nil {
 		_, err := storagePools.LoadByName(s, storagePool)
@@ -616,9 +617,10 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 	run := func(op *operations.Operation) error {
 		// Actually create the instance.
 		_, err := instanceCreateAsCopy(s, instanceCreateAsCopyOpts{
-			sourceInstance:       source,
-			targetInstance:       args,
-			instanceOnly:         req.Source.InstanceOnly || req.Source.ContainerOnly,
+			sourceInstance: source,
+			targetInstance: args,
+			// We keep the ContainerOnly for backward compatibility.
+			instanceOnly:         req.Source.InstanceOnly || req.Source.ContainerOnly, //nolint:staticcheck,unused
 			refresh:              req.Source.Refresh,
 			applyTemplateTrigger: true,
 			allowInconsistent:    req.Source.AllowInconsistent,
@@ -657,7 +659,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	defer revert.Fail()
 
 	// Create temporary file to store uploaded backup data.
-	backupFile, err := os.CreateTemp(shared.VarPath("backups"), fmt.Sprintf("%s_", backup.WorkingDirPrefix))
+	backupFile, err := os.CreateTemp(shared.VarPath("backups"), backup.WorkingDirPrefix+"_")
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -687,7 +689,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		decomArgs := append(decomArgs, backupFile.Name())
 
 		// Create temporary file to store the decompressed tarball in.
-		tarFile, err := os.CreateTemp(shared.VarPath("backups"), fmt.Sprintf("%s_decompress_", backup.WorkingDirPrefix))
+		tarFile, err := os.CreateTemp(shared.VarPath("backups"), backup.WorkingDirPrefix+"_decompress_")
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -730,7 +732,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			Type:        api.InstanceType(bInfo.Config.Container.Type),
 		}
 
-		return limits.AllowInstanceCreation(s.GlobalConfig, tx, projectName, req)
+		return limits.AllowInstanceCreation(ctx, s.GlobalConfig, tx, projectName, req)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -925,7 +927,7 @@ func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName s
 				break
 			}
 
-			rootDevName = fmt.Sprintf("root%d", i)
+			rootDevName = "root" + strconv.Itoa(i)
 			continue
 		}
 
@@ -1211,7 +1213,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			i := 0
 			for {
 				i++
-				req.Name = strings.ToLower(petname.Generate(2, "-"))
+				req.Name = petname.Generate(2, "-")
 				if !shared.ValueInSlice(req.Name, names) {
 					break
 				}
@@ -1261,7 +1263,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		if !clusterNotification {
 			// Check that the project's limits are not violated. Note this check is performed after
 			// automatically generated config values (such as ones from an InstanceType) have been set.
-			err = limits.AllowInstanceCreation(s.GlobalConfig, tx, targetProjectName, req)
+			err = limits.AllowInstanceCreation(ctx, s.GlobalConfig, tx, targetProjectName, req)
 			if err != nil {
 				return err
 			}
@@ -1479,7 +1481,8 @@ func clusterCopyContainerInternal(s *state.State, r *http.Request, source instan
 
 		opAPI = op.Get()
 	} else {
-		instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
+		// We keep the ContainerOnly for backward compatibility.
+		instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck,unused
 		pullReq := api.InstancePost{
 			Migration:     true,
 			Live:          req.Source.Live,

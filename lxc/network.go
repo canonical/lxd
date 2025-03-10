@@ -332,7 +332,7 @@ lxc network create bar network=baz --type ovn
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpRemotes(false)
+		return c.global.cmpRemotes(toComplete, false)
 	}
 
 	return cmd
@@ -995,6 +995,7 @@ type cmdNetworkList struct {
 	network *cmdNetwork
 
 	flagFormat string
+	flagTarget string
 }
 
 func (c *cmdNetworkList) command() *cobra.Command {
@@ -1007,13 +1008,14 @@ func (c *cmdNetworkList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpRemotes(false)
+		return c.global.cmpRemotes(toComplete, false)
 	}
 
 	return cmd
@@ -1044,7 +1046,14 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.G("Filtering isn't supported yet"))
 	}
 
-	networks, err := resource.server.GetNetworks()
+	client := resource.server
+
+	// Targeting.
+	if c.flagTarget != "" {
+		client = client.UseTarget(c.flagTarget)
+	}
+
+	networks, err := client.GetNetworks()
 	if err != nil {
 		return err
 	}
@@ -1060,7 +1069,7 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 			strManaged = i18n.G("YES")
 		}
 
-		strUsedBy := fmt.Sprintf("%d", len(network.UsedBy))
+		strUsedBy := fmt.Sprint(len(network.UsedBy))
 		details := []string{
 			network.Name,
 			network.Type,

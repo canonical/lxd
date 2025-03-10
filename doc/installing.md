@@ -1,5 +1,5 @@
 ---
-discourse: ubuntu:[Building&#32;custom&#32;LXD&#32;binaries&#32;for&#32;side&#32;loading&#32;into&#32;an&#32;existing&#32;snap&#32;installation](37327)
+discourse: "[Building&#32;custom&#32;LXD&#32;binaries&#32;for&#32;side&#32;loading&#32;into&#32;an&#32;existing&#32;snap&#32;installation](37327)"
 ---
 
 (installing)=
@@ -89,12 +89,12 @@ For more information about LXD snap packages (regarding more versions, update ma
 ```{note}
 On Ubuntu 18.04 LTS, if you previously had the LXD deb package installed, you can migrate all your existing data over by installing the 5.0 snap and running the following commands:
 
-    sudo install lxd --channel=5.0/stable
+    sudo snap install lxd --channel=5.0/stable
     sudo lxd.migrate
 
 After successfully running the `lxd.migrate` command, you can then switch to a newer snap channel if desired, like the 5.21 one:
 
-    sudo refresh lxd --channel=5.21/stable
+    sudo snap refresh lxd --channel=5.21/stable
 ```
 
 If you want the current user to be able to interact with the LXD daemon, add it to the `lxd` group as the installation process does not add it for you:
@@ -227,7 +227,7 @@ sudo apt install btrfs-progs
 To run the test suite, you'll also need:
 
 ```bash
-sudo apt install busybox-static curl gettext jq sqlite3 socat bind9-dnsutils
+sudo apt install busybox-static curl gettext jq sqlite3 socat swtpm bind9-dnsutils
 ```
 
 ### From source: Build the latest version

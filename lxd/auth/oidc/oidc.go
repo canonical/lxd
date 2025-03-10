@@ -3,10 +3,12 @@ package oidc
 import (
 	"context"
 	"crypto/sha512"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/mail"
 	"strings"
 	"time"
 
@@ -49,6 +51,7 @@ type Verifier struct {
 
 	clientID       string
 	issuer         string
+	scopes         []string
 	audience       string
 	groupsClaim    string
 	clusterCert    func() *shared.CertInfo
@@ -82,7 +85,7 @@ type AuthError struct {
 
 // Error implements the error interface for AuthError.
 func (e AuthError) Error() string {
-	return fmt.Sprintf("Failed to authenticate: %s", e.Err.Error())
+	return "Failed to authenticate: " + e.Err.Error()
 }
 
 // Unwrap implements the xerrors.Wrapper interface for AuthError.
@@ -165,17 +168,7 @@ func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken stri
 		return nil, AuthError{Err: fmt.Errorf("Failed to call user info endpoint with given access token: %w", err)}
 	}
 
-	if userInfo.Email == "" {
-		return nil, AuthError{Err: fmt.Errorf("Could not get email address of oidc user with subject %q", claims.Subject)}
-	}
-
-	return &AuthenticationResult{
-		IdentityType:           api.IdentityTypeOIDCClient,
-		Email:                  userInfo.Email,
-		Name:                   userInfo.Name,
-		Subject:                claims.Subject,
-		IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
-	}, nil
+	return o.getResultFromClaims(userInfo, userInfo.Claims)
 }
 
 // authenticateIDToken verifies the identity token and returns the ID token subject. If no identity token is given (or
@@ -187,13 +180,7 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 		// Try to verify the ID token.
 		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParty.IDTokenVerifier())
 		if err == nil {
-			return &AuthenticationResult{
-				IdentityType:           api.IdentityTypeOIDCClient,
-				Subject:                claims.Subject,
-				Email:                  claims.Email,
-				Name:                   claims.Name,
-				IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
-			}, nil
+			return o.getResultFromClaims(claims, claims.Claims)
 		}
 	}
 
@@ -231,13 +218,58 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 		return nil, AuthError{fmt.Errorf("Failed to update login cookies: %w", err)}
 	}
 
+	return o.getResultFromClaims(claims, claims.Claims)
+}
+
+// getResultFromClaims gets an AuthenticationResult from the given rp.SubjectGetter and claim map.
+// It returns an error if any required values are not present or are invalid.
+func (o *Verifier) getResultFromClaims(sg rp.SubjectGetter, claims map[string]any) (*AuthenticationResult, error) {
+	email, err := o.getEmailFromClaims(claims)
+	if err != nil {
+		return nil, err
+	}
+
+	subject := sg.GetSubject()
+	if subject == "" {
+		return nil, fmt.Errorf("Token does not contain a subject")
+	}
+
+	var name string
+	nameAny, ok := claims["name"]
+	if ok {
+		nameStr, ok := nameAny.(string)
+		if ok {
+			name = nameStr
+		}
+	}
+
 	return &AuthenticationResult{
 		IdentityType:           api.IdentityTypeOIDCClient,
-		Subject:                claims.Subject,
-		Email:                  claims.Email,
-		Name:                   claims.Name,
-		IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
+		Subject:                subject,
+		Email:                  email,
+		Name:                   name,
+		IdentityProviderGroups: o.getGroupsFromClaims(claims),
 	}, nil
+}
+
+// getEmailFromClaims gets a valid email address from the claims or returns an error.
+func (o *Verifier) getEmailFromClaims(claims map[string]any) (string, error) {
+	emailAny, ok := claims[oidc.ScopeEmail]
+	if !ok {
+		return "", fmt.Errorf("Token does not contain an email address")
+	}
+
+	email, ok := emailAny.(string)
+	if !ok {
+		return "", fmt.Errorf("Token claim %q has incorrect type (expected %T, got %T)", "email", "", emailAny)
+	}
+
+	_, err := mail.ParseAddress(email)
+	if err != nil {
+		return "", fmt.Errorf("Token claim %q contains a value %q that is not a valid email address: %w", "email", email, err)
+	}
+
+	return email, nil
 }
 
 // getGroupsFromClaims attempts to get the configured groups claim from the token claims and warns if it is not present
@@ -256,6 +288,7 @@ func (o *Verifier) getGroupsFromClaims(customClaims map[string]any) []string {
 	groupsArr, ok := groupsClaimAny.([]any)
 	if !ok {
 		logger.Warn("Unexpected type for OIDC groups custom claim", logger.Ctx{"claim_name": o.groupsClaim, "claim_value": groupsClaimAny})
+		return nil
 	}
 
 	groups := make([]string, 0, len(groupsArr))
@@ -263,6 +296,7 @@ func (o *Verifier) getGroupsFromClaims(customClaims map[string]any) []string {
 		groupName, ok := groupNameAny.(string)
 		if !ok {
 			logger.Warn("Unexpected type for OIDC groups custom claim", logger.Ctx{"claim_name": o.groupsClaim, "claim_value": groupsClaimAny})
+			return nil
 		}
 
 		groups = append(groups, groupName)
@@ -329,7 +363,16 @@ func (o *Verifier) WriteHeaders(w http.ResponseWriter) error {
 	w.Header().Set("X-LXD-OIDC-issuer", o.issuer)
 	w.Header().Set("X-LXD-OIDC-clientid", o.clientID)
 	w.Header().Set("X-LXD-OIDC-audience", o.audience)
+
+	// Continue to sent groups claim header for compatibility with older clients
 	w.Header().Set("X-LXD-OIDC-groups-claim", o.groupsClaim)
+
+	scopesJSON, err := json.Marshal(o.scopes)
+	if err != nil {
+		return fmt.Errorf("Failed to marshal OIDC scopes: %w", err)
+	}
+
+	w.Header().Set("X-LXD-OIDC-scopes", string(scopesJSON))
 
 	return nil
 }
@@ -423,12 +466,7 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 		rp.WithHTTPClient(httpClient),
 	}
 
-	oidcScopes := []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail, oidc.ScopeProfile}
-	if o.groupsClaim != "" {
-		oidcScopes = append(oidcScopes, o.groupsClaim)
-	}
-
-	relyingParty, err := rp.NewRelyingPartyOIDC(ctx, o.issuer, o.clientID, "", fmt.Sprintf("https://%s/oidc/callback", host), oidcScopes, options...)
+	relyingParty, err := rp.NewRelyingPartyOIDC(ctx, o.issuer, o.clientID, "", "https://"+host+"/oidc/callback", o.scopes, options...)
 	if err != nil {
 		return fmt.Errorf("Failed to get OIDC relying party: %w", err)
 	}
@@ -440,16 +478,21 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 // setAccessTokenVerifier sets the accessTokenVerifier on the Verifier. It uses the oidc.KeySet from the relyingParty if
 // it is set, otherwise it calls the discovery endpoint (/.well-known/openid-configuration).
 func (o *Verifier) setAccessTokenVerifier(ctx context.Context) error {
+	httpClient, err := o.httpClientFunc()
+	if err != nil {
+		return err
+	}
+
 	var keySet oidc.KeySet
 	if o.relyingParty != nil {
 		keySet = o.relyingParty.IDTokenVerifier().KeySet
 	} else {
-		discoveryConfig, err := client.Discover(ctx, o.issuer, http.DefaultClient)
+		discoveryConfig, err := client.Discover(ctx, o.issuer, httpClient)
 		if err != nil {
 			return fmt.Errorf("Failed calling OIDC discovery endpoint: %w", err)
 		}
 
-		keySet = rp.NewRemoteKeySet(http.DefaultClient, discoveryConfig.JwksURI)
+		keySet = rp.NewRemoteKeySet(httpClient, discoveryConfig.JwksURI)
 	}
 
 	o.accessTokenVerifier = op.NewAccessTokenVerifier(o.issuer, keySet)
@@ -504,7 +547,7 @@ func (o *Verifier) getCookies(r *http.Request) (sessionIDPtr *uuid.UUID, idToken
 
 // setCookies encrypts the session, ID, and refresh tokens and sets them in the HTTP response. Cookies are only set if they are
 // non-empty. If delete is true, the values are set to empty strings and the cookie expiry is set to unix zero time.
-func (*Verifier) setCookies(w http.ResponseWriter, secureCookie *securecookie.SecureCookie, sessionID uuid.UUID, idToken string, refreshToken string, delete bool) error {
+func (*Verifier) setCookies(w http.ResponseWriter, secureCookie *securecookie.SecureCookie, sessionID uuid.UUID, idToken string, refreshToken string, deleteCookies bool) error {
 	idTokenCookie := http.Cookie{
 		Name:     cookieNameIDToken,
 		Path:     "/",
@@ -529,7 +572,7 @@ func (*Verifier) setCookies(w http.ResponseWriter, secureCookie *securecookie.Se
 		SameSite: http.SameSiteStrictMode,
 	}
 
-	if delete {
+	if deleteCookies {
 		idTokenCookie.Expires = time.Unix(0, 0)
 		refreshTokenCookie.Expires = time.Unix(0, 0)
 		sessionIDCookie.Expires = time.Unix(0, 0)
@@ -617,7 +660,7 @@ type Opts struct {
 }
 
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientID string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
+func NewVerifier(issuer string, clientID string, scopes []string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
 	opts := &Opts{}
 
 	if options != nil && options.GroupsClaim != "" {
@@ -627,6 +670,7 @@ func NewVerifier(issuer string, clientID string, audience string, clusterCert fu
 	verifier := &Verifier{
 		issuer:               issuer,
 		clientID:             clientID,
+		scopes:               scopes,
 		audience:             audience,
 		identityCache:        identityCache,
 		groupsClaim:          opts.GroupsClaim,

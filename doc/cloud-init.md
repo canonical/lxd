@@ -1,6 +1,6 @@
 ---
-discourse: lxc:12559
-relatedlinks: https://cloudinit.readthedocs.org/
+discourse: lxc:[First&#32;class&#32;cloud-init&#32;support](12559)
+relatedlinks: "[Cloud-init&#32;documentation](https://cloudinit.readthedocs.org/)"
 ---
 
 (cloud-init)=
@@ -74,9 +74,8 @@ See {ref}`cloud-init:merging_user_data` for instructions.
 
 To configure `cloud-init` for an instance, add the corresponding configuration options to a {ref}`profile <profiles>` that the instance uses or directly to the {ref}`instance configuration <instances-configure>`.
 
-When configuring `cloud-init` directly for an instance, keep in mind that `cloud-init` runs only on the first start of the instance.
-That means that you must configure `cloud-init` before you start the instance.
-If you are using the CLI client, create the instance with [`lxc init`](lxc_init.md) instead of [`lxc launch`](lxc_launch.md), and then start it after completing the configuration.
+When configuring `cloud-init` directly for an instance, keep in mind that `cloud-init` runs only on instance start.
+This means any changes to `cloud-init` configuration only take effect after the next instance start. To ensure `cloud-init` configurations are applied on every boot, LXD changes the instance ID whenever relevant `cloud-init` configuration keys are modified. This triggers `cloud-init` to fetch and apply the updated data from LXD as if it were the instance's first boot. For more information, see the `cloud-init` docs regarding {ref}`cloud-init:first_boot_determination`.
 
 To add your configuration:
 
@@ -134,7 +133,7 @@ Then click {guilabel}`Edit instance` and override the configuration for one or m
 The `cloud-init` options require YAML's [literal style format](https://yaml.org/spec/1.2.2/#812-literal-style).
 You use a pipe symbol (`|`) to indicate that all indented text after the pipe should be passed to `cloud-init` as a single string, with new lines and indentation preserved.
 
-The `vendor-data` and `user-data` options usually start with `#cloud-config`.
+The `vendor-data` and `user-data` options usually start with `#cloud-config`. But `cloud-init` has an array of [configuration formats](https://docs.cloud-init.io/en/latest/explanation/format.html#configuration-types) available.
 
 For example:
 
@@ -146,6 +145,13 @@ config:
     packages:
       - package1
       - package2
+```
+
+```yaml
+config:
+  cloud-init.user-data: |
+    #!/usr/bin/bash
+    echo hello | tee -a /tmp/example.txt
 ```
 
 ```{tip}
@@ -285,4 +291,34 @@ config:
             control: auto
       - type: nameserver
         address: 10.10.10.254
+```
+
+## How to inject SSH keys into instances
+
+To inject SSH keys into LXD instances for an arbitrary user, use the configuration key `cloud-init.ssh-keys.<keyName>`.
+
+Use the format `<user>:<key>` for its value, where `<user>` is a Linux username and `<key>` can be either a pure SSH public key or an import ID for a key hosted elsewhere. For example, `root:gh:githubUser` and `myUser:ssh-keyAlg publicKeyHash` are valid values.
+
+The contents of the `cloud-init.ssh-keys.<keyName>` keys are merged into both {config:option}`instance-cloud-init:cloud-init.vendor-data` and {config:option}`instance-cloud-init:cloud-init.user-data` before being passed to the guest, following the `cloud-config` specification. (See the {ref}`cloud-init documentation <cloud-init:about-cloud-config>` for details.) Therefore, keys defined via `cloud-init.ssh-keys.<keyName>` cannot be applied if LXD cannot parse the existing `cloud-init.vendor-data` and `cloud-init.user-data` for that instance. This might occur if those keys are not in YAML format or contain invalid YAML. Other configuration formats are not yet supported.
+
+You can define SSH keys via `cloud-init.vendor-data` or `cloud-init.user-data` directly. Keys defined using `cloud-init.ssh-keys.<keyName>` do not conflict with those defined in either of those settings. For details on defining SSH keys with `cloud-config`, see {ref}`the cloud-init documentation for SSH configuration <cloud-init:cce-ssh>`. Changing a `cloud-init.*` key does not remove previously applied keys.
+
+Since `cloud-init` only runs on instance start, updates to `cloud-init.*` keys on a running instance only take effect after restart.
+
+### Examples
+
+The following command injects `someuser`'s key from Launchpad into the newly created `container`:
+
+```bash
+lxc launch ubuntu:24.04 container -c cloud-init.ssh-keys.mykey root:lp:someuser
+```
+
+The example profile configuration below defines a key to be injected on an instance. The injected key enables the owner of the private key to SSH into the instance as a user named `user`:
+
+```yaml
+config:
+  cloud-init.vendor-data: |
+    users:
+      - name: user
+        ssh_authorized_keys: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJFDWcYmMrCZdk9JI29bAiHKD90oEUr8tqK5VvoO8Vcj
 ```

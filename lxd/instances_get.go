@@ -29,24 +29,27 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-// urlInstanceTypeDetect detects what sort of instance type filter is being requested. Either
-// explicitly via the instance-type query param or implicitly via the endpoint URL used.
+// urlInstanceTypeDetect detects what sort of instance type is being requested. Either
+// implicitly via the endpoint URL used of explicitly via the instance-type query param.
 func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
-	reqInstanceType := r.URL.Query().Get("instance-type")
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+	routeName := mux.CurrentRoute(r).GetName()
+	if strings.HasPrefix(routeName, "container") {
 		return instancetype.Container, nil
-	} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
+	} else if strings.HasPrefix(routeName, "vm") {
 		return instancetype.VM, nil
-	} else if reqInstanceType != "" {
-		instanceType, err := instancetype.New(reqInstanceType)
-		if err != nil {
-			return instancetype.Any, err
-		}
-
-		return instanceType, nil
 	}
 
-	return instancetype.Any, nil
+	reqInstanceType := r.URL.Query().Get("instance-type")
+	if reqInstanceType == "" {
+		return instancetype.Any, nil
+	}
+
+	instanceType, err := instancetype.New(reqInstanceType)
+	if err != nil {
+		return instancetype.Any, err
+	}
+
+	return instanceType, nil
 }
 
 // swagger:operation GET /1.0/instances instances instances_get
@@ -246,6 +249,12 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 	// Detect project mode.
 	projectName := request.QueryParam(r, "project")
 	allProjects := shared.IsTrue(r.FormValue("all-projects"))
+
+	// Detect if we want to also return entitlements for each instance.
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeInstance, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	if allProjects && projectName != "" {
 		return response.BadRequest(fmt.Errorf("Cannot specify a project when requesting all projects"))
@@ -493,9 +502,10 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 		resultList := make([]string, 0, len(resultFullList))
 		for i := range resultFullList {
 			instancePath := "instances"
-			if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+			routeName := mux.CurrentRoute(r).GetName()
+			if routeName == "container" {
 				instancePath = "containers"
-			} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
+			} else if routeName == "vm" {
 				instancePath = "virtual-machines"
 			}
 
@@ -504,6 +514,19 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		return response.SyncResponse(true, resultList)
+	}
+
+	if len(withEntitlements) > 0 {
+		urlToInstance := make(map[*api.URL]auth.EntitlementReporter, len(resultFullList))
+		for _, res := range resultFullList {
+			u := entity.InstanceURL(res.Project, res.Name)
+			urlToInstance[u] = res
+		}
+
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeInstance, withEntitlements, urlToInstance)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	if recursion == 1 {

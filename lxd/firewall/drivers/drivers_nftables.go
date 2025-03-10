@@ -97,7 +97,7 @@ func (d Nftables) Compat() (bool, error) {
 	}
 
 	// Check that nftables works at all (some kernels let you list ruleset despite missing support).
-	testTable := fmt.Sprintf("lxd_test_%s", uuid.New().String())
+	testTable := "lxd_test_" + uuid.New().String()
 
 	_, err = shared.RunCommandCLocale("nft", "create", "table", testTable)
 	if err != nil {
@@ -378,7 +378,7 @@ func (d Nftables) NetworkClear(networkName string, _ bool, _ []uint) error {
 
 // instanceDeviceLabel returns the unique label used for instance device chains.
 func (d Nftables) instanceDeviceLabel(projectName, instanceName, deviceName string) string {
-	return fmt.Sprintf("%s%s%s", project.Instance(projectName, instanceName), nftablesChainSeparator, deviceName)
+	return project.Instance(projectName, instanceName) + nftablesChainSeparator + deviceName
 }
 
 // InstanceSetupBridgeFilter sets up the filter rules to apply bridged device IP filtering.
@@ -398,7 +398,7 @@ func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName str
 		"parentName":     parentName,
 		"hostName":       hostName,
 		"hwAddr":         hwAddr,
-		"hwAddrHex":      fmt.Sprintf("0x%s", hex.EncodeToString(mac)),
+		"hwAddrHex":      "0x" + hex.EncodeToString(mac),
 	}
 
 	// Filter unwanted ethernet frames when using IP filtering.
@@ -430,7 +430,7 @@ func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName str
 		ipv6Nets = append(ipv6Nets, map[string]string{
 			"net":       ipv6Net.String(),
 			"nBits":     strconv.Itoa(ones),
-			"hexPrefix": fmt.Sprintf("0x%s", prefix),
+			"hexPrefix": "0x" + prefix,
 		})
 	}
 
@@ -488,8 +488,8 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 	targetAddressStr := forward.TargetAddress.String()
 
 	// Generate slices of rules to add.
-	var dnatRules []map[string]any
-	var snatRules []map[string]any
+	dnatRules := make([]map[string]any, 0, listenPortsLen)
+	snatRules := make([]map[string]any, 0, listenPortsLen)
 
 	targetPortRanges := portRangesFromSlice(forward.TargetPorts)
 	for _, targetPortRange := range targetPortRanges {
@@ -508,9 +508,9 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 		targetDest := targetAddressStr
 		if targetPortRange[1] == 1 {
 			targetPortStr := portRangeStr(targetPortRange, ":")
-			targetDest = fmt.Sprintf("%s:%s", targetAddressStr, targetPortStr)
+			targetDest = targetAddressStr + ":" + targetPortStr
 			if ipFamily == "ip6" {
-				targetDest = fmt.Sprintf("[%s]:%s", targetAddressStr, targetPortStr)
+				targetDest = "[" + targetAddressStr + "]:" + targetPortStr
 			}
 		}
 
@@ -597,7 +597,7 @@ func (d Nftables) removeChains(families []string, chainSuffix string, chains ...
 	if chainSuffix != "" {
 		fullChains = make([]string, 0, len(chains))
 		for _, chain := range chains {
-			fullChains = append(fullChains, fmt.Sprintf("%s%s%s", chain, nftablesChainSeparator, chainSuffix))
+			fullChains = append(fullChains, chain+nftablesChainSeparator+chainSuffix)
 		}
 	}
 
@@ -618,7 +618,7 @@ func (d Nftables) removeChains(families []string, chainSuffix string, chains ...
 			continue
 		}
 
-		_, err = shared.RunCommand("nft", "flush", "chain", item.Family, nftablesNamespace, item.Name, ";", "delete", "chain", item.Family, nftablesNamespace, item.Name)
+		_, err = shared.RunCommandContext(context.TODO(), "nft", "flush", "chain", item.Family, nftablesNamespace, item.Name, ";", "delete", "chain", item.Family, nftablesNamespace, item.Name)
 		if err != nil {
 			return fmt.Errorf("Failed deleting nftables chain %q (%s): %w", item.Name, item.Family, err)
 		}
@@ -686,7 +686,7 @@ func (d Nftables) InstanceClearNetPrio(projectName string, instanceName string, 
 	}
 
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
-	chainLabel := fmt.Sprintf("netprio%s%s", nftablesChainSeparator, deviceLabel)
+	chainLabel := "netprio" + nftablesChainSeparator + deviceLabel
 
 	err := d.removeChains([]string{"netdev"}, chainLabel, "egress")
 	if err != nil {
@@ -852,7 +852,7 @@ func (d Nftables) aclRuleCriteriaToRules(networkName string, ipVersion uint, rul
 
 		if rule.LogName != "" {
 			// Add a trailing space to prefix for readability in logs.
-			args = append(args, "prefix", fmt.Sprintf(`"%s "`, rule.LogName))
+			args = append(args, "prefix", `"`+rule.LogName+` "`)
 		}
 	}
 
@@ -895,7 +895,7 @@ func (d Nftables) aclRuleSubjectToACLMatch(direction string, ipVersion uint, sub
 					continue // Skip subjects that are not for the ipVersion we are looking for.
 				}
 
-				fieldParts = append(fieldParts, fmt.Sprintf("%s-%s", criterionParts[0], criterionParts[1]))
+				fieldParts = append(fieldParts, criterionParts[0]+"-"+criterionParts[1])
 			}
 		} else {
 			ip := net.ParseIP(subjectCriterion)
@@ -927,7 +927,7 @@ func (d Nftables) aclRuleSubjectToACLMatch(direction string, ipVersion uint, sub
 			ipFamily = "ip6"
 		}
 
-		return []string{ipFamily, direction, fmt.Sprintf("{%s}", strings.Join(fieldParts, ","))}, partial, nil
+		return []string{ipFamily, direction, "{" + strings.Join(fieldParts, ",") + "}"}, partial, nil
 	}
 
 	return nil, partial, nil // No subjects suitable for ipVersion.
@@ -941,13 +941,13 @@ func (d Nftables) aclRulePortToACLMatch(direction string, portCriteria ...string
 	for _, portCriterion := range portCriteria {
 		criterionParts := strings.SplitN(portCriterion, "-", 2)
 		if len(criterionParts) > 1 {
-			fieldParts = append(fieldParts, fmt.Sprintf("%s-%s", criterionParts[0], criterionParts[1]))
+			fieldParts = append(fieldParts, criterionParts[0]+criterionParts[1])
 		} else {
 			fieldParts = append(fieldParts, criterionParts[0])
 		}
 	}
 
-	return []string{"th", direction, fmt.Sprintf("{%s}", strings.Join(fieldParts, ","))}
+	return []string{"th", direction, "{" + strings.Join(fieldParts, ",") + "}"}
 }
 
 // NetworkApplyForwards apply network address forward rules to firewall.
@@ -1016,9 +1016,9 @@ func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForwar
 					targetDest := targetAddressStr
 					if targetPortRange[1] == 1 {
 						targetPortStr := portRangeStr(targetPortRange, ":")
-						targetDest = fmt.Sprintf("%s:%s", targetAddressStr, targetPortStr)
+						targetDest = targetAddressStr + ":" + targetPortStr
 						if ipFamily == "ip6" {
-							targetDest = fmt.Sprintf("[%s]:%s", targetAddressStr, targetPortStr)
+							targetDest = "[" + targetAddressStr + "]:" + targetPortStr
 						}
 					}
 
@@ -1034,7 +1034,7 @@ func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForwar
 				// Format the destination host/port as appropriate.
 				targetDest := targetAddressStr
 				if ipFamily == "ip6" {
-					targetDest = fmt.Sprintf("[%s]", targetAddressStr)
+					targetDest = "[" + targetAddressStr + "]"
 				}
 
 				dnatRules = append(dnatRules, map[string]any{

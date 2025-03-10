@@ -12,11 +12,11 @@ import (
 )
 
 // GetCurrentAllocations returns the current resource utilization for a given project.
-func GetCurrentAllocations(globalConfig map[string]any, ctx context.Context, tx *db.ClusterTx, projectName string) (map[string]api.ProjectStateResource, error) {
+func GetCurrentAllocations(ctx context.Context, globalConfig map[string]any, tx *db.ClusterTx, projectName string) (map[string]api.ProjectStateResource, error) {
 	result := map[string]api.ProjectStateResource{}
 
 	// Get the project.
-	info, err := fetchProject(globalConfig, tx, projectName, false)
+	info, err := fetchProject(ctx, tx, projectName, false)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func GetCurrentAllocations(globalConfig map[string]any, ctx context.Context, tx 
 	// Add the pool-specific disk limits.
 	for k, v := range raw {
 		if strings.HasPrefix(k, projectLimitDiskPool) && v.Limit > 0 {
-			result[fmt.Sprintf("disk.%s", strings.SplitN(k, ".", 4)[3])] = v
+			result["disk."+strings.SplitN(k, ".", 4)[3]] = v
 		}
 	}
 

@@ -17,6 +17,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/archive"
 	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
@@ -39,7 +40,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 	defer revert.Fail()
 
 	// Create the volume itself.
-	_, err := shared.RunCommand("btrfs", "subvolume", "create", volPath)
+	_, err := shared.RunCommandContext(context.TODO(), "btrfs", "subvolume", "create", volPath)
 	if err != nil {
 		return err
 	}
@@ -78,7 +79,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		//
 		// An exception is made for when compression is enabled on the underlying storage.
 		if !shared.ValueInSlice("datacow", mountOptions) && !strings.Contains(mountinfo[len(mountinfo)-1], "compress") {
-			_, err = shared.RunCommand("chattr", "+C", volPath)
+			_, err = shared.RunCommandContext(context.TODO(), "chattr", "+C", volPath)
 			if err != nil {
 				return fmt.Errorf("Failed setting nodatacow on %q: %w", volPath, err)
 			}
@@ -283,11 +284,11 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 			}
 
 			// Figure out what file we are looking for in the backup file.
-			srcFilePath := filepath.Join("backup", fmt.Sprintf("%s.bin", srcFilePrefix))
+			srcFilePath := filepath.Join("backup", srcFilePrefix+".bin")
 			if subVol.Path != string(filepath.Separator) {
 				// If subvolume is non-root, then we expect the file to be encoded as its original
 				// path with the leading / removed.
-				srcFilePath = filepath.Join("backup", fmt.Sprintf("%s_%s.bin", srcFilePrefix, filesystem.PathNameEncode(strings.TrimPrefix(subVol.Path, string(filepath.Separator)))))
+				srcFilePath = filepath.Join("backup", srcFilePrefix+"_"+filesystem.PathNameEncode(strings.TrimPrefix(subVol.Path, string(filepath.Separator)))+".bin")
 			}
 
 			// Define where we will move the subvolume after it is unpacked.
@@ -326,13 +327,19 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 
 		// Restore backup snapshots from oldest to newest.
 		for _, snapName := range srcBackup.Snapshots {
+			// Defend against path traversal attacks.
+			err := instancetype.ValidSnapName(snapName)
+			if err != nil {
+				return nil, nil, fmt.Errorf("Invalid snapshot name %q: %w", snapName, err)
+			}
+
 			snapVol, _ := vol.NewSnapshot(snapName)
 			snapDir := "snapshots"
 			srcFilePrefix := snapName
 			if vol.volType == VolumeTypeVM {
 				snapDir = "virtual-machine-snapshots"
 				if vol.contentType == ContentTypeFS {
-					srcFilePrefix = fmt.Sprintf("%s-config", snapName)
+					srcFilePrefix = snapName + "-config"
 				}
 			} else if vol.volType == VolumeTypeCustom {
 				snapDir = "volume-snapshots"
@@ -838,7 +845,7 @@ func (d *btrfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 	volName := vol.name
 
 	if vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeISO {
-		volName = fmt.Sprintf("%s%s", vol.name, btrfsISOVolSuffix)
+		volName = vol.name + btrfsISOVolSuffix
 	}
 
 	// If the volume doesn't exist, then nothing more to do.
@@ -960,7 +967,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 
 			path := GetPoolMountPath(d.name)
 
-			_, err = shared.RunCommand("btrfs", "quota", "enable", path)
+			_, err = shared.RunCommandContext(context.TODO(), "btrfs", "quota", "enable", path)
 			if err != nil {
 				return err
 			}
@@ -973,17 +980,16 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 		if err == errBtrfsNoQGroup {
 			// Find the volume ID.
 			var output string
-			output, err = shared.RunCommand("btrfs", "subvolume", "show", volPath)
+			output, err = shared.RunCommandContext(context.TODO(), "btrfs", "subvolume", "show", volPath)
 			if err != nil {
 				return fmt.Errorf("Failed to get subvol information: %w", err)
 			}
 
 			id := ""
 			for _, line := range strings.Split(output, "\n") {
-				line = strings.TrimSpace(line)
-				if strings.HasPrefix(line, "Subvolume ID:") {
-					fields := strings.Split(line, ":")
-					id = strings.TrimSpace(fields[len(fields)-1])
+				_, value, found := strings.Cut(line, "Subvolume ID:")
+				if found {
+					id = strings.TrimSpace(value)
 				}
 			}
 
@@ -992,7 +998,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 			}
 
 			// Create a qgroup.
-			_, err = shared.RunCommand("btrfs", "qgroup", "create", fmt.Sprintf("0/%s", id), volPath)
+			_, err = shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "create", "0/"+id, volPath)
 			if err != nil {
 				return err
 			}
@@ -1022,24 +1028,24 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 		}
 
 		// Apply the limit to referenced data in qgroup.
-		_, err = shared.RunCommand("btrfs", "qgroup", "limit", fmt.Sprintf("%d", sizeBytes), qgroup, volPath)
+		_, err = shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "limit", fmt.Sprint(sizeBytes), qgroup, volPath)
 		if err != nil {
 			return err
 		}
 
 		// Remove any former exclusive data limit.
-		_, err = shared.RunCommand("btrfs", "qgroup", "limit", "-e", "none", qgroup, volPath)
+		_, err = shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "limit", "-e", "none", qgroup, volPath)
 		if err != nil {
 			return err
 		}
 	} else if qgroup != "" {
 		// Remove all limits.
-		_, err = shared.RunCommand("btrfs", "qgroup", "limit", "none", qgroup, volPath)
+		_, err = shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "limit", "none", qgroup, volPath)
 		if err != nil {
 			return err
 		}
 
-		_, err = shared.RunCommand("btrfs", "qgroup", "limit", "-e", "none", qgroup, volPath)
+		_, err = shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "limit", "-e", "none", qgroup, volPath)
 		if err != nil {
 			return err
 		}
@@ -1289,7 +1295,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 				parentPath = filepath.Join(parentPrefix, subVolume.Path)
 
 				// Set parent subvolume readonly if needed so we can send the subvolume.
-				if !BTRFSSubVolumeIsRo(parentPath) {
+				if !btrfsSubVolumeIsRo(parentPath) {
 					err := d.setSubvolumeReadonlyProperty(parentPath, true)
 					if err != nil {
 						return err
@@ -1301,7 +1307,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 
 			// Set subvolume readonly if needed so we can send it.
 			sourcePath := filepath.Join(sourcePrefix, subVolume.Path)
-			if !BTRFSSubVolumeIsRo(sourcePath) {
+			if !btrfsSubVolumeIsRo(sourcePath) {
 				err := d.setSubvolumeReadonlyProperty(sourcePath, true)
 				if err != nil {
 					return err
@@ -1471,7 +1477,7 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 
 		// Create temporary file to store output of btrfs send.
 		backupsPath := shared.VarPath("backups")
-		tmpFile, err := os.CreateTemp(backupsPath, fmt.Sprintf("%s_btrfs", backup.WorkingDirPrefix))
+		tmpFile, err := os.CreateTemp(backupsPath, backup.WorkingDirPrefix+"_btrfs")
 		if err != nil {
 			return fmt.Errorf("Failed to open temporary file for BTRFS backup: %w", err)
 		}
@@ -1524,7 +1530,7 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 				parentPath = filepath.Join(parentPrefix, subVolume.Path)
 
 				// Set parent subvolume readonly if needed so we can add the subvolume.
-				if !BTRFSSubVolumeIsRo(parentPath) {
+				if !btrfsSubVolumeIsRo(parentPath) {
 					err = d.setSubvolumeReadonlyProperty(parentPath, true)
 					if err != nil {
 						return err
@@ -1536,7 +1542,7 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 
 			// Set subvolume readonly if needed so we can add it.
 			sourcePath := filepath.Join(sourcePrefix, subVolume.Path)
-			if !BTRFSSubVolumeIsRo(sourcePath) {
+			if !btrfsSubVolumeIsRo(sourcePath) {
 				err = d.setSubvolumeReadonlyProperty(sourcePath, true)
 				if err != nil {
 					return err
@@ -1552,10 +1558,10 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 			if subVolume.Path != string(filepath.Separator) {
 				// Encode the path of the subvolume (without the leading /) into the filename so
 				// that we find the file from the optimized header's Path field on restore.
-				subVolName = fmt.Sprintf("_%s", filesystem.PathNameEncode(strings.TrimPrefix(subVolume.Path, string(filepath.Separator))))
+				subVolName = "_" + filesystem.PathNameEncode(strings.TrimPrefix(subVolume.Path, string(filepath.Separator)))
 			}
 
-			fileName := fmt.Sprintf("%s%s.bin", fileNamePrefix, subVolName)
+			fileName := fileNamePrefix + subVolName + ".bin"
 			err = sendToFile(sourcePath, parentPath, filepath.Join("backup", fileName))
 			if err != nil {
 				return fmt.Errorf("Failed adding volume %v:%s: %w", v.name, subVolume.Path, err)
@@ -1583,7 +1589,7 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 		if vol.volType == VolumeTypeVM {
 			snapDir = "virtual-machine-snapshots"
 			if vol.contentType == ContentTypeFS {
-				fileName = fmt.Sprintf("%s-config", snapName)
+				fileName = snapName + "-config"
 			}
 		} else if vol.volType == VolumeTypeCustom {
 			snapDir = "volume-snapshots"
@@ -1615,7 +1621,7 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 	}
 
 	// Create the read-only snapshot.
-	targetVolume := fmt.Sprintf("%s/.backup", tmpInstanceMntPoint)
+	targetVolume := tmpInstanceMntPoint + "/.backup"
 	_, err = d.snapshotSubvolume(sourceVolume, targetVolume, true)
 	if err != nil {
 		return err
@@ -1789,7 +1795,7 @@ func (d *btrfs) volumeSnapshotsSorted(vol Volume, op *operations.Operation) ([]s
 
 	var snapshotNames []string
 
-	snapshotPrefix := fmt.Sprintf("%s-snapshots/%s/", vol.volType, vol.name)
+	snapshotPrefix := string(vol.volType) + "-snapshots/" + vol.name + "/"
 	scanner := bufio.NewScanner(&stdout)
 
 	for scanner.Scan() {
@@ -1831,7 +1837,7 @@ func (d *btrfs) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operati
 	target := vol.MountPath()
 
 	// Create a backup so we can revert.
-	backupSubvolume := fmt.Sprintf("%s%s", target, tmpVolSuffix)
+	backupSubvolume := target + tmpVolSuffix
 	err = os.Rename(target, backupSubvolume)
 	if err != nil {
 		return fmt.Errorf("Failed to rename %q to %q: %w", target, backupSubvolume, err)

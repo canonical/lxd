@@ -486,7 +486,7 @@ func (c *ClusterTx) networks(ctx context.Context, project string, where string, 
 	inargs := []any{project}
 
 	if where != "" {
-		q += fmt.Sprintf(" AND %s", where)
+		q += " AND " + where
 		inargs = append(inargs, args...)
 	}
 

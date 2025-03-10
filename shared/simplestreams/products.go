@@ -109,7 +109,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				deltas := []ProductVersionItem{}
 				if root != nil && slices.Contains([]string{"squashfs", "disk-kvm.img"}, root.FileType) {
 					for _, item := range version.Items {
-						if item.FileType == fmt.Sprintf("%s.vcdiff", root.FileType) {
+						if item.FileType == root.FileType+".vcdiff" {
 							deltas = append(deltas, item)
 						}
 					}
@@ -156,12 +156,12 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				filename := fields[len(fields)-1]
 
 				// Generate the actual image entry
-				description := fmt.Sprintf("%s %s %s", product.OperatingSystem, product.ReleaseTitle, product.Architecture)
+				description := product.OperatingSystem + " " + product.ReleaseTitle + " " + product.Architecture
 				if version.Label != "" {
-					description = fmt.Sprintf("%s (%s)", description, version.Label)
+					description += " (" + version.Label + ")"
 				}
 
-				description = fmt.Sprintf("%s (%s)", description, name)
+				description += " (" + name + ")"
 
 				image := api.Image{}
 				image.Architecture = architectureName
@@ -233,11 +233,11 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				// Set the file list
 				var imgDownloads [][]string
 				if root == nil {
-					imgDownloads = [][]string{{meta.Path, meta.HashSha256, "meta", fmt.Sprintf("%d", meta.Size)}}
+					imgDownloads = [][]string{{meta.Path, meta.HashSha256, "meta", fmt.Sprint(meta.Size)}}
 				} else {
 					imgDownloads = [][]string{
-						{meta.Path, meta.HashSha256, "meta", fmt.Sprintf("%d", meta.Size)},
-						{root.Path, root.HashSha256, "root", fmt.Sprintf("%d", root.Size)}}
+						{meta.Path, meta.HashSha256, "meta", fmt.Sprint(meta.Size)},
+						{root.Path, root.HashSha256, "root", fmt.Sprint(root.Size)}}
 				}
 
 				// Add the deltas
@@ -275,8 +275,8 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 					imgDownloads = append(imgDownloads, []string{
 						delta.Path,
 						delta.HashSha256,
-						fmt.Sprintf("root.delta-%s", srcFingerprint),
-						fmt.Sprintf("%d", delta.Size)})
+						"root.delta-" + srcFingerprint,
+						fmt.Sprint(delta.Size)})
 				}
 
 				// Add the image

@@ -423,6 +423,22 @@ var APIExtensions = []string{
 	"state_logical_cpus",
 	"vm_limits_cpu_pin_strategy",
 	"gpu_cdi",
+	"metadata_configuration_scope",
+	"unix_device_hotplug_ownership_inherit",
+	"unix_device_hotplug_subsystem_device_option",
+	"storage_ceph_osd_pool_size",
+	"network_get_target",
+	"network_zones_all_projects",
+	"vm_root_volume_attachment",
+	"projects_limits_uplink_ips",
+	"entities_with_entitlements",
+	"profiles_all_projects",
+	"storage_driver_powerflex",
+	"storage_driver_pure",
+	"cloud_init_ssh_keys",
+	"oidc_scopes",
+	"project_default_network_and_storage",
+	"ubuntu_pro_guest_attach",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

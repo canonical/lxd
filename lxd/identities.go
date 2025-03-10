@@ -790,9 +790,14 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 //	    $ref: "#/responses/InternalServerError"
 func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
-		recursion := r.URL.Query().Get("recursion")
+		recursion := util.IsRecursionRequest(r)
 		s := d.State()
 		canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeIdentity, true)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -842,7 +847,7 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 				return nil
 			}
 
-			if recursion == "1" && len(identities) == 1 {
+			if recursion && len(identities) == 1 {
 				// If there is only one identity to return (either the caller can only view themselves, or there is only one identity in database)
 				// we can optimise here by only getting the groups for that user. This sets the value of `apiIdentity`
 				// which is to be returned if non-nil.
@@ -850,7 +855,7 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 				if err != nil {
 					return err
 				}
-			} else if recursion == "1" {
+			} else if recursion {
 				// Otherwise, get all groups and populate the identities outside of the transaction.
 				// This optimisation prevents us from iterating through each identity and querying the database for the
 				// groups of each identity in turn.
@@ -868,10 +873,17 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 
 		// Optimisation for when only one identity is present on the system.
 		if apiIdentity != nil {
+			if len(withEntitlements) > 0 {
+				err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeIdentity, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.IdentityURL(apiIdentity.AuthenticationMethod, apiIdentity.Identifier): apiIdentity})
+				if err != nil {
+					return response.SmartError(err)
+				}
+			}
+
 			return response.SyncResponse(true, []api.Identity{*apiIdentity})
 		}
 
-		if recursion == "1" {
+		if recursion {
 			// Convert the []cluster.Group in the groupsByIdentityID map to string slices of the group names.
 			groupNamesByIdentityID := make(map[int][]string, len(groupsByIdentityID))
 			for identityID, groups := range groupsByIdentityID {
@@ -882,7 +894,8 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 				}
 			}
 
-			apiIdentities := make([]api.Identity, 0, len(identities))
+			apiIdentities := make([]*api.Identity, 0, len(identities))
+			urlToIdentity := make(map[*api.URL]auth.EntitlementReporter, len(identities))
 			for _, id := range identities {
 				var certificate string
 				if id.AuthMethod == api.AuthenticationMethodTLS && id.Type != api.IdentityTypeCertificateClientPending {
@@ -894,14 +907,24 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 					certificate = metadata.Certificate
 				}
 
-				apiIdentities = append(apiIdentities, api.Identity{
+				identity := &api.Identity{
 					AuthenticationMethod: string(id.AuthMethod),
 					Type:                 string(id.Type),
 					Identifier:           id.Identifier,
 					Name:                 id.Name,
 					Groups:               groupNamesByIdentityID[id.ID],
 					TLSCertificate:       certificate,
-				})
+				}
+
+				apiIdentities = append(apiIdentities, identity)
+				urlToIdentity[entity.IdentityURL(string(id.AuthMethod), id.Identifier)] = identity
+			}
+
+			if len(withEntitlements) > 0 {
+				err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeIdentity, withEntitlements, urlToIdentity)
+				if err != nil {
+					return response.SmartError(err)
+				}
 			}
 
 			return response.SyncResponse(true, apiIdentities)
@@ -991,6 +1014,11 @@ func getIdentity(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeIdentity, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	s := d.State()
 	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
@@ -1009,6 +1037,13 @@ func getIdentity(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeIdentity, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.IdentityURL(string(id.AuthMethod), id.Identifier): apiIdentity})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponseETag(true, apiIdentity, apiIdentity)
@@ -1126,6 +1161,7 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 		Identity:             *apiIdentity,
 		EffectiveGroups:      effectiveGroups,
 		EffectivePermissions: effectivePermissions,
+		FineGrained:          identity.IsFineGrainedIdentityType(apiIdentity.Type),
 	})
 }
 
@@ -1884,7 +1920,8 @@ func updateIdentityCacheFromLocal(d *Daemon) error {
 		return fmt.Errorf("Failed reading certificates from local database: %w", err)
 	}
 
-	var identityCacheEntries []identity.CacheEntry
+	// identityCacheEntries needs to be pre-allocated.
+	identityCacheEntries := make([]identity.CacheEntry, 0, len(localServerCerts))
 	for _, dbCert := range localServerCerts {
 		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
 		if certBlock == nil {

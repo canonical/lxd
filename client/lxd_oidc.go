@@ -3,6 +3,8 @@ package lxd
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -64,7 +66,6 @@ func (o *oidcTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 }
 
 var errRefreshAccessToken = fmt.Errorf("Failed refreshing access token")
-var oidcScopes = []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail, oidc.ScopeProfile}
 
 type oidcClient struct {
 	httpClient    *http.Client
@@ -100,7 +101,8 @@ func (o *oidcClient) getAccessToken() string {
 
 // do function executes an HTTP request using the oidcClient's http client, and manages authorization by refreshing or authenticating as needed.
 // If the request fails with an HTTP Unauthorized status, it attempts to refresh the access token, or perform an OIDC authentication if refresh fails.
-func (o *oidcClient) do(req *http.Request) (*http.Response, error) {
+// The oidcScopesExtensionPresent argument changes the behaviour of this function based on the presence of an API extension.
+func (o *oidcClient) do(req *http.Request, oidcScopesExtensionPresent bool) (*http.Response, error) {
 	resp, err := o.httpClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -114,18 +116,39 @@ func (o *oidcClient) do(req *http.Request) (*http.Response, error) {
 	issuer := resp.Header.Get("X-LXD-OIDC-issuer")
 	clientID := resp.Header.Get("X-LXD-OIDC-clientid")
 	audience := resp.Header.Get("X-LXD-OIDC-audience")
-	groupsClaim := resp.Header.Get("X-LXD-OIDC-groups-claim")
 
-	err = o.refresh(issuer, clientID, groupsClaim)
+	var scopes []string
+	if oidcScopesExtensionPresent {
+		// If we have the `oidc_scopes` extension, get the scopes from the header and ignore the groups claim header.
+		scopesJSON := resp.Header.Get("X-LXD-OIDC-scopes")
+		if scopesJSON == "" {
+			return nil, fmt.Errorf("LXD server did not return OIDC scopes")
+		}
+
+		err = json.Unmarshal([]byte(scopesJSON), &scopes)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse OIDC scopes: %w", err)
+		}
+	} else {
+		// Otherwise, use the default scopes from before the API extension was added, and append the groups claim header
+		// if set.
+		scopes = []string{oidc.ScopeOpenID, oidc.ScopeEmail, oidc.ScopeOfflineAccess, oidc.ScopeProfile}
+		groupsClaim := resp.Header.Get("X-LXD-OIDC-groups-claim")
+		if groupsClaim != "" {
+			scopes = append(scopes, groupsClaim)
+		}
+	}
+
+	err = o.refresh(issuer, clientID, scopes)
 	if err != nil {
-		err = o.authenticate(issuer, clientID, audience, groupsClaim)
+		err = o.authenticate(issuer, clientID, audience, scopes)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// Set the new access token in the header.
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", o.tokens.AccessToken))
+	req.Header.Set("Authorization", "Bearer "+o.tokens.AccessToken)
 
 	resp, err = o.httpClient.Do(req)
 	if err != nil {
@@ -137,7 +160,7 @@ func (o *oidcClient) do(req *http.Request) (*http.Response, error) {
 
 // getProvider initializes a new OpenID Connect Relying Party for a given issuer and clientID.
 // The function also creates a secure CookieHandler with random encryption and hash keys, and applies a series of configurations on the Relying Party.
-func (o *oidcClient) getProvider(issuer string, clientID string, groupsClaim string) (rp.RelyingParty, error) {
+func (o *oidcClient) getProvider(issuer string, clientID string, scopes []string) (rp.RelyingParty, error) {
 	hashKey := make([]byte, 16)
 	encryptKey := make([]byte, 16)
 
@@ -159,11 +182,6 @@ func (o *oidcClient) getProvider(issuer string, clientID string, groupsClaim str
 		rp.WithHTTPClient(o.httpClient),
 	}
 
-	scopes := oidcScopes
-	if groupsClaim != "" {
-		scopes = append(oidcScopes, groupsClaim)
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -177,12 +195,12 @@ func (o *oidcClient) getProvider(issuer string, clientID string, groupsClaim str
 
 // refresh attempts to refresh the OpenID Connect access token for the client using the refresh token.
 // If no token is present or the refresh token is empty, it returns an error. If successful, it updates the access token and other relevant token fields.
-func (o *oidcClient) refresh(issuer string, clientID string, groupsClaim string) error {
+func (o *oidcClient) refresh(issuer string, clientID string, scopes []string) error {
 	if o.tokens.Token == nil || o.tokens.RefreshToken == "" {
 		return errRefreshAccessToken
 	}
 
-	provider, err := o.getProvider(issuer, clientID, groupsClaim)
+	provider, err := o.getProvider(issuer, clientID, scopes)
 	if err != nil {
 		return errRefreshAccessToken
 	}
@@ -209,7 +227,7 @@ func (o *oidcClient) refresh(issuer string, clientID string, groupsClaim string)
 // authenticate initiates the OpenID Connect device flow authentication process for the client.
 // It presents a user code for the end user to input in the device that has web access and waits for them to complete the authentication,
 // subsequently updating the client's tokens upon successful authentication.
-func (o *oidcClient) authenticate(issuer string, clientID string, audience string, groupsClaim string) error {
+func (o *oidcClient) authenticate(issuer string, clientID string, audience string, scopes []string) error {
 	// Store the old transport and restore it in the end.
 	oldTransport := o.httpClient.Transport
 	o.oidcTransport.audience = audience
@@ -219,7 +237,7 @@ func (o *oidcClient) authenticate(issuer string, clientID string, audience strin
 		o.httpClient.Transport = oldTransport
 	}()
 
-	provider, err := o.getProvider(issuer, clientID, groupsClaim)
+	provider, err := o.getProvider(issuer, clientID, scopes)
 	if err != nil {
 		return err
 	}
@@ -229,12 +247,28 @@ func (o *oidcClient) authenticate(issuer string, clientID string, audience strin
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT)
 	defer stop()
 
-	resp, err := rp.DeviceAuthorization(ctx, oidcScopes, provider, nil)
+	resp, err := rp.DeviceAuthorization(ctx, scopes, provider, nil)
 	if err != nil {
 		return err
 	}
 
-	u, _ := url.Parse(resp.VerificationURIComplete)
+	// Check if `verification_uri_complete` is present (this auto fills the code in the browser but is marked as optional https://www.rfc-editor.org/rfc/rfc8628#section-3.2)
+	var u *url.URL
+	if resp.VerificationURIComplete != "" {
+		u, _ = url.Parse(resp.VerificationURIComplete)
+	}
+
+	// Fall back to `verification_uri` (marked as required in specification).
+	if u == nil {
+		if resp.VerificationURI == "" {
+			return errors.New("Identity provider did not return a verification URI")
+		}
+
+		u, err = url.Parse(resp.VerificationURI)
+		if err != nil {
+			return fmt.Errorf("Identity provider returned an invalid verification URI %q: %w", resp.VerificationURI, err)
+		}
+	}
 
 	fmt.Printf("URL: %s\n", u.String())
 	fmt.Printf("Code: %s\n\n", resp.UserCode)

@@ -419,18 +419,18 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 
 			vol.UsedBy = project.FilterUsedBy(s.Authorizer, r, volumeUsedBy)
 
-			tmp := &api.StorageVolumeSnapshot{}
-			tmp.Config = vol.Config
-			tmp.Description = vol.Description
-			tmp.Name = vol.Name
-			tmp.CreatedAt = vol.CreatedAt
+			snap := &api.StorageVolumeSnapshot{}
+			snap.Config = vol.Config
+			snap.Description = vol.Description
+			snap.Name = vol.Name
+			snap.CreatedAt = vol.CreatedAt
 
 			expiryDate := volume.ExpiryDate
 			if expiryDate.Unix() > 0 {
-				tmp.ExpiresAt = &expiryDate
+				snap.ExpiresAt = &expiryDate
 			}
 
-			resultMap = append(resultMap, tmp)
+			resultMap = append(resultMap, snap)
 		}
 	}
 
@@ -652,7 +652,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 		return response.SmartError(err)
 	}
 
-	snapshot := api.StorageVolumeSnapshot{}
+	snapshot := &api.StorageVolumeSnapshot{}
 	snapshot.Config = dbVolume.Config
 	snapshot.Description = dbVolume.Description
 	snapshot.Name = snapshotName
@@ -661,7 +661,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	snapshot.CreatedAt = dbVolume.CreatedAt
 
 	etag := []any{snapshot.Description, expiry}
-	return response.SyncResponseETag(true, &snapshot, etag)
+	return response.SyncResponseETag(true, snapshot, etag)
 }
 
 // swagger:operation PUT /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName} storage storage_pool_volumes_type_snapshot_put

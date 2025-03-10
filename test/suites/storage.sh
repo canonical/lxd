@@ -337,10 +337,12 @@ EOF
       lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 zfs.use_refquota true
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 c1pool1 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 c1pool1 testDevice2 /opt || false
+      lxc config show c1pool1 | grep -Pz "  testDevice:\n    path: /opt\n    pool: lxdtest-$(basename "${LXD_DIR}")-pool1\n    source: c1pool1\n    type: disk\n"
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 c1pool1
+      ! lxc config show c1pool1 | grep "testDevice" || false
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" custom/c1pool1 c1pool1 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" custom/c1pool1 c1pool1 testDevice2 /opt || false
-      lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 c1pool1
+      lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool1" custom/c1pool1 c1pool1
 
       lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool1" c2pool2
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" c2pool2 c2pool2 testDevice /opt
@@ -927,12 +929,19 @@ EOF
 
     # Launch container.
     lxc launch -s "${pool_name}" testimage c1
+    lxc storage volume create "${pool_name}" fsvol
 
     # Disable quotas. The usage should be 0.
     # shellcheck disable=SC2031
     btrfs quota disable "${LXD_DIR}/storage-pools/${pool_name}"
-    usage=$(lxc query /1.0/instances/c1/state | jq '.disk.root')
-    [ "${usage}" = "null" ]
+    # Usage 0 indicates the driver does not support getting volume usage.
+    [ "$(lxc query /1.0/instances/c1/state | jq '.disk.root.usage')" = "0" ]
+    [ "$(lxc query "/1.0/storage-pools/${pool_name}/volumes/custom/fsvol/state" | jq '.usage.used')" = "0" ]
+    # Total 0 indicates the volume is unbound.
+    [ "$(lxc query /1.0/instances/c1/state | jq '.disk.root.total')" = "0" ]
+    [ "$(lxc query "/1.0/storage-pools/${pool_name}/volumes/custom/fsvol/state" | jq '.usage.total')" = "0" ]
+
+    lxc storage volume delete "${pool_name}" fsvol
 
     # Enable quotas. The usage should then be > 0.
     # shellcheck disable=SC2031

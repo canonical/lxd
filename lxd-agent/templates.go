@@ -34,7 +34,7 @@ func templatesApply(path string) ([]string, error) {
 	files := []string{}
 	for tplPath, tpl := range metadata.Templates {
 		err = func(tplPath string, tpl *api.ImageMetadataTemplate) error {
-			filePath := filepath.Join(path, fmt.Sprintf("%s.out", tpl.Template))
+			filePath := filepath.Join(path, tpl.Template+".out")
 
 			if !shared.PathExists(filePath) {
 				return nil

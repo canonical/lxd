@@ -23,7 +23,7 @@ See {ref}`devices-disk-examples` for more detailed information on how to add eac
 
 Storage volume
 : The most common type of disk device is a storage volume.
-  Specify the storage volume name as the source to add a storage volume as a disk device.
+  Specify the storage volume name as the {config:option}`device-disk-device-conf:source` to add a storage volume as a disk device. `virtual-machine' storage volumes (and their snapshots) can also be attached as disk devices.
 
 Path on the host
 : You can share a path on your host (either a file system or a block device) to your instance.

@@ -525,9 +525,10 @@ init_module errno 38
 delete_module errno 38
 `
 
-//	8 == SECCOMP_FILTER_FLAG_NEW_LISTENER
+// 8 == SECCOMP_FILTER_FLAG_NEW_LISTENER
 //
 // 2146435072 == SECCOMP_RET_TRACE
+// Prevent the container from overriding our syscall supervision.
 const seccompNotifyDisallow = `seccomp errno 22 [1,2146435072,SCMP_CMP_MASKED_EQ,2146435072]
 seccomp errno 22 [1,8,SCMP_CMP_MASKED_EQ,8]
 `
@@ -594,6 +595,7 @@ const seccompNotifyMount = `mount notify [3,0,SCMP_CMP_MASKED_EQ,184467440704224
 // 5 == BPF_PROG_LOAD
 // 8 == BPF_PROG_ATTACH
 // 9 == BPF_PROG_DETACH
+// Policy snippet if security.syscalls.intercept.bpf is enabled.
 const seccompNotifyBpf = `bpf notify [0,5,SCMP_CMP_EQ]
 bpf notify [0,8,SCMP_CMP_EQ]
 bpf notify [0,9,SCMP_CMP_EQ]
@@ -1135,7 +1137,7 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 
 // TaskIDs returns the task IDs for a process.
 func TaskIDs(pid int) (UID int64, GID int64, fsUID int64, fsGID int64, err error) {
-	status, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
+	status, err := os.ReadFile("/proc/" + strconv.FormatInt(int64(pid), 10) + "/status")
 	if err != nil {
 		return -1, -1, -1, -1, err
 	}
@@ -1217,7 +1219,7 @@ func TaskIDs(pid int) (UID int64, GID int64, fsUID int64, fsGID int64, err error
 	return UID, GID, fsUID, fsGID, nil
 }
 
-// FindTGID returns the task group leader ID from /proc/<pid> fd
+// FindTGID returns the task group leader ID from /proc/<pid> fd.
 func FindTGID(procFd int) (uint32, error) {
 	var statusFile *os.File
 	fd, err := unix.Openat(procFd, "status", unix.O_RDONLY|unix.O_CLOEXEC, 0)
@@ -1253,17 +1255,17 @@ func FindTGID(procFd int) (uint32, error) {
 }
 
 // isCapableInCtInitUserns checks if intercepted syscall's caller has a (cap) effective
-// capability in the container's initial user namespace
-func isCapableInCtInitUserns(siov *Iovec, cap C.int) (bool, error) {
+// capability in the container's initial user namespace.
+func isCapableInCtInitUserns(siov *Iovec, capability C.int) (bool, error) {
 	containerInitPID := int(siov.msg.init_pid)
 	targetPID := int(siov.req.pid)
 
-	ctInitUserNS, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/user", containerInitPID))
+	ctInitUserNS, err := os.Readlink("/proc/" + strconv.FormatInt(int64(containerInitPID), 10) + "/ns/user")
 	if err != nil {
 		return false, fmt.Errorf("Can't get userns for container's init process: %w", err)
 	}
 
-	reqUserNS, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/user", targetPID))
+	reqUserNS, err := os.Readlink("/proc/" + strconv.FormatInt(int64(targetPID), 10) + "/ns/user")
 	if err != nil {
 		return false, fmt.Errorf("Can't get userns for requestor process: %w", err)
 	}
@@ -1273,7 +1275,7 @@ func isCapableInCtInitUserns(siov *Iovec, cap C.int) (bool, error) {
 		return false, nil
 	}
 
-	return bool(C.lxd_pid_cap_is_set(C.int(targetPID), cap, C.CAP_EFFECTIVE)), nil
+	return bool(C.lxd_pid_cap_is_set(C.int(targetPID), capability, C.CAP_EFFECTIVE)), nil
 }
 
 // CallForkmknod executes fork mknod.
@@ -1296,14 +1298,14 @@ func CallForkmknod(c Instance, dev deviceConfig.Device, requestPID int, s *state
 		"forksyscall",
 		"mknod",
 		dev["pid"],
-		fmt.Sprintf("%d", pidFdNr),
+		strconv.FormatInt(int64(pidFdNr), 10),
 		dev["path"],
 		dev["mode_t"],
 		dev["dev_t"],
-		fmt.Sprintf("%d", uid),
-		fmt.Sprintf("%d", gid),
-		fmt.Sprintf("%d", fsuid),
-		fmt.Sprintf("%d", fsgid))
+		strconv.FormatInt(uid, 10),
+		strconv.FormatInt(gid, 10),
+		strconv.FormatInt(fsuid, 10),
+		strconv.FormatInt(fsgid, 10))
 	if err != nil {
 		errno, err := strconv.Atoi(stderr)
 		if err != nil || errno == C.ENOANO {
@@ -1341,17 +1343,17 @@ func (s *Server) doDeviceSyscall(c Instance, args *MknodArgs, siov *Iovec) int {
 	dev := deviceConfig.Device{}
 	dev["type"] = "unix-char"
 	dev["mode"] = fmt.Sprintf("%#o", args.cMode)
-	dev["major"] = fmt.Sprintf("%d", unix.Major(uint64(args.cDev)))
-	dev["minor"] = fmt.Sprintf("%d", unix.Minor(uint64(args.cDev)))
-	dev["pid"] = fmt.Sprintf("%d", args.cPid)
+	dev["major"] = strconv.FormatInt(int64(unix.Major(uint64(args.cDev))), 10)
+	dev["minor"] = strconv.FormatInt(int64(unix.Minor(uint64(args.cDev))), 10)
+	dev["pid"] = strconv.FormatInt(int64(args.cPid), 10)
 	dev["path"] = args.path
-	dev["mode_t"] = fmt.Sprintf("%d", args.cMode)
-	dev["dev_t"] = fmt.Sprintf("%d", args.cDev)
+	dev["mode_t"] = strconv.FormatInt(int64(args.cMode), 10)
+	dev["dev_t"] = strconv.FormatInt(int64(args.cDev), 10)
 
 	// has CAP_MKNOD capability?
 	hasCapability, err := isCapableInCtInitUserns(siov, C.CAP_MKNOD)
 	if err != nil {
-		l.Error(fmt.Sprintf("%v", err))
+		l.Error(fmt.Sprint(err))
 		return int(-C.EPERM)
 	}
 
@@ -1366,7 +1368,7 @@ func (s *Server) doDeviceSyscall(c Instance, args *MknodArgs, siov *Iovec) int {
 	}
 
 	l.Debug("Using fallback codepath for mknod syscall interception...")
-	err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(args.cPid)), dev, int(args.cPid))
+	err = c.InsertSeccompUnixDevice("forkmknod.unix."+strconv.FormatInt(int64(args.cPid), 10), dev, int(args.cPid))
 	if err != nil {
 		return int(-C.EPERM)
 	}
@@ -1622,17 +1624,17 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 		util.GetExecPath(),
 		"forksyscall",
 		"setxattr",
-		fmt.Sprintf("%d", args.pid),
-		fmt.Sprintf("%d", pidFdNr),
-		fmt.Sprintf("%d", args.nsuid),
-		fmt.Sprintf("%d", args.nsgid),
-		fmt.Sprintf("%d", args.nsfsuid),
-		fmt.Sprintf("%d", args.nsfsgid),
+		strconv.FormatInt(int64(args.pid), 10),
+		strconv.FormatInt(int64(pidFdNr), 10),
+		strconv.FormatInt(args.nsuid, 10),
+		strconv.FormatInt(args.nsgid, 10),
+		strconv.FormatInt(args.nsfsuid, 10),
+		strconv.FormatInt(args.nsfsgid, 10),
 		args.name,
 		args.path,
-		fmt.Sprintf("%d", args.flags),
-		fmt.Sprintf("%d", whiteout),
-		fmt.Sprintf("%d", args.size),
+		strconv.FormatInt(int64(args.flags), 10),
+		strconv.FormatInt(int64(whiteout), 10),
+		strconv.FormatInt(int64(args.size), 10),
 		string(args.value))
 	if err != nil {
 		errno, err := strconv.Atoi(stderr)
@@ -1774,12 +1776,12 @@ func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 		util.GetExecPath(),
 		"forksyscall",
 		"sched_setscheduler",
-		fmt.Sprintf("%d", args.pidCaller),
-		fmt.Sprintf("%d", pidFdNr),
-		fmt.Sprintf("%d", args.switchPidns),
-		fmt.Sprintf("%d", args.pidTarget),
-		fmt.Sprintf("%d", args.policy),
-		fmt.Sprintf("%d", args.schedPriority),
+		strconv.FormatInt(int64(args.pidCaller), 10),
+		strconv.FormatInt(int64(pidFdNr), 10),
+		strconv.FormatInt(int64(args.switchPidns), 10),
+		strconv.FormatInt(int64(args.pidTarget), 10),
+		strconv.FormatInt(int64(args.policy), 10),
+		strconv.FormatInt(int64(args.schedPriority), 10),
 	)
 	if err != nil {
 		errno, err := strconv.Atoi(stderr)
@@ -1830,7 +1832,7 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 	}
 
 	// Get instance uptime.
-	pidStat, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", siov.msg.init_pid))
+	pidStat, err := os.ReadFile("/proc/" + strconv.FormatInt(int64(siov.msg.init_pid), 10) + "/stat")
 	if err != nil {
 		l.Warn("Failed getting init process info", logger.Ctx{"err": err, "pid": siov.msg.init_pid})
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
@@ -1947,7 +1949,7 @@ type nullWriteCloser struct {
 	*bytes.Buffer
 }
 
-// Close is a no-op closer implementation
+// Close is a no-op closer implementation.
 func (nwc *nullWriteCloser) Close() error {
 	return nil
 }
@@ -2025,7 +2027,7 @@ func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
 	// has CAP_SYS_MODULE capability?
 	hasCapability, err := isCapableInCtInitUserns(siov, C.CAP_SYS_MODULE)
 	if err != nil {
-		ctx["err"] = fmt.Sprintf("%v", err)
+		ctx["err"] = fmt.Sprint(err)
 		return int(-C.EPERM)
 	}
 
@@ -2436,13 +2438,13 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 			util.GetExecPath(),
 			"forksyscall",
 			"mount",
-			fmt.Sprintf("%d", args.pid),
-			fmt.Sprintf("%d", pidFdNr),
-			fmt.Sprintf("%d", 1),
-			fmt.Sprintf("%d", args.uid),
-			fmt.Sprintf("%d", args.gid),
-			fmt.Sprintf("%d", args.fsuid),
-			fmt.Sprintf("%d", args.fsgid),
+			strconv.FormatInt(int64(args.pid), 10),
+			strconv.FormatInt(int64(pidFdNr), 10),
+			"1",
+			strconv.FormatInt(args.uid, 10),
+			strconv.FormatInt(args.gid, 10),
+			strconv.FormatInt(args.fsuid, 10),
+			strconv.FormatInt(args.fsgid, 10),
 			fuseSource,
 			args.target,
 			fuseOpts)
@@ -2456,7 +2458,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 			"mount",
 			fmt.Sprintf("%d", args.pid),
 			fmt.Sprintf("%d", pidFdNr),
-			fmt.Sprintf("%d", 0),
+			"0",
 			args.source,
 			args.target,
 			args.fstype,
@@ -2528,9 +2530,9 @@ func (s *Server) HandleBpfSyscall(c Instance, siov *Iovec) int {
 		&bpfProgType,
 		&bpfAttachType)
 	runtime.UnlockOSThread()
-	ctx["bpf_cmd"] = fmt.Sprintf("%d", bpfCmd)
-	ctx["bpf_prog_type"] = fmt.Sprintf("%d", bpfProgType)
-	ctx["bpf_attach_type"] = fmt.Sprintf("%d", bpfAttachType)
+	ctx["bpf_cmd"] = strconv.FormatInt(int64(bpfCmd), 10)
+	ctx["bpf_prog_type"] = strconv.FormatInt(int64(bpfProgType), 10)
+	ctx["bpf_attach_type"] = strconv.FormatInt(int64(bpfAttachType), 10)
 	if ret < 0 {
 		ctx["syscall_continue"] = "true"
 		ctx["syscall_handler_error"] = fmt.Sprintf("%s - Failed to handle bpf syscall", unix.Errno(-ret))
@@ -2642,7 +2644,7 @@ func lxcSupportSeccompNotify(state *state.State) error {
 		return fmt.Errorf("Failed to load seccomp notify test container")
 	}
 
-	err = c.SetConfigItem("lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
+	err = c.SetConfigItem("lxc.seccomp.notify.proxy", "unix:"+shared.VarPath("seccomp.socket"))
 	if err != nil {
 		return fmt.Errorf("LXC doesn't support notify proxy: %w", err)
 	}
@@ -2667,7 +2669,7 @@ func MountSyscallFilter(config map[string]string) []string {
 	return fs
 }
 
-// SyscallInterceptMountFilter creates a new mount syscall interception filter
+// SyscallInterceptMountFilter creates a new mount syscall interception filter.
 func SyscallInterceptMountFilter(config map[string]string) (map[string]string, error) {
 	if shared.IsFalseOrEmpty(config["security.syscalls.intercept.mount"]) {
 		return map[string]string{}, nil

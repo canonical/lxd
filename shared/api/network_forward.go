@@ -57,7 +57,8 @@ type NetworkForwardPort struct {
 	TargetPort string `json:"target_port" yaml:"target_port"`
 
 	// lxdmeta:generate(entities=network-forward; group=port-properties; key=target_address)
-	//
+	// This `target_address` must be within the subnet of the network the forward belongs to.
+	// Also, it must be different from the forward’s default target address.
 	// ---
 	//  type: string
 	//  required: yes
@@ -105,13 +106,17 @@ type NetworkForwardsPost struct {
 	NetworkForwardPut `yaml:",inline"`
 
 	// lxdmeta:generate(entities=network-forward; group=forward-properties; key=listen_address)
-	//
+	// See {ref}`network-forwards-listen-addresses`.
 	// ---
 	//  type: string
 	//  required: no
 	//  shortdesc: IP address to listen on
 
 	// The listen address of the forward
+	// For OVN networks only, you can dynamically allocate the listen address from a pre-defined range.
+	// To do so for an IPv4 address, provide a listen_address of `0.0.0.0`.
+	// For an IPv6 address, provide a listen_address of `::`.
+	// These are equivalent to the `allocate=ipv{4|6}` flag used to create a network forward via the CLI.
 	// Example: 192.0.2.1
 	ListenAddress string `json:"listen_address" yaml:"listen_address"`
 }
@@ -145,13 +150,16 @@ type NetworkForwardPut struct {
 
 	// lxdmeta:generate(entities=network-forward; group=forward-properties; key=config)
 	// The only supported keys are `target_address` and `user.*` custom keys.
+	//
+	// The `target_address` key is for the default target address of the network forward.
+	// It must be an IP address within the subnet of the network the forward belongs to.
 	// ---
 	//  type: string set
 	//  required: no
 	//  shortdesc: User-provided free-form key/value pairs
 
 	// Forward configuration map (refer to doc/network-forwards.md)
-	// Example: {"user.mykey": "foo"}
+	// Example: {"user.mykey": "foo","target_address": "198.51.100.99"}
 	Config map[string]string `json:"config" yaml:"config"`
 
 	// lxdmeta:generate(entities=network-forward; group=forward-properties; key=ports)
@@ -198,7 +206,7 @@ type NetworkForward struct {
 	Description string `json:"description" yaml:"description"`
 
 	// Forward configuration map (refer to doc/network-forwards.md)
-	// Example: {"user.mykey": "foo"}
+	// Example: {"user.mykey": "foo","target_address": "198.51.100.99"}
 	Config map[string]string `json:"config" yaml:"config"`
 
 	// Port forwards (optional)

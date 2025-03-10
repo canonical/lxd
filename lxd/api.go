@@ -187,7 +187,7 @@ func restServer(d *Daemon) *http.Server {
 	for _, c := range api10 {
 		// Every 1.0 endpoint should have a type for the API metrics.
 		if !shared.ValueInSlice(c.MetricsType, entity.APIMetricsEntityTypes()) {
-			panic(fmt.Sprintf(`Endpoint "/1.0/%s" has invalid MetricsType: %s`, c.Path, c.MetricsType))
+			panic(`Endpoint "/1.0/` + c.Path + `" has invalid MetricsType: ` + string(c.MetricsType))
 		}
 
 		d.createCmd(mux, "1.0", c)
@@ -244,7 +244,15 @@ func hoistReqVM(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Re
 		}
 
 		resp := f(d, inst, w, r)
-		_ = resp.Render(w, r)
+		if resp != nil {
+			err = resp.Render(w, r)
+			if err != nil {
+				writeErr := response.DevLxdErrorResponse(err, true).Render(w, r)
+				if writeErr != nil {
+					logger.Warn("Failed writing error for HTTP response", logger.Ctx{"url": r.URL, "err": err, "writeErr": writeErr})
+				}
+			}
+		}
 	}
 }
 

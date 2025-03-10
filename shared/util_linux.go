@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -21,7 +22,6 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/shared/revert"
-	"github.com/canonical/lxd/shared/units"
 )
 
 // --- pure Go functions ---
@@ -248,34 +248,37 @@ func GetMeminfo(field string) (int64, error) {
 	for scan.Scan() {
 		line := scan.Text()
 
-		// We only care about MemTotal
-		if !strings.HasPrefix(line, field+":") {
+		// We only care about the requested field
+		rightHandSide, found := strings.CutPrefix(line, field+":")
+		if !found {
 			continue
 		}
 
-		// Extract the before last (value) and last (unit) fields
-		fields := strings.Split(line, " ")
-		value := fields[len(fields)-2] + fields[len(fields)-1]
+		// Most lines end with " kB" to indicate the value is in kilobytes
+		multiplier := int64(1)
+		value, found := strings.CutSuffix(rightHandSide, " kB")
+		if found {
+			multiplier = 1024
+		}
 
-		// Feed the result to units.ParseByteSizeString to get an int value
-		valueBytes, err := units.ParseByteSizeString(value)
+		// Remove spaces and convert to int.
+		valueInt, err := strconv.ParseInt(strings.TrimLeft(value, " "), 10, 64)
 		if err != nil {
 			return -1, err
 		}
 
-		return valueBytes, nil
+		// Multiply the value by the multiplier
+		return valueInt * multiplier, nil
 	}
 
 	return -1, fmt.Errorf("Couldn't find %s", field)
 }
 
 // OpenPtyInDevpts creates a new PTS pair, configures them and returns them.
-func OpenPtyInDevpts(devptsFD int, uid, gid int64) (*os.File, *os.File, error) {
+func OpenPtyInDevpts(devptsFD int, uid, gid int64) (ptx *os.File, pty *os.File, err error) {
 	revert := revert.New()
 	defer revert.Fail()
 	var fd int
-	var ptx *os.File
-	var err error
 
 	// Create a PTS pair.
 	if devptsFD >= 0 {
@@ -298,7 +301,6 @@ func OpenPtyInDevpts(devptsFD int, uid, gid int64) (*os.File, *os.File, error) {
 		return nil, nil, unix.Errno(errno)
 	}
 
-	var pty *os.File
 	ptyFd, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ptx.Fd()), unix.TIOCGPTPEER, uintptr(unix.O_NOCTTY|unix.O_CLOEXEC|os.O_RDWR))
 	// We can only fallback to looking up the fd in /dev/pts when we aren't dealing with the container's devpts instance.
 	if errno == 0 {
@@ -380,7 +382,7 @@ func OpenPtyInDevpts(devptsFD int, uid, gid int64) (*os.File, *os.File, error) {
 }
 
 // OpenPty creates a new PTS pair, configures them and returns them.
-func OpenPty(uid, gid int64) (*os.File, *os.File, error) {
+func OpenPty(uid, gid int64) (ptx *os.File, pty *os.File, err error) {
 	return OpenPtyInDevpts(-1, uid, gid)
 }
 

@@ -265,6 +265,7 @@ jobs:
         uses: ./.github/actions/setup-microceph
         with:
           microceph-channel: "squid/candidate"
+          osd-count: 3
 
       - name: Setup MicroOVN
         uses: ./.github/actions/setup-microovn
@@ -311,11 +312,10 @@ jobs:
       CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
-    #if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
-    if: false
+    if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
@@ -370,7 +370,7 @@ jobs:
           project: LXD
           viewerUrl: https://canonical.tiobe.com/tiobeweb/TICS/api/cfg?name=default
           branchdir: ${{ github.workspace }}
-          ticsAuthToken: ${{ secrets.TICS_AUTH_TOKEN }}
+          ticsAuthToken: ${{ secrets.TICSAUTHTOKEN }}
           installTics: true
           calc: ALL
           tmpdir: /tmp/tics
@@ -385,6 +385,7 @@ jobs:
           - macos-latest
           - windows-latest
     runs-on: ${{ matrix.os }}
+    needs: code-tests
 
     steps:
       - name: Checkout code
@@ -658,73 +659,75 @@ jobs:
           fail-on-error: true
           woke-args: "*.md **/*.md -c https://github.com/canonical/Inclusive-naming/raw/main/config.yml"
 
+      - name: Upload documentation artifacts
+        if: always()
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: documentation
+          path: doc/_build
+
+  documentation-linkcheck:
+    name: Documentation link check
+    runs-on: ubuntu-24.04
+    needs: documentation
+    # Run link checker during scheduled CI runs only
+    if: ${{ github.event_name == 'schedule' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Go
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Build LXD client
+        run: make client
+
+      - name: Download built docs
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          name: documentation
+          merge-multiple: true
+          path: doc/_build
+
       - name: Run link checker
-        # Run link checker during scheduled CI runs only
-        if: ${{ github.event_name == 'schedule' }}
         shell: 'script -q -e -c "export TERM=xterm-256color; bash {0}"'
         run: |
           set -eux
           make doc-linkcheck
-
-      - name: Upload documentation artifacts
-        if: always()
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1  # v4.6.1
-        with:
-          name: documentation
-          path: doc/_build
 
   snap:
     name: Trigger snap edge build
     runs-on: ubuntu-24.04
     needs: [code-tests, system-tests, client, documentation]
     if: ${{ github.repository == 'canonical/lxd' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
+    env:
+      SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+      PACKAGE: "lxd"
+      REPO: "git+ssh://lxdbot@git.launchpad.net/~canonical-lxd/lxd"
+      BRANCH: >-
+        ${{ fromJson('{
+          "main": "latest-edge",
+          "stable-5.21": "5.21-edge",
+          "stable-5.0": "5.0-edge",
+        }')[github.ref_name] }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Setup Launchpad SSH access
-        env:
-          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
-          LAUNCHPAD_LXD_BOT_KEY: ${{ secrets.LAUNCHPAD_LXD_BOT_KEY }}
-        run: |
-          set -eux
-          mkdir -m 0700 -p ~/.ssh/
-          ssh-agent -a "${SSH_AUTH_SOCK}" > /dev/null
-          ssh-add - <<< "${{ secrets.LAUNCHPAD_LXD_BOT_KEY }}"
-          ssh-add -L > ~/.ssh/id_ed25519.pub
-          # In ephemeral environments like GitHub Action runners, relying on TOFU isn't providing any security
-          # so require the key obtained by `ssh-keyscan` to match the expected hash from https://help.launchpad.net/SSHFingerprints
-          ssh-keyscan git.launchpad.net >> ~/.ssh/known_hosts
-          ssh-keygen -qlF git.launchpad.net | grep -xF 'git.launchpad.net RSA SHA256:UNOzlP66WpDuEo34Wgs8mewypV0UzqHLsIFoqwe8dYo'
-
-      - name: Install Go
-        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34  # v5.3.0
+      - uses: ./.github/actions/lp-snap-build
         with:
-          go-version-file: 'go.mod'
+          ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}"
 
       - name: Trigger Launchpad snap build
-        env:
-          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
-          TARGET: >-
-            ${{ fromJson('{
-              "main": "latest-edge",
-              "stable-5.21": "5.21-edge",
-              "stable-5.0": "5.0-edge",
-            }')[github.ref_name] }}
         run: |
           set -eux
-          git config --global transfer.fsckobjects true
-          git config --global user.name "Canonical LXD Bot"
-          git config --global user.email "lxd@lists.canonical.com"
-          git config --global commit.gpgsign true
-          git config --global gpg.format "ssh"
-          git config --global user.signingkey ~/.ssh/id_ed25519.pub
+          echo "${PATH}"
           localRev="$(git rev-parse HEAD)"
-          go install github.com/canonical/lxd-ci/lxd-snapcraft@latest
-          git clone -b "${TARGET}" git+ssh://lxdbot@git.launchpad.net/~canonical-lxd/lxd ~/lxd-pkg-snap-lp
-          cd ~/lxd-pkg-snap-lp
-          lxd-snapcraft -package lxd -set-version "git-${localRev:0:7}" -set-source-commit "${localRev}"
+          cd ~/"${PACKAGE}-pkg-snap-lp"
+          lxd-snapcraft -package "${PACKAGE}" -set-version "git-${localRev:0:7}" -set-source-commit "${localRev}"
           git add --all
-          git commit --all --quiet -s --allow-empty -m "Automatic upstream build (${TARGET})" -m "Upstream commit: ${localRev}"
+          git commit --all --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
           git show
           git push --quiet
