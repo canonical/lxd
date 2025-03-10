@@ -74,14 +74,9 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	chIgnore := make(chan os.Signal, 1)
 	signal.Notify(chIgnore, unix.SIGHUP)
 
-	err := d.Init()
-	if err != nil {
-		return err
-	}
-
-	for {
-		select {
-		case sig := <-sigCh:
+	go func() {
+		for {
+			sig := <-sigCh
 			logger.Info("Received signal", logger.Ctx{"signal": sig})
 			if d.shutdownCtx.Err() != nil {
 				logger.Warn("Ignoring signal, shutdown already in progress", logger.Ctx{"signal": sig})
@@ -90,9 +85,13 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 					d.shutdownDoneCh <- d.Stop(context.Background(), sig)
 				}()
 			}
-
-		case err = <-d.shutdownDoneCh:
-			return err
 		}
+	}()
+
+	err := d.Init()
+	if err != nil {
+		return err
 	}
+
+	return <-d.shutdownDoneCh
 }
