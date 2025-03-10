@@ -397,7 +397,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 				Description:  srcSnap.Description(),
 				Ephemeral:    srcSnap.IsEphemeral(),
 				Name:         newSnapName,
-				Profiles:     srcSnap.Profiles(),
+				Profiles:     opts.targetInstance.Profiles,
 				Project:      opts.targetInstance.Project,
 				ExpiryDate:   srcSnap.ExpiryDate(),
 				CreationDate: srcSnap.CreationDate(),
