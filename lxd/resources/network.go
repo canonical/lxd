@@ -525,6 +525,7 @@ func getNativeBridgeState(bridgePath string, name string) *api.NetworkStateBridg
 }
 
 // Fetch OVS bridge information.
+// Returns nil if interface is not an OVS bridge.
 func getOVSBridgeState(name string) *api.NetworkStateBridge {
 	ovs := openvswitch.NewOVS()
 	isOVSBridge := false
@@ -532,46 +533,48 @@ func getOVSBridgeState(name string) *api.NetworkStateBridge {
 		isOVSBridge, _ = ovs.BridgeExists(name)
 	}
 
+	if !isOVSBridge {
+		return nil
+	}
+
 	bridge := api.NetworkStateBridge{}
-	if isOVSBridge {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
-		defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	defer cancel()
 
-		// Bridge ID
-		strValue, err := ovs.GenerateOVSBridgeID(ctx, name)
-		if err == nil {
-			bridge.ID = strValue
-		}
+	// Bridge ID
+	strValue, err := ovs.GenerateOVSBridgeID(ctx, name)
+	if err == nil {
+		bridge.ID = strValue
+	}
 
-		// Bridge STP
-		boolValue, err := ovs.STPEnabled(ctx, name)
-		if err == nil {
-			bridge.STP = boolValue
-		}
+	// Bridge STP
+	boolValue, err := ovs.STPEnabled(ctx, name)
+	if err == nil {
+		bridge.STP = boolValue
+	}
 
-		// Bridge Forwards Delay
-		uintValue, err := ovs.GetSTPForwardDelay(ctx, name)
-		if err == nil {
-			bridge.ForwardDelay = uintValue
-		}
+	// Bridge Forwards Delay
+	uintValue, err := ovs.GetSTPForwardDelay(ctx, name)
+	if err == nil {
+		bridge.ForwardDelay = uintValue
+	}
 
-		// Bridge default VLAN (PVID)
-		uintValue, err = ovs.GetVLANPVID(ctx, name)
-		if err == nil {
-			bridge.VLANDefault = uintValue
-		}
+	// Bridge default VLAN (PVID)
+	uintValue, err = ovs.GetVLANPVID(ctx, name)
+	if err == nil {
+		bridge.VLANDefault = uintValue
+	}
 
-		// Bridge VLAN filtering
-		boolValue, err = ovs.VLANFilteringEnabled(ctx, name)
-		if err == nil {
-			bridge.VLANFiltering = boolValue
-		}
+	// Bridge VLAN filtering
+	boolValue, err = ovs.VLANFilteringEnabled(ctx, name)
+	if err == nil {
+		bridge.VLANFiltering = boolValue
+	}
 
-		// Upper devices
-		entries, err := ovs.BridgePortList(name)
-		if err == nil {
-			bridge.UpperDevices = append(bridge.UpperDevices, entries...)
-		}
+	// Upper devices
+	entries, err := ovs.BridgePortList(name)
+	if err == nil {
+		bridge.UpperDevices = append(bridge.UpperDevices, entries...)
 	}
 
 	return &bridge
