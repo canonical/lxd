@@ -439,6 +439,7 @@ var APIExtensions = []string{
 	"oidc_scopes",
 	"project_default_network_and_storage",
 	"ubuntu_pro_guest_attach",
+	"images_all_projects",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
