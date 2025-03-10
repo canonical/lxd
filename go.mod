@@ -67,7 +67,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/utils v0.0.0-20241210054802-24370beab758
 	tags.cncf.io/container-device-interface v0.8.1
-	tags.cncf.io/container-device-interface/specs-go v0.8.0
+	tags.cncf.io/container-device-interface/specs-go v1.0.0
 )
 
 require (
