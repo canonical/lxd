@@ -672,6 +672,11 @@ definitions:
                 example: X509 PEM certificate
                 type: string
                 x-go-name: ClusterCertificate
+            cluster_password:
+                description: The trust password of the cluster you're trying to join (deprecated, use cluster_token)
+                example: blah
+                type: string
+                x-go-name: ClusterPassword
             cluster_token:
                 description: The cluster join token for the cluster you're trying to join
                 example: blah
@@ -1042,6 +1047,11 @@ definitions:
                     type: string
                 type: array
                 x-go-name: Profiles
+            project:
+                description: Project name
+                example: project1
+                type: string
+                x-go-name: Project
             properties:
                 additionalProperties:
                     type: string
@@ -1504,6 +1514,11 @@ definitions:
                 example: /tmp/cluster.crt
                 type: string
                 x-go-name: ClusterCertificatePath
+            cluster_password:
+                description: The trust password of the cluster you're trying to join (deprecated, use cluster_token)
+                example: blah
+                type: string
+                x-go-name: ClusterPassword
             cluster_token:
                 description: The cluster join token for the cluster you're trying to join
                 example: blah
@@ -9234,6 +9249,10 @@ paths:
                   in: query
                   name: filter
                   type: string
+                - description: Retrieve images from all projects
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -9985,6 +10004,10 @@ paths:
                   in: query
                   name: filter
                   type: string
+                - description: Retrieve images from all projects
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -10073,6 +10096,10 @@ paths:
                   in: query
                   name: filter
                   type: string
+                - description: Retrieve images from all projects
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -10121,6 +10148,11 @@ paths:
                   in: query
                   name: filter
                   type: string
+                - description: Retrieve images from all projects
+                  example: default
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
