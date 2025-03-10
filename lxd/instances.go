@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
@@ -418,8 +419,8 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 			// Try and parse the backup file (if instance is running).
 			// This allows us to stop VMs which require access to the vsock ID and volatile UUID.
 			// Also generally it ensures that all devices are stopped cleanly too.
-			backupYamlPath := filepath.Join(instancePaths[instanceType], file.Name(), "backup.yaml")
-			if shared.PathExists(backupYamlPath) {
+			_, backupYamlPath, err := backup.ParseConfigYamlFile(filepath.Join(instancePaths[instanceType], file.Name()))
+			if err == nil {
 				inst, err = instance.LoadFromBackup(s, projectName, filepath.Join(instancePaths[instanceType], file.Name()))
 				if err != nil {
 					logger.Warn("Failed loading instance", logger.Ctx{"project": projectName, "instance": instanceName, "backup_file": backupYamlPath, "err": err})

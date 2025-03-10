@@ -589,6 +589,7 @@ _backup_export_with_project() {
 
     ls -l "${LXD_DIR}/optimized/backup/"
     [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
+    [ -f "${LXD_DIR}/optimized/backup/index2.yaml" ]
     [ -f "${LXD_DIR}/optimized/backup/container.bin" ]
     [ ! -d "${LXD_DIR}/optimized/backup/snapshots" ]
   fi
@@ -599,6 +600,7 @@ _backup_export_with_project() {
   # check tarball content
   ls -l "${LXD_DIR}/non-optimized/backup/"
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
+  [ -f "${LXD_DIR}/non-optimized/backup/index2.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/container" ]
   [ ! -d "${LXD_DIR}/non-optimized/backup/snapshots" ]
 
@@ -611,6 +613,7 @@ _backup_export_with_project() {
 
     ls -l "${LXD_DIR}/optimized/backup/"
     [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
+    [ -f "${LXD_DIR}/optimized/backup/index2.yaml" ]
     [ -f "${LXD_DIR}/optimized/backup/container.bin" ]
     [ -f "${LXD_DIR}/optimized/backup/snapshots/snap0.bin" ]
   fi
@@ -621,6 +624,7 @@ _backup_export_with_project() {
   # check tarball content
   ls -l "${LXD_DIR}/non-optimized/backup/"
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
+  [ -f "${LXD_DIR}/non-optimized/backup/index2.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/container" ]
   [ -d "${LXD_DIR}/non-optimized/backup/snapshots/snap0" ]
 
@@ -759,6 +763,7 @@ _backup_volume_export_with_project() {
 
     ls -l "${LXD_DIR}/optimized/backup/"
     [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
+    [ -f "${LXD_DIR}/optimized/backup/index2.yaml" ]
     [ -f "${LXD_DIR}/optimized/backup/volume.bin" ]
     [ ! -d "${LXD_DIR}/optimized/backup/volume-snapshots" ]
   fi
@@ -774,10 +779,12 @@ _backup_volume_export_with_project() {
   # Check tarball content.
   ls -l "${LXD_DIR}/non-optimized/backup/"
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
+  [ -f "${LXD_DIR}/non-optimized/backup/index2.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
   [ "$(cat "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
   [ ! -d "${LXD_DIR}/non-optimized/backup/volume-snapshots" ]
 
+  ! grep -q -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml" || false
   ! grep -q -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml" || false
 
   rm -rf "${LXD_DIR}/non-optimized/"*
@@ -794,6 +801,7 @@ _backup_volume_export_with_project() {
 
     ls -l "${LXD_DIR}/optimized/backup/"
     [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
+    [ -f "${LXD_DIR}/optimized/backup/index2.yaml" ]
     [ -f "${LXD_DIR}/optimized/backup/volume.bin" ]
     [ -f "${LXD_DIR}/optimized/backup/volume-snapshots/test-snap0.bin" ]
   fi
@@ -809,12 +817,14 @@ _backup_volume_export_with_project() {
   # Check tarball content.
   ls -l "${LXD_DIR}/non-optimized/backup/"
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
+  [ -f "${LXD_DIR}/non-optimized/backup/index2.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
   [ "$(cat "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume-snapshots/test-snap0" ]
   [  "$(cat "${LXD_DIR}/non-optimized/backup/volume-snapshots/test-snap0/test")" = "foo" ]
 
   grep -q -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml"
+  grep -q -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index2.yaml"
 
   rm -rf "${LXD_DIR}/non-optimized/"*
 
