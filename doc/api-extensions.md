@@ -2621,3 +2621,7 @@ When set to `on`, if the host has guest attachment enabled, the guest can reques
 ## `images_all_projects`
 
 This adds support for listing images across all projects using the `all-projects` parameter in `GET /1.0/images` requests.
+
+## `client_cert_presence`
+
+Adds the field `client_certificate` to `GET /1.0` to indicate if the current request has a client certificate in it. This is for informational purposes only and does not affect the behavior of the API.
