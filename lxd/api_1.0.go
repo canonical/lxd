@@ -236,12 +236,13 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	srv := api.ServerUntrusted{
-		APIExtensions: version.APIExtensions,
-		APIStatus:     "stable",
-		APIVersion:    version.APIVersion,
-		Public:        false,
-		Auth:          "untrusted",
-		AuthMethods:   authMethods,
+		APIExtensions:     version.APIExtensions,
+		APIStatus:         "stable",
+		APIVersion:        version.APIVersion,
+		Public:            false,
+		Auth:              "untrusted",
+		AuthMethods:       authMethods,
+		ClientCertificate: r.TLS != nil && len(r.TLS.PeerCertificates) > 0,
 	}
 
 	// If not authenticated, return now.
