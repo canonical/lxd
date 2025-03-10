@@ -247,7 +247,7 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 			if instanceServer.HasExtension("explicit_trust_token") {
 				req.TrustToken = token
 			} else {
-				req.Password = token
+				req.Password = token //nolint:staticcheck
 			}
 
 			err = instanceServer.CreateCertificate(req)

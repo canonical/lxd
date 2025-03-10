@@ -695,7 +695,9 @@ func (r *ProtocolLXD) CreateInstance(instance api.InstancesPost) (Operation, err
 		return nil, err
 	}
 
-	if instance.Source.InstanceOnly || instance.Source.ContainerOnly {
+	// We keep the ContainerOnly for backward compatibility.
+	instanceOnly := instance.Source.InstanceOnly || instance.Source.ContainerOnly //nolint:staticcheck,unused
+	if instanceOnly {
 		err := r.CheckExtension("container_only_migration")
 		if err != nil {
 			return nil, err
@@ -894,7 +896,9 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 
 		req.Source.Live = args.Live
 		req.Source.InstanceOnly = args.InstanceOnly
-		req.Source.ContainerOnly = args.InstanceOnly // For legacy servers.
+
+		// We keep the ContainerOnly for backward compatibility.
+		req.Source.ContainerOnly = args.InstanceOnly //nolint:staticcheck,unused
 		req.Source.Refresh = args.Refresh
 		req.Source.AllowInconsistent = args.AllowInconsistent
 	}
@@ -951,9 +955,10 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 
 	// Source request
 	sourceReq := api.InstancePost{
-		Migration:         true,
-		Live:              req.Source.Live,
-		ContainerOnly:     req.Source.ContainerOnly, // Deprecated, use InstanceOnly.
+		Migration: true,
+		Live:      req.Source.Live,
+		// We keep the ContainerOnly for backward compatibility.
+		ContainerOnly:     req.Source.ContainerOnly, //nolint:staticcheck,unused
 		InstanceOnly:      req.Source.InstanceOnly,
 		AllowInconsistent: req.Source.AllowInconsistent,
 	}
@@ -1206,7 +1211,8 @@ func (r *ProtocolLXD) MigrateInstance(name string, instance api.InstancePost) (O
 		return nil, err
 	}
 
-	if instance.InstanceOnly || instance.ContainerOnly {
+	// We keep the ContainerOnly for backward compatibility.
+	if instance.InstanceOnly || instance.ContainerOnly { //nolint:staticcheck,unused
 		err := r.CheckExtension("container_only_migration")
 		if err != nil {
 			return nil, err
