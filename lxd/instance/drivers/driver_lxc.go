@@ -36,6 +36,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/lxd/apparmor"
+	"github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/cgroup"
 	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/db"
@@ -8316,7 +8317,8 @@ func (d *lxc) UpdateBackupFile() error {
 		return err
 	}
 
-	return pool.UpdateInstanceBackupFile(d, true, nil)
+	// Use the global metadata version.
+	return pool.UpdateInstanceBackupFile(d, true, config.FileMetadataVersion, nil)
 }
 
 // Info returns "lxc" and the currently loaded version of LXC.
