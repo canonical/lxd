@@ -183,7 +183,7 @@ func (b *mockBackend) GenerateInstanceBackupConfig(inst instance.Instance, snaps
 }
 
 // UpdateInstanceBackupFile ...
-func (b *mockBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshot bool, op *operations.Operation) error {
+func (b *mockBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshot bool, version uint32, op *operations.Operation) error {
 	return nil
 }
 
@@ -223,7 +223,7 @@ func (b *mockBackend) RefreshInstance(inst instance.Instance, src instance.Insta
 }
 
 // BackupInstance ...
-func (b *mockBackend) BackupInstance(inst instance.Instance, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
+func (b *mockBackend) BackupInstance(inst instance.Instance, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, version uint32, op *operations.Operation) error {
 	return nil
 }
 
