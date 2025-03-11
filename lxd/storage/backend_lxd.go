@@ -3256,7 +3256,7 @@ func (b *lxdBackend) CleanupInstancePaths(inst instance.Instance, _ *operations.
 }
 
 // BackupInstance creates an instance backup.
-func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
+func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, version uint32, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "optimized": optimized, "snapshots": snapshots})
 	l.Debug("BackupInstance started")
 	defer l.Debug("BackupInstance finished")
@@ -7048,7 +7048,7 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 }
 
 // UpdateInstanceBackupFile writes the instance's config to the backup.yaml file on the storage device.
-func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots bool, op *operations.Operation) error {
+func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots bool, version uint32, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 	l.Debug("UpdateInstanceBackupFile started")
 	defer l.Debug("UpdateInstanceBackupFile finished")
