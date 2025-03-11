@@ -2092,21 +2092,12 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 
 		// Unmount daemon image and backup volumes if set.
 		logger.Info("Stopping daemon storage volumes")
-		done := make(chan struct{})
-		go func() {
-			err := daemonStorageVolumesUnmount(s)
-			if err != nil {
-				logger.Error("Failed to unmount image and backup volumes", logger.Ctx{"err": err})
-			}
+		volUnmountCtx, cancel := context.WithTimeout(ctx, time.Minute)
+		defer cancel()
 
-			done <- struct{}{}
-		}()
-
-		// Only wait 60 seconds in case the storage backend is unreachable.
-		select {
-		case <-time.After(time.Minute):
-			logger.Error("Timed out waiting for image and backup volume")
-		case <-done:
+		err := daemonStorageVolumesUnmount(s, volUnmountCtx)
+		if err != nil {
+			logger.Error("Failed to unmount image and backup volumes", logger.Ctx{"err": err})
 		}
 
 		// Full shutdown requested.

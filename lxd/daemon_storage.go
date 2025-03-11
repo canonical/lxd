@@ -19,11 +19,11 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-func daemonStorageVolumesUnmount(s *state.State) error {
+func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
 	var storageBackups string
 	var storageImages string
 
-	err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+	err := s.DB.Node.Transaction(ctx, func(ctx context.Context, tx *db.NodeTx) error {
 		nodeConfig, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return err
@@ -59,17 +59,22 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 		return nil
 	}
 
-	if storageBackups != "" {
-		err := unmount(storageBackups)
-		if err != nil {
-			return fmt.Errorf("Failed to unmount backups storage: %w", err)
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("Timed out waiting for image and backup volume")
+	default:
+		if storageBackups != "" {
+			err := unmount(storageBackups)
+			if err != nil {
+				return fmt.Errorf("Failed to unmount backups storage: %w", err)
+			}
 		}
-	}
 
-	if storageImages != "" {
-		err := unmount(storageImages)
-		if err != nil {
-			return fmt.Errorf("Failed to unmount images storage: %w", err)
+		if storageImages != "" {
+			err := unmount(storageImages)
+			if err != nil {
+				return fmt.Errorf("Failed to unmount images storage: %w", err)
+			}
 		}
 	}
 
