@@ -442,6 +442,7 @@ var APIExtensions = []string{
 	"project_default_network_and_storage",
 	"client_cert_presence",
 	"clustering_groups_used_by",
+	"backup_version",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
