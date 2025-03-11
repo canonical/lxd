@@ -328,6 +328,15 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 		req.Name = fmt.Sprintf("backup%d", backupNo)
 	}
 
+	// In case no version was selected for the backup format use the original format by default.
+	// This allows staying backwards compatible with older CLIs which don't yet support
+	// sending this field.
+	if req.Version == "" {
+		req.Version = api.BackupVersion10
+	} else if !shared.ValueInSlice(req.Version, []api.BackupVersion{api.BackupVersion10, api.BackupVersion20}) {
+		return response.BadRequest(fmt.Errorf("Invalid backup format version %q", req.Version))
+	}
+
 	// Validate the name.
 	backupName, err := backup.ValidateBackupName(req.Name)
 	if err != nil {
@@ -349,7 +358,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 			CompressionAlgorithm: req.CompressionAlgorithm,
 		}
 
-		err := backupCreate(s, args, inst, op)
+		err := backupCreate(s, args, inst, req.Version, op)
 		if err != nil {
 			return fmt.Errorf("Create backup: %w", err)
 		}
