@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/warnings"
@@ -453,6 +454,24 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 	}
 
 	return instances, nil
+}
+
+// isInstanceBusy checks if the instance is currently busy: if it has an associated operation that is in a running state.
+func isInstanceBusy(inst instance.Instance, instancesToOps map[string]*operations.Operation, instancesToOpsMu *sync.Mutex) bool {
+	if instancesToOps == nil {
+		return false
+	}
+
+	if len(instancesToOps) == 0 {
+		return false
+	}
+
+	instanceURL := entity.InstanceURL(inst.Project().Name, inst.Name()).String()
+	instancesToOpsMu.Lock()
+	defer instancesToOpsMu.Unlock()
+
+	op, ok := instancesToOps[instanceURL]
+	return ok && op != nil && op.Status() == api.Running && op.Class() != operations.OperationClassToken
 }
 
 func instancesShutdown(instances []instance.Instance) {
