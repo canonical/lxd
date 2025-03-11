@@ -818,6 +818,8 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}A" -- ip a add 192.0.2.2/24 dev eth0
   lxc exec "${ctPrefix}A" -- ip a add 2001:db8::2/64 dev eth0
 
+  wait_for_dad "${ctPrefix}A" eth0
+
   # Check basic connectivity without any filtering.
   lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1
   lxc exec "${ctPrefix}A" -- ping -c2 -W5 2001:db8::1
