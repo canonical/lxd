@@ -388,7 +388,7 @@ func pruneExpiredInstanceBackups(ctx context.Context, s *state.State) error {
 	return nil
 }
 
-func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, projectName string, poolName string, volumeName string) error {
+func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, projectName string, poolName string, volumeName string, version uint32) error {
 	l := logger.AddContext(logger.Ctx{"project": projectName, "storage_volume": volumeName, "name": args.Name})
 	l.Debug("Volume backup started")
 	defer l.Debug("Volume backup finished")
@@ -493,7 +493,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 
 	// Write index file.
 	l.Debug("Adding backup index file")
-	err = volumeBackupWriteIndex(s, projectName, volumeName, pool, backupRow.OptimizedStorage, !backupRow.VolumeOnly, tarWriter)
+	err = volumeBackupWriteIndex(s, projectName, volumeName, pool, backupRow.OptimizedStorage, !backupRow.VolumeOnly, version, tarWriter)
 
 	// Check compression errors.
 	if compressErr != nil {
@@ -537,7 +537,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 }
 
 // volumeBackupWriteIndex generates an index.yaml file and then writes it to the root of the backup tarball.
-func volumeBackupWriteIndex(s *state.State, projectName string, volumeName string, pool storagePools.Pool, optimized bool, snapshots bool, tarWriter *instancewriter.InstanceTarWriter) error {
+func volumeBackupWriteIndex(s *state.State, projectName string, volumeName string, pool storagePools.Pool, optimized bool, snapshots bool, version uint32, tarWriter *instancewriter.InstanceTarWriter) error {
 	// Indicate whether the driver will include a driver-specific optimized header.
 	poolDriverOptimizedHeader := false
 	if optimized {
@@ -552,6 +552,12 @@ func volumeBackupWriteIndex(s *state.State, projectName string, volumeName strin
 	customVol, err := config.CustomVolume()
 	if err != nil {
 		return fmt.Errorf("Failed getting the custom volume: %w", err)
+	}
+
+	// Downgrade the config in case the old backup format was requested.
+	config, err = backup.ConvertFormat(config, version)
+	if err != nil {
+		return fmt.Errorf("Failed to convert backup config to version %d: %w", version, err)
 	}
 
 	indexInfo := backup.Info{
