@@ -401,9 +401,20 @@ _backup_import_with_project() {
   lxc export c1 "${LXD_DIR}/c1.tar.gz" --instance-only
   lxc delete --force c1
 
-  # import backup, and ensure it's valid and runnable
+  # import backup, check its size and ensure it's valid and runnable
   lxc import "${LXD_DIR}/c1.tar.gz"
   lxc info c1
+  # Check the size of the imported instance gets reported accurately.
+  # Non block based containers should have no size, block based use the default block size of 10GiB.
+  if [ "${lxd_backend}" = "btrfs" ] || [ "${lxd_backend}" = "dir" ] || [ "${lxd_backend}" = "zfs" ]; then
+    # Non-block based
+    [ -z "$(lxc info c1 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" ]
+    [ -z "$(lxc storage volume get "${pool}" container/c1 volatile.rootfs.size)" ]
+  else
+  # Block based
+    [ "$(lxc info c1 | awk '/Disk total:/ {found=1} found && /root:/ {print $2; exit}')" = "10.00GiB" ]
+    [ "$(lxc storage volume get "${pool}" container/c1 volatile.rootfs.size)" = "10GiB" ]
+  fi
   lxc start c1
   lxc delete --force c1
 

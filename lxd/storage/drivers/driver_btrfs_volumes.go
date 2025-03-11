@@ -411,7 +411,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 
 // createVolumeFromCopy creates a volume from copy by snapshotting the parent volume.
 // It also copies the source volume's snapshots and supports refreshing an already existing volume.
-func (d *btrfs) createVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, refresh bool, op *operations.Operation) error {
+func (d *btrfs) createVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, refresh bool, op *operations.Operation) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -540,7 +540,7 @@ func (d *btrfs) createVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInc
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
 func (d *btrfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
-	return d.createVolumeFromCopy(vol, srcVol, allowInconsistent, false, op)
+	return d.createVolumeFromCopy(vol, srcVol, false, op)
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
@@ -589,7 +589,7 @@ func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClose
 	}
 
 	if volTargetArgs.Refresh && shared.ValueInSlice(migration.BTRFSFeatureSubvolumeUUIDs, volTargetArgs.MigrationType.Features) {
-		snapshots, err := d.volumeSnapshotsSorted(vol.Volume, op)
+		snapshots, err := d.volumeSnapshotsSorted(vol.Volume)
 		if err != nil {
 			return err
 		}
@@ -648,10 +648,10 @@ func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClose
 		syncSubvolumes = migrationHeader.Subvolumes
 	}
 
-	return d.createVolumeFromMigrationOptimized(vol.Volume, conn, volTargetArgs, preFiller, syncSubvolumes, op)
+	return d.createVolumeFromMigrationOptimized(vol.Volume, conn, volTargetArgs, syncSubvolumes, op)
 }
 
-func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, subvolumes []BTRFSSubVolume, op *operations.Operation) error {
+func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, subvolumes []BTRFSSubVolume, op *operations.Operation) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -826,7 +826,7 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 
 // RefreshVolume provides same-pool volume and specific snapshots syncing functionality.
 func (d *btrfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
-	return d.createVolumeFromCopy(vol, srcVol, allowInconsistent, true, op)
+	return d.createVolumeFromCopy(vol, srcVol, true, op)
 }
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then
@@ -1190,7 +1190,7 @@ func (d *btrfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArg
 
 	if !volSrcArgs.VolumeOnly {
 		// Generate restoration header, containing info on the subvolumes and how they should be restored.
-		snapshots, err = d.volumeSnapshotsSorted(vol.Volume, op)
+		snapshots, err = d.volumeSnapshotsSorted(vol.Volume)
 		if err != nil {
 			return err
 		}
@@ -1785,7 +1785,7 @@ func (d *btrfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string,
 
 // volumeSnapshotsSorted returns a list of snapshots for the volume (ordered by subvolume ID).
 // Since the subvolume ID is incremental, this also represents the order of creation.
-func (d *btrfs) volumeSnapshotsSorted(vol Volume, op *operations.Operation) ([]string, error) {
+func (d *btrfs) volumeSnapshotsSorted(vol Volume) ([]string, error) {
 	stdout := bytes.Buffer{}
 
 	err := shared.RunCommandWithFds(d.state.ShutdownCtx, nil, &stdout, "btrfs", "subvolume", "list", GetPoolMountPath(vol.pool))
