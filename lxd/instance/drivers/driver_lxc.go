@@ -8218,7 +8218,8 @@ func (d *lxc) UpdateBackupFile() error {
 		return err
 	}
 
-	return pool.UpdateInstanceBackupFile(d, true, nil)
+	// Always use the latest backup file format.
+	return pool.UpdateInstanceBackupFile(d, true, api.BackupVersion20, nil)
 }
 
 // Info returns "lxc" and the currently loaded version of LXC.
