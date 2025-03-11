@@ -40,6 +40,7 @@ import (
 	"github.com/canonical/lxd/client"
 	agentAPI "github.com/canonical/lxd/lxd-agent/api"
 	"github.com/canonical/lxd/lxd/apparmor"
+	"github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/cgroup"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -8484,7 +8485,8 @@ func (d *qemu) UpdateBackupFile() error {
 		return err
 	}
 
-	return pool.UpdateInstanceBackupFile(d, true, nil)
+	// Use the global metadata version.
+	return pool.UpdateInstanceBackupFile(d, true, config.DefaultMetadataVersion, nil)
 }
 
 type cpuTopology struct {
