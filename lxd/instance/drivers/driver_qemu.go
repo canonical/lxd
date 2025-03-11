@@ -4162,7 +4162,12 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 		}
 
 		if driveConf.Limits != nil {
-			err = m.SetBlockThrottle(qemuDev["id"].(string), int(driveConf.Limits.ReadBytes), int(driveConf.Limits.WriteBytes), int(driveConf.Limits.ReadIOps), int(driveConf.Limits.WriteIOps))
+			qemuDevID, ok := qemuDev["id"].(string)
+			if !ok {
+				return fmt.Errorf("Failed getting QEMU device id")
+			}
+
+			err = m.SetBlockThrottle(qemuDevID, int(driveConf.Limits.ReadBytes), int(driveConf.Limits.WriteBytes), int(driveConf.Limits.ReadIOps), int(driveConf.Limits.WriteIOps))
 			if err != nil {
 				return fmt.Errorf("Failed applying limits for disk device %q: %w", driveConf.DevName, err)
 			}
@@ -4691,13 +4696,18 @@ func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHoo
 
 		defer func() { _ = f.Close() }()
 
-		info, err := m.SendFileWithFDSet(qemuDev["id"].(string), f, false)
+		qemuDevID, ok := qemuDev["id"].(string)
+		if !ok {
+			return fmt.Errorf("Failed getting QEMU device id")
+		}
+
+		info, err := m.SendFileWithFDSet(qemuDevID, f, false)
 		if err != nil {
 			return fmt.Errorf("Failed to send file descriptor: %w", err)
 		}
 
 		revert.Add(func() {
-			_ = m.RemoveFDFromFDSet(qemuDev["id"].(string))
+			_ = m.RemoveFDFromFDSet(qemuDevID)
 		})
 
 		qemuDev["hostdevice"] = fmt.Sprintf("/dev/fdset/%d", info.ID)
