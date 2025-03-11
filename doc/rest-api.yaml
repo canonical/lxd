@@ -5958,6 +5958,12 @@ definitions:
                 readOnly: true
                 type: string
                 x-go-name: AuthUserName
+            client_certificate:
+                description: Whether the requester sent a client certificate with the request
+                example: false
+                readOnly: true
+                type: boolean
+                x-go-name: ClientCertificate
             config:
                 additionalProperties: {}
                 description: Server configuration map (refer to doc/server.md)
@@ -6206,6 +6212,12 @@ definitions:
                 readOnly: true
                 type: array
                 x-go-name: AuthMethods
+            client_certificate:
+                description: Whether the requester sent a client certificate with the request
+                example: false
+                readOnly: true
+                type: boolean
+                x-go-name: ClientCertificate
             public:
                 description: Whether the server is public-only (only public endpoints are implemented)
                 example: false

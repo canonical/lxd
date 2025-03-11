@@ -440,6 +440,7 @@ var APIExtensions = []string{
 	"project_default_network_and_storage",
 	"ubuntu_pro_guest_attach",
 	"images_all_projects",
+	"client_cert_presence",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
