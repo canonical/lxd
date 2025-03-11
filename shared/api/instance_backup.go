@@ -37,6 +37,12 @@ type InstanceBackupsPost struct {
 	//
 	// API extension: backup_compression_algorithm
 	CompressionAlgorithm string `json:"compression_algorithm" yaml:"compression_algorithm"`
+
+	// What backup format version to use
+	// Example: 1.0
+	//
+	// API extension: backup_version
+	Version BackupVersion
 }
 
 // InstanceBackup represents a LXD instance backup.
