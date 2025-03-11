@@ -353,3 +353,66 @@ cleanup_lxds() {
 
     umount_loops "$test_dir"
 }
+
+lxd_shutdown_restart() {
+    local scenario LXD_DIR
+    scenario=${1}
+    LXD_DIR=${2}
+
+    daemon_pid=$(cat "${LXD_DIR}/lxd.pid")
+    echo "==> Shutting down LXD at ${LXD_DIR} (${daemon_pid})"
+
+    local logfile="${scenario}.log"
+    echo "Starting LXD log capture in $logfile using lxc monitor..."
+    lxc monitor --pretty > "$logfile" 2>&1 &
+    local monitor_pid=$!
+
+    # Give monitor a moment to connect
+    sleep 2
+    echo "Monitor PID: $monitor_pid"
+    echo "LXD daemon PID: $daemon_pid"
+    echo "Starting LXD shutdown sequence..."
+    if ! kill -SIGPWR "$daemon_pid" 2>/dev/null; then
+        echo "Failed to signal LXD to shutdown" | tee -a "$logfile"
+        return 1
+    fi
+
+    echo "Waiting for LXD to shutdown gracefully..." | tee -a "$logfile"
+    for _ in $(seq 540); do
+        if ! kill -0 "$daemon_pid" 2>/dev/null; then
+            sleep 5 # Give the monitor a moment to catch up
+            break
+        fi
+        sleep 1
+    done
+
+    echo "LXD shutdown sequence completed."
+    respawn_lxd "${LXD_DIR}" true
+}
+
+# create_instances creates a specified number of instances in the background.
+# The instance are called i1, i2, i3, etc.
+create_instances() {
+  local n="$1"  # Number of instances to create.
+
+  for i in $(seq 1 "$n"); do
+    echo "Creating instance i$i..."
+    lxc launch testimage "i${i}" -d "${SMALL_ROOT_DISK}"
+  done
+
+  echo "All instances created successfully."
+  return 0
+}
+
+# delete_instances deletes a specified number of instances in the background.
+# The instances should be called i1, i2, i3, etc.
+delete_instances() {
+  local n="$1"  # Number of instances to delete.
+
+  for i in $(seq 1 "$n"); do
+    echo "Deleting i$i..."
+    lxc delete "i$i" --force
+  done
+
+  return 0
+}
