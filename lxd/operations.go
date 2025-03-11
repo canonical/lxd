@@ -57,82 +57,60 @@ var operationWebsocket = APIEndpoint{
 	Get: APIEndpointAction{Handler: operationWebsocketGet, AllowUntrusted: true},
 }
 
-// waitForOperations waits for operations to finish.
-// There's a timeout for console/exec operations that when reached will shut down the instances forcefully.
-func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdownTimeout time.Duration) {
-	timeout := time.After(consoleShutdownTimeout)
+// pendingInstanceOperations returns a map of instance URLs to operations that are currently running.
+// This is used to determine if an instance is busy and should not be shut down immediately.
+func pendingInstanceOperations() (map[string]*operations.Operation, error) {
+	// Get all the operations
+	ops := operations.Clone()
+	res := make(map[string]*operations.Operation)
 
-	defer func() {
-		_ = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			err := dbCluster.DeleteOperations(ctx, tx.Tx(), cluster.GetNodeID())
-			if err != nil {
-				logger.Error("Failed cleaning up operations")
-			}
+	for _, op := range ops {
+		if op.Status() != api.Running || op.Class() == operations.OperationClassToken {
+			continue
+		}
 
-			return nil
-		})
-	}()
+		_, opAPI, err := op.Render()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to render an operation while listing all operations: %w", err)
+		}
 
-	// Check operation status every second.
-	tick := time.NewTicker(time.Second)
-	defer tick.Stop()
-
-	var i int
-	for {
-		// Get all the operations
-		ops := operations.Clone()
-
-		var runningOps, execConsoleOps int
-		for _, op := range ops {
-			if op.Status() != api.Running || op.Class() == operations.OperationClassToken {
+		// If the current operations has a hold on some resources, we keep track of them in the `resourceMap`.
+		// This is used to mark instances and storage volumes as busy to avoid shutting them down / unmounting them prematurely.
+		// This allows the waitForOperations to be called in a goroutine alongside the instance shutdown goroutine and the custom volume unmounting goroutine (for backups and images)
+		// and to avoid the situation where a single very long running operation can block the shutdown of unrelated instances and the unmount of unrelated storage volumes.
+		for resourceName, resourceEntries := range opAPI.Resources {
+			if resourceName != "instances" {
 				continue
 			}
 
-			runningOps++
+			for _, rawURL := range resourceEntries {
+				u := api.NewURL()
+				parsedURL, err := u.Parse(rawURL)
+				if err != nil {
+					logger.Warn("Failed to parse raw URL", logger.Ctx{"rawURL": rawURL, "err": err})
+					continue
+				}
 
-			opType := op.Type()
-			if opType == operationtype.CommandExec || opType == operationtype.ConsoleShow {
-				execConsoleOps++
+				entityType, projectName, location, pathArgs, err := entity.ParseURL(*parsedURL)
+				if err != nil {
+					logger.Warn("Failed to parse URL into a LXD entity", logger.Ctx{"url": parsedURL.String(), "err": err})
+					continue
+				}
+
+				if entityType == entity.TypeInstance {
+					entityURL, err := entityType.URL(projectName, location, pathArgs...)
+					if err != nil {
+						logger.Warn("Failed to generate entity URL", logger.Ctx{"entityType": entityType, "projectName": projectName, "location": location, "pathArgs": pathArgs, "err": err})
+						continue
+					}
+
+					res[entityURL.String()] = op
+				}
 			}
-
-			_, opAPI, err := op.Render()
-			if err != nil {
-				logger.Warn("Failed to render operation", logger.Ctx{"operation ID": op.ID(), "operation class": op.Class().String(), "operation status": op.Status().String(), "err": err})
-			} else if opAPI.MayCancel {
-				_, _ = op.Cancel()
-			}
-		}
-
-		// No more running operations left. Exit function.
-		if runningOps == 0 {
-			logger.Info("All running operations finished, shutting down")
-			return
-		}
-
-		// Print log message every minute.
-		if i%60 == 0 {
-			logger.Infof("Waiting for %d operation(s) to finish", runningOps)
-		}
-
-		i++
-
-		select {
-		case <-timeout:
-			// We wait up to core.shutdown_timeout minutes for exec/console operations to finish.
-			// If there are still running operations, we continue shutdown which will stop any running
-			// instances and terminate the operations.
-			if execConsoleOps > 0 {
-				logger.Info("Shutdown timeout reached, continuing with shutdown")
-			}
-
-			return
-		case <-ctx.Done():
-			// Return here, and ignore any running operations.
-			logger.Info("Forcing shutdown, ignoring running operations")
-			return
-		case <-tick.C:
 		}
 	}
+
+	return res, nil
 }
 
 // API functions
