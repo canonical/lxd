@@ -2630,3 +2630,8 @@ Adds the field `client_certificate` to `GET /1.0` to indicate if the current req
 
 This API extension adds a `used_by` field to the API response for a {ref}`cluster group <cluster-groups>`.
 Deletion of a cluster group is disallowed if the cluster group is referenced by project configuration (see {config:option}`project-restricted:restricted.cluster.groups`).
+
+## `backup_version`
+
+Adds the field `version` when exporting instances and custom storage volumes to define the backup file format.
+In case the field is omitted the original (old) version is used to allow staying compatible with old clients.
