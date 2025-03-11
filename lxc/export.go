@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -10,7 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -23,6 +24,7 @@ type cmdExport struct {
 	flagInstanceOnly         bool
 	flagOptimizedStorage     bool
 	flagCompressionAlgorithm string
+	flagVersion              string
 }
 
 func (c *cmdExport) command() *cobra.Command {
@@ -41,6 +43,8 @@ func (c *cmdExport) command() *cobra.Command {
 	cmd.Flags().BoolVar(&c.flagOptimizedStorage, "optimized-storage", false,
 		i18n.G("Use storage driver optimized format (can only be restored on a similar pool)"))
 	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Compression algorithm to use (none for uncompressed)")+"``")
+	cmd.Flags().StringVar(&c.flagVersion, "version", "",
+		i18n.G("Use a different format version to be able to import the backup on older LXD versions")+"``")
 
 	return cmd
 }
@@ -74,6 +78,21 @@ func (c *cmdExport) run(cmd *cobra.Command, args []string) error {
 		InstanceOnly:         instanceOnly,
 		OptimizedStorage:     c.flagOptimizedStorage,
 		CompressionAlgorithm: c.flagCompressionAlgorithm,
+	}
+
+	backupVersionSupported := d.HasExtension("backup_version")
+	backupVersion := api.BackupVersion(c.flagVersion)
+
+	// If the server supports setting the backup version set the selection version
+	// or use the latest version as default.
+	if backupVersionSupported {
+		if backupVersion != "" {
+			req.Version = backupVersion
+		} else {
+			req.Version = api.BackupVersion20
+		}
+	} else if !backupVersionSupported && backupVersion != "" {
+		return errors.New(i18n.G("The server doesn't support setting the backup version"))
 	}
 
 	op, err := d.CreateInstanceBackup(name, req)
