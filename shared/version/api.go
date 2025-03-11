@@ -445,6 +445,7 @@ var APIExtensions = []string{
 	"container_bpf_delegation",
 	"override_snapshot_profiles_on_copy",
 	"resources_device_fs_uuid",
+	"backup_metadata_version",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
