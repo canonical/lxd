@@ -33,7 +33,7 @@ import (
 )
 
 // Create a new backup.
-func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.Instance, op *operations.Operation) error {
+func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.Instance, version uint32, op *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": sourceInst.Project().Name, "instance": sourceInst.Name(), "name": args.Name})
 	l.Debug("Instance backup started")
 	defer l.Debug("Instance backup finished")
@@ -182,7 +182,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 
 	// Write index file.
 	l.Debug("Adding backup index file")
-	err = backupWriteIndex(sourceInst, pool, b.OptimizedStorage(), !b.InstanceOnly(), tarWriter)
+	err = backupWriteIndex(sourceInst, pool, b.OptimizedStorage(), !b.InstanceOnly(), version, tarWriter)
 
 	// Check compression errors.
 	if compressErr != nil {
@@ -194,7 +194,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		return fmt.Errorf("Error writing backup index file: %w", err)
 	}
 
-	err = pool.BackupInstance(sourceInst, tarWriter, b.OptimizedStorage(), !b.InstanceOnly(), nil)
+	err = pool.BackupInstance(sourceInst, tarWriter, b.OptimizedStorage(), !b.InstanceOnly(), version, nil)
 	if err != nil {
 		return fmt.Errorf("Backup create: %w", err)
 	}
@@ -228,7 +228,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 }
 
 // backupWriteIndex generates an index.yaml file and then writes it to the root of the backup tarball.
-func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, optimized bool, snapshots bool, tarWriter *instancewriter.InstanceTarWriter) error {
+func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, optimized bool, snapshots bool, version uint32, tarWriter *instancewriter.InstanceTarWriter) error {
 	// Indicate whether the driver will include a driver-specific optimized header.
 	poolDriverOptimizedHeader := false
 	if optimized {
@@ -253,6 +253,12 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 	config, err := pool.GenerateInstanceBackupConfig(sourceInst, snapshots, nil)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance backup config: %w", err)
+	}
+
+	// Downgrade the config in case the old backup format was requested.
+	config, err = backup.ConvertFormat(config, version)
+	if err != nil {
+		return fmt.Errorf("Failed to convert backup config to version %d: %w", version, err)
 	}
 
 	indexInfo := backup.Info{
