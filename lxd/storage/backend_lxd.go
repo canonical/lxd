@@ -939,7 +939,8 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		}
 
 		// Save any changes that have occurred to the instance's config to the on-disk backup.yaml file.
-		err = b.UpdateInstanceBackupFile(inst, false, op)
+		// Use the global metadata version.
+		err = b.UpdateInstanceBackupFile(inst, false, backupConfig.DefaultMetadataVersion, op)
 		if err != nil {
 			return fmt.Errorf("Failed updating backup file: %w", err)
 		}
@@ -3283,7 +3284,8 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 	}
 
 	// Ensure the backup file reflects current config.
-	err = b.UpdateInstanceBackupFile(inst, snapshots, op)
+	// Use the version requested by the caller to write the correct backup file format.
+	err = b.UpdateInstanceBackupFile(inst, snapshots, version, op)
 	if err != nil {
 		return err
 	}
@@ -3766,7 +3768,8 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 	})
 
 	// Ensure the backup file reflects current config.
-	err = b.UpdateInstanceBackupFile(inst, true, op)
+	// Use the global metadata version.
+	err = b.UpdateInstanceBackupFile(inst, true, backupConfig.DefaultMetadataVersion, op)
 	if err != nil {
 		return err
 	}
