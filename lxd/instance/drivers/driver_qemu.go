@@ -4675,7 +4675,7 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []devi
 
 func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHook, error) {
 	qemuDev := map[string]any{
-		"id":     fmt.Sprintf("%s%s", qemuDeviceIDPrefix, usbDev.DeviceName),
+		"id":     qemuDeviceIDPrefix + usbDev.DeviceName,
 		"driver": "usb-host",
 		"bus":    "qemu_usb.0",
 	}
