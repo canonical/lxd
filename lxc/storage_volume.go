@@ -2639,6 +2639,7 @@ type cmdStorageVolumeExport struct {
 	flagVolumeOnly           bool
 	flagOptimizedStorage     bool
 	flagCompressionAlgorithm string
+	flagExportVersion        string
 }
 
 func (c *cmdStorageVolumeExport) command() *cobra.Command {
@@ -2652,6 +2653,8 @@ func (c *cmdStorageVolumeExport) command() *cobra.Command {
 	cmd.Flags().BoolVar(&c.flagOptimizedStorage, "optimized-storage", false,
 		i18n.G("Use storage driver optimized format (can only be restored on a similar pool)"))
 	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Define a compression algorithm: for backup or none")+"``")
+	cmd.Flags().StringVar(&c.flagExportVersion, "export-version", "",
+		i18n.G("Use a different metadata format version than the latest one supported by the server")+"``")
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
 
@@ -2708,6 +2711,37 @@ func (c *cmdStorageVolumeExport) run(cmd *cobra.Command, args []string) error {
 		VolumeOnly:           volumeOnly,
 		OptimizedStorage:     c.flagOptimizedStorage,
 		CompressionAlgorithm: c.flagCompressionAlgorithm,
+	}
+
+	backupVersionSupported := d.HasExtension("backup_metadata_version")
+
+	// Don't allow explicitly setting 0 as it will implicitly create a backup using version 1.
+	if c.flagExportVersion == "0" {
+		return fmt.Errorf(i18n.G("Invalid export version %q"), "0")
+	}
+
+	// In case no version is set, default to 0 so we can convert it to an uint32.
+	if c.flagExportVersion == "" {
+		c.flagExportVersion = "0"
+	}
+
+	versionUint, err := strconv.ParseUint(c.flagExportVersion, 10, 32)
+	if err != nil {
+		return fmt.Errorf(i18n.G("Invalid export version %q: %w"), c.flagExportVersion, err)
+	}
+
+	versionUint32 := uint32(versionUint)
+
+	// If the server supports setting the backup version, set the selected version.
+	// If supported but the version is not set, the server picks its default version.
+	// If unsupported but the version is set to 1, the field isn't set so its up to the server to pick the old version.
+	if backupVersionSupported {
+		if versionUint32 != 0 {
+			req.Version = versionUint32
+		}
+	} else if !backupVersionSupported && versionUint32 > api.BackupMetadataVersion1 {
+		// Any version beyond 1 isn't supported by an older server without the backup_metadata_version extension.
+		return errors.New(i18n.G("The server doesn't support setting the metadata format version"))
 	}
 
 	op, err := d.CreateStoragePoolVolumeBackup(name, volName, req)
