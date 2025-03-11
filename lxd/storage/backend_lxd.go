@@ -7029,11 +7029,6 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 		return err
 	}
 
-	data, err := yaml.Marshal(config)
-	if err != nil {
-		return err
-	}
-
 	// Get the volume name on storage.
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 	volType, err := InstanceTypeToVolumeType(inst.Type())
@@ -7064,6 +7059,17 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 		}
 
 		err = f.Chmod(0400)
+		if err != nil {
+			return err
+		}
+
+		// Downgrade the config in case the old backup format was requested.
+		// Do this as one of the last steps to allow working on the latest format beforehand.
+		if version == api.BackupVersion10 {
+			backup.DowngradeConfigFile(config)
+		}
+
+		data, err := yaml.Marshal(config)
 		if err != nil {
 			return err
 		}
