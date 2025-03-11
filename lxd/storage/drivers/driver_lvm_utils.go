@@ -13,8 +13,8 @@ import (
 
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/refcount"
 	"github.com/canonical/lxd/lxd/storage/block"
-	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -777,6 +777,27 @@ func (d *lvm) parseLogicalVolumeSnapshot(parent Volume, lvmVolName string) strin
 	return ""
 }
 
+func (d *lvm) activationRefCountName(vol Volume) string {
+	parentName := vol.Name()
+
+	// For non-thinpool volumes, activating an LV activates all of its snapshots
+	// (and vice versa). The activation ref counter should consider the parent
+	// and its snapshots to have the same activation.
+	if vol.IsSnapshot() && !d.usesThinpool() {
+		parentName, _, _ = api.GetParentAndSnapshotName(vol.Name())
+	}
+
+	return OperationLockName("Activate", vol.Pool(), vol.Type(), vol.ContentType(), parentName)
+}
+
+func (d *lvm) activationRefCountIncrement(vol Volume) uint {
+	return refcount.Increment(d.activationRefCountName(vol), 1)
+}
+
+func (d *lvm) activationRefCountDecrement(vol Volume) uint {
+	return refcount.Decrement(d.activationRefCountName(vol), 1)
+}
+
 // activateVolume activates an LVM logical volume if not already present. Returns true if activated, false if not.
 func (d *lvm) activateVolume(vol Volume) (bool, error) {
 	var volDevPath string
@@ -797,14 +818,26 @@ func (d *lvm) activateVolume(vol Volume) (bool, error) {
 
 		d.logger.Debug("Activated logical volume", logger.Ctx{"volName": vol.Name(), "dev": volDevPath})
 
+		d.activationRefCountIncrement(vol)
 		return true, nil
 	}
 
+	d.activationRefCountIncrement(vol)
 	return false, nil
 }
 
 // deactivateVolume deactivates an LVM logical volume if present. Returns true if deactivated, false if not.
 func (d *lvm) deactivateVolume(vol Volume) (bool, error) {
+	refCount := d.activationRefCountDecrement(vol)
+	if refCount > 0 {
+		d.logger.Debug("Skipping deactivate as in use", logger.Ctx{"volume": vol.Name(), "volume-type": vol.Type(), "content-type": vol.ContentType(), "refCount": refCount})
+
+		// Could return ErrInUse here, except it would imply that the volume itself
+		// is in use in more than one place; that's not the case. We're only
+		// guarding the deactivation of the block volume, not its use.
+		return false, nil
+	}
+
 	var volDevPath string
 
 	if d.usesThinpool() {
@@ -813,15 +846,6 @@ func (d *lvm) deactivateVolume(vol Volume) (bool, error) {
 		// Use parent for non-thinpool vols as deactivating the parent volume also activates its snapshots.
 		parent, _, _ := api.GetParentAndSnapshotName(vol.Name())
 		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, parent)
-
-		if vol.IsSnapshot() {
-			parentVol := NewVolume(d, d.name, vol.volType, vol.contentType, parent, nil, d.config)
-
-			// If parent is in use then skip deactivating non-thinpool snapshot volume as it will fail.
-			if parentVol.MountInUse() || (parentVol.contentType == ContentTypeFS && filesystem.IsMountPoint(parentVol.MountPath())) {
-				return false, nil
-			}
-		}
 	}
 
 	if shared.PathExists(volDevPath) {
