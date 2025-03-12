@@ -288,10 +288,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		return err
 	}
 
-	contentType, err := storagePools.VolumeDBContentTypeToContentType(dbContentType)
-	if err != nil {
-		return err
-	}
+	contentType := storagePools.VolumeDBContentTypeToContentType(dbContentType)
 
 	// The source/sender will never set Refresh. However, to determine the correct migration type
 	// Refresh needs to be set.
