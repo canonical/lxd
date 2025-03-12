@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/state"
@@ -282,7 +283,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		return err
 	}
 
-	dbContentType, err := storagePools.VolumeContentTypeNameToContentType(req.ContentType)
+	dbContentType, err := cluster.StoragePoolVolumeContentTypeFromName(req.ContentType)
 	if err != nil {
 		return err
 	}
