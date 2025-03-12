@@ -1234,10 +1234,7 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 		return response.SmartError(err)
 	}
 
-	contentType, err := storagePools.VolumeDBContentTypeToContentType(volumeDBContentType)
-	if err != nil {
-		return response.SmartError(err)
-	}
+	contentType := storagePools.VolumeDBContentTypeToContentType(volumeDBContentType)
 
 	run := func(op *operations.Operation) error {
 		if req.Source.Name == "" {
