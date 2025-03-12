@@ -155,20 +155,6 @@ func VolumeDBContentTypeToContentType(volDBType cluster.StoragePoolVolumeContent
 	return "", fmt.Errorf("Invalid volume content type")
 }
 
-// VolumeContentTypeNameToContentType converts volume content type string internal code.
-func VolumeContentTypeNameToContentType(contentTypeName string) (cluster.StoragePoolVolumeContentType, error) {
-	switch contentTypeName {
-	case cluster.StoragePoolVolumeContentTypeNameFS:
-		return cluster.StoragePoolVolumeContentTypeFS, nil
-	case cluster.StoragePoolVolumeContentTypeNameBlock:
-		return cluster.StoragePoolVolumeContentTypeBlock, nil
-	case cluster.StoragePoolVolumeContentTypeNameISO:
-		return cluster.StoragePoolVolumeContentTypeISO, nil
-	}
-
-	return -1, fmt.Errorf("Invalid volume content type name")
-}
-
 // VolumeDBGet loads a volume from the database.
 func VolumeDBGet(pool Pool, projectName string, volumeName string, volumeType drivers.VolumeType) (*db.StorageVolume, error) {
 	p, ok := pool.(*lxdBackend)
