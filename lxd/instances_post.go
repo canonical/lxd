@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -617,6 +618,14 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	bInfo, err := backup.GetInfo(backupFile, s.OS, backupFile.Name())
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	if bInfo.Config == nil {
+		return response.BadRequest(errors.New("Backup config is missing"))
+	}
+
+	if bInfo.Config.Container == nil {
+		return response.BadRequest(errors.New("Instance definition in backup config is missing"))
 	}
 
 	// Check project permissions.
