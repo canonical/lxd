@@ -1,5 +1,13 @@
 package cluster
 
+import (
+	"context"
+	"database/sql"
+	"strings"
+
+	"github.com/canonical/lxd/shared/api"
+)
+
 // Code generation directives.
 //
 //go:generate -command mapper lxd-generate db mapper -t cluster_links.mapper.go
@@ -38,4 +46,15 @@ type ClusterLink struct {
 type ClusterLinkFilter struct {
 	ID   *int
 	Name *string
+}
+
+// ToAPI converts the database ClusterLink struct to API type.
+func (r *ClusterLink) ToAPI(ctx context.Context, tx *sql.Tx) (*api.ClusterLink, error) {
+	apiClusterLink := &api.ClusterLink{
+		Name:        r.Name,
+		Addresses:   strings.Split(r.Addresses, ","),
+		Description: r.Description,
+	}
+
+	return apiClusterLink, nil
 }
