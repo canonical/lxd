@@ -643,6 +643,7 @@ parts:
     prime:
       - bin/nvidia-container-cli*
       - lib/libnvidia-container.so*
+      - lib/libnvidia-container-go.so*  # dlopen()'ed by libnvidia-container.so
 
   nvidia-container-toolkit:
     source: https://github.com/NVIDIA/nvidia-container-toolkit
