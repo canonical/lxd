@@ -88,19 +88,19 @@ func VolumeTypeToDBType(volType drivers.VolumeType) (cluster.StoragePoolVolumeTy
 }
 
 // VolumeDBTypeToType converts internal volume type DB code to storage driver volume type.
-func VolumeDBTypeToType(volDBType cluster.StoragePoolVolumeType) (drivers.VolumeType, error) {
+func VolumeDBTypeToType(volDBType cluster.StoragePoolVolumeType) drivers.VolumeType {
 	switch volDBType {
 	case cluster.StoragePoolVolumeTypeContainer:
-		return drivers.VolumeTypeContainer, nil
+		return drivers.VolumeTypeContainer
 	case cluster.StoragePoolVolumeTypeVM:
-		return drivers.VolumeTypeVM, nil
+		return drivers.VolumeTypeVM
 	case cluster.StoragePoolVolumeTypeImage:
-		return drivers.VolumeTypeImage, nil
+		return drivers.VolumeTypeImage
 	case cluster.StoragePoolVolumeTypeCustom:
-		return drivers.VolumeTypeCustom, nil
+		return drivers.VolumeTypeCustom
 	}
 
-	return "", fmt.Errorf("Invalid storage volume DB type: %d", volDBType)
+	return drivers.VolumeTypeCustom
 }
 
 // InstanceTypeToVolumeType converts instance type to storage driver volume type.
@@ -142,17 +142,17 @@ func VolumeContentTypeToDBContentType(contentType drivers.ContentType) (cluster.
 }
 
 // VolumeDBContentTypeToContentType converts internal content type DB code to driver representation.
-func VolumeDBContentTypeToContentType(volDBType cluster.StoragePoolVolumeContentType) (drivers.ContentType, error) {
+func VolumeDBContentTypeToContentType(volDBType cluster.StoragePoolVolumeContentType) drivers.ContentType {
 	switch volDBType {
 	case cluster.StoragePoolVolumeContentTypeBlock:
-		return drivers.ContentTypeBlock, nil
+		return drivers.ContentTypeBlock
 	case cluster.StoragePoolVolumeContentTypeFS:
-		return drivers.ContentTypeFS, nil
+		return drivers.ContentTypeFS
 	case cluster.StoragePoolVolumeContentTypeISO:
-		return drivers.ContentTypeISO, nil
+		return drivers.ContentTypeISO
 	}
 
-	return "", fmt.Errorf("Invalid volume content type")
+	return drivers.ContentTypeFS
 }
 
 // VolumeDBGet loads a volume from the database.
@@ -229,11 +229,7 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 		volumeConfig = map[string]string{}
 	}
 
-	volType, err := VolumeDBTypeToType(volDBType)
-	if err != nil {
-		return err
-	}
-
+	volType := VolumeDBTypeToType(volDBType)
 	vol := drivers.NewVolume(pool.Driver(), pool.Name(), volType, contentType, volumeName, volumeConfig, pool.Driver().Config())
 
 	// Set source indicator.
