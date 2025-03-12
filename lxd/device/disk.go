@@ -165,10 +165,7 @@ func (d *disk) sourceVolumeFields() (volumeName string, volumeType storageDriver
 		return volumeName, volumeType, dbVolumeType, volumeTypeName, err
 	}
 
-	volumeType, err = storagePools.VolumeDBTypeToType(dbVolumeType)
-	if err != nil {
-		return volumeName, volumeType, dbVolumeType, volumeTypeName, err
-	}
+	volumeType = storagePools.VolumeDBTypeToType(dbVolumeType)
 
 	return volumeName, volumeType, dbVolumeType, volumeTypeName, nil
 }
@@ -1199,10 +1196,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						clusterName = storageDrivers.CephDefaultUser
 					}
 
-					contentType, err := storagePools.VolumeDBContentTypeToContentType(dbContentType)
-					if err != nil {
-						return nil, err
-					}
+					contentType := storagePools.VolumeDBContentTypeToContentType(dbContentType)
 
 					projectStorageVolumeName := project.StorageVolume(d.inst.Project().Name, volumeName)
 
