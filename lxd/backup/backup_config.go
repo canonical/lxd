@@ -97,6 +97,10 @@ func UpdateInstanceConfigStoragePool(c *db.Cluster, b Info, mountPath string) er
 			return err
 		}
 
+		if backup.Container == nil {
+			return fmt.Errorf("Instance definition in backup config is missing")
+		}
+
 		rootDiskDeviceFound := false
 
 		// Change the pool in the backup.yaml.
