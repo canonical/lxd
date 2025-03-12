@@ -1031,7 +1031,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 		req.ContentType = cluster.StoragePoolVolumeContentTypeNameFS
 	}
 
-	_, err = storagePools.VolumeContentTypeNameToContentType(req.ContentType)
+	_, err = cluster.StoragePoolVolumeContentTypeFromName(req.ContentType)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -1229,7 +1229,7 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 		}
 	}
 
-	volumeDBContentType, err := storagePools.VolumeContentTypeNameToContentType(req.ContentType)
+	volumeDBContentType, err := cluster.StoragePoolVolumeContentTypeFromName(req.ContentType)
 	if err != nil {
 		return response.SmartError(err)
 	}
