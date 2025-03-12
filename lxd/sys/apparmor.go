@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/syndtr/gocapability/capability"
+	"github.com/moby/sys/capability"
 
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/warningtype"
@@ -102,11 +102,7 @@ func haveMacAdmin() bool {
 		return false
 	}
 
-	if c.Get(capability.EFFECTIVE, capability.CAP_MAC_ADMIN) {
-		return true
-	}
-
-	return false
+	return c.Get(capability.EFFECTIVE, capability.CAP_MAC_ADMIN)
 }
 
 // Returns true if AppArmor stacking support is available.
