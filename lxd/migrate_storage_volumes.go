@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -198,7 +199,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 
 	if !msg.GetSuccess() {
 		logger.Errorf("Failed to send storage volume")
-		return fmt.Errorf(msg.GetMessage())
+		return errors.New(msg.GetMessage())
 	}
 
 	logger.Debugf("Migration source finished transferring storage volume")
@@ -478,7 +479,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			if !msg.GetSuccess() {
 				c.disconnect()
 
-				return fmt.Errorf(msg.GetMessage())
+				return errors.New(msg.GetMessage())
 			}
 
 			// The source can only tell us it failed (e.g. if
