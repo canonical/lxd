@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/canonical/lxd/lxd/cluster"
+	"github.com/canonical/lxd/lxd/db"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -74,4 +79,47 @@ func forwardedResponseIfVolumeIsRemote(s *state.State, r *http.Request) response
 	}
 
 	return response.ForwardedResponse(client, r)
+}
+
+// forwardedResponseIfClusterIsRemote forwards a request to a remote cluster if the "cluster" parameter
+// is set to a cluster link name. If "target" is also specified, the request will be forwarded to the
+// specified target member on the remote cluster.
+func forwardedResponseIfClusterIsRemote(s *state.State, r *http.Request) response.Response {
+	clusterName := request.QueryParam(r, "cluster")
+	if clusterName == "" || clusterName == "local" {
+		return nil
+	}
+
+	// Get the cluster link details to get the addresses.
+	var addresses []string
+	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		clusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), clusterName)
+		if err != nil {
+			return err
+		}
+
+		addresses = strings.Split(clusterLink.Addresses, ",")
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Try each address until we find one that works.
+	for _, address := range addresses {
+		client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+		if err != nil {
+			continue
+		}
+
+		// If target is specified, set it on the client.
+		target := request.QueryParam(r, "target")
+		if target != "" {
+			client = client.UseTarget(target)
+		}
+
+		return response.ForwardedResponse(client, r)
+	}
+
+	return response.SmartError(fmt.Errorf("Failed to connect to any address for cluster %q", clusterName))
 }
