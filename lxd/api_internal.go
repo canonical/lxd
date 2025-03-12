@@ -569,6 +569,10 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		return err
 	}
 
+	if backupConf.Container == nil {
+		return fmt.Errorf("Instance definition in backup config is missing")
+	}
+
 	if allowNameOverride && instName != "" {
 		backupConf.Container.Name = instName
 	}
