@@ -25,4 +25,5 @@ runs:
 
           sudo snap install microovn --channel "${{ inputs.microovn-channel }}"
           sudo microovn cluster bootstrap
+          sudo microovn waitready
           sudo microovn status
