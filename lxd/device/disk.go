@@ -1174,7 +1174,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil, fmt.Errorf("Failed loading custom volume: %w", err)
 				}
 
-				dbContentType, err := storagePools.VolumeContentTypeNameToContentType(dbVolume.ContentType)
+				dbContentType, err := cluster.StoragePoolVolumeContentTypeFromName(dbVolume.ContentType)
 				if err != nil {
 					return nil, err
 				}
