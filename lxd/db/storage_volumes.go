@@ -112,7 +112,7 @@ WHERE storage_volumes.id = ?
 		return StorageVolumeArgs{}, err
 	}
 
-	response.TypeName = response.Type.Name()
+	response.TypeName = response.Type.String()
 
 	return response, nil
 }
@@ -239,8 +239,8 @@ func (c *ClusterTx) GetStorageVolumes(ctx context.Context, memberSpecific bool, 
 			return err
 		}
 
-		vol.Type = volumeType.Name()
-		vol.ContentType = contentType.Name()
+		vol.Type = volumeType.String()
+		vol.ContentType = contentType.String()
 
 		volumes = append(volumes, &vol)
 
@@ -338,7 +338,7 @@ func (c *ClusterTx) GetLocalStoragePoolVolumeSnapshotsWithType(ctx context.Conte
 			return err
 		}
 
-		s.ContentType = contentType.Name()
+		s.ContentType = contentType.String()
 
 		snapshots = append(snapshots, s)
 

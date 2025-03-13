@@ -930,7 +930,7 @@ func volumeIsUsedByDevice(vol api.StorageVolume, inst *db.InstanceArgs, dev map[
 			return false, err
 		}
 
-		if inst.Name == vol.Name && rootVolumeDBType.Name() == vol.Type {
+		if inst.Name == vol.Name && rootVolumeDBType.String() == vol.Type {
 			return true, nil
 		}
 	}
