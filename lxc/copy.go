@@ -55,6 +55,35 @@ Cluster link flags:
  - cluster: Target cluster to run the command on, defaults to "local".
  - to-cluster: Destination cluster for copying to, defaults to the value of --cluster.
 `))
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc copy u1 u1-copy
+    Create a copy of a container on the local server
+
+lxc copy u1/snap0 u1-copy
+    Create a new container from a snapshot
+
+lxc copy remote:u1 u1
+    Copy a container from a remote server
+
+lxc copy u1 remote:
+    Copy a container to a remote server
+
+lxc copy u1 remote:u1-copy
+    Copy a container to a remote server with a new name
+
+lxc copy u1 u1-copy --refresh
+    Refresh an existing copy with the latest changes
+
+lxc copy u1 --to-cluster backup-cluster
+    Manual backup to a linked cluster
+
+lxc copy remote-cluster:u1 --cluster target-cluster --to-cluster backup-cluster
+    Manual backup from a target cluster to a linked cluster
+
+lxc copy remote-cluster:u1 --to-cluster backup-cluster
+    Manual backup from a remote cluster to a linked cluster
+
+lxc copy u1 u1 --cluster backup-cluster
+    Manual restore from a backup cluster to a local cluster`))
 
 	cmd.RunE = c.run
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new instance")+"``")
