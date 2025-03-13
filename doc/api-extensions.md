@@ -2639,3 +2639,7 @@ This includes the following new endpoints (see [RESTful API](rest-api.md) for de
 * `DELETE /1.0/cluster/links/<name>` - deletes a cluster link.
 
 This also includes the new `cluster_links` and `cluster_links_config` database tables and their corresponding functions.
+
+## `cluster_link_forwarding`
+
+This introduces support for copying instances across linked clusters using the `--cluster` and `--to-cluster` flags. The `--cluster` flag specifies the source cluster, or cluster to target for an operation, and the `--to-cluster` flag specifies the destination cluster. Requests which include the `--cluster` flag are forwarded to the specified cluster.
