@@ -148,7 +148,7 @@ func (d *disk) sourceIsLocalPath(source string) bool {
 	return true
 }
 
-func (d *disk) sourceVolumeFields() (volumeName string, volumeType storageDrivers.VolumeType, dbVolumeType int, volumeTypeName string, err error) {
+func (d *disk) sourceVolumeFields() (volumeName string, volumeType storageDrivers.VolumeType, dbVolumeType cluster.StoragePoolVolumeType, volumeTypeName string, err error) {
 	volumeName = d.config["source"]
 
 	if d.config["source.snapshot"] != "" {
@@ -160,15 +160,12 @@ func (d *disk) sourceVolumeFields() (volumeName string, volumeType storageDriver
 		volumeTypeName = d.config["source.type"]
 	}
 
-	dbVolumeType, err = storagePools.VolumeTypeNameToDBType(volumeTypeName)
+	dbVolumeType, err = cluster.StoragePoolVolumeTypeFromName(volumeTypeName)
 	if err != nil {
 		return volumeName, volumeType, dbVolumeType, volumeTypeName, err
 	}
 
-	volumeType, err = storagePools.VolumeDBTypeToType(dbVolumeType)
-	if err != nil {
-		return volumeName, volumeType, dbVolumeType, volumeTypeName, err
-	}
+	volumeType = storagePools.VolumeDBTypeToType(dbVolumeType)
 
 	return volumeName, volumeType, dbVolumeType, volumeTypeName, nil
 }
@@ -1174,7 +1171,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil, fmt.Errorf("Failed loading custom volume: %w", err)
 				}
 
-				dbContentType, err := storagePools.VolumeContentTypeNameToContentType(dbVolume.ContentType)
+				dbContentType, err := cluster.StoragePoolVolumeContentTypeFromName(dbVolume.ContentType)
 				if err != nil {
 					return nil, err
 				}
@@ -1199,10 +1196,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						clusterName = storageDrivers.CephDefaultUser
 					}
 
-					contentType, err := storagePools.VolumeDBContentTypeToContentType(dbContentType)
-					if err != nil {
-						return nil, err
-					}
+					contentType := storagePools.VolumeDBContentTypeToContentType(dbContentType)
 
 					projectStorageVolumeName := project.StorageVolume(d.inst.Project().Name, volumeName)
 
@@ -1945,7 +1939,7 @@ func (d *disk) localSourceOpen(srcPath string) (*os.File, error) {
 	return f, nil
 }
 
-func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName string, volumeType int, remapPath string) error {
+func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName string, volumeType cluster.StoragePoolVolumeType, remapPath string) error {
 	var err error
 	var dbVolume *db.StorageVolume
 	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {

@@ -198,7 +198,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	getStoragePoolVolume := func(volumeProjectName string, volumeName string, volumeType int, poolID int64) (*db.StorageVolume, error) {
+	getStoragePoolVolume := func(volumeProjectName string, volumeName string, volumeType cluster.StoragePoolVolumeType, poolID int64) (*db.StorageVolume, error) {
 		var dbVolume *db.StorageVolume
 		err = clusterDB.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			dbVolume, err = tx.GetStoragePoolVolume(context.Background(), poolID, volumeProjectName, volumeType, volumeName, true)
