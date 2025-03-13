@@ -35,6 +35,7 @@ type cmdInit struct {
 	flagNoProfiles bool
 	flagEmpty      bool
 	flagVM         bool
+	flagCluster    string
 }
 
 func (c *cmdInit) command() *cobra.Command {
@@ -52,7 +53,10 @@ lxc init ubuntu:24.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB
     Create a virtual machine with 4 vCPUs and 4GiB of RAM
 
 lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size=32GiB
-    Create a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of 32GiB`))
+    Create a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of 32GiB
+
+lxc init ubuntu:24.04 u1 --cluster backup-cluster
+    Create a container on a linked cluster named "backup-cluster"`))
 
 	cmd.RunE = c.run
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new instance")+"``")
@@ -66,6 +70,7 @@ lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Create the instance with no profiles applied"))
 	cmd.Flags().BoolVar(&c.flagEmpty, "empty", false, i18n.G("Create an empty instance"))
 	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Create a virtual machine"))
+	cmd.Flags().StringVar(&c.flagCluster, "cluster", "", i18n.G("Cluster name")+"``")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) != 0 {
@@ -77,6 +82,10 @@ lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size
 
 	_ = cmd.RegisterFlagCompletionFunc("profile", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return c.global.cmpProfiles(toComplete, true)
+	})
+
+	_ = cmd.RegisterFlagCompletionFunc("cluster", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return c.global.cmpClusterLinks(toComplete)
 	})
 
 	return cmd
@@ -267,6 +276,14 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 	// Set the target if provided.
 	if c.flagTarget != "" {
 		d = d.UseTarget(c.flagTarget)
+	}
+
+	// Set the cluster if provided.
+	if c.flagCluster != "" {
+		d = d.UseCluster(c.flagCluster)
+		if !d.HasExtension("cluster_link_forwarding") {
+			return nil, "", fmt.Errorf(i18n.G("The destination server doesn't support cluster links: %v"), err)
+		}
 	}
 
 	// Setup instance creation request.
