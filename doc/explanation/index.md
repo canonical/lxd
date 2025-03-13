@@ -57,4 +57,5 @@ When you're ready to move your LXD setup to production, you should read up on th
 /explanation/clusters
 /explanation/performance_tuning
 /explanation/security
+/explanation/bpf
 ```

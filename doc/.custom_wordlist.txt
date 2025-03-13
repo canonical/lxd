@@ -26,6 +26,7 @@ BLK
 bool
 bootable
 bpffs
+BPFFS
 BPF
 Btrfs
 bugfix
