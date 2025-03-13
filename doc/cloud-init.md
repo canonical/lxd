@@ -314,7 +314,7 @@ Since `cloud-init` only runs on instance start, updates to `cloud-init.*` keys o
 The following command injects `someuser`'s key from Launchpad into the newly created `container`:
 
 ```bash
-lxc launch ubuntu:24.04 container -c cloud-init.ssh-keys.mykey root:lp:someuser
+lxc launch ubuntu:24.04 container -c cloud-init.ssh-keys.mykey=root:lp:someuser
 ```
 
 The example profile configuration below defines a key to be injected on an instance. The injected key enables the owner of the private key to SSH into the instance as a user named `user`:
