@@ -148,26 +148,26 @@ func (d *disk) sourceIsLocalPath(source string) bool {
 	return true
 }
 
-func (d *disk) sourceVolumeFields() (volumeName string, volumeType storageDrivers.VolumeType, dbVolumeType cluster.StoragePoolVolumeType, volumeTypeName string, err error) {
+func (d *disk) sourceVolumeFields() (volumeName string, volumeType storageDrivers.VolumeType, dbVolumeType cluster.StoragePoolVolumeType, err error) {
 	volumeName = d.config["source"]
 
 	if d.config["source.snapshot"] != "" {
 		volumeName = volumeName + shared.SnapshotDelimiter + d.config["source.snapshot"]
 	}
 
-	volumeTypeName = cluster.StoragePoolVolumeTypeNameCustom
+	volumeTypeName := cluster.StoragePoolVolumeTypeNameCustom
 	if d.config["source.type"] != "" {
 		volumeTypeName = d.config["source.type"]
 	}
 
 	dbVolumeType, err = cluster.StoragePoolVolumeTypeFromName(volumeTypeName)
 	if err != nil {
-		return volumeName, volumeType, dbVolumeType, volumeTypeName, err
+		return volumeName, volumeType, dbVolumeType, err
 	}
 
 	volumeType = storagePools.VolumeDBTypeToType(dbVolumeType)
 
-	return volumeName, volumeType, dbVolumeType, volumeTypeName, nil
+	return volumeName, volumeType, dbVolumeType, nil
 }
 
 // Check that unshared custom storage block volumes are not added to profiles or
@@ -522,7 +522,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 
 			// Non-root volume validation.
 			if !instancetype.IsRootDiskDevice(d.config) {
-				volumeName, volumeType, dbVolumeType, _, err := d.sourceVolumeFields()
+				volumeName, volumeType, dbVolumeType, err := d.sourceVolumeFields()
 				if err != nil {
 					return err
 				}
@@ -751,7 +751,7 @@ func (d *disk) Register() error {
 			return err
 		}
 	} else if d.config["path"] != "/" && d.config["source"] != "" && d.config["pool"] != "" {
-		volumeName, _, dbVolumeType, volumeTypeName, err := d.sourceVolumeFields()
+		volumeName, _, dbVolumeType, err := d.sourceVolumeFields()
 		if err != nil {
 			return err
 		}
@@ -778,7 +778,7 @@ func (d *disk) Register() error {
 		} else {
 			_, err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
 			if err != nil {
-				return fmt.Errorf(`Failed mounting storage volume "%s/%s": %w`, volumeTypeName, volumeName, err)
+				return fmt.Errorf(`Failed mounting storage volume "%s/%s": %w`, dbVolumeType, volumeName, err)
 			}
 		}
 	}
@@ -896,7 +896,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		// If ownerShift is none and pool is specified then check whether the volume
 		// has owner shifting enabled, and if so enable shifting on this device too.
 		if ownerShift == deviceConfig.MountOwnerShiftNone && d.config["pool"] != "" {
-			volumeName, _, dbVolumeType, _, err := d.sourceVolumeFields()
+			volumeName, _, dbVolumeType, err := d.sourceVolumeFields()
 			if err != nil {
 				return nil, err
 			}
@@ -1152,7 +1152,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			if d.config["pool"] != "" {
 				var revertFunc func()
 
-				volumeName, volumeType, dbVolumeType, _, err := d.sourceVolumeFields()
+				volumeName, volumeType, dbVolumeType, err := d.sourceVolumeFields()
 				if err != nil {
 					return nil, err
 				}
@@ -1667,7 +1667,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		return nil, "", nil, fmt.Errorf(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
 	}
 
-	volumeName, volumeType, dbVolumeType, volumeTypeName, err := d.sourceVolumeFields()
+	volumeName, volumeType, dbVolumeType, err := d.sourceVolumeFields()
 	if err != nil {
 		return nil, "", nil, err
 	}
@@ -1701,7 +1701,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	} else {
 		mountInfo, err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
 		if err != nil {
-			return nil, "", nil, fmt.Errorf(`Failed mounting storage volume "%s/%s" from storage pool %q: %w`, volumeTypeName, volumeName, d.pool.Name(), err)
+			return nil, "", nil, fmt.Errorf(`Failed mounting storage volume "%s/%s" from storage pool %q: %w`, dbVolumeType, volumeName, d.pool.Name(), err)
 		}
 
 		revert.Add(func() { _, _ = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
@@ -1732,7 +1732,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 
 		err = d.storagePoolVolumeAttachShift(storageProjectName, d.pool.Name(), volumeName, dbVolumeType, srcPath)
 		if err != nil {
-			return nil, "", nil, fmt.Errorf(`Failed shifting storage volume "%s/%s" on storage pool %q: %w`, volumeTypeName, volumeName, d.pool.Name(), err)
+			return nil, "", nil, fmt.Errorf(`Failed shifting storage volume "%s/%s" on storage pool %q: %w`, dbVolumeType, volumeName, d.pool.Name(), err)
 		}
 	}
 
@@ -2180,7 +2180,7 @@ func (d *disk) postStop() error {
 
 	// Check if pool-specific action should be taken to unmount custom volume disks.
 	if d.config["pool"] != "" && d.config["path"] != "/" {
-		volumeName, _, dbVolumeType, _, err := d.sourceVolumeFields()
+		volumeName, _, dbVolumeType, err := d.sourceVolumeFields()
 		if err != nil {
 			return err
 		}
