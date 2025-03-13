@@ -418,7 +418,7 @@ func (c *cmdFileEdit) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create temp file
-	f, err := os.CreateTemp("", "lxd_file_edit_")
+	f, err := os.CreateTemp("", "lxd_file_edit_*"+filepath.Ext(args[0]))
 	if err != nil {
 		return fmt.Errorf(i18n.G("Unable to create a temporary file: %v"), err)
 	}
