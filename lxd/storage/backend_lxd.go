@@ -1294,16 +1294,13 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		desc = srcConfig.Volume.Description
 	}
 
-	contentDBType, err := VolumeContentTypeNameToContentType(srcConfig.Volume.ContentType)
+	contentDBType, err := cluster.StoragePoolVolumeContentTypeFromName(srcConfig.Volume.ContentType)
 	if err != nil {
 		return err
 	}
 
 	// Get the source volume's content type.
-	contentType, err := VolumeDBContentTypeToContentType(contentDBType)
-	if err != nil {
-		return err
-	}
+	contentType := VolumeDBContentTypeToContentType(contentDBType)
 
 	if contentType != drivers.ContentTypeFS && contentType != drivers.ContentTypeBlock {
 		return fmt.Errorf("Volume of content type %q cannot be refreshed", contentType)
@@ -4335,15 +4332,12 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 	}
 
 	// Get the content type.
-	dbContentType, err := VolumeContentTypeNameToContentType(imgDBVol.ContentType)
+	dbContentType, err := cluster.StoragePoolVolumeContentTypeFromName(imgDBVol.ContentType)
 	if err != nil {
 		return err
 	}
 
-	contentType, err := VolumeDBContentTypeToContentType(dbContentType)
-	if err != nil {
-		return err
-	}
+	contentType := VolumeDBContentTypeToContentType(dbContentType)
 
 	vol := b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
 
@@ -4402,15 +4396,12 @@ func (b *lxdBackend) updateVolumeDescriptionOnly(projectName string, volName str
 	}
 
 	// Get content type.
-	dbContentType, err := VolumeContentTypeNameToContentType(curVol.ContentType)
+	dbContentType, err := cluster.StoragePoolVolumeContentTypeFromName(curVol.ContentType)
 	if err != nil {
 		return err
 	}
 
-	contentType, err := VolumeDBContentTypeToContentType(dbContentType)
-	if err != nil {
-		return err
-	}
+	contentType := VolumeDBContentTypeToContentType(dbContentType)
 
 	// Validate config.
 	vol := b.GetVolume(drivers.VolumeType(curVol.Type), contentType, volName, newConfig)
@@ -5349,16 +5340,13 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		desc = srcConfig.Volume.Description
 	}
 
-	contentDBType, err := VolumeContentTypeNameToContentType(srcConfig.Volume.ContentType)
+	contentDBType, err := cluster.StoragePoolVolumeContentTypeFromName(srcConfig.Volume.ContentType)
 	if err != nil {
 		return err
 	}
 
 	// Get the source volume's content type.
-	contentType, err := VolumeDBContentTypeToContentType(contentDBType)
-	if err != nil {
-		return err
-	}
+	contentType := VolumeDBContentTypeToContentType(contentDBType)
 
 	storagePoolSupported := false
 	for _, supportedType := range b.Driver().Info().VolumeTypes {
@@ -5671,15 +5659,12 @@ func (b *lxdBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCl
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, args.Name)
 
-	dbContentType, err := VolumeContentTypeNameToContentType(args.ContentType)
+	dbContentType, err := cluster.StoragePoolVolumeContentTypeFromName(args.ContentType)
 	if err != nil {
 		return err
 	}
 
-	contentType, err := VolumeDBContentTypeToContentType(dbContentType)
-	if err != nil {
-		return err
-	}
+	contentType := VolumeDBContentTypeToContentType(dbContentType)
 
 	if args.Info == nil {
 		return fmt.Errorf("Migration info required")
@@ -6102,15 +6087,12 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 	}
 
 	// Get content type.
-	dbContentType, err := VolumeContentTypeNameToContentType(curVol.ContentType)
+	dbContentType, err := cluster.StoragePoolVolumeContentTypeFromName(curVol.ContentType)
 	if err != nil {
 		return err
 	}
 
-	contentType, err := VolumeDBContentTypeToContentType(dbContentType)
-	if err != nil {
-		return err
-	}
+	contentType := VolumeDBContentTypeToContentType(dbContentType)
 
 	// Validate config.
 	newVol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, newConfig)
@@ -6281,15 +6263,12 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	}
 
 	// Get the content type.
-	dbContentType, err := VolumeContentTypeNameToContentType(curVol.ContentType)
+	dbContentType, err := cluster.StoragePoolVolumeContentTypeFromName(curVol.ContentType)
 	if err != nil {
 		return err
 	}
 
-	contentType, err := VolumeDBContentTypeToContentType(dbContentType)
-	if err != nil {
-		return err
-	}
+	contentType := VolumeDBContentTypeToContentType(dbContentType)
 
 	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, curVol.Config)
 
@@ -6540,15 +6519,12 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 		return err
 	}
 
-	volDBContentType, err := VolumeContentTypeNameToContentType(parentVol.ContentType)
+	volDBContentType, err := cluster.StoragePoolVolumeContentTypeFromName(parentVol.ContentType)
 	if err != nil {
 		return err
 	}
 
-	contentType, err := VolumeDBContentTypeToContentType(volDBContentType)
-	if err != nil {
-		return err
-	}
+	contentType := VolumeDBContentTypeToContentType(volDBContentType)
 
 	if contentType != drivers.ContentTypeFS && contentType != drivers.ContentTypeBlock {
 		return fmt.Errorf("Volume of content type %q does not support snapshots", contentType)
@@ -6675,15 +6651,12 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 	}
 
 	// Get the content type.
-	dbContentType, err := VolumeContentTypeNameToContentType(volume.ContentType)
+	dbContentType, err := cluster.StoragePoolVolumeContentTypeFromName(volume.ContentType)
 	if err != nil {
 		return err
 	}
 
-	contentType, err := VolumeDBContentTypeToContentType(dbContentType)
-	if err != nil {
-		return err
-	}
+	contentType := VolumeDBContentTypeToContentType(dbContentType)
 
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
@@ -6763,15 +6736,12 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 		return err
 	}
 
-	dbContentType, err := VolumeContentTypeNameToContentType(curVol.ContentType)
+	dbContentType, err := cluster.StoragePoolVolumeContentTypeFromName(curVol.ContentType)
 	if err != nil {
 		return err
 	}
 
-	contentType, err := VolumeDBContentTypeToContentType(dbContentType)
-	if err != nil {
-		return err
-	}
+	contentType := VolumeDBContentTypeToContentType(dbContentType)
 
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
@@ -7236,15 +7206,12 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		return fmt.Errorf("Instance %q in project %q has a different volume name in its backup file (%q)", instName, projectName, backupConf.Volume.Name)
 	}
 
-	instVolDBType, err := VolumeTypeNameToDBType(backupConf.Volume.Type)
+	instVolDBType, err := cluster.StoragePoolVolumeTypeFromName(backupConf.Volume.Type)
 	if err != nil {
 		return fmt.Errorf("Failed checking instance volume type for instance %q in project %q: %w", instName, projectName, err)
 	}
 
-	instVolType, err := VolumeDBTypeToType(instVolDBType)
-	if err != nil {
-		return fmt.Errorf("Failed checking instance volume type for instance %q in project %q: %w", instName, projectName, err)
-	}
+	instVolType := VolumeDBTypeToType(instVolDBType)
 
 	if volType != instVolType {
 		return fmt.Errorf("Instance %q in project %q has a different volume type in its backup file (%q)", instName, projectName, backupConf.Volume.Type)
@@ -7633,15 +7600,12 @@ func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarW
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volume.Name)
 
-	contentDBType, err := VolumeContentTypeNameToContentType(volume.ContentType)
+	contentDBType, err := cluster.StoragePoolVolumeContentTypeFromName(volume.ContentType)
 	if err != nil {
 		return err
 	}
 
-	contentType, err := VolumeDBContentTypeToContentType(contentDBType)
-	if err != nil {
-		return err
-	}
+	contentType := VolumeDBContentTypeToContentType(contentDBType)
 
 	if contentType != drivers.ContentTypeFS && contentType != drivers.ContentTypeBlock {
 		return fmt.Errorf("Volume of content type %q cannot be backed up", contentType)
