@@ -5306,16 +5306,21 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 		ClusterMove:        args.ClusterMoveSourceName != "",
 	}
 
+	rootVol, err := volSourceArgs.Info.Config.RootVolume()
+	if err != nil {
+		return fmt.Errorf("Failed getting the root volume: %w", err)
+	}
+
 	// Only send the snapshots that the target requests when refreshing.
 	if respHeader.GetRefresh() {
 		volSourceArgs.Snapshots = respHeader.GetSnapshotNames()
-		allSnapshots := volSourceArgs.Info.Config.VolumeSnapshots
+		allSnapshots := rootVol.Snapshots
 
 		// Ensure that only the requested snapshots are included in the migration index header.
-		volSourceArgs.Info.Config.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(volSourceArgs.Snapshots))
+		rootVol.Snapshots = make([]*api.StorageVolumeSnapshot, 0, len(volSourceArgs.Snapshots))
 		for i := range allSnapshots {
 			if shared.ValueInSlice(allSnapshots[i].Name, volSourceArgs.Snapshots) {
-				volSourceArgs.Info.Config.VolumeSnapshots = append(volSourceArgs.Info.Config.VolumeSnapshots, allSnapshots[i])
+				rootVol.Snapshots = append(rootVol.Snapshots, allSnapshots[i])
 			}
 		}
 	}
@@ -5571,7 +5576,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 			// snapshots as they don't need to have a final sync as not being modified.
 			volSourceArgs.FinalSync = true
 			volSourceArgs.Snapshots = nil
-			volSourceArgs.Info.Config.VolumeSnapshots = nil
+			rootVol.Snapshots = nil
 
 			err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
 			if err != nil {
@@ -8213,7 +8218,8 @@ func (d *lxc) UpdateBackupFile() error {
 		return err
 	}
 
-	return pool.UpdateInstanceBackupFile(d, true, nil)
+	// Always use the latest backup file format.
+	return pool.UpdateInstanceBackupFile(d, true, api.BackupVersion20, nil)
 }
 
 // Info returns "lxc" and the currently loaded version of LXC.

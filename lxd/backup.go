@@ -33,7 +33,7 @@ import (
 )
 
 // Create a new backup.
-func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.Instance, op *operations.Operation) error {
+func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.Instance, version api.BackupVersion, op *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": sourceInst.Project().Name, "instance": sourceInst.Name(), "name": args.Name})
 	l.Debug("Instance backup started")
 	defer l.Debug("Instance backup finished")
@@ -182,7 +182,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 
 	// Write index file.
 	l.Debug("Adding backup index file")
-	err = backupWriteIndex(sourceInst, pool, b.OptimizedStorage(), !b.InstanceOnly(), tarWriter)
+	err = backupWriteIndex(sourceInst, pool, b.OptimizedStorage(), !b.InstanceOnly(), version, tarWriter)
 
 	// Check compression errors.
 	if compressErr != nil {
@@ -194,7 +194,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		return fmt.Errorf("Error writing backup index file: %w", err)
 	}
 
-	err = pool.BackupInstance(sourceInst, tarWriter, b.OptimizedStorage(), !b.InstanceOnly(), nil)
+	err = pool.BackupInstance(sourceInst, tarWriter, b.OptimizedStorage(), !b.InstanceOnly(), version, nil)
 	if err != nil {
 		return fmt.Errorf("Backup create: %w", err)
 	}
@@ -228,7 +228,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 }
 
 // backupWriteIndex generates an index.yaml file and then writes it to the root of the backup tarball.
-func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, optimized bool, snapshots bool, tarWriter *instancewriter.InstanceTarWriter) error {
+func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, optimized bool, snapshots bool, version api.BackupVersion, tarWriter *instancewriter.InstanceTarWriter) error {
 	// Indicate whether the driver will include a driver-specific optimized header.
 	poolDriverOptimizedHeader := false
 	if optimized {
@@ -253,6 +253,11 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 	config, err := pool.GenerateInstanceBackupConfig(sourceInst, snapshots, nil)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance backup config: %w", err)
+	}
+
+	// Downgrade the config in case the old backup format was requested.
+	if version == api.BackupVersion10 {
+		backup.DowngradeConfigFile(config)
 	}
 
 	indexInfo := backup.Info{
@@ -382,7 +387,7 @@ func pruneExpiredInstanceBackups(ctx context.Context, s *state.State) error {
 	return nil
 }
 
-func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, projectName string, poolName string, volumeName string) error {
+func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, projectName string, poolName string, volumeName string, version api.BackupVersion) error {
 	l := logger.AddContext(logger.Ctx{"project": projectName, "storage_volume": volumeName, "name": args.Name})
 	l.Debug("Volume backup started")
 	defer l.Debug("Volume backup finished")
@@ -487,7 +492,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 
 	// Write index file.
 	l.Debug("Adding backup index file")
-	err = volumeBackupWriteIndex(s, projectName, volumeName, pool, backupRow.OptimizedStorage, !backupRow.VolumeOnly, tarWriter)
+	err = volumeBackupWriteIndex(s, projectName, volumeName, pool, backupRow.OptimizedStorage, !backupRow.VolumeOnly, version, tarWriter)
 
 	// Check compression errors.
 	if compressErr != nil {
@@ -531,7 +536,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 }
 
 // volumeBackupWriteIndex generates an index.yaml file and then writes it to the root of the backup tarball.
-func volumeBackupWriteIndex(s *state.State, projectName string, volumeName string, pool storagePools.Pool, optimized bool, snapshots bool, tarWriter *instancewriter.InstanceTarWriter) error {
+func volumeBackupWriteIndex(s *state.State, projectName string, volumeName string, pool storagePools.Pool, optimized bool, snapshots bool, version api.BackupVersion, tarWriter *instancewriter.InstanceTarWriter) error {
 	// Indicate whether the driver will include a driver-specific optimized header.
 	poolDriverOptimizedHeader := false
 	if optimized {
@@ -543,8 +548,18 @@ func volumeBackupWriteIndex(s *state.State, projectName string, volumeName strin
 		return fmt.Errorf("Failed generating volume backup config: %w", err)
 	}
 
+	rootVol, err := config.RootVolume()
+	if err != nil {
+		return fmt.Errorf("Failed getting the root volume: %w", err)
+	}
+
+	// Downgrade the config in case the old backup format was requested.
+	if version == api.BackupVersion10 {
+		backup.DowngradeConfigFile(config)
+	}
+
 	indexInfo := backup.Info{
-		Name:             config.Volume.Name,
+		Name:             rootVol.Name,
 		Pool:             pool.Name(),
 		Backend:          pool.Driver().Info().Name,
 		OptimizedStorage: &optimized,
@@ -554,8 +569,8 @@ func volumeBackupWriteIndex(s *state.State, projectName string, volumeName strin
 	}
 
 	if snapshots {
-		indexInfo.Snapshots = make([]string, 0, len(config.VolumeSnapshots))
-		for _, s := range config.VolumeSnapshots {
+		indexInfo.Snapshots = make([]string, 0, len(rootVol.Snapshots))
+		for _, s := range rootVol.Snapshots {
 			indexInfo.Snapshots = append(indexInfo.Snapshots, s.Name)
 		}
 	}

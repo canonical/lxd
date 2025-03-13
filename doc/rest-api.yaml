@@ -95,6 +95,10 @@ definitions:
         title: AuthGroupsPost is used for creating a new group.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    BackupVersion:
+        title: BackupVersion represents the backup file format version.
+        type: string
+        x-go-package: github.com/canonical/lxd/shared/api
     Certificate:
         description: Certificate represents a LXD certificate
         properties:
@@ -1850,6 +1854,8 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     InstanceBackupsPost:
         properties:
+            Version:
+                $ref: '#/definitions/BackupVersion'
             compression_algorithm:
                 description: What compression algorithm to use
                 example: gzip
@@ -6526,6 +6532,8 @@ definitions:
     StoragePoolVolumeBackupsPost:
         description: StoragePoolVolumeBackupsPost represents the fields available for a new LXD volume backup
         properties:
+            Version:
+                $ref: '#/definitions/BackupVersion'
             compression_algorithm:
                 description: What compression algorithm to use
                 example: gzip
