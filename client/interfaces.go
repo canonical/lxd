@@ -84,6 +84,7 @@ type InstanceServer interface {
 	IsClustered() (clustered bool)
 	UseTarget(name string) (client InstanceServer)
 	UseProject(name string) (client InstanceServer)
+	UseCluster(name string) (client InstanceServer)
 
 	// Certificate functions
 	GetCertificateFingerprints() (fingerprints []string, err error)

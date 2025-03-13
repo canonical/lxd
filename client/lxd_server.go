@@ -143,6 +143,36 @@ func (r *ProtocolLXD) UseTarget(name string) InstanceServer {
 	}
 }
 
+// UseCluster returns a client that will target a specific linked cluster.
+// This is used for operations that need to be performed on a linked cluster.
+func (r *ProtocolLXD) UseCluster(name string) InstanceServer {
+	// Create a new URL query parameter for the cluster
+	values := r.httpBaseURL.Query()
+	values.Set("cluster", name)
+
+	// Create a new URL with the cluster parameter
+	newURL := r.httpBaseURL
+	newURL.RawQuery = values.Encode()
+
+	return &ProtocolLXD{
+		ctx:                  r.ctx,
+		ctxConnected:         r.ctxConnected,
+		ctxConnectedCancel:   r.ctxConnectedCancel,
+		server:               r.server,
+		http:                 r.http,
+		httpCertificate:      r.httpCertificate,
+		httpBaseURL:          newURL,
+		httpProtocol:         r.httpProtocol,
+		httpUserAgent:        r.httpUserAgent,
+		requireAuthenticated: r.requireAuthenticated,
+		project:              r.project,
+		clusterTarget:        r.clusterTarget,
+		eventConns:           make(map[string]*websocket.Conn),  // New cluster specific listener conns.
+		eventListeners:       make(map[string][]*EventListener), // New cluster specific listeners.
+		oidcClient:           r.oidcClient,
+	}
+}
+
 // IsAgent returns true if the server is a LXD agent.
 func (r *ProtocolLXD) IsAgent() bool {
 	return r.server != nil && r.server.Environment.Server == "lxd-agent"
