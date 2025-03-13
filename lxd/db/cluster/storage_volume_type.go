@@ -57,12 +57,12 @@ func StoragePoolVolumeTypeFromName(volTypeName string) (StoragePoolVolumeType, e
 	return StoragePoolVolumeTypeCustom, errors.New("Invalid storage volume type")
 }
 
-// Name gives the name of a StoragePoolVolumeType.
+// String gives the name of a StoragePoolVolumeType.
 //
 // # Safety
 // This function assumes that `t` is one of the StoragePoolVolumeType enums
 // defined above.
-func (t StoragePoolVolumeType) Name() string {
+func (t StoragePoolVolumeType) String() string {
 	switch t {
 	case StoragePoolVolumeTypeContainer:
 		return StoragePoolVolumeTypeNameContainer
@@ -123,12 +123,12 @@ func StoragePoolVolumeContentTypeFromName(contentTypeName string) (StoragePoolVo
 	return StoragePoolVolumeContentTypeFS, errors.New("Invalid volume content type name")
 }
 
-// Name gives the name of a StoragePoolVolumeContentType.
+// String gives the name of a StoragePoolVolumeContentType.
 //
 // # Safety
 // This function assumes that `t` is one of the StoragePoolVolumeContentType
 // enums defined above.
-func (t StoragePoolVolumeContentType) Name() string {
+func (t StoragePoolVolumeContentType) String() string {
 	switch t {
 	case StoragePoolVolumeContentTypeFS:
 		return StoragePoolVolumeContentTypeNameFS
