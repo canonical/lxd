@@ -996,7 +996,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			return fmt.Errorf("Cannot convert BGP ASN to uint32: Upper bound exceeded")
 		}
 
-		err := s.BGP.Reconfigure(address, uint32(asn), net.ParseIP(routerid))
+		err := s.BGP.Configure(address, uint32(asn), net.ParseIP(routerid))
 		if err != nil {
 			return fmt.Errorf("Failed reconfiguring BGP: %w", err)
 		}
