@@ -263,7 +263,8 @@ func (c *cmdMove) run(cmd *cobra.Command, args []string) error {
 
 	// A move is just a copy followed by a delete; however, we want to
 	// keep the volatile entries around since we are moving the instance.
-	err = cpy.copyInstance(conf, sourceResource, destResource, true, -1, stateful, instanceOnly, mode, c.flagStorage, true)
+	// TODO: Add support for moving instance to linked cluster.
+	err = cpy.copyInstance(conf, sourceResource, destResource, true, -1, stateful, instanceOnly, mode, c.flagStorage, "", true)
 	if err != nil {
 		return err
 	}
