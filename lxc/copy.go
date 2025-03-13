@@ -32,6 +32,8 @@ type cmdCopy struct {
 	flagTargetProject     string
 	flagRefresh           bool
 	flagAllowInconsistent bool
+	flagCluster           string
+	flagToCluster         string
 }
 
 func (c *cmdCopy) command() *cobra.Command {
@@ -48,6 +50,10 @@ Transfer modes (--mode):
  - relay: The CLI connects to both source and server and proxies the data (both source and target must listen on network)
 
 The pull transfer mode is the default as it is compatible with all LXD versions.
+
+Cluster link flags:
+ - cluster: Target cluster to run the command on, defaults to "local".
+ - to-cluster: Destination cluster for copying to, defaults to the value of --cluster.
 `))
 
 	cmd.RunE = c.run
@@ -64,6 +70,8 @@ The pull transfer mode is the default as it is compatible with all LXD versions.
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Create the instance with no profiles applied"))
 	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, i18n.G("Perform an incremental copy"))
 	cmd.Flags().BoolVar(&c.flagAllowInconsistent, "allow-inconsistent", false, i18n.G("Ignore copy errors for volatile files"))
+	cmd.Flags().StringVar(&c.flagCluster, "cluster", "local", i18n.G("Target cluster")+"``")
+	cmd.Flags().StringVar(&c.flagToCluster, "to-cluster", "", i18n.G("Destination cluster for copying to")+"``")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -482,6 +490,14 @@ func (c *cmdCopy) run(cmd *cobra.Command, args []string) error {
 	mode := "pull"
 	if c.flagMode != "" {
 		mode = c.flagMode
+	}
+
+	if c.flagCluster == "" {
+		c.flagCluster = "local"
+	}
+
+	if c.flagToCluster == "" {
+		c.flagToCluster = c.flagCluster
 	}
 
 	stateful := !c.flagStateless && !c.flagRefresh
