@@ -127,7 +127,7 @@ WHERE volumes.id=?
 		return StorageVolumeArgs{}, err
 	}
 
-	args.TypeName = args.Type.Name()
+	args.TypeName = args.Type.String()
 
 	return args, nil
 }
