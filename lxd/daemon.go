@@ -1708,18 +1708,6 @@ func (d *Daemon) init() error {
 
 	// Setup BGP listener.
 	d.bgp = bgp.NewServer()
-	if bgpAddress != "" && bgpASN != 0 && bgpRouterID != "" {
-		if bgpASN > math.MaxUint32 {
-			return fmt.Errorf("Cannot convert BGP ASN to uint32: Upper bound exceeded")
-		}
-
-		err := d.bgp.Start(bgpAddress, uint32(bgpASN), net.ParseIP(bgpRouterID))
-		if err != nil {
-			return err
-		}
-
-		logger.Info("Started BGP server")
-	}
 
 	// Setup DNS listener.
 	d.dns = dns.NewServer(d.db.Cluster, func(name string, full bool) (*dns.Zone, error) {
@@ -1769,6 +1757,19 @@ func (d *Daemon) init() error {
 	}
 
 	// Setup tertiary listeners that may use managed network addresses and must be started after networks.
+	if bgpAddress != "" && bgpASN != 0 && bgpRouterID != "" {
+		if bgpASN > math.MaxUint32 {
+			return fmt.Errorf("Cannot convert BGP ASN to uint32: Upper bound exceeded")
+		}
+
+		err := d.bgp.Start(bgpAddress, uint32(bgpASN), net.ParseIP(bgpRouterID))
+		if err != nil {
+			return err
+		}
+
+		logger.Info("Started BGP server")
+	}
+
 	dnsAddress := d.localConfig.DNSAddress()
 	if dnsAddress != "" {
 		err = d.dns.Start(dnsAddress)
