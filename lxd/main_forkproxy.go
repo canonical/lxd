@@ -838,32 +838,32 @@ func genericRelay(dst net.Conn, src net.Conn) {
 	// Wait for both directions to finish, with a timeout.
 	timeout := 1 * time.Second
 
-	var errSnd, errRcv error
+	var errSend, errRecv error
 
 	// Wait for send direction
 	if !isUDP {
 		select {
-		case errSnd = <-chSend:
+		case errSend = <-chSend:
 			// Completed normally
 		case <-time.After(timeout):
-			errSnd = fmt.Errorf("timeout waiting for send relay")
+			errSend = fmt.Errorf("timeout waiting for send relay")
 		}
 	}
 
 	// Wait for receive direction
 	select {
-	case errRcv = <-chRecv:
+	case errRecv = <-chRecv:
 		// Completed normally
 	case <-time.After(timeout):
-		errRcv = fmt.Errorf("timeout waiting for receive relay")
+		errRecv = fmt.Errorf("timeout waiting for receive relay")
 	}
 
-	if daemon.Debug && errSnd != nil {
-		fmt.Printf("Warning: Error while sending data: %v\n", errSnd)
+	if daemon.Debug && errSend != nil {
+		fmt.Printf("Warning: Error while sending data: %v\n", errSend)
 	}
 
-	if daemon.Debug && errRcv != nil {
-		fmt.Printf("Warning: Error while reading data: %v\n", errRcv)
+	if daemon.Debug && errRecv != nil {
+		fmt.Printf("Warning: Error while reading data: %v\n", errRecv)
 	}
 
 	// Fully close both connections
