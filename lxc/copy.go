@@ -299,6 +299,15 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			entry.Profiles = []string{}
 		}
 
+		// Traditionally, if instance with snapshots is copied across projects,
+		// the snapshots keep their own profiles.
+		// This doesn't work if the profiles don't exist in target instance.
+		// If --no-profiles is applied, instruct the server to apply the profiles
+		// of the source instance, ie. none.
+		if c.flagNoProfiles {
+			args.CopySnapshotTargetProfile = true
+		}
+
 		// Check to see if any of the devices overrides are for devices that are not yet defined in the
 		// local devices and thus are expected to be coming from profiles.
 		needProfileExpansion := false
