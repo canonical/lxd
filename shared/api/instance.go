@@ -72,6 +72,12 @@ type InstancesPost struct {
 	//
 	// API extension: instance_create_start
 	Start bool `json:"start" yaml:"start"`
+
+	// Whether the instances's snapshot should receive target instances profile on copy
+	// Example: true
+	//
+	// API extension: instance_copy_snapshot_target_profile
+	CopySnapshotTargetProfile bool `json:"copy_snapshot_target_profile" yaml:"copy_snapshot_target_profile"`
 }
 
 // InstancesPut represents the fields available for a mass update.
