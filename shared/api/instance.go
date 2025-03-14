@@ -460,6 +460,12 @@ type InstanceSource struct {
 	//
 	// API extension: instance_import_conversion
 	ConversionOptions []string `json:"conversion_options" yaml:"conversion_options"`
+
+	// Whether the instances's snapshot should receive target instances profile on copy
+	// Example: true
+	//
+	// API extension: override_snapshot_profiles_on_copy
+	OverrideSnapshotProfiles bool `json:"override_snapshot_profiles" yaml:"override_snapshot_profiles"`
 }
 
 // InstanceUEFIVars represents the UEFI variables of a LXD virtual machine.
