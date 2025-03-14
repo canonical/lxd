@@ -2625,3 +2625,7 @@ Adds flags --network and --storage. The --network flag adds a network device con
 ## `client_cert_presence`
 
 Adds the field `client_certificate` to `GET /1.0` to indicate if the current request has a client certificate in it. This is for informational purposes only and does not affect the behavior of the API.
+
+## `instance_copy_snapshot_target_profile`
+
+This adds a request option to set snapshot's target profile on instance copy to be inherited from target instance.

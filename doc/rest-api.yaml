@@ -2858,6 +2858,11 @@ definitions:
                     security.nesting: "true"
                 type: object
                 x-go-name: Config
+            copy_snapshot_target_profile:
+                description: Whether the instances's snapshot should receive target instances profile on copy
+                example: true
+                type: boolean
+                x-go-name: CopySnapshotTargetProfile
             description:
                 description: Instance description
                 example: My test instance
