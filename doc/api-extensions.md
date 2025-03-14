@@ -2634,3 +2634,7 @@ Deletion of a cluster group is disallowed if the cluster group is referenced by 
 ## `container_bpf_delegation`
 
 Adds new {config:option}`instance-security:security.delegate_bpf`.* group of options in order to support eBPF delegation using BPF Token mechanism. See {ref}`bpf-delegation-token` for more information.
+
+## `override_snapshot_profiles_on_copy`
+
+This adds a request option to set snapshot's target profile on instance copy to be inherited from target instance.
