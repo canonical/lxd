@@ -60,7 +60,7 @@ func (r *sftpServe) Render(w http.ResponseWriter, request *http.Request) error {
 	}
 
 	// Start sftp server.
-	server, err := sftp.NewServer(conn)
+	server, err := sftp.NewServer(conn, sftp.WithAllocator())
 	if err != nil {
 		return nil
 	}
