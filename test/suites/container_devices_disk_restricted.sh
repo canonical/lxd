@@ -31,7 +31,7 @@ test_container_devices_disk_restricted() {
   lxc profile show default
 
   # Create instance and add check relative source paths are not allowed.
-  lxc init testimage c1
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
   ! lxc config device add c1 d1 disk source=foo path=/mnt || false
 
   # Check adding a disk with a source path above the restricted parent source path isn't allowed.
