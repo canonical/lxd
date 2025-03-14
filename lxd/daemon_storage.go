@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -17,6 +18,7 @@ import (
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 func daemonStorageVolumesUnmount(s *state.State) error {
@@ -59,17 +61,24 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 		return nil
 	}
 
-	if storageBackups != "" {
-		err := unmount(storageBackups)
-		if err != nil {
-			return fmt.Errorf("Failed to unmount backups storage: %w", err)
+	// Only wait 60 seconds in case the storage backend is unreachable.
+	select {
+	case <-time.After(time.Minute):
+		logger.Error("Timed out waiting for image and backup volume")
+		return fmt.Errorf("Timed out waiting for image and backup volume")
+	default:
+		if storageBackups != "" {
+			err := unmount(storageBackups)
+			if err != nil {
+				return fmt.Errorf("Failed to unmount backups storage: %w", err)
+			}
 		}
-	}
 
-	if storageImages != "" {
-		err := unmount(storageImages)
-		if err != nil {
-			return fmt.Errorf("Failed to unmount images storage: %w", err)
+		if storageImages != "" {
+			err := unmount(storageImages)
+			if err != nil {
+				return fmt.Errorf("Failed to unmount images storage: %w", err)
+			}
 		}
 	}
 
