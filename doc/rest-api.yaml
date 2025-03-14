@@ -2492,6 +2492,11 @@ definitions:
                 example: https://1.2.3.4:8443/1.0/operations/1721ae08-b6a8-416a-9614-3f89302466e1
                 type: string
                 x-go-name: Operation
+            override_snapshot_profiles:
+                description: Whether the instances's snapshot should receive target instances profile on copy
+                example: true
+                type: boolean
+                x-go-name: OverrideSnapshotProfiles
             project:
                 description: Source project name (for copy and local image)
                 example: blah
