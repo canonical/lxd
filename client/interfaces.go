@@ -647,6 +647,10 @@ type InstanceCopyArgs struct {
 
 	// API extension: instance_allow_inconsistent_copy
 	AllowInconsistent bool
+
+	// API extension: instance_copy_snapshot_target_profile
+	// For snapshots copy, copy the profiles of the target instance
+	CopySnapshotTargetProfile bool
 }
 
 // The InstanceSnapshotCopyArgs struct is used to pass additional options during instance copy.
