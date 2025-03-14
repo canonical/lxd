@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -804,54 +805,59 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 
 	refCount := vol.MountRefCountDecrement()
 
+	// For VMs, unmount the filesystem volume.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		ourUnmount, err = d.UnmountVolume(fsVol, false, op)
+
+		// If the VMBlockFilesystem volume is still in use, we use the refCount
+		// of the block volume instead.
+		if err != nil && !errors.Is(err, ErrInUse) {
+			return false, err
+		}
+	}
+
+	if refCount > 0 {
+		// The LVM driver keeps track of activations separately from mounts, see
+		// d.activationRefCountName.
+		// Ensure that the activation refcount is also updated when deactivation
+		// would normally be skipped.
+		d.activationRefCountDecrement(vol)
+		d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
+		return false, ErrInUse
+	}
+
 	// Check if already mounted.
 	if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(mountPath) {
-		if refCount > 0 {
-			d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
-			return false, ErrInUse
-		}
-
 		err = TryUnmount(mountPath, 0)
 		if err != nil {
 			return false, fmt.Errorf("Failed to unmount LVM logical volume: %w", err)
 		}
 
-		d.logger.Debug("Unmounted logical volume", logger.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
-
-		// We only deactivate filesystem volumes if an unmount was needed to better align with our
-		// unmount return value indicator.
-		if !keepBlockDev {
-			_, err = d.deactivateVolume(vol)
-			if err != nil {
-				return false, err
-			}
-		}
-
 		ourUnmount = true
 	} else if vol.contentType == ContentTypeBlock {
-		// For VMs, unmount the filesystem volume.
-		if vol.IsVMBlock() {
-			fsVol := vol.NewVMBlockFilesystemVolume()
-			ourUnmount, err = d.UnmountVolume(fsVol, false, op)
-			if err != nil {
-				return false, err
-			}
-		}
-
 		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
-		if !keepBlockDev && shared.PathExists(volDevPath) {
-			if refCount > 0 {
-				d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
-				return false, ErrInUse
-			}
+		keepBlockDev = keepBlockDev || !shared.PathExists(volDevPath)
+	}
 
-			_, err = d.deactivateVolume(vol)
-			if err != nil {
-				return false, err
-			}
-
-			ourUnmount = true
+	// We only deactivate filesystem volumes if an unmount was needed to better align with our
+	// unmount return value indicator.
+	if ourUnmount && !keepBlockDev {
+		_, err = d.deactivateVolume(vol)
+		if err != nil {
+			return false, err
 		}
+
+		d.logger.Debug("Unmounted logical volume", logger.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
+
+		ourUnmount = true
+	} else {
+		// Since activation of the LV on mount is unconditional, the activation
+		// refcount needs to be updated regardless of whether we actually
+		// deactivated the volume or not; the refcount represents the number of
+		// deactivations that are expected based on the number of times activate
+		// is called; it doesn't have anything to do with the real state of the LV.
+		d.activationRefCountDecrement(vol)
 	}
 
 	return ourUnmount, nil

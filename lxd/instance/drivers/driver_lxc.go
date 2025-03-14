@@ -3529,7 +3529,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	_, err = d.mount()
 	if err != nil {
 		op.Done(err)
-		return err
+		return fmt.Errorf("Failed mounting instance: %w", err)
 	}
 
 	revert.Add(func() { _ = d.unmount() })
@@ -3548,7 +3548,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	err = d.unmount()
 	if err != nil {
 		op.Done(err)
-		return err
+		return fmt.Errorf("Failed unmounting instance: %w", err)
 	}
 
 	revert.Success()
@@ -3557,7 +3557,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	err = pool.RestoreInstanceSnapshot(d, sourceContainer, nil)
 	if err != nil {
 		op.Done(err)
-		return err
+		return fmt.Errorf("Failed to restore snapshot rootfs: %w", err)
 	}
 
 	// Restore the configuration.
