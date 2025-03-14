@@ -824,9 +824,10 @@ func genericRelay(dst net.Conn, src net.Conn) {
 		close(ch)
 	}
 
-	chSend := make(chan error)
-	chRecv := make(chan error)
+	chSend := make(chan error, 1)
+	chRecv := make(chan error, 1)
 
+	// Start copying in both directions.
 	go relayer(src, dst, chRecv)
 
 	_, isUDP := dst.(*net.UDPConn)
@@ -834,6 +835,7 @@ func genericRelay(dst net.Conn, src net.Conn) {
 		go relayer(dst, src, chSend)
 	}
 
+	// Wait for one direction to finish.
 	select {
 	case errSnd := <-chSend:
 		if daemon.Debug && errSnd != nil {
@@ -846,14 +848,29 @@ func genericRelay(dst net.Conn, src net.Conn) {
 		}
 	}
 
+	// Empty the channels and wait for the second direction, but don’t wait forever.
+	timeout := time.After(1 * time.Second)
+	done := make(chan struct{})
+	go func() {
+		if !isUDP {
+			<-chSend
+		}
+		<-chRecv
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Both directions are done.
+	case <-timeout:
+		if daemon.Debug {
+			fmt.Println("Warning: Forcing close due to timeout")
+		}
+	}
+
+	// Close both connections.
 	_ = src.Close()
 	_ = dst.Close()
-
-	// Empty the channels
-	if !isUDP {
-		<-chSend
-	}
-	<-chRecv
 }
 
 func unixRelayer(src *net.UnixConn, dst *net.UnixConn, ch chan error) {
