@@ -621,10 +621,11 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 			sourceInstance: source,
 			targetInstance: args,
 			// We keep the ContainerOnly for backward compatibility.
-			instanceOnly:         req.Source.InstanceOnly || req.Source.ContainerOnly, //nolint:staticcheck,unused
-			refresh:              req.Source.Refresh,
-			applyTemplateTrigger: true,
-			allowInconsistent:    req.Source.AllowInconsistent,
+			instanceOnly:             req.Source.InstanceOnly || req.Source.ContainerOnly, //nolint:staticcheck,unused
+			refresh:                  req.Source.Refresh,
+			applyTemplateTrigger:     true,
+			allowInconsistent:        req.Source.AllowInconsistent,
+			overrideSnapshotProfiles: req.Source.OverrideSnapshotProfiles,
 		}, op)
 		if err != nil {
 			return err
