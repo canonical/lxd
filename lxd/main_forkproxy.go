@@ -840,9 +840,9 @@ func genericRelay(dst net.Conn, src net.Conn) {
 
 	for !sendClosed || !recvClosed {
 		select {
-		case errSnd := <-chSend:
-			if daemon.Debug && errSnd != nil {
-				fmt.Printf("Warning: Error while sending data: %v\n", errSnd)
+		case errSend := <-chSend:
+			if daemon.Debug && errSend != nil {
+				fmt.Printf("Warning: Error while sending data: %v\n", errSend)
 			}
 
 			tcpConn, ok := dst.(*net.TCPConn)
@@ -852,9 +852,9 @@ func genericRelay(dst net.Conn, src net.Conn) {
 
 			sendClosed = true
 
-		case errRcv := <-chRecv:
-			if daemon.Debug && errRcv != nil {
-				fmt.Printf("Warning: Error while reading data: %v\n", errRcv)
+		case errRecv := <-chRecv:
+			if daemon.Debug && errRecv != nil {
+				fmt.Printf("Warning: Error while reading data: %v\n", errRecv)
 			}
 
 			tcpConn, ok := src.(*net.TCPConn)
