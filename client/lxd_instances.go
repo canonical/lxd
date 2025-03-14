@@ -901,6 +901,8 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 		req.Source.ContainerOnly = args.InstanceOnly //nolint:staticcheck,unused
 		req.Source.Refresh = args.Refresh
 		req.Source.AllowInconsistent = args.AllowInconsistent
+
+		req.Source.OverrideSnapshotProfiles = args.OverrideSnapshotProfiles
 	}
 
 	if req.Source.Live {
@@ -1958,7 +1960,7 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 			return nil, err
 		}
 
-		req.InstancePut.Stateful = snapshot.Stateful
+		req.Stateful = snapshot.Stateful
 		req.Source.Live = false // Snapshots are never running and so we don't need live migration.
 	}
 
