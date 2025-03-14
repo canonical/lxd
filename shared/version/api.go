@@ -441,6 +441,8 @@ var APIExtensions = []string{
 	"oidc_scopes",
 	"project_default_network_and_storage",
 	"client_cert_presence",
+	"cluster_links",
+	"cluster_link_forwarding",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

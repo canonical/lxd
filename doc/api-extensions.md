@@ -2625,3 +2625,21 @@ Adds flags --network and --storage. The --network flag adds a network device con
 ## `client_cert_presence`
 
 Adds the field `client_certificate` to `GET /1.0` to indicate if the current request has a client certificate in it. This is for informational purposes only and does not affect the behavior of the API.
+
+## `cluster_links`
+
+This introduces the cluster links API.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/cluster/links/<name>` - returns information about a specific cluster link.
+* `GET /1.0/cluster/links` - returns a combined view of self-created and delegated cluster links (if any).
+* `PUT /1.0/cluster/links/<name>` - allows for modification of a specific cluster link.
+* `POST /1.0/cluster/links/add` - adds a specific remote cluster using a provided trust token.
+* `DELETE /1.0/cluster/links/<name>` - deletes a cluster link.
+
+This also includes the new `cluster_links` and `cluster_links_config` database tables and their corresponding functions.
+
+## `cluster_link_forwarding`
+
+This introduces support for copying instances across linked clusters using the `--cluster` and `--to-cluster` flags. The `--cluster` flag specifies the source cluster, or cluster to target for an operation, and the `--to-cluster` flag specifies the destination cluster. Requests which include the `--cluster` flag are forwarded to the specified cluster.

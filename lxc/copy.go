@@ -32,6 +32,8 @@ type cmdCopy struct {
 	flagTargetProject     string
 	flagRefresh           bool
 	flagAllowInconsistent bool
+	flagCluster           string
+	flagToCluster         string
 }
 
 func (c *cmdCopy) command() *cobra.Command {
@@ -48,7 +50,40 @@ Transfer modes (--mode):
  - relay: The CLI connects to both source and server and proxies the data (both source and target must listen on network)
 
 The pull transfer mode is the default as it is compatible with all LXD versions.
+
+Cluster link flags:
+ - cluster: Target cluster to run the command on, defaults to "local".
+ - to-cluster: Destination cluster for copying to, defaults to the value of --cluster.
 `))
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc copy u1 u1-copy
+    Create a copy of a container on the local server
+
+lxc copy u1/snap0 u1-copy
+    Create a new container from a snapshot
+
+lxc copy remote:u1 u1
+    Copy a container from a remote server
+
+lxc copy u1 remote:
+    Copy a container to a remote server
+
+lxc copy u1 remote:u1-copy
+    Copy a container to a remote server with a new name
+
+lxc copy u1 u1-copy --refresh
+    Refresh an existing copy with the latest changes
+
+lxc copy u1 --to-cluster backup-cluster
+    Manual backup to a linked cluster
+
+lxc copy remote-cluster:u1 --cluster target-cluster --to-cluster backup-cluster
+    Manual backup from a target cluster to a linked cluster
+
+lxc copy remote-cluster:u1 --to-cluster backup-cluster
+    Manual backup from a remote cluster to a linked cluster
+
+lxc copy u1 u1 --cluster backup-cluster
+    Manual restore from a backup cluster to a local cluster`))
 
 	cmd.RunE = c.run
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new instance")+"``")
@@ -64,6 +99,8 @@ The pull transfer mode is the default as it is compatible with all LXD versions.
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Create the instance with no profiles applied"))
 	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, i18n.G("Perform an incremental copy"))
 	cmd.Flags().BoolVar(&c.flagAllowInconsistent, "allow-inconsistent", false, i18n.G("Ignore copy errors for volatile files"))
+	cmd.Flags().StringVar(&c.flagCluster, "cluster", "local", i18n.G("Target cluster")+"``")
+	cmd.Flags().StringVar(&c.flagToCluster, "to-cluster", "", i18n.G("Destination cluster for copying to")+"``")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -80,7 +117,7 @@ The pull transfer mode is the default as it is compatible with all LXD versions.
 	return cmd
 }
 
-func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int, stateful bool, instanceOnly bool, mode string, pool string, move bool) error {
+func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int, stateful bool, instanceOnly bool, mode string, pool string, destCluster string, move bool) error {
 	// Parse the source
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
 	if err != nil {
@@ -142,6 +179,51 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 	// Confirm that --target is only used with a cluster
 	if c.flagTarget != "" && !dest.IsClustered() {
 		return errors.New(i18n.G("To use --target, the destination remote must be a cluster"))
+	}
+
+	// Handle --to-cluster flag for copying to a linked cluster
+	if c.flagToCluster != "" && c.flagToCluster != "local" && dest.IsClustered() {
+		// Check if the destination server supports cluster links
+		err := dest.CheckExtension("cluster_links")
+		if err != nil {
+			return fmt.Errorf(i18n.G("The destination server doesn't support cluster links: %v"), err)
+		}
+
+		// Get the cluster link
+		clusterLink, _, err := dest.GetClusterLink(c.flagToCluster)
+		if err != nil {
+			return fmt.Errorf(i18n.G("Failed to get cluster link %q: %v"), c.flagToCluster, err)
+		}
+
+		if len(clusterLink.Addresses) == 0 {
+			return fmt.Errorf(i18n.G("Cluster link %q has no addresses"), c.flagToCluster)
+		}
+
+		for _, address := range clusterLink.Addresses {
+			// Get connection information from the source remote
+			sourceInfo, err := source.GetConnectionInfo()
+			if err != nil {
+				return fmt.Errorf(i18n.G("Failed to get source connection info: %v"), err)
+			}
+
+			// Create connection arguments
+			args := &lxd.ConnectionArgs{
+				TLSServerCert: sourceInfo.Certificate,
+				UserAgent:     conf.UserAgent,
+			}
+
+			// Connect to the destination cluster
+			destCluster, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", address), args)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Failed to connect to destination cluster %q: %v"), c.flagToCluster, err)
+			}
+
+			if err == nil {
+				// Use the destination cluster as our target
+				dest = destCluster
+				break
+			}
+		}
 	}
 
 	// Parse the config overrides
@@ -484,15 +566,23 @@ func (c *cmdCopy) run(cmd *cobra.Command, args []string) error {
 		mode = c.flagMode
 	}
 
+	if c.flagCluster == "" {
+		c.flagCluster = "local"
+	}
+
+	if c.flagToCluster == "" {
+		c.flagToCluster = c.flagCluster
+	}
+
 	stateful := !c.flagStateless && !c.flagRefresh
 	keepVolatile := c.flagRefresh
 	instanceOnly := c.flagInstanceOnly
 
 	// If not target name is specified, one will be chosed by the server
 	if len(args) < 2 {
-		return c.copyInstance(conf, args[0], "", keepVolatile, ephem, stateful, instanceOnly, mode, c.flagStorage, false)
+		return c.copyInstance(conf, args[0], "", keepVolatile, ephem, stateful, instanceOnly, mode, c.flagStorage, c.flagToCluster, false)
 	}
 
 	// Normal copy with a pre-determined name
-	return c.copyInstance(conf, args[0], args[1], keepVolatile, ephem, stateful, instanceOnly, mode, c.flagStorage, false)
+	return c.copyInstance(conf, args[0], args[1], keepVolatile, ephem, stateful, instanceOnly, mode, c.flagStorage, c.flagToCluster, false)
 }

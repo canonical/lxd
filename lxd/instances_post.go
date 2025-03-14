@@ -1000,6 +1000,12 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	logger.Debug("Responding to instance create")
 
+	// Check if we should forward this request to a remote cluster
+	resp := forwardedResponseIfClusterIsRemote(s, r)
+	if resp != nil {
+		return resp
+	}
+
 	// If we're getting binary content, process separately
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
 		deviceMap := map[string]map[string]string{}
