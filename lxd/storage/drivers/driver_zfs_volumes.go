@@ -2570,6 +2570,7 @@ func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs 
 
 	// If we haven't negotiated zvol support, ensure volume is not a zvol.
 	if !shared.ValueInSlice(migration.ZFSFeatureZvolFilesystems, volSrcArgs.MigrationType.Features) && d.isBlockBacked(vol.Volume) {
+		fmt.Println(shared.ValueInSlice(migration.ZFSFeatureZvolFilesystems, volSrcArgs.MigrationType.Features), d.isBlockBacked(vol.Volume))
 		return fmt.Errorf("Filesystem zvol detected in source but target does not support receiving zvols")
 	}
 
@@ -3508,7 +3509,7 @@ func (d *zfs) RenameVolumeSnapshot(vol Volume, newSnapshotName string, op *opera
 }
 
 // FillVolumeConfig populate volume with default config.
-func (d *zfs) FillVolumeConfig(vol Volume) error {
+func (d *zfs) FillVolumeConfig(vol Volume) {
 	var excludedKeys []string
 
 	// Copy volume.* configuration options from pool.
@@ -3519,10 +3520,7 @@ func (d *zfs) FillVolumeConfig(vol Volume) error {
 		excludedKeys = []string{"block.filesystem", "block.mount_options"}
 	}
 
-	err := d.fillVolumeConfig(&vol, excludedKeys...)
-	if err != nil {
-		return err
-	}
+	d.fillVolumeConfig(&vol, excludedKeys...)
 
 	// Only validate filesystem config keys for filesystem volumes.
 	if d.isBlockBacked(vol) && vol.ContentType() == ContentTypeFS {
@@ -3553,8 +3551,6 @@ func (d *zfs) FillVolumeConfig(vol Volume) error {
 			vol.config["block.mount_options"] = "discard"
 		}
 	}
-
-	return nil
 }
 
 func (d *zfs) isBlockBacked(vol Volume) bool {

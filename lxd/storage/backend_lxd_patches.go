@@ -114,7 +114,8 @@ func patchMissingSnapshotRecords(b *lxdBackend) error {
 
 				if !foundVolumeSnapshot {
 					b.logger.Info("Creating missing volume snapshot record", logger.Ctx{"project": snapshots[i].Project, "instance": snapshots[i].Name})
-					err = VolumeDBCreate(b, snapshots[i].Project, snapshots[i].Name, "Auto repaired", volType, true, dbVol.Config, snapshots[i].CreationDate, time.Time{}, contentType, false, true)
+					snapVol := b.GetNewVolume(volType, contentType, snapshots[i].Name, dbVol.Config)
+					err = VolumeDBCreate(b, snapshots[i].Project, snapshots[i].Name, snapVol, "Auto repaired", true, snapshots[i].CreationDate, time.Time{}, false, true)
 					if err != nil {
 						return err
 					}
