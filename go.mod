@@ -3,7 +3,7 @@ module github.com/canonical/lxd
 go 1.23.3
 
 require (
-	github.com/NVIDIA/nvidia-container-toolkit v1.17.4
+	github.com/NVIDIA/nvidia-container-toolkit v1.17.1-0.20250310084538-3df59b955a77
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.1.0
 	github.com/canonical/go-dqlite/v3 v3.0.0
@@ -66,7 +66,7 @@ require (
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/utils v0.0.0-20241210054802-24370beab758
-	tags.cncf.io/container-device-interface v0.8.1
+	tags.cncf.io/container-device-interface v1.0.0
 	tags.cncf.io/container-device-interface/specs-go v1.0.0
 )
 
