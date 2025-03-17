@@ -7,7 +7,7 @@ test_network_forward() {
 
   lxc network create bgpbr # Bridge to start BGP listener on.
 
-  bgpIP=$(lxc network ls | grep bgpbr | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+  bgpIP=$(lxc network get bgpbr ipv4.address | cut -d/ -f1)
 
   lxc network create "${netName}" \
         ipv4.address=192.0.2.1/24 \
