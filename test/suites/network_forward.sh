@@ -5,6 +5,10 @@ test_network_forward() {
   firewallDriver=$(lxc info | awk -F ":" '/firewall:/{gsub(/ /, "", $0); print $2}')
   netName=lxdt$$
 
+  lxc network create bgpbr # Bridge to start BGP listener on.
+
+  bgpIP=$(lxc network get bgpbr ipv4.address | cut -d/ -f1)
+
   lxc network create "${netName}" \
         ipv4.address=192.0.2.1/24 \
         ipv6.address=fd42:4242:4242:1010::1/64
@@ -27,6 +31,15 @@ test_network_forward() {
 
   # Check forward is exported via BGP prefixes.
   lxc query /internal/testing/bgp | grep "198.51.100.1/32"
+
+  # Enable the BGP listener
+  lxc config set core.bgp_address="${bgpIP}:8874"
+  lxc config set core.bgp_asn=65536
+  lxc config set core.bgp_routerid="${bgpIP}"
+
+  # Check that the listener survives a restart of LXD
+  shutdown_lxd "${LXD_DIR}"
+  respawn_lxd "${LXD_DIR}" true
 
   lxc network forward delete "${netName}" 198.51.100.1
 
