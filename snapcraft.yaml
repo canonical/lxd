@@ -1802,6 +1802,13 @@ parts:
 
       # Fixup logrotate.conf permissions to not be group writable
       chmod g-w "${CRAFT_PRIME}/etc/logrotate.conf"
+
+      # XXX: do not keep the duplicated and often outdated CA certificates
+      # store from Python `certifi`. This file is not even used as the
+      # `python3-certifi` package providing it is patched to always use:
+      # `/etc/ssl/certs/ca-certificates.crt`
+      truncate --no-create --size=0 "${CRAFT_PRIME}/lib/python3/dist-packages/certifi/cacert.pem"
+
       exit 0
 
   wrappers:
