@@ -295,7 +295,7 @@ parts:
     source-type: git
     plugin: nil
     build-packages:
-      - to riscv64:
+      - to armhf:
         - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
       - else:
         - asciidoc
@@ -314,15 +314,19 @@ parts:
         - libnet1
         - libprotobuf-c1
     override-stage: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-prime: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-pull: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-build: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
       set -ex
 
