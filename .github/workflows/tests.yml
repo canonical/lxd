@@ -44,6 +44,9 @@ jobs:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
 
+      - name: Require GHA pinning
+        uses: ./.github/actions/require-gha-pinning
+
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
 
