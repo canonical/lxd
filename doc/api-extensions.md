@@ -2625,3 +2625,8 @@ Adds flags --network and --storage. The --network flag adds a network device con
 ## `client_cert_presence`
 
 Adds the field `client_certificate` to `GET /1.0` to indicate if the current request has a client certificate in it. This is for informational purposes only and does not affect the behavior of the API.
+
+## `clustering_groups_used_by`
+
+This API extension adds a `used_by` field to the API response for a {ref}`cluster group <cluster-groups>`.
+Deletion of a cluster group is disallowed if the cluster group is referenced by project configuration (see {config:option}`project-restricted:restricted.cluster.groups`).
