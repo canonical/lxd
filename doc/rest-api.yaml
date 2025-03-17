@@ -327,6 +327,15 @@ definitions:
                 example: group1
                 type: string
                 x-go-name: Name
+            used_by:
+                description: |-
+                    UsedBy is a list or LXD entity URLs that reference the cluster group.
+
+                    API extension: clustering_groups_used_by
+                items:
+                    type: string
+                type: array
+                x-go-name: UsedBy
         title: ClusterGroup represents a cluster group.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api

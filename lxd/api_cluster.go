@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	dqlite "github.com/canonical/go-dqlite/v3/client"
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
@@ -774,11 +775,15 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		s.UpdateIdentityCache()
 
 		// Update local setup and possibly join the raft dqlite cluster.
-		nodes := make([]db.RaftNode, len(info.RaftNodes))
-		for i, node := range info.RaftNodes {
-			nodes[i].ID = node.ID
-			nodes[i].Address = node.Address
-			nodes[i].Role = db.RaftRole(node.Role)
+		nodes := make([]db.RaftNode, 0, len(info.RaftNodes))
+		for _, node := range info.RaftNodes {
+			nodes = append(nodes, db.RaftNode{
+				NodeInfo: dqlite.NodeInfo{
+					ID:      node.ID,
+					Address: node.Address,
+					Role:    db.RaftRole(node.Role),
+				},
+			})
 		}
 
 		err = cluster.Join(s, d.gateway, networkCert, serverCert, req.ServerName, nodes)
@@ -1378,6 +1383,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Filter to online members.
+		onlineNodeAddresses = make([]any, 0, len(members))
 		for _, member := range members {
 			if member.State == db.ClusterMemberStateEvacuated || member.IsOffline(s.GlobalConfig.OfflineThreshold()) {
 				continue
@@ -2481,14 +2487,16 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	}
 
 	accepted := internalClusterPostAcceptResponse{
-		RaftNodes:  make([]internalRaftNode, len(nodes)),
+		RaftNodes:  make([]internalRaftNode, 0, len(nodes)),
 		PrivateKey: s.Endpoints.NetworkPrivateKey(),
 	}
 
-	for i, node := range nodes {
-		accepted.RaftNodes[i].ID = node.ID
-		accepted.RaftNodes[i].Address = node.Address
-		accepted.RaftNodes[i].Role = int(node.Role)
+	for _, node := range nodes {
+		accepted.RaftNodes = append(accepted.RaftNodes, internalRaftNode{
+			ID:      node.ID,
+			Address: node.Address,
+			Role:    int(node.Role),
+		})
 	}
 
 	return response.SyncResponse(true, accepted)
@@ -2718,12 +2726,16 @@ func internalClusterPostAssign(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("No raft members provided"))
 	}
 
-	nodes := make([]db.RaftNode, len(req.RaftNodes))
-	for i, node := range req.RaftNodes {
-		nodes[i].ID = node.ID
-		nodes[i].Address = node.Address
-		nodes[i].Role = db.RaftRole(node.Role)
-		nodes[i].Name = node.Name
+	nodes := make([]db.RaftNode, 0, len(req.RaftNodes))
+	for _, node := range req.RaftNodes {
+		nodes = append(nodes, db.RaftNode{
+			NodeInfo: dqlite.NodeInfo{
+				ID:      node.ID,
+				Address: node.Address,
+				Role:    db.RaftRole(node.Role),
+			},
+			Name: node.Name,
+		})
 	}
 
 	err = cluster.Assign(s, d.gateway, nodes)
@@ -3249,15 +3261,15 @@ func evacuateClusterMember(s *state.State, gateway *cluster.Gateway, r *http.Req
 		return response.SmartError(err)
 	}
 
-	instances := make([]instance.Instance, len(dbInstances))
+	instances := make([]instance.Instance, 0, len(dbInstances))
 
-	for i, dbInst := range dbInstances {
+	for _, dbInst := range dbInstances {
 		inst, err := instance.LoadByProjectAndName(s, dbInst.Project, dbInst.Name)
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed to load instance: %w", err))
 		}
 
-		instances[i] = inst
+		instances = append(instances, inst)
 	}
 
 	run := func(op *operations.Operation) error {
@@ -3426,8 +3438,8 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	instances := make([]instance.Instance, 0)
-	localInstances := make([]instance.Instance, 0)
+	instances := make([]instance.Instance, 0, len(dbInstances))
+	localInstances := make([]instance.Instance, 0, len(dbInstances))
 
 	for _, dbInst := range dbInstances {
 		inst, err := instance.LoadByProjectAndName(s, dbInst.Project, dbInst.Name)
@@ -3817,26 +3829,24 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			for i := range clusterGroups {
-				nodeClusterGroups, err := dbCluster.GetNodeClusterGroups(ctx, tx.Tx(), dbCluster.NodeClusterGroupFilter{GroupID: &clusterGroups[i].ID})
+			apiClusterGroups := make([]*api.ClusterGroup, 0, len(clusterGroups))
+			for _, clusterGroup := range clusterGroups {
+				nodeClusterGroups, err := dbCluster.GetNodeClusterGroups(ctx, tx.Tx(), dbCluster.NodeClusterGroupFilter{GroupID: &clusterGroup.ID})
 				if err != nil {
 					return err
 				}
 
-				clusterGroups[i].Nodes = make([]string, 0, len(nodeClusterGroups))
+				clusterGroup.Nodes = make([]string, 0, len(nodeClusterGroups))
 				for _, node := range nodeClusterGroups {
-					clusterGroups[i].Nodes = append(clusterGroups[i].Nodes, node.Node)
+					clusterGroup.Nodes = append(clusterGroup.Nodes, node.Node)
 				}
-			}
 
-			apiClusterGroups := make([]*api.ClusterGroup, len(clusterGroups))
-			for i, clusterGroup := range clusterGroups {
-				members, err := tx.GetClusterGroupNodes(ctx, clusterGroup.Name)
+				apiClusterGroup, err := clusterGroup.ToAPI(ctx, tx.Tx())
 				if err != nil {
 					return err
 				}
 
-				apiClusterGroups[i] = db.ClusterGroupToAPI(&clusterGroup, members)
+				apiClusterGroups = append(apiClusterGroups, apiClusterGroup)
 			}
 
 			result = apiClusterGroups
@@ -3900,7 +3910,7 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var group *dbCluster.ClusterGroup
-
+	var apiGroup *api.ClusterGroup
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the cluster group.
 		group, err = dbCluster.GetClusterGroup(ctx, tx.Tx(), name)
@@ -3918,13 +3928,17 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 			group.Nodes = append(group.Nodes, node.Node)
 		}
 
+		apiGroup, err = group.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	apiGroup, err := group.ToAPI()
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -4193,13 +4207,13 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 			dbClusterGroup.Nodes = append(dbClusterGroup.Nodes, node.Node)
 		}
 
+		clusterGroup, err = dbClusterGroup.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	clusterGroup, err = dbClusterGroup.ToAPI()
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -4345,7 +4359,16 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(members) > 0 {
-			return fmt.Errorf("Only empty cluster groups can be removed")
+			return api.StatusErrorf(http.StatusBadRequest, "Only empty cluster groups can be removed")
+		}
+
+		usedBy, err := dbCluster.GetClusterGroupUsedBy(ctx, tx.Tx(), name)
+		if err != nil {
+			return err
+		}
+
+		if len(usedBy) > 0 {
+			return api.StatusErrorf(http.StatusBadRequest, "Cluster group is currently in use")
 		}
 
 		return dbCluster.DeleteClusterGroup(ctx, tx.Tx(), name)
