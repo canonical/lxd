@@ -13,18 +13,43 @@ See the following sections for instructions on how to create, configure, view an
 LXD creates a storage pool during initialization.
 You can add more storage pools later, using the same driver or different drivers.
 
+`````{tabs}
+````{group-tab} CLI
 To create a storage pool, use the following command:
 
     lxc storage create <pool_name> <driver> [configuration_options...]
+See the {ref}`storage-drivers` documentation for a list of available configuration options for each driver.
+
+````
+
+````{group-tab} UI
+To create a storage pool, select {guilabel}`Pools` from the {guilabel}`Storage ` section of the Main navigation.
+
+On the resulting screen, click {guilabel}`Create pool` in the upper right hand corner.
+
+From this screen, you can configure the name and description of your storage pool. A number of other settings can also be configured here depending on the storage driver selected.
+You can also specify which storage driver to use by selecting one from the {guilabel}`Driver` dropdown.
+
+Some storage drivers have additional settings that can be accessed by clicking on the driver name in the secondary menu. Here you can further tweak the storage pool configuration.
+
+Finally, click {guilabel}`Create` to create the storage pool.
+
+
+```{figure} /images/storage/storage_pools_create.png
+:width: 80%
+:alt: Create a storage pool in LXD
+```
+````
+`````
 
 Unless specified otherwise, LXD sets up loop-based storage with a sensible default size/quota (20% of the free disk space, but at least 5 GiB and at most 30 GiB).
-
-See the {ref}`storage-drivers` documentation for a list of available configuration options for each driver.
 
 ### Examples
 
 See the following examples for how to create a storage pool using different storage drivers.
 
+`````{tabs}
+````{group-tab} CLI
 #### Create a directory pool
 
 Create a directory pool named `pool1`:
@@ -191,11 +216,25 @@ Create a storage pool named `pool4` that uses NVMe/TCP to connect to Pure Storag
 
     lxc storage create pool4 pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token> pure.mode=nvme pure.target=<target_address_1>,<target_address_2>
 
+````
+
+````{group-tab} UI
+
+You can select an alternative storage driver from the {guilabel}`Driver` dropdown.
+
+See the {ref}`storage-drivers` documentation for a list of available configuration options for each driver.
+
+````
+`````
+
 (storage-pools-cluster)=
 ## Create a storage pool in a cluster
 
 If you are running a LXD cluster and want to add a storage pool, you must create the storage pool for each cluster member separately.
 The reason for this is that the configuration, for example, the storage location or the size of the pool, might be different between cluster members.
+
+`````{tabs}
+````{group-tab} CLI
 
 Therefore, you must first create a pending storage pool on each member with the `--target=<cluster_member>` flag and the appropriate configuration for the member.
 Make sure to use the same storage pool name for all members.
@@ -271,12 +310,22 @@ Storage pool my-remote-pool3 pending on member vm03
 Storage pool my-remote-pool3 created
 ```
 
+````
+````{group-tab} UI
+
+Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence.
+````
+`````
+
 ## Configure storage pool settings
 
 See the {ref}`storage-drivers` documentation for the available configuration options for each storage driver.
 
 General keys for a storage pool (like `source`) are top-level.
 Driver-specific keys are namespaced by the driver name.
+
+`````{tabs}
+````{group-tab} CLI
 
 Use the following command to set configuration options for a storage pool:
 
@@ -290,9 +339,19 @@ You can also edit the storage pool configuration by using the following command:
 
     lxc storage edit <pool_name>
 
+````
+```` {group-tab} UI
+
+Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence.
+````
+`````
+
 ## View storage pools
 
 You can display a list of all available storage pools and check their configuration.
+
+`````{tabs}
+````{group-tab} CLI
 
 Use the following command to list all available storage pools:
 
@@ -308,12 +367,32 @@ To see usage information for a specific pool, run the following command:
 
     lxc storage info <pool_name>
 
+````
+```` {group-tab} UI
+
+Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence.
+````
+`````
+
 (storage-resize-pool)=
 ## Resize a storage pool
 
-If you need more storage, you can increase the size (quota) of your storage pool by changing the `size` configuration key:
+If you need more storage, you can increase the size (quota) of your storage pool.
+
+`````{tabs}
+````{group-tab} CLI
+
+In the CLI, you can do this by changing the `size` configuration key:
 
     lxc storage set <pool_name> size=<new_size>
 
 This will only work for loop-backed storage pools that are managed by LXD.
 You can only grow the pool (increase its size), not shrink it.
+
+````
+```` {group-tab} UI
+
+Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence. Dummy data in a sentence.
+
+````
+`````
