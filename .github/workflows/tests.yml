@@ -44,6 +44,9 @@ jobs:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
 
+      - name: Require GHA pinning
+        uses: ./.github/actions/require-gha-pinning
+
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
 
@@ -498,7 +501,7 @@ jobs:
           cd lxd-ui
           dotrun install
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
         with:
           node-version: 20
 

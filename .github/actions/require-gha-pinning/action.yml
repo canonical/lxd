@@ -1,0 +1,19 @@
+name: Require GHA pinning
+description: Require all GitHub actions to be pinned to a full SHA1 hash commit
+
+runs:
+  using: composite
+  steps:
+    - name: Check if all GHA are pinned
+      shell: bash
+      run: |
+        set -eux
+        [ -d .github/workflows/ ]
+
+        # List all actions (`uses:`), ignore those with "foo@FULL.SHA1.HASH.COMMIT # v4.2.1", ignore those shipped by the current repo or the trusted Canonical org.
+        UNPINNED_ACTIONS="$(git grep '\buses:' .github/workflows/ | grep -vE 'uses: [^@]+@[0-9a-f]{40} # .+' | grep -vE 'uses: (\./\.|canonical/)' || true)"
+        if [ -n "${UNPINNED_ACTIONS:-}" ]; then
+          echo "Unpinned GitHub actions found:"
+          echo "${UNPINNED_ACTIONS}"
+          exit 1
+        fi
