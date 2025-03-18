@@ -203,7 +203,7 @@ func identityAccessHandler(authenticationMethod string, entitlement auth.Entitle
 //  Add a TLS identity
 //
 //  Adds a TLS identity as a trusted client.
-//  In this mode, the `token` property must be set to the correct value.
+//  In this mode, the `trust_token` property must be set to the correct value.
 //  The certificate that the client sent during the TLS handshake will be added.
 //  The `certificate` field must be omitted.
 //
