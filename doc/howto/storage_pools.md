@@ -13,17 +13,41 @@ See the following sections for instructions on how to create, configure, view an
 LXD creates a storage pool during initialization.
 You can add more storage pools later, using the same driver or different drivers.
 
+`````{tabs}
+````{group-tab} CLI
 To create a storage pool, use the following command:
 
     lxc storage create <pool_name> <driver> [configuration_options...]
-
-Unless specified otherwise, LXD sets up loop-based storage with a sensible default size/quota (20% of the free disk space, but at least 5 GiB and at most 30 GiB).
-
 See the {ref}`storage-drivers` documentation for a list of available configuration options for each driver.
+
+````
+
+````{group-tab} UI
+To create a storage pool, select {guilabel}`Pools` from the {guilabel}`Storage` section of the main navigation.
+
+On the resulting screen, click {guilabel}`Create pool` in the upper right corner.
+
+From this screen, you can configure the name and description of your storage pool.
+You can select a storage driver from the {guilabel}`Driver` dropdown. Additional settings might appear, depending on the storage driver selected.
+
+Click {guilabel}`Create` to create the storage pool.
+
+
+```{figure} /images/storage/storage_pools_create.png
+:width: 80%
+:alt: Create a storage pool in LXD
+```
+````
+`````
+
+By default, LXD sets up loop-based storage with a sensible default size/quota: 20% of the free disk space, with a minimum of 5 GiB and a maximum of 30 GiB.
 
 ### Examples
 
-See the following examples for how to create a storage pool using different storage drivers.
+`````{tabs}
+````{group-tab} CLI
+
+The following examples demonstrate how to create a storage pool using different types of storage drivers.
 
 #### Create a directory pool
 
@@ -191,13 +215,35 @@ Create a storage pool named `pool4` that uses NVMe/TCP to connect to Pure Storag
 
     lxc storage create pool4 pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token> pure.mode=nvme pure.target=<target_address_1>,<target_address_2>
 
+````
+
+````{group-tab} UI
+
+You can select a storage driver from the {guilabel}`Driver` dropdown.
+
+Some storage drivers offer additional settings. Click the driver name in the secondary menu to further configure the storage pool.
+
+```{figure} /images/storage/storage_pools_create_ZFS_driver.png
+:width: 80%
+:alt: Storage pool options for driver ZFS in LXD-UI
+```
+
+See the {ref}`storage-drivers` documentation for a list of available configuration options for each driver.
+
+````
+`````
+
 (storage-pools-cluster)=
 ## Create a storage pool in a cluster
 
 If you are running a LXD cluster and want to add a storage pool, you must create the storage pool for each cluster member separately.
 The reason for this is that the configuration, for example, the storage location or the size of the pool, might be different between cluster members.
 
-Therefore, you must first create a pending storage pool on each member with the `--target=<cluster_member>` flag and the appropriate configuration for the member.
+`````{tabs}
+````{group-tab} CLI
+
+To create a storage pool via the CLI, start by creating a pending storage pool on each member with the `--target=<cluster_member>` flag and the appropriate configuration for the member.
+
 Make sure to use the same storage pool name for all members.
 Then create the storage pool without specifying the `--target` flag to actually set it up.
 
@@ -271,12 +317,33 @@ Storage pool my-remote-pool3 pending on member vm03
 Storage pool my-remote-pool3 created
 ```
 
+````
+````{group-tab} UI
+
+To create a storage pool in a cluster, select {guilabel}`Pools` from the {guilabel}`Storage` section of the main navigation, then click {guilabel}`Create pool` in the upper right corner.
+
+On the resulting page, configure the storage pool's name and description. Depending on the selected driver, some settings can be configured per cluster member or applied globally to the cluster.
+
+Finally, click {guilabel}`Create` to create the storage pool.
+
+```{figure} /images/storage/storage_pools_create_clustered_pool.png
+:width: 80%
+:alt: Create a storage pool in a clustered LXD environment
+```
+
+
+````
+`````
+
 ## Configure storage pool settings
 
 See the {ref}`storage-drivers` documentation for the available configuration options for each storage driver.
 
 General keys for a storage pool (like `source`) are top-level.
 Driver-specific keys are namespaced by the driver name.
+
+`````{tabs}
+````{group-tab} CLI
 
 Use the following command to set configuration options for a storage pool:
 
@@ -290,9 +357,24 @@ You can also edit the storage pool configuration by using the following command:
 
     lxc storage edit <pool_name>
 
+````
+```` {group-tab} UI
+
+To configure a storage pool, select {guilabel}`Pools` from the {guilabel}`Storage` section of the Main navigation.
+
+The resulting screen shows a list of existing storage pools. Click a pool's name to access its details.
+
+Go to the {guilabel}`Configuration` tab. Here, you can configure settings such as the storage pool description.
+
+After making changes, click the {guilabel}`Save changes` button. This button also displays the number of changes you have made.
+`````
+
 ## View storage pools
 
 You can display a list of all available storage pools and check their configuration.
+
+`````{tabs}
+````{group-tab} CLI
 
 Use the following command to list all available storage pools:
 
@@ -308,12 +390,43 @@ To see usage information for a specific pool, run the following command:
 
     lxc storage info <pool_name>
 
+````
+```` {group-tab} UI
+
+To view available storage pools in the UI, select {guilabel}`Pools` from the {guilabel}`Storage` section of the main navigation.
+
+````
+`````
+
 (storage-resize-pool)=
 ## Resize a storage pool
 
-If you need more storage, you can increase the size (quota) of your storage pool by changing the `size` configuration key:
+If you need more storage, you can increase the size (quota) of your storage pool. You can only grow the pool (increase its size), not shrink it.
+
+`````{tabs}
+````{group-tab} CLI
+
+In the CLI, resize a storage pool by changing the `size` configuration key:
 
     lxc storage set <pool_name> size=<new_size>
 
 This will only work for loop-backed storage pools that are managed by LXD.
-You can only grow the pool (increase its size), not shrink it.
+
+````
+```` {group-tab} UI
+
+To resize a storage pool in the UI, select {guilabel}`Pools` from the {guilabel}`Storage ` section of the main navigation.
+
+Click the name of a storage pool to open its details page, then go to its {guilabel}`Configuration` tab. Edit the {guilabel}`Size` field.
+
+After making changes, click the {guilabel}`Save changes` button. This button also displays the number of changes you have made.
+
+In clustered environments, the {guilabel}`Size` field appears as a per-member selector, allowing you to configure the size for each cluster member.
+
+```{figure} /images/storage/storage_pools_create_clustered_pool_size_config.png
+:width: 80%
+:alt: Configuring storage pools sizes within a clustered environment.
+```
+
+````
+`````
