@@ -3503,12 +3503,12 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		if err != nil {
 			return err
 		}
-	}
-
-	// Setup BGP.
-	err = n.bgpSetup(oldNetwork.Config)
-	if err != nil {
-		return err
+	} else {
+		// Setup BGP.
+		err = n.bgpSetup(oldNetwork.Config)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
