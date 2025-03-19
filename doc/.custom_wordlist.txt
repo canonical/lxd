@@ -80,6 +80,7 @@ ETag
 failover
 filesystem
 firmware
+frontend
 FQDNs
 gapped
 GARP
