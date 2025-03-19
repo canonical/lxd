@@ -1270,7 +1270,7 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 	// returned (outer) reverter. Unmap ensures the target is disconnected only when
 	// no other device is using it.
 	outerReverter := revert.New()
-	if !connCreated {
+	if connCreated {
 		outerReverter.Add(func() { _ = d.unmapVolume(vol) })
 	}
 
