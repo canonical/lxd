@@ -126,6 +126,8 @@ const (
 	identityTypeCertificateMetricsUnrestricted int64 = 6
 	identityTypeCertificateClient              int64 = 7
 	identityTypeCertificateClientPending       int64 = 8
+	identityTypeCertificateClusterLink         int64 = 9
+	identityTypeCertificateClusterLinkPending  int64 = 10
 )
 
 // Scan implements sql.Scanner for IdentityType. This converts the integer value back into the correct API constant or
@@ -162,6 +164,10 @@ func (i *IdentityType) Scan(value any) error {
 		*i = api.IdentityTypeCertificateClient
 	case identityTypeCertificateClientPending:
 		*i = api.IdentityTypeCertificateClientPending
+	case identityTypeCertificateClusterLink:
+		*i = api.IdentityTypeCertificateClusterLink
+	case identityTypeCertificateClusterLinkPending:
+		*i = api.IdentityTypeCertificateClusterLinkPending
 	default:
 		return fmt.Errorf("Unknown identity type `%d`", identityTypeInt)
 	}
@@ -188,6 +194,10 @@ func (i IdentityType) Value() (driver.Value, error) {
 		return identityTypeCertificateClient, nil
 	case api.IdentityTypeCertificateClientPending:
 		return identityTypeCertificateClientPending, nil
+	case api.IdentityTypeCertificateClusterLink:
+		return identityTypeCertificateClusterLink, nil
+	case api.IdentityTypeCertificateClusterLinkPending:
+		return identityTypeCertificateClusterLinkPending, nil
 	}
 
 	return nil, fmt.Errorf("Invalid identity type %q", i)
