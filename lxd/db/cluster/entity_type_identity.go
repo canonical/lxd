@@ -28,12 +28,12 @@ SELECT
 		identities.identifier
 	) 
 FROM identities
-WHERE type IN (%d, %d, %d)
+WHERE type IN (%d, %d, %d, %d, %d)
 `,
 		e.code(),
 		authMethodTLS, api.AuthenticationMethodTLS,
 		authMethodOIDC, api.AuthenticationMethodOIDC,
-		identityTypeOIDCClient, identityTypeCertificateClient, identityTypeCertificateClientPending,
+		identityTypeOIDCClient, identityTypeCertificateClient, identityTypeCertificateClientPending, identityTypeCertificateClusterLink, identityTypeCertificateClusterLinkPending,
 	)
 }
 
@@ -56,10 +56,10 @@ WHERE '' = ?
 		WHEN %d THEN '%s' 
 	END = ? 
 	AND identities.identifier = ?
-	AND identities.type IN (%d, %d, %d)
+	AND identities.type IN (%d, %d, %d, %d, %d)
 `, authMethodTLS, api.AuthenticationMethodTLS,
 		authMethodOIDC, api.AuthenticationMethodOIDC,
-		identityTypeOIDCClient, identityTypeCertificateClient, identityTypeCertificateClientPending,
+		identityTypeOIDCClient, identityTypeCertificateClient, identityTypeCertificateClientPending, identityTypeCertificateClusterLink, identityTypeCertificateClusterLinkPending,
 	)
 }
 
