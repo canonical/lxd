@@ -10,6 +10,7 @@ import (
 
 	"github.com/canonical/go-dqlite/v2/driver"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/db/schema"
 	"github.com/canonical/lxd/lxd/util"
@@ -207,6 +208,19 @@ INSERT INTO nodes(id, name, address, schema, api_extensions, arch, description) 
 			}
 
 			_, err = tx.Exec(defaultProjectStmt.String())
+			if err != nil {
+				return err
+			}
+
+			// Server administrators auth group
+			stmt = `INSERT INTO auth_groups (name, description) VALUES ('admins', 'Server administrators')`
+			_, err = tx.Exec(stmt)
+			if err != nil {
+				return err
+			}
+
+			stmt = `INSERT INTO auth_groups_permissions (auth_group_id, entity_type, entity_id, entitlement) VALUES (1, ?, 0, ?)`
+			_, err = tx.Exec(stmt, entityTypeCodeServer, string(auth.EntitlementAdmin))
 			if err != nil {
 				return err
 			}
