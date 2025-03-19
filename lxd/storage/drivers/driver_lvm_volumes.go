@@ -1007,7 +1007,7 @@ func (d *lvm) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	}
 
 	if lvExists {
-		_, err = d.UnmountVolume(snapVol, false, op)
+		_, err = d.UnmountVolumeSnapshot(snapVol, op)
 		if err != nil {
 			return fmt.Errorf("Error unmounting LVM logical volume: %w", err)
 		}
