@@ -484,6 +484,41 @@ func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret 
 	return &identities[0], nil
 }
 
+// ActivateClusterLinkIdentity updates a cluster link identity to make it valid by adding the fingerprint, PEM encoded certificate, and setting
+// the type to api.IdentityTypeClusterLink.
+func ActivateClusterLinkIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate) error {
+	fingerprint := shared.CertFingerprint(cert)
+	_, err := GetIdentityID(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
+	if err == nil {
+		return api.StatusErrorf(http.StatusConflict, "Identity already exists")
+	}
+
+	metadata := CertificateMetadata{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))}
+	b, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("Failed to encode certificate metadata: %w", err)
+	}
+
+	stmt := `UPDATE identities SET type = ?, identifier = ?, metadata = ? WHERE identifier = ? AND auth_method = ?`
+	res, err := tx.ExecContext(ctx, stmt, identityTypeCertificateClusterLink, fingerprint, string(b), identifier.String(), authMethodTLS)
+	if err != nil {
+		return fmt.Errorf("Failed to activate cluster link identity: %w", err)
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed to check for activated cluster link identity: %w", err)
+	}
+
+	if n == 0 {
+		return api.StatusErrorf(http.StatusNotFound, "No pending cluster link identity found with identifier %q", identifier)
+	} else if n > 1 {
+		return fmt.Errorf("Unknown error occurred when activating a cluster link identity: %w", err)
+	}
+
+	return nil
+}
+
 // GetAuthGroupsByIdentityID returns a slice of groups that the identity with the given ID is a member of.
 func GetAuthGroupsByIdentityID(ctx context.Context, tx *sql.Tx, identityID int) ([]AuthGroup, error) {
 	stmt := `
