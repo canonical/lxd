@@ -834,6 +834,8 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 			return false, fmt.Errorf("Failed to unmount LVM logical volume: %w", err)
 		}
 
+		d.logger.Debug("Unmounted logical volume", logger.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
+
 		ourUnmount = true
 	} else if vol.contentType == ContentTypeBlock {
 		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
@@ -847,10 +849,6 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 		if err != nil {
 			return false, err
 		}
-
-		d.logger.Debug("Unmounted logical volume", logger.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
-
-		ourUnmount = true
 	} else {
 		// Since activation of the LV on mount is unconditional, the activation
 		// refcount needs to be updated regardless of whether we actually
