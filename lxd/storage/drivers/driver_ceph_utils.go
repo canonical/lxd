@@ -101,6 +101,15 @@ func (d *ceph) osdDeletePool() error {
 	return nil
 }
 
+func (d *ceph) roundUpTo512(a int64) int64 {
+	result := (a / 512) * 512
+	if a%512 != 0 {
+		result += 512
+	}
+
+	return result
+}
+
 // rbdCreateVolume creates an RBD storage volume.
 // Note that the default set of features is intentionally limited
 // by passing --image-feature explicitly. This is done to ensure that
@@ -130,6 +139,9 @@ func (d *ceph) rbdCreateVolume(vol Volume, size string) error {
 	if d.config["ceph.osd.data_pool_name"] != "" {
 		cmd = append(cmd, "--data-pool", d.config["ceph.osd.data_pool_name"])
 	}
+
+	// Ceph allows writing only to images of size in multiples of 512B
+	sizeBytes = d.roundUpTo512(sizeBytes)
 
 	cmd = append(cmd,
 		"--size", fmt.Sprintf("%dB", sizeBytes),
