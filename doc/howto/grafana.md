@@ -82,3 +82,27 @@ To set the `loki.instance` configuration key, run the following command:
 You can check that setting via:
 `lxc config get loki.instance`
 ```
+
+## Scripted setup and LXD UI integration
+
+As an alternative to the manual steps above, we provide a script to set up the Grafana dashboard. This only supports a single-node LXD installation.
+
+1. Launch a new instance on your LXD server:
+
+       lxc launch ubuntu:24.04 grafana --project default
+
+1. Run the following commands to download and execute the script to set up Grafana on the `grafana` instance:
+
+       curl -s https://raw.githubusercontent.com/canonical/lxd/refs/heads/main/scripts/setup-grafana.sh -o /tmp/setup-grafana.sh
+       chmod +x /tmp/setup-grafana.sh
+       /tmp/setup-grafana.sh grafana default
+
+1. After the script finishes, sign in to Grafana with the default credentials `admin`/`admin` and change the password.
+
+1. Import the LXD dashboard as described in step 3 of the manual steps in the preceding section.
+
+The script installs Grafana, Prometheus, and Loki on a LXD instance. It also configures LXD to send metrics to Prometheus and logs to Loki. Additionally, it configures the LXD UI to be aware of the Grafana dashboard. This enables the UI to render a deep link {guilabel}`Metrics` to the Grafana dashboard from instance details pages (available since LXD 6.3):
+
+![Metrics link in the LXD UI instance detail page](/images/grafana_lxd_ui_metrics_integration.png)
+
+![Dashboard details for a running instance](/images/grafana_lxd_ui_instance_dashboard.png)
