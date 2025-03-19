@@ -1465,6 +1465,7 @@ parts:
       set -ex
 
       # Setup build environment
+      export GOTOOLCHAIN="local"
       export GOPATH="$(realpath ./.go)"
 
       # Setup the GOPATH
@@ -1483,6 +1484,7 @@ parts:
       git config user.name "LXD snap builder"
 
       # Setup build environment
+      export GOTOOLCHAIN="local"
       export GOPATH="$(realpath ./.go)"
       export CGO_CFLAGS="-I${CRAFT_STAGE}/include/ -I${CRAFT_STAGE}/usr/local/include/"
       export CGO_LDFLAGS="-L${CRAFT_STAGE}/lib/ -L${CRAFT_STAGE}/usr/local/lib/"
