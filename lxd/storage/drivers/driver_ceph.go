@@ -434,6 +434,14 @@ func (d *ceph) Update(changedConfig map[string]string) error {
 		}
 	}
 
+	newPgNum, changed := changedConfig["ceph.osd.pg_num"]
+	if changed {
+		err := applyPool("pg_num", newPgNum)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
