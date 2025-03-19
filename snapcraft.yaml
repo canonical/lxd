@@ -1601,7 +1601,17 @@ parts:
       CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-agent" -tags=agent,netgo github.com/canonical/lxd/lxd-agent
       CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-user" -tags netgo github.com/canonical/lxd/lxd-user
 
-      # Some python dependencies are not available for riscv64 or just require a build from source.
+      # Check which Go version was used to compile each of the lxc/lxd binaries
+      # XXX: fail if an unexpected version (like a Go toolchain) was used
+      GOVER="$(snap list go | awk '{if ($1 == "go") print $2}')"
+      UNEXPECTED_GO_VER="$(go version -v "${CRAFT_PART_INSTALL}/bin/lxc"* "${CRAFT_PART_INSTALL}/bin/lxd"* | grep -vF ": go${GOVER}" || true)"
+      if [ -n "${UNEXPECTED_GO_VER:-}" ]; then
+        echo "Some binaries were compiled with an unexpected Go version (!= ${GOVER}):"
+        echo "${UNEXPECTED_GO_VER}"
+        exit 1
+      fi
+
+      # Some python dependencies are not available for armhf/riscv64 or just require a build from source.
       # Not worth the effort for now.
       if [ "$(uname -m)" != "riscv64" ]; then
         # Build the static website
