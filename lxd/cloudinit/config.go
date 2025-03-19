@@ -156,7 +156,7 @@ func extractAdditionalSSHKeys(instanceConfig map[string]string) map[string]*user
 		if strings.HasPrefix(key, "cloud-init.ssh-keys.") {
 			user, sshKey, found := strings.Cut(value, ":")
 
-			// If the "cloud-init.ssh-keys." is badly formatted, skip it.
+			// If the "cloud-init.ssh-keys." is badly formatted or is "none", skip it.
 			if !found {
 				continue
 			}

@@ -807,6 +807,11 @@ func IsCloudInitUserData(value string) error {
 // IsUserSSHKey checks value is a valid SSH public key for cloud-init.ssh-keys.
 // This should take the format {user}:{key}, and neither part can be empty.
 func IsUserSSHKey(value string) error {
+	// A "none" value can be used to avoid inheriting an SSH key from a profile.
+	if value == "none" {
+		return nil
+	}
+
 	user, key, _ := strings.Cut(value, ":")
 
 	if key == "" {
