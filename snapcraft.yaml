@@ -677,6 +677,9 @@ parts:
       [ "$(uname -m)" = "riscv64" ] && exit 0
       set -ex
 
+      # Setup build environment
+      export GOTOOLCHAIN="local"
+
       make binaries
       mkdir -p "${CRAFT_PART_INSTALL}/bin/"
       cp nvidia-ctk "${CRAFT_PART_INSTALL}/bin/"
