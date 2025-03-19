@@ -584,6 +584,9 @@ parts:
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       set -ex
 
+      # Setup build environment
+      export GOTOOLCHAIN="local"
+
       # Git cherry-picks
       git config user.email "noreply@lists.canonical.com"
       git config user.name "LXD snap builder"
