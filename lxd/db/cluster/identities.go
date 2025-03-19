@@ -369,6 +369,28 @@ func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
 	return &metadata, nil
 }
 
+// PendingClusterLinkMetadata contains metadata for the pending cluter link certificate identity type.
+type PendingClusterLinkMetadata struct {
+	Secret   string    `json:"secret"`
+	Expiry   time.Time `json:"expiry"`
+	Adresses []string  `json:"addresses"`
+}
+
+// PendingClusterLinkMetadata returns the pending TLS identity metadata.
+func (i Identity) PendingClusterLinkMetadata() (*PendingTLSMetadata, error) {
+	if i.Type != api.IdentityTypeCertificateClusterLinkPending {
+		return nil, api.NewStatusError(http.StatusBadRequest, "Cannot extract pending cluster link identity secret: Identity is not pending")
+	}
+
+	var metadata PendingTLSMetadata
+	err := json.Unmarshal([]byte(i.Metadata), &metadata)
+	if err != nil {
+		return nil, api.StatusErrorf(http.StatusInternalServerError, "Failed to unmarshal pending cluster link identity metadata: %w", err)
+	}
+
+	return &metadata, nil
+}
+
 // ToAPI converts an Identity to an api.Identity, executing database queries as necessary.
 func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.Identity, error) {
 	groups, err := GetAuthGroupsByIdentityID(ctx, tx, i.ID)
