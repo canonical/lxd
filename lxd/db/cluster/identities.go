@@ -404,8 +404,8 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 }
 
 // ActivateTLSIdentity updates a TLS identity to make it valid by adding the fingerprint, PEM encoded certificate, and setting
-// the type to api.IdentityTypeCertificateClient.
-func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate) error {
+// the type.
+func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate, identityType IdentityType) error {
 	fingerprint := shared.CertFingerprint(cert)
 	_, err := GetIdentityID(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
 	if err == nil {
@@ -419,7 +419,11 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 	}
 
 	stmt := `UPDATE identities SET type = ?, identifier = ?, metadata = ? WHERE identifier = ? AND auth_method = ?`
-	res, err := tx.ExecContext(ctx, stmt, identityTypeCertificateClient, fingerprint, string(b), identifier.String(), authMethodTLS)
+	identityTypeCode, err := identityType.Value()
+	if err != nil {
+		return fmt.Errorf("Failed to get identity type code: %w", err)
+	}
+	res, err := tx.ExecContext(ctx, stmt, identityTypeCode, fingerprint, string(b), identifier.String(), authMethodTLS)
 	if err != nil {
 		return fmt.Errorf("Failed to activate TLS identity: %w", err)
 	}
