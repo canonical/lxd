@@ -791,7 +791,7 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
 }
 
 // UnmountVolume unmounts volume if mounted and not in use. Returns true if this unmounted the volume.
-// keepBlockDev indicates if backing block device should be not be deactivated when volume is unmounted.
+// keepBlockDev indicates if backing block device should not be deactivated when volume is unmounted.
 func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
 	unlock, err := vol.MountLock()
 	if err != nil {
