@@ -405,6 +405,26 @@ func (d *ceph) Validate(config map[string]string) error {
 		"volatile.pool.pristine": validate.IsAny,
 	}
 
+	immutableOptions := []string{
+		// Changing the cluster name does not work as the volume's won't be moved to the new cluster.
+		"ceph.cluster_name",
+		// Changing the pool name whilst having active volumes does not work as the volumes won't be moved to the new pool.
+		"ceph.osd.pool_name",
+	}
+
+	for configOption, configOptionValue := range config {
+		oldValue, ok := d.config[configOption]
+
+		// Skip config settings which weren't populated before.
+		if !ok {
+			continue
+		}
+
+		if oldValue != configOptionValue && shared.ValueInSlice(configOption, immutableOptions) {
+			return fmt.Errorf("Cannot update %q", configOption)
+		}
+	}
+
 	return d.validatePool(config, rules, d.commonVolumeRules())
 }
 
