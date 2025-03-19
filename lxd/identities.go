@@ -322,7 +322,7 @@ func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertifi
 
 	// Activate the pending identity with the certificate.
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.ActivateTLSIdentity(ctx, tx.Tx(), identifier, cert)
+		return dbCluster.ActivateTLSIdentity(ctx, tx.Tx(), identifier, cert, dbCluster.IdentityType(api.IdentityTypeCertificateClient))
 	})
 	if err != nil {
 		return response.SmartError(err)
