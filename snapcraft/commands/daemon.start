@@ -294,7 +294,7 @@ echo "==> Preparing a clean copy of /usr/share/misc"
 if [ -e "/usr/share/misc/.lxd_generated" ]; then
     umount -l /usr/share/misc
 fi
-mount -t tmpfs tmpfs /usr/share/misc -o mode=0755
+mount -t tmpfs tmpfs /usr/share/misc -o mode=0755,nosuid,nodev,size=4M
 touch /usr/share/misc/.lxd_generated
 ln -s "${SNAP_CURRENT}/share/misc/pci.ids" /usr/share/misc/
 ln -s "${SNAP_CURRENT}/share/misc/usb.ids" /usr/share/misc/
