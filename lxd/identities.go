@@ -285,6 +285,15 @@ func createIdentityTLS(d *Daemon, r *http.Request) response.Response {
 
 // createIdentityTLSUntrusted handles requests to create an identity when the caller is not trusted.
 func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertificates []*x509.Certificate, networkCert *shared.CertInfo, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
+	if req.Type == "" {
+		return response.BadRequest(fmt.Errorf("Identity type must be provided"))
+	}
+
+	// Validate that the requested type is supported
+	if req.Type != api.IdentityTypeCertificateClient && req.Type != api.IdentityTypeCertificateClusterLink {
+		return response.BadRequest(fmt.Errorf("Identity type must be one of %s or %s", api.IdentityTypeCertificateClient, api.IdentityTypeCertificateClusterLink))
+	}
+
 	// If not trusted a token must be provided.
 	if req.TrustToken == "" {
 		return response.Forbidden(errors.New("Trust token required"))
@@ -350,6 +359,15 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 		return response.BadRequest(fmt.Errorf("Identity name must be provided"))
 	}
 
+	if req.Type == "" {
+		return response.BadRequest(fmt.Errorf("Identity type must be provided"))
+	}
+
+	// Validate that the requested type is supported
+	if req.Type != api.IdentityTypeCertificateClient && req.Type != api.IdentityTypeCertificateClusterLink {
+		return response.BadRequest(fmt.Errorf("Identity type must be one of %s or %s", api.IdentityTypeCertificateClient, api.IdentityTypeCertificateClusterLink))
+	}
+
 	// If the caller is trusted, they should not be providing a trust token
 	if req.TrustToken != "" {
 		return response.Conflict(fmt.Errorf("Client already trusted"))
@@ -380,7 +398,7 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 		// Create the identity.
 		id, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
 			AuthMethod: api.AuthenticationMethodTLS,
-			Type:       api.IdentityTypeCertificateClient,
+			Type:       dbCluster.IdentityType(req.Type),
 			Identifier: fingerprint,
 			Name:       req.Name,
 			Metadata:   metadata,
@@ -465,7 +483,7 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
 			AuthMethod: api.AuthenticationMethodTLS,
-			Type:       api.IdentityTypeCertificateClientPending,
+			Type:       dbCluster.IdentityType(req.Type + "Pending"),
 			Identifier: identifier.String(),
 			Name:       req.Name,
 			Metadata:   string(metadataJSON),
@@ -493,7 +511,7 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 		ExpiresAt:   expiresAt,
 		// Set the Type field so that the client can differentiate
 		// between tokens meant for the certificates API and the auth API.
-		Type: api.IdentityTypeCertificateClient,
+		Type: req.Type,
 	}
 
 	// Notify other members, update the cache, and send a lifecycle event.
@@ -1840,6 +1858,7 @@ func updateIdentityCache(d *Daemon) {
 		api.IdentityTypeCertificateMetricsRestricted,
 		api.IdentityTypeCertificateMetricsUnrestricted,
 		api.IdentityTypeOIDCClient,
+		api.IdentityTypeCertificateClusterLink,
 	}
 
 	identityCacheEntries := make([]identity.CacheEntry, 0, len(identities))
