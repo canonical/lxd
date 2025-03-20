@@ -2184,6 +2184,11 @@ definitions:
                 example: bar
                 type: string
                 x-go-name: Name
+            override_snapshot_profiles:
+                description: Whether the instances's snapshot should receive target instances profile on copy
+                example: true
+                type: boolean
+                x-go-name: OverrideSnapshotProfiles
             pool:
                 description: Target pool for local cross-pool move
                 example: baz
