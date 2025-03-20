@@ -170,6 +170,10 @@ type IdentitiesTLSPost struct {
 	// Groups is the list of groups for which the identity is a member.
 	// Example: ["foo", "bar"]
 	Groups []string `json:"groups" yaml:"groups"`
+
+	// Type of TLS identity.
+	// Example: client
+	Type string `json:"type" yaml:"type"`
 }
 
 // AuthGroup is the type for a LXD group.
