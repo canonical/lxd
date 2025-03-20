@@ -629,6 +629,9 @@ parts:
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       set -ex
 
+      # Setup build environment
+      export GOTOOLCHAIN="local"
+
       # Git cherry-picks
       git config user.email "noreply@lists.canonical.com"
       git config user.name "LXD snap builder"
@@ -673,6 +676,9 @@ parts:
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
       set -ex
+
+      # Setup build environment
+      export GOTOOLCHAIN="local"
 
       make binaries
       mkdir -p "${CRAFT_PART_INSTALL}/bin/"
@@ -1462,6 +1468,7 @@ parts:
       set -ex
 
       # Setup build environment
+      export GOTOOLCHAIN="local"
       export GOPATH="$(realpath ./.go)"
 
       # Setup the GOPATH
@@ -1480,6 +1487,7 @@ parts:
       git config user.name "LXD snap builder"
 
       # Setup build environment
+      export GOTOOLCHAIN="local"
       export GOPATH="$(realpath ./.go)"
       export CGO_CFLAGS="-I${CRAFT_STAGE}/include/ -I${CRAFT_STAGE}/usr/local/include/"
       export CGO_LDFLAGS="-L${CRAFT_STAGE}/lib/ -L${CRAFT_STAGE}/usr/local/lib/"
@@ -1497,6 +1505,16 @@ parts:
       # Build static binaries
       CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-agent" -tags=agent,netgo github.com/canonical/lxd/lxd-agent
       CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-user" -tags netgo github.com/canonical/lxd/lxd-user
+
+      # Check which Go version was used to compile each of the lxc/lxd binaries
+      # XXX: fail if an unexpected version (like a Go toolchain) was used
+      GOVER="$(snap list go | awk '{if ($1 == "go") print $2}')"
+      UNEXPECTED_GO_VER="$(go version -v "${CRAFT_PART_INSTALL}/bin/lxc"* "${CRAFT_PART_INSTALL}/bin/lxd"* | grep -vF ": go${GOVER}" || true)"
+      if [ -n "${UNEXPECTED_GO_VER:-}" ]; then
+        echo "Some binaries were compiled with an unexpected Go version (!= ${GOVER}):"
+        echo "${UNEXPECTED_GO_VER}"
+        exit 1
+      fi
 
       # Some python dependencies are not available for armhf/riscv64 or just require a build from source.
       # Not worth the effort for now.
