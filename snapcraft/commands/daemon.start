@@ -526,7 +526,6 @@ export LXD_DOCUMENTATION="${SNAP_CURRENT}/share/lxd-documentation"
 # LXC
 ## Host specific overrides
 mkdir -p "${SNAP_COMMON}/lxc"
-touch "${SNAP_COMMON}/lxc/local.conf"
 if [ -d /sys/kernel/security/apparmor ] && ! grep -qF -- "-Ubuntu" /proc/version; then
     echo "==> Detected kernel with partial AppArmor support"
     echo "lxc.apparmor.allow_incomplete = 1" > "${SNAP_COMMON}/lxc/local.conf"
