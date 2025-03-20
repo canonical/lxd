@@ -2639,6 +2639,7 @@ type cmdStorageVolumeExport struct {
 	flagVolumeOnly           bool
 	flagOptimizedStorage     bool
 	flagCompressionAlgorithm string
+	flagVersion              string
 }
 
 func (c *cmdStorageVolumeExport) command() *cobra.Command {
@@ -2652,6 +2653,8 @@ func (c *cmdStorageVolumeExport) command() *cobra.Command {
 	cmd.Flags().BoolVar(&c.flagOptimizedStorage, "optimized-storage", false,
 		i18n.G("Use storage driver optimized format (can only be restored on a similar pool)"))
 	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Define a compression algorithm: for backup or none")+"``")
+	cmd.Flags().StringVar(&c.flagVersion, "version", "",
+		i18n.G("Use a different format version to be able to import the backup on older LXD versions")+"``")
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
 
@@ -2708,6 +2711,21 @@ func (c *cmdStorageVolumeExport) run(cmd *cobra.Command, args []string) error {
 		VolumeOnly:           volumeOnly,
 		OptimizedStorage:     c.flagOptimizedStorage,
 		CompressionAlgorithm: c.flagCompressionAlgorithm,
+	}
+
+	backupVersionSupported := d.HasExtension("backup_version")
+	backupVersion := api.BackupVersion(c.flagVersion)
+
+	// If the server supports setting the backup version set the selection version
+	// or use the latest version as default.
+	if backupVersionSupported {
+		if backupVersion != "" {
+			req.Version = backupVersion
+		} else {
+			req.Version = api.BackupVersion20
+		}
+	} else if !backupVersionSupported && backupVersion != "" {
+		return errors.New(i18n.G("The server doesn't support setting the backup version"))
 	}
 
 	op, err := d.CreateStoragePoolVolumeBackup(name, volName, req)
