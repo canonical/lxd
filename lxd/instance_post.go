@@ -332,7 +332,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 			// Setup the instance move operation.
 			run := func(op *operations.Operation) error {
-				return instancePostMigration(s, inst, req.Name, req.Pool, req.Project, req.Config, req.Devices, req.Profiles, req.InstanceOnly, req.Live, req.AllowInconsistent, op)
+				return instancePostMigration(s, inst, req, op)
 			}
 
 			resources := map[string][]api.URL{}
@@ -455,18 +455,18 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 }
 
 // Move an instance.
-func instancePostMigration(s *state.State, inst instance.Instance, newName string, newPool string, newProject string, config map[string]string, devices map[string]map[string]string, profiles []string, instanceOnly bool, stateful bool, allowInconsistent bool, op *operations.Operation) error {
+func instancePostMigration(s *state.State, inst instance.Instance, req api.InstancePost, op *operations.Operation) error {
 	if inst.IsSnapshot() {
 		return fmt.Errorf("Instance snapshots cannot be moved between pools")
 	}
 
-	if newProject == "" {
-		newProject = inst.Project().Name
+	if req.Project == "" {
+		req.Project = inst.Project().Name
 	}
 
 	statefulStart := false
 	if inst.IsRunning() {
-		if !stateful {
+		if !req.Live {
 			return api.StatusErrorf(http.StatusBadRequest, "Instance must be stopped to move between pools statelessly")
 		}
 
@@ -484,28 +484,28 @@ func instancePostMigration(s *state.State, inst instance.Instance, newName strin
 	}
 
 	// Set user defined configuration entries.
-	for k, v := range config {
+	for k, v := range req.Config {
 		localConfig[k] = v
 	}
 
 	// Get instance local devices and then set user defined devices.
 	localDevices := inst.LocalDevices().Clone()
-	for devName, dev := range devices {
+	for devName, dev := range req.Devices {
 		localDevices[devName] = dev
 	}
 
 	// Apply previous profiles, if provided profiles are nil.
-	if profiles == nil {
-		profiles = make([]string, 0, len(inst.Profiles()))
+	if req.Profiles == nil {
+		req.Profiles = make([]string, 0, len(inst.Profiles()))
 		for _, p := range inst.Profiles() {
-			profiles = append(profiles, p.Name)
+			req.Profiles = append(req.Profiles, p.Name)
 		}
 	}
 
 	apiProfiles := []api.Profile{}
-	if len(profiles) > 0 {
+	if len(req.Profiles) > 0 {
 		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			profiles, err := dbCluster.GetProfilesIfEnabled(ctx, tx.Tx(), newProject, profiles)
+			profiles, err := dbCluster.GetProfilesIfEnabled(ctx, tx.Tx(), req.Project, req.Profiles)
 			if err != nil {
 				return err
 			}
@@ -574,19 +574,19 @@ func instancePostMigration(s *state.State, inst instance.Instance, newName strin
 	}
 
 	// Set specific storage pool for the instance, if provided.
-	if newPool != "" {
-		rootDev["pool"] = newPool
+	if req.Pool != "" {
+		rootDev["pool"] = req.Pool
 		localDevices[rootDevKey] = rootDev
 	}
 
 	// Specify the target instance config with the new name.
 	args := db.InstanceArgs{
-		Name:         newName,
+		Name:         req.Name,
 		BaseImage:    localConfig["volatile.base_image"],
 		Config:       localConfig,
 		Devices:      localDevices,
 		Profiles:     apiProfiles,
-		Project:      newProject,
+		Project:      req.Project,
 		Type:         inst.Type(),
 		Architecture: inst.Architecture(),
 		Description:  inst.Description(),
@@ -598,7 +598,7 @@ func instancePostMigration(s *state.State, inst instance.Instance, newName strin
 	// the copy of the instance on the new pool with a temporary name that is different from the source to
 	// avoid conflicts. Then after the source instance has been deleted we will rename the new instance back
 	// to the original name.
-	if newName == inst.Name() && newProject == inst.Project().Name {
+	if req.Name == inst.Name() && req.Project == inst.Project().Name {
 		args.Name, err = instance.MoveTemporaryName(inst)
 		if err != nil {
 			return err
@@ -607,11 +607,12 @@ func instancePostMigration(s *state.State, inst instance.Instance, newName strin
 
 	// Copy instance to new target instance.
 	targetInst, err := instanceCreateAsCopy(s, instanceCreateAsCopyOpts{
-		sourceInstance:       inst,
-		targetInstance:       args,
-		instanceOnly:         instanceOnly,
-		applyTemplateTrigger: false, // Don't apply templates when moving.
-		allowInconsistent:    allowInconsistent,
+		sourceInstance:           inst,
+		targetInstance:           args,
+		instanceOnly:             req.InstanceOnly,
+		applyTemplateTrigger:     false, // Don't apply templates when moving.
+		allowInconsistent:        req.AllowInconsistent,
+		overrideSnapshotProfiles: req.OverrideSnapshotProfiles,
 	}, op)
 	if err != nil {
 		return err
@@ -624,8 +625,8 @@ func instancePostMigration(s *state.State, inst instance.Instance, newName strin
 	}
 
 	// Rename copy from temporary name to original name if needed.
-	if newName == inst.Name() && newProject == inst.Project().Name {
-		err = targetInst.Rename(newName, false) // Don't apply templates when moving.
+	if req.Name == inst.Name() && req.Project == inst.Project().Name {
+		err = targetInst.Rename(req.Name, false) // Don't apply templates when moving.
 		if err != nil {
 			return err
 		}
