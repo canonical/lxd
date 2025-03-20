@@ -253,7 +253,7 @@ echo "==> Preparing a clean copy of /etc"
 if [ -e "/etc/.lxd_generated" ]; then
     umount -l /etc
 fi
-mount -t tmpfs tmpfs /etc -o mode=0755
+mount -t tmpfs tmpfs /etc -o mode=0755,nosuid,nodev,size=4M
 touch /etc/.lxd_generated
 
 ## Generate a new ld.so.cache
