@@ -107,13 +107,6 @@ if [ ! -e "${SNAP_COMMON}/mntns" ] || [ -L "${SNAP_COMMON}/mntns" ]; then
     ln -s /proc/$$/root "${SNAP_COMMON}/mntns"
 fi
 
-# Fix /dev/pts
-if [ "$(grep -F "devpts /dev/pts " /proc/self/mountinfo)" = "2" ]; then
-    echo "==> Setting up /dev/pts"
-    umount -l /dev/ptmx
-    umount -l /dev/pts
-fi
-
 # Setup rshared propagation on mount holding paths
 for path in "${SNAP_COMMON}/lxd/storage-pools" "${SNAP_COMMON}/lxd/devices"; do
     if ! cut -d' ' -f5 /proc/self/mountinfo | grep -qF "${path}"; then
