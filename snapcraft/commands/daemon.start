@@ -170,7 +170,7 @@ echo "==> Preparing a clean copy of /run"
 if [ -e "/run/.lxd_generated" ]; then
     umount -l /run
 fi
-mount -t tmpfs tmpfs /run -o mode=0755,nosuid,nodev
+mount -t tmpfs tmpfs /run -o mode=0755,nosuid,nodev,size=4M
 touch /run/.lxd_generated
 for entry in NetworkManager resolvconf netconfig snapd snapd.socket snapd-snap.socket systemd udev user; do
     [ -e "/var/lib/snapd/hostfs/run/${entry}" ] || [ -L "/var/lib/snapd/hostfs/run/${entry}" ] || continue
