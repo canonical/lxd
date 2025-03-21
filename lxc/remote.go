@@ -281,6 +281,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 	} else {
 		req := api.IdentitiesTLSPost{
 			TrustToken: token,
+			Type:       api.IdentityTypeCertificateClient,
 		}
 
 		err = d.CreateIdentityTLS(req)
@@ -671,7 +672,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 					}
 				} else {
 					gainTrust = func() error {
-						return d.(lxd.InstanceServer).CreateIdentityTLS(api.IdentitiesTLSPost{TrustToken: token})
+						return d.(lxd.InstanceServer).CreateIdentityTLS(api.IdentitiesTLSPost{TrustToken: token, Type: api.IdentityTypeCertificateClient})
 					}
 				}
 			} else {
