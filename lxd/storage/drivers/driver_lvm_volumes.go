@@ -840,9 +840,8 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
 	return d.mountCommon(vol, op)
 }
 
-// UnmountVolume unmounts volume if mounted and not in use. Returns true if this unmounted the volume.
-// keepBlockDev indicates if backing block device should not be deactivated when volume is unmounted.
-func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+// unmountCommon includes the common logic between mounting a volume and mounting a volume snapshot.
+func (d *lvm) unmountCommon(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
 	unlock, err := vol.MountLock()
 	if err != nil {
 		return false, err
@@ -879,6 +878,23 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 
 	// Check if already mounted.
 	if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(mountPath) {
+		if vol.IsSnapshot() {
+			// Check if a temporary snapshot exists, and if so remove it.
+			tmpVolName := vol.name + tmpVolSuffix
+			tmpVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, tmpVolName)
+			exists, err := d.logicalVolumeExists(tmpVolDevPath)
+			if err != nil {
+				return true, fmt.Errorf("Failed to check existence of temporary LVM snapshot volume %q: %w", tmpVolDevPath, err)
+			}
+
+			if exists {
+				err = d.removeLogicalVolume(tmpVolDevPath)
+				if err != nil {
+					return true, fmt.Errorf("Failed to remove temporary LVM snapshot volume %q: %w", tmpVolDevPath, err)
+				}
+			}
+		}
+
 		err = TryUnmount(mountPath, 0)
 		if err != nil {
 			return false, fmt.Errorf("Failed to unmount LVM logical volume: %w", err)
@@ -909,6 +925,12 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 	}
 
 	return ourUnmount, nil
+}
+
+// UnmountVolume unmounts volume if mounted and not in use. Returns true if this unmounted the volume.
+// keepBlockDev indicates if backing block device should not be deactivated when volume is unmounted.
+func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+	return d.unmountCommon(vol, keepBlockDev, op)
 }
 
 // RenameVolume renames a volume and its snapshots.
@@ -1102,82 +1124,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 // UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
 // If a temporary snapshot volume exists then it will attempt to remove it.
 func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
-	unlock, err := snapVol.MountLock()
-	if err != nil {
-		return false, err
-	}
-
-	defer unlock()
-
-	ourUnmount := false
-	mountPath := snapVol.MountPath()
-
-	refCount := snapVol.MountRefCountDecrement()
-
-	// Check if already mounted.
-	if snapVol.contentType == ContentTypeFS && filesystem.IsMountPoint(mountPath) {
-		if refCount > 0 {
-			d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": snapVol.name, "refCount": refCount})
-			return false, ErrInUse
-		}
-
-		err = TryUnmount(mountPath, 0)
-		if err != nil {
-			return false, fmt.Errorf("Failed to unmount LVM snapshot volume: %w", err)
-		}
-
-		d.logger.Debug("Unmounted logical volume snapshot", logger.Ctx{"path": mountPath})
-
-		// Check if a temporary snapshot exists, and if so remove it.
-		tmpVolName := snapVol.name + tmpVolSuffix
-		tmpVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, tmpVolName)
-		exists, err := d.logicalVolumeExists(tmpVolDevPath)
-		if err != nil {
-			return true, fmt.Errorf("Failed to check existence of temporary LVM snapshot volume %q: %w", tmpVolDevPath, err)
-		}
-
-		if exists {
-			err = d.removeLogicalVolume(tmpVolDevPath)
-			if err != nil {
-				return true, fmt.Errorf("Failed to remove temporary LVM snapshot volume %q: %w", tmpVolDevPath, err)
-			}
-		}
-
-		// We only deactivate filesystem volumes if an unmount was needed to better align with our
-		// unmount return value indicator.
-		_, err = d.deactivateVolume(snapVol)
-		if err != nil {
-			return false, err
-		}
-
-		ourUnmount = true
-	} else if snapVol.contentType == ContentTypeBlock {
-		// For VMs, unmount the filesystem volume.
-		if snapVol.IsVMBlock() {
-			fsVol := snapVol.NewVMBlockFilesystemVolume()
-			ourUnmount, err = d.UnmountVolumeSnapshot(fsVol, op)
-			if err != nil {
-				return false, err
-			}
-		}
-
-		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, snapVol.name)
-		if shared.PathExists(volDevPath) {
-			if refCount > 0 {
-				d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": snapVol.name, "refCount": refCount})
-				return false, ErrInUse
-			}
-
-			_, err = d.deactivateVolume(snapVol)
-			if err != nil {
-				return false, err
-			}
-
-			ourUnmount = true
-		}
-	}
-
-	return ourUnmount, nil
+	return d.unmountCommon(snapVol, false, op)
 }
 
 // VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
