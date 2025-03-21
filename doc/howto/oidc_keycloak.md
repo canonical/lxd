@@ -5,13 +5,18 @@ Keycloak is a self-hosted open source tool for authentication. Keycloak supports
 
 ## Using Keycloak to access LXD
 
-1. Setup Keycloak, for this guide, it is assumed that Keycloak is available over HTTPS.
-   - Following their guide on [configuring Keycloak for production](https://www.keycloak.org/server/configuration-production).
-   - Alternatively run the development version: Download [Keycloak-25.0.4](https://github.com/keycloak/keycloak/releases/download/25.0.4/keycloak-25.0.4.zip), extract the file and run `bin/kc.sh start-dev`. Open `http://localhost:8080/` and create an admin user with password.
+1. Set up Keycloak. For this guide, it is assumed that Keycloak is available over HTTPS.
+   - If you already have Keycloak installed, follow their guide on [configuring Keycloak for production](https://www.keycloak.org/server/configuration-production).
+   - Alternatively, run the development version:
+      - Download [Keycloak-25.0.4](https://github.com/keycloak/keycloak/releases/download/25.0.4/keycloak-25.0.4.zip).
+      - Extract the files and run `bin/kc.sh start-dev`.
+      - Open [`http://localhost:8080`](http://localhost:8080) in your browser and create an admin user with a password.
 
-1. Sign in to Keycloak with an admin account. Select the {guilabel}`Keycloak` dropdown in the top left corner of the admin console. Click {guilabel}`Create realm`. Enter a {guilabel}`Realm name` such as `lxd-ui-realm` and click {guilabel}`Create`.
+1. Open the Keycloak Admin Console. For the development version, you can access this at [`http://localhost:8080/admin`](http://localhost:8080/admin). Sign in with the admin user that you created.
 
-1. Navigate to {guilabel}`Clients` > {guilabel}`Create client` and enter a {guilabel}`Client ID`, such as `lxd-ui-client`. Then click {guilabel}`Next`.
+1. From the {guilabel}`Keycloak` dropdown in the top left corner of the Admin Console, select {guilabel}`Create realm`. Enter a {guilabel}`Realm name`, such as `lxd-ui-realm`, then click {guilabel}`Create`.
+
+1. From the main navigation, select {guilabel}`Clients`, then click {guilabel}`Create client`. Enter a {guilabel}`Client ID`, such as `lxd-ui-client`, then click {guilabel}`Next`.
 
 1. Enable the {guilabel}`OAuth 2.0 Device Authorization Grant` to allow the LXD CLI login. Click {guilabel}`Next`.
 
@@ -22,11 +27,11 @@ Keycloak is a self-hosted open source tool for authentication. Keycloak supports
 
    Click {guilabel}`Save`.
 
-1. Go to {guilabel}`Users` > {guilabel}`Create new user`, enter a {guilabel}`Username` and click {guilabel}`Create`.
+1. From the main navigation, select {guilabel}`Users`, then click {guilabel}`Create new user`. Enter a {guilabel}`Username`, then click {guilabel}`Create`.
 
-1. On the user detail page, select {guilabel}`Credentials` and {guilabel}`Set password`. Save the new password.
+1. Select the {guilabel}`Credentials` tab for the new user and click {guilabel}`Set password`. Save the new password.
 
-1. Back in your LXD server, configure the issuer. Use the `<keycloak-realm>` you created in step 2 and the `<keycloak-frontend-url>`, such as `http://192.0.2.1:8080`:
+1. Configure the issuer on your LXD server via the CLI. For `<keycloak-realm>`, use the name that you created in step 2. For the `<keycloak-frontend-url>`, use the URL for your Keycloak server, such as `http://192.0.2.1:8080`. If you are running the development version of Keycloak, use `http://localhost:8080`.
 
        lxc config set oidc.issuer=<keycloak-frontend-url>/realms/<keycloak-realm>
 
