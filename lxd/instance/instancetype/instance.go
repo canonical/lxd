@@ -938,6 +938,74 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	//  shortdesc: Whether to handle the `sysinfo` system call
 	"security.syscalls.intercept.sysinfo": validate.Optional(validate.IsBool),
 
+	// lxdmeta:generate(entities=instance; group=security; key=security.delegate_bpf)
+	// This option enables BPF functionality delegation mechanism (using BPF Token).
+	//
+	// Note: `security.delegate_bpf.cmd_types`, `security.delegate_bpf.map_types`,
+	// `security.delegate_bpf.prog_types`, `security.delegate_bpf.attach_types`
+	// need to be configured depending on BPF workload in the container.
+	//
+	// See {ref}`bpf-delegation-token` for more information.
+	//
+	// ---
+	//  type: bool
+	//  defaultdesc: `false`
+	//  liveupdate: no
+	//  condition: unprivileged container
+	//  shortdesc: Whether to enable eBPF delegation using BPF Token mechanism
+	"security.delegate_bpf": validate.Optional(validate.IsBool),
+
+	// lxdmeta:generate(entities=instance; group=security; key=security.delegate_bpf.cmd_types)
+	// Which eBPF commands to allow with delegation mechanism. Syntax follows a kernel one for `delegate_cmds`
+	// bpffs mount option. A number (bitmask) or `:`-separated list of commands to allow can be specified.
+	// For example, `prog_load:map_create` allows eBPF programs loading and eBPF maps creation.
+	// Notice: `security.delegate_bpf.prog_types` and `security.delegate_bpf.map_types` still need to
+	// be configured accordingly.
+	// ---
+	//  type: bool
+	//  defaultdesc: `false`
+	//  liveupdate: no
+	//  condition: unprivileged container
+	//  shortdesc: Which eBPF commands to allow with delegation mechanism
+	"security.delegate_bpf.cmd_types": validate.Optional(validate.IsBPFDelegationOption("cmds")),
+
+	// lxdmeta:generate(entities=instance; group=security; key=security.delegate_bpf.map_types)
+	// Which eBPF maps to allow with delegation mechanism. Syntax follows a kernel one for `delegate_maps`
+	// bpffs mount option. A number (bitmask) or `:`-separated list of map types to allow can be specified.
+	// For example, `ringbuf` allows `BPF_MAP_TYPE_RINGBUF` map.
+	// ---
+	//  type: bool
+	//  defaultdesc: `false`
+	//  liveupdate: no
+	//  condition: unprivileged container
+	//  shortdesc: Which eBPF maps to allow with delegation mechanism
+	"security.delegate_bpf.map_types": validate.Optional(validate.IsBPFDelegationOption("maps")),
+
+	// lxdmeta:generate(entities=instance; group=security; key=security.delegate_bpf.prog_types)
+	// Which eBPF program types to allow with delegation mechanism. Syntax follows a kernel one for `delegate_progs`
+	// bpffs mount option. A number (bitmask) or `:`-separated list of program types to allow can be specified.
+	// For example, `socket_filter` allows `BPF_PROG_TYPE_SOCKET_FILTER` program type.
+	// ---
+	//  type: bool
+	//  defaultdesc: `false`
+	//  liveupdate: no
+	//  condition: unprivileged container
+	//  shortdesc: Which eBPF program types to allow with delegation mechanism
+	"security.delegate_bpf.prog_types": validate.Optional(validate.IsBPFDelegationOption("progs")),
+
+	// lxdmeta:generate(entities=instance; group=security; key=security.delegate_bpf.attach_types)
+	// Which eBPF program attachment types to allow with delegation mechanism. Syntax follows
+	// a kernel one for `delegate_attachs` bpffs mount option.
+	// A number (bitmask) or `:`-separated list of attachment types to allow can be specified.
+	// For example, `cgroup_inet_ingress` allows `BPF_CGROUP_INET_INGRESS` attachment type.
+	// ---
+	//  type: bool
+	//  defaultdesc: `false`
+	//  liveupdate: no
+	//  condition: unprivileged container
+	//  shortdesc: Which eBPF attach types to allow with delegation mechanism
+	"security.delegate_bpf.attach_types": validate.Optional(validate.IsBPFDelegationOption("attachs")),
+
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.last_state.idmap)
 	// The UID/GID map that has been applied to the container's underlying storage.
 	// This is usually set for containers created on older kernels that don't

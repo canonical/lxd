@@ -2630,3 +2630,7 @@ Adds the field `client_certificate` to `GET /1.0` to indicate if the current req
 
 This API extension adds a `used_by` field to the API response for a {ref}`cluster group <cluster-groups>`.
 Deletion of a cluster group is disallowed if the cluster group is referenced by project configuration (see {config:option}`project-restricted:restricted.cluster.groups`).
+
+## `container_bpf_delegation`
+
+Adds new {config:option}`instance-security:security.delegate_bpf`.* group of options in order to support eBPF delegation using BPF Token mechanism.

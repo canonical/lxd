@@ -2168,6 +2168,69 @@ If left empty, no limit is set.
 When enabling this option, set {config:option}`instance-security:security.secureboot` to `false`.
 ```
 
+```{config:option} security.delegate_bpf instance-security
+:condition: "unprivileged container"
+:defaultdesc: "`false`"
+:liveupdate: "no"
+:shortdesc: "Whether to enable eBPF delegation using BPF Token mechanism"
+:type: "bool"
+This option enables BPF functionality delegation mechanism (using BPF Token).
+
+Note: `security.delegate_bpf.cmd_types`, `security.delegate_bpf.map_types`,
+`security.delegate_bpf.prog_types`, `security.delegate_bpf.attach_types`
+need to be configured depending on BPF workload in the container.
+
+See {ref}`bpf-delegation-token` for more information.
+
+```
+
+```{config:option} security.delegate_bpf.attach_types instance-security
+:condition: "unprivileged container"
+:defaultdesc: "`false`"
+:liveupdate: "no"
+:shortdesc: "Which eBPF attach types to allow with delegation mechanism"
+:type: "bool"
+Which eBPF program attachment types to allow with delegation mechanism. Syntax follows
+a kernel one for `delegate_attachs` bpffs mount option.
+A number (bitmask) or `:`-separated list of attachment types to allow can be specified.
+For example, `cgroup_inet_ingress` allows `BPF_CGROUP_INET_INGRESS` attachment type.
+```
+
+```{config:option} security.delegate_bpf.cmd_types instance-security
+:condition: "unprivileged container"
+:defaultdesc: "`false`"
+:liveupdate: "no"
+:shortdesc: "Which eBPF commands to allow with delegation mechanism"
+:type: "bool"
+Which eBPF commands to allow with delegation mechanism. Syntax follows a kernel one for `delegate_cmds`
+bpffs mount option. A number (bitmask) or `:`-separated list of commands to allow can be specified.
+For example, `prog_load:map_create` allows eBPF programs loading and eBPF maps creation.
+Notice: `security.delegate_bpf.prog_types` and `security.delegate_bpf.map_types` still need to
+be configured accordingly.
+```
+
+```{config:option} security.delegate_bpf.map_types instance-security
+:condition: "unprivileged container"
+:defaultdesc: "`false`"
+:liveupdate: "no"
+:shortdesc: "Which eBPF maps to allow with delegation mechanism"
+:type: "bool"
+Which eBPF maps to allow with delegation mechanism. Syntax follows a kernel one for `delegate_maps`
+bpffs mount option. A number (bitmask) or `:`-separated list of map types to allow can be specified.
+For example, `ringbuf` allows `BPF_MAP_TYPE_RINGBUF` map.
+```
+
+```{config:option} security.delegate_bpf.prog_types instance-security
+:condition: "unprivileged container"
+:defaultdesc: "`false`"
+:liveupdate: "no"
+:shortdesc: "Which eBPF program types to allow with delegation mechanism"
+:type: "bool"
+Which eBPF program types to allow with delegation mechanism. Syntax follows a kernel one for `delegate_progs`
+bpffs mount option. A number (bitmask) or `:`-separated list of program types to allow can be specified.
+For example, `socket_filter` allows `BPF_PROG_TYPE_SOCKET_FILTER` program type.
+```
+
 ```{config:option} security.devlxd instance-security
 :defaultdesc: "`true`"
 :liveupdate: "no"
