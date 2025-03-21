@@ -901,6 +901,8 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 		req.Source.ContainerOnly = args.InstanceOnly //nolint:staticcheck,unused
 		req.Source.Refresh = args.Refresh
 		req.Source.AllowInconsistent = args.AllowInconsistent
+
+		req.Source.OverrideSnapshotProfiles = args.OverrideSnapshotProfiles
 	}
 
 	if req.Source.Live {

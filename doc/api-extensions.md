@@ -2630,3 +2630,7 @@ Adds the field `client_certificate` to `GET /1.0` to indicate if the current req
 
 This API extension adds a `used_by` field to the API response for a {ref}`cluster group <cluster-groups>`.
 Deletion of a cluster group is disallowed if the cluster group is referenced by project configuration (see {config:option}`project-restricted:restricted.cluster.groups`).
+
+## `override_snapshot_profiles_on_copy`
+
+This adds a request option to set snapshot's target profile on instance copy to be inherited from target instance.

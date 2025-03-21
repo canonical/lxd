@@ -239,12 +239,13 @@ func instanceRebuildFromEmpty(inst instance.Instance, op *operations.Operation) 
 
 // instanceCreateAsCopyOpts options for copying an instance.
 type instanceCreateAsCopyOpts struct {
-	sourceInstance       instance.Instance // Source instance.
-	targetInstance       db.InstanceArgs   // Configuration for new instance.
-	instanceOnly         bool              // Only copy the instance and not it's snapshots.
-	refresh              bool              // Refresh an existing target instance.
-	applyTemplateTrigger bool              // Apply deferred TemplateTriggerCopy.
-	allowInconsistent    bool              // Ignore some copy errors
+	sourceInstance           instance.Instance // Source instance.
+	targetInstance           db.InstanceArgs   // Configuration for new instance.
+	instanceOnly             bool              // Only copy the instance and not it's snapshots.
+	refresh                  bool              // Refresh an existing target instance.
+	applyTemplateTrigger     bool              // Apply deferred TemplateTriggerCopy.
+	allowInconsistent        bool              // Ignore some copy errors
+	overrideSnapshotProfiles bool              // Copy the target instance profiles to the instance snapshots
 }
 
 // instanceCreateAsCopy create a new instance by copying from an existing instance.
@@ -401,6 +402,11 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 				Project:      opts.targetInstance.Project,
 				ExpiryDate:   srcSnap.ExpiryDate(),
 				CreationDate: srcSnap.CreationDate(),
+			}
+
+			// Fix target profiles
+			if opts.overrideSnapshotProfiles {
+				snapInstArgs.Profiles = opts.targetInstance.Profiles
 			}
 
 			// Create the snapshots.
