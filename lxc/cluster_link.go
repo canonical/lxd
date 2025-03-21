@@ -50,6 +50,10 @@ func (c *cmdClusterLink) command() *cobra.Command {
 	clusterLinkEditCmd := cmdClusterLinkEdit{global: c.global, cluster: c.cluster}
 	cmd.AddCommand(clusterLinkEditCmd.command())
 
+	// Show
+	clusterLinkShowCmd := cmdClusterLinkShow{global: c.global, cluster: c.cluster}
+	cmd.AddCommand(clusterLinkShowCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -490,6 +494,67 @@ func (c *cmdClusterLinkEdit) run(cmd *cobra.Command, args []string) error {
 	if !c.global.flagQuiet {
 		fmt.Printf("Cluster link %s updated"+"\n", resource.name)
 	}
+
+	return nil
+}
+
+// Show.
+type cmdClusterLinkShow struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+}
+
+func (c *cmdClusterLinkShow) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("show", "[<remote>:]<link>")
+	cmd.Short = "Show cluster link configurations"
+	cmd.Long = cli.FormatSection("Description", `Show cluster link configurations`)
+	cmd.Example = cli.FormatSection("", `lxc cluster link show backup-cluster
+    Will show the properties of a cluster link called "backup-cluster".`)
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("cluster_link", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdClusterLinkShow) run(cmd *cobra.Command, args []string) error {
+	// Quick checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing cluster link name")
+	}
+
+	clusterLink, _, err := resource.server.GetClusterLink(resource.name)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&clusterLink)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
 
 	return nil
 }
