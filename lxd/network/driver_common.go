@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"unicode"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/bgp"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
@@ -671,7 +673,7 @@ func (n *common) bgpClearPeers(config map[string]string) error {
 		// Remove the peer.
 		fields := strings.Split(peer, ",")
 		err := n.state.BGP.RemovePeer(net.ParseIP(fields[0]))
-		if err != nil {
+		if err != nil && !errors.Is(err, bgp.ErrPeerNotFound) {
 			return err
 		}
 	}
