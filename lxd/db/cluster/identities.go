@@ -126,6 +126,8 @@ const (
 	identityTypeCertificateMetricsUnrestricted int64 = 6
 	identityTypeCertificateClient              int64 = 7
 	identityTypeCertificateClientPending       int64 = 8
+	identityTypeCertificateClusterLink         int64 = 9
+	identityTypeCertificateClusterLinkPending  int64 = 10
 )
 
 // Scan implements sql.Scanner for IdentityType. This converts the integer value back into the correct API constant or
@@ -162,6 +164,10 @@ func (i *IdentityType) Scan(value any) error {
 		*i = api.IdentityTypeCertificateClient
 	case identityTypeCertificateClientPending:
 		*i = api.IdentityTypeCertificateClientPending
+	case identityTypeCertificateClusterLink:
+		*i = api.IdentityTypeCertificateClusterLink
+	case identityTypeCertificateClusterLinkPending:
+		*i = api.IdentityTypeCertificateClusterLinkPending
 	default:
 		return fmt.Errorf("Unknown identity type `%d`", identityTypeInt)
 	}
@@ -188,6 +194,10 @@ func (i IdentityType) Value() (driver.Value, error) {
 		return identityTypeCertificateClient, nil
 	case api.IdentityTypeCertificateClientPending:
 		return identityTypeCertificateClientPending, nil
+	case api.IdentityTypeCertificateClusterLink:
+		return identityTypeCertificateClusterLink, nil
+	case api.IdentityTypeCertificateClusterLinkPending:
+		return identityTypeCertificateClusterLinkPending, nil
 	}
 
 	return nil, fmt.Errorf("Invalid identity type %q", i)
@@ -359,6 +369,28 @@ func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
 	return &metadata, nil
 }
 
+// PendingClusterLinkMetadata contains metadata for the pending cluter link certificate identity type.
+type PendingClusterLinkMetadata struct {
+	Secret   string    `json:"secret"`
+	Expiry   time.Time `json:"expiry"`
+	Adresses []string  `json:"addresses"`
+}
+
+// PendingClusterLinkMetadata returns the pending TLS identity metadata.
+func (i Identity) PendingClusterLinkMetadata() (*PendingTLSMetadata, error) {
+	if i.Type != api.IdentityTypeCertificateClusterLinkPending {
+		return nil, api.NewStatusError(http.StatusBadRequest, "Cannot extract pending cluster link identity secret: Identity is not pending")
+	}
+
+	var metadata PendingTLSMetadata
+	err := json.Unmarshal([]byte(i.Metadata), &metadata)
+	if err != nil {
+		return nil, api.StatusErrorf(http.StatusInternalServerError, "Failed to unmarshal pending cluster link identity metadata: %w", err)
+	}
+
+	return &metadata, nil
+}
+
 // ToAPI converts an Identity to an api.Identity, executing database queries as necessary.
 func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.Identity, error) {
 	groups, err := GetAuthGroupsByIdentityID(ctx, tx, i.ID)
@@ -439,6 +471,65 @@ SELECT identities.id, identities.auth_method, identities.type, identities.identi
 // secret in its metadata. If no pending identity is found, an api.StatusError is returned with http.StatusNotFound.
 func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*Identity, error) {
 	identities, err := getIdentitysRaw(ctx, tx, getPendingTLSIdentityByTokenSecretStmt, secret)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(identities) == 0 {
+		return nil, api.NewStatusError(http.StatusNotFound, "No pending identities found with given secret")
+	} else if len(identities) > 1 {
+		return nil, errors.New("Multiple pending identities found with given secret")
+	}
+
+	return &identities[0], nil
+}
+
+// ActivateClusterLinkIdentity updates a cluster link identity to make it valid by adding the fingerprint, PEM encoded certificate, and setting
+// the type to api.IdentityTypeClusterLink.
+func ActivateClusterLinkIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate) error {
+	fingerprint := shared.CertFingerprint(cert)
+	_, err := GetIdentityID(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
+	if err == nil {
+		return api.StatusErrorf(http.StatusConflict, "Identity already exists")
+	}
+
+	metadata := CertificateMetadata{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))}
+	b, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("Failed to encode certificate metadata: %w", err)
+	}
+
+	stmt := `UPDATE identities SET type = ?, identifier = ?, metadata = ? WHERE identifier = ? AND auth_method = ?`
+	res, err := tx.ExecContext(ctx, stmt, identityTypeCertificateClusterLink, fingerprint, string(b), identifier.String(), authMethodTLS)
+	if err != nil {
+		return fmt.Errorf("Failed to activate cluster link identity: %w", err)
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed to check for activated cluster link identity: %w", err)
+	}
+
+	if n == 0 {
+		return api.StatusErrorf(http.StatusNotFound, "No pending cluster link identity found with identifier %q", identifier)
+	} else if n > 1 {
+		return fmt.Errorf("Unknown error occurred when activating a cluster link identity: %w", err)
+	}
+
+	return nil
+}
+
+var getPendingClusterLinkIdentityByTokenSecretStmt = fmt.Sprintf(`
+SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
+	FROM identities
+	WHERE identities.type = %d
+	AND json_extract(identities.metadata, '$.secret') = ?
+`, identityTypeCertificateClusterLinkPending)
+
+// GetPendingClusterLinkIdentityByTokenSecret gets a single identity of type identityTypeCertificateClusterLinkPending with the given
+// secret in its metadata. If no pending identity is found, an api.StatusError is returned with http.StatusNotFound.
+func GetPendingClusterLinkIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*Identity, error) {
+	identities, err := getIdentitysRaw(ctx, tx, getPendingClusterLinkIdentityByTokenSecretStmt, secret)
 	if err != nil {
 		return nil, err
 	}

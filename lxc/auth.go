@@ -845,6 +845,9 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 		stdinData.Certificate = string(pemEncodedX509Cert)
 	}
 
+	// Add identity type
+	stdinData.Type = api.IdentityTypeCertificateClient
+
 	// Expect that if the caller did not provide a certificate then they want to get a token.
 	if stdinData.Certificate == "" {
 		stdinData.Token = true

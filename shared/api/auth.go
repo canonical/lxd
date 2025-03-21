@@ -32,6 +32,12 @@ const (
 
 	// IdentityTypeOIDCClient represents an identity that authenticates with OIDC.
 	IdentityTypeOIDCClient = "OIDC client"
+
+	// IdentityTypeCertificateClusterLink represents cluster links that authenticate using TLS and whose permissions are managed via group ownership.
+	IdentityTypeCertificateClusterLink = "Cluster link certificate"
+
+	// IdentityTypeCertificateClusterLinkPending represents cluster links for which a token has been issued but who have not yet authenticated with a linked LXD cluster.
+	IdentityTypeCertificateClusterLinkPending = "Cluster link certificate (pending)"
 )
 
 // WithEntitlements is meant to be an embedded struct to API types eligible for entitlement enrichment,
@@ -164,6 +170,10 @@ type IdentitiesTLSPost struct {
 	// Groups is the list of groups for which the identity is a member.
 	// Example: ["foo", "bar"]
 	Groups []string `json:"groups" yaml:"groups"`
+
+	// Type of TLS identity.
+	// Example: client
+	Type string `json:"type" yaml:"type"`
 }
 
 // AuthGroup is the type for a LXD group.

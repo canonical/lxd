@@ -122,6 +122,45 @@ You can increase that number to improve fault tolerance and the likelihood of th
 To do so, set the {config:option}`server-cluster:cluster.images_minimal_replica` configuration.
 The special value of `-1` can be used to have the image copied to all cluster members.
 
+(cluster-links)=
+## Cluster links
+
+Cluster links establish trust relationships between independent LXD clusters, enabling cross-cluster operations. With cluster links, you can:
+
+- Create secure authenticated connections between clusters
+- Delegate specific operations from one cluster to another
+- Control access through identity groups and fine-grained permissions
+
+### How cluster links work
+
+A cluster link is a bidirectional trust relationship where each cluster:
+
+- Stores the TLS certificate of the other cluster for authentication
+- Can be assigned to specific identity groups for permission control
+- Maintains its own independent database and configuration
+
+To create a cluster link, you use the `lxc cluster link add` command to generate a token from the source cluster, then use this token on the target cluster to complete the link. The command format is:
+
+```
+# On the source cluster (Cluster A)
+lxc cluster link add <target-name> [--address <addr1>,<addr2>] [--group <group1>,<group2>] [--description <description>]
+
+# On the target cluster (Cluster B), using the token from Cluster A
+lxc cluster link add <source-name> <token> [--address <addr1>,<addr2>] [--group <group1>,<group2>] [--description <description>]
+```
+
+During the linking process, both clusters validate each other's certificates and network connectivity to ensure secure communication.
+
+### Managing cluster links
+
+You can manage your cluster links with the following commands:
+
+- `lxc cluster link list` - Shows all established cluster links
+- `lxc cluster link edit <link-name>` - Modifies link properties
+- `lxc cluster link remove <link-name>` - Removes a cluster link
+
+For detailed instructions on creating and managing cluster links, see {ref}`cluster-link`.
+
 (cluster-groups)=
 ## Cluster groups
 

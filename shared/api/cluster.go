@@ -367,3 +367,70 @@ func (c *ClusterGroup) SetWritable(put ClusterGroupPut) {
 	c.Description = put.Description
 	c.Members = put.Members
 }
+
+// ClusterLink represents high-level information about a cluster link.
+//
+// swagger:model
+//
+// API extension: cluster_links.
+type ClusterLink struct {
+	// The name of the cluster
+	// Example: lxd02
+	Name string `json:"name" yaml:"name"`
+
+	// The cluster endpoint addresses
+	// Example: [10.0.0.1:8443, 10.0.0.2:8443]
+	Addresses []string `json:"addresses" yaml:"addresses"`
+
+	// Description of the cluster
+	// Example: Backup LXD cluster
+	Description string `json:"description" yaml:"description"`
+
+	// List of auth groups this cluster link belongs to
+	// Example: ["foo", "bar"]
+	Groups []string `json:"groups" yaml:"groups"`
+}
+
+// ClusterLinkPut represents the modifiable fields of a cluster link.
+//
+// swagger:model
+//
+// API extension: cluster_links.
+type ClusterLinkPut struct {
+	// Description of the cluster
+	// Example: Backup LXD cluster
+	Description string `json:"description" yaml:"description"`
+
+	// The cluster endpoint addresses
+	// Example: [10.0.0.1:8443, 10.0.0.2:8443]
+	Addresses []string `json:"addresses" yaml:"addresses"`
+
+	// List of auth groups this cluster link belongs to
+	// Example: ["foo", "bar"]
+	Groups []string `json:"groups" yaml:"groups"`
+}
+
+// ClusterLinkPost represents the fields available for a new cluster link.
+//
+// swagger:model
+//
+// API extension: cluster_links.
+type ClusterLinkPost struct {
+	ClusterLinkPut `yaml:",inline"`
+
+	// The name of the cluster
+	// Example: lxd02
+	Name string `json:"name" yaml:"name"`
+
+	// API extension: explicit_trust_token
+	TrustToken string `json:"trust_token" yaml:"trust_token"`
+}
+
+// Writable converts a full ClusterLink struct into a ClusterLinkPut struct (filters read-only fields).
+func (clusterLink *ClusterLink) Writable() ClusterLinkPut {
+	return ClusterLinkPut{
+		Description: clusterLink.Description,
+		Addresses:   clusterLink.Addresses,
+		Groups:      clusterLink.Groups,
+	}
+}
