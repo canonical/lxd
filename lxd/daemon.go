@@ -1683,7 +1683,7 @@ func (d *Daemon) init() error {
 	if lokiURL != "" {
 		err = d.setupLoki(lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes)
 		if err != nil {
-			return err
+			logger.Warn("Failed to setup Loki", logger.Ctx{"err": err})
 		}
 	}
 
