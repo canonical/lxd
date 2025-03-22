@@ -218,7 +218,8 @@ func (d *lvm) DeleteVolume(vol Volume, op *operations.Operation) error {
 	}
 
 	if lvExists {
-		if vol.contentType == ContentTypeFS {
+		// Only call UnmountVolume if mounted to avoid breaking deactivaion ref counts.
+		if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(vol.MountPath()) {
 			_, err = d.UnmountVolume(vol, false, op)
 			if err != nil {
 				return fmt.Errorf("Error unmounting LVM logical volume: %w", err)
@@ -1089,9 +1090,12 @@ func (d *lvm) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	}
 
 	if lvExists {
-		_, err = d.UnmountVolumeSnapshot(snapVol, op)
-		if err != nil {
-			return fmt.Errorf("Error unmounting LVM logical volume: %w", err)
+		// Only call UnmountVolumeSnapshot if mounted to avoid breaking deactivaion ref counts.
+		if snapVol.contentType == ContentTypeFS && filesystem.IsMountPoint(snapVol.MountPath()) {
+			_, err = d.UnmountVolumeSnapshot(snapVol, op)
+			if err != nil {
+				return fmt.Errorf("Error unmounting LVM logical volume: %w", err)
+			}
 		}
 
 		err = d.removeLogicalVolume(d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, snapVol.name))
