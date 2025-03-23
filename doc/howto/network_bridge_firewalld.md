@@ -1,5 +1,5 @@
 ---
-discourse: lxc:10034,lxc:9953
+discourse: lxc:[Lxd&#32;bridge&#32;doesn't&#32;work&#32;with&#32;IPv4&#32;and&#32;UFW&#32;with&#32;nftables](10034),lxc:[LXD&#32;and&#32;Docker&#32;Firewall&#32;Redux&#32;-&#32;How&#32;to&#32;deal&#32;with&#32;FORWARD&#32;policy&#32;set&#32;to&#32;drop](9953)
 ---
 
 (network-bridge-firewall)=

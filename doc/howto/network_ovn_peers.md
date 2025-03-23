@@ -1,5 +1,5 @@
 ---
-discourse: lxc:12165
+discourse: lxc:[OVN&#32;network&#32;to&#32;network&#32;routing](12165)
 ---
 
 (network-ovn-peers)=

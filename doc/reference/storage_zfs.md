@@ -1,5 +1,5 @@
 ---
-discourse: lxc:15872
+discourse: lxc:[ZFS&#32;block&#32;mode](15872)
 ---
 
 (storage-zfs)=

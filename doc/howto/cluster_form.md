@@ -1,5 +1,5 @@
 ---
-discourse: lxc:15871
+relatedlinks: '[MicroCloud](https://canonical.com/microcloud)'
 ---
 
 (cluster-form)=

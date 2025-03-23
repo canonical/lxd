@@ -1,5 +1,5 @@
 ---
-discourse: lxc:9223
+discourse: lxc:[GUI&#32;in&#32;Virtual&#32;Machines/VMs](9223)
 ---
 
 (instances-console)=
