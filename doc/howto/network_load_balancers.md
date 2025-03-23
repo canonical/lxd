@@ -1,5 +1,5 @@
 ---
-discourse: lxc:14317
+discourse: lxc:[Network&#32;load-balancers&#32;(OVN)](14317)
 ---
 
 (network-load-balancers)=

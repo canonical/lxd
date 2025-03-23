@@ -1,5 +1,5 @@
 ---
-discourse: lxc:8355
+discourse: lxc:[Using&#32;proxy&#32;device&#32;to&#32;forward&#32;network&#32;connections&#32;from&#32;host&#32;to&#32;container&#32;in&#32;NAT&#32;mode](8355)
 ---
 
 (devices-proxy)=

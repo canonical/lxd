@@ -1,5 +1,5 @@
 ---
-discourse: lxc:1333
+discourse: lxc:[How&#32;to&#32;resize&#32;ZFS&#32;used&#32;in&#32;LXD](1333)
 ---
 
 (howto-storage-pools)=

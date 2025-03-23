@@ -1,5 +1,5 @@
 ---
-discourse: lxc:13223
+discourse: lxc:[Network&#32;ACL&#32;logging](13223)
 ---
 
 (network-acls)=
