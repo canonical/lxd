@@ -1,5 +1,5 @@
 ---
-discourse: lxc:15728
+discourse: lxc:[Scriptlet&#32;based&#32;instance&#32;placement&#32;scheduler](15728)
 ---
 
 (exp-clusters)=
