@@ -20,6 +20,76 @@ When assigned to a network, the ACL applies to all NICs connected to the network
 The instance NICs that have a particular ACL applied (either explicitly or implicitly through a network) make up a logical group, which can be referenced from other rules as a source or destination.
 See {ref}`network-acls-groups` for more information.
 
+## List ACLs
+
+`````{tabs}
+````{group-tab} CLI
+
+To list all ACLs, run:
+
+```
+lxc network acl list
+```
+
+````
+
+````{group-tab} API
+
+To list all ACLs, query the `/1.0/network-acls` endpoint:
+
+```
+lxc query --request GET /1.0/network-acls
+```
+
+See [the API reference](swagger:/network-acls/network_acls_get) for more information.
+
+You can also use {ref}`recursion <rest-api-recursion>` to list the ACLs with a higher level of detail:
+
+```
+lxc query --request GET /1.0/network-acls?recursion=1
+```
+
+````
+`````
+
+## Show an ACL
+
+`````{tabs}
+````{group-tab} CLI
+
+To show details about a specific ACL, run:
+
+```
+lxc network acl show <acl_name>
+```
+
+Example:
+
+```
+lxc network acl show my-acl
+```
+
+````
+
+````{group-tab} API
+
+For details about a specific ACL, query the following endpoint:
+
+```
+lxc query --request GET /1.0/network-acls/{name}
+```
+
+See [the API reference](swagger:/network-acls/network_acl_get) for more information.
+
+Example:
+
+```
+lxc query --request GET /1.0/network-acls/my-acl
+```
+
+````
+`````
+
 ## Create an ACL
 
 Use the following command to create an ACL:
