@@ -236,9 +236,9 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 	fmt.Println("Starting recovery...")
 
 	// Send /internal/recover/import request to LXD.
-	// Don't lint next line with gosimple. It says we should convert reqValidate directly to an internalRecoverImportPost
+	// Don't lint next line with staticcheck. It says we should convert reqValidate directly to an internalRecoverImportPost
 	// because their types are identical. This is less clear and will not work if either type changes in the future.
-	reqImport := internalRecoverImportPost{ //nolint:gosimple
+	reqImport := internalRecoverImportPost{ //nolint:staticcheck
 		Pools: reqValidate.Pools,
 	}
 
