@@ -6,9 +6,9 @@
 # mesa-2404 snap with NVIDIA drivers connected to it. (At least, I don't know one.)
 # Let's do this like that for now at least for PoC purpose.
 #
-if snapctl is-connected gpu-2404 &&
-   [ -f "${SNAP}/gpu-2404-2/usr/lib/x86_64-linux-gnu/libnvidia-ml.so" ] &&
-   [ -f "${SNAP}/gpu-2404-2/usr/lib/x86_64-linux-gnu/libcuda.so" ];
+if [ -f "${SNAP}/gpu-2404-2/usr/lib/x86_64-linux-gnu/libnvidia-ml.so" ] &&
+   [ -f "${SNAP}/gpu-2404-2/usr/lib/x86_64-linux-gnu/libcuda.so" ] &&
+   snapctl is-connected gpu-2404;
 then
     # We have NVIDIA drivers snap connected, let's use it
     exec nvidia-container-cli.real "$@"

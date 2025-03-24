@@ -109,7 +109,7 @@ fi
 
 # Setup rshared propagation on mount holding paths
 for path in "${SNAP_COMMON}/lxd/storage-pools" "${SNAP_COMMON}/lxd/devices"; do
-    if ! cut -d' ' -f5 /proc/self/mountinfo | grep -qF "${path}"; then
+    if ! cut -d' ' -f5 /proc/self/mountinfo | grep -qxF "${path}"; then
         echo "==> Setting up mount propagation on ${path}"
         if [ ! -e "${path}" ]; then
             mkdir -p "${path}"
@@ -170,7 +170,7 @@ echo "==> Preparing a clean copy of /run"
 if [ -e "/run/.lxd_generated" ]; then
     umount -l /run
 fi
-mount -t tmpfs tmpfs /run -o mode=0755,nosuid,nodev
+mount -t tmpfs tmpfs /run -o mode=0755,nosuid,nodev,size=4M
 touch /run/.lxd_generated
 for entry in NetworkManager resolvconf netconfig snapd snapd.socket snapd-snap.socket systemd udev user; do
     [ -e "/var/lib/snapd/hostfs/run/${entry}" ] || [ -L "/var/lib/snapd/hostfs/run/${entry}" ] || continue
@@ -257,7 +257,7 @@ echo "==> Preparing a clean copy of /etc"
 if [ -e "/etc/.lxd_generated" ]; then
     umount -l /etc
 fi
-mount -t tmpfs tmpfs /etc -o mode=0755
+mount -t tmpfs tmpfs /etc -o mode=0755,nosuid,nodev,size=4M
 touch /etc/.lxd_generated
 
 ## Generate a new ld.so.cache
@@ -298,7 +298,7 @@ echo "==> Preparing a clean copy of /usr/share/misc"
 if [ -e "/usr/share/misc/.lxd_generated" ]; then
     umount -l /usr/share/misc
 fi
-mount -t tmpfs tmpfs /usr/share/misc -o mode=0755
+mount -t tmpfs tmpfs /usr/share/misc -o mode=0755,nosuid,nodev,size=4M
 touch /usr/share/misc/.lxd_generated
 ln -s "${SNAP_CURRENT}/share/misc/pci.ids" /usr/share/misc/
 ln -s "${SNAP_CURRENT}/share/misc/usb.ids" /usr/share/misc/
@@ -530,7 +530,6 @@ export LXD_DOCUMENTATION="${SNAP_CURRENT}/share/lxd-documentation"
 # LXC
 ## Host specific overrides
 mkdir -p "${SNAP_COMMON}/lxc"
-touch "${SNAP_COMMON}/lxc/local.conf"
 if [ -d /sys/kernel/security/apparmor ] && ! grep -qF -- "-Ubuntu" /proc/version; then
     echo "==> Detected kernel with partial AppArmor support"
     echo "lxc.apparmor.allow_incomplete = 1" > "${SNAP_COMMON}/lxc/local.conf"
