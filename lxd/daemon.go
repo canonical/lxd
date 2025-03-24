@@ -60,6 +60,7 @@ import (
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
 	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
@@ -2055,6 +2056,47 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 
 	// Cancelling the context will make everyone aware that we're shutting down.
 	d.shutdownCancel()
+
+	// If we're in a snap and we asked for a graceful shutdown,
+	// we start a ticker gorountine that in case of a very long shutdown process
+	// can extend the systemd stop timeout of the LXD daemon.
+	if sig == unix.SIGPWR && shared.InSnap() {
+		// Get the original LXD daemon stop-timout.
+		start := time.Now()
+		stopTimeout, err := resources.GetSystemdStopTimeout(ctx)
+		if err != nil {
+			logger.Error("Failed to get systemd stop timeout", logger.Ctx{"err": err})
+		}
+
+		paddingDuration := 20 * time.Second
+		augmentedDuration := time.Minute
+
+		// If the shutdown process is still not finished after `stopTimeout - paddingDuration`,
+		// we will augment the timeout by `augmentedDuration`. This is to avoid the systemd
+		// timeout to kill the LXD daemon (for example, we might have operations on instances that take a very long time (e.g, large VM updates, etc.)).
+		go func() {
+			ticker := time.NewTicker(2 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					logger.Info("Shutdown process finished, no need to extend LXD snap daemon stop timeout")
+					return
+				case <-ticker.C:
+					if time.Since(start) > stopTimeout-paddingDuration {
+						logger.Warn("Shutdown process is taking a long time, extending LXD snap daemon stop timeout")
+						err = resources.ExtendSystemdTimeout(ctx, augmentedDuration)
+						if err != nil {
+							logger.Error("Failed to extend systemd stop timeout", logger.Ctx{"err": err})
+						}
+
+						stopTimeout += augmentedDuration
+						logger.Info("Systemd stop timeout extended", logger.Ctx{"newStopTimeout": stopTimeout})
+					}
+				}
+			}
+		}()
+	}
 
 	if d.gateway != nil {
 		d.stopClusterTasks()
