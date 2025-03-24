@@ -722,7 +722,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	}
 
 	if instName != backupConf.Instance.Name {
-		return fmt.Errorf("Instance name requested %q doesn't match instance name in backup config %q", instName, backupConf.Instance.Name)
+		return fmt.Errorf("Requested instance name %q doesn't match instance name %q in backup config", instName, backupConf.Instance.Name)
 	}
 
 	if len(backupConf.Pools) == 0 {
@@ -809,11 +809,11 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 		}
 
 		if dbVolume.Name != rootVol.Name {
-			return fmt.Errorf(`The name %q of the storage volume is not identical to the instance's name "%s"`, dbVolume.Name, backupConf.Instance.Name)
+			return fmt.Errorf(`The storage volume name %q does not match the instance's name %q`, dbVolume.Name, backupConf.Instance.Name)
 		}
 
 		if dbVolume.Type != rootVol.Type {
-			return fmt.Errorf(`The type %q of the storage volume is not identical to the instance's type %q`, dbVolume.Type, rootVol.Type)
+			return fmt.Errorf(`The storage volume type %q does not match the instance's type %q`, dbVolume.Type, rootVol.Type)
 		}
 
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
