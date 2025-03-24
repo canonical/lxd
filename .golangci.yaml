@@ -82,12 +82,6 @@ linters:
         - name: error-return
   exclusions:
     generated: lax
-    rules:
-      # When removing a node from a cluster, we try to re-exec its daemon to clear its state, but
-      # if LXD is using systemd socket activation then we just want to call os.Exit() directly.
-      # In this case the socket FDs and environment vars may be different, so we can't re-exec.
-      - path: lxd/api_cluster.go
-        text: deep-exit
     paths:
       - third_party$
       - builtin$
