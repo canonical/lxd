@@ -200,7 +200,7 @@ func main() {
 
 	// recover sub-command
 	recoverCmd := cmdRecover{global: &globalCmd}
-	app.AddCommand(recoverCmd.Command())
+	app.AddCommand(recoverCmd.command())
 
 	// shutdown sub-command
 	shutdownCmd := cmdShutdown{global: &globalCmd}
