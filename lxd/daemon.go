@@ -58,6 +58,7 @@ import (
 	"github.com/canonical/lxd/lxd/metrics"
 	networkZone "github.com/canonical/lxd/lxd/network/zone"
 	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
@@ -1524,26 +1525,6 @@ func (d *Daemon) init() error {
 
 	d.gateway.Cluster = d.db.Cluster
 
-	// This logic used to belong to patchUpdateFromV10, but has been moved
-	// here because it needs database access.
-	if shared.PathExists(shared.VarPath("lxc")) {
-		err := os.Rename(shared.VarPath("lxc"), shared.VarPath("containers"))
-		if err != nil {
-			return err
-		}
-
-		logger.Debug("Restarting all the containers following directory rename")
-
-		s := d.State()
-		instances, err := instance.LoadNodeAll(s, instancetype.Container)
-		if err != nil {
-			return fmt.Errorf("Failed loading containers to restart: %w", err)
-		}
-
-		instancesShutdown(instances)
-		instancesStart(s, instances)
-	}
-
 	// Setup the user-agent.
 	if d.serverClustered {
 		version.UserAgentFeatures([]string{"cluster"})
@@ -2035,6 +2016,27 @@ func (d *Daemon) numRunningInstances(instances []instance.Instance) int {
 	return count
 }
 
+// cancelCancelableOps cancels all running cancelable operations.
+func cancelCancelableOps() error {
+	ops := operations.Clone()
+	for _, op := range ops {
+		if op.Status() != api.Running || op.Class() == operations.OperationClassToken {
+			continue
+		}
+
+		_, opAPI, err := op.Render()
+		if err != nil {
+			return fmt.Errorf("Failed to render an operation while attempting to stop cancelable operations: %w", err)
+		}
+
+		if opAPI.MayCancel {
+			_, _ = op.Cancel()
+		}
+	}
+
+	return nil
+}
+
 // Stop stops the shared daemon.
 func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	logger.Info("Starting shutdown sequence", logger.Ctx{"signal": sig})
@@ -2081,38 +2083,45 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		}
 	}
 
+	ctx, cancel := context.WithTimeout(ctx, s.GlobalConfig.ShutdownTimeout())
+	defer cancel()
+
 	// Handle shutdown (unix.SIGPWR) and reload (unix.SIGTERM) signals.
 	if sig == unix.SIGPWR || sig == unix.SIGTERM {
-		if d.db.Cluster != nil {
-			// waitForOperations will block until all operations are done, or it's forced to shut down.
-			// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
-			// initiated using `lxd shutdown`.
-			waitForOperations(ctx, d.db.Cluster, s.GlobalConfig.ShutdownTimeout())
-		}
-
-		// Unmount daemon image and backup volumes if set.
-		logger.Info("Stopping daemon storage volumes")
-		volUnmountCtx, cancel := context.WithTimeout(ctx, time.Minute)
-		defer cancel()
-
-		err := daemonStorageVolumesUnmount(s, volUnmountCtx)
-		if err != nil {
-			logger.Error("Failed to unmount image and backup volumes", logger.Ctx{"err": err})
-		}
-
 		// Full shutdown requested.
 		if sig == unix.SIGPWR {
-			instancesShutdown(instances)
+			logger.Debug("Shutting down instances")
+			instancesShutdown(ctx, instances)
+
+			if d.db.Cluster != nil {
+				// Try to cancel any cancelable operations.
+				err = cancelCancelableOps()
+				if err != nil {
+					logger.Error("Failed to cancel cancelable operations", logger.Ctx{"err": err})
+				}
+			}
 
 			logger.Info("Stopping networks")
 			networkShutdown(s)
 
-			// Unmount storage pools after instances stopped.
+			// Unmount daemon image and backup volumes if set.
+			logger.Info("Stopping daemon storage volumes")
+			logger.Debug("Unmounting daemon storage volumes")
+			volUnmountCtx, cancel := context.WithTimeout(ctx, time.Minute)
+			defer cancel()
+			err := daemonStorageVolumesUnmount(s, volUnmountCtx)
+			if err != nil {
+				logger.Error("Failed to unmount image and backup volumes", logger.Ctx{"err": err})
+			}
+
+			logger.Debug("Daemon storage volumes unmounted")
+
+			// Unmount storage pools after instances stopped and images/backup volumes unmounted.
 			logger.Info("Stopping storage pools")
 
 			var pools []string
 
-			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				var err error
 
 				pools, err = tx.GetStoragePoolNames(ctx)
@@ -2135,6 +2144,23 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 					logger.Error("Unable to unmount storage pool", logger.Ctx{"pool": poolName, "err": err})
 					continue
 				}
+			}
+		}
+
+		if d.db.Cluster != nil {
+			// Remove remaining operations before closing the database.
+			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				err := dbCluster.DeleteOperations(ctx, tx.Tx(), s.DB.Cluster.GetNodeID())
+				if err != nil {
+					logger.Error("Failed cleaning up operations")
+				}
+
+				return nil
+			})
+			if err != nil {
+				logger.Error("Failed cleaning up operations", logger.Ctx{"err": err})
+			} else {
+				logger.Debug("Operations deleted from the database")
 			}
 		}
 	}
