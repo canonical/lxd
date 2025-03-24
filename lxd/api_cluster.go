@@ -3046,7 +3046,8 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	if req.Action == "evacuate" {
+	switch req.Action {
+	case "evacuate":
 		stopFunc := func(inst instance.Instance) error {
 			l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 
@@ -3121,7 +3122,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		return evacuateClusterMember(s, d.gateway, r, req.Mode, stopFunc, migrateFunc)
-	} else if req.Action == "restore" {
+	case "restore":
 		return restoreClusterMember(d, r)
 	}
 
@@ -3209,9 +3210,10 @@ func evacuateClusterSetState(s *state.State, name string, state int) error {
 
 		// Do nothing if the node is already in expected state.
 		if node.State == state {
-			if state == db.ClusterMemberStateEvacuated {
+			switch state {
+			case db.ClusterMemberStateEvacuated:
 				return fmt.Errorf("Cluster member is already evacuated")
-			} else if state == db.ClusterMemberStateCreated {
+			case db.ClusterMemberStateCreated:
 				return fmt.Errorf("Cluster member is already restored")
 			}
 
@@ -3329,13 +3331,14 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 
 		// Apply overrides.
 		if opts.mode != "" {
-			if opts.mode == "stop" {
+			switch opts.mode {
+			case "stop":
 				migrate = false
 				live = false
-			} else if opts.mode == "migrate" {
+			case "migrate":
 				migrate = true
 				live = false
-			} else if opts.mode == "live-migrate" {
+			case "live-migrate":
 				migrate = true
 				live = true
 			}
@@ -3343,7 +3346,7 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 
 		// Stop the instance if needed.
 		isRunning := inst.IsRunning()
-		if opts.stopInstance != nil && isRunning && !(migrate && live) {
+		if opts.stopInstance != nil && isRunning && (!migrate || !live) {
 			metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), instProject.Name)
 			_ = opts.op.UpdateMetadata(metadata)
 
