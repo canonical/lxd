@@ -12,9 +12,9 @@ test_pki() {
     cd "${TEST_DIR}/pki"
 
     cat << EOF > vars
+set_var EASYRSA_ALGO ec
 set_var EASYRSA_BATCH yes
 EOF
-    export EASYRSA_KEY_SIZE=4096
 
     # shellcheck disable=SC1091
     if [ -e pkitool ]; then
