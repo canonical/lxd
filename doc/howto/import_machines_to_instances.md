@@ -1,5 +1,5 @@
 ---
-discourse: lxc:14345
+discourse: lxc:[Using&#32;lxd-migrate&#32;to&#32;convert&#32;a&#32;physical&#32;host&#32;to&#32;a&#32;container](14345)
 ---
 
 (import-machines-to-instances)=

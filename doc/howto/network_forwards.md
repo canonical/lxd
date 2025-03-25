@@ -1,5 +1,5 @@
 ---
-discourse: lxc:11801
+discourse: lxc:[Floating&#32;IP&#32;addresses](11801)
 ---
 
 (network-forwards)=
