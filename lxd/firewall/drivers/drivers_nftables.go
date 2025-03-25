@@ -941,7 +941,7 @@ func (d Nftables) aclRulePortToACLMatch(direction string, portCriteria ...string
 	for _, portCriterion := range portCriteria {
 		criterionParts := strings.SplitN(portCriterion, "-", 2)
 		if len(criterionParts) > 1 {
-			fieldParts = append(fieldParts, criterionParts[0]+criterionParts[1])
+			fieldParts = append(fieldParts, criterionParts[0]+"-"+criterionParts[1])
 		} else {
 			fieldParts = append(fieldParts, criterionParts[0])
 		}
