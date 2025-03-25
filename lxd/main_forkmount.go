@@ -23,8 +23,10 @@ package main
 #include "lxd.h"
 #include "memory_utils.h"
 #include "mount_utils.h"
+#include "process_utils.h"
 #include "syscall_numbers.h"
 #include "syscall_wrappers.h"
+#include "../shared/netutils/unixfd.h"
 
 #define VERSION_AT_LEAST(major, minor, micro)							\
 	((LXC_DEVEL == 1) || (!(major > LXC_VERSION_MAJOR ||					\
@@ -550,6 +552,191 @@ static void do_lxc_forkumount(void)
 #endif
 }
 
+static void do_mount_bpffs(int pidfd, int ns_fd)
+{
+	__do_close int fs_fd = -EBADF, mnt_fd = -EBADF;
+	int ret;
+	char *mountpoint;
+	char *delegate_cmds, *delegate_maps, *delegate_progs, *delegate_attachs;
+	int sk_fds[2] = {-EBADF, -EBADF};
+	pid_t child_pid = -1;
+	struct unix_fds fds = {};
+	char buf[50];
+	char *bpffs_fd_ready = "BPFFSFDREADY";
+	char *bpffs_mnt_ready = "BPFFSMNTREADY";
+
+	mountpoint = advance_arg(true);
+	delegate_cmds = advance_arg(true);
+	delegate_maps = advance_arg(true);
+	delegate_progs = advance_arg(true);
+	delegate_attachs = advance_arg(true);
+
+	ret = socketpair(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0, sk_fds);
+	if (ret < 0) {
+		fprintf(stderr,
+			"%s - Failed to create anonymous unix socket pair\n",
+			strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+
+	child_pid = fork();
+	if (child_pid < 0) {
+		fprintf(stderr,
+			"%s - Failed to fork()\n",
+			strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+
+	if (child_pid == 0) {
+		__do_close int mountpoint_fd = -EBADF;
+
+		// close parent's socket
+		close(sk_fds[0]);
+
+		// 1. Go into container's user & mount namespace
+
+		attach_userns_fd(ns_fd);
+
+		if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNS))
+			die("Failed setns to container mount namespace");
+
+		// 2. Create bpf filesystem file_context fd (tied to users)
+
+		fs_fd = lxd_fsopen("bpf", FSOPEN_CLOEXEC);
+		if (fs_fd < 0)
+			die("fsopen: bpf");
+
+		// 3. Send bpf filesystem file_context fd to a parent process
+
+		ret = lxc_abstract_unix_send_fds(sk_fds[1], &fs_fd, 1, bpffs_fd_ready, sizeof(bpffs_fd_ready));
+		if (ret < 0)
+			die("lxc_abstract_unix_send_fds(bpffs_fd_ready) failed");
+
+		close_prot_errno_disarm(fs_fd);
+
+		// 8. Get the detached mount of bpf filesystem from the parent process
+
+		fds.fd_count_max = 1;
+		fds.flags = UNIX_FDS_ACCEPT_EXACT;
+		ret = lxc_abstract_unix_recv_fds(sk_fds[1], &fds, buf, sizeof(buf));
+		if (ret < 0 || fds.fd_count_ret != 1 || strncmp(buf, bpffs_mnt_ready, sizeof(bpffs_mnt_ready)))
+			die("lxc_abstract_unix_recv_fds(bpffs_mnt_ready) failed");
+		mnt_fd = fds.fd[0];
+
+		mountpoint_fd = make_dest_open(mnt_fd, mountpoint);
+		if (mountpoint_fd < 0)
+			die("Failed to create destination mount point");
+
+		// 9. Move the detached mount of bpf filesystem to a right place in the container's mount namespace
+
+		ret = lxd_move_mount(mnt_fd, "", mountpoint_fd, "",
+				MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH);
+		if (ret)
+			die("Failed to move detached mount to target from %d to %s", mnt_fd, mountpoint);
+
+		exit(EXIT_SUCCESS);
+	}
+
+	// close child's socket
+	close(sk_fds[1]);
+
+	// 4. Get bpf filesystem file_context fd from a child process
+
+	fds.fd_count_max = 1;
+	fds.flags = UNIX_FDS_ACCEPT_EXACT;
+	ret = lxc_abstract_unix_recv_fds(sk_fds[0], &fds, buf, sizeof(buf));
+	if (ret < 0 || fds.fd_count_ret != 1 || strncmp(buf, bpffs_fd_ready, sizeof(bpffs_fd_ready))) {
+		fprintf(stderr,
+			"%s - lxc_abstract_unix_recv_fds(bpffs_fd_ready) failed\n",
+			strerror(errno));
+		goto err_process;
+	}
+
+	fs_fd = fds.fd[0];
+
+	// 5. Configure bpf filesystem file_context fd to set BPF token delegation properties
+
+	ret = lxd_fsconfig(fs_fd, FSCONFIG_SET_STRING, "delegate_cmds", delegate_cmds, 0);
+	if (ret < 0) {
+		fprintf(stderr,
+			"%s - fsconfig failed to set delegate_cmds=%s\n",
+			strerror(errno),
+			delegate_cmds);
+		goto err_process;
+	}
+
+	ret = lxd_fsconfig(fs_fd, FSCONFIG_SET_STRING, "delegate_maps", delegate_maps, 0);
+	if (ret < 0) {
+		fprintf(stderr,
+			"%s - fsconfig failed to set delegate_maps=%s\n",
+			strerror(errno),
+			delegate_maps);
+		goto err_process;
+	}
+
+	ret = lxd_fsconfig(fs_fd, FSCONFIG_SET_STRING, "delegate_progs", delegate_progs, 0);
+	if (ret < 0) {
+		fprintf(stderr,
+			"%s - fsconfig failed to set delegate_progs=%s\n",
+			strerror(errno),
+			delegate_progs);
+		goto err_process;
+	}
+
+	ret = lxd_fsconfig(fs_fd, FSCONFIG_SET_STRING, "delegate_attachs", delegate_attachs, 0);
+	if (ret < 0) {
+		fprintf(stderr,
+			"%s - fsconfig failed to set delegate_attachs=%s\n",
+			strerror(errno),
+			delegate_attachs);
+		goto err_process;
+	}
+
+	ret = lxd_fsconfig(fs_fd, FSCONFIG_CMD_CREATE, NULL, NULL, 0);
+	if (ret < 0) {
+		fprintf(stderr,
+			"%s - fsconfig(FSCONFIG_CMD_CREATE) failed\n",
+			strerror(errno));
+		goto err_process;
+	}
+
+	// 6. Make a detached mount of bpf filesystem from a file_context fd
+
+	mnt_fd = lxd_fsmount(fs_fd, FSMOUNT_CLOEXEC, 0);
+	if (mnt_fd < 0) {
+		fprintf(stderr,
+			"%s - fsmount failed\n",
+			strerror(errno));
+		goto err_process;
+	}
+
+	// 7. Send the detached mount of bpf filesystem to the child process
+
+	ret = lxc_abstract_unix_send_fds(sk_fds[0], &mnt_fd, 1, bpffs_mnt_ready, sizeof(bpffs_mnt_ready));
+	if (ret < 0) {
+		fprintf(stderr,
+			"%s - lxc_abstract_unix_send_fds(bpffs_mnt_ready) failed\n",
+			strerror(errno));
+		goto err_process;
+	}
+
+	// 10. End
+
+	ret = wait_for_pid(child_pid);
+	if (ret)
+		die("wait_for_pid");
+
+	exit(EXIT_SUCCESS);
+
+err_process:
+	if (child_pid > 0) {
+		kill(child_pid, SIGKILL);
+		wait_for_pid(child_pid);
+	}
+
+	exit(EXIT_FAILURE);
+}
+
 void forkmount(void)
 {
 	char *command = NULL, *cur = NULL;
@@ -623,6 +810,22 @@ void forkmount(void)
 		do_lxd_forkumount(pidfd, ns_fd);
 	} else if (strcmp(command, "lxc-umount") == 0) {
 		do_lxc_forkumount();
+	} else if (strcmp(command, "bpffs") == 0) {
+		// Get the pid
+		cur = advance_arg(false);
+		if (cur == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0))
+			return;
+
+		pid = atoi(cur);
+		if (pid <= 0)
+			_exit(EXIT_FAILURE);
+
+		pidfd = atoi(advance_arg(true));
+		ns_fd = pidfd_nsfd(pidfd, pid);
+		if (ns_fd < 0)
+			_exit(EXIT_FAILURE);
+
+		do_mount_bpffs(pidfd, ns_fd);
 	}
 }
 */
@@ -633,14 +836,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	// Used by cgo
-	_ "github.com/canonical/lxd/lxd/include"
+	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
 )
 
 type cmdForkmount struct {
 	global *cmdGlobal
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdForkmount) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -686,6 +889,7 @@ func (c *cmdForkmount) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the forkmount command.
 func (c *cmdForkmount) Run(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf("This command should have been intercepted in cgo")
 }
