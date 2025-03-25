@@ -291,9 +291,6 @@ ifeq ($(shell command -v shellcheck),)
 	echo "Please install shellcheck"
 	exit 1
 else
-ifneq "$(shell shellcheck --version | grep version: | cut -d ' ' -f2)" "0.8.0"
-	@echo "WARN: shellcheck version is not 0.8.0"
-endif
 endif
 	shellcheck test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh test/extras/*.sh
 	NOT_EXEC="$(shell find test/lint -type f -not -executable)"; \
