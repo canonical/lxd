@@ -17,7 +17,7 @@ type cmdRecover struct {
 	global *cmdGlobal
 }
 
-func (c *cmdRecover) Command() *cobra.Command {
+func (c *cmdRecover) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "recover"
 	cmd.Short = "Recover missing instances and volumes from existing and unknown storage pools"
@@ -28,12 +28,12 @@ func (c *cmdRecover) Command() *cobra.Command {
   access them, along with existing storage pools, and identify any missing instances and volumes that exist on the
   pools but are not in the LXD database. It will then offer to recreate these database records.
 `
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdRecover) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) > 0 {
 		return fmt.Errorf("Invalid arguments")
@@ -214,14 +214,15 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 			}
 
 			_, _ = c.global.asker.AskString("Please create those missing entries and then hit ENTER: ", "", validate.Optional())
-		} else {
-			if len(unknownPools) == 0 && len(res.UnknownVolumes) == 0 {
-				fmt.Println("No unknown storage pools or volumes found. Nothing to do.")
-				return nil
-			}
-
-			break // Dependencies met.
+			continue
 		}
+
+		if len(unknownPools) == 0 && len(res.UnknownVolumes) == 0 {
+			fmt.Println("No unknown storage pools or volumes found. Nothing to do.")
+			return nil
+		}
+
+		break // Dependencies met.
 	}
 
 	proceed, err = c.global.asker.AskBool("Would you like those to be recovered? (yes/no) [default=no]: ", "no")
@@ -236,9 +237,9 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 	fmt.Println("Starting recovery...")
 
 	// Send /internal/recover/import request to LXD.
-	// Don't lint next line with gosimple. It says we should convert reqValidate directly to an internalRecoverImportPost
+	// Don't lint next line with staticcheck. It says we should convert reqValidate directly to an internalRecoverImportPost
 	// because their types are identical. This is less clear and will not work if either type changes in the future.
-	reqImport := internalRecoverImportPost{ //nolint:gosimple
+	reqImport := internalRecoverImportPost{ //nolint:staticcheck
 		Pools: reqValidate.Pools,
 	}
 
