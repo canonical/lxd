@@ -412,14 +412,16 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 			return
 		}
 
-		if event == qmp.EventAgentStarted {
+		switch event {
+		case qmp.EventAgentStarted:
 			d.logger.Debug("Instance agent started")
 			err := d.advertiseVsockAddress()
 			if err != nil {
 				d.logger.Warn("Failed to advertise vsock address to instance agent", logger.Ctx{"err": err})
 				return
 			}
-		} else if event == qmp.EventVMShutdown {
+
+		case qmp.EventVMShutdown:
 			target := "stop"
 			entry, ok := data["reason"]
 			if ok && entry == "guest-reset" {
@@ -2055,28 +2057,29 @@ func (d *qemu) qemuArchConfig(arch int) (path string, bus string, err error) {
 		basePath = filepath.Join(os.Getenv("SNAP"), os.Getenv("SNAP_QEMU_PREFIX")) + "/bin/"
 	}
 
-	if arch == osarch.ARCH_64BIT_INTEL_X86 {
+	switch arch {
+	case osarch.ARCH_64BIT_INTEL_X86:
 		path, err := exec.LookPath(basePath + "qemu-system-x86_64")
 		if err != nil {
 			return "", "", err
 		}
 
 		return path, "pcie", nil
-	} else if arch == osarch.ARCH_32BIT_ARMV7_LITTLE_ENDIAN || arch == osarch.ARCH_32BIT_ARMV8_LITTLE_ENDIAN || arch == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN {
+	case osarch.ARCH_32BIT_ARMV7_LITTLE_ENDIAN, osarch.ARCH_32BIT_ARMV8_LITTLE_ENDIAN, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN:
 		path, err := exec.LookPath(basePath + "qemu-system-aarch64")
 		if err != nil {
 			return "", "", err
 		}
 
 		return path, "pcie", nil
-	} else if arch == osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN {
+	case osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN:
 		path, err := exec.LookPath(basePath + "qemu-system-ppc64")
 		if err != nil {
 			return "", "", err
 		}
 
 		return path, "pci", nil
-	} else if arch == osarch.ARCH_64BIT_S390_BIG_ENDIAN {
+	case osarch.ARCH_64BIT_S390_BIG_ENDIAN:
 		path, err := exec.LookPath(basePath + "qemu-system-s390x")
 		if err != nil {
 			return "", "", err
@@ -3973,10 +3976,11 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 	directCache := true   // Bypass host cache, use O_DIRECT semantics by default.
 	noFlushCache := false // Don't ignore any flush requests for the device.
 
-	if cacheMode == "unsafe" {
+	switch cacheMode {
+	case "unsafe":
 		directCache = false
 		noFlushCache = true
-	} else if cacheMode == "writeback" {
+	case "writeback":
 		directCache = false
 	}
 
@@ -4079,9 +4083,10 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 		qemuDev["lun"] = 1
 		qemuDev["bus"] = "qemu_scsi.0"
 
-		if media == "disk" {
+		switch media {
+		case "disk":
 			qemuDev["driver"] = "scsi-hd"
-		} else if media == "cdrom" {
+		case "cdrom":
 			qemuDev["driver"] = "scsi-cd"
 		}
 	} else if shared.ValueInSlice(bus, []string{"nvme", "virtio-blk"}) {
@@ -4188,25 +4193,26 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]any, bootIndex
 
 	var devName, nicName, devHwaddr, pciSlotName, pciIOMMUGroup, vDPADevName, vhostVDPAPath, maxVQP, mtu, name string
 	for _, nicItem := range nicConfig {
-		if nicItem.Key == "devName" {
+		switch nicItem.Key {
+		case "devName":
 			devName = nicItem.Value
-		} else if nicItem.Key == "link" {
+		case "link":
 			nicName = nicItem.Value
-		} else if nicItem.Key == "hwaddr" {
+		case "hwaddr":
 			devHwaddr = nicItem.Value
-		} else if nicItem.Key == "pciSlotName" {
+		case "pciSlotName":
 			pciSlotName = nicItem.Value
-		} else if nicItem.Key == "pciIOMMUGroup" {
+		case "pciIOMMUGroup":
 			pciIOMMUGroup = nicItem.Value
-		} else if nicItem.Key == "vDPADevName" {
+		case "vDPADevName":
 			vDPADevName = nicItem.Value
-		} else if nicItem.Key == "vhostVDPAPath" {
+		case "vhostVDPAPath":
 			vhostVDPAPath = nicItem.Value
-		} else if nicItem.Key == "maxVQP" {
+		case "maxVQP":
 			maxVQP = nicItem.Value
-		} else if nicItem.Key == "mtu" {
+		case "mtu":
 			mtu = nicItem.Value
-		} else if nicItem.Key == "name" {
+		case "name":
 			name = nicItem.Value
 		}
 	}
@@ -4548,9 +4554,10 @@ func (d *qemu) writeNICDevConfig(mtuStr string, devName string, nicName string, 
 func (d *qemu) addPCIDevConfig(cfg *[]cfgSection, bus *qemuBus, pciConfig []deviceConfig.RunConfigItem) error {
 	var devName, pciSlotName string
 	for _, pciItem := range pciConfig {
-		if pciItem.Key == "devName" {
+		switch pciItem.Key {
+		case "devName":
 			devName = pciItem.Value
-		} else if pciItem.Key == "pciSlotName" {
+		case "pciSlotName":
 			pciSlotName = pciItem.Value
 		}
 	}
@@ -4575,11 +4582,12 @@ func (d *qemu) addPCIDevConfig(cfg *[]cfgSection, bus *qemuBus, pciConfig []devi
 func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []deviceConfig.RunConfigItem) error {
 	var devName, pciSlotName, vgpu string
 	for _, gpuItem := range gpuConfig {
-		if gpuItem.Key == "devName" {
+		switch gpuItem.Key {
+		case "devName":
 			devName = gpuItem.Value
-		} else if gpuItem.Key == "pciSlotName" {
+		case "pciSlotName":
 			pciSlotName = gpuItem.Value
-		} else if gpuItem.Key == "vgpu" {
+		case "vgpu":
 			vgpu = gpuItem.Value
 		}
 	}
@@ -4728,9 +4736,10 @@ func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.Ru
 	var devName, socketPath string
 
 	for _, tpmItem := range tpmConfig {
-		if tpmItem.Key == "path" {
+		switch tpmItem.Key {
+		case "path":
 			socketPath = tpmItem.Value
-		} else if tpmItem.Key == "devName" {
+		case "devName":
 			devName = tpmItem.Value
 		}
 	}
@@ -5727,7 +5736,8 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		for _, key := range changedConfig {
 			value := d.expandedConfig[key]
 
-			if key == "limits.cpu" {
+			switch key {
+			case "limits.cpu":
 				oldValue := oldExpandedConfig["limits.cpu"]
 
 				if oldValue != "" {
@@ -5753,20 +5763,20 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				}
 
 				cpuLimitWasChanged = true
-			} else if key == "limits.memory" {
+			case "limits.memory":
 				err = d.updateMemoryLimit(value)
 				if err != nil {
 					if err != nil {
 						return fmt.Errorf("Failed updating memory limit: %w", err)
 					}
 				}
-			} else if key == "security.csm" {
+			case "security.csm":
 				// Defer rebuilding nvram until next start.
 				d.localConfig["volatile.apply_nvram"] = "true"
-			} else if key == "security.secureboot" {
+			case "security.secureboot":
 				// Defer rebuilding nvram until next start.
 				d.localConfig["volatile.apply_nvram"] = "true"
-			} else if key == "security.devlxd" {
+			case "security.devlxd":
 				err = d.advertiseVsockAddress()
 				if err != nil {
 					return err

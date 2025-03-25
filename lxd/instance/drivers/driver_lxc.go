@@ -1668,11 +1668,12 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 
 			// Convert options into flags.
 			for _, opt := range mount.Opts {
-				if opt == "bind" {
+				switch opt {
+				case "bind":
 					flags |= unix.MS_BIND
-				} else if opt == "rbind" {
+				case "rbind":
 					flags |= unix.MS_BIND | unix.MS_REC
-				} else if opt == "ro" {
+				case "ro":
 					flags |= unix.MS_RDONLY
 				}
 			}
@@ -1840,11 +1841,12 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 
 	// Revert the currently applied on-disk idmap.
 	if diskIdmap != nil {
-		if storageType == "zfs" {
+		switch storageType {
+		case "zfs":
 			err = diskIdmap.UnshiftRootfs(d.RootfsPath(), storageDrivers.ShiftZFSSkipper)
-		} else if storageType == "btrfs" {
+		case "btrfs":
 			err = storageDrivers.UnshiftBtrfsRootfs(d.RootfsPath(), diskIdmap)
-		} else {
+		default:
 			err = diskIdmap.UnshiftRootfs(d.RootfsPath(), nil)
 		}
 
@@ -1859,11 +1861,12 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 	// idmap of the container now. Otherwise we will later instruct LXC to
 	// make use of idmapped storage.
 	if nextIdmap != nil && idmapType == idmap.IdmapStorageNone {
-		if storageType == "zfs" {
+		switch storageType {
+		case "zfs":
 			err = nextIdmap.ShiftRootfs(d.RootfsPath(), storageDrivers.ShiftZFSSkipper)
-		} else if storageType == "btrfs" {
+		case "btrfs":
 			err = storageDrivers.ShiftBtrfsRootfs(d.RootfsPath(), nextIdmap)
-		} else {
+		default:
 			err = nextIdmap.ShiftRootfs(d.RootfsPath(), nil)
 		}
 
@@ -6502,11 +6505,12 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 				return fmt.Errorf("Storage type: %w", err)
 			}
 
-			if storageType == "zfs" {
+			switch storageType {
+			case "zfs":
 				err = idmapset.ShiftRootfs(args.StateDir, storageDrivers.ShiftZFSSkipper)
-			} else if storageType == "btrfs" {
+			case "btrfs":
 				err = storageDrivers.ShiftBtrfsRootfs(args.StateDir, idmapset)
-			} else {
+			default:
 				err = idmapset.ShiftRootfs(args.StateDir, nil)
 			}
 
