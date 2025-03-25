@@ -2642,3 +2642,9 @@ This adds a request option to set snapshot's target profile on instance copy to 
 ## `resources_device_fs_uuid`
 
 Adds the field `device_fs_uuid` including the respective UUID to each disk and partition indicating whether or not a filesystem is located on the device.
+
+## `instance_placement_rules`
+
+This API extension adds a new `placement_rules` field to instances and profiles.
+Placement rules are used to configure where an instance will be created in the cluster.
+Multiple placement rules can be used to define complex scheduling scenarios.
