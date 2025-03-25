@@ -7070,12 +7070,14 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 			return nil, fmt.Errorf("Storage driver returned unexpected VM volume with filesystem content type (%q)", poolVol.Name())
 		}
 
-		if volType == drivers.VolumeTypeVM || volType == drivers.VolumeTypeContainer {
+		switch volType {
+		case drivers.VolumeTypeVM, drivers.VolumeTypeContainer:
 			err = b.detectUnknownInstanceVolume(&poolVol, projectVols, op)
 			if err != nil {
 				return nil, err
 			}
-		} else if volType == drivers.VolumeTypeCustom {
+
+		case drivers.VolumeTypeCustom:
 			// Get a new volume from the one returned by the storage driver.
 			// This sets a new UUID for the volume that will be used later on for its database entry.
 			poolVol = b.GetNewVolume(poolVol.Type(), poolVol.ContentType(), poolVol.Name(), poolVol.Config())
@@ -7083,7 +7085,8 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 			if err != nil {
 				return nil, err
 			}
-		} else if volType == drivers.VolumeTypeBucket {
+
+		case drivers.VolumeTypeBucket:
 			// Get a new volume from the one returned by the storage driver.
 			// This sets a new UUID for the volume that will be used later on for its database entry.
 			poolVol = b.GetNewVolume(poolVol.Type(), poolVol.ContentType(), poolVol.Name(), poolVol.Config())
@@ -7278,11 +7281,12 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 	contentType := vol.ContentType()
 	var apiContentType string
 
-	if contentType == drivers.ContentTypeBlock {
+	switch contentType {
+	case drivers.ContentTypeBlock:
 		apiContentType = cluster.StoragePoolVolumeContentTypeNameBlock
-	} else if contentType == drivers.ContentTypeISO {
+	case drivers.ContentTypeISO:
 		apiContentType = cluster.StoragePoolVolumeContentTypeNameISO
-	} else if contentType == drivers.ContentTypeFS {
+	case drivers.ContentTypeFS:
 		apiContentType = cluster.StoragePoolVolumeContentTypeNameFS
 
 		// Detect block volume filesystem (by mounting it (if not already) with filesystem probe mode).
@@ -7311,7 +7315,8 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 			// Record detected filesystem in config.
 			vol.Config()["block.filesystem"] = blockFS
 		}
-	} else {
+
+	default:
 		return fmt.Errorf("Unknown custom volume content type %q", contentType)
 	}
 
