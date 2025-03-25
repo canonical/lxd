@@ -120,7 +120,7 @@ func (d *lvm) volumeGroupExists(vgName string) (bool, []string, error) {
 	}
 
 	output = strings.TrimSpace(output)
-	tags := strings.SplitN(output, ",", -1)
+	tags := strings.Split(output, ",")
 
 	return true, tags, nil
 }
