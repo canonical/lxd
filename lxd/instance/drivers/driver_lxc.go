@@ -1101,6 +1101,13 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		}
 	}
 
+	if shared.IsTrue(d.expandedConfig["security.delegate_bpf"]) {
+		err = lxcSetConfigItem(cc, "lxc.hook.start-host", d.state.OS.ExecPath+" callhook "+shared.VarPath("")+" "+strconv.Quote(d.Project().Name)+" "+strconv.Quote(d.Name())+" starthost")
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Memory limits
 	if d.state.OS.CGInfo.Supports(cgroup.Memory, cg) {
 		memory := d.expandedConfig["limits.memory"]
@@ -2479,6 +2486,8 @@ func (d *lxc) OnHook(hookName string, args map[string]string) error {
 	switch hookName {
 	case instance.HookStart:
 		return d.onStart(args)
+	case instance.HookStartHost:
+		return d.onStartHost(args)
 	case instance.HookStopNS:
 		return d.onStopNS(args)
 	case instance.HookStop:
@@ -2537,6 +2546,93 @@ func (d *lxc) onStart(_ map[string]string) error {
 	return nil
 }
 
+// mountBpfFs mounts bpffs inside the container.
+func (d *lxc) mountBpfFs(pid int, bpffsParams map[string]string) error {
+	if !d.state.OS.BPFToken {
+		return fmt.Errorf("BPF Token mechanism is not supported by kernel running")
+	}
+
+	pidFdNr, pidFd := seccomp.MakePidFd(pid, d.state)
+	if pidFdNr >= 0 {
+		defer func() { _ = pidFd.Close() }()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	d.logger.Debug("bpffs mount helper is being called", logger.Ctx{"pid": pid, "bpffsParams": bpffsParams})
+	_, err := shared.RunCommandInheritFds(
+		ctx,
+		[]*os.File{pidFd},
+		d.state.OS.ExecPath,
+		"forkmount",
+		"bpffs",
+		"--",
+		fmt.Sprint(pid),
+		fmt.Sprint(pidFdNr),
+		bpffsParams["mountpoint"],
+		bpffsParams["delegate_cmds"],
+		bpffsParams["delegate_maps"],
+		bpffsParams["delegate_progs"],
+		bpffsParams["delegate_attachs"])
+	if err != nil {
+		d.logger.Error("bpffs mount helper has failed", logger.Ctx{"err": err})
+		return err
+	}
+
+	d.logger.Debug("bpffs mount helper has finished without errors")
+
+	return nil
+}
+
+func (d *lxc) onStartHostBPFDelegate(args map[string]string) error {
+	// Get the init PID
+	pidStr, ok := args["LXC_PID"]
+	if !ok {
+		return fmt.Errorf("No LXC_PID parameter was provided to start-host hook")
+	}
+
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil {
+		return fmt.Errorf("Invalid LXC_PID parameter was provided to start-host hook %q: %w", pidStr, err)
+	}
+
+	bpffsParams := map[string]string{
+		"delegate_cmds":    "0",
+		"delegate_maps":    "0",
+		"delegate_progs":   "0",
+		"delegate_attachs": "0",
+		"mountpoint":       "/sys/fs/bpf",
+	}
+
+	if d.expandedConfig["security.delegate_bpf.cmd_types"] != "" {
+		bpffsParams["delegate_cmds"] = d.expandedConfig["security.delegate_bpf.cmd_types"]
+	}
+
+	if d.expandedConfig["security.delegate_bpf.map_types"] != "" {
+		bpffsParams["delegate_maps"] = d.expandedConfig["security.delegate_bpf.map_types"]
+	}
+
+	if d.expandedConfig["security.delegate_bpf.prog_types"] != "" {
+		bpffsParams["delegate_progs"] = d.expandedConfig["security.delegate_bpf.prog_types"]
+	}
+
+	if d.expandedConfig["security.delegate_bpf.attach_types"] != "" {
+		bpffsParams["delegate_attachs"] = d.expandedConfig["security.delegate_bpf.attach_types"]
+	}
+
+	return d.mountBpfFs(pid, bpffsParams)
+}
+
+// onStartHost implements the LXC start-host hook.
+func (d *lxc) onStartHost(args map[string]string) error {
+	if shared.IsTrue(d.expandedConfig["security.delegate_bpf"]) {
+		return d.onStartHostBPFDelegate(args)
+	}
+
+	return nil
+}
+
 // validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
 func (d *lxc) validateStartup(statusCode api.StatusCode) error {
 	err := d.common.validateStartup(statusCode)
@@ -2552,6 +2648,10 @@ func (d *lxc) validateStartup(statusCode api.StatusCode) error {
 	// Check if instance is start protected.
 	if shared.IsTrue(d.expandedConfig["security.protection.start"]) {
 		return fmt.Errorf("Instance is protected from being started")
+	}
+
+	if shared.IsTrue(d.expandedConfig["security.delegate_bpf"]) && !d.state.OS.BPFToken {
+		return fmt.Errorf("BPF Token mechanism is not supported by your kernel. Linux kernel 6.9+ is required to start this instance, or security.delegate_bpf option must be disabled")
 	}
 
 	return nil

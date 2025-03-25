@@ -21,9 +21,12 @@ balancers
 benchmarking
 BGP
 BitLocker
+bitmask
 BLK
 bool
 bootable
+bpffs
+BPFFS
 BPF
 Btrfs
 bugfix
@@ -130,6 +133,7 @@ KiB
 kibi
 Kibit
 KVM
+libbpf
 Libera
 LogCLI
 lookups

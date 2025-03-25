@@ -330,6 +330,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	env.KernelFeatures = map[string]string{
+		"bpf_token":                 fmt.Sprint(s.OS.BPFToken),
 		"netnsid_getifaddrs":        fmt.Sprint(s.OS.NetnsGetifaddrs),
 		"uevent_injection":          fmt.Sprint(s.OS.UeventInjection),
 		"unpriv_binfmt":             fmt.Sprint(s.OS.UnprivBinfmt),

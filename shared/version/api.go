@@ -442,6 +442,7 @@ var APIExtensions = []string{
 	"project_default_network_and_storage",
 	"client_cert_presence",
 	"clustering_groups_used_by",
+	"container_bpf_delegation",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

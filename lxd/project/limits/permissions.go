@@ -866,6 +866,10 @@ func isContainerLowLevelOptionForbidden(key string) bool {
 		return true
 	}
 
+	if strings.HasPrefix(key, "security.delegate_bpf") {
+		return true
+	}
+
 	if shared.ValueInSlice(key, []string{
 		"boot.host_shutdown_timeout",
 		"linux.kernel_modules",
