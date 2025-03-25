@@ -497,6 +497,7 @@ EOF
 
       # Test that changing block filesystem works
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.block.filesystem xfs
+      lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.size 300MiB # modern xfs requires 300MiB or more
       lxc init testimage c1pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.block.filesystem btrfs
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.size 120MiB
