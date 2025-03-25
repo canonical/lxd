@@ -293,12 +293,13 @@ ifeq ($(shell command -v shellcheck),)
 else
 endif
 	shellcheck test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh test/extras/*.sh
-	NOT_EXEC="$(shell find test/lint -type f -not -executable)"; \
+	echo "Verify test/lint files are properly named and executable"
+	@NOT_EXEC="$(shell find test/lint -type f -not -executable)"; \
 	if [ -n "$$NOT_EXEC" ]; then \
 		echo "lint scripts not executable: $$NOT_EXEC"; \
 		exit 1; \
 	fi
-	BAD_NAME="$(shell find test/lint -type f -not -name '*.sh')"; \
+	@BAD_NAME="$(shell find test/lint -type f -not -name '*.sh')"; \
 	if [ -n "$$BAD_NAME" ]; then \
 		echo "lint scripts missing .sh extension: $$BAD_NAME"; \
 		exit 1; \
