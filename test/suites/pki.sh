@@ -10,6 +10,10 @@ test_pki() {
   (
     set -e
     cd "${TEST_DIR}/pki"
+
+    cat << EOF > vars
+set_var EASYRSA_BATCH yes
+EOF
     export EASYRSA_KEY_SIZE=4096
 
     # shellcheck disable=SC1091
