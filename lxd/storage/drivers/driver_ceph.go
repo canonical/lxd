@@ -405,13 +405,33 @@ func (d *ceph) Validate(config map[string]string) error {
 		"volatile.pool.pristine": validate.IsAny,
 	}
 
+	immutableOptions := []string{
+		// Changing the cluster name does not work as the volume's won't be moved to the new cluster.
+		"ceph.cluster_name",
+		// Changing the pool name whilst having active volumes does not work as the volumes won't be moved to the new pool.
+		"ceph.osd.pool_name",
+	}
+
+	for configOption, configOptionValue := range config {
+		oldValue, ok := d.config[configOption]
+
+		// Skip config settings which weren't populated before.
+		if !ok {
+			continue
+		}
+
+		if oldValue != configOptionValue && shared.ValueInSlice(configOption, immutableOptions) {
+			return fmt.Errorf("Cannot update %q", configOption)
+		}
+	}
+
 	return d.validatePool(config, rules, d.commonVolumeRules())
 }
 
 // Update applies any driver changes required from a configuration change.
 func (d *ceph) Update(changedConfig map[string]string) error {
-	newSize, changed := changedConfig["ceph.osd.pool_size"]
-	if changed {
+	// applyPool applies a OSD pool level setting.
+	applyPool := func(key string, value string) error {
 		_, err := shared.TryRunCommand("ceph",
 			"--name", "client."+d.config["ceph.user.name"],
 			"--cluster", d.config["ceph.cluster_name"],
@@ -419,9 +439,24 @@ func (d *ceph) Update(changedConfig map[string]string) error {
 			"pool",
 			"set",
 			d.config["ceph.osd.pool_name"],
-			"size",
-			newSize,
+			key,
+			value,
+			// Not all settings require this flag but we can set it nonetheless.
 			"--yes-i-really-mean-it")
+		return err
+	}
+
+	newSize, changed := changedConfig["ceph.osd.pool_size"]
+	if changed {
+		err := applyPool("size", newSize)
+		if err != nil {
+			return err
+		}
+	}
+
+	newPgNum, changed := changedConfig["ceph.osd.pg_num"]
+	if changed {
+		err := applyPool("pg_num", newPgNum)
 		if err != nil {
 			return err
 		}
