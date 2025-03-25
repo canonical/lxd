@@ -2718,7 +2718,7 @@ func (d *qemu) generateConfigShare() error {
 				return fmt.Errorf("Failed getting info for existing lxd-agent install %q: %w", lxdAgentInstallPath, err)
 			}
 
-			if lxdAgentInstallInfo.ModTime() == lxdAgentSrcInfo.ModTime() && lxdAgentInstallInfo.Size() == lxdAgentSrcInfo.Size() {
+			if lxdAgentInstallInfo.ModTime().Equal(lxdAgentSrcInfo.ModTime()) && lxdAgentInstallInfo.Size() == lxdAgentSrcInfo.Size() {
 				lxdAgentNeedsInstall = false
 			}
 		}
