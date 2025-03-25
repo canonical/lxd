@@ -135,7 +135,7 @@ func validConfigKey(os *sys.OS, key string, value string, instanceType instancet
 	// Check if the key is a valid prefix and whether or not it requires a subkey.
 	knownPrefixes := append(instancetype.ConfigKeyPrefixesAny, instancetype.ConfigKeyPrefixesContainer...)
 	if strings.HasSuffix(key, ".") {
-		if !(key == instancetype.ConfigVolatilePrefix || shared.ValueInSlice(key, knownPrefixes)) {
+		if key != instancetype.ConfigVolatilePrefix && !shared.ValueInSlice(key, knownPrefixes) {
 			// Not a known prefix.
 			return fmt.Errorf("Unknown configuration key: %q", key)
 		}
@@ -156,7 +156,7 @@ func validConfigKey(os *sys.OS, key string, value string, instanceType instancet
 		}
 
 		_, existsAny := instancetype.InstanceConfigKeysAny[key]
-		if !(exists || existsAny) {
+		if !exists && !existsAny {
 			return fmt.Errorf("%q isn't supported for %q", key, instanceType)
 		}
 	}
