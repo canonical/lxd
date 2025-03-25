@@ -2638,3 +2638,9 @@ Adds new {config:option}`instance-security:security.delegate_bpf`.* group of opt
 ## `override_snapshot_profiles_on_copy`
 
 This adds a request option to set snapshot's target profile on instance copy to be inherited from target instance.
+
+## `instance_placement_rules`
+
+This API extension adds a new `placement_rules` field to instances and profiles.
+Placement rules are used to configure where an instance will be created in the cluster.
+Multiple placement rules can be used to define complex scheduling scenarios.
