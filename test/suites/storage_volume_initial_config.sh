@@ -127,13 +127,13 @@ test_storage_volume_initial_config() {
     # Custom blocksize.
     lxc init "${image}" c --no-profiles --storage "${pool}" --device root,initial.zfs.blocksize=64KiB
     [ "$(lxc storage volume get "${pool}" container/c zfs.blocksize)" = "64KiB" ]
-    [ "$(zfs get volblocksize ${pool}/containers/c -H -o value)" = "64K" ]
+    [ "$(zfs get volblocksize "${pool}/containers/c" -H -o value)" = "64K" ]
     lxc delete c --force
 
     # Custom blocksize that exceeds maximum allowed blocksize.
     lxc init "${image}" c --no-profiles --storage "${pool}" --device root,initial.zfs.blocksize=512KiB
     [ "$(lxc storage volume get "${pool}" container/c zfs.blocksize)" = "512KiB" ]
-    [ "$(zfs get volblocksize ${pool}/containers/c -H -o value)" = "128K" ]
+    [ "$(zfs get volblocksize "${pool}/containers/c" -H -o value)" = "128K" ]
     lxc delete c --force
   fi
 
