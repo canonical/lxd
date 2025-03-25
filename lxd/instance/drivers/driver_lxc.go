@@ -387,10 +387,7 @@ type lxc struct {
 }
 
 func idmapSize(state *state.State, isolatedStr string, size string) (int64, error) {
-	isolated := false
-	if shared.IsTrue(isolatedStr) {
-		isolated = true
-	}
+	isolated := shared.IsTrue(isolatedStr)
 
 	var idMapSize int64
 	if size == "" || size == "auto" {
@@ -418,10 +415,7 @@ func idmapSize(state *state.State, isolatedStr string, size string) (int64, erro
 var idmapLock sync.Mutex
 
 func findIdmap(state *state.State, cName string, isolatedStr string, configBase string, configSize string, rawIdmap string) (*idmap.IdmapSet, int64, error) {
-	isolated := false
-	if shared.IsTrue(isolatedStr) {
-		isolated = true
-	}
+	isolated := shared.IsTrue(isolatedStr)
 
 	rawMaps, err := idmap.ParseRawIdmap(rawIdmap)
 	if err != nil {
