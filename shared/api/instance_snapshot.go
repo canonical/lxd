@@ -96,6 +96,16 @@ type InstanceSnapshot struct {
 	// Example: {"root": {"type": "disk", "pool": "default", "path": "/"}}
 	ExpandedDevices map[string]map[string]string `json:"expanded_devices,omitempty" yaml:"expanded_devices,omitempty"`
 
+	// Placement rules
+	//
+	// API extension: instance_placement_rules
+	PlacementRules map[string]InstancePlacementRule `json:"placement_rules" yaml:"placement_rules"`
+
+	// Expanded placement rules (all profiles and local placement rules merged)
+	//
+	// API extension: instance_placement_rules
+	ExpandedPlacementRules map[string]InstancePlacementRule `json:"expanded_placement_rules" yaml:"expanded_placement_rules"`
+
 	// Last start timestamp
 	// Example: 2021-03-23T20:00:00-04:00
 	LastUsedAt time.Time `json:"last_used_at" yaml:"last_used_at"`
