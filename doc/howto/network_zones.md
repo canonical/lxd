@@ -1,5 +1,5 @@
 ---
-discourse: lxc:12033,lxc:13128
+discourse: lxc:[Built-in&#32;DNS&#32;server](12033),lxc:[Custom&#32;DNS&#32;records&#32;in&#32;network&#32;zones](13128)
 ---
 
 (network-zones)=
