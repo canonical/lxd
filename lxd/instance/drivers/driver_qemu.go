@@ -5656,7 +5656,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		// If security.protection.start is being removed, we need to make sure that
 		// our root disk device is not attached to another instance.
 		if shared.IsTrue(oldExpandedConfig["security.protection.start"]) && shared.IsFalseOrEmpty(d.expandedConfig["security.protection.start"]) {
-			err := allowRemoveSecurityProtectionStart(d.state, newRootDev["pool"], d.common.name, &d.common.project)
+			err := allowRemoveSecurityProtectionStart(d.state, newRootDev["pool"], d.name, &d.project)
 			if err != nil {
 				return err
 			}
