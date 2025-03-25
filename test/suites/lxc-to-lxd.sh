@@ -4,6 +4,12 @@ test_lxc_to_lxd() {
     return
   fi
 
+  # Check that LXC tools are recent enough (6.0.0 is required to support 'lxc.apparmor.allow_nesting')
+  if command -v dpkg>/dev/null && dpkg --compare-versions "$(lxc-create --version)" lt 6.0.0; then
+      echo "==> SKIP: lxc-* tools are older than 6.0.0"
+      return
+  fi
+
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   LXC_DIR="${TEST_DIR}/lxc"
