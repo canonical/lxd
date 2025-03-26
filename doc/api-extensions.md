@@ -2637,4 +2637,4 @@ Deletion of a cluster group is disallowed if the cluster group is referenced by 
 
 ## `container_bpf_delegation`
 
-Adds new {config:option}`instance-security:security.delegate_bpf`.* group of options in order to support eBPF delegation using BPF Token mechanism.
+Adds new {config:option}`instance-security:security.delegate_bpf`.* group of options in order to support eBPF delegation using BPF Token mechanism. See {ref}`bpf-delegation-token` for more information.
