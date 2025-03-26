@@ -4074,6 +4074,13 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 
 	qemuDeviceSerial := qemuDeviceNamePrefix + escapedDeviceName
 	qemuDev["serial"] = qemuDeviceSerial
+
+	// Trim the serial down to 36 characters if longer than that, since this is the max size of a serial in QEMU.
+	// Do not hash as to not break older guests that were relying on QEMU to reduce the size of the device serial.
+	if len(qemuDeviceSerial) > 36 {
+		qemuDev["serial"] = qemuDeviceSerial[:36]
+	}
+
 	if bus == "virtio-scsi" {
 		qemuDev["device_id"] = qemuDeviceSerial
 		qemuDev["channel"] = 0
