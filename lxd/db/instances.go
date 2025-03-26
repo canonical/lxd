@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/osarch"
 )
 
@@ -652,6 +653,18 @@ func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, fillProfiles bo
 	err = c.instanceDevicesFill(ctx, snapshotCount > 0, &instanceArgs)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance devices: %w", err)
+	}
+
+	// Populate placement rules.
+	for instanceID := range instanceArgs {
+		rules, err := cluster.GetInstancePlacementRulesForEntity(ctx, c.Tx(), entity.TypeInstance, instanceID)
+		if err != nil {
+			return nil, err
+		}
+
+		args := instanceArgs[instanceID]
+		args.PlacementRules = cluster.InstancePlacementRulesToAPI(rules)
+		instanceArgs[instanceID] = args
 	}
 
 	// Populate instance profiles if requested.
