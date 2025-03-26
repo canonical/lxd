@@ -1,6 +1,12 @@
 (network-ovn-setup)=
 # How to set up OVN with LXD
 
+````{only} integrated
+```{note}
+MicroCloud users can disregard the instructions on this page, because the MicroCloud setup process handles OVN network setup.
+```
+````
+
 See the following sections for how to set up a basic OVN network, either as a standalone network or to host a small LXD cluster.
 
 ## Set up a standalone OVN network
