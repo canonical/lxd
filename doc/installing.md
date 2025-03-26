@@ -5,6 +5,12 @@ discourse: "[Building&#32;custom&#32;LXD&#32;binaries&#32;for&#32;side&#32;loadi
 (installing)=
 # How to install LXD
 
+````{only} integrated
+```{note}
+MicroCloud users can disregard the instructions on this page, because the MicroCloud setup process handles the installation and configuration of LXD.
+```
+````
+
 The easiest way to install LXD is to {ref}`install one of the available packages <installing-from-package>`, but you can also {ref}`install LXD from the sources <installing-from-source>`.
 
 After installing LXD, make sure you have a `lxd` group on your system.
