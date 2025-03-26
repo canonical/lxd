@@ -65,3 +65,24 @@ func ExpandInstanceDevices(devices deviceConfig.Devices, profiles []api.Profile)
 
 	return expandedDevices
 }
+
+// ExpandInstancePlacementRules expands the given instance placement rules with the placement rules defined in the given profiles.
+func ExpandInstancePlacementRules(localRules map[string]api.InstancePlacementRule, profiles []api.Profile) map[string]api.InstancePlacementRule {
+	if localRules == nil {
+		localRules = make(map[string]api.InstancePlacementRule)
+	}
+
+	expandedRules := make(map[string]api.InstancePlacementRule)
+	for _, profile := range profiles {
+		for name, rule := range profile.PlacementRules {
+			expandedRules[name] = rule
+		}
+	}
+
+	// Stick the given devices on top.
+	for k, v := range localRules {
+		expandedRules[k] = v
+	}
+
+	return expandedRules
+}
