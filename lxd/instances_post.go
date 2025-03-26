@@ -97,14 +97,15 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 		devices := deviceConfig.NewDevices(req.Devices)
 
 		args := db.InstanceArgs{
-			Project:     p.Name,
-			Config:      req.Config,
-			Type:        dbType,
-			Description: req.Description,
-			Devices:     deviceConfig.ApplyDeviceInitialValues(devices, profiles),
-			Ephemeral:   req.Ephemeral,
-			Name:        req.Name,
-			Profiles:    profiles,
+			Project:        p.Name,
+			Config:         req.Config,
+			Type:           dbType,
+			Description:    req.Description,
+			Devices:        deviceConfig.ApplyDeviceInitialValues(devices, profiles),
+			Ephemeral:      req.Ephemeral,
+			Name:           req.Name,
+			Profiles:       profiles,
+			PlacementRules: req.PlacementRules,
 		}
 
 		if req.Source.Server != "" {
@@ -163,14 +164,15 @@ func createFromNone(s *state.State, r *http.Request, projectName string, profile
 	devices := deviceConfig.NewDevices(req.Devices)
 
 	args := db.InstanceArgs{
-		Project:     projectName,
-		Config:      req.Config,
-		Type:        dbType,
-		Description: req.Description,
-		Devices:     deviceConfig.ApplyDeviceInitialValues(devices, profiles),
-		Ephemeral:   req.Ephemeral,
-		Name:        req.Name,
-		Profiles:    profiles,
+		Project:        projectName,
+		Config:         req.Config,
+		Type:           dbType,
+		Description:    req.Description,
+		Devices:        deviceConfig.ApplyDeviceInitialValues(devices, profiles),
+		Ephemeral:      req.Ephemeral,
+		Name:           req.Name,
+		Profiles:       profiles,
+		PlacementRules: req.PlacementRules,
 	}
 
 	if req.Architecture != "" {
@@ -602,17 +604,18 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 	}
 
 	args := db.InstanceArgs{
-		Project:      targetProject,
-		Architecture: source.Architecture(),
-		BaseImage:    req.Source.BaseImage,
-		Config:       req.Config,
-		Type:         source.Type(),
-		Description:  req.Description,
-		Devices:      deviceConfig.NewDevices(req.Devices),
-		Ephemeral:    req.Ephemeral,
-		Name:         req.Name,
-		Profiles:     profiles,
-		Stateful:     req.Stateful,
+		Project:        targetProject,
+		Architecture:   source.Architecture(),
+		BaseImage:      req.Source.BaseImage,
+		Config:         req.Config,
+		Type:           source.Type(),
+		Description:    req.Description,
+		Devices:        deviceConfig.NewDevices(req.Devices),
+		Ephemeral:      req.Ephemeral,
+		Name:           req.Name,
+		Profiles:       profiles,
+		Stateful:       req.Stateful,
+		PlacementRules: req.PlacementRules,
 	}
 
 	run := func(op *operations.Operation) error {
@@ -897,17 +900,18 @@ func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName s
 
 	// Prepare the instance creation request.
 	args := db.InstanceArgs{
-		Project:      projectName,
-		Architecture: architecture,
-		BaseImage:    req.Source.BaseImage,
-		Config:       req.Config,
-		Type:         instType,
-		Devices:      deviceConfig.NewDevices(req.Devices),
-		Description:  req.Description,
-		Ephemeral:    req.Ephemeral,
-		Name:         req.Name,
-		Profiles:     profiles,
-		Stateful:     req.Stateful,
+		Project:        projectName,
+		Architecture:   architecture,
+		BaseImage:      req.Source.BaseImage,
+		Config:         req.Config,
+		Type:           instType,
+		Devices:        deviceConfig.NewDevices(req.Devices),
+		Description:    req.Description,
+		Ephemeral:      req.Ephemeral,
+		Name:           req.Name,
+		Profiles:       profiles,
+		Stateful:       req.Stateful,
+		PlacementRules: req.PlacementRules,
 	}
 
 	storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, resp := instanceFindStoragePool(s, projectName, req)

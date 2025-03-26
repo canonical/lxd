@@ -534,16 +534,17 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) re
 		// Update instance configuration
 		do = func(_ *operations.Operation) error {
 			args := db.InstanceArgs{
-				Architecture: snapInst.Architecture(),
-				Config:       snapInst.LocalConfig(),
-				Description:  snapInst.Description(),
-				Devices:      snapInst.LocalDevices(),
-				Ephemeral:    snapInst.IsEphemeral(),
-				Profiles:     snapInst.Profiles(),
-				Project:      snapInst.Project().Name,
-				ExpiryDate:   configRaw.ExpiresAt,
-				Type:         snapInst.Type(),
-				Snapshot:     snapInst.IsSnapshot(),
+				Architecture:   snapInst.Architecture(),
+				Config:         snapInst.LocalConfig(),
+				Description:    snapInst.Description(),
+				Devices:        snapInst.LocalDevices(),
+				Ephemeral:      snapInst.IsEphemeral(),
+				Profiles:       snapInst.Profiles(),
+				Project:        snapInst.Project().Name,
+				ExpiryDate:     configRaw.ExpiresAt,
+				Type:           snapInst.Type(),
+				Snapshot:       snapInst.IsSnapshot(),
+				PlacementRules: snapInst.LocalPlacementRules(),
 			}
 
 			err = snapInst.Update(args, false)

@@ -169,13 +169,14 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 			defer unlock()
 
 			args := db.InstanceArgs{
-				Architecture: architecture,
-				Config:       configRaw.Config,
-				Description:  configRaw.Description,
-				Devices:      deviceConfig.NewDevices(configRaw.Devices),
-				Ephemeral:    configRaw.Ephemeral,
-				Profiles:     apiProfiles,
-				Project:      projectName,
+				Architecture:   architecture,
+				Config:         configRaw.Config,
+				Description:    configRaw.Description,
+				Devices:        deviceConfig.NewDevices(configRaw.Devices),
+				Ephemeral:      configRaw.Ephemeral,
+				Profiles:       apiProfiles,
+				Project:        projectName,
+				PlacementRules: configRaw.PlacementRules,
 			}
 
 			err = inst.Update(args, true)

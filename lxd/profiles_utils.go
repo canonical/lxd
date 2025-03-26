@@ -232,15 +232,16 @@ func doProfileUpdateInstance(s *state.State, args db.InstanceArgs, p api.Project
 
 	// Update will internally load the new profile configs and detect the changes to apply.
 	return inst.Update(db.InstanceArgs{
-		Architecture: inst.Architecture(),
-		Config:       inst.LocalConfig(),
-		Description:  inst.Description(),
-		Devices:      inst.LocalDevices(),
-		Ephemeral:    inst.IsEphemeral(),
-		Profiles:     profiles, // Supply with new profile config.
-		Project:      inst.Project().Name,
-		Type:         inst.Type(),
-		Snapshot:     inst.IsSnapshot(),
+		Architecture:   inst.Architecture(),
+		Config:         inst.LocalConfig(),
+		Description:    inst.Description(),
+		Devices:        inst.LocalDevices(),
+		Ephemeral:      inst.IsEphemeral(),
+		Profiles:       profiles, // Supply with new profile config.
+		Project:        inst.Project().Name,
+		Type:           inst.Type(),
+		Snapshot:       inst.IsSnapshot(),
+		PlacementRules: inst.LocalPlacementRules(),
 	}, true)
 }
 
