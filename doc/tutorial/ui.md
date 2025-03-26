@@ -1,6 +1,14 @@
 (tutorial-ui)=
 # Getting started with the UI
 
+````{only} integrated
+
+```{note}
+MicroCloud users can skip the first Install and initialize LXD section and begin at the {ref}`Access the UI <tutorial-ui-access>` section. The MicroCloud setup process handles LXD installation and initialization.
+```
+
+````
+
 This tutorial gives a quick introduction to using the LXD UI.
 It covers installing and initializing LXD, getting access to the UI, and carrying out some standard operations like creating, configuring, and interacting with instances, configuring storage, and using projects.
 
@@ -16,6 +24,7 @@ Ensure that you have 20 GiB free disk space before starting this tutorial.
     :end-before: <!-- Include end tutorial installation -->
 ```
 
+(tutorial-ui-access)=
 ## Access the UI
 
 You access the LXD UI through your browser.

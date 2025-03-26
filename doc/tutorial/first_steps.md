@@ -1,6 +1,14 @@
 (first-steps)=
 # First steps with LXD
 
+````{only} integrated
+
+```{note}
+MicroCloud users can disregard the instructions on this page, because the MicroCloud setup process handles the installation and initialization of LXD.
+```
+
+````
+
 This tutorial guides you through the first steps with LXD.
 It covers installing and initializing LXD, creating and configuring some instances, interacting with the instances, and creating snapshots.
 

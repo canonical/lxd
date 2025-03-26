@@ -1,6 +1,12 @@
 (network-create)=
 # How to create a network
 
+````{only} integrated
+```{note}
+MicroCloud users can disregard the instructions on this page, because the MicroCloud setup process handles forming a network. Following MicroCloud setup, LXD networking commands can be used with the MicroCloud.
+```
+````
+
 To create a managed network, use the [`lxc network`](lxc_network.md) command and its subcommands.
 Append `--help` to any command to see more information about its usage and available flags.
 
