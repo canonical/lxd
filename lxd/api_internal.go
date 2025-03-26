@@ -340,9 +340,11 @@ func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+
 	err = inst.OnHook(instance.HookStart, nil)
 	if err != nil {
-		logger.Error("The start hook failed", logger.Ctx{"instance": inst.Name(), "err": err})
+		l.Error("The start hook failed", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
@@ -358,10 +360,12 @@ func internalContainerOnStartHost(d *Daemon, r *http.Request) response.Response 
 		return response.SmartError(err)
 	}
 
+	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+
 	lxcPID := request.QueryParam(r, "lxc_pid")
 	if lxcPID == "" {
 		err := fmt.Errorf("No lxc_pid GET parameter was provided")
-		logger.Error("The start-host hook failed", logger.Ctx{"instance": inst.Name(), "err": err})
+		l.Error("The start-host hook failed", logger.Ctx{"err": err})
 		return response.BadRequest(err)
 	}
 
@@ -371,7 +375,7 @@ func internalContainerOnStartHost(d *Daemon, r *http.Request) response.Response 
 
 	err = inst.OnHook(instance.HookStartHost, args)
 	if err != nil {
-		logger.Error("The start-host hook failed", logger.Ctx{"instance": inst.Name(), "err": err})
+		l.Error("The start-host hook failed", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
@@ -387,6 +391,8 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+
 	target := request.QueryParam(r, "target")
 	if target == "" {
 		target = "unknown"
@@ -401,7 +407,7 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 
 	err = inst.OnHook(instance.HookStopNS, args)
 	if err != nil {
-		logger.Error("The stopns hook failed", logger.Ctx{"instance": inst.Name(), "err": err})
+		l.Error("The stopns hook failed", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
@@ -417,6 +423,8 @@ func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+
 	target := request.QueryParam(r, "target")
 	if target == "" {
 		target = "unknown"
@@ -428,7 +436,7 @@ func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
 
 	err = inst.OnHook(instance.HookStop, args)
 	if err != nil {
-		logger.Error("The stop hook failed", logger.Ctx{"instance": inst.Name(), "err": err})
+		l.Error("The stop hook failed", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
