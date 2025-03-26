@@ -1,6 +1,12 @@
 (initialize)=
 # How to initialize LXD
 
+````{only} integrated
+```{note}
+MicroCloud users can disregard the instructions on this page, because the MicroCloud setup process handles the initialization of LXD.
+```
+````
+
 Before you can create a LXD instance, you must configure and initialize LXD.
 
 ## Interactive configuration
