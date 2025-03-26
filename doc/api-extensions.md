@@ -2732,3 +2732,11 @@ The following pool-level configuration keys have been added:
 ## `resources_disk_used_by`
 
 Adds the field `used_by` to potential storage disk returned by the resources end point to indicate its use by any virtual parent device, e.g. bcache.
+
+## `instance_snapshots_multi_volume`
+
+Enables the creation of a multi-volume snapshot and the restoration of an instance together with its attached volumes, while ensuring crash consistency across volumes.
+
+Adds a `DiskVolumesMode` field to `POST /1.0/instances/{name}/snapshots` and `PUT /1.0/instances/{name}` to specify which attached volumes to include in a snapshot or restore. "root" mode includes only the instance's root disk, while "all-exclusive" mode includes the root disk and any exclusively attached volumes (non-shared). If not specified, the "root" mode is used by default.
+
+This extension also introduces a new volatile configuration key, {config:option}`instance-volatile:volatile.attached_volumes`, in the configuration of supported storage drivers for instance snapshots. This key contains a JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding snapshots.
