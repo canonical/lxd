@@ -2708,3 +2708,16 @@ This change removes the previous limitation on `ovn` networks that load balancer
 
 Adds a new `bearer` authentication method and enables authentication to the DevLXD API.
 See {ref}`DevLXD bearer tokens <devlxd-authentication-bearer>`.
+
+## `instance_snapshots_multi_volume`
+
+Enables the creation of a multi-volume snapshot and the restoration of an instance together with its attached volumes, while ensuring crash consistency across volumes.
+
+Adds the following fields:
+
+1. `IncludeAttached` to `POST /1.0/instances/{name}/snapshots` and `PUT /1.0/instances/{name}`
+1. `DeleteAttached` to `DELETE /1.0/instances/{name}/snapshots/{snapshot}`
+1. `Disks` to `POST /1.0/instances/{name}/snapshots` and `PUT /1.0/instances/{name}` to specify which attached volumes to include in a snapshot or restore
+1. `IncludeAttached` and `Disks` are mutually exclusive.
+
+This extension also introduces a new volatile configuration key, {config:option}`instance-volatile:volatile.attached_volumes`, in the configuration of supported storage drivers for instance snapshots. This key contains a JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding snapshots.
