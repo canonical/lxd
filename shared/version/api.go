@@ -461,6 +461,7 @@ var APIExtensions = []string{
 	"storage_driver_alletra",
 	"resources_disk_used_by",
 	"ovn_dhcp_ranges",
+	"instance_snapshots_multi_volume",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
