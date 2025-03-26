@@ -37,6 +37,10 @@ func (c *cmdConfig) command() *cobra.Command {
 	configDeviceCmd := cmdConfigDevice{global: c.global, config: c}
 	cmd.AddCommand(configDeviceCmd.command())
 
+	// Placement rules
+	configPlacementCmd := cmdConfigPlacement{global: c.global, config: c}
+	cmd.AddCommand(configPlacementCmd.command())
+
 	// Edit
 	configEditCmd := cmdConfigEdit{global: c.global, config: c}
 	cmd.AddCommand(configEditCmd.command())
@@ -860,6 +864,7 @@ func (c *cmdConfigShow) run(cmd *cobra.Command, args []string) error {
 			if c.flagExpanded {
 				brief.(*api.InstanceSnapshot).Config = snap.ExpandedConfig
 				brief.(*api.InstanceSnapshot).Devices = snap.ExpandedDevices
+				brief.(*api.InstanceSnapshot).PlacementRules = snap.ExpandedPlacementRules
 			}
 		} else {
 			// Instance
@@ -874,6 +879,7 @@ func (c *cmdConfigShow) run(cmd *cobra.Command, args []string) error {
 			if c.flagExpanded {
 				brief.(*api.InstancePut).Config = inst.ExpandedConfig
 				brief.(*api.InstancePut).Devices = inst.ExpandedDevices
+				brief.(*api.InstancePut).PlacementRules = inst.ExpandedPlacementRules
 			}
 		}
 
