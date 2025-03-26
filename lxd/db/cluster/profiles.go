@@ -7,6 +7,7 @@ import (
 	"database/sql"
 
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 // Code generation directives.
@@ -83,12 +84,18 @@ func (p *Profile) ToAPI(ctx context.Context, tx *sql.Tx, profileConfigs map[int]
 		}
 	}
 
+	placementRules, err := GetInstancePlacementRulesForEntity(ctx, tx, entity.TypeProfile, p.ID)
+	if err != nil {
+		return nil, err
+	}
+
 	profile := &api.Profile{
-		Name:        p.Name,
-		Description: p.Description,
-		Config:      dbConfig,
-		Devices:     DevicesToAPI(dbDevices),
-		Project:     p.Project,
+		Name:           p.Name,
+		Description:    p.Description,
+		Config:         dbConfig,
+		Devices:        DevicesToAPI(dbDevices),
+		Project:        p.Project,
+		PlacementRules: InstancePlacementRulesToAPI(placementRules),
 	}
 
 	return profile, nil
