@@ -2672,3 +2672,15 @@ This adds support for listing networks across all projects using the `all-projec
 ## `clustering_restore_skip_mode`
 
 Adds a `skip` mode to the restore request. This mode restores a cluster member's status to `ONLINE` without restarting any of its stopped local instances or migrating back instances that were evacuated to other cluster members.
+
+## `instance_snapshots_multi_volume`
+
+This API extension enables creating a snapshot and restoring an instance along with its attached volumes, while guaranteeing crash consistency across volumes. To support this, this extension adds a `disks` field to both `POST /1.0/instances/{name}/snapshots` and
+`PUT /1.0/instances/{name}` with the following possible values:
+
+1. `root`: Represents a snapshot of only the instance root disk. This same behavior is kept if `disks` is unset.
+1. `volumes`: Represents a multi-volume snapshot of the instance root volume and all non-shared attached volumes. Fails if any attached volumes are being shared.
+
+Also adds a `exclude_disks` field to both endpoints to allow a user to specify disk names whose volumes should not be included as part of the multi-volume snapshot.
+
+To track which volumes' snapshots are created together, this extension introduces a new volatile configuration key, {config:option}`instance-volatile:volatile.attached_volumes`, in the configuration of supported storage drivers for instance snapshots. This key contains a JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding snapshots.
