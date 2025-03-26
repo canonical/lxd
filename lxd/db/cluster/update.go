@@ -114,6 +114,52 @@ var updates = map[int]schema.Update{
 	71: updateFromV70,
 	72: updateFromV71,
 	73: updateFromV72,
+	74: updateFromV73,
+}
+
+func updateFromV73(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+CREATE TABLE selectors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    entity_type INTEGER NOT NULL,
+    matchers TEXT NOT NULL
+);
+CREATE TABLE placements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    kind TEXT NOT NULL,
+    required INTEGER NOT NULL,
+    priority INTEGER NOT NULL
+);
+CREATE TABLE placements_selectors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    placement_id INTEGER NOT NULL,
+    selector_id INTEGER NOT NULL,
+    FOREIGN KEY (placement_id) REFERENCES placements (id) ON DELETE CASCADE,
+    FOREIGN KEY (selector_id) REFERENCES selectors (id) ON DELETE CASCADE,
+    UNIQUE (placement_id, selector_id)
+);
+CREATE TABLE instances_placements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    instance_id INTEGER NOT NULL,
+    placement_id INTEGER NOT NULL,
+    FOREIGN KEY (instance_id) REFERENCES instances (id) ON DELETE CASCADE,
+    FOREIGN KEY (placement_id) REFERENCES placements (id) ON DELETE CASCADE,
+    UNIQUE (instance_id, placement_id),
+    UNIQUE (instance_id, name)
+);
+CREATE TABLE profiles_placements (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	name TEXT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    placement_id INTEGER NOT NULL,
+    FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE,
+    FOREIGN KEY (placement_id) REFERENCES placements (id) ON DELETE CASCADE,
+    UNIQUE (profile_id, placement_id),
+    UNIQUE (profile_id, name)
+);
+`)
+	return err
 }
 
 func updateFromV72(ctx context.Context, tx *sql.Tx) error {
