@@ -70,8 +70,10 @@ type ConfigReader interface {
 
 	ExpandedConfig() map[string]string
 	ExpandedDevices() deviceConfig.Devices
+	ExpandedPlacementRules() map[string]api.InstancePlacementRule
 	LocalConfig() map[string]string
 	LocalDevices() deviceConfig.Devices
+	LocalPlacementRules() map[string]api.InstancePlacementRule
 }
 
 // Instance interface.
