@@ -34,16 +34,17 @@ type InstanceArgs struct {
 	BaseImage    string
 	CreationDate time.Time
 
-	Architecture int
-	Config       map[string]string
-	Description  string
-	Devices      deviceConfig.Devices
-	Ephemeral    bool
-	LastUsedDate time.Time
-	Name         string
-	Profiles     []api.Profile
-	Stateful     bool
-	ExpiryDate   time.Time
+	Architecture   int
+	Config         map[string]string
+	Description    string
+	Devices        deviceConfig.Devices
+	PlacementRules map[string]api.InstancePlacementRule
+	Ephemeral      bool
+	LastUsedDate   time.Time
+	Name           string
+	Profiles       []api.Profile
+	Stateful       bool
+	ExpiryDate     time.Time
 }
 
 // ToAPI converts InstanceArgs to api.Instance.
