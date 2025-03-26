@@ -60,25 +60,27 @@ type common struct {
 	op    *operations.Operation
 	state *state.State
 
-	architecture    int
-	creationDate    time.Time
-	dbType          instancetype.Type
-	description     string
-	ephemeral       bool
-	expandedConfig  map[string]string
-	expandedDevices deviceConfig.Devices
-	expiryDate      time.Time
-	id              int
-	lastUsedDate    time.Time
-	localConfig     map[string]string
-	localDevices    deviceConfig.Devices
-	logger          logger.Logger
-	name            string
-	node            string
-	profiles        []api.Profile
-	project         api.Project
-	isSnapshot      bool
-	stateful        bool
+	architecture           int
+	creationDate           time.Time
+	dbType                 instancetype.Type
+	description            string
+	ephemeral              bool
+	expandedConfig         map[string]string
+	expandedDevices        deviceConfig.Devices
+	expandedPlacementRules map[string]api.InstancePlacementRule
+	expiryDate             time.Time
+	id                     int
+	lastUsedDate           time.Time
+	localConfig            map[string]string
+	localDevices           deviceConfig.Devices
+	localPlacementRules    map[string]api.InstancePlacementRule
+	logger                 logger.Logger
+	name                   string
+	node                   string
+	profiles               []api.Profile
+	project                api.Project
+	isSnapshot             bool
+	stateful               bool
 
 	// Cached handles.
 	// Do not use these variables directly, instead use their associated get functions so they
@@ -128,6 +130,11 @@ func (d *common) ExpandedDevices() deviceConfig.Devices {
 	return d.expandedDevices
 }
 
+// ExpandedPlacementRules returns the instance's expanded placement rules.
+func (d *common) ExpandedPlacementRules() map[string]api.InstancePlacementRule {
+	return d.expandedPlacementRules
+}
+
 // ExpiryDate returns when this snapshot expires.
 func (d *common) ExpiryDate() time.Time {
 	if d.isSnapshot {
@@ -156,6 +163,11 @@ func (d *common) LocalConfig() map[string]string {
 // LocalDevices returns the instance's local device config.
 func (d *common) LocalDevices() deviceConfig.Devices {
 	return d.localDevices
+}
+
+// LocalPlacementRules returns the instance's local placement rules.
+func (d *common) LocalPlacementRules() map[string]api.InstancePlacementRule {
+	return d.localPlacementRules
 }
 
 // Name returns the instance's name.
@@ -518,6 +530,7 @@ func (d *common) expandConfig() error {
 
 	d.expandedConfig = instancetype.ExpandInstanceConfig(globalConfigDump, d.localConfig, d.profiles)
 	d.expandedDevices = instancetype.ExpandInstanceDevices(d.localDevices, d.profiles)
+	d.expandedPlacementRules = instancetype.ExpandInstancePlacementRules(d.localPlacementRules, d.profiles)
 
 	return nil
 }
@@ -545,15 +558,16 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 	if ephemeral {
 		// Unset ephemeral flag
 		args := db.InstanceArgs{
-			Architecture: inst.Architecture(),
-			Config:       inst.LocalConfig(),
-			Description:  inst.Description(),
-			Devices:      inst.LocalDevices(),
-			Ephemeral:    false,
-			Profiles:     inst.Profiles(),
-			Project:      inst.Project().Name,
-			Type:         inst.Type(),
-			Snapshot:     inst.IsSnapshot(),
+			Architecture:   inst.Architecture(),
+			Config:         inst.LocalConfig(),
+			Description:    inst.Description(),
+			Devices:        inst.LocalDevices(),
+			Ephemeral:      false,
+			Profiles:       inst.Profiles(),
+			Project:        inst.Project().Name,
+			Type:           inst.Type(),
+			Snapshot:       inst.IsSnapshot(),
+			PlacementRules: inst.LocalPlacementRules(),
 		}
 
 		err := inst.Update(args, false)
@@ -697,17 +711,18 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 
 	// Setup the arguments.
 	args := db.InstanceArgs{
-		Project:      inst.Project().Name,
-		Architecture: inst.Architecture(),
-		Config:       inst.LocalConfig(),
-		Type:         inst.Type(),
-		Snapshot:     true,
-		Devices:      inst.LocalDevices(),
-		Ephemeral:    inst.IsEphemeral(),
-		Name:         inst.Name() + shared.SnapshotDelimiter + name,
-		Profiles:     inst.Profiles(),
-		Stateful:     stateful,
-		ExpiryDate:   expiry,
+		Project:        inst.Project().Name,
+		Architecture:   inst.Architecture(),
+		Config:         inst.LocalConfig(),
+		Type:           inst.Type(),
+		Snapshot:       true,
+		Devices:        inst.LocalDevices(),
+		Ephemeral:      inst.IsEphemeral(),
+		Name:           inst.Name() + shared.SnapshotDelimiter + name,
+		Profiles:       inst.Profiles(),
+		Stateful:       stateful,
+		ExpiryDate:     expiry,
+		PlacementRules: inst.LocalPlacementRules(),
 	}
 
 	// Create the snapshot.
