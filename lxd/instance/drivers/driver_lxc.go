@@ -69,6 +69,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/netutils"
@@ -118,23 +119,24 @@ func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.In
 		common: common{
 			state: s,
 
-			architecture: args.Architecture,
-			creationDate: args.CreationDate,
-			dbType:       args.Type,
-			description:  args.Description,
-			ephemeral:    args.Ephemeral,
-			expiryDate:   args.ExpiryDate,
-			id:           args.ID,
-			lastUsedDate: args.LastUsedDate,
-			localConfig:  args.Config,
-			localDevices: args.Devices,
-			logger:       logger.AddContext(logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
-			name:         args.Name,
-			node:         args.Node,
-			profiles:     args.Profiles,
-			project:      p,
-			isSnapshot:   args.Snapshot,
-			stateful:     args.Stateful,
+			architecture:        args.Architecture,
+			creationDate:        args.CreationDate,
+			dbType:              args.Type,
+			description:         args.Description,
+			ephemeral:           args.Ephemeral,
+			expiryDate:          args.ExpiryDate,
+			id:                  args.ID,
+			lastUsedDate:        args.LastUsedDate,
+			localConfig:         args.Config,
+			localDevices:        args.Devices,
+			localPlacementRules: args.PlacementRules,
+			logger:              logger.AddContext(logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
+			name:                args.Name,
+			node:                args.Node,
+			profiles:            args.Profiles,
+			project:             p,
+			isSnapshot:          args.Snapshot,
+			stateful:            args.Stateful,
 		},
 	}
 
@@ -326,23 +328,24 @@ func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices device
 		common: common{
 			state: s,
 
-			architecture: args.Architecture,
-			creationDate: args.CreationDate,
-			dbType:       args.Type,
-			description:  args.Description,
-			ephemeral:    args.Ephemeral,
-			expiryDate:   args.ExpiryDate,
-			id:           args.ID,
-			lastUsedDate: args.LastUsedDate,
-			localConfig:  args.Config,
-			localDevices: args.Devices,
-			logger:       logger.AddContext(logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
-			name:         args.Name,
-			node:         args.Node,
-			profiles:     args.Profiles,
-			project:      p,
-			isSnapshot:   args.Snapshot,
-			stateful:     args.Stateful,
+			architecture:        args.Architecture,
+			creationDate:        args.CreationDate,
+			dbType:              args.Type,
+			description:         args.Description,
+			ephemeral:           args.Ephemeral,
+			expiryDate:          args.ExpiryDate,
+			id:                  args.ID,
+			lastUsedDate:        args.LastUsedDate,
+			localConfig:         args.Config,
+			localDevices:        args.Devices,
+			localPlacementRules: args.PlacementRules,
+			logger:              logger.AddContext(logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
+			name:                args.Name,
+			node:                args.Node,
+			profiles:            args.Profiles,
+			project:             p,
+			isSnapshot:          args.Snapshot,
+			stateful:            args.Stateful,
 		},
 	}
 
@@ -3291,18 +3294,20 @@ func (d *lxc) Render(options ...func(response any) error) (state any, etag any, 
 		etag := []any{d.expiryDate}
 
 		snapState := api.InstanceSnapshot{
-			Name:            strings.SplitN(d.name, "/", 2)[1],
-			Architecture:    architectureName,
-			Profiles:        profileNames,
-			Config:          d.localConfig,
-			ExpandedConfig:  d.expandedConfig,
-			Devices:         d.localDevices.CloneNative(),
-			ExpandedDevices: d.expandedDevices.CloneNative(),
-			CreatedAt:       d.creationDate,
-			LastUsedAt:      d.lastUsedDate,
-			ExpiresAt:       d.expiryDate,
-			Ephemeral:       d.ephemeral,
-			Stateful:        d.stateful,
+			Name:                   strings.SplitN(d.name, "/", 2)[1],
+			Architecture:           architectureName,
+			Profiles:               profileNames,
+			Config:                 d.localConfig,
+			ExpandedConfig:         d.expandedConfig,
+			Devices:                d.localDevices.CloneNative(),
+			ExpandedDevices:        d.expandedDevices.CloneNative(),
+			PlacementRules:         d.localPlacementRules,
+			ExpandedPlacementRules: d.expandedPlacementRules,
+			CreatedAt:              d.creationDate,
+			LastUsedAt:             d.lastUsedDate,
+			ExpiresAt:              d.expiryDate,
+			Ephemeral:              d.ephemeral,
+			Stateful:               d.stateful,
 
 			// Default to uninitialised/error state (0 means no CoW usage).
 			// The size can then be populated optionally via the options argument.
@@ -3320,25 +3325,27 @@ func (d *lxc) Render(options ...func(response any) error) (state any, etag any, 
 	}
 
 	// Prepare the ETag
-	etag = []any{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
+	etag = []any{d.architecture, d.localConfig, d.localDevices, d.localPlacementRules, d.ephemeral, d.profiles}
 
 	instState := api.Instance{
-		Name:            d.name,
-		Description:     d.description,
-		Architecture:    architectureName,
-		Profiles:        profileNames,
-		Config:          d.localConfig,
-		ExpandedConfig:  d.expandedConfig,
-		Devices:         d.LocalDevices().CloneNative(),
-		ExpandedDevices: d.expandedDevices.CloneNative(),
-		CreatedAt:       d.creationDate,
-		LastUsedAt:      d.lastUsedDate,
-		Ephemeral:       d.ephemeral,
-		Stateful:        d.stateful,
-		Project:         d.project.Name,
-		Location:        d.node,
-		Type:            d.Type().String(),
-		StatusCode:      api.Error, // Default to error status for remote instances that are unreachable.
+		Name:                   d.name,
+		Description:            d.description,
+		Architecture:           architectureName,
+		Profiles:               profileNames,
+		Config:                 d.localConfig,
+		ExpandedConfig:         d.expandedConfig,
+		Devices:                d.LocalDevices().CloneNative(),
+		ExpandedDevices:        d.expandedDevices.CloneNative(),
+		PlacementRules:         d.localPlacementRules,
+		ExpandedPlacementRules: d.expandedPlacementRules,
+		CreatedAt:              d.creationDate,
+		LastUsedAt:             d.lastUsedDate,
+		Ephemeral:              d.ephemeral,
+		Stateful:               d.stateful,
+		Project:                d.project.Name,
+		Location:               d.node,
+		Type:                   d.Type().String(),
+		StatusCode:             api.Error, // Default to error status for remote instances that are unreachable.
 	}
 
 	// If instance is local then request status.
@@ -4159,6 +4166,10 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		args.Profiles = []api.Profile{}
 	}
 
+	if args.PlacementRules == nil {
+		args.PlacementRules = make(map[string]api.InstancePlacementRule)
+	}
+
 	if userRequested {
 		// Validate the new config
 		err := instance.ValidConfig(d.state.OS, args.Config, false, d.dbType)
@@ -4171,6 +4182,13 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		if err != nil {
 			return fmt.Errorf("Invalid devices: %w", err)
 		}
+	}
+
+	// Validate the instance placement rules regardless of being user requested.
+	// We need them in DB form in any case.
+	dbPlacementRules, err := cluster.InstancePlacementRulesFromAPI(args.PlacementRules)
+	if err != nil {
+		return fmt.Errorf("Invalid placement rules: %w", err)
 	}
 
 	var profiles []string
@@ -4252,6 +4270,12 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	oldExpiryDate := d.expiryDate
 
+	oldLocalPlacementRules := make(map[string]api.InstancePlacementRule)
+	err = shared.DeepCopy(&d.localPlacementRules, &oldLocalPlacementRules)
+	if err != nil {
+		return err
+	}
+
 	// Define a function which reverts everything.  Defer this function
 	// so that it doesn't need to be explicitly called in every failing
 	// return path.  Track whether or not we want to undo the changes
@@ -4266,6 +4290,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			d.expandedDevices = oldExpandedDevices
 			d.localConfig = oldLocalConfig
 			d.localDevices = oldLocalDevices
+			d.localPlacementRules = oldLocalPlacementRules
 			d.profiles = oldProfiles
 			d.expiryDate = oldExpiryDate
 			d.release()
@@ -4280,6 +4305,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	d.ephemeral = args.Ephemeral
 	d.localConfig = args.Config
 	d.localDevices = args.Devices
+	d.localPlacementRules = args.PlacementRules
 	d.profiles = args.Profiles
 	d.expiryDate = args.ExpiryDate
 
@@ -4871,6 +4897,11 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		err = cluster.UpdateInstanceDevices(ctx, tx.Tx(), int64(object.ID), devices)
+		if err != nil {
+			return err
+		}
+
+		err = cluster.UpsertInstancePlacementRules(ctx, tx.Tx(), entity.TypeInstance, object.ID, dbPlacementRules)
 		if err != nil {
 			return err
 		}
