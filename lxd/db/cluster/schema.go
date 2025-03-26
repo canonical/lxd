@@ -190,6 +190,16 @@ CREATE TABLE "instances_devices_config" (
     UNIQUE (instance_device_id, key)
 );
 CREATE INDEX instances_node_id_idx ON instances (node_id);
+CREATE TABLE instances_placements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    instance_id INTEGER NOT NULL,
+    placement_id INTEGER NOT NULL,
+    FOREIGN KEY (instance_id) REFERENCES instances (id) ON DELETE CASCADE,
+    FOREIGN KEY (placement_id) REFERENCES placements (id) ON DELETE CASCADE,
+    UNIQUE (instance_id, placement_id),
+    UNIQUE (instance_id, name)
+);
 CREATE TABLE "instances_profiles" (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
     instance_id INTEGER NOT NULL,
@@ -434,6 +444,20 @@ CREATE TABLE "operations" (
     FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE,
     FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE
 );
+CREATE TABLE placements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    kind TEXT NOT NULL,
+    required INTEGER NOT NULL,
+    priority INTEGER NOT NULL
+);
+CREATE TABLE placements_selectors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    placement_id INTEGER NOT NULL,
+    selector_id INTEGER NOT NULL,
+    FOREIGN KEY (placement_id) REFERENCES placements (id) ON DELETE CASCADE,
+    FOREIGN KEY (selector_id) REFERENCES selectors (id) ON DELETE CASCADE,
+    UNIQUE (placement_id, selector_id)
+);
 CREATE TABLE "profiles" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -466,6 +490,16 @@ CREATE TABLE "profiles_devices_config" (
     UNIQUE (profile_device_id, key),
     FOREIGN KEY (profile_device_id) REFERENCES "profiles_devices" (id) ON DELETE CASCADE
 );
+CREATE TABLE profiles_placements (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	name TEXT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    placement_id INTEGER NOT NULL,
+    FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE,
+    FOREIGN KEY (placement_id) REFERENCES placements (id) ON DELETE CASCADE,
+    UNIQUE (profile_id, placement_id),
+    UNIQUE (profile_id, name)
+);
 CREATE INDEX profiles_project_id_idx ON profiles (project_id);
 CREATE TABLE "projects" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -480,6 +514,11 @@ CREATE TABLE "projects_config" (
     value TEXT NOT NULL,
     FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE,
     UNIQUE (project_id, key)
+);
+CREATE TABLE selectors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    entity_type INTEGER NOT NULL,
+    matchers TEXT NOT NULL
 );
 CREATE TABLE "storage_buckets" (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -662,5 +701,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (73, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (74, strftime("%s"))
 `
