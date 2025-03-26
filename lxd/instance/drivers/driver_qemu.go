@@ -140,23 +140,24 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 		common: common{
 			state: s,
 
-			architecture: args.Architecture,
-			creationDate: args.CreationDate,
-			dbType:       args.Type,
-			description:  args.Description,
-			ephemeral:    args.Ephemeral,
-			expiryDate:   args.ExpiryDate,
-			id:           args.ID,
-			lastUsedDate: args.LastUsedDate,
-			localConfig:  args.Config,
-			localDevices: args.Devices,
-			logger:       logger.AddContext(logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
-			name:         args.Name,
-			node:         args.Node,
-			profiles:     args.Profiles,
-			project:      p,
-			isSnapshot:   args.Snapshot,
-			stateful:     args.Stateful,
+			architecture:        args.Architecture,
+			creationDate:        args.CreationDate,
+			dbType:              args.Type,
+			description:         args.Description,
+			ephemeral:           args.Ephemeral,
+			expiryDate:          args.ExpiryDate,
+			id:                  args.ID,
+			lastUsedDate:        args.LastUsedDate,
+			localConfig:         args.Config,
+			localDevices:        args.Devices,
+			localPlacementRules: args.PlacementRules,
+			logger:              logger.AddContext(logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
+			name:                args.Name,
+			node:                args.Node,
+			profiles:            args.Profiles,
+			project:             p,
+			isSnapshot:          args.Snapshot,
+			stateful:            args.Stateful,
 		},
 	}
 
@@ -198,23 +199,24 @@ func qemuCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.I
 		common: common{
 			state: s,
 
-			architecture: args.Architecture,
-			creationDate: args.CreationDate,
-			dbType:       args.Type,
-			description:  args.Description,
-			ephemeral:    args.Ephemeral,
-			expiryDate:   args.ExpiryDate,
-			id:           args.ID,
-			lastUsedDate: args.LastUsedDate,
-			localConfig:  args.Config,
-			localDevices: args.Devices,
-			logger:       logger.AddContext(logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
-			name:         args.Name,
-			node:         args.Node,
-			profiles:     args.Profiles,
-			project:      p,
-			isSnapshot:   args.Snapshot,
-			stateful:     args.Stateful,
+			architecture:        args.Architecture,
+			creationDate:        args.CreationDate,
+			dbType:              args.Type,
+			description:         args.Description,
+			ephemeral:           args.Ephemeral,
+			expiryDate:          args.ExpiryDate,
+			id:                  args.ID,
+			lastUsedDate:        args.LastUsedDate,
+			localConfig:         args.Config,
+			localDevices:        args.Devices,
+			localPlacementRules: args.PlacementRules,
+			logger:              logger.AddContext(logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
+			name:                args.Name,
+			node:                args.Node,
+			profiles:            args.Profiles,
+			project:             p,
+			isSnapshot:          args.Snapshot,
+			stateful:            args.Stateful,
 		},
 	}
 
@@ -5451,6 +5453,10 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		args.Profiles = []api.Profile{}
 	}
 
+	if args.PlacementRules == nil {
+		args.PlacementRules = make(map[string]api.InstancePlacementRule)
+	}
+
 	if userRequested {
 		// Validate the new config.
 		err := instance.ValidConfig(d.state.OS, args.Config, false, d.dbType)
@@ -5463,6 +5469,11 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		if err != nil {
 			return fmt.Errorf("Invalid devices: %w", err)
 		}
+	}
+
+	dbPlacementRules, err := dbCluster.InstancePlacementRulesFromAPI(args.PlacementRules)
+	if err != nil {
+		return fmt.Errorf("Invalid placement rules: %w", err)
 	}
 
 	var profiles []string
@@ -5542,6 +5553,12 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		return err
 	}
 
+	oldLocalPlacementRules := make(map[string]api.InstancePlacementRule)
+	err = shared.DeepCopy(&d.localPlacementRules, &oldLocalPlacementRules)
+	if err != nil {
+		return err
+	}
+
 	oldExpiryDate := d.expiryDate
 
 	// Revert local changes if update fails.
@@ -5555,6 +5572,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		d.localDevices = oldLocalDevices
 		d.profiles = oldProfiles
 		d.expiryDate = oldExpiryDate
+		d.localPlacementRules = oldLocalPlacementRules
 	})
 
 	// Apply the various changes to local vars.
@@ -5563,6 +5581,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	d.ephemeral = args.Ephemeral
 	d.localConfig = args.Config
 	d.localDevices = args.Devices
+	d.localPlacementRules = args.PlacementRules
 	d.profiles = args.Profiles
 	d.expiryDate = args.ExpiryDate
 
@@ -5871,6 +5890,11 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		err = dbCluster.UpdateInstanceDevices(ctx, tx.Tx(), int64(object.ID), devices)
+		if err != nil {
+			return err
+		}
+
+		err = dbCluster.UpsertInstancePlacementRules(ctx, tx.Tx(), entity.TypeInstance, object.ID, dbPlacementRules)
 		if err != nil {
 			return err
 		}
@@ -7855,18 +7879,20 @@ func (d *qemu) Render(options ...func(response any) error) (state any, etag any,
 		etag := []any{d.expiryDate}
 
 		snapState := api.InstanceSnapshot{
-			Name:            strings.SplitN(d.name, "/", 2)[1],
-			Architecture:    d.architectureName,
-			Profiles:        profileNames,
-			Config:          d.localConfig,
-			ExpandedConfig:  d.expandedConfig,
-			Devices:         d.localDevices.CloneNative(),
-			ExpandedDevices: d.expandedDevices.CloneNative(),
-			CreatedAt:       d.creationDate,
-			LastUsedAt:      d.lastUsedDate,
-			ExpiresAt:       d.expiryDate,
-			Ephemeral:       d.ephemeral,
-			Stateful:        d.stateful,
+			Name:                   strings.SplitN(d.name, "/", 2)[1],
+			Architecture:           d.architectureName,
+			Profiles:               profileNames,
+			Config:                 d.localConfig,
+			ExpandedConfig:         d.expandedConfig,
+			Devices:                d.localDevices.CloneNative(),
+			ExpandedDevices:        d.expandedDevices.CloneNative(),
+			PlacementRules:         d.localPlacementRules,
+			ExpandedPlacementRules: d.expandedPlacementRules,
+			CreatedAt:              d.creationDate,
+			LastUsedAt:             d.lastUsedDate,
+			ExpiresAt:              d.expiryDate,
+			Ephemeral:              d.ephemeral,
+			Stateful:               d.stateful,
 
 			// Default to uninitialised/error state (0 means no CoW usage).
 			// The size can then be populated optionally via the options argument.
@@ -7884,25 +7910,27 @@ func (d *qemu) Render(options ...func(response any) error) (state any, etag any,
 	}
 
 	// Prepare the ETag
-	etag = []any{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
+	etag = []any{d.architecture, d.localConfig, d.localDevices, d.localPlacementRules, d.ephemeral, d.profiles}
 
 	instState := api.Instance{
-		Name:            d.name,
-		Description:     d.description,
-		Architecture:    d.architectureName,
-		Profiles:        profileNames,
-		Config:          d.localConfig,
-		ExpandedConfig:  d.expandedConfig,
-		Devices:         d.localDevices.CloneNative(),
-		ExpandedDevices: d.expandedDevices.CloneNative(),
-		CreatedAt:       d.creationDate,
-		LastUsedAt:      d.lastUsedDate,
-		Ephemeral:       d.ephemeral,
-		Stateful:        d.stateful,
-		Project:         d.project.Name,
-		Location:        d.node,
-		Type:            d.Type().String(),
-		StatusCode:      api.Error, // Default to error status for remote instances that are unreachable.
+		Name:                   d.name,
+		Description:            d.description,
+		Architecture:           d.architectureName,
+		Profiles:               profileNames,
+		Config:                 d.localConfig,
+		ExpandedConfig:         d.expandedConfig,
+		Devices:                d.localDevices.CloneNative(),
+		ExpandedDevices:        d.expandedDevices.CloneNative(),
+		PlacementRules:         d.localPlacementRules,
+		ExpandedPlacementRules: d.expandedPlacementRules,
+		CreatedAt:              d.creationDate,
+		LastUsedAt:             d.lastUsedDate,
+		Ephemeral:              d.ephemeral,
+		Stateful:               d.stateful,
+		Project:                d.project.Name,
+		Location:               d.node,
+		Type:                   d.Type().String(),
+		StatusCode:             api.Error, // Default to error status for remote instances that are unreachable.
 	}
 
 	// If instance is local then request status.
