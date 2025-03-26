@@ -1761,19 +1761,19 @@ func (c *cmdStorageVolumeList) parseColumns(clustered bool, allVolumes bool) ([]
 				return nil, errors.New(i18n.G("Can't specify column L when not clustered"))
 			}
 		}
-		c.flagColumns = strings.Replace(c.flagColumns, "L", "", -1)
+		c.flagColumns = strings.ReplaceAll(c.flagColumns, "L", "")
 	}
 
 	if allVolumes {
 		columnsShorthandMap['p'] = volumeColumn{Name: i18n.G("POOL"), Data: c.poolColumnData}
 	} else {
-		c.flagColumns = strings.Replace(c.flagColumns, "p", "", -1)
+		c.flagColumns = strings.ReplaceAll(c.flagColumns, "p", "")
 	}
 
 	if c.flagAllProjects {
 		columnsShorthandMap['e'] = volumeColumn{Name: i18n.G("PROJECT"), Data: c.projectColumnData}
 	} else {
-		c.flagColumns = strings.Replace(c.flagColumns, "e", "", -1)
+		c.flagColumns = strings.ReplaceAll(c.flagColumns, "e", "")
 	}
 
 	columnList := strings.Split(c.flagColumns, ",")
