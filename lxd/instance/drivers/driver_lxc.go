@@ -7237,7 +7237,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 			usage, err = pool.GetInstanceUsage(d)
 			if err != nil {
 				if !errors.Is(err, storageDrivers.ErrNotSupported) {
-					d.logger.Error("Error getting disk usage", logger.Ctx{"err": err})
+					d.logger.Info("Unable to get disk usage", logger.Ctx{"err": err})
 				}
 
 				continue
