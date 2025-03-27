@@ -438,17 +438,34 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 	return nil
 }
 
-var getPendingTLSIdentityByTokenSecretStmt = fmt.Sprintf(`
+var getPendingTLSIdentityByTokenSecretStmt = `
 SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
 	FROM identities
-	WHERE identities.type = %d
+	WHERE identities.type IN (%s)
 	AND json_extract(identities.metadata, '$.secret') = ?
-`, identityTypeCertificateClientPending)
+`
 
-// GetPendingTLSIdentityByTokenSecret gets a single identity of type identityTypeCertificateClientPending with the given
+// GetPendingTLSIdentityByTokenSecret gets a single identity matching the specified identity types with the given
 // secret in its metadata. If no pending identity is found, an api.StatusError is returned with http.StatusNotFound.
-func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*Identity, error) {
-	identities, err := getIdentitysRaw(ctx, tx, getPendingTLSIdentityByTokenSecretStmt, secret)
+func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string, identityTypes ...int64) (*Identity, error) {
+	if len(identityTypes) == 0 {
+		identityTypes = []int64{
+			identityTypeCertificateClientPending,
+			identityTypeCertificateClusterLinkPending,
+		}
+	}
+
+	// Convert identity types to strings for the IN clause.
+	typeStrings := make([]string, len(identityTypes))
+	for i, idType := range identityTypes {
+		typeStrings[i] = fmt.Sprintf("%d", idType)
+	}
+
+	// Construct statement with identity types.
+	stmt := fmt.Sprintf(getPendingTLSIdentityByTokenSecretStmt, strings.Join(typeStrings, ","))
+
+	// Get identities using secret.
+	identities, err := getIdentitysRaw(ctx, tx, stmt, secret)
 	if err != nil {
 		return nil, err
 	}
