@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"slices"
@@ -15,7 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
@@ -362,7 +363,7 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 
 	// If a token is requested, create a pending TLS identity and return an api.CertificateAddToken.
 	if req.Token {
-		return createIdentityTLSPending(ctx, s, req, notify)
+		return createIdentityTLSPending(ctx, s, req, notify, api.IdentityTypeCertificateClientPending, api.ClusterLink{})
 	}
 
 	fingerprint, metadata, err := validateIdentityCert(networkCert, req.Certificate)
@@ -408,7 +409,7 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
-func createIdentityTLSPending(ctx context.Context, s *state.State, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
+func createIdentityTLSPending(ctx context.Context, s *state.State, req api.IdentitiesTLSPost, notify identityNotificationFunc, identityType dbCluster.IdentityType, clusterLink api.ClusterLink) response.Response {
 	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
 
 	// Tokens are useless if the server isn't listening (how will the untrusted client contact the server?)
@@ -465,7 +466,7 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
 			AuthMethod: api.AuthenticationMethodTLS,
-			Type:       api.IdentityTypeCertificateClientPending,
+			Type:       identityType,
 			Identifier: identifier.String(),
 			Name:       req.Name,
 			Metadata:   string(metadataJSON),
@@ -474,14 +475,48 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 			return err
 		}
 
+		// Create pending cluster link DB entry if required.
+		reverter := revert.New()
+		defer reverter.Fail()
+		if identityType == api.IdentityTypeCertificateClusterLinkPending {
+			// Check if cluster link already exists.
+			_, err = dbCluster.GetClusterLinkID(ctx, tx.Tx(), clusterLink.Name)
+			if err == nil {
+				// If the cluster link already exists, there is no need to create a pending cluster link identity.
+				reverter.Add(func() {
+					err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+						return dbCluster.DeleteIdentity(ctx, tx.Tx(), api.AuthenticationMethodTLS, identifier.String())
+					})
+
+					if err != nil {
+						logger.Warn("Failed to delete invalid or expired pending TLS identity", logger.Ctx{"err": err, "identity_id": identifier.String()})
+					}
+				})
+
+				return fmt.Errorf("Cluster link %q already exists", clusterLink.Name)
+			}
+
+			_, err = dbCluster.CreateClusterLink(ctx, tx.Tx(), dbCluster.ClusterLink{
+				IdentityID:  int(id),
+				Name:        clusterLink.Name,
+				Description: clusterLink.Description,
+				Addresses:   []net.IP{},
+				Type:        dbCluster.ClusterLinkType(clusterLink.Type),
+			})
+			if err != nil {
+				return fmt.Errorf("Error inserting %q into database: %w", clusterLink.Name, err)
+			}
+		}
+
 		if len(req.Groups) > 0 {
 			return dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), int(id), req.Groups)
 		}
 
+		reverter.Success()
 		return nil
 	})
 	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to create pending TLS identity: %w", err))
+		return response.InternalError(fmt.Errorf("Failed to create pending identity: %w", err))
 	}
 
 	// Return the CertificateAddToken.
@@ -493,7 +528,7 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 		ExpiresAt:   expiresAt,
 		// Set the Type field so that the client can differentiate
 		// between tokens meant for the certificates API and the auth API.
-		Type: api.IdentityTypeCertificateClient,
+		Type: string(identityType),
 	}
 
 	// Notify other members, update the cache, and send a lifecycle event.
