@@ -438,6 +438,30 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 	return nil
 }
 
+var getPendingIdentityByTokenSecretStmt = fmt.Sprintf(`
+SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
+	FROM identities
+	WHERE identities.type IN (%d, %d)
+	AND json_extract(identities.metadata, '$.secret') = ?
+`, identityTypeCertificateClientPending, identityTypeCertificateClusterLinkPending)
+
+// GetPendingIdentityByTokenSecret gets a single identity and its type, of type identityTypeCertificateClientPending or identityTypeCertificateClusterLinkPending,
+// with the given secret in its metadata. If no pending identity is found, an api.StatusError is returned with http.StatusNotFound.
+func GetPendingIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*Identity, error) {
+	identities, err := getIdentitysRaw(ctx, tx, getPendingIdentityByTokenSecretStmt, secret)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(identities) == 0 {
+		return nil, api.NewStatusError(http.StatusNotFound, "No pending identities found with given secret")
+	} else if len(identities) > 1 {
+		return nil, errors.New("Multiple pending identities found with given secret")
+	}
+
+	return &identities[0], nil
+}
+
 var getPendingTLSIdentityByTokenSecretStmt = fmt.Sprintf(`
 SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
 	FROM identities
