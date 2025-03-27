@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 
 	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/fvbommel/sortorder"
@@ -24,6 +26,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/db/query"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -39,6 +42,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	apiScriptlet "github.com/canonical/lxd/shared/api/scriptlet"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
@@ -1326,8 +1330,25 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 		// If no target member was selected yet, pick the member with the least number of instances.
 		if targetMemberInfo == nil {
+			var globalConfigDump map[string]any
+			if s.GlobalConfig != nil {
+				globalConfigDump = s.GlobalConfig.Dump()
+			}
+
+			expandedConfig := instancetype.ExpandInstanceConfig(globalConfigDump, req.Config, profiles)
+			expandedPlacementRules := instancetype.ExpandInstancePlacementRules(req.PlacementRules, profiles)
 			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
+				filteredCandidates, err := applyPlacementRules(ctx, tx.Tx(), candidateMembers, targetProject.Name, expandedConfig, expandedPlacementRules)
+				if err != nil {
+					return err
+				}
+
+				if len(filteredCandidates) == 1 {
+					targetMemberInfo = &filteredCandidates[0]
+					return nil
+				}
+
+				targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, filteredCandidates)
 				return err
 			})
 			if err != nil {
@@ -1414,6 +1435,118 @@ func getSortedPlacementRules(rules map[string]api.InstancePlacementRule) ([]dbCl
 	})
 
 	return dbPlacementRules, nil
+}
+
+// applyPlacementRules filters the given list of candidate cluster members using the given placement rules.
+func applyPlacementRules(ctx context.Context, tx *sql.Tx, candidates []db.NodeInfo, project string, expandedConfig map[string]string, expandedPlacementRules map[string]api.InstancePlacementRule) ([]db.NodeInfo, error) {
+	rules, err := getSortedPlacementRules(expandedPlacementRules)
+	if err != nil {
+		return nil, err
+	}
+
+	// Implicitly add the project matcher for instances.
+	for i, rule := range rules {
+		if entity.Type(rule.Selector.EntityType) == entity.TypeInstance {
+			rule.Selector.Matchers = append(rule.Selector.Matchers, api.SelectorMatcher{
+				Property: "project",
+				Values:   []string{project},
+			})
+
+			rules[i] = rule
+		}
+	}
+
+	entityIDsToMemberIDs := func(entityType entity.Type, entityIDs []int) ([]int, error) {
+		args := make([]any, 0, len(entityIDs))
+		for _, id := range entityIDs {
+			args = append(args, id)
+		}
+
+		switch entityType {
+		case entity.TypeInstance:
+			return query.SelectIntegers(ctx, tx, `SELECT DISTINCT node_id FROM instances WHERE id IN `+query.Params(len(entityIDs)), args...)
+		case entity.TypeClusterGroup:
+			return query.SelectIntegers(ctx, tx, `SELECT DISTINCT node_id FROM nodes_cluster_groups WHERE group_id IN `+query.Params(len(entityIDs)), args...)
+		case entity.TypeClusterMember:
+			return entityIDs, nil
+		default:
+			return nil, fmt.Errorf("Invalid placement rule selector entity type %q", entityType)
+		}
+	}
+
+	isSelfMatch := func(selector dbCluster.Selector) bool {
+		if entity.Type(selector.EntityType) != entity.TypeInstance {
+			return false
+		}
+
+		for _, m := range selector.Matchers {
+			_, key, ok := strings.Cut(m.Property, "config.")
+			if !ok {
+				continue
+			}
+
+			if shared.ValueInSlice(expandedConfig[key], m.Values) {
+				return true
+			}
+
+			return false
+		}
+
+		return false
+	}
+
+	for _, rule := range rules {
+		kind := api.InstancePlacementRuleKind(rule.Kind)
+		if kind == api.InstancePlacementRuleKindNone {
+			continue
+		}
+
+		entityIDs, err := dbCluster.RunSelector(ctx, tx, rule.Selector)
+		if err != nil {
+			return nil, err
+		}
+
+		entityType := entity.Type(rule.Selector.EntityType)
+		if len(entityIDs) == 0 {
+			if rule.Required {
+				if isSelfMatch(rule.Selector) {
+					continue
+				}
+
+				return nil, api.StatusErrorf(http.StatusBadRequest, "Required affinity rule selector did not match any entities of type %q", entityType)
+			}
+
+			return candidates, nil
+		}
+
+		memberIDs, err := entityIDsToMemberIDs(entityType, entityIDs)
+		if err != nil {
+			return nil, err
+		}
+
+		newCandidates := make([]db.NodeInfo, 0, len(candidates))
+		for _, candidate := range candidates {
+			candidatePresentInSelection := shared.ValueInSlice(int(candidate.ID), memberIDs)
+			switch {
+			case candidatePresentInSelection && kind == api.InstancePlacementRuleKindAffinity:
+				newCandidates = append(newCandidates, candidate)
+			case !candidatePresentInSelection && kind == api.InstancePlacementRuleKindAntiAffinity:
+				newCandidates = append(newCandidates, candidate)
+			}
+		}
+
+		if len(newCandidates) == 0 {
+			if rule.Required {
+				return nil, api.StatusErrorf(http.StatusBadRequest, "Required affinity rule selector removed all candidates from placement selection")
+			}
+
+			return candidates, nil
+		}
+
+		candidates = newCandidates
+	}
+
+	return candidates, nil
 }
 
 func instanceFindStoragePool(s *state.State, projectName string, req *api.InstancesPost) (storagePool string, storagePoolProfile string, localRootDiskDeviceKey string, localRootDiskDevice map[string]string, resp response.Response) {
