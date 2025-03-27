@@ -1334,6 +1334,7 @@ func (c *cmdClusterRestore) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Restore cluster member`))
 
 	cmd.Flags().BoolVar(&c.action.flagForce, "force", false, i18n.G(`Force restoration without user confirmation`)+"``")
+	cmd.Flags().StringVar(&c.action.flagAction, "action", "", i18n.G(`Force a particular instance restore action. Use "skip" to restore only the cluster member status without starting local instances or migrating back evacuated instances`)+"``")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
