@@ -69,6 +69,9 @@ type entityTypeDBInfo interface {
 	// triggers are in place so that warnings and group permissions do not contain stale entries. The first return value
 	// must be the name of the trigger, the second return value must be the SQL for creating the trigger.
 	onDeleteTriggerSQL() (name string, sql string)
+
+	// runSelector must validate the given Selector for the entity type and return a slice of entity IDs that match.
+	runSelector(ctx context.Context, tx *sql.Tx, selector Selector) ([]int, error)
 }
 
 var entityTypes = map[entity.Type]entityTypeDBInfo{
