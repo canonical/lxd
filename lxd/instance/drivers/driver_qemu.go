@@ -8038,7 +8038,7 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 	status.StatusCode = statusCode
 	status.Disk, err = d.diskState()
 	if err != nil && !errors.Is(err, storageDrivers.ErrNotSupported) {
-		d.logger.Warn("Error getting disk usage", logger.Ctx{"err": err})
+		d.logger.Info("Unable to get disk usage", logger.Ctx{"err": err})
 	}
 
 	return status, nil
