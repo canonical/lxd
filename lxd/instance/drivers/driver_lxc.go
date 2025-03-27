@@ -7365,7 +7365,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 			usage, err = pool.GetCustomVolumeUsage(d.Project().Name, dev.Config["source"])
 			if err != nil {
 				if !errors.Is(err, storageDrivers.ErrNotSupported) {
-					d.logger.Error("Error getting volume usage", logger.Ctx{"volume": dev.Config["source"], "err": err})
+					d.logger.Info("Unable to get volume usage", logger.Ctx{"volume": dev.Config["source"], "err": err})
 				}
 
 				continue
