@@ -2668,3 +2668,7 @@ This adds support for listing network ACLs across all projects using the `all-pr
 ## `networks_all_projects`
 
 This adds support for listing networks across all projects using the `all-projects` parameter in `GET /1.0/networks` requests.
+
+## `clustering_restore_skip_mode`
+
+Adds a `skip` mode to the restore request. This mode restores a cluster member's status to `ONLINE` without restarting any of its stopped local instances or migrating back instances that were evacuated to other cluster members.
