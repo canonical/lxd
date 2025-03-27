@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-        "POT-Creation-Date: 2025-03-27 15:17+0100\n"
+        "POT-Creation-Date: 2025-03-31 14:39+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -847,7 +847,7 @@ msgstr  ""
 msgid   "Bad key/value pair: %s"
 msgstr  ""
 
-#: lxc/copy.go:152 lxc/init.go:241 lxc/move.go:398 lxc/project.go:167
+#: lxc/copy.go:152 lxc/init.go:241 lxc/move.go:400 lxc/project.go:167
 #, c-format
 msgid   "Bad key=value pair: %q"
 msgstr  ""
@@ -2110,7 +2110,7 @@ msgstr  ""
 msgid   "Failed to close server cert file %q: %w"
 msgstr  ""
 
-#: lxc/move.go:309 lxc/move.go:385
+#: lxc/move.go:311 lxc/move.go:387
 #, c-format
 msgid   "Failed to connect to cluster member: %w"
 msgstr  ""
@@ -2145,7 +2145,7 @@ msgstr  ""
 msgid   "Failed to listen for connection: %w"
 msgstr  ""
 
-#: lxc/copy.go:404
+#: lxc/copy.go:415
 #, c-format
 msgid   "Failed to refresh target instance '%s': %v"
 msgstr  ""
@@ -3538,12 +3538,12 @@ msgstr  ""
 msgid   "Memory:"
 msgstr  ""
 
-#: lxc/move.go:327 lxc/move.go:440
+#: lxc/move.go:329 lxc/move.go:451
 #, c-format
 msgid   "Migration API failure: %w"
 msgstr  ""
 
-#: lxc/move.go:352 lxc/move.go:445
+#: lxc/move.go:354 lxc/move.go:456
 #, c-format
 msgid   "Migration operation failure: %w"
 msgstr  ""
@@ -4401,7 +4401,7 @@ msgstr  ""
 msgid   "Refresh images"
 msgstr  ""
 
-#: lxc/copy.go:426
+#: lxc/copy.go:437
 #, c-format
 msgid   "Refreshing instance: %s"
 msgstr  ""
@@ -5614,7 +5614,7 @@ msgstr  ""
 msgid   "The server doesn't implement the newer v2 resources API"
 msgstr  ""
 
-#: lxc/move.go:314
+#: lxc/move.go:316
 msgid   "The source LXD server is not clustered"
 msgstr  ""
 
@@ -5727,7 +5727,7 @@ msgstr  ""
 msgid   "Transferring image: %s"
 msgstr  ""
 
-#: lxc/copy.go:382 lxc/move.go:332
+#: lxc/copy.go:393 lxc/move.go:334
 #, c-format
 msgid   "Transferring instance: %s"
 msgstr  ""
@@ -6138,7 +6138,7 @@ msgstr  ""
 msgid   "You must specify a destination instance name"
 msgstr  ""
 
-#: lxc/copy.go:98 lxc/move.go:298 lxc/move.go:374
+#: lxc/copy.go:98 lxc/move.go:300 lxc/move.go:376
 msgid   "You must specify a source instance name"
 msgstr  ""
 
