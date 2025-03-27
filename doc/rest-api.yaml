@@ -601,6 +601,13 @@ definitions:
                 example: evacuate
                 type: string
                 x-go-name: Action
+            member_only:
+                description: |-
+                    Restore only the member status without affecting instances.
+
+                    API extension: clustering_restore_member_only
+                type: boolean
+                x-go-name: MemberOnly
             mode:
                 description: Override the configured evacuation mode.
                 example: stop
