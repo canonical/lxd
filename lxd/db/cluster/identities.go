@@ -126,6 +126,8 @@ const (
 	identityTypeCertificateMetricsUnrestricted int64 = 6
 	identityTypeCertificateClient              int64 = 7
 	identityTypeCertificateClientPending       int64 = 8
+	identityTypeCertificateClusterLink         int64 = 9
+	identityTypeCertificateClusterLinkPending  int64 = 10
 )
 
 // Scan implements sql.Scanner for IdentityType. This converts the integer value back into the correct API constant or
@@ -162,6 +164,10 @@ func (i *IdentityType) Scan(value any) error {
 		*i = api.IdentityTypeCertificateClient
 	case identityTypeCertificateClientPending:
 		*i = api.IdentityTypeCertificateClientPending
+	case identityTypeCertificateClusterLink:
+		*i = api.IdentityTypeCertificateClusterLink
+	case identityTypeCertificateClusterLinkPending:
+		*i = api.IdentityTypeCertificateClusterLinkPending
 	default:
 		return fmt.Errorf("Unknown identity type `%d`", identityTypeInt)
 	}
@@ -188,6 +194,10 @@ func (i IdentityType) Value() (driver.Value, error) {
 		return identityTypeCertificateClient, nil
 	case api.IdentityTypeCertificateClientPending:
 		return identityTypeCertificateClientPending, nil
+	case api.IdentityTypeCertificateClusterLink:
+		return identityTypeCertificateClusterLink, nil
+	case api.IdentityTypeCertificateClusterLinkPending:
+		return identityTypeCertificateClusterLinkPending, nil
 	}
 
 	return nil, fmt.Errorf("Invalid identity type %q", i)
@@ -394,8 +404,8 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 }
 
 // ActivateTLSIdentity updates a TLS identity to make it valid by adding the fingerprint, PEM encoded certificate, and setting
-// the type to api.IdentityTypeCertificateClient.
-func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate) error {
+// the type.
+func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate, identityType IdentityType) error {
 	fingerprint := shared.CertFingerprint(cert)
 	_, err := GetIdentityID(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
 	if err == nil {
@@ -409,7 +419,11 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 	}
 
 	stmt := `UPDATE identities SET type = ?, identifier = ?, metadata = ? WHERE identifier = ? AND auth_method = ?`
-	res, err := tx.ExecContext(ctx, stmt, identityTypeCertificateClient, fingerprint, string(b), identifier.String(), authMethodTLS)
+	identityTypeCode, err := identityType.Value()
+	if err != nil {
+		return fmt.Errorf("Failed to get identity type code: %w", err)
+	}
+	res, err := tx.ExecContext(ctx, stmt, identityTypeCode, fingerprint, string(b), identifier.String(), authMethodTLS)
 	if err != nil {
 		return fmt.Errorf("Failed to activate TLS identity: %w", err)
 	}
@@ -426,6 +440,30 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 	}
 
 	return nil
+}
+
+var getPendingIdentityByTokenSecretStmt = fmt.Sprintf(`
+SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
+	FROM identities
+	WHERE identities.type IN (%d, %d)
+	AND json_extract(identities.metadata, '$.secret') = ?
+`, identityTypeCertificateClientPending, identityTypeCertificateClusterLinkPending)
+
+// GetPendingIdentityByTokenSecret gets a single identity and its type, of type identityTypeCertificateClientPending or identityTypeCertificateClusterLinkPending,
+// with the given secret in its metadata. If no pending identity is found, an api.StatusError is returned with http.StatusNotFound.
+func GetPendingIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*Identity, error) {
+	identities, err := getIdentitysRaw(ctx, tx, getPendingIdentityByTokenSecretStmt, secret)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(identities) == 0 {
+		return nil, api.NewStatusError(http.StatusNotFound, "No pending identities found with given secret")
+	} else if len(identities) > 1 {
+		return nil, errors.New("Multiple pending identities found with given secret")
+	}
+
+	return &identities[0], nil
 }
 
 var getPendingTLSIdentityByTokenSecretStmt = fmt.Sprintf(`
