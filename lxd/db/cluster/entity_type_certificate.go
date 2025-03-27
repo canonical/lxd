@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeCertificate implements entityTypeDBInfo for a Certificate.
-type entityTypeCertificate struct{}
+type entityTypeCertificate struct {
+	entityTypeCommon
+}
 
 func (e entityTypeCertificate) code() int64 {
 	return entityTypeCodeCertificate
@@ -22,10 +24,6 @@ func (e entityTypeCertificate) allURLsQuery() string {
 		identityTypeCertificateMetricsRestricted,
 		identityTypeCertificateMetricsUnrestricted,
 	)
-}
-
-func (e entityTypeCertificate) urlsByProjectQuery() string {
-	return ""
 }
 
 func (e entityTypeCertificate) urlByIDQuery() string {
@@ -48,8 +46,4 @@ WHERE '' = ?
 		identityTypeCertificateMetricsRestricted,
 		identityTypeCertificateMetricsUnrestricted,
 	)
-}
-
-func (e entityTypeCertificate) onDeleteTriggerSQL() (name string, sql string) {
-	return "", ""
 }

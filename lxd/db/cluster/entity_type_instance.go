@@ -1,7 +1,15 @@
 package cluster
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
+	"strings"
+
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 // entityTypeInstance implements entityTypeDBInfo for an Instance.

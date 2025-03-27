@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeNetwork implements entityTypeDBInfo for a Network.
-type entityTypeNetwork struct{}
+type entityTypeNetwork struct {
+	entityTypeCommon
+}
 
 func (e entityTypeNetwork) code() int64 {
 	return entityTypeCodeNetwork
