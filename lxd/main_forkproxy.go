@@ -827,6 +827,7 @@ func genericRelay(dst net.Conn, src net.Conn) {
 	chSend := make(chan error)
 	chRecv := make(chan error)
 
+	// Start copying in both directions
 	go relayer(src, dst, chRecv)
 
 	_, isUDP := dst.(*net.UDPConn)
@@ -834,18 +835,38 @@ func genericRelay(dst net.Conn, src net.Conn) {
 		go relayer(dst, src, chSend)
 	}
 
-	select {
-	case errSnd := <-chSend:
-		if daemon.Debug && errSnd != nil {
-			fmt.Printf("Warning: Error while sending data: %v\n", errSnd)
-		}
+	sendClosed := false
+	recvClosed := false
 
-	case errRcv := <-chRecv:
-		if daemon.Debug && errRcv != nil {
-			fmt.Printf("Warning: Error while reading data: %v\n", errRcv)
+	for !sendClosed || !recvClosed {
+		select {
+		case errSend := <-chSend:
+			if daemon.Debug && errSend != nil {
+				fmt.Printf("Warning: Error while sending data: %v\n", errSend)
+			}
+
+			tcpConn, ok := dst.(*net.TCPConn)
+			if ok {
+				_ = tcpConn.CloseWrite()
+			}
+
+			sendClosed = true
+
+		case errRecv := <-chRecv:
+			if daemon.Debug && errRecv != nil {
+				fmt.Printf("Warning: Error while reading data: %v\n", errRecv)
+			}
+
+			tcpConn, ok := src.(*net.TCPConn)
+			if ok {
+				_ = tcpConn.CloseWrite()
+			}
+
+			recvClosed = true
 		}
 	}
 
+	// Fully close both connections
 	_ = src.Close()
 	_ = dst.Close()
 
