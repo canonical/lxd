@@ -92,6 +92,12 @@ cleanup() {
   df -h
 
   if [ "${TEST_RESULT}" != "success" ]; then
+    if command -v ceph >/dev/null; then
+      echo "::group::ceph status"
+      ceph status || true
+      echo "::endgroup::"
+    fi
+
     # dmesg may contain oops, IO errors, crashes, etc
     # If there's a kernel stack trace, don't generate a collapsible group
 
