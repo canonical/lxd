@@ -120,11 +120,15 @@ container_devices_proxy_tcp() {
   # Initial test
   lxc config device remove proxyTester proxyDev
   HOST_TCP_PORT2=$(local_tcp_port)
-  nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat tcp4-listen:4321 exec:/bin/cat &
+  HOST_TCP_PORT3=$(local_tcp_port)
+  PID=$(lxc query /1.0/containers/proxyTester/state | jq .pid)
+  nsenter -n -U -t "${PID}" -- socat tcp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
-  nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat tcp4-listen:4322 exec:/bin/cat &
+  nsenter -n -U -t "${PID}" -- socat tcp4-listen:4322 exec:/bin/cat &
   NSENTER_PID1=$!
-  lxc config device add proxyTester proxyDev proxy "listen=tcp:127.0.0.1:$HOST_TCP_PORT,$HOST_TCP_PORT2" connect=tcp:127.0.0.1:4321-4322 bind=host
+  nsenter -n -U -t "${PID}" -- socat tcp4-listen:4323 exec:/bin/cat &
+  NSENTER_PID2=$!
+  lxc config device add proxyTester proxyDev proxy "listen=tcp:127.0.0.1:$HOST_TCP_PORT,$HOST_TCP_PORT2,$HOST_TCP_PORT3" connect=tcp:127.0.0.1:4321-4323 bind=host
   sleep 0.5
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
@@ -133,6 +137,9 @@ container_devices_proxy_tcp() {
   ECHO1=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT2}")
   kill "${NSENTER_PID1}" 2>/dev/null || true
   wait "${NSENTER_PID1}" 2>/dev/null || true
+  ECHO2=$( (echo "${MESSAGE}" ; sleep 0.5) | nc -N 127.0.0.1 "${HOST_TCP_PORT3}")
+  kill "${NSENTER_PID2}" 2>/dev/null || true
+  wait "${NSENTER_PID2}" 2>/dev/null || true
 
   if [ "${ECHO}" != "${MESSAGE}" ]; then
     cat "${LXD_DIR}/logs/proxyTester/proxy.proxyDev.log"
@@ -141,6 +148,12 @@ container_devices_proxy_tcp() {
   fi
 
   if [ "${ECHO1}" != "${MESSAGE}" ]; then
+    cat "${LXD_DIR}/logs/proxyTester/proxy.proxyDev.log"
+    echo "Proxy device did not properly send data from host to container"
+    false
+  fi
+
+  if [ "${ECHO2}" != "${MESSAGE}" ]; then
     cat "${LXD_DIR}/logs/proxyTester/proxy.proxyDev.log"
     echo "Proxy device did not properly send data from host to container"
     false
