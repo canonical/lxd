@@ -449,6 +449,7 @@ var APIExtensions = []string{
 	"storage_buckets_all_projects",
 	"network_acls_all_projects",
 	"networks_all_projects",
+	"clustering_restore_skip_mode",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
