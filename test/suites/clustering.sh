@@ -3262,10 +3262,50 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Status: RUNNING"
   LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Location: node2"
 
+  c1_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep "Location:" | awk '{print $2}')
+  c2_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep "Location:" | awk '{print $2}')
+  c4_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep "Location:" | awk '{print $2}')
+  c5_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep "Location:" | awk '{print $2}')
+  c6_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep "Location:" | awk '{print $2}')
+
+  # Restore first node with "skip" mode.
+  # "skip" mode restores cluster member status without starting instances or migrating back evacuated instances.
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster restore node1 --action=skip --force
+
+  # Ensure the node is restored
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -q "status: Online"
+
+  # Verify that instances remain in their evacuated state/location
+  # c1 should stay on the node it was migrated to
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Status: RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Location: ${c1_location}"
+  # c2 should stay on the node it was migrated to
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Status: RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Location: ${c2_location}"
+  # c3 should remain stopped on node1
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Status: STOPPED"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Location: node1"
+  # c4 should stay on the node it was migrated to
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Status: RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Location: ${c4_location}"
+  # c5 should remain stopped on the node it was migrated to
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Status: STOPPED"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Location: ${c5_location}"
+  # c6 should stay on the node it was already on
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Status: RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Location: ${c6_location}"
+
+  # Now test a full restore for comparison
+  # Evacuate node1 again
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force
+
   # Ensure instances cannot be created on the evacuated node
   ! LXD_DIR="${LXD_TWO_DIR}" lxc launch testimage c7 --target=node1 || false
 
-  # Restore first node
+  # Ensure the node is evacuated
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -q "status: Evacuated"
+
+  # Restore first node (without "skip" mode)
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster restore node1 --force
 
   # For debugging
