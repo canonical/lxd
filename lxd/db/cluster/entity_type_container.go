@@ -7,7 +7,9 @@ import (
 )
 
 // entityTypeContainer implements entityTypeDBInfo for a Container.
-type entityTypeContainer struct{}
+type entityTypeContainer struct {
+	entityTypeCommon
+}
 
 func (e entityTypeContainer) code() int64 {
 	return entityTypeCodeContainer

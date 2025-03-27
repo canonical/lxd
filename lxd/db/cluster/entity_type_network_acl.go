@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeNetworkACL implements entityTypeDBInfo for a NetworkACL.
-type entityTypeNetworkACL struct{}
+type entityTypeNetworkACL struct {
+	entityTypeCommon
+}
 
 func (e entityTypeNetworkACL) code() int64 {
 	return entityTypeCodeNetworkACL
