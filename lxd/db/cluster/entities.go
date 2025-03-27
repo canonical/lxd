@@ -217,6 +217,17 @@ func (e *EntityRef) getURL() (*api.URL, error) {
 	return u, nil
 }
 
+// RunSelector returns the entity IDs for the given Selector.
+func RunSelector(ctx context.Context, tx *sql.Tx, selector Selector) ([]int, error) {
+	entityType := entity.Type(selector.EntityType)
+	info, ok := entityTypes[entityType]
+	if !ok {
+		return nil, fmt.Errorf("Failed to run entity selector: Unknown entity type %q", entityType)
+	}
+
+	return info.runSelector(ctx, tx, selector)
+}
+
 // GetEntityURL returns the *api.URL of a single entity by its type and ID.
 func GetEntityURL(ctx context.Context, tx *sql.Tx, entityType entity.Type, entityID int) (*api.URL, error) {
 	if entityType == entity.TypeServer {
