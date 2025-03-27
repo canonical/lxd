@@ -13,6 +13,7 @@ import (
 	"strconv"
 
 	petname "github.com/dustinkirkland/golang-petname"
+	"github.com/fvbommel/sortorder"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 
@@ -1368,6 +1369,51 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %s", req.Source.Type))
 	}
+}
+
+// getSortedPlacementRules converts the given map of rule name to api.InstancePlacementRule into a slice of
+// cluster.InstancePlacementRule. The returned slice is sorted into the order of rule application. Any rules that have
+// `instance` as the selector entity type have a "project" selector matcher added.
+func getSortedPlacementRules(rules map[string]api.InstancePlacementRule) ([]dbCluster.InstancePlacementRule, error) {
+	dbPlacementRules, err := dbCluster.InstancePlacementRulesFromAPI(rules)
+	if err != nil {
+		return nil, err
+	}
+
+	slices.SortFunc(dbPlacementRules, func(a, b dbCluster.InstancePlacementRule) int {
+		if a.Required {
+			if b.Required {
+				// Both required, use natural sort order by name
+				if sortorder.NaturalLess(a.Name, b.Name) {
+					return -1
+				}
+
+				return 1
+			}
+
+			// a > b
+			return -1
+		}
+
+		if b.Required {
+			// b > a
+			return 1
+		}
+
+		if a.Priority != b.Priority {
+			// Neither required, use priority ordering if different.
+			return b.Priority - a.Priority
+		}
+
+		if sortorder.NaturalLess(a.Name, b.Name) {
+			// Neither required and have equal priority, sort naturally on rule name.
+			return -1
+		}
+
+		return 1
+	})
+
+	return dbPlacementRules, nil
 }
 
 func instanceFindStoragePool(s *state.State, projectName string, req *api.InstancesPost) (storagePool string, storagePoolProfile string, localRootDiskDeviceKey string, localRootDiskDevice map[string]string, resp response.Response) {
