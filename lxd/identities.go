@@ -314,15 +314,15 @@ func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertifi
 		return response.Forbidden(nil)
 	}
 
-	// If so then check there is a matching pending TLS identity.
-	identifier, err := tlsIdentityTokenValidate(ctx, s, *joinToken)
+	// If so then check there is a matching pending TLS or cluster link identity.
+	identifier, identityType, err := tlsIdentityTokenValidate(ctx, s, *joinToken)
 	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed during search for pending TLS identity: %w", err))
+		return response.InternalError(fmt.Errorf("Failed during search for pending identity: %w", err))
 	}
 
 	// Activate the pending identity with the certificate.
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.ActivateTLSIdentity(ctx, tx.Tx(), identifier, cert)
+		return dbCluster.ActivateTLSIdentity(ctx, tx.Tx(), identifier, cert, identityType)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -362,7 +362,7 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 
 	// If a token is requested, create a pending TLS identity and return an api.CertificateAddToken.
 	if req.Token {
-		return createIdentityTLSPending(ctx, s, req, notify)
+		return createIdentityTLSPending(ctx, s, req, notify, api.IdentityTypeCertificateClientPending, "", "")
 	}
 
 	fingerprint, metadata, err := validateIdentityCert(networkCert, req.Certificate)
@@ -408,7 +408,7 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
-func createIdentityTLSPending(ctx context.Context, s *state.State, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
+func createIdentityTLSPending(ctx context.Context, s *state.State, req api.IdentitiesTLSPost, notify identityNotificationFunc, identityType dbCluster.IdentityType, clusterLinkName string, clusterLinkDescription string) response.Response {
 	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
 
 	// Tokens are useless if the server isn't listening (how will the untrusted client contact the server?)
@@ -465,13 +465,21 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
 			AuthMethod: api.AuthenticationMethodTLS,
-			Type:       api.IdentityTypeCertificateClientPending,
+			Type:       identityType,
 			Identifier: identifier.String(),
 			Name:       req.Name,
 			Metadata:   string(metadataJSON),
 		})
 		if err != nil {
 			return err
+		}
+
+		// Create cluster link DB entry if required.
+		if clusterLinkName != "" {
+			_, err = dbCluster.CreateClusterLink(ctx, tx.Tx(), dbCluster.ClusterLink{IdentityID: int(id), Name: clusterLinkName, Description: clusterLinkDescription, Addresses: []string{}})
+			if err != nil {
+				return fmt.Errorf("Error inserting %q into database: %w", req.Name, err)
+			}
 		}
 
 		if len(req.Groups) > 0 {
@@ -505,15 +513,15 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 	return response.SyncResponseLocation(true, token, lc.Source)
 }
 
-func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.CertificateAddToken) (uuid.UUID, error) {
+func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.CertificateAddToken) (uuid.UUID, dbCluster.IdentityType, error) {
 	var id *dbCluster.Identity
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		id, err = dbCluster.GetPendingTLSIdentityByTokenSecret(ctx, tx.Tx(), token.Secret)
+		id, err = dbCluster.GetPendingIdentityByTokenSecret(ctx, tx.Tx(), token.Secret)
 		return err
 	})
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("Failed to find a matching pending identity: %w", err)
+		return uuid.UUID{}, id.Type, fmt.Errorf("Failed to find a matching pending identity: %w", err)
 	}
 
 	reverter := revert.New()
@@ -530,20 +538,20 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 
 	metadata, err := id.PendingTLSMetadata()
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("Failed extracting pending TLS identity metadata: %w", err)
+		return uuid.UUID{}, id.Type, fmt.Errorf("Failed extracting pending TLS identity metadata: %w", err)
 	}
 
 	if !metadata.Expiry.IsZero() && metadata.Expiry.Before(time.Now()) {
-		return uuid.UUID{}, api.StatusErrorf(http.StatusForbidden, "Token has expired")
+		return uuid.UUID{}, id.Type, api.StatusErrorf(http.StatusForbidden, "Token has expired")
 	}
 
 	uid, err := uuid.Parse(id.Identifier)
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("Unexpected identifier format for pending TLS identity: %w", err)
+		return uuid.UUID{}, id.Type, fmt.Errorf("Unexpected identifier format for pending TLS identity: %w", err)
 	}
 
 	reverter.Success()
-	return uid, nil
+	return uid, id.Type, nil
 }
 
 // swagger:operation GET /1.0/auth/identities identities identities_get
