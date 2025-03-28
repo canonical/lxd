@@ -92,22 +92,155 @@ lxc query --request GET /1.0/network-acls/my-acl
 
 ## Create an ACL
 
-Use the following command to create an ACL:
+Network ACL names must meet the following requirements:
+
+- Must be between 1 and 63 characters long.
+- Can contain only ASCII letters (a–z, A–Z), numbers (0–9), and dashes (-).
+- Cannot begin with a digit or a dash.
+- Cannot end with a dash.
+
+`````{tabs}
+````{group-tab} CLI
+
+To create an ACL, run:
 
 ```bash
-lxc network acl create <ACL_name> [configuration_options...]
+lxc network acl create <ACL_name> [user.KEY=value ...] 
 ```
 
-This command creates an ACL without rules.
-As a next step, {ref}`add rules <network-acls-rules>` to the ACL.
+- You must provide an ACL name that meets the requirements described above.
+- You can optionally provide one or more custom `user` keys to store metadata or other information.
 
-Valid network ACL names must adhere to the following rules:
+ACLs have no rules upon creation via command line, so as a next step, {ref}`add rules <network-acls-rules>` to the ACL. You can also {ref}`edit the ACL configuration <network-acls-edit>`, or {ref}`assign the ACL to a network or NIC <network-acls-assign>`.
 
-- Names must be between 1 and 63 characters long.
-- Names must be made up exclusively of letters, numbers and dashes from the ASCII table.
-- Names must not start with a digit or a dash.
-- Names must not end with a dash.
+Another way to create ACLs from the command line is to provide a YAML configuration file:
 
+```bash
+lxc network acl create <ACL_NAME> < <filename.yaml>
+```
+
+This file must contain at least the ACL `name`, and it can include any other {ref}`network-acls-properties`, including the `egress` and `ingress` properties for defining {ref}`ACL rules <network-acls-rules>`. See the final example in the set below.
+
+### Examples
+
+Create an ACL with the name `acl1`:
+
+```bash
+lxc network acl create acl1
+```
+
+Create an ACL with the name `acl2` and a custom user key of `environment`:
+
+```bash
+lxc network acl create acl2 user.environment=dev
+```
+
+Create an ACL with the name `acl3`, and custom user keys of `environment` and `level`:
+
+```bash
+lxc network acl create acl3 user.environment=dev user.level=5
+```
+
+Create an ACL using a YAML configuration file:
+
+First, create a file named `config.yaml` with the following content:
+
+```yaml
+description: Allow web traffic from internal network
+config:
+  user.owner: devops
+ingress:
+  - action: allow
+    description: Allow HTTP/HTTPS from internal
+    protocol: tcp
+    source: "@internal"
+    destination_port: "80,443"
+    state: enabled
+```
+
+Note that the custom user keys are stored under the `config` property.
+
+The following command creates an ACL from that file's configuration:
+
+```bash
+lxc network acl create example-web-acl < config.yaml
+```
+
+````
+
+````{group-tab} API
+
+To create an ACL, query the following endpoint:
+
+```bash
+lxc query --request POST /1.0/network-acls --data '{
+  "name": "<ACL name>", # required
+  "config": {
+    "user.<custom key name>": "<custom key value>"
+  },
+  "description": "<description of the ACL>",
+  "egress": [<egress rule>, <another egress rule...>],
+  "ingress": [<ingress rule>, <another ingress rule...>]
+}'
+```
+
+- You must provide an ACL `name` that meets the requirements described above.
+- You can optionally provide one or more custom `config.user.*` keys to store metadata or other information.
+- The `ingress` and `egress` lists contain rules for inbound and outbound traffic. See {ref}`network-acls-rules` for details.
+
+See [the API reference](swagger:/network-acls/network_acls_post) for more information.
+
+### Examples
+
+Create an ACL with the name `acl1`:
+
+```bash
+lxc query --request POST /1.0/network-acls --data '{
+  "name": "acl1"
+}'
+```
+
+Create an ACL with the name `acl2` and a custom user key of `environment`:
+
+```bash
+lxc query --request POST /1.0/network-acls --data '{
+  "name": "acl2",
+  "config": {
+    "user.environment": "dev"
+  }
+}'
+```
+
+Create an ACL with the name `acl3`, a custom user key of `environment`, and a `description`:
+
+```bash
+lxc query --request POST /1.0/network-acls --data '{
+  "name": "acl3",
+  "config": {
+    "user.environment": "dev"
+  },
+  "description": "Web servers"
+}'
+```
+
+Create an ACL with the name `acl4` and an `ingress` rule:
+
+```bash
+lxc query --request POST /1.0/network-acls --data '{
+  "name": "acl4",
+  "ingress": [
+    {
+      "action": "drop",
+      "state": "enabled"
+    }
+  ]
+}'
+
+````
+
+`````
+
+(network-acls-properties)=
 ### ACL properties
 
 ACLs have the following properties:
@@ -210,6 +343,7 @@ source=@ovn1/mypeer
 When using a network subject selector, the network that has the ACL applied to it must have the specified peer connection.
 Otherwise, the ACL cannot be applied to it.
 
+(network-acls-log)=
 ### Log traffic
 
 Generally, ACL rules are meant to control the network traffic between instances and networks.
@@ -234,6 +368,7 @@ lxc network acl edit <ACL_name>
 This command opens the ACL in YAML format for editing.
 You can edit both the ACL configuration and the rules.
 
+(network-acls-assign)=
 ## Assign an ACL
 
 After configuring an ACL, you must assign it to a network or an instance NIC.
