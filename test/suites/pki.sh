@@ -10,34 +10,27 @@ test_pki() {
   (
     set -e
     cd "${TEST_DIR}/pki"
-    export EASYRSA_KEY_SIZE=4096
 
-    # shellcheck disable=SC1091
-    if [ -e pkitool ]; then
-        . ./vars
-        ./clean-all
-        ./pkitool --initca
-        ./pkitool lxd-client
-        ./pkitool lxd-client-revoked
-        # This will revoke the certificate but fail in the end as it tries to then verify the revoked certificate.
-        ./revoke-full lxd-client-revoked || true
-    else
-        ./easyrsa init-pki
-        echo "lxd" | ./easyrsa build-ca nopass
-        ./easyrsa gen-crl
-        ./easyrsa build-client-full restricted nopass
-        ./easyrsa build-client-full unrestricted nopass
-        ./easyrsa build-client-full fine-grained nopass
-        ./easyrsa build-client-full ca-trusted nopass
-        ./easyrsa build-client-full prior-revoked nopass
-        mkdir keys
-        cp pki/private/* keys/
-        cp pki/issued/* keys/
-        cp pki/ca.crt keys/
-        echo "yes" | ./easyrsa revoke prior-revoked
-        ./easyrsa gen-crl
-        cp pki/crl.pem keys/
-    fi
+    cat << EOF > vars
+set_var EASYRSA_ALGO ec
+set_var EASYRSA_BATCH yes
+EOF
+
+    ./easyrsa init-pki
+    echo "lxd" | ./easyrsa build-ca nopass
+    ./easyrsa gen-crl
+    ./easyrsa build-client-full restricted nopass
+    ./easyrsa build-client-full unrestricted nopass
+    ./easyrsa build-client-full fine-grained nopass
+    ./easyrsa build-client-full ca-trusted nopass
+    ./easyrsa build-client-full prior-revoked nopass
+    mkdir keys
+    cp pki/private/* keys/
+    cp pki/issued/* keys/
+    cp pki/ca.crt keys/
+    echo "yes" | ./easyrsa revoke prior-revoked
+    ./easyrsa gen-crl
+    cp pki/crl.pem keys/
   )
 
   # Setup the daemon.
