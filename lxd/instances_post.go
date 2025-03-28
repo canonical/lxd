@@ -728,7 +728,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		return response.BadRequest(errors.New("Backup config is missing"))
 	}
 
-	if bInfo.Config.Container == nil {
+	if bInfo.Config.Instance == nil {
 		return response.BadRequest(errors.New("Instance definition in backup config is missing"))
 	}
 
@@ -736,10 +736,10 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	var req api.InstancesPost
 	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		req = api.InstancesPost{
-			InstancePut: bInfo.Config.Container.Writable(),
+			InstancePut: bInfo.Config.Instance.Writable(),
 			Name:        bInfo.Name,
 			Source:      api.InstanceSource{}, // Only relevant for "copy" or "migration", but may not be nil.
-			Type:        api.InstanceType(bInfo.Config.Container.Type),
+			Type:        api.InstanceType(bInfo.Config.Instance.Type),
 		}
 
 		return limits.AllowInstanceCreation(ctx, s.GlobalConfig, tx, projectName, req)
@@ -760,15 +760,20 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		bInfo.Name = instanceName
 	}
 
+	rootVol, err := bInfo.Config.RootVolume()
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed getting the root volume: %w", err))
+	}
+
 	// Override the volume's UUID.
 	// Normally a volume (and its snapshots) gets a new UUID if their config doesn't already have
 	// a `volatile.uuid` field during creation of the volume's record in the DB.
 	// When importing a backup we have to ensure to not pass the backup volume's UUID when
 	// calling the actual backend functions for the target volume that perform some preliminary validation checks.
-	bInfo.Config.Volume.Config["volatile.uuid"] = uuid.New().String()
+	rootVol.Config["volatile.uuid"] = uuid.New().String()
 
 	// Override the volume snapshot's UUID.
-	for _, snapshot := range bInfo.Config.VolumeSnapshots {
+	for _, snapshot := range rootVol.Snapshots {
 		snapshot.Config["volatile.uuid"] = uuid.New().String()
 	}
 

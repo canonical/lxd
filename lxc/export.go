@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -23,6 +24,7 @@ type cmdExport struct {
 	flagInstanceOnly         bool
 	flagOptimizedStorage     bool
 	flagCompressionAlgorithm string
+	flagExportVersion        uint
 }
 
 func (c *cmdExport) command() *cobra.Command {
@@ -41,6 +43,8 @@ func (c *cmdExport) command() *cobra.Command {
 	cmd.Flags().BoolVar(&c.flagOptimizedStorage, "optimized-storage", false,
 		i18n.G("Use storage driver optimized format (can only be restored on a similar pool)"))
 	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Compression algorithm to use (none for uncompressed)")+"``")
+	cmd.Flags().UintVar(&c.flagExportVersion, "export-version", 0,
+		i18n.G("Use a different metadata format version to be able to import the backup on older LXD versions")+"``")
 
 	return cmd
 }
@@ -74,6 +78,21 @@ func (c *cmdExport) run(cmd *cobra.Command, args []string) error {
 		InstanceOnly:         instanceOnly,
 		OptimizedStorage:     c.flagOptimizedStorage,
 		CompressionAlgorithm: c.flagCompressionAlgorithm,
+	}
+
+	backupVersionSupported := d.HasExtension("backup_metadata_version")
+	exportVersion := api.BackupMetadataVersion(c.flagExportVersion)
+
+	// If the server supports setting the backup version set the selected version
+	// or use the latest version as default.
+	if backupVersionSupported {
+		if exportVersion != 0 {
+			req.Version = exportVersion
+		} else {
+			req.Version = api.BackupMetadataVersion2
+		}
+	} else if !backupVersionSupported && exportVersion != 0 {
+		return errors.New(i18n.G("The server doesn't support setting the metadata format version"))
 	}
 
 	op, err := d.CreateInstanceBackup(name, req)
