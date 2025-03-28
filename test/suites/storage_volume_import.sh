@@ -1,6 +1,9 @@
 test_storage_volume_import() {
-  truncate -s 25MiB foo.iso
-  truncate -s 25MiB foo.img
+  # Some storage types, such as lvm and ceph, support only 512-aligned image sizes
+  # Test with weird sizes of images
+  dd if=/dev/urandom of=foo.iso bs=359 count=1
+  dd if=/dev/urandom of=foo.img bs=1M count=1
+  echo -n "a" >> foo.img
 
   ensure_import_testimage
 
