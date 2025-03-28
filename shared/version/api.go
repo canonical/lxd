@@ -443,6 +443,7 @@ var APIExtensions = []string{
 	"client_cert_presence",
 	"clustering_groups_used_by",
 	"container_bpf_delegation",
+	"override_snapshot_profiles_on_copy",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
