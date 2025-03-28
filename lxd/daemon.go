@@ -58,7 +58,9 @@ import (
 	"github.com/canonical/lxd/lxd/metrics"
 	networkZone "github.com/canonical/lxd/lxd/network/zone"
 	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
 	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
@@ -760,7 +762,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		if !(r.RemoteAddr == "@" && version == "internal") {
+		if r.RemoteAddr != "@" || version != "internal" {
 			// Block public API requests until we're done with basic
 			// initialization tasks, such setting up the cluster database.
 			select {
@@ -1524,26 +1526,6 @@ func (d *Daemon) init() error {
 
 	d.gateway.Cluster = d.db.Cluster
 
-	// This logic used to belong to patchUpdateFromV10, but has been moved
-	// here because it needs database access.
-	if shared.PathExists(shared.VarPath("lxc")) {
-		err := os.Rename(shared.VarPath("lxc"), shared.VarPath("containers"))
-		if err != nil {
-			return err
-		}
-
-		logger.Debug("Restarting all the containers following directory rename")
-
-		s := d.State()
-		instances, err := instance.LoadNodeAll(s, instancetype.Container)
-		if err != nil {
-			return fmt.Errorf("Failed loading containers to restart: %w", err)
-		}
-
-		instancesShutdown(instances)
-		instancesStart(s, instances)
-	}
-
 	// Setup the user-agent.
 	if d.serverClustered {
 		version.UserAgentFeatures([]string{"cluster"})
@@ -2042,6 +2024,47 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	// Cancelling the context will make everyone aware that we're shutting down.
 	d.shutdownCancel()
 
+	// If we're in a snap and we asked for a graceful shutdown,
+	// we start a ticker gorountine that in case of a very long shutdown process
+	// can augment the snapd timeout of the LXD daemon.
+	if sig == unix.SIGPWR && shared.InSnap() {
+		// Get the original LXD daemon stop-timout.
+		start := time.Now()
+		stopTimeout, err := resources.GetSystemdStopTimeout(ctx)
+		if err != nil {
+			logger.Error("Failed to get systemd stop timeout", logger.Ctx{"err": err})
+		}
+
+		paddingDuration := 20 * time.Second
+		augmentedDuration := time.Minute
+
+		// If the shutdown process is still not finished after `stopTimeout - paddingDuration`,
+		// we will augment the timeout by `augmentedDuration`. This is to avoid the snapd
+		// timeout to kill the LXD daemon (for example, we might have operations on instances that take a very long time (e.g, large VM updates, etc.)).
+		go func() {
+			ticker := time.NewTicker(2 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					logger.Info("Shutdown process finished, no need to extend LXD snap daemon stop timeout")
+					return
+				case <-ticker.C:
+					if time.Since(start) > stopTimeout-paddingDuration {
+						logger.Warn("Shutdown process is taking a long time, extending LXD snap daemon stop timeout")
+						err = resources.ExtendSystemdTimeout(ctx, augmentedDuration)
+						if err != nil {
+							logger.Error("Failed to extend systemd stop timeout", logger.Ctx{"err": err})
+						}
+
+						stopTimeout += augmentedDuration
+						logger.Info("LXD snap daemon stop timeout extended", logger.Ctx{"newStopTimeout": stopTimeout})
+					}
+				}
+			}
+		}()
+	}
+
 	if d.gateway != nil {
 		d.stopClusterTasks()
 
@@ -2081,47 +2104,56 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		}
 	}
 
+	ctx, cancel := context.WithTimeout(ctx, s.GlobalConfig.ShutdownTimeout())
+	defer cancel()
+
 	// Handle shutdown (unix.SIGPWR) and reload (unix.SIGTERM) signals.
 	if sig == unix.SIGPWR || sig == unix.SIGTERM {
 		if d.db.Cluster != nil {
-			// waitForOperations will block until all operations are done, or it's forced to shut down.
-			// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
-			// initiated using `lxd shutdown`.
-			waitForOperations(ctx, d.db.Cluster, s.GlobalConfig.ShutdownTimeout())
-		}
+			// Try to cancel any cancelable operations.
+			ops := operations.Clone()
+			for _, op := range ops {
+				if op.Status() != api.Running || op.Class() == operations.OperationClassToken {
+					continue
+				}
 
-		// Unmount daemon image and backup volumes if set.
-		logger.Info("Stopping daemon storage volumes")
-		done := make(chan struct{})
-		go func() {
-			err := daemonStorageVolumesUnmount(s)
-			if err != nil {
-				logger.Error("Failed to unmount image and backup volumes", logger.Ctx{"err": err})
+				_, opAPI, err := op.Render()
+				if err != nil {
+					return fmt.Errorf("Failed to render an operation while attempting to stop cancelable operations: %w", err)
+				}
+
+				if opAPI.MayCancel {
+					_, _ = op.Cancel()
+				}
 			}
-
-			done <- struct{}{}
-		}()
-
-		// Only wait 60 seconds in case the storage backend is unreachable.
-		select {
-		case <-time.After(time.Minute):
-			logger.Error("Timed out waiting for image and backup volume")
-		case <-done:
 		}
 
 		// Full shutdown requested.
 		if sig == unix.SIGPWR {
-			instancesShutdown(instances)
+			logger.Debug("Shutting down instances")
+			instancesShutdown(ctx, instances)
 
 			logger.Info("Stopping networks")
 			networkShutdown(s)
 
-			// Unmount storage pools after instances stopped.
+			// Unmount daemon image and backup volumes if set.
+			logger.Info("Stopping daemon storage volumes")
+			logger.Debug("Unmounting daemon storage volumes")
+			volUnmountCtx, cancel := context.WithTimeout(ctx, time.Minute)
+			defer cancel()
+			err := daemonStorageVolumesUnmount(s, volUnmountCtx)
+			if err != nil {
+				logger.Error("Failed to unmount image and backup volumes", logger.Ctx{"err": err})
+			}
+
+			logger.Debug("Daemon storage volumes unmounted")
+
+			// Unmount storage pools after instances stopped and images/backup volumes unmounted.
 			logger.Info("Stopping storage pools")
 
 			var pools []string
 
-			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				var err error
 
 				pools, err = tx.GetStoragePoolNames(ctx)
@@ -2144,6 +2176,23 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 					logger.Error("Unable to unmount storage pool", logger.Ctx{"pool": poolName, "err": err})
 					continue
 				}
+			}
+		}
+
+		if d.db.Cluster != nil {
+			// Remove remaining operations before closing the database.
+			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				err := dbCluster.DeleteOperations(ctx, tx.Tx(), s.DB.Cluster.GetNodeID())
+				if err != nil {
+					logger.Error("Failed cleaning up operations")
+				}
+
+				return nil
+			})
+			if err != nil {
+				logger.Error("Failed cleaning up operations", logger.Ctx{"err": err})
+			} else {
+				logger.Debug("Operations deleted from the database")
 			}
 		}
 	}
