@@ -7804,7 +7804,7 @@ paths:
                   name: TLS identity
                   required: true
                   schema:
-                    $ref: '#/definitions/IdentitiesPostTLS'
+                    $ref: '#/definitions/IdentitiesTLSPost'
             produces:
                 - application/json
             responses:
