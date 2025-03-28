@@ -52,6 +52,7 @@ lxc query --request GET /1.0/network-acls?recursion=1
 ````
 `````
 
+(network-acls-show)=
 ## Show an ACL
 
 `````{tabs}
@@ -188,8 +189,8 @@ lxc query --request POST /1.0/network-acls --data '{
     "user.<custom key name>": "<custom key value>"
   },
   "description": "<description of the ACL>",
-  "egress": [<egress rule>, <another egress rule...>],
-  "ingress": [<ingress rule>, <another ingress rule...>]
+  "egress": [<egress rule>, <another egress rule...>,...],
+  "ingress": [<ingress rule>, <another ingress rule...>,...]
 }'
 ```
 
@@ -366,14 +367,223 @@ lxc network acl show-log <ACL_name>
 (network-acls-edit)=
 ## Edit an ACL
 
-Use the following command to edit an ACL:
+`````{tabs}
+````{group-tab} CLI
+
+To edit an ACL, run:
 
 ```bash
 lxc network acl edit <ACL_name>
 ```
 
-This command opens the ACL in YAML format for editing.
-You can edit both the ACL configuration and the rules.
+This command opens the ACL in YAML format for editing. You can edit any part of the configuration _except_ for the ACL name.
+
+```{tip}
+You can edit the ACL name via the API. View the `API` tab for more information.
+```
+
+````
+
+````{group-tab} API
+
+Use the API to:
+
+- {ref}`network-acls-edit-rename`
+- {ref}`network-acls-edit-properties`
+- {ref}`network-acls-edit-config`
+
+(network-acls-edit-rename)=
+### Rename an ACL
+
+To rename an ACL, query the following endpoint:
+
+```bash
+lxc query --request POST /1.0/network-acls/{name} --data '{
+  "name": "<new ACL name>"
+}'
+```
+
+The new name must meet the naming requirements listed in {ref}`network-acls-create`.
+
+#### Example
+
+Rename an ACL named `web-traffic` to `internal-web-traffic`:
+
+```bash
+lxc query --request POST /1.0/network-acls/web-traffic --data '{
+  "name": "internal-web-traffic"
+}'
+```
+
+(network-acls-edit-properties)=
+### Update other ACL properties
+
+To update any ACL property aside from `name`, query the following endpoint:
+
+```bash
+lxc query --request PUT /1.0/network-acls/{name} --data '{
+  "config": {
+    "user.<custom key name>": "<custom key value>"
+  },
+  "description": "<description of the ACL>",
+  "egress": [<egress rule>, <another egress rule...>,...],
+  "ingress": [<ingress rule>, <another ingress rule...>,...]
+}'
+```
+
+```{warning}
+Be careful! Any properties you omit from this request (aside from the ACL `name`) will be reset to defaults.
+```
+
+The `PUT` method used in this request performs a full replacement of the ACL's properties. With the exception of the `name` property, all other properties are overwritten by the data you provide. Any omitted properties are reset to default values.
+
+To preserve any specific properties when making an update, first {ref}`retrieve the current ACL properties <network-acls-show>`, then copy the values you want to keep into your request body.
+
+If you only need to add or update a `config.user.*` key, see: {ref}`network-acls-edit-config`.
+
+#### Example
+
+Consider an ACL named `test` with the following properties (shown in JSON):
+
+```json
+{
+  "name": "test",
+  "config": {
+    "user.type": "dev"
+  },
+  "description": "My test ACL",
+  "egress": [
+    {
+      "action": "allow",
+      "state": "logged"
+    }
+  ]
+  "ingress": [
+    {
+      "action": "drop",
+      "state": "enabled"
+    }
+  ]
+}
+```
+
+This query updates that ACL's `egress` rule `state` from `logged` to `enabled`:
+
+```bash
+lxc query --request PUT /1.0/network-acls/test --data '{
+  "egress": [
+    {
+      "action": "allow",
+      "state": "enabled"
+    }
+  ]
+}'
+```
+
+After the above query is run, the `test` ACL contains the following properties:
+
+```json
+{
+  "name": "test",
+  "config": {},
+  "description": "",
+  "egress": [
+    {
+      "action": "allow",
+      "state": "enabled"
+    }
+  ],
+  "ingress": []
+}
+```
+
+Note that the `description` and `ingress` properties have been reset to defaults because they were not provided in the API request.
+
+To avoid this behavior and preserve the values of any existing properties, you must include them in the `PUT` request along with the updated property:
+
+```bash
+lxc query --request PUT /1.0/network-acls/test --data '{
+  "description": "My test ACL",
+  "egress": [
+    {
+      "action": "allow",
+      "state": "enabled"
+    }
+  ],
+  "ingress": [
+    {
+      "action": "drop",
+      "state": "enabled"
+    }
+  ]
+}'
+```
+
+(network-acls-edit-config)=
+### Update `config.user.*` keys
+
+To add or update the custom `config.user.*` keys, query the following endpoint:
+
+```bash
+lxc query --request PATCH /1.0/network-acls/{name} --data '{
+  "config": {
+    "user.<custom key name>": "<custom key value>"
+  }
+}'
+```
+
+This `PATCH` endpoint allows you to add or update custom `config.user.*` keys without affecting other existing `config.user.*` entries.
+
+However, this partial update behavior applies _only_ to the `config` property. For the `description`, `egress`, and `ingress` properties, this request behaves like a `PUT`: it replaces any provided values and resets any omitted properties to their defaults.
+
+```{warning}
+Be careful! Any properties you omit from this request (aside from `config` and `name`) will be reset to defaults.
+```
+
+#### Example
+
+Consider an ACL named `test` with the following properties (shown in JSON):
+
+```json
+{
+  "name": "test",
+  "description": "My test ACL",
+  "config": {
+    "user.type": "test"
+  },
+  "description": ""
+}
+```
+
+The following query adds a `config.user.limit` key with the value of `10`:
+
+```bash
+lxc query --request PATCH /1.0/network-acls/test --data '{
+  "description": "My test ACL",
+  "config": {
+    "user.limit": "10"
+  }
+}'
+```
+
+After sending the above request, the `test` ACL's properties are updated to:
+
+```json
+{
+  "name": "test",
+  "description": "My test ACL",
+  "config": {
+    "user.type": "test",
+    "user.limit": "10"
+  },
+  "description": ""
+}
+```
+
+Note that the request _inserted_ the new `user.limit` key without affecting the pre-existing `user.type` key. Also notice that the `description` property was sent in the request; otherwise, it would have been reset to its default value of an empty string.
+
+````
+`````
 
 (network-acls-assign)=
 ## Assign an ACL
