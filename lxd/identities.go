@@ -250,7 +250,7 @@ func identityAccessHandler(authenticationMethod string, entitlement auth.Entitle
 //	    description: TLS Identity
 //	    required: true
 //	    schema:
-//	      $ref: "#/definitions/IdentitiesPostTLS"
+//	      $ref: "#/definitions/IdentitiesTLSPost"
 //	responses:
 //	  "201":
 //	    oneOf:
