@@ -4,6 +4,10 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// DefaultMetadataVersion represents the current default version of the format used when writing a backup's metadata.
+// The metadata is used both for exporting backups and for migration.
+const DefaultMetadataVersion = api.BackupMetadataVersion1
+
 // Config represents the config of a backup that can be stored in a backup.yaml file (or embedded in index.yaml).
 type Config struct {
 	Container       *api.Instance                `yaml:"container,omitempty"` // Used by VM backups too.
