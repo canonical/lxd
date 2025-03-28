@@ -2638,3 +2638,7 @@ Adds new {config:option}`instance-security:security.delegate_bpf`.* group of opt
 ## `override_snapshot_profiles_on_copy`
 
 This adds a request option to set snapshot's target profile on instance copy to be inherited from target instance.
+
+## `clustering_restore_member_only`
+
+Adds a `--member-only` flag to the `lxc cluster restore` command, allowing to restore a cluster member's status to `ONLINE` without affecting the state or location of instances. When this flag is set, LXD will neither restart local instances that were stopped during evacuation nor migrate back instances that were evacuated to other nodes.
