@@ -7,7 +7,8 @@ import (
 )
 
 // FileMetadataVersion represents the current version of the format used when writing a backup's metadata to file.
-const FileMetadataVersion = api.BackupMetadataVersion1
+// Starting from LXD 6.x onwards version 2 of the format is used.
+const FileMetadataVersion = api.BackupMetadataVersion2
 
 // VolumeConfig represents the config of a volume including its snapshots.
 type VolumeConfig struct {
