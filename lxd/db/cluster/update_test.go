@@ -1,4 +1,4 @@
-package cluster_test
+package cluster
 
 import (
 	"context"
@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -20,7 +19,7 @@ import (
 )
 
 func TestUpdateFromV0(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(1, nil)
 	require.NoError(t, err)
 
@@ -40,7 +39,7 @@ func TestUpdateFromV0(t *testing.T) {
 }
 
 func TestUpdateFromV1_Certificates(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(2, nil)
 	require.NoError(t, err)
 
@@ -53,7 +52,7 @@ func TestUpdateFromV1_Certificates(t *testing.T) {
 }
 
 func TestUpdateFromV1_Config(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(2, nil)
 	require.NoError(t, err)
 
@@ -66,7 +65,7 @@ func TestUpdateFromV1_Config(t *testing.T) {
 }
 
 func TestUpdateFromV1_Containers(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(2, nil)
 	require.NoError(t, err)
 
@@ -100,7 +99,7 @@ INSERT INTO containers VALUES (2, 2, 'jammy', 2, 2, 1, ?, 1, ?, 'Ubuntu LTS')
 }
 
 func TestUpdateFromV1_Network(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(2, nil)
 	require.NoError(t, err)
 
@@ -124,7 +123,7 @@ func TestUpdateFromV1_ConfigTables(t *testing.T) {
 }
 
 func testConfigTable(t *testing.T, table string, setup func(db *sql.DB)) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(2, nil)
 	require.NoError(t, err)
 
@@ -183,7 +182,7 @@ func testConfigTable(t *testing.T, table string, setup func(db *sql.DB)) {
 }
 
 func TestUpdateFromV2(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(3, nil)
 	require.NoError(t, err)
 
@@ -208,7 +207,7 @@ func TestUpdateFromV2(t *testing.T) {
 }
 
 func TestUpdateFromV3(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(4, nil)
 	require.NoError(t, err)
 
@@ -227,7 +226,7 @@ func TestUpdateFromV3(t *testing.T) {
 }
 
 func TestUpdateFromV5(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(6, func(db *sql.DB) {
 		// Create two nodes.
 		_, err := db.Exec(
@@ -298,7 +297,7 @@ SELECT id FROM storage_volumes WHERE storage_pool_id=2 AND name='v1' ORDER BY id
 }
 
 func TestUpdateFromV6(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(7, func(db *sql.DB) {
 		// Create two nodes.
 		_, err := db.Exec(
@@ -354,7 +353,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 }
 
 func TestUpdateFromV9(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(10, func(db *sql.DB) {
 		// Create a node.
 		_, err := db.Exec(
@@ -380,7 +379,7 @@ func TestUpdateFromV9(t *testing.T) {
 }
 
 func TestUpdateFromV11(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(12, func(db *sql.DB) {
 		// Insert a node.
 		_, err := db.Exec(
@@ -468,7 +467,7 @@ INSERT INTO containers VALUES (4, 1, 'xenial', 1, 1, 0, ?, 0, ?, 'Xenial Xerus',
 }
 
 func TestUpdateFromV14(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(15, func(db *sql.DB) {
 		// Insert a node.
 		_, err := db.Exec(
@@ -497,7 +496,7 @@ INSERT INTO containers VALUES (1, 1, 'eoan', 1, 1, 0, ?, 0, ?, 'Eoan Ermine', 1,
 }
 
 func TestUpdateFromV15(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(16, func(db *sql.DB) {
 		// Insert a node.
 		_, err := db.Exec(
@@ -589,7 +588,7 @@ INSERT INTO instances VALUES (2, 1, 'eoan/snap', 2, 1, 0, ?, 0, ?, 'Eoan Ermine 
 }
 
 func TestUpdateFromV19(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(20, func(db *sql.DB) {
 		// Insert a node.
 		_, err := db.Exec(
@@ -625,7 +624,7 @@ VALUES (2, 'n2', '', '2.2.3.4:666', 1, 32, ?, 0)`, time.Now())
 }
 
 func TestUpdateFromV25(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(26, func(db *sql.DB) {
 		// Insert a node.
 		_, err := db.Exec(
@@ -677,14 +676,14 @@ func TestUpdateFromV25(t *testing.T) {
 }
 
 func TestUpdateFromV26_WithoutVolumes(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(27, func(db *sql.DB) {})
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 }
 
 func TestUpdateFromV26_WithVolumes(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(27, func(db *sql.DB) {
 		// Insert a node.
 		_, err := db.Exec(
@@ -722,7 +721,7 @@ func TestUpdateFromV26_WithVolumes(t *testing.T) {
 }
 
 func TestUpdateFromV34(t *testing.T) {
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(35, func(db *sql.DB) {
 		// Insert two nodes.
 		_, err := db.Exec(
@@ -771,7 +770,7 @@ func TestUpdateFromV69(t *testing.T) {
 	c1 := string(shared.TestingKeyPair().PublicKey())
 	c2 := string(shared.TestingAltKeyPair().PublicKey())
 
-	schema := cluster.Schema()
+	schema := Schema()
 	db, err := schema.ExerciseUpdate(70, func(db *sql.DB) {
 		_, err := db.Exec(`
 INSERT INTO certificates (fingerprint, type, name, certificate, restricted) VALUES ('eeef45f0570ce713864c86ec60c8d88f60b4844d3a8849b262c77cb18e88394d', 1, 'restricted-client', ?, 1);
@@ -790,9 +789,9 @@ INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 4);
 	})
 	require.NoError(t, err)
 
-	getTLSIdentityByFingerprint := func(fingerprint string) cluster.Identity {
-		identity := cluster.Identity{}
-		row := db.QueryRow(`SELECT id, auth_method, type, identifier, name, metadata FROM identities WHERE auth_method = ? AND identifier = ?`, cluster.AuthMethod(api.AuthenticationMethodTLS), fingerprint)
+	getTLSIdentityByFingerprint := func(fingerprint string) Identity {
+		identity := Identity{}
+		row := db.QueryRow(`SELECT id, auth_method, type, identifier, name, metadata FROM identities WHERE auth_method = ? AND identifier = ?`, AuthMethod(api.AuthenticationMethodTLS), fingerprint)
 		require.NoError(t, row.Err())
 		err = row.Scan(&identity.ID, &identity.AuthMethod, &identity.Type, &identity.Identifier, &identity.Name, &identity.Metadata)
 		require.NoError(t, row.Err())
@@ -802,7 +801,7 @@ INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 4);
 	identity := getTLSIdentityByFingerprint("eeef45f0570ce713864c86ec60c8d88f60b4844d3a8849b262c77cb18e88394d")
 	assert.Equal(t, api.IdentityTypeCertificateClientRestricted, string(identity.Type))
 	assert.Equal(t, "restricted-client", identity.Name)
-	var metadata cluster.CertificateMetadata
+	var metadata CertificateMetadata
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
 	require.NoError(t, err)
 	assert.Equal(t, c1, metadata.Certificate)
