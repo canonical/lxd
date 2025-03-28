@@ -76,6 +76,18 @@ If you prefer a different installation method, or use a Linux distribution that 
    This will create a minimal setup with default options.
    If you want to tune the initialization options, see {ref}`initialize` for more information.
 
+1. LXD supports both {ref}`containers-and-vms`. For LXD virtual machines, your host system must be capable of KVM virtualization. To check this, run the following command:
+
+       lxc info | grep -FA2 'instance_types'
+
+   The following output indicates that your host system is capable of virtualization:
+
+       instance_types:
+       - container
+       - virtual-machine
+
+   If `virtual-machine` fails to appear in the output, this indicates that the host system is not capable of virtualization. In this case, LXD can only be used for containers. You can proceed with this tutorial to learn about using containers, but disregard the steps that refer to virtual machines.
+
 <!-- Include end tutorial installation -->
 
 ## Launch and inspect instances
