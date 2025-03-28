@@ -291,17 +291,15 @@ ifeq ($(shell command -v shellcheck),)
 	echo "Please install shellcheck"
 	exit 1
 else
-ifneq "$(shell shellcheck --version | grep version: | cut -d ' ' -f2)" "0.8.0"
-	@echo "WARN: shellcheck version is not 0.8.0"
-endif
 endif
 	shellcheck test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh test/extras/*.sh
-	NOT_EXEC="$(shell find test/lint -type f -not -executable)"; \
+	echo "Verify test/lint files are properly named and executable"
+	@NOT_EXEC="$(shell find test/lint -type f -not -executable)"; \
 	if [ -n "$$NOT_EXEC" ]; then \
 		echo "lint scripts not executable: $$NOT_EXEC"; \
 		exit 1; \
 	fi
-	BAD_NAME="$(shell find test/lint -type f -not -name '*.sh')"; \
+	@BAD_NAME="$(shell find test/lint -type f -not -name '*.sh')"; \
 	if [ -n "$$BAD_NAME" ]; then \
 		echo "lint scripts missing .sh extension: $$BAD_NAME"; \
 		exit 1; \

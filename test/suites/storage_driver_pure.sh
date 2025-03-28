@@ -45,9 +45,7 @@ test_storage_driver_pure() {
     lxc list -c b c4pool2 | grep "${poolName2}"
 
     lxc storage set "${poolName1}" volume.block.filesystem xfs
-
-    # xfs is unhappy with block devices < 300 MiB.
-    lxc storage set "${poolName1}" volume.size 300MiB
+    lxc storage set "${poolName1}" volume.size 300MiB # modern xfs requires 300MiB or more
     lxc init testimage c5pool1 -s "${poolName1}"
 
     # Test whether dependency tracking is working correctly. We should be able

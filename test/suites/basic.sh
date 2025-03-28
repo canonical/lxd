@@ -462,7 +462,7 @@ test_basic_usage() {
 
   # test lxc file edit doesn't change target file's owner and permissions
   echo "content" | lxc file push - foo/tmp/edit_test
-  lxc exec foo -- chown 55.55 /tmp/edit_test
+  lxc exec foo -- chown 55:55 /tmp/edit_test
   lxc exec foo -- chmod 555 /tmp/edit_test
   echo "new content" | lxc file edit foo/tmp/edit_test
   [ "$(lxc exec foo -- cat /tmp/edit_test)" = "new content" ]
