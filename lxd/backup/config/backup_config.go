@@ -6,6 +6,9 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// FileMetadataVersion represents the current version of the format used when writing a backup's metadata to file.
+const FileMetadataVersion = api.BackupMetadataVersion10
+
 // VolumeConfig represents the config of a volume including its snapshots.
 type VolumeConfig struct {
 	// Make sure to have the embedded structs fields inline to avoid nesting.
