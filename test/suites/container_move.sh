@@ -8,6 +8,7 @@ test_container_move() {
   image="testimage"
   project="test-project"
   profile="test-profile"
+  source_profile="source-profile"
 
   # Setup.
   lxc project create "${project}"
@@ -29,11 +30,15 @@ test_container_move() {
 
   # Move to different project with no profiles (root disk device is retained).
   lxc init "${image}" c2
+  lxc profile create "${source_profile}"
+  lxc profile add c2 "${source_profile}"
+  lxc snapshot c2 snap
   lxc move c2 --target-project "${project}" --no-profiles
   [ "$(lxc ls --project ${project} --format csv --columns n)" = "c2" ]                    # Verify new project.
   [ "$(lxc config device get c2 root pool --project ${project})" = "${pool}" ]            # Verify same pool (new local device).
   [ "$(lxc ls --project "${project}" -c nP -f csv | awk -F, '/c2/ { print $2 }')" = "" ]  # Verify no profiles are applied.
   lxc delete -f c2 --project "${project}"
+  lxc profile delete "${source_profile}"
 
   # Move to different project with new profiles (root disk device is retained).
   lxc init "${image}" c3
