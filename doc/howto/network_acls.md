@@ -17,8 +17,8 @@ Network {abbr}`ACLs (Access Control Lists)` define traffic rules that allow cont
 Network ACLs can be assigned directly to the {abbr}`NIC (Network Interface Controller)` of an instance or to a network.
 When assigned to a network, the ACL applies to all NICs connected to the network.
 
-The instance NICs that have a particular ACL applied (either explicitly or implicitly through a network) make up a logical group, which can be referenced from other rules as a source or destination.
-See {ref}`network-acls-groups` for more information.
+Instance NICs that are assigned a particular ACL—either directly or through its network—form a logical port group. The name of that ACL can be used within the rules of other ACLs as a *subject name selector*.
+See {ref}`network-acls-selectors-subject-name` for more information.
 
 ## List ACLs
 
@@ -27,7 +27,7 @@ See {ref}`network-acls-groups` for more information.
 
 To list all ACLs, run:
 
-```
+```bash
 lxc network acl list
 ```
 
@@ -37,7 +37,7 @@ lxc network acl list
 
 To list all ACLs, query the `/1.0/network-acls` endpoint:
 
-```
+```bash
 lxc query --request GET /1.0/network-acls
 ```
 
@@ -45,7 +45,7 @@ See [the API reference](swagger:/network-acls/network_acls_get) for more informa
 
 You can also use {ref}`recursion <rest-api-recursion>` to list the ACLs with a higher level of detail:
 
-```
+```bash
 lxc query --request GET /1.0/network-acls?recursion=1
 ```
 
@@ -60,13 +60,13 @@ lxc query --request GET /1.0/network-acls?recursion=1
 
 To show details about a specific ACL, run:
 
-```
+```bash
 lxc network acl show <acl_name>
 ```
 
 Example:
 
-```
+```bash
 lxc network acl show my-acl
 ```
 
@@ -76,7 +76,7 @@ lxc network acl show my-acl
 
 For details about a specific ACL, query the following endpoint:
 
-```
+```bash
 lxc query --request GET /1.0/network-acls/{name}
 ```
 
@@ -84,7 +84,7 @@ See [the API reference](swagger:/network-acls/network_acl_get) for more informat
 
 Example:
 
-```
+```bash
 lxc query --request GET /1.0/network-acls/my-acl
 ```
 
@@ -237,6 +237,7 @@ lxc query --request POST /1.0/network-acls --data '{
     }
   ]
 }'
+```
 
 ````
 
@@ -254,45 +255,138 @@ ACLs have the following properties:
 ```
 
 (network-acls-rules)=
-## Add or remove rules
+## ACL rules
 
 Each ACL contains two lists of rules:
 
-- *Ingress* rules apply to inbound traffic going towards the NIC.
-- *Egress* rules apply to outbound traffic leaving the NIC.
+- Rules in the `egress` list apply to outbound traffic from the NIC.
+- Rules in the `ingress` list apply to inbound traffic to the NIC.
 
-To add a rule to an ACL, use the following command, where `<direction>` can be either `ingress` or `egress`:
+For both `egress` and `ingress`, the rule configuration looks like this:
 
-```bash
-lxc network acl rule add <ACL_name> <direction> [properties...]
+`````{tabs}
+````{group-tab} YAML
+
+```yaml
+action: <allow|reject|drop>
+description: <description>
+destination: <destination IP range>
+destination_port: <destination port number>
+icmp_code: <ICMP code>
+icmp_type: <ICMP type>
+protocol: <icmp4|icmp6|tcp|udp>
+source: <source of traffic>
+source_port: <source port number>
+state: <enabled|disabled|logged>
 ```
 
-This command adds a rule to the list for the specified direction.
+````
 
-You cannot edit a rule (except if you {ref}`edit the full ACL <network-acls-edit>`), but you can delete rules with the following command:
+````{group-tab} JSON
+
+```
+{
+  "action": "<allow|reject|drop>",
+  "description": "<description>",
+  "destination": "<destination IP range>",
+  "destination_port": "<destination port number>",
+  "icmp_code": "<ICMP code>",
+  "icmp_type": "<ICMP type>",
+  "protocol": "<icmp4|icmp6|tcp|udp>",
+  "source": "<source of traffic>",
+  "source_port": "<source port number>",
+  "state": "<enabled|disabled|logged>"
+}
+```
+
+````
+`````
+
+- The `action` property is required.
+- The `state` property defaults to `"enabled"` if unset.
+- The `source` and `destination` properties can be specified as one or more CIDR blocks, IP ranges, or {ref}`selectors <network-acls-selectors>`. If left empty, they match any source or destination. Comma-separate multiple values.
+- If the `protocol` is unset, it matches any protocol.
+- The `"destination_port"` and `"source_port"` options and `"icmp_code"` and `"icmp_type"` options are mutually exclusive sets. Although both sets are shown in the same rule above to demonstrate the syntax, they never appear together in practice.
+   - The `"destination_port"` and `"source_port"` options are only available when the `"protocol"` for the rule is `"tcp"` or `"udp"`.
+   - The [`"icmp_code"`](https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml#icmp-parameters-codes) and [`"icmp_type"`](https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml#icmp-parameters-types) options are only available when the `"protocol"` is `"icmp4"` or `"icmp6"`.
+- The `"state"` is `"enabled"` by default. The `"logged"` value is used to {ref}`log traffic <network-acls-log>` to a rule.
+
+See {ref}`network-acls-rule-properties` for more information.
+
+### Add a rule
+
+`````{tabs}
+````{group-tab} CLI
+
+To add a rule to an ACL, run:
 
 ```bash
-lxc network acl rule remove <ACL_name> <direction> [properties...]
+lxc network acl rule add <ACL_name> <egress|ingress> [properties...]
+```
+
+#### Example
+
+Add an `egress` rule with an `action` of `drop` to `my-acl`:
+
+```bash
+lxc network acl rule add my-acl egress action=drop
+```
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+There is no specific endpoint for adding a rule. Instead, you must {ref}`edit the full ACL <network-acls-edit>`, which contains the `egress` and `ingress` lists.
+
+````
+% End of group-tab API
+
+`````
+
+### Remove a rule
+
+`````{tabs}
+````{group-tab} CLI
+
+To remove a rule from an ACL, run:
+
+```bash
+lxc network acl rule remove <ACL_name> <egress|ingress> [properties...]
 ```
 
 You must either specify all properties needed to uniquely identify a rule or add `--force` to the command to delete all matching rules.
 
-### Rule ordering and priorities
+````
+% End of group-tab CLI
 
-Rules are provided as lists.
-However, the order of the rules in the list is not important and does not affect
-filtering.
+````{group-tab} API
 
-LXD automatically orders the rules based on the `action` property as follows:
+There is no specific endpoint for removing a rule. Instead, you must {ref}`edit the full ACL <network-acls-edit>`, which contains the `egress` and `ingress` lists.
+
+````
+% End of group-tab API
+
+`````
+
+### Edit a rule
+
+You cannot edit a rule directly. Instead, you must {ref}`edit the full ACL <network-acls-edit>`, which contains the `egress` and `ingress` lists.
+
+### Rule ordering and application of actions
+
+ACL rules are defined as lists, but their order within the list does not affect how they are applied.
+
+LXD automatically prioritizes rules based on the action property, in the following order:
 
 - `drop`
 - `reject`
 - `allow`
-- Automatic default action for any unmatched traffic (defaults to `reject`, see {ref}`network-acls-defaults`).
+- The default action for unmatched traffic (defaults to `reject`, see {ref}`network-acls-defaults`)
 
-This means that when you apply multiple ACLs to a NIC, there is no need to specify a combined rule ordering.
-If one of the rules in the ACLs matches, the action for that rule is taken and no other rules are considered.
+When you assign multiple ACLs to a NIC, you do not need to coordinate rule order across them. As soon as a rule matches, its action is applied and no further rules are evaluated.
 
+(network-acls-rule-properties)=
 ### Rule properties
 
 ACL rules have the following properties:
@@ -310,40 +404,49 @@ ACL rules have the following properties:
 This feature is supported only for the {ref}`OVN NIC type <nic-ovn>` and the {ref}`network-ovn`.
 ```
 
-The `source` field (for ingress rules) and the `destination` field (for egress rules) support using selectors instead of CIDR or IP ranges.
+In ACL rules, the `source` and `destination` keys support using selectors instead of CIDR blocks or IP ranges. You can only use selectors in the `source` of `ingress` rules, and in the `destination` of `egress` rules.
 
-With this method, you can use ACL groups or network selectors to define rules for groups of instances without needing to maintain IP lists or create additional subnets.
+Using selectors allows you to define rules for groups of instances instead of managing lists of IP addresses or subnets manually.
 
-(network-acls-groups)=
-#### ACL groups
+There are two types of selectors:
 
-Instance NICs that are assigned a particular ACL (either explicitly or implicitly through a network) make up a logical port group.
+- subject name selectors (ACL groups)
+- network subject selectors
 
-Such ACL groups are called *subject name selectors*, and they can be referenced with the name of the ACL in other ACL groups.
+(network-acls-selectors-subject-name)=
+#### Subject name selectors (ACL groups)
 
-For example, if you have an ACL with the name `foo`, you can specify the group of instance NICs that are assigned this ACL as source with `source=foo`.
+Instance NICs that are assigned a particular ACL—either directly or through its network—form a logical port group. The name of that ACL can be used within the rules of other ACLs as a *subject name selector*.
 
-#### Network selectors
+For example, if you have an ACL with the name `my-acl`, you can specify the group of instance NICs that are assigned this ACL as a source by setting `source` to `my-acl`.
 
-You can use *network subject selectors* to define rules based on the network that the traffic is coming from or going to.
+(network-acls-selectors-network-subject)=
+#### Network subject selectors
 
-There are two special network subject selectors called `@internal` and `@external`.
-They represent network local and external traffic, respectively.
-For example:
+Use *network subject selectors* to define rules based on the network that the traffic is coming from or going to.
 
-```bash
-source=@internal
+All network subject selectors begin with the `@` symbol. There are two special network subject selectors called `@internal` and `@external`. They represent the network's local and external traffic, respectively.
+
+Here's an example ACL rule (in YAML) that allows all internal traffic with the specified destination port:
+
+```yaml
+ingress:
+  - action: allow
+    description: Allow HTTP/HTTPS from internal
+    protocol: tcp
+    source: "@internal"
+    destination_port: "80,443"
+    state: enabled
 ```
 
-If your network supports [network peers](network_ovn_peers.md), you can reference traffic to or from the peer connection by using a network subject selector in the format `@<network_name>/<peer_name>`.
-For example:
+If your network supports [network peers](network_ovn_peers.md), you can reference traffic to or from the peer connection by using a network subject selector in the format `@<network_name>/<peer_name>`. For example:
 
-```bash
-source=@ovn1/mypeer
+```yaml
+source: "@ovn1/mypeer"
 ```
 
-When using a network subject selector, the network that has the ACL applied to it must have the specified peer connection.
-Otherwise, the ACL cannot be applied to it.
+When using a network subject selector, the network that has the ACL assigned to it must have the specified peer connection.
+Otherwise, the ACL cannot be assigned to it.
 
 (network-acls-log)=
 ### Log traffic
@@ -384,8 +487,8 @@ lxc query --request GET /1.0/network-acls/my-logged-acl/log
 
 ````
 % End of API group-tab
+
 `````
-% End of tabs
 
 ```{note}
 LXD does not validate whether the specified ACL contains any rules with a `state` of `logged`. As a result, if your attempt to view logs returns no data, it could due to one of the following:
@@ -571,7 +674,7 @@ lxc query --request PUT /1.0/network-acls/test --data '{
 ```
 
 (network-acls-edit-api-config)=
-### Update `config.user.*` keys
+### Edit custom user keys
 
 To add or update the custom `config.user.*` keys, query the following endpoint:
 
@@ -634,6 +737,7 @@ After sending the above request, the `test` ACL's properties are updated to:
 Note that the request _inserted_ the new `user.limit` key without affecting the pre-existing `user.type` key. Also notice that the `description` property was sent in the request; otherwise, it would have been reset to its default value of an empty string.
 
 ````
+
 `````
 
 (network-acls-assign)=
@@ -643,7 +747,7 @@ An ACL is inactive until it is assigned to one of the following targets:
 
 - a {ref}`network-ovn`
 - a {ref}`network-bridge`
-- an {ref}`OVN type NIC of an instance <nic-ovn>`
+- an {ref}`OVN NIC type of an instance <nic-ovn>`
 
 To assign an ACL, you must update the `security.acls` option within its target's configuration.
 
@@ -654,7 +758,7 @@ Setting the `security.acls` option overwrites the existing value. To preserve an
 Assigning one or more ACLs to a NIC or network adds a default rule that rejects all unmatched traffic. See {ref}`network-acls-defaults` for details.
 
 (network-acls-view-security)=
-### View existing security.acls
+### View existing `security.acls`
 
 `````{tabs}
 ````{group-tab} CLI
@@ -699,7 +803,7 @@ See [the API reference](swagger:/networks/network_get) for more information.
 ##### Example
 
 ```bash
-lxc query --request GET /1.0/networks/br01 | jq -r '.config["security.acls"] // "NO ACLs set"'
+lxc query --request GET /1.0/networks/ovn1 | jq -r '.config["security.acls"] // "NO ACLs set"'
 ```
 
 #### View existing rules for an instance NIC
@@ -710,9 +814,7 @@ Query the following endpoint:
 lxc query --request GET /1.0/networks/{networkName} | jq -r '.devices["<NIC name>"]["security.acls"] // "NO ACLs set"'
 ```
 
-To use this query, you must replace the `{networkName}` and the `<NIC name>`.
-
-See [the API reference](swagger:/networks/network_get) for more information.
+To use this query, you must replace the `{networkName}` and the `<NIC name>`. See [the API reference](swagger:/networks/network_get) for more information.
 
 ##### Example
 
@@ -724,7 +826,6 @@ lxc query --request GET /1.0/instances/ubuntu-container | jq -r '.devices["ovn-n
 % End of group-tab API
 
 `````
-% End of tabs
 
 ### Assign an ACL to a bridge or OVN network
 
@@ -739,16 +840,16 @@ lxc network set <network_name> security.acls="<ACL_name>[,<ACL_NAME>,...]"
 
 #### Examples
 
-Set the `br01` network's `security.acls` to contain only the `web-traffic` ACL:
+Set the `ovn1` network's `security.acls` to contain only the `web-traffic` ACL:
 
 ```bash
-lxc network set br01 security.acls="web-traffic"
+lxc network set ovn1 security.acls="web-traffic"
 ```
 
-Set the `br01` network's `security.acls` to contain three ACLs:
+Set the `ovn1` network's `security.acls` to contain three ACLs:
 
 ```bash
-lxc network set br01 security.acls="web-traffic,internal-traffic,ssh-access"
+lxc network set ovn1 security.acls="web-traffic,internal-traffic,ssh-access"
 ```
 
 ````
@@ -770,26 +871,20 @@ See [the API reference](swagger:/networks/network_patch) for more information.
 
 #### Examples
 
-Set the `br01` network's `security.acls` to contain only the `web-traffic` ACL:
+Set the `ovn1` network's `security.acls` to contain only the `web-traffic` ACL:
 
 ```bash
-lxc network set br01 security.acls="web-traffic"
-```
-```bash
-lxc query --request PATCH /1.0/networks/br0 --data '{
+lxc query --request PATCH /1.0/networks/ovn1 --data '{
   "config": {
     "security.acls": "web-traffic"
   }
 }'
 ```
 
-Set the `br01` network's `security.acls` to contain three ACLs:
+Set the `ovn1` network's `security.acls` to contain three ACLs:
 
 ```bash
-lxc network set br01 security.acls="web-traffic,internal-traffic,ssh-access"
-```
-```bash
-lxc query --request PATCH /1.0/networks/br0 --data '{
+lxc query --request PATCH /1.0/networks/ovn1 --data '{
   "config": {
     "security.acls": "web-traffic,internal-traffic,ssh-access"
   }
@@ -800,11 +895,10 @@ lxc query --request PATCH /1.0/networks/br0 --data '{
 % End of group-tab API
 
 `````
-% End of tabs
 
 ### Assign an ACL to the NIC of an instance
 
-For {abbr}`NICs (Network Interface Cards)`, you can only assign an ACL to a NIC with {ref}`nic-ovn`.
+For {abbr}`NICs (Network Interface Cards)`, you can only assign an ACL to a NIC with an {ref}`OVN NIC type <nic-ovn>`.
 
 `````{tabs}
 ````{group-tab} CLI
@@ -905,7 +999,6 @@ lxc query --request PATCH /1.0/instances/ubuntu-container --data '{
 % End of group-tab API
 
 `````
-% End of tabs
 
 (network-acls-assign-additional)=
 ### Additional properties
@@ -919,8 +1012,8 @@ To view additional properties of the `security.acls` lists, refer to the configu
 (network-acls-defaults)=
 ## Configure default actions
 
-When one or more ACLs are applied to a NIC—either directly or through its network—a default reject rule is added to the NIC.
-This rule rejects all traffic that doesn't match any of the rules in the applied ACLs.
+When one or more ACLs are assigned to a NIC—either directly or through its network—a default reject rule is added to the NIC.
+This rule rejects all traffic that doesn't match any of the rules in the assigned ACLs.
 
 You can change this behavior with the network- and NIC-level `security.acls.default.ingress.action` and `security.acls.default.egress.action` settings. The NIC-level settings override the network-level settings.
 
@@ -1050,7 +1143,6 @@ lxc query --request PATCH /1.0/instances/ubuntu-container --data '{
 % End of group-tab API
 
 `````
-% End of tab
 
 (network-acls-bridge-limitations)=
 ## Bridge limitations
