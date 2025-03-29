@@ -348,14 +348,49 @@ Otherwise, the ACL cannot be applied to it.
 (network-acls-log)=
 ### Log traffic
 
-Generally, ACL rules are meant to control the network traffic between instances and networks.
-However, you can also use them to log specific network traffic, which can be useful for monitoring, or to test rules before actually enabling them.
+ACL rules are primarily used to control network traffic between instances and networks. However, they can also be used to log specific types of traffic, which is useful for monitoring or testing rules before enabling them.
 
-To add a rule for logging, create it with the `state=logged` property.
-You can then display the log output for all logging rules in the ACL with the following command:
+To configure a rule so that it only logs traffic, configure its `state` to `logged` when you {ref}`add the rule <network-acls-rules>` or {ref}`edit the ACL <network-acls-edit>`.
+
+#### View logs
+
+`````{tabs}
+````{group-tab} CLI
+
+To display the logs for all `logged` rules in an ACL, run:
 
 ```bash
 lxc network acl show-log <ACL_name>
+```
+
+````
+% End of CLI group-tab
+
+````{group-tab} API
+
+To display the logs for all `logged` rules in an ACL, query the following endpoint:
+
+```bash
+lxc query --request GET /1.0/network-acls/{name}/log
+```
+
+See [the API reference](swagger:/network-acls/network_acl_log_get) for more information.
+
+##### Example
+
+```
+lxc query --request GET /1.0/network-acls/my-logged-acl/log
+```
+
+````
+% End of API group-tab
+`````
+% End of tabs
+
+```{note}
+LXD does not validate whether the specified ACL contains any rules with a `state` of `logged`. As a result, if your attempt to view logs returns no data, it could due to one of the following:
+- The ACL includes one or more `logged` rules, but none have matched any traffic yet.
+- The ACL does not contain any rules with a `state` of `logged`.
 ```
 
 (network-acls-edit)=
