@@ -17,8 +17,8 @@ Network {abbr}`ACLs (Access Control Lists)` define traffic rules that allow cont
 Network ACLs can be assigned directly to the {abbr}`NIC (Network Interface Controller)` of an instance or to a network.
 When assigned to a network, the ACL applies to all NICs connected to the network.
 
-The instance NICs that have a particular ACL applied (either explicitly or implicitly through a network) make up a logical group, which can be referenced from other rules as a source or destination.
-See {ref}`network-acls-groups` for more information.
+Instance NICs that are assigned a particular ACL—either directly or through its network—form a logical port group. The name of that ACL can be used within the rules of other ACLs as a *subject name selector*. 
+See {ref}`network-acls-selectors-subject-name` for more information.
 
 ## List ACLs
 
@@ -260,45 +260,136 @@ ACLs have the following properties:
 ```
 
 (network-acls-rules)=
-## Add or remove rules
+## ACL rules
 
 Each ACL contains two lists of rules:
 
-- *Ingress* rules apply to inbound traffic going towards the NIC.
-- *Egress* rules apply to outbound traffic leaving the NIC.
+- Rules in the `egress` list apply to outbound traffic from the NIC.
+- Rules in the `ingress` list apply to inbound traffic to the NIC.
 
-To add a rule to an ACL, use the following command, where `<direction>` can be either `ingress` or `egress`:
+For both `egress` and `ingress`, the rule configuration looks like this:
+
+`````{tabs}
+````{group-tab} YAML
+```yaml
+action: <allow|reject|drop>
+description: <description>
+destination: <destination IP range>
+destination_port: <destination port number>
+icmp_code: <ICMP code>
+icmp_type: <ICMP type>
+protocol: <icmp4|icmp6|tcp|udp>
+source: <source of traffic>
+source_port: <source port number>
+state: <enabled|disabled|logged>
+```
+````
+````{group-tab} JSON
+{
+  "action": "<allow|reject|drop>",
+  "description": "<description>",
+  "destination": "<destination IP range>",
+  "destination_port": "<destination port number>",
+  "icmp_code": "<ICMP code>",
+  "icmp_type": "<ICMP type>",
+  "protocol": "<icmp4|icmp6|tcp|udp>",
+  "source": "<source of traffic>",
+  "source_port": "<source port number>",
+  "state": "<enabled|disabled|logged>" 
+}
+````
+`````
+
+- The `action` property is required.
+- The `state` property defaults to `"enabled"` if unset.
+- The `source` and `destination` properties can be specified as one or more CIDR blocks, IP ranges, or {ref}`selectors <network-acls-selectors>`. If left empty, they match any source or destination. Comma-separate multiple values.
+- If the `protocol` is unset, it matches any protocol.
+- The `"destination_port"` and `"source_port"` options and `"icmp_code"` and `"icmp_type"` options are mutually exclusive sets. Although both sets are shown in the same rule above to demonstrate the syntax, they never appear together in practice. 
+  - The `"destination_port"` and `"source_port"` options are only available when the `"protocol"` for the rule is `"tcp"` or `"udp"`.
+  - The [`"icmp_code"`](https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml#icmp-parameters-codes) and [`"icmp_type"`](https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml#icmp-parameters-types) options are only available when the `"protocol"` is `"icmp4"` or `"icmp6"`. 
+- The `"state"` is `"enabled"` by default. The `"logged"` value is used to {ref}`<network-acls-log> log traffic` to a rule.
+
+See {ref}`network-acls-rule-properties` for more information.
+
+### Add a rule
+
+`````{tabs}
+````{group-tab} CLI
+
+To add a rule to an ACL, run:
 
 ```bash
-lxc network acl rule add <ACL_name> <direction> [properties...]
+lxc network acl rule add <ACL_name> <egress|ingress> [properties...]
 ```
 
-This command adds a rule to the list for the specified direction.
+#### Example
 
-You cannot edit a rule (except if you {ref}`edit the full ACL <network-acls-edit>`), but you can delete rules with the following command:
+Add an `egress` rule with an `action` of `drop` to `my-acl`:
 
 ```bash
-lxc network acl rule remove <ACL_name> <direction> [properties...]
+lxc network acl rule add my-acl egress action=drop
+```
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+There is no specific endpoint for adding a rule. Instead, you must {ref}`edit the full ACL <network-acls-edit>`, which contains the `egress` and `ingress` lists.
+
+
+#### Example
+
+````
+% End of group-tab API
+
+`````
+% End of tabs
+
+### Remove a rule
+
+`````{tabs}
+````{group-tab} CLI
+
+To remove a rule from an ACL, run:
+
+```bash
+lxc network acl rule remove <ACL_name> <egress|ingress> [properties...]
 ```
 
 You must either specify all properties needed to uniquely identify a rule or add `--force` to the command to delete all matching rules.
 
-### Rule ordering and priorities
+````
+% End of group-tab CLI
 
-Rules are provided as lists.
-However, the order of the rules in the list is not important and does not affect
-filtering.
+````{group-tab} API
 
-LXD automatically orders the rules based on the `action` property as follows:
+There is no specific endpoint for removing a rule. Instead, you must {ref}`edit the full ACL <network-acls-edit>`, which contains the `egress` and `ingress` lists.
+
+````
+% End of group-tab API
+
+`````
+% End of tabs
+
+### Edit a rule
+
+You cannot edit a rule directly. Instead, you must {ref}`edit the full ACL <network-acls-edit>`, which contains the `egress` and `ingress` lists.
+
+### Rule ordering and application of actions
+
+ACL rules are defined as lists, but their order within the list does not affect how they are applied.
+
+LXD automatically prioritizes rules based on the action property, in the following order:
 
 - `drop`
 - `reject`
 - `allow`
-- Automatic default action for any unmatched traffic (defaults to `reject`, see {ref}`network-acls-defaults`).
+- The default action for unmatched traffic (defaults to `reject`, see {ref}`network-acls-defaults`)
 
-This means that when you apply multiple ACLs to a NIC, there is no need to specify a combined rule ordering.
-If one of the rules in the ACLs matches, the action for that rule is taken and no other rules are considered.
+When you assign multiple ACLs to a NIC, you do not need to coordinate rule order across them. As soon as a rule matches, its action is applied and no further rules are evaluated.
 
+(network-acls-rule-properties)=
 ### Rule properties
 
 ACL rules have the following properties:
@@ -316,40 +407,48 @@ ACL rules have the following properties:
 This feature is supported only for the {ref}`OVN NIC type <nic-ovn>` and the {ref}`network-ovn`.
 ```
 
-The `source` field (for ingress rules) and the `destination` field (for egress rules) support using selectors instead of CIDR or IP ranges.
+In ACL rules, the `source` and `destination` keys support using selectors instead of CIDR blocks or IP ranges. You can only use selectors in the `source` of `ingress` rules, and in the `destination` of `egress` rules.
 
-With this method, you can use ACL groups or network selectors to define rules for groups of instances without needing to maintain IP lists or create additional subnets.
+Using selectors allows you to define rules for groups of instances instead of managing lists of IP addresses or subnets manually.
 
-(network-acls-groups)=
-#### ACL groups
+There are two types of selectors:
 
-Instance NICs that are assigned a particular ACL (either explicitly or implicitly through a network) make up a logical port group.
+- subject name selectors (ACL groups)
+- network subject selectors
 
-Such ACL groups are called *subject name selectors*, and they can be referenced with the name of the ACL in other ACL groups.
+(network-acls-selectors-subject-name)=
+#### Subject name selectors (ACL groups)
 
-For example, if you have an ACL with the name `foo`, you can specify the group of instance NICs that are assigned this ACL as source with `source=foo`.
+Instance NICs that are assigned a particular ACL—either directly or through its network—form a logical port group. The name of that ACL can be used within the rules of other ACLs as a *subject name selector*. 
 
-#### Network selectors
+For example, if you have an ACL with the name `my-acl`, you can specify the group of instance NICs that are assigned this ACL as a source by setting `source` to `my-acl`. 
 
-You can use *network subject selectors* to define rules based on the network that the traffic is coming from or going to.
+(network-acls-selectors-network-subject)=
+#### Network subject selectors
 
-There are two special network subject selectors called `@internal` and `@external`.
-They represent network local and external traffic, respectively.
-For example:
+Use *network subject selectors* to define rules based on the network that the traffic is coming from or going to.
 
-```bash
-source=@internal
+All network subject selectors begin with the `@` symbol. There are two special network subject selectors called `@internal` and `@external`. They represent the network's local and external traffic, respectively.
+
+Here's an example ACL rule (in YAML) that allows all internal traffic with the specified destination port:
+
+```yaml
+ingress:
+  - action: allow
+    description: Allow HTTP/HTTPS from internal
+    protocol: tcp
+    source: "@internal"
+    destination_port: "80,443"
+    state: enabled
 ```
 
-If your network supports [network peers](network_ovn_peers.md), you can reference traffic to or from the peer connection by using a network subject selector in the format `@<network_name>/<peer_name>`.
-For example:
+If your network supports [network peers](network_ovn_peers.md), you can reference traffic to or from the peer connection by using a network subject selector in the format `@<network_name>/<peer_name>`. For example:
 
-```bash
-source=@ovn1/mypeer
+```yaml
+source: "@ovn1/mypeer"
 ```
 
-When using a network subject selector, the network that has the ACL applied to it must have the specified peer connection.
-Otherwise, the ACL cannot be applied to it.
+When using a network subject selector, the network that has the ACL applied to it must have the specified peer connection. Otherwise, the ACL cannot be applied to it.
 
 (network-acls-log)=
 ### Log traffic
