@@ -836,7 +836,7 @@ lxc config device set ubuntu-container ovn-nic security.acls="web-traffic,intern
 
 #### View the existing NIC configuration
 
-To update the configuration for an instance's device using the API, you must include all the required keys for the device—even if you're only changing one key. The required keys are the `type` of `nic` and the `network` name. Include these along with the key to update, and any other existing keys (unless you want to remove them). Omitted keys are reset to default values.
+To update the configuration for an instance's device using the API, you must include all the required keys for the device—even if you're only changing one key. For an instance NIC device, the required keys are the `type` of `nic` and the `network` name. Include these along with the key to update, and any other existing keys (unless you want to remove them). Omitted keys are reset to default values.
 
 To view the existing instance NIC configuration, query the following endpoint:
 
@@ -919,23 +919,138 @@ To view additional properties of the `security.acls` lists, refer to the configu
 (network-acls-defaults)=
 ## Configure default actions
 
-When one or more ACLs are applied to a NIC (either explicitly or implicitly through a network), a default reject rule is added to the NIC.
+When one or more ACLs are applied to a NIC—either directly or through its network—a default reject rule is added to the NIC.
 This rule rejects all traffic that doesn't match any of the rules in the applied ACLs.
 
-You can change this behavior with the network and NIC level `security.acls.default.ingress.action` and `security.acls.default.egress.action` settings.
-The NIC level settings override the network level settings.
+You can change this behavior with the network- and NIC-level `security.acls.default.ingress.action` and `security.acls.default.egress.action` settings. The NIC-level settings override the network-level settings.
 
-For example, to set the default action for inbound traffic to `allow` for all instances connected to a network, use the following command:
+`````{tabs}
+````{group-tab} CLI
 
-```bash
-lxc network set <network_name> security.acls.default.ingress.action=allow
-```
+### Configure a default action for a network
 
-To configure the same default action for an instance NIC, use the following command:
+To set the default action for a network's egress or ingress traffic, run:
 
 ```bash
-lxc config device set <instance_name> <device_name> security.acls.default.ingress.action=allow
+lxc network set <network_name> security.acls.default.<egress|ingress>.action=<allow|reject|drop>
 ```
+
+#### Example
+
+To set the default action for inbound traffic to `allow` for all instances on the `ovntest` network, run:
+
+```bash
+lxc network set ovntest security.acls.default.ingress.action=allow
+```
+
+### Configure a default action for an instance NIC device
+
+To set the default action for an instance NIC's egress or ingress traffic, run:
+
+```bash
+lxc config device set <instance_name> <NIC_name> security.acls.default.<egress|ingress>.action=<allow|reject|drop>
+```
+
+#### Example
+
+To set the default action for inbound traffic to `allow` for the `ubuntu-container` instance's `ovn-nic` NIC device, run:
+
+```bash
+lxc config device set ubuntu-container ovn-nic security.acls.default.ingress.action=allow
+```
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+### Configure a default action for a network
+
+To set the default action for a network's egress or ingress traffic, query the following endpoint:
+
+```bash
+lxc query --request PATCH /1.0/networks/{networkName} --data '{
+  "config": {
+    "security.acls.default.egress.action": "<allow|reject|drop>",
+    "security.acls.default.ingress.action": "<allow|reject|drop>",
+  }
+}'
+```
+
+See [the API reference](swagger:/networks/network_patch) for more information.
+
+#### Example
+
+Set the `ovntest` network's default egress action to `allow`:
+
+```bash
+lxc query --request PATCH /1.0/networks/ovntest --data '{
+  "config": {
+    "security.acls.default.egress.action": "allow"
+  }
+}'
+```
+
+### Configure a default action for an instance NIC device
+
+#### View the existing NIC configuration
+
+To update the configuration for an instance's device using the API, you must include all the required keys for the device—even if you're only changing one key. For an instance NIC device, the required keys are the `type` of `nic` and the `network` name. Include these along with the key to update, and any other existing keys (unless you want to remove them). Omitted keys are reset to default values.
+
+To view the existing instance NIC configuration, query the following endpoint:
+
+```bash
+lxc query /1.0/instances/{instanceName} | jq '.devices["<NIC name>"]'
+```
+
+See [the API reference](swagger:/networks/network_get) for more information.
+
+##### Example
+
+```bash
+lxc query /1.0/instances/ubuntu-container | jq '.devices["ovn-nic"]'
+```
+
+#### Configure the default action
+
+To set the default action for an instance NIC's traffic, query the following endpoint:
+
+```bash
+lxc query --request PATCH /1.0/instances/{instanceName} --data '{
+  "devices": {
+    "<NIC name>": {
+      "network": <network_name>,
+      "type": "nic",
+      "security.acls.default.<egress|ingress>.action": "<allow|reject|drop>"
+      <other optional keys>
+    }
+  }
+}'
+```
+
+See [the API reference](swagger:/instances/instance_patch) for more information.
+
+#### Example
+
+This request sets the default action for inbound traffic to `allow` for the `ovn-nic` device of the `ubuntu-container` instance:
+
+```bash
+lxc query --request PATCH /1.0/instances/ubuntu-container --data '{
+  "devices": {
+    "ovn-nic": {
+      "network": "ovntest",
+      "type": "nic",
+      "security.acls.default.ingress.action": "allow"
+    }
+  }
+}'
+```
+
+````
+% End of group-tab API
+
+`````
+% End of tab
 
 (network-acls-bridge-limitations)=
 ## Bridge limitations
