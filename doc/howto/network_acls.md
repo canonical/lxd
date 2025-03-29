@@ -107,7 +107,7 @@ Network ACL names must meet the following requirements:
 To create an ACL, run:
 
 ```bash
-lxc network acl create <ACL_name> [user.KEY=value ...] 
+lxc network acl create <ACL_name> [user.KEY=value ...]
 ```
 
 - You must provide an ACL name that meets the requirements described above.
@@ -639,20 +639,282 @@ Note that the request _inserted_ the new `user.limit` key without affecting the 
 (network-acls-assign)=
 ## Assign an ACL
 
-After configuring an ACL, you must assign it to a network or an instance NIC.
+An ACL is inactive until it is assigned to one of the following targets:
 
-To do so, add it to the `security.acls` list of the network or NIC configuration.
-For networks, use the following command:
+- a {ref}`network-ovn`
+- a {ref}`network-bridge`
+- an {ref}`OVN type NIC of an instance <nic-ovn>`
 
-```bash
-lxc network set <network_name> security.acls="<ACL_name>"
+To assign an ACL, you must update the `security.acls` option within its target's configuration.
+
+```{tip}
+Setting the `security.acls` option overwrites the existing value. To preserve any existing ACL rules, note their names and add them along with the new rule you want to add. Similarly, if you want to remove an existing ACL rule, add back all names _except_ the one you want to remove.
 ```
 
-For instance NICs, use the following command:
+Assigning one or more ACLs to a NIC or network adds a default rule that rejects all unmatched traffic. See {ref}`network-acls-defaults` for details.
+
+(network-acls-view-security)=
+### View existing security.acls
+
+`````{tabs}
+````{group-tab} CLI
+
+#### View existing rules for a network
+
+Run:
 
 ```bash
-lxc config device set <instance_name> <device_name> security.acls="<ACL_name>"
+lxc network get <network_name> security.acls
 ```
+
+#### View existing rules for an instance NIC
+
+Run:
+
+```bash
+lxc config device get <instance_name> <NIC_device_name> security.acls
+```
+
+##### Example
+
+```bash
+lxc config device get ubuntu-container ovn-nic security.acls
+```
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+#### View existing rules for a network
+
+Query the following endpoint:
+
+```bash
+lxc query --request GET /1.0/networks/{networkName} | jq -r '.config["security.acls"] // "NO ACLs set"'
+```
+
+See [the API reference](swagger:/networks/network_get) for more information.
+
+##### Example
+
+```bash
+lxc query --request GET /1.0/networks/br01 | jq -r '.config["security.acls"] // "NO ACLs set"'
+```
+
+#### View existing rules for an instance NIC
+
+Query the following endpoint:
+
+```bash
+lxc query --request GET /1.0/networks/{networkName} | jq -r '.devices["<NIC name>"]["security.acls"] // "NO ACLs set"'
+```
+
+To use this query, you must replace the `{networkName}` and the `<NIC name>`.
+
+See [the API reference](swagger:/networks/network_get) for more information.
+
+##### Example
+
+```bash
+lxc query --request GET /1.0/instances/ubuntu-container | jq -r '.devices["ovn-nic"]["security.acls"] // "No ACLs set"'
+```
+
+````
+% End of group-tab API
+
+`````
+% End of tabs
+
+### Assign an ACL to a bridge or OVN network
+
+`````{tabs}
+````{group-tab} CLI
+
+Set the network's `security.acls` to a string that contains the ACL name or names you want to add. Comma-separate multiple names:
+
+```bash
+lxc network set <network_name> security.acls="<ACL_name>[,<ACL_NAME>,...]"
+```
+
+#### Examples
+
+Set the `br01` network's `security.acls` to contain only the `web-traffic` ACL:
+
+```bash
+lxc network set br01 security.acls="web-traffic"
+```
+
+Set the `br01` network's `security.acls` to contain three ACLs:
+
+```bash
+lxc network set br01 security.acls="web-traffic,internal-traffic,ssh-access"
+```
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+Send a request to set the network's `security.acls` to a string that contains the ACL name or names you want to add. Comma-separate multiple names:
+
+```bash
+lxc query --request PATCH /1.0/networks/{networkName} --data '{
+  "config": {
+    "security.acls": "<ACL_name>[,<ACL_name>,...]"
+  }
+}'
+```
+
+See [the API reference](swagger:/networks/network_patch) for more information.
+
+#### Examples
+
+Set the `br01` network's `security.acls` to contain only the `web-traffic` ACL:
+
+```bash
+lxc network set br01 security.acls="web-traffic"
+```
+```bash
+lxc query --request PATCH /1.0/networks/br0 --data '{
+  "config": {
+    "security.acls": "web-traffic"
+  }
+}'
+```
+
+Set the `br01` network's `security.acls` to contain three ACLs:
+
+```bash
+lxc network set br01 security.acls="web-traffic,internal-traffic,ssh-access"
+```
+```bash
+lxc query --request PATCH /1.0/networks/br0 --data '{
+  "config": {
+    "security.acls": "web-traffic,internal-traffic,ssh-access"
+  }
+}'
+```
+
+````
+% End of group-tab API
+
+`````
+% End of tabs
+
+### Assign an ACL to the NIC of an instance
+
+For {abbr}`NICs (Network Interface Cards)`, you can only assign an ACL to a NIC with {ref}`nic-ovn`.
+
+`````{tabs}
+````{group-tab} CLI
+
+To assign an ACL to an instance NIC, run:
+
+```bash
+lxc config device set <instance_name> <NIC_name> security.acls="<ACL_name>[,ACL_name,...]"
+```
+
+#### Example
+
+Assign a single ACL to an instance NIC:
+
+```bash
+lxc config device set ubuntu-container ovn-nic security.acls="web-traffic"
+```
+
+Assign multiple ACLs to an instance NIC:
+
+```bash
+lxc config device set ubuntu-container ovn-nic security.acls="web-traffic,internal-traffic,ssh-access"
+```
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+#### View the existing NIC configuration
+
+To update the configuration for an instance's device using the API, you must include all the required keys for the device—even if you're only changing one key. The required keys are the `type` of `nic` and the `network` name. Include these along with the key to update, and any other existing keys (unless you want to remove them). Omitted keys are reset to default values.
+
+To view the existing instance NIC configuration, query the following endpoint:
+
+```bash
+lxc query /1.0/instances/{instanceName} | jq '.devices["<NIC name>"]'
+```
+
+See [the API reference](swagger:/instances/instance_get) for more information.
+
+##### Example
+
+```bash
+lxc query /1.0/instances/ubuntu-container | jq '.devices["ovn-nic"]'
+```
+
+#### Assign the ACL
+
+To assign an ACL to the instance NIC, set its `security.acls` to a string that contains the ACL name or names you want to add. Comma-separate multiple names:
+
+```bash
+lxc query --request PATCH /1.0/instances/{instanceName} --data '{
+  "devices": {
+    "<NIC name>": {
+      "network": <network_name>,
+      "type": "nic",
+      "security.acls": "<ACL_name>[,<ACL_name>,...]",
+      <other optional keys>
+    }
+  }
+}'
+```
+
+See [the API reference](swagger:/instances/instance_patch) for more information.
+
+##### Examples
+
+For the `ubuntu_container` instance, set its `ovn-nic` device's `security.acls` to contain only the `web-traffic` ACL:
+
+```bash
+lxc query --request PATCH /1.0/instances/ubuntu-container --data '{
+  "devices": {
+    "ovn-nic": {
+      "network": "ovntest",
+      "type": "nic",
+      "security.acls": "web-traffic"
+    }
+  }
+}'
+```
+
+Set `security.acls` to contain three ACLs:
+
+```bash
+lxc query --request PATCH /1.0/instances/ubuntu-container --data '{
+  "devices": {
+    "ovn-nic": {
+      "network": "ovntest",
+      "type": "nic",
+      "security.acls": "web-traffic,internal-traffic,ssh-access"
+    }
+  }
+}'
+```
+
+````
+% End of group-tab API
+
+`````
+% End of tabs
+
+(network-acls-assign-additional)=
+### Additional properties
+
+To view additional properties of the `security.acls` lists, refer to the configuration options for the target network or NIC:
+
+- Bridget network's {config:option}`network-bridge-network-conf:security.acls`
+- OVN network's {config:option}`network-ovn-network-conf:security.acls`
+- Instance's OVN NIC {config:option}`device-nic-ovn-device-conf:security.acls`
 
 (network-acls-defaults)=
 ## Configure default actions
