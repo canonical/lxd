@@ -361,20 +361,16 @@ parts:
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       set -ex
 
-      # Git cherry-picks
-      git config user.email "noreply@lists.canonical.com"
-      git config user.name "LXD snap builder"
-
       # Apply patches
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0001-force-DUID-LLT.patch"
       cp "${CRAFT_PROJECT_DIR}/patches/edk2-0002-logo.bmp" MdeModulePkg/Logo/Logo.bmp
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0003-boot-delay.patch"
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0004-gcc-errors.patch"
       patch --binary -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0005-disable-dynamic-mmio-winsize.patch"
-      # revert "ArmVirtPkg: make EFI_LOADER_DATA non-executable" as it breaks almost everything
-      git revert 2997ae38739756ecba9b0de19e86032ebc689ef9
       patch --binary -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0006-disable-EFI-memory-attributes-protocol.patch"
       patch --binary -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0007-Disable-the-Shell-when-SecureBoot-is-enabled.patch"
+      # revert "ArmVirtPkg: make EFI_LOADER_DATA non-executable" as it breaks almost everything
+      patch --binary -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0008-Revert-ArmVirtPkg-make-EFI_LOADER_DATA-non-execurable.patch"
 
       # Arch-specific logic
       ARCH="X64"
@@ -1276,6 +1272,41 @@ parts:
       mv "${CRAFT_PART_INSTALL}.tmp/lib/"*so* "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/"
       rm -Rf "${CRAFT_PART_INSTALL}.tmp"
 
+  zfs-2-3:
+    source: https://github.com/openzfs/zfs
+    source-commit: f3e4043a36942e67ccbc05318479a07d242fc611 # zfs-2.3.1
+    source-depth: 1
+    source-type: git
+    plugin: autotools
+    autotools-configure-parameters:
+      - --prefix=/
+      - --with-config=user
+    build-packages:
+      - libblkid-dev
+      - libssl-dev
+      - uuid-dev
+      - zlib1g-dev
+    override-prime: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      craftctl default
+      set -ex
+
+      ZFS_VER="2.3"
+
+      mv "${CRAFT_PART_INSTALL}" "${CRAFT_PART_INSTALL}.tmp"
+      mkdir -p "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib"
+      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zfs" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zpool" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/lib/udev/zvol_id" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/lib/"*so* "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/"
+      rm -Rf "${CRAFT_PART_INSTALL}.tmp"
+
   zstd:
     after:
       - libatomic
@@ -1659,6 +1690,7 @@ parts:
       - zfs-0-8
       - zfs-2-1
       - zfs-2-2
+      - zfs-2-3
       - zstd
       - lxc
       - lxcfs
