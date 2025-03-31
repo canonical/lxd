@@ -1,6 +1,7 @@
 module github.com/canonical/lxd
 
 go 1.23.3
+toolchain go1.24.1
 
 require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.17.4
@@ -43,7 +44,7 @@ require (
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20250121233318-0eae96a39570
 	github.com/openfga/openfga v1.8.6
 	github.com/osrg/gobgp/v3 v3.35.0
-	github.com/pkg/sftp v1.13.8
+	github.com/pkg/sftp v1.13.9
 	github.com/pkg/xattr v0.4.10
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sirupsen/logrus v1.9.3
