@@ -4473,9 +4473,17 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, gateway *c
 	// If target member not specified yet, then find the least loaded cluster member which
 	// supports the instance's architecture.
 	if targetMemberInfo == nil {
-		var err error
+		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			filteredCandidates, err := applyPlacementRules(ctx, tx.Tx(), candidateMembers, inst.Project().Name, inst.ExpandedConfig(), inst.ExpandedPlacementRules())
+			if err != nil {
+				return err
+			}
 
-		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			if len(filteredCandidates) == 1 {
+				targetMemberInfo = &filteredCandidates[0]
+				return nil
+			}
+
 			targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
 			if err != nil {
 				return err
