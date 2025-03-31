@@ -961,12 +961,12 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 			// but if LXD is using systemd socket activation then we just want to call os.Exit() directly.
 			// In this case the socket FDs and environment vars may be different, so we can't re-exec.
 			os.Exit(0) //nolint:revive
-		} else {
-			logger.Info("Restarting LXD daemon following removal from cluster")
-			err = util.ReplaceDaemon()
-			if err != nil {
-				logger.Error("Failed restarting LXD daemon", logger.Ctx{"err": err})
-			}
+		}
+
+		logger.Info("Restarting LXD daemon following removal from cluster")
+		err = util.ReplaceDaemon()
+		if err != nil {
+			logger.Error("Failed restarting LXD daemon", logger.Ctx{"err": err})
 		}
 	}()
 
