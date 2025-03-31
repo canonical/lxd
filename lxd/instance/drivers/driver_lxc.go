@@ -4942,7 +4942,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 }
 
 // Export backs up the instance.
-func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.Time, tracker *ioprogress.ProgressTracker) (api.ImageMetadata, error) {
+func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.Time, _ *ioprogress.ProgressTracker) (api.ImageMetadata, error) {
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -5530,7 +5530,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 				operationtype.InstanceLiveMigrate,
 				nil,
 				nil,
-				func(op *operations.Operation) error {
+				func(_ *operations.Operation) error {
 					result := <-restoreSuccess
 					if !result {
 						return fmt.Errorf("restore failed, failing CRIU")
@@ -5539,7 +5539,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 					return nil
 				},
 				nil,
-				func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+				func(_ *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 					secret := r.FormValue("secret")
 					if secret == "" {
 						return fmt.Errorf("Missing action script secret")
@@ -8277,7 +8277,7 @@ type lxcCgroupReadWriter struct {
 }
 
 // Get retrieves the value of a cgroup key for a specific controller and version.
-func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, key string) (string, error) {
+func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, _ string, key string) (string, error) {
 	if !rw.running {
 		lxcKey := "lxc.cgroup." + key
 
@@ -8292,7 +8292,7 @@ func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, ke
 }
 
 // Set writes a value to a cgroup key for a specific controller and version.
-func (rw *lxcCgroupReadWriter) Set(version cgroup.Backend, controller string, key string, value string) error {
+func (rw *lxcCgroupReadWriter) Set(version cgroup.Backend, _ string, key string, value string) error {
 	if !rw.running {
 		if version == cgroup.V1 {
 			return lxcSetConfigItem(rw.cc, "lxc.cgroup."+key, value)
