@@ -76,6 +76,7 @@ profiles:
       path: /
       pool: ${storage_pool}
       type: disk
+  placement_rules: {}
   name: default
 - config:
     limits.memory: 2GiB
@@ -86,6 +87,7 @@ profiles:
       nictype: bridged
       parent: lxdt$$
       type: nic
+  placement_rules: {}
   name: test-profile
 projects:
 - config:
