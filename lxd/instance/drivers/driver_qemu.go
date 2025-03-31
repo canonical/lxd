@@ -1578,7 +1578,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		// files be sure to mount the 9P share in the VM with the "access=0" option to allow
 		// only root user in VM to access the mounted share.
 		err := filepath.Walk(filepath.Join(d.Path(), "config"),
-			func(path string, info os.FileInfo, err error) error {
+			func(path string, _ os.FileInfo, err error) error {
 				if err != nil {
 					return err
 				}
@@ -2117,7 +2117,7 @@ func (d *qemu) saveConnectionInfo(connInfo *agentAPI.API10Put) error {
 }
 
 // OnHook is the top-level hook handler.
-func (d *qemu) OnHook(hookName string, args map[string]string) error {
+func (d *qemu) OnHook(_ string, _ map[string]string) error {
 	return instance.ErrNotImplemented
 }
 
@@ -5393,7 +5393,7 @@ func allowRemoveSecurityProtectionStart(state *state.State, poolName string, vol
 	if shared.IsFalseOrEmpty(dbVolume.Config["security.shared"]) {
 		// Only check instances here, as a VM root volume cannot be part of a profile
 		// when not using security.shared
-		err := storagePools.VolumeUsedByInstanceDevices(state, pool.Name(), volumeProject, &dbVolume.StorageVolume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+		err := storagePools.VolumeUsedByInstanceDevices(state, pool.Name(), volumeProject, &dbVolume.StorageVolume, true, func(inst db.InstanceArgs, _ api.Project, _ []string) error {
 			// The volume is always attached to its instance
 			if proj.Name == inst.Project && volumeName == inst.Name {
 				return nil
@@ -7923,7 +7923,7 @@ func (d *qemu) Render(options ...func(response any) error) (state any, etag any,
 }
 
 // RenderFull returns all info about the instance.
-func (d *qemu) RenderFull(hostInterfaces []net.Interface) (*api.InstanceFull, any, error) {
+func (d *qemu) RenderFull(_ []net.Interface) (*api.InstanceFull, any, error) {
 	if d.IsSnapshot() {
 		return nil, nil, fmt.Errorf("RenderFull doesn't work with snapshots")
 	}
@@ -8053,7 +8053,7 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 }
 
 // RenderState returns just state info about the instance.
-func (d *qemu) RenderState(hostInterfaces []net.Interface) (*api.InstanceState, error) {
+func (d *qemu) RenderState(_ []net.Interface) (*api.InstanceState, error) {
 	return d.renderState(d.statusCode())
 }
 
@@ -8943,7 +8943,7 @@ func (d *qemu) version() (*version.DottedVersion, error) {
 // If the instance is not running, it returns ErrInstanceIsStopped.
 // If agent metrics are enabled, it tries to get the metrics from the agent.
 // If the agent is not reachable, it falls back to getting the metrics directly from QEMU.
-func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
+func (d *qemu) Metrics(_ []net.Interface) (*metrics.MetricSet, error) {
 	if !d.IsRunning() {
 		return nil, ErrInstanceIsStopped
 	}
