@@ -2716,11 +2716,13 @@ func (c *cmdStorageVolumeExport) run(cmd *cobra.Command, args []string) error {
 	backupVersionSupported := d.HasExtension("backup_metadata_version")
 	exportVersion := api.BackupMetadataVersion(c.flagExportVersion)
 
-	// If the server supports setting the backup version, set the selected version.
-	// Not setting a version will let the API fallback to version 1.
+	// If the server supports setting the backup version, set the selected version
+	// or use the latest version as default.
 	if backupVersionSupported {
 		if exportVersion != 0 {
 			req.Version = exportVersion
+		} else {
+			req.Version = api.BackupMetadataVersion2
 		}
 	} else if !backupVersionSupported && !shared.ValueInSlice(exportVersion, []api.BackupMetadataVersion{api.BackupMetadataVersion1, 0}) {
 		return errors.New(i18n.G("The server doesn't support setting the metadata format version"))
