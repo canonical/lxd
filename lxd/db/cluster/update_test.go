@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -33,9 +34,12 @@ func TestUpdateFromV0(t *testing.T) {
 	require.Error(t, err)
 
 	// Unique constraint on address
-	stmt = "INSERT INTO nodes VALUES (3, 'bar', 'gasp', '1.2.3.4:666', 9, 11), ?, 0)"
+	stmt = "INSERT INTO nodes VALUES (3, 'bar', 'gasp', '1.2.3.4:666', 9, 11, ?, 0)"
 	_, err = db.Exec(stmt, time.Now())
 	require.Error(t, err)
+	var sqliteErr sqlite3.Error
+	require.True(t, errors.As(err, &sqliteErr))
+	require.Equal(t, sqlite3.ErrConstraintUnique, sqliteErr.ExtendedCode)
 }
 
 func TestUpdateFromV1_Certificates(t *testing.T) {
