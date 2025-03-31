@@ -158,7 +158,7 @@ func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, vol *
 
 	// Pass false to expandDevices, as we only want to see instances directly using a volume, rather than their
 	// profiles using a volume.
-	err = storagePools.VolumeUsedByInstanceDevices(s, vol.Pool, vol.Project, &vol.StorageVolume, false, func(inst db.InstanceArgs, p api.Project, usedByDevices []string) error {
+	err = storagePools.VolumeUsedByInstanceDevices(s, vol.Pool, vol.Project, &vol.StorageVolume, false, func(inst db.InstanceArgs, _ api.Project, _ []string) error {
 		volumeUsedBy = append(volumeUsedBy, api.NewURL().Path(version.APIVersion, "instances", inst.Name).Project(inst.Project).String())
 		return nil
 	})
@@ -166,7 +166,7 @@ func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, vol *
 		return []string{}, err
 	}
 
-	err = storagePools.VolumeUsedByProfileDevices(s, vol.Pool, requestProjectName, &vol.StorageVolume, func(profileID int64, profile api.Profile, p api.Project, usedByDevices []string) error {
+	err = storagePools.VolumeUsedByProfileDevices(s, vol.Pool, requestProjectName, &vol.StorageVolume, func(_ int64, profile api.Profile, p api.Project, _ []string) error {
 		volumeUsedBy = append(volumeUsedBy, api.NewURL().Path(version.APIVersion, "profiles", profile.Name).Project(p.Name).String())
 		return nil
 	})

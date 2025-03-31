@@ -165,7 +165,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Update container configuration
-		do = func(op *operations.Operation) error {
+		do = func(_ *operations.Operation) error {
 			defer unlock()
 
 			args := db.InstanceArgs{
@@ -189,7 +189,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		opType = operationtype.InstanceUpdate
 	} else {
 		// Snapshot Restore
-		do = func(op *operations.Operation) error {
+		do = func(_ *operations.Operation) error {
 			defer unlock()
 
 			return instanceSnapRestore(s, projectName, name, configRaw.Restore, configRaw.Stateful)

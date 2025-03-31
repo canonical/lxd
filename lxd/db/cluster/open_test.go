@@ -1,4 +1,4 @@
-package cluster_test
+package cluster
 
 import (
 	"context"
@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/version"
@@ -24,14 +23,14 @@ func TestEnsureSchema_NoClustered(t *testing.T) {
 	assert.NoError(t, os.Mkdir(filepath.Join(dir, "global"), 0711))
 	db := newDB(t)
 	addNode(t, db, "0.0.0.0", 1, 1)
-	ready, err := cluster.EnsureSchema(db, "1.2.3.4:666", dir)
+	ready, err := EnsureSchema(db, "1.2.3.4:666", dir)
 	assert.True(t, ready)
 	assert.NoError(t, err)
 }
 
 // Exercise EnsureSchema failures when the cluster can't be upgraded right now.
 func TestEnsureSchema_ClusterNotUpgradable(t *testing.T) {
-	schema := cluster.SchemaVersion
+	schema := SchemaVersion
 	apiExtensions := len(version.APIExtensions)
 
 	cases := []struct {
@@ -91,7 +90,7 @@ func TestEnsureSchema_ClusterNotUpgradable(t *testing.T) {
 		t.Run(c.title, func(t *testing.T) {
 			db := newDB(t)
 			c.setup(t, db)
-			ready, err := cluster.EnsureSchema(db, "1", "/unused/db/dir")
+			ready, err := EnsureSchema(db, "1", "/unused/db/dir")
 			assert.Equal(t, c.ready, ready)
 			if c.error == "" {
 				assert.NoError(t, err)
@@ -105,7 +104,7 @@ func TestEnsureSchema_ClusterNotUpgradable(t *testing.T) {
 // Regardless of whether the schema could actually be upgraded or not, the
 // version of this node gets updated.
 func TestEnsureSchema_UpdateNodeVersion(t *testing.T) {
-	schema := cluster.SchemaVersion
+	schema := SchemaVersion
 	apiExtensions := len(version.APIExtensions)
 
 	cases := []struct {
@@ -113,7 +112,7 @@ func TestEnsureSchema_UpdateNodeVersion(t *testing.T) {
 		ready bool
 	}{
 		{
-			func(t *testing.T, db *sql.DB) {},
+			func(_ *testing.T, _ *sql.DB) {},
 			true,
 		},
 		{
@@ -134,7 +133,7 @@ func TestEnsureSchema_UpdateNodeVersion(t *testing.T) {
 			addNode(t, db, "1", schema-1, apiExtensions-1)
 
 			// Ensure the schema.
-			ready, err := cluster.EnsureSchema(db, "1", "/unused/db/dir")
+			ready, err := EnsureSchema(db, "1", "/unused/db/dir")
 			assert.NoError(t, err)
 			assert.Equal(t, c.ready, ready)
 
@@ -158,7 +157,7 @@ CREATE TABLE schema (
     UNIQUE (version)
 );
 `
-	_, err = db.Exec(createTableSchema + cluster.FreshSchema())
+	_, err = db.Exec(createTableSchema + FreshSchema())
 	require.NoError(t, err)
 
 	return db
@@ -166,7 +165,7 @@ CREATE TABLE schema (
 
 // Add a new node with the given address, schema version and number of api extensions.
 func addNode(t *testing.T, db *sql.DB, address string, schema int, apiExtensions int) {
-	err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
+	err := query.Transaction(context.TODO(), db, func(_ context.Context, tx *sql.Tx) error {
 		stmt := `
 INSERT INTO nodes(name, address, schema, api_extensions, arch, description) VALUES (?, ?, ?, ?, ?, '')
 `
