@@ -677,7 +677,7 @@ func TestUpdateFromV25(t *testing.T) {
 
 func TestUpdateFromV26_WithoutVolumes(t *testing.T) {
 	schema := Schema()
-	db, err := schema.ExerciseUpdate(27, func(db *sql.DB) {})
+	db, err := schema.ExerciseUpdate(27, func(_ *sql.DB) {})
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 }
