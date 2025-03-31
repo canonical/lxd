@@ -515,7 +515,7 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) re
 	_, err = rj.GetString("expires_at")
 	if err != nil {
 		// Skip updating the snapshot since the requested key wasn't provided
-		do = func(op *operations.Operation) error {
+		do = func(_ *operations.Operation) error {
 			return nil
 		}
 	} else {
@@ -532,7 +532,7 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) re
 		}
 
 		// Update instance configuration
-		do = func(op *operations.Operation) error {
+		do = func(_ *operations.Operation) error {
 			args := db.InstanceArgs{
 				Architecture: snapInst.Architecture(),
 				Config:       snapInst.LocalConfig(),
@@ -614,7 +614,7 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) re
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func snapshotGet(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
+func snapshotGet(s *state.State, _ *http.Request, snapInst instance.Instance) response.Response {
 	render, _, err := snapInst.Render(storagePools.RenderSnapshotUsage(s, snapInst))
 	if err != nil {
 		return response.SmartError(err)
@@ -772,7 +772,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 		return response.Conflict(err)
 	}
 
-	rename := func(op *operations.Operation) error {
+	rename := func(_ *operations.Operation) error {
 		return snapInst.Rename(fullName, false)
 	}
 
@@ -819,7 +819,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
-	remove := func(op *operations.Operation) error {
+	remove := func(_ *operations.Operation) error {
 		return snapInst.Delete(false)
 	}
 

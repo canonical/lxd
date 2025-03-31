@@ -210,7 +210,7 @@ var internalClusterHealCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func clusterGet(d *Daemon, r *http.Request) response.Response {
+func clusterGet(d *Daemon, _ *http.Request) response.Response {
 	s := d.State()
 	serverName := s.ServerName
 
@@ -961,12 +961,12 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 			// but if LXD is using systemd socket activation then we just want to call os.Exit() directly.
 			// In this case the socket FDs and environment vars may be different, so we can't re-exec.
 			os.Exit(0) //nolint:revive
-		} else {
-			logger.Info("Restarting LXD daemon following removal from cluster")
-			err = util.ReplaceDaemon()
-			if err != nil {
-				logger.Error("Failed restarting LXD daemon", logger.Ctx{"err": err})
-			}
+		}
+
+		logger.Info("Restarting LXD daemon following removal from cluster")
+		err = util.ReplaceDaemon()
+		if err != nil {
+			logger.Error("Failed restarting LXD daemon", logger.Ctx{"err": err})
 		}
 	}()
 
@@ -3142,7 +3142,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 }
 
 func internalClusterHeal(d *Daemon, r *http.Request) response.Response {
-	migrateFunc := func(s *state.State, r *http.Request, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, metadata map[string]any, op *operations.Operation) error {
+	migrateFunc := func(s *state.State, _ *http.Request, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, _ map[string]any, _ *operations.Operation) error {
 		// This returns an error if the instance's storage pool is local.
 		// Since we only care about remote backed instances, this can be ignored and return nil instead.
 		poolName, err := inst.StoragePool()
@@ -4539,7 +4539,7 @@ func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
 			return // Skip healing if there are no cluster members to evacuate.
 		}
 
-		opRun := func(op *operations.Operation) error {
+		opRun := func(_ *operations.Operation) error {
 			err := autoHealCluster(ctx, s, offlineMembers)
 			if err != nil {
 				logger.Error("Failed healing cluster instances", logger.Ctx{"err": err})
@@ -4571,7 +4571,7 @@ func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, task.Every(time.Minute)
 }
 
-func autoHealCluster(ctx context.Context, s *state.State, offlineMembers []db.NodeInfo) error {
+func autoHealCluster(_ context.Context, s *state.State, offlineMembers []db.NodeInfo) error {
 	logger.Info("Healing cluster instances")
 
 	dest, err := cluster.Connect(s.LocalConfig.ClusterAddress(), s.Endpoints.NetworkCert(), s.ServerCert(), nil, true)

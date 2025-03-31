@@ -285,7 +285,7 @@ func (b *lxdBackend) IsUsed() (bool, error) {
 }
 
 // Update updates the pool config.
-func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newConfig map[string]string, _ *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"newDesc": newDesc, "newConfig": newConfig})
 	l.Debug("Update started")
 	defer l.Debug("Update finished")
@@ -836,7 +836,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	}
 
 	// Update information in the backup.yaml file.
-	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+	err = vol.MountTask(func(mountPath string, _ *operations.Operation) error {
 		return backup.UpdateInstanceConfig(b.state.DB.Cluster, srcBackup, mountPath)
 	}, op)
 	if err != nil {
@@ -1461,7 +1461,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		var volSize int64
 
 		if contentType == drivers.ContentTypeBlock {
-			err = srcVol.MountTask(func(mountPath string, op *operations.Operation) error {
+			err = srcVol.MountTask(func(_ string, _ *operations.Operation) error {
 				srcPoolBackend, ok := srcPool.(*lxdBackend)
 				if !ok {
 					return fmt.Errorf("Pool is not a lxdBackend")
@@ -1812,7 +1812,7 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 // The function returned will copy the ISO content into the specified mount path
 // provided.
 func (b *lxdBackend) isoFiller(data io.Reader) func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
-	return func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
+	return func(_ drivers.Volume, rootBlockPath string, _ bool) (int64, error) {
 		f, err := os.OpenFile(rootBlockPath, os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			return -1, err
@@ -1827,7 +1827,7 @@ func (b *lxdBackend) isoFiller(data io.Reader) func(vol drivers.Volume, rootBloc
 // imageConversionFiller returns a function that converts an image from the given path to the instance's volume.
 // Function returns the unpacked image size on success. Otherwise, it returns -1 for size and an error.
 func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string, op *operations.Operation) func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (sizeInBytes int64, err error) {
-	return func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
+	return func(vol drivers.Volume, _ string, _ bool) (int64, error) {
 		diskPath, err := b.driver.GetVolumeDiskPath(vol)
 		if err != nil {
 			return -1, fmt.Errorf("Failed getting instance volume disk path: %v", err)
@@ -1900,7 +1900,7 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string, op 
 // recvVolumeFiller returns a function that receives the instance's volume.
 // Function returns the volume size on success. Otherwise, it returns -1 for size and an error.
 func (b *lxdBackend) recvVolumeFiller(conn io.ReadWriteCloser, contentType drivers.ContentType, args migration.VolumeTargetArgs, op *operations.Operation) func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (sizeInBytes int64, err error) {
-	return func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
+	return func(vol drivers.Volume, rootBlockPath string, _ bool) (int64, error) {
 		if contentType == drivers.ContentTypeFS {
 			// Receive filesystem.
 			err := b.recvFS(vol.MountPath(), vol.Name(), conn, args, op)
@@ -3132,7 +3132,7 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 }
 
 // CleanupInstancePaths removes any remaining mount paths and symlinks for the instance and its snapshots.
-func (b *lxdBackend) CleanupInstancePaths(inst instance.Instance, op *operations.Operation) error {
+func (b *lxdBackend) CleanupInstancePaths(inst instance.Instance, _ *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 	l.Debug("CleanupInstancePaths started")
 	defer l.Debug("CleanupInstancePaths finished")
@@ -4512,7 +4512,7 @@ func (b *lxdBackend) CreateBucket(projectName string, bucket api.StorageBucketsP
 }
 
 // UpdateBucket updates an object bucket.
-func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket api.StorageBucketPut, op *operations.Operation) error {
+func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket api.StorageBucketPut, _ *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "bucketName": bucketName, "desc": bucket.Description, "config": bucket.Config})
 	l.Debug("UpdateBucket started")
 	defer l.Debug("UpdateBucket finished")
@@ -5197,7 +5197,7 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 }
 
 // ActivateBucket mounts the local bucket volume and returns the MinIO S3 process for it.
-func (b *lxdBackend) ActivateBucket(projectName string, bucketName string, op *operations.Operation) (*miniod.Process, error) {
+func (b *lxdBackend) ActivateBucket(projectName string, bucketName string, _ *operations.Operation) (*miniod.Process, error) {
 	if !b.Driver().Info().Buckets {
 		return nil, fmt.Errorf("Storage pool does not support buckets")
 	}
@@ -5470,7 +5470,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	var volSize int64
 
 	if drivers.IsContentBlock(contentType) {
-		err = srcVol.MountTask(func(mountPath string, op *operations.Operation) error {
+		err = srcVol.MountTask(func(_ string, _ *operations.Operation) error {
 			srcPoolBackend, ok := srcPool.(*lxdBackend)
 			if !ok {
 				return fmt.Errorf("Pool is not a lxdBackend")
@@ -6028,7 +6028,7 @@ func (b *lxdBackend) detectChangedConfig(curConfig, newConfig map[string]string)
 }
 
 func allowRemoveSecurityShared(s *state.State, projectName string, volume *api.StorageVolume) error {
-	err := VolumeUsedByProfileDevices(s, volume.Pool, projectName, volume, func(profileID int64, profile api.Profile, project api.Project, usedByDevices []string) error {
+	err := VolumeUsedByProfileDevices(s, volume.Pool, projectName, volume, func(_ int64, _ api.Profile, _ api.Project, _ []string) error {
 		return errors.New("Cannot disable security.shared on block storage volume as it is attached to profile(s)")
 	})
 	if err != nil {
@@ -6037,7 +6037,7 @@ func allowRemoveSecurityShared(s *state.State, projectName string, volume *api.S
 
 	usedByInstances := 0
 
-	err = VolumeUsedByInstanceDevices(s, volume.Pool, projectName, volume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+	err = VolumeUsedByInstanceDevices(s, volume.Pool, projectName, volume, true, func(inst db.InstanceArgs, _ api.Project, _ []string) error {
 		// Don't consider a virtual-machine to be using its root volume if security.protection.start=true
 		if volume.Type == cluster.StoragePoolVolumeTypeNameVM && inst.Type == instancetype.VM && volume.Project == inst.Project && volume.Name == inst.Name {
 			apiInst, err := inst.ToAPI()
@@ -6052,7 +6052,7 @@ func allowRemoveSecurityShared(s *state.State, projectName string, volume *api.S
 			}
 		}
 
-		usedByInstances += 1
+		usedByInstances++
 
 		if usedByInstances > 1 {
 			return errors.New("Cannot disable security.shared on block storage volume as it is attached to more than one instance")
@@ -6121,7 +6121,7 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 
 		// Check for config changing that is not allowed when running instances are using it.
 		if changedConfig["security.shifted"] != "" {
-			err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &curVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+			err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &curVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
 				inst, err := instance.Load(b.state, dbInst, project)
 				if err != nil {
 					return err
@@ -6416,7 +6416,7 @@ func (b *lxdBackend) UnmountCustomVolume(projectName, volName string, op *operat
 // ImportCustomVolume takes an existing custom volume on the storage backend and ensures that the DB records,
 // volume directories and symlinks are restored as needed to make it operational with LXD.
 // Used during the recovery import stage.
-func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfig.Config, op *operations.Operation) (revert.Hook, error) {
+func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfig.Config, _ *operations.Operation) (revert.Hook, error) {
 	if poolVol.Volume == nil {
 		return nil, fmt.Errorf("Invalid pool volume config supplied")
 	}
@@ -6720,7 +6720,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 	}
 
 	// Check that the volume isn't in use by running instances.
-	err = VolumeUsedByInstanceDevices(b.state, b.Name(), projectName, &curVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+	err = VolumeUsedByInstanceDevices(b.state, b.Name(), projectName, &curVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
 		inst, err := instance.Load(b.state, dbInst, project)
 		if err != nil {
 			return err
@@ -6799,7 +6799,7 @@ func (b *lxdBackend) createStorageStructure(path string) error {
 }
 
 // GenerateCustomVolumeBackupConfig returns the backup config entry for this volume.
-func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
+func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, _ *operations.Operation) (*backupConfig.Config, error) {
 	vol, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
 		return nil, err
@@ -6841,7 +6841,7 @@ func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volNam
 
 // GenerateInstanceBackupConfig returns the backup config entry for this instance.
 // The Container field is only populated for non-snapshot instances.
-func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
+func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, _ *operations.Operation) (*backupConfig.Config, error) {
 	// Generate the YAML.
 	ci, _, err := inst.Render()
 	if err != nil {
@@ -6971,7 +6971,7 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 	}
 
 	// Update pool information in the backup.yaml file.
-	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+	err = vol.MountTask(func(_ string, _ *operations.Operation) error {
 		// Write the YAML
 		path := filepath.Join(inst.Path(), "backup.yaml")
 		f, err := os.Create(path)
@@ -7299,7 +7299,7 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 					return err
 				}
 			} else {
-				err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+				err = vol.MountTask(func(mountPath string, _ *operations.Operation) error {
 					blockFS, err = filesystem.Detect(mountPath)
 					if err != nil {
 						return err
