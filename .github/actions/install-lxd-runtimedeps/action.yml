@@ -20,6 +20,12 @@ runs:
 
         if [ "${OPTIONAL}" != "false" ]; then
           echo "Installing optional runtime dependencies"
+
+          # Install needed instance drivers
+          . test/includes/check.sh
+          . test/includes/setup.sh
+          install_instance_drivers
+
           sudo apt-get install --no-install-recommends -y \
             lvm2 \
             zfsutils-linux
