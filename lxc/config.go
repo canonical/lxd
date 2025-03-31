@@ -512,11 +512,12 @@ func (c *cmdConfigGet) run(cmd *cobra.Command, args []string) error {
 		}
 
 		value := resp.Config[args[len(args)-1]]
-		if value == nil {
+		switch value {
+		case nil:
 			value = ""
-		} else if value == true { //nolint:revive
+		case true:
 			value = "true"
-		} else if value == false { //nolint:revive
+		case false:
 			value = "false"
 		}
 
