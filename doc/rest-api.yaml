@@ -1761,6 +1761,15 @@ definitions:
                         type: disk
                 type: object
                 x-go-name: ExpandedDevices
+            expanded_placement_rules:
+                additionalProperties:
+                    $ref: '#/definitions/InstancePlacementRule'
+                description: |-
+                    PlacementRules are a map of rule name to InstancePlacementRule.
+
+                    API Extension: instance_placement_rules
+                type: object
+                x-go-name: ExpandedPlacementRules
             last_used_at:
                 description: Last start timestamp
                 example: "2021-03-23T20:00:00-04:00"
@@ -1777,6 +1786,15 @@ definitions:
                 example: foo
                 type: string
                 x-go-name: Name
+            placement_rules:
+                additionalProperties:
+                    $ref: '#/definitions/InstancePlacementRule'
+                description: |-
+                    PlacementRules are a map of rule name to InstancePlacementRule.
+
+                    API Extension: instance_placement_rules
+                type: object
+                x-go-name: PlacementRules
             profiles:
                 description: List of profiles applied to the instance
                 example:
@@ -2059,6 +2077,15 @@ definitions:
                         type: disk
                 type: object
                 x-go-name: ExpandedDevices
+            expanded_placement_rules:
+                additionalProperties:
+                    $ref: '#/definitions/InstancePlacementRule'
+                description: |-
+                    PlacementRules are a map of rule name to InstancePlacementRule.
+
+                    API Extension: instance_placement_rules
+                type: object
+                x-go-name: ExpandedPlacementRules
             last_used_at:
                 description: Last start timestamp
                 example: "2021-03-23T20:00:00-04:00"
@@ -2075,6 +2102,15 @@ definitions:
                 example: foo
                 type: string
                 x-go-name: Name
+            placement_rules:
+                additionalProperties:
+                    $ref: '#/definitions/InstancePlacementRule'
+                description: |-
+                    PlacementRules are a map of rule name to InstancePlacementRule.
+
+                    API Extension: instance_placement_rules
+                type: object
+                x-go-name: PlacementRules
             profiles:
                 description: List of profiles applied to the instance
                 example:
@@ -2115,6 +2151,33 @@ definitions:
                 x-go-name: Type
         title: InstanceFull is a combination of Instance, InstanceBackup, InstanceState and InstanceSnapshot.
         type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    InstancePlacementRule:
+        properties:
+            kind:
+                $ref: '#/definitions/InstancePlacementRuleKind'
+            priority:
+                description: |-
+                    Priority indicates the apply order of the rule if it is not required.
+                    Non-required rules are applied in descending order of priority.
+                example: 1
+                format: int64
+                type: integer
+                x-go-name: Priority
+            required:
+                description: Required indicates that placement should fail if the rule cannot be satisfied.
+                example: true
+                type: boolean
+                x-go-name: Required
+            selector:
+                $ref: '#/definitions/Selector'
+        title: InstancePlacementRule represents a scheduling rule for an instance.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    InstancePlacementRuleKind:
+        description: 'API extension: instance_placement_rules.'
+        title: InstancePlacementRuleKind denotes the placement strategy for a set of selectors under InstancePlacementRule.
+        type: string
         x-go-package: github.com/canonical/lxd/shared/api
     InstancePost:
         properties:
@@ -2256,6 +2319,15 @@ definitions:
                 example: false
                 type: boolean
                 x-go-name: Ephemeral
+            placement_rules:
+                additionalProperties:
+                    $ref: '#/definitions/InstancePlacementRule'
+                description: |-
+                    PlacementRules are a map of rule name to InstancePlacementRule.
+
+                    API Extension: instance_placement_rules
+                type: object
+                x-go-name: PlacementRules
             profiles:
                 description: List of profiles applied to the instance
                 example:
@@ -2344,6 +2416,15 @@ definitions:
                         type: disk
                 type: object
                 x-go-name: ExpandedDevices
+            expanded_placement_rules:
+                additionalProperties:
+                    $ref: '#/definitions/InstancePlacementRule'
+                description: |-
+                    Expanded placement rules (all profiles and local placement rules merged)
+
+                    API extension: instance_placement_rules
+                type: object
+                x-go-name: ExpandedPlacementRules
             expires_at:
                 description: When the snapshot expires (gets auto-deleted)
                 example: "2021-03-23T17:38:37.753398689-04:00"
@@ -2361,6 +2442,15 @@ definitions:
                 example: foo
                 type: string
                 x-go-name: Name
+            placement_rules:
+                additionalProperties:
+                    $ref: '#/definitions/InstancePlacementRule'
+                description: |-
+                    Placement rules
+
+                    API extension: instance_placement_rules
+                type: object
+                x-go-name: PlacementRules
             profiles:
                 description: List of profiles applied to the instance
                 example:
@@ -2910,6 +3000,15 @@ definitions:
                 example: foo
                 type: string
                 x-go-name: Name
+            placement_rules:
+                additionalProperties:
+                    $ref: '#/definitions/InstancePlacementRule'
+                description: |-
+                    PlacementRules are a map of rule name to InstancePlacementRule.
+
+                    API Extension: instance_placement_rules
+                type: object
+                x-go-name: PlacementRules
             profiles:
                 description: List of profiles applied to the instance
                 example:
@@ -4414,6 +4513,15 @@ definitions:
                 readOnly: true
                 type: string
                 x-go-name: Name
+            placement_rules:
+                additionalProperties:
+                    $ref: '#/definitions/InstancePlacementRule'
+                description: |-
+                    List of instance placement rules
+
+                    API extension: instance_placement_rules
+                type: object
+                x-go-name: PlacementRules
             project:
                 description: Project name
                 example: project1
@@ -4475,6 +4583,15 @@ definitions:
                         type: disk
                 type: object
                 x-go-name: Devices
+            placement_rules:
+                additionalProperties:
+                    $ref: '#/definitions/InstancePlacementRule'
+                description: |-
+                    List of instance placement rules
+
+                    API extension: instance_placement_rules
+                type: object
+                x-go-name: PlacementRules
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     ProfilesPost:
@@ -4516,6 +4633,15 @@ definitions:
                 example: foo
                 type: string
                 x-go-name: Name
+            placement_rules:
+                additionalProperties:
+                    $ref: '#/definitions/InstancePlacementRule'
+                description: |-
+                    List of instance placement rules
+
+                    API extension: instance_placement_rules
+                type: object
+                x-go-name: PlacementRules
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     Project:
@@ -5901,6 +6027,36 @@ definitions:
                 format: uint64
                 type: integer
                 x-go-name: SubClassID
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    Selector:
+        properties:
+            entity_type:
+                description: EntityType is the type of entity to perform the selection against.
+                type: string
+                x-go-name: EntityType
+            matchers:
+                description: Matchers are a list of matchers to use when performing the selection.
+                items:
+                    $ref: '#/definitions/SelectorMatcher'
+                type: array
+                x-go-name: Matchers
+        title: Selector represents a method of selecting one or more entities of a particular type.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    SelectorMatcher:
+        properties:
+            property:
+                description: Property is the property of the entity to perform the match against.
+                type: string
+                x-go-name: Property
+            values:
+                description: Values are a list of values to find in the property.
+                items:
+                    type: string
+                type: array
+                x-go-name: Values
+        title: SelectorMatcher contains the properties and values that a Selector selects against.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     Server:
