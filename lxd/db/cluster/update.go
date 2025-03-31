@@ -150,7 +150,7 @@ ALTER TABLE identities ADD COLUMN updated_date DATETIME NOT NULL DEFAULT "0001-0
 	return nil
 }
 
-func updateFromV70(ctx context.Context, tx *sql.Tx) error {
+func updateFromV70(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE auth_groups (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -207,7 +207,7 @@ CREATE TABLE auth_groups_permissions (
 	return nil
 }
 
-func updateFromV69(ctx context.Context, tx *sql.Tx) error {
+func updateFromV69(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE identities (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -247,7 +247,7 @@ DROP TABLE certificates_projects;
 }
 
 // updateFromV68 fixes unique index for record name to make it zone specific.
-func updateFromV68(ctx context.Context, tx *sql.Tx) error {
+func updateFromV68(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE networks_zones_records_new (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -330,7 +330,7 @@ func updateFromV67(ctx context.Context, tx *sql.Tx) error {
 }
 
 // updateFromV66 adds creation_date column to storage_volumes and storage_volumes_snapshots tables.
-func updateFromV66(ctx context.Context, tx *sql.Tx) error {
+func updateFromV66(_ context.Context, tx *sql.Tx) error {
 	q := `
 ALTER TABLE storage_volumes ADD COLUMN creation_date DATETIME NOT NULL DEFAULT "0001-01-01T00:00:00Z";
 ALTER TABLE storage_volumes_snapshots ADD COLUMN creation_date DATETIME NOT NULL DEFAULT "0001-01-01T00:00:00Z";
@@ -376,7 +376,7 @@ CREATE VIEW storage_volumes_all (
 }
 
 // updateFromV65 fixes typo in cephobject.radosgw.endpoint* settings.
-func updateFromV65(ctx context.Context, tx *sql.Tx) error {
+func updateFromV65(_ context.Context, tx *sql.Tx) error {
 	q := `
 	UPDATE storage_pools_config
 	SET key = REPLACE(key, "cephobject.radosgsw.endpoint", "cephobject.radosgw.endpoint")
@@ -391,7 +391,7 @@ func updateFromV65(ctx context.Context, tx *sql.Tx) error {
 }
 
 // updatefromV64 updates nodes_cluster_groups to include an ID field so that it works well with lxd-generate.
-func updateFromV64(ctx context.Context, tx *sql.Tx) error {
+func updateFromV64(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE "nodes_cluster_groups_new" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -539,7 +539,7 @@ func updateFromV62(ctx context.Context, tx *sql.Tx) error {
 }
 
 // updateFromV61 converts config value fields to NOT NULL and config key fields to TEXT (from VARCHAR).
-func updateFromV61(ctx context.Context, tx *sql.Tx) error {
+func updateFromV61(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE "instances_config_new" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -743,7 +743,7 @@ ALTER TABLE "storage_volumes_snapshots_config_new" RENAME TO "storage_volumes_sn
 }
 
 // updateFromV60 creates the networks_load_balancers and networks_load_balancers_config tables.
-func updateFromV60(ctx context.Context, tx *sql.Tx) error {
+func updateFromV60(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE "networks_load_balancers" (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -774,7 +774,7 @@ CREATE TABLE "networks_load_balancers_config" (
 	return nil
 }
 
-func updateFromV59(ctx context.Context, tx *sql.Tx) error {
+func updateFromV59(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE networks_zones_records (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -802,7 +802,7 @@ CREATE TABLE networks_zones_records_config (
 	return nil
 }
 
-func updateFromV58(ctx context.Context, tx *sql.Tx) error {
+func updateFromV58(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 UPDATE sqlite_sequence SET seq = (
     SELECT max(
@@ -815,7 +815,7 @@ WHERE name='storage_volumes';
 	return err
 }
 
-func updateFromV57(ctx context.Context, tx *sql.Tx) error {
+func updateFromV57(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 UPDATE sqlite_sequence SET seq = (
     SELECT coalesce(max(max(coalesce(storage_volumes.id, 0)), max(coalesce(storage_volumes_snapshots.id, 0))), 0)
@@ -826,7 +826,7 @@ WHERE name='storage_volumes';
 	return err
 }
 
-func updateFromV56(ctx context.Context, tx *sql.Tx) error {
+func updateFromV56(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 UPDATE sqlite_sequence SET seq = (
     SELECT max(max(coalesce(storage_volumes.id, 0)), max(coalesce(storage_volumes_snapshots.id, 0)))
@@ -837,7 +837,7 @@ WHERE name='storage_volumes';
 	return err
 }
 
-func updateFromV55(ctx context.Context, tx *sql.Tx) error {
+func updateFromV55(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 DROP VIEW storage_volumes_all;
 
@@ -1645,7 +1645,7 @@ CREATE VIEW storage_volumes_all (
 	return nil
 }
 
-func updateFromV54(ctx context.Context, tx *sql.Tx) error {
+func updateFromV54(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 DROP VIEW certificates_projects_ref;
 DROP VIEW instances_config_ref;
@@ -1667,7 +1667,7 @@ DROP VIEW projects_used_by_ref;
 }
 
 // updateFromV53 creates the cluster_groups and nodes_cluster_groups tables.
-func updateFromV53(ctx context.Context, tx *sql.Tx) error {
+func updateFromV53(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE "cluster_groups" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -1696,7 +1696,7 @@ INSERT INTO nodes_cluster_groups (node_id, group_id) SELECT id, 1 FROM nodes;
 }
 
 // updateFromV52 creates the networks_zones and networks_zones_config tables.
-func updateFromV52(ctx context.Context, tx *sql.Tx) error {
+func updateFromV52(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE "networks_zones" (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -1724,7 +1724,7 @@ CREATE TABLE "networks_zones_config" (
 }
 
 // updateFromV51 creates the networks_peers and networks_peers_config tables.
-func updateFromV51(ctx context.Context, tx *sql.Tx) error {
+func updateFromV51(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE "networks_peers" (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -1757,7 +1757,7 @@ CREATE TABLE "networks_peers_config" (
 }
 
 // updateFromV50 creates the nodes_config table.
-func updateFromV50(ctx context.Context, tx *sql.Tx) error {
+func updateFromV50(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE "nodes_config" (
 id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -1777,7 +1777,7 @@ UNIQUE (node_id, key)
 }
 
 // updateFromV49 creates the networks_forwards and networks_forwards_config tables.
-func updateFromV49(ctx context.Context, tx *sql.Tx) error {
+func updateFromV49(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE "networks_forwards" (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -1808,7 +1808,7 @@ CREATE TABLE "networks_forwards_config" (
 }
 
 // updateFromV48 renames the "pending" column to "state" in the "nodes" table.
-func updateFromV48(ctx context.Context, tx *sql.Tx) error {
+func updateFromV48(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 ALTER TABLE nodes
 RENAME COLUMN pending TO state;
@@ -1821,7 +1821,7 @@ RENAME COLUMN pending TO state;
 }
 
 // updateFromV47 adds warnings.
-func updateFromV47(ctx context.Context, tx *sql.Tx) error {
+func updateFromV47(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE warnings (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -1852,7 +1852,7 @@ CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_i
 }
 
 // updateFromV46 adds support for restricting certificates to projects.
-func updateFromV46(ctx context.Context, tx *sql.Tx) error {
+func updateFromV46(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 ALTER TABLE certificates ADD COLUMN restricted INTEGER NOT NULL DEFAULT 0;
 CREATE TABLE certificates_projects (
@@ -1876,7 +1876,7 @@ CREATE VIEW certificates_projects_ref (fingerprint, value) AS
 }
 
 // updateFromV45 updates projects_used_by_ref to include ceph volumes.
-func updateFromV45(ctx context.Context, tx *sql.Tx) error {
+func updateFromV45(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 DROP VIEW projects_used_by_ref;
 CREATE VIEW projects_used_by_ref (name,
@@ -1929,7 +1929,7 @@ CREATE VIEW projects_used_by_ref (name,
 
 // updateFromV44 adds networks_acls table, and adds a foreign key relationship between networks and projects.
 // API extension: network_acl.
-func updateFromV44(ctx context.Context, tx *sql.Tx) error {
+func updateFromV44(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 DROP VIEW projects_used_by_ref;
 
@@ -2047,7 +2047,7 @@ CREATE VIEW projects_used_by_ref (name,
 }
 
 // updateFromV43 adds a unique index to the storage_pools_config and networks_config tables.
-func updateFromV43(ctx context.Context, tx *sql.Tx) error {
+func updateFromV43(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`CREATE UNIQUE INDEX storage_pools_unique_storage_pool_id_node_id_key ON storage_pools_config (storage_pool_id, IFNULL(node_id, -1), key);
 		CREATE UNIQUE INDEX networks_unique_network_id_node_id_key ON networks_config (network_id, IFNULL(node_id, -1), key);
 	`)
@@ -2191,7 +2191,7 @@ func updateFromV41(ctx context.Context, tx *sql.Tx) error {
 }
 
 // Add state column to storage_pools_nodes tables. Set existing row's state to 1 ("created").
-func updateFromV40(ctx context.Context, tx *sql.Tx) error {
+func updateFromV40(_ context.Context, tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE storage_pools_nodes ADD COLUMN state INTEGER NOT NULL DEFAULT 0;
 		UPDATE storage_pools_nodes SET state = 1;
@@ -2201,7 +2201,7 @@ func updateFromV40(ctx context.Context, tx *sql.Tx) error {
 }
 
 // Add state column to networks_nodes tables. Set existing row's state to 1 ("created").
-func updateFromV39(ctx context.Context, tx *sql.Tx) error {
+func updateFromV39(_ context.Context, tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE networks_nodes ADD COLUMN state INTEGER NOT NULL DEFAULT 0;
 		UPDATE networks_nodes SET state = 1;
@@ -2211,7 +2211,7 @@ func updateFromV39(ctx context.Context, tx *sql.Tx) error {
 }
 
 // Add storage_volumes_backups table.
-func updateFromV38(ctx context.Context, tx *sql.Tx) error {
+func updateFromV38(_ context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE storage_volumes_backups (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -2248,7 +2248,7 @@ func updateFromV37(ctx context.Context, tx *sql.Tx) error {
 }
 
 // Add networks to projects references.
-func updateFromV36(ctx context.Context, tx *sql.Tx) error {
+func updateFromV36(_ context.Context, tx *sql.Tx) error {
 	stmts := `
 DROP VIEW projects_used_by_ref;
 CREATE VIEW projects_used_by_ref (name,
@@ -2287,7 +2287,7 @@ CREATE VIEW projects_used_by_ref (name,
 
 // This fixes node IDs of storage volumes on non-remote pools which were
 // wrongly set to NULL.
-func updateFromV35(ctx context.Context, tx *sql.Tx) error {
+func updateFromV35(_ context.Context, tx *sql.Tx) error {
 	stmts := `
 WITH storage_volumes_tmp (id, node_id)
 AS (
@@ -2604,7 +2604,7 @@ CREATE TRIGGER storage_volumes_check_id
 // and set existing networks to project_id 1.
 // This is made a lot more complex because it requires re-creating the referenced tables as there is no way to
 // disable foreign keys temporarily within a transaction.
-func updateFromV33(ctx context.Context, tx *sql.Tx) error {
+func updateFromV33(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE networks_new (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -2661,7 +2661,7 @@ ALTER TABLE networks_config_new RENAME TO networks_config;
 }
 
 // Add type field to networks.
-func updateFromV32(ctx context.Context, tx *sql.Tx) error {
+func updateFromV32(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE networks ADD COLUMN type INTEGER NOT NULL DEFAULT 0;")
 	if err != nil {
 		return fmt.Errorf("Failed to add type column to networks table: %w", err)
@@ -2671,7 +2671,7 @@ func updateFromV32(ctx context.Context, tx *sql.Tx) error {
 }
 
 // Add failure_domain column to nodes table.
-func updateFromV31(ctx context.Context, tx *sql.Tx) error {
+func updateFromV31(_ context.Context, tx *sql.Tx) error {
 	stmts := `
 CREATE TABLE nodes_failure_domains (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -2690,7 +2690,7 @@ ALTER TABLE nodes
 }
 
 // Add content type field to storage volumes.
-func updateFromV30(ctx context.Context, tx *sql.Tx) error {
+func updateFromV30(_ context.Context, tx *sql.Tx) error {
 	stmts := `ALTER TABLE storage_volumes ADD COLUMN content_type INTEGER NOT NULL DEFAULT 0;
 UPDATE storage_volumes SET content_type = 1 WHERE type = 3;
 UPDATE storage_volumes SET content_type = 1 WHERE storage_volumes.id IN (
@@ -2738,7 +2738,7 @@ CREATE VIEW storage_volumes_all (
 }
 
 // Add storage volumes to projects references and fix images.
-func updateFromV29(ctx context.Context, tx *sql.Tx) error {
+func updateFromV29(_ context.Context, tx *sql.Tx) error {
 	stmts := `
 DROP VIEW projects_used_by_ref;
 CREATE VIEW projects_used_by_ref (name,
@@ -2771,13 +2771,13 @@ CREATE VIEW projects_used_by_ref (name,
 }
 
 // Attempt to add missing project feature.
-func updateFromV28(ctx context.Context, tx *sql.Tx) error {
+func updateFromV28(_ context.Context, tx *sql.Tx) error {
 	_, _ = tx.Exec("INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storage.volumes', 'true');")
 	return nil
 }
 
 // Add expiry date to storage volume snapshots.
-func updateFromV27(ctx context.Context, tx *sql.Tx) error {
+func updateFromV27(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE storage_volumes_snapshots ADD COLUMN expiry_date DATETIME;")
 	return err
 }
@@ -3096,7 +3096,7 @@ SELECT ?, ?, 'zfs.pool_name', name FROM storage_pools WHERE id=?
 }
 
 // Fix "images_profiles" table (missing UNIQUE).
-func updateFromV21(ctx context.Context, tx *sql.Tx) error {
+func updateFromV21(_ context.Context, tx *sql.Tx) error {
 	stmts := `
 ALTER TABLE images_profiles RENAME TO old_images_profiles;
 CREATE TABLE images_profiles (
@@ -3114,7 +3114,7 @@ DROP TABLE old_images_profiles;
 }
 
 // Add "images_profiles" table.
-func updateFromV20(ctx context.Context, tx *sql.Tx) error {
+func updateFromV20(_ context.Context, tx *sql.Tx) error {
 	stmts := `
 CREATE TABLE images_profiles (
 	image_id INTEGER NOT NULL,
@@ -3146,7 +3146,7 @@ INSERT INTO images_profiles (image_id, profile_id)
 }
 
 // Add a new "arch" column to the "nodes" table.
-func updateFromV19(ctx context.Context, tx *sql.Tx) error {
+func updateFromV19(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("PRAGMA ignore_check_constraints=on")
 	if err != nil {
 		return err
@@ -3177,7 +3177,7 @@ func updateFromV19(ctx context.Context, tx *sql.Tx) error {
 }
 
 // Rename 'containers' to 'instances' in *_used_by_ref views.
-func updateFromV18(ctx context.Context, tx *sql.Tx) error {
+func updateFromV18(_ context.Context, tx *sql.Tx) error {
 	stmts := `
 DROP VIEW profiles_used_by_ref;
 CREATE VIEW profiles_used_by_ref (project,
@@ -3219,7 +3219,7 @@ CREATE VIEW projects_used_by_ref (name,
 }
 
 // Add nodes_roles table.
-func updateFromV17(ctx context.Context, tx *sql.Tx) error {
+func updateFromV17(_ context.Context, tx *sql.Tx) error {
 	stmts := `
 CREATE TABLE nodes_roles (
     node_id INTEGER NOT NULL,
@@ -3233,7 +3233,7 @@ CREATE TABLE nodes_roles (
 }
 
 // Add image type column.
-func updateFromV16(ctx context.Context, tx *sql.Tx) error {
+func updateFromV16(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE images ADD COLUMN type INTEGER NOT NULL DEFAULT 0;")
 	return err
 }
@@ -3622,7 +3622,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 }
 
 // Rename all containers* tables to instances*/.
-func updateFromV14(ctx context.Context, tx *sql.Tx) error {
+func updateFromV14(_ context.Context, tx *sql.Tx) error {
 	stmts := `
 ALTER TABLE containers RENAME TO instances;
 ALTER TABLE containers_backups RENAME COLUMN container_id TO instance_id;
@@ -3719,12 +3719,12 @@ CREATE VIEW profiles_used_by_ref (project,
 	return err
 }
 
-func updateFromV13(ctx context.Context, tx *sql.Tx) error {
+func updateFromV13(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE containers ADD COLUMN expiry_date DATETIME;")
 	return err
 }
 
-func updateFromV12(ctx context.Context, tx *sql.Tx) error {
+func updateFromV12(_ context.Context, tx *sql.Tx) error {
 	stmts := `
 DROP VIEW profiles_used_by_ref;
 CREATE VIEW profiles_used_by_ref (project,
@@ -4257,7 +4257,7 @@ CREATE VIEW profiles_used_by_ref (project, name, value) AS
 	return err
 }
 
-func updateFromV10(ctx context.Context, tx *sql.Tx) error {
+func updateFromV10(_ context.Context, tx *sql.Tx) error {
 	stmt := `
 ALTER TABLE storage_volumes ADD COLUMN snapshot INTEGER NOT NULL DEFAULT 0;
 UPDATE storage_volumes SET snapshot = 0;
@@ -4267,7 +4267,7 @@ UPDATE storage_volumes SET snapshot = 0;
 }
 
 // Add a new 'type' column to the operations table.
-func updateFromV9(ctx context.Context, tx *sql.Tx) error {
+func updateFromV9(_ context.Context, tx *sql.Tx) error {
 	stmts := `
 	ALTER TABLE operations ADD COLUMN type INTEGER NOT NULL DEFAULT 0;
 	UPDATE operations SET type = 0;
@@ -4278,13 +4278,13 @@ func updateFromV9(ctx context.Context, tx *sql.Tx) error {
 
 // The lvm.thinpool_name and lvm.vg_name config keys are node-specific and need
 // to be linked to nodes.
-func updateFromV8(ctx context.Context, tx *sql.Tx) error {
+func updateFromV8(_ context.Context, _ *sql.Tx) error {
 	// Moved to patchLvmNodeSpecificConfigKeys, since there's no schema
 	// change. That makes it easier to backport.
 	return nil
 }
 
-func updateFromV7(ctx context.Context, tx *sql.Tx) error {
+func updateFromV7(_ context.Context, tx *sql.Tx) error {
 	stmts := `
 CREATE TABLE containers_backups (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -4465,13 +4465,13 @@ INSERT INTO storage_volumes_config(storage_volume_id, key, value) VALUES(?, ?, ?
 	return nil
 }
 
-func updateFromV4(ctx context.Context, tx *sql.Tx) error {
+func updateFromV4(_ context.Context, tx *sql.Tx) error {
 	stmt := "UPDATE networks SET state = 1"
 	_, err := tx.Exec(stmt)
 	return err
 }
 
-func updateFromV3(ctx context.Context, tx *sql.Tx) error {
+func updateFromV3(_ context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE storage_pools_nodes (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -4488,7 +4488,7 @@ UPDATE storage_pools SET state = 1;
 	return err
 }
 
-func updateFromV2(ctx context.Context, tx *sql.Tx) error {
+func updateFromV2(_ context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE operations (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -4502,7 +4502,7 @@ CREATE TABLE operations (
 	return err
 }
 
-func updateFromV1(ctx context.Context, tx *sql.Tx) error {
+func updateFromV1(_ context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE certificates (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -4709,7 +4709,7 @@ CREATE TABLE storage_volumes_config (
 	return err
 }
 
-func updateFromV0(ctx context.Context, tx *sql.Tx) error {
+func updateFromV0(_ context.Context, tx *sql.Tx) error {
 	// v0..v1 the dawn of clustering
 	stmt := `
 CREATE TABLE nodes (
