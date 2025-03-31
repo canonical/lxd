@@ -1,6 +1,7 @@
 module github.com/canonical/lxd
 
 go 1.23.3
+toolchain go1.24.1
 
 require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.17.5
@@ -42,7 +43,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/openfga/api/proto v0.0.0-20250127102726-f9709139a369
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20250220223040-ed0cfba54336
-	github.com/openfga/openfga v1.8.7
+	github.com/openfga/openfga v1.8.8
 	github.com/osrg/gobgp/v3 v3.35.0
 	github.com/pkg/sftp v1.13.8
 	github.com/pkg/xattr v0.4.10
@@ -62,7 +63,7 @@ require (
 	golang.org/x/term v0.30.0
 	golang.org/x/text v0.23.0
 	golang.org/x/tools v0.31.0
-	google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf v1.36.6
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/utils v0.0.0-20241210054802-24370beab758
