@@ -1,7 +1,6 @@
 name: Bug report
 description: Create a report to help us improve
-title: "bug: "
-labels: [bug]
+type: "Bug"
 
 body:
   - type: markdown
@@ -80,8 +79,8 @@ body:
       description: If you have any of the following information, please attach them as text files.
       options:
         - label: Any relevant kernel output (`dmesg`)
-        - label: Container log (`lxc info NAME --show-log`)
-        - label: Container configuration (`lxc config show NAME --expanded`)
+        - label: Instance log (`lxc info NAME --show-log`)
+        - label: Instance configuration (`lxc config show NAME --expanded`)
         - label: Main daemon log (at `/var/log/lxd/lxd.log` or `/var/snap/lxd/common/lxd/logs/lxd.log`)
         - label: Output of the client with `--debug`
         - label: Output of the daemon with `--debug` (or use `lxc monitor` while reproducing the issue)
