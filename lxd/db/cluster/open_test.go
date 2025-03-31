@@ -112,7 +112,7 @@ func TestEnsureSchema_UpdateNodeVersion(t *testing.T) {
 		ready bool
 	}{
 		{
-			func(t *testing.T, db *sql.DB) {},
+			func(_ *testing.T, _ *sql.DB) {},
 			true,
 		},
 		{
@@ -165,7 +165,7 @@ CREATE TABLE schema (
 
 // Add a new node with the given address, schema version and number of api extensions.
 func addNode(t *testing.T, db *sql.DB, address string, schema int, apiExtensions int) {
-	err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
+	err := query.Transaction(context.TODO(), db, func(_ context.Context, tx *sql.Tx) error {
 		stmt := `
 INSERT INTO nodes(name, address, schema, api_extensions, arch, description) VALUES (?, ?, ?, ?, ?, '')
 `
