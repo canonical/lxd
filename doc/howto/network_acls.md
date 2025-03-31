@@ -740,6 +740,36 @@ Note that the request _inserted_ the new `user.limit` key without affecting the 
 
 `````
 
+(network-acls-delete)=
+## Delete an ACL
+
+You can only delete an ACL that is not assigned to a NIC or network. See the {ref}`network-acls-assign` section for more information on ACL assignment.
+
+`````{tabs}
+````{group-tab} CLI
+
+To delete an ACL, run:
+
+```bash
+lxc network acl delete <ACL_name>
+```
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+```bash
+lxc query --request DELETE /1.0/network-acls/{name}
+```
+
+See [the API reference](swagger:/network-acls/network_acl_delete) for more information.
+
+````
+% End of group-tab API
+
+`````
+
 (network-acls-assign)=
 ## Assign an ACL
 
