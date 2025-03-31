@@ -656,7 +656,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+		err = notifier(func(_ db.NodeInfo, client lxd.InstanceServer) error {
 			return client.UseProject(details.effectiveProject.Name).UpdateProfile(details.profileName, profile.Writable(), "")
 		})
 		if err != nil {
