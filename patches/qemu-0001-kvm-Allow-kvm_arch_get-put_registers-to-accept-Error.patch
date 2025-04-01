@@ -1,4 +1,4 @@
-From fc5c0b38724b2d4435696c6e4f254c4392311f42 Mon Sep 17 00:00:00 2001
+From e04094aafb65ecb0cc2bd71b64df1950fc372bcf Mon Sep 17 00:00:00 2001
 From: Julia Suvorova <jusual@redhat.com>
 Date: Fri, 27 Sep 2024 12:47:40 +0200
 Subject: [PATCH 1/2] kvm: Allow kvm_arch_get/put_registers to accept Error**
@@ -10,15 +10,18 @@ Reviewed-by: Peter Xu <peterx@redhat.com>
 Link: https://lore.kernel.org/r/20240927104743.218468-2-jusual@redhat.com
 Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
 (cherry picked from commit a1676bb3047f28b292ecbce3a378ccc0b4721d47)
+(cherry picked from commit fc5c0b38724b2d4435696c6e4f254c4392311f42)
+Signed-off-by: Gabriel Mougard <gabriel.mougard@canonical.com>
 ---
  accel/kvm/kvm-all.c        | 41 +++++++++++++++++++++++++++++---------
  include/sysemu/kvm.h       |  4 ++--
+ target/arm/kvm64.c         |  4 ++--
  target/i386/kvm/kvm.c      |  4 ++--
  target/mips/kvm.c          |  4 ++--
  target/ppc/kvm.c           |  4 ++--
  target/riscv/kvm/kvm-cpu.c |  4 ++--
  target/s390x/kvm/kvm.c     |  4 ++--
- 7 files changed, 44 insertions(+), 21 deletions(-)
+ 8 files changed, 46 insertions(+), 23 deletions(-)
 
 diff --git a/accel/kvm/kvm-all.c b/accel/kvm/kvm-all.c
 index e39a810a4e..e6a3bb67f7 100644
@@ -119,6 +122,28 @@ index d614878164..eaba7fc319 100644
  
  int kvm_arch_get_default_type(MachineState *ms);
  
+diff --git a/target/arm/kvm64.c b/target/arm/kvm64.c
+index 3c175c93a7..6b7560a194 100644
+--- a/target/arm/kvm64.c
++++ b/target/arm/kvm64.c
+@@ -782,7 +782,7 @@ static int kvm_arch_put_sve(CPUState *cs)
+     return 0;
+ }
+ 
+-int kvm_arch_put_registers(CPUState *cs, int level)
++int kvm_arch_put_registers(CPUState *cs, int level, Error **errp)
+ {
+     uint64_t val;
+     uint32_t fpr;
+@@ -968,7 +968,7 @@ static int kvm_arch_get_sve(CPUState *cs)
+     return 0;
+ }
+ 
+-int kvm_arch_get_registers(CPUState *cs)
++int kvm_arch_get_registers(CPUState *cs, Error **errp)
+ {
+     uint64_t val;
+     unsigned int el;
 diff --git a/target/i386/kvm/kvm.c b/target/i386/kvm/kvm.c
 index a0bc9ea7b1..ab0c6499f5 100644
 --- a/target/i386/kvm/kvm.c
