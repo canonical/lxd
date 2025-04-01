@@ -1014,7 +1014,7 @@ func (n *bridge) Delete(clientType request.ClientType) error {
 		return err
 	}
 
-	return n.common.delete()
+	return n.delete()
 }
 
 // Rename renames a network.
@@ -1048,7 +1048,7 @@ func (n *bridge) Rename(newName string) error {
 	}
 
 	// Rename common steps.
-	err := n.common.rename(newName)
+	err := n.rename(newName)
 	if err != nil {
 		return err
 	}
@@ -1499,7 +1499,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if n.config["ipv4.dhcp.ranges"] != "" {
 				for _, dhcpRange := range strings.Split(n.config["ipv4.dhcp.ranges"], ",") {
 					dhcpRange = strings.TrimSpace(dhcpRange)
-					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s", strings.Replace(dhcpRange, "-", ",", -1), expiry)}...)
+					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s", strings.ReplaceAll(dhcpRange, "-", ","), expiry)}...)
 				}
 			} else {
 				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s,%s", dhcpalloc.GetIP(subnet, 2).String(), dhcpalloc.GetIP(subnet, -2).String(), expiry)}...)
@@ -1644,7 +1644,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				if n.config["ipv6.dhcp.ranges"] != "" {
 					for _, dhcpRange := range strings.Split(n.config["ipv6.dhcp.ranges"], ",") {
 						dhcpRange = strings.TrimSpace(dhcpRange)
-						dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%d,%s", strings.Replace(dhcpRange, "-", ",", -1), subnetSize, expiry)}...)
+						dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%d,%s", strings.ReplaceAll(dhcpRange, "-", ","), subnetSize, expiry)}...)
 					}
 				} else {
 					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s,%d,%s", dhcpalloc.GetIP(subnet, 2), dhcpalloc.GetIP(subnet, -1), subnetSize, expiry)}...)
@@ -2362,7 +2362,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 		return fmt.Errorf("Failed generating auto config: %w", err)
 	}
 
-	dbUpdateNeeded, changedKeys, oldNetwork, err := n.common.configChanged(newNetwork)
+	dbUpdateNeeded, changedKeys, oldNetwork, err := n.configChanged(newNetwork)
 	if err != nil {
 		return err
 	}
@@ -2375,7 +2375,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 	// pending, then don't apply the new settings to the node, just to the database record (ready for the
 	// actual global create request to be initiated).
 	if n.Status() == api.NetworkStatusPending || n.LocalStatus() == api.NetworkStatusPending {
-		return n.common.update(newNetwork, targetNode, clientType)
+		return n.update(newNetwork, targetNode, clientType)
 	}
 
 	revert := revert.New()
@@ -2386,7 +2386,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 		// Define a function which reverts everything.
 		revert.Add(func() {
 			// Reset changes to all nodes and database.
-			_ = n.common.update(oldNetwork, targetNode, clientType)
+			_ = n.update(oldNetwork, targetNode, clientType)
 
 			// Reset any change that was made to local bridge.
 			_ = n.setup(newNetwork.Config)
@@ -2425,7 +2425,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 	}
 
 	// Apply changes to all nodes and database.
-	err = n.common.update(newNetwork, targetNode, clientType)
+	err = n.update(newNetwork, targetNode, clientType)
 	if err != nil {
 		return err
 	}
