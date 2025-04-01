@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/warnings"
@@ -455,7 +456,69 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 	return instances, nil
 }
 
-func instancesShutdown(instances []instance.Instance) {
+// isInstanceBusy checks if the instance is currently busy: if it has an associated operation that is in a running state.
+func isInstanceBusy(inst instance.Instance, instancesToOps map[string]*operations.Operation, instancesToOpsMu *sync.Mutex) bool {
+	if instancesToOps == nil {
+		return false
+	}
+
+	if len(instancesToOps) == 0 {
+		return false
+	}
+
+	instanceURL := entity.InstanceURL(inst.Project().Name, inst.Name()).String()
+	instancesToOpsMu.Lock()
+	defer instancesToOpsMu.Unlock()
+
+	op, ok := instancesToOps[instanceURL]
+	return ok && op != nil && op.Status() == api.Running && op.Class() != operations.OperationClassToken
+}
+
+// instancesShutdown orchestrates a controlled, priority-based shutdown of multiple instances while handling
+// concurrent operations, timeouts, and potential cancellation.
+//
+// Algorithm overview:
+// 1. Instances are sorted by their `boot.stop.priority`.
+// 2. Shutdown concurrency is limited to min(number of instances, CPU cores).
+// 3. Instances are processed in batches of the same priority.
+// 4. Each batch completes before starting the next lower priority batch.
+// 5. Worker goroutines handle instance shutdown operations. This pool is fed through the `instShutdownCh` channel.
+// 6. Busy instances (with running operations) are tracked in a separate goroutine which is fed through the `busyInstCh“ channel and resend for shutdown (sent to `instShutdownCh`) once operation completes.
+// 7. Context cancellation send the remaining instances to the workers to be shutdown.
+//
+// Examples:
+//
+// 1. Normal priority-based shutdown (boot.stop.priority values: 2, 1, 0)
+//   - All priority 2 instances shut down concurrently
+//   - After all priority 2 instances complete, priority 1 instances start
+//   - After all priority 1 instances complete, priority 0 instances start
+//
+// 2. Busy instance handling:
+//   - Instance has running operation (e.g., backup, snapshot, etc.)
+//   - Instance is sent to busyInstancesCh and tracked by the busy instance tracker goroutine
+//   - Tracker periodically checks if operation completed
+//   - Once no longer busy, instance is sent back to instShutdownCh for shutdown
+//
+// 3. Context cancellation (e.g., during daemon shutdown timeout):
+//   - Main context cancelled
+//   - Cancellation of context is handled in the tracking goroutine and send remaining instances to instShutdownCh for shutdown.
+//
+// 4. Custom timeout handling:
+//   - Each instance can specify boot.host_shutdown_timeout
+//   - Instances get graceful shutdown with their specified timeout
+//   - If graceful shutdown fails, fallback to force stop
+//
+// 5. Power state tracking:
+//   - Each instance shutdown preserves the last power state as "RUNNING"
+//   - Ensures instances restart when LXD daemon comes back up
+func instancesShutdown(ctx context.Context, instances []instance.Instance) {
+	// List all pending operations tied to instances.
+	instancesToOpsMu := sync.Mutex{}
+	instancesToOps, err := pendingInstanceOperations()
+	if err != nil {
+		logger.Error("Failed to get entity to pending operations map", logger.Ctx{"err": err})
+	}
+
 	sort.Sort(instanceStopList(instances))
 
 	// Limit shutdown concurrency to number of instances or number of CPU cores (which ever is less).
@@ -467,9 +530,48 @@ func instancesShutdown(instances []instance.Instance) {
 		maxConcurrent = instCount
 	}
 
+	// Start the busy instance tracker if instancesToOps is provided.
+	busyInstancesCh := make(chan instance.Instance)
+	if len(instancesToOps) > 0 {
+		go func() {
+			// Map to track busy instances
+			busyInstances := make(map[string]instance.Instance)
+			ticker := time.NewTicker(time.Second)
+			defer ticker.Stop()
+
+			for {
+				select {
+				case inst, ok := <-busyInstancesCh:
+					if !ok {
+						logger.Debug("Finishing busy instances tracking")
+						return
+					}
+
+					logger.Debug("Instance received for busy tracking", logger.Ctx{"instance": inst.Name()})
+					instanceURL := entity.InstanceURL(inst.Project().Name, inst.Name()).String()
+					busyInstances[instanceURL] = inst
+				case <-ticker.C:
+					ctxErr := ctx.Err()
+					if ctxErr != nil {
+						logger.Info("Skip waiting for busy instances to complete")
+					}
+
+					for instanceURL, inst := range busyInstances {
+						if ctxErr != nil || !isInstanceBusy(inst, instancesToOps, &instancesToOpsMu) {
+							delete(busyInstances, instanceURL)
+							logger.Debug("Instance removed from busy tracking, sending to shutdown channel", logger.Ctx{"instance": inst.Name()})
+							instShutdownCh <- inst
+						}
+					}
+				}
+			}
+		}()
+	}
+
 	for i := 0; i < maxConcurrent; i++ {
 		go func(instShutdownCh <-chan instance.Instance) {
 			for inst := range instShutdownCh {
+				logger.Debug("Instance received for shutdown", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "timestamp": time.Now().UnixNano()})
 				// Determine how long to wait for the instance to shutdown cleanly.
 				timeoutSeconds := 30
 				value, ok := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
@@ -494,6 +596,7 @@ func instancesShutdown(instances []instance.Instance) {
 				}
 
 				wg.Done()
+				logger.Debug("Instance shutdown complete", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "timestamp": time.Now().UnixNano()})
 			}
 		}(instShutdownCh)
 	}
@@ -512,14 +615,20 @@ func instancesShutdown(instances []instance.Instance) {
 			currentBatchPriority = priority
 
 			// Wait for instances with higher priority to finish before starting next batch.
+			logger.Debug("Waiting for instances to be shutdown", logger.Ctx{"stopPriority": currentBatchPriority})
 			wg.Wait()
 			logger.Info("Stopping instances", logger.Ctx{"stopPriority": currentBatchPriority})
 		}
 
 		wg.Add(1)
-		instShutdownCh <- inst
+		if ctx.Err() == nil && isInstanceBusy(inst, instancesToOps, &instancesToOpsMu) {
+			busyInstancesCh <- inst
+		} else {
+			instShutdownCh <- inst
+		}
 	}
 
 	wg.Wait()
 	close(instShutdownCh)
+	close(busyInstancesCh)
 }
