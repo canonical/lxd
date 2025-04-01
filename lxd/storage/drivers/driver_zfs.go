@@ -78,6 +78,10 @@ func (d *zfs) load() error {
 	for _, tool := range []string{"zpool", "zfs"} {
 		_, err := exec.LookPath(tool)
 		if err != nil {
+			if shared.InSnap() {
+				return fmt.Errorf("Required tool %q is missing. The snap does not contain ZFS tools matching the module version (%q). Consider installing ZFS tools in the host and use 'snap set lxd zfs.external=true'", tool, zfsVersion)
+			}
+
 			return fmt.Errorf("Required tool %q is missing", tool)
 		}
 	}
