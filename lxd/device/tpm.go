@@ -72,7 +72,7 @@ func (d *tpm) validateEnvironment() error {
 	// Validate the required binary.
 	_, err := exec.LookPath("swtpm")
 	if err != nil {
-		return fmt.Errorf("Required tool '%s' is missing", "swtpm")
+		return fmt.Errorf("Required tool %q is missing", "swtpm")
 	}
 
 	if d.inst.Type() == instancetype.Container {
