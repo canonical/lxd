@@ -539,6 +539,8 @@ func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 			ticker := time.NewTicker(time.Second)
 			defer ticker.Stop()
 
+			var lastWaitingLog time.Time
+
 			for {
 				select {
 				case inst, ok := <-busyInstancesCh:
@@ -547,19 +549,22 @@ func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 						return
 					}
 
-					logger.Debug("Instance received for busy tracking", logger.Ctx{"instance": inst.Name()})
+					logger.Debug("Instance received for busy tracking", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 					instanceURL := entity.InstanceURL(inst.Project().Name, inst.Name()).String()
 					busyInstances[instanceURL] = inst
 				case <-ticker.C:
 					ctxErr := ctx.Err()
 					if ctxErr != nil {
-						logger.Info("Skip waiting for busy instances to complete")
+						logger.Info("Skipping waiting for instance operations to finish")
+					} else if time.Since(lastWaitingLog) > (time.Second * 10) {
+						logger.Info("Waiting for instance operations to finish", logger.Ctx{"instances": len(busyInstances)})
+						lastWaitingLog = time.Now()
 					}
 
 					for instanceURL, inst := range busyInstances {
 						if ctxErr != nil || !isInstanceBusy(inst, instancesToOps, &instancesToOpsMu) {
 							delete(busyInstances, instanceURL)
-							logger.Debug("Instance removed from busy tracking, sending to shutdown channel", logger.Ctx{"instance": inst.Name()})
+							logger.Debug("Instance removed from busy tracking, sending to shutdown channel", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 							instShutdownCh <- inst
 						}
 					}
@@ -571,7 +576,9 @@ func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 	for i := 0; i < maxConcurrent; i++ {
 		go func(instShutdownCh <-chan instance.Instance) {
 			for inst := range instShutdownCh {
-				logger.Debug("Instance received for shutdown", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "timestamp": time.Now().UnixNano()})
+				l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+
+				l.Debug("Instance received for shutdown")
 				// Determine how long to wait for the instance to shutdown cleanly.
 				timeoutSeconds := 30
 				value, ok := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
@@ -581,10 +588,10 @@ func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 
 				err := inst.Shutdown(time.Second * time.Duration(timeoutSeconds))
 				if err != nil {
-					logger.Warn("Failed shutting down instance, forcefully stopping", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
+					l.Warn("Failed shutting down instance, forcefully stopping", logger.Ctx{"err": err})
 					err = inst.Stop(false)
 					if err != nil {
-						logger.Warn("Failed forcefully stopping instance", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
+						l.Warn("Failed forcefully stopping instance", logger.Ctx{"err": err})
 					}
 				}
 
@@ -592,11 +599,14 @@ func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 					// If DB was available then the instance shutdown process will have set
 					// the last power state to STOPPED, so set that back to RUNNING so that
 					// when LXD restarts the instance will be started again.
-					_ = inst.VolatileSet(map[string]string{"volatile.last_state.power": instance.PowerStateRunning})
+					err = inst.VolatileSet(map[string]string{"volatile.last_state.power": instance.PowerStateRunning})
+					if err != nil {
+						l.Warn("Failed updating volatile.last_state.power", logger.Ctx{"err": err})
+					}
 				}
 
 				wg.Done()
-				logger.Debug("Instance shutdown complete", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "timestamp": time.Now().UnixNano()})
+				l.Debug("Instance shutdown complete")
 			}
 		}(instShutdownCh)
 	}
