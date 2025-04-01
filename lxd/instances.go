@@ -547,7 +547,7 @@ func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 						return
 					}
 
-					logger.Debug("Instance received for busy tracking", logger.Ctx{"instance": inst.Name()})
+					logger.Debug("Instance received for busy tracking", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 					instanceURL := entity.InstanceURL(inst.Project().Name, inst.Name()).String()
 					busyInstances[instanceURL] = inst
 				case <-ticker.C:
@@ -559,7 +559,7 @@ func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 					for instanceURL, inst := range busyInstances {
 						if ctxErr != nil || !isInstanceBusy(inst, instancesToOps, &instancesToOpsMu) {
 							delete(busyInstances, instanceURL)
-							logger.Debug("Instance removed from busy tracking, sending to shutdown channel", logger.Ctx{"instance": inst.Name()})
+							logger.Debug("Instance removed from busy tracking, sending to shutdown channel", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 							instShutdownCh <- inst
 						}
 					}
