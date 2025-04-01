@@ -69,7 +69,8 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 	if s.OS.InUbuntuCore() {
 		devRootPath = "/"
 
-		gpuInterfaceProviderWrapper := os.Getenv("SNAP") + "/gpu-2404/bin/gpu-2404-provider-wrapper"
+		gpuCore24Root := os.Getenv("SNAP") + "/gpu-2404"
+		gpuInterfaceProviderWrapper := gpuCore24Root + "/bin/gpu-2404-provider-wrapper"
 
 		// Let's ensure that user has mesa-2404 snap connected.
 		if !shared.PathExists(gpuInterfaceProviderWrapper) {
@@ -99,7 +100,7 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 		}
 
 		rootPath = strings.TrimSuffix(rootPath, "\n")
-		configSearchPaths = []string{rootPath + "/usr/share"}
+		configSearchPaths = []string{rootPath + "/usr/share", gpuCore24Root + "/usr/share"}
 
 		// Let's ensure that user did:
 		// snap connect mesa-2404:kernel-gpu-2404 pc-kernel
