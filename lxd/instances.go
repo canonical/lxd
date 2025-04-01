@@ -594,7 +594,10 @@ func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 					// If DB was available then the instance shutdown process will have set
 					// the last power state to STOPPED, so set that back to RUNNING so that
 					// when LXD restarts the instance will be started again.
-					_ = inst.VolatileSet(map[string]string{"volatile.last_state.power": instance.PowerStateRunning})
+					err = inst.VolatileSet(map[string]string{"volatile.last_state.power": instance.PowerStateRunning})
+					if err != nil {
+						l.Warn("Failed updating volatile.last_state.power", logger.Ctx{"err": err})
+					}
 				}
 
 				wg.Done()
