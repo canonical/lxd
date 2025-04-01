@@ -219,6 +219,73 @@ func (n *physical) Validate(config map[string]string) error {
 		return err
 	}
 
+	// Avoid network collisions.
+	err = n.validateRoutes(config)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateRoutes checks for network collisions. I.e., ipv4.ovn.ranges must not be included in ipv4.routes.
+func (n *physical) validateRoutes(config map[string]string) error {
+	var (
+		routesListIPv4 []*net.IPNet
+		routesListIPv6 []*net.IPNet
+
+		ovnRangesListIPv4 []*shared.IPRange
+		ovnRangesListIPv6 []*shared.IPRange
+
+		err error
+	)
+
+	if config["ipv4.routes"] != "" {
+		routesListIPv4, err = shared.ParseNetworks(config["ipv4.routes"])
+		if err != nil {
+			return fmt.Errorf("Failed parsing ipv4.routes: %w", err)
+		}
+
+		if config["ipv4.ovn.ranges"] != "" {
+			ovnRangesListIPv4, err = shared.ParseIPRanges(config["ipv4.ovn.ranges"])
+			if err != nil {
+				return fmt.Errorf("Failed parsing ipv4.ovn.ranges: %w", err)
+			}
+		}
+	}
+
+	if config["ipv6.routes"] != "" {
+		routesListIPv6, err = shared.ParseNetworks(config["ipv6.routes"])
+		if err != nil {
+			return fmt.Errorf("Failed parsing ipv6.routes: %w", err)
+		}
+
+		if config["ipv6.ovn.ranges"] != "" {
+			ovnRangesListIPv6, err = shared.ParseIPRanges(config["ipv6.ovn.ranges"])
+			if err != nil {
+				return fmt.Errorf("Failed parsing ipv6.ovn.ranges: %w", err)
+			}
+		}
+	}
+
+	// Validate ipv4.routes.
+	for _, routes := range routesListIPv4 {
+		for _, ovnRange := range ovnRangesListIPv4 {
+			if ovnRange.OverlapsNetwork(routes) {
+				return fmt.Errorf(`"ipv4.routes" (%q) should not include "ipv4.ovn.ranges" (%q)`, routes, ovnRange)
+			}
+		}
+	}
+
+	// Validate ipv6.routes.
+	for _, routes := range routesListIPv6 {
+		for _, ovnRange := range ovnRangesListIPv6 {
+			if ovnRange.OverlapsNetwork(routes) {
+				return fmt.Errorf(`"ipv6.routes" (%q) should not include "ipv6.ovn.ranges" (%q)`, routes, ovnRange)
+			}
+		}
+	}
+
 	return nil
 }
 
