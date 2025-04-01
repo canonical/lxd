@@ -858,6 +858,42 @@ func (n *bridge) Validate(config map[string]string) error {
 		}
 	}
 
+	var (
+		routesListIPv4 []*net.IPNet
+		routesListIPv6 []*net.IPNet
+
+		ovnRangesListIPv4 []*shared.IPRange
+		ovnRangesListIPv6 []*shared.IPRange
+	)
+
+	if config["ipv4.routes"] != "" {
+		routesListIPv4, err = shared.ParseNetworks(config["ipv4.routes"])
+		if err != nil {
+			return fmt.Errorf("Failed parsing ipv4.routes: %w", err)
+		}
+	}
+
+	if config["ipv6.routes"] != "" {
+		routesListIPv6, err = shared.ParseNetworks(config["ipv6.routes"])
+		if err != nil {
+			return fmt.Errorf("Failed parsing ipv6.routes: %w", err)
+		}
+	}
+
+	if config["ipv4.ovn.ranges"] != "" {
+		ovnRangesListIPv4, err = shared.ParseIPRanges(config["ipv4.ovn.ranges"])
+		if err != nil {
+			return fmt.Errorf("Failed parsing ipv4.ovn.ranges: %w", err)
+		}
+	}
+
+	if config["ipv6.ovn.ranges"] != "" {
+		ovnRangesListIPv6, err = shared.ParseIPRanges(config["ipv6.ovn.ranges"])
+		if err != nil {
+			return fmt.Errorf("Failed parsing ipv6.ovn.ranges: %w", err)
+		}
+	}
+
 	// Check IPv4 OVN ranges.
 	if config["ipv4.ovn.ranges"] != "" && shared.IsTrueOrEmpty(config["ipv4.dhcp"]) {
 		dhcpSubnet := n.DHCPv4Subnet()
@@ -871,21 +907,25 @@ func (n *bridge) Validate(config map[string]string) error {
 			allowedNets = append(allowedNets, dhcpSubnet)
 		}
 
-		ovnRanges, err := shared.ParseIPRanges(config["ipv4.ovn.ranges"], allowedNets...)
-		if err != nil {
-			return fmt.Errorf("Failed parsing ipv4.ovn.ranges: %w", err)
-		}
-
 		dhcpRanges, err := shared.ParseIPRanges(config["ipv4.dhcp.ranges"], allowedNets...)
 		if err != nil {
 			return fmt.Errorf("Failed parsing ipv4.dhcp.ranges: %w", err)
 		}
 
-		for _, ovnRange := range ovnRanges {
+		for _, ovnRange := range ovnRangesListIPv4 {
 			for _, dhcpRange := range dhcpRanges {
 				if ovnRange.Overlaps(dhcpRange) {
 					return fmt.Errorf(`The range specified in "ipv4.ovn.ranges" (%q) cannot overlap with "ipv4.dhcp.ranges"`, ovnRange)
 				}
+			}
+		}
+	}
+
+	// Validate ipv4.routes.
+	for _, routes := range routesListIPv4 {
+		for _, ovnRange := range ovnRangesListIPv4 {
+			if ovnRange.OverlapsNetwork(routes) {
+				return fmt.Errorf(`"ipv4.routes" (%q) should not include "ipv4.ovn.ranges" (%q)`, routes, ovnRange)
 			}
 		}
 	}
@@ -903,11 +943,6 @@ func (n *bridge) Validate(config map[string]string) error {
 			allowedNets = append(allowedNets, dhcpSubnet)
 		}
 
-		ovnRanges, err := shared.ParseIPRanges(config["ipv6.ovn.ranges"], allowedNets...)
-		if err != nil {
-			return fmt.Errorf("Failed parsing ipv6.ovn.ranges: %w", err)
-		}
-
 		// If stateful DHCPv6 is enabled, check OVN ranges don't overlap with DHCPv6 stateful ranges.
 		// Otherwise SLAAC will be being used to generate client IPs and predefined ranges aren't used.
 		if dhcpSubnet != nil && shared.IsTrue(config["ipv6.dhcp.stateful"]) {
@@ -916,12 +951,21 @@ func (n *bridge) Validate(config map[string]string) error {
 				return fmt.Errorf("Failed parsing ipv6.dhcp.ranges: %w", err)
 			}
 
-			for _, ovnRange := range ovnRanges {
+			for _, ovnRange := range ovnRangesListIPv6 {
 				for _, dhcpRange := range dhcpRanges {
 					if ovnRange.Overlaps(dhcpRange) {
 						return fmt.Errorf(`The range specified in "ipv6.ovn.ranges" (%q) cannot overlap with "ipv6.dhcp.ranges"`, ovnRange)
 					}
 				}
+			}
+		}
+	}
+
+	// Validate ipv6.routes.
+	for _, routes := range routesListIPv6 {
+		for _, ovnRange := range ovnRangesListIPv6 {
+			if ovnRange.OverlapsNetwork(routes) {
+				return fmt.Errorf(`"ipv6.routes" (%q) should not include "ipv6.ovn.ranges" (%q)`, routes, ovnRange)
 			}
 		}
 	}
