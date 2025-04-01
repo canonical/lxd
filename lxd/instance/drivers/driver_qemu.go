@@ -8483,6 +8483,36 @@ func (d *qemu) cpuTopology(limit string) (*cpuTopology, error) {
 		topology.cores = nrLimit
 		topology.threads = 1
 
+		// Check for NUMA node assignment without pinning
+		if d.expandedConfig["limits.cpu.nodes"] != "" {
+			numaNodeIDs, err := resources.ParseNumaNodeSet(d.expandedConfig["limits.cpu.nodes"])
+			if err != nil {
+				return nil, fmt.Errorf("Invalid NUMA node selection: %v", err)
+			}
+
+			topology.vcpus = map[uint64]uint64{}
+			topology.nodes = map[uint64][]uint64{}
+
+			// Assign all vCPUs to the first specified node if a single NUMA node is specified
+			// (Note: virtual to physical mapping doesn't matter in non-pinned mode)
+			if len(numaNodeIDs) == 1 {
+				node := numaNodeIDs[0]
+				topology.nodes[uint64(node)] = []uint64{}
+				for i := uint64(0); i < uint64(nrLimit); i++ {
+					topology.vcpus[i] = i
+					topology.nodes[uint64(node)] = append(topology.nodes[uint64(node)], i)
+				}
+			} else {
+				// If multiple NUMA nodes are given, distribute vCPUs evenly across specified nodes.
+				node := numaNodeIDs[0]
+				topology.nodes[uint64(node)] = []uint64{}
+				for i := uint64(0); i < uint64(nrLimit); i++ {
+					topology.vcpus[i] = i
+					topology.nodes[uint64(node)] = append(topology.nodes[uint64(node)], i)
+				}
+			}
+		}
+
 		return topology, nil
 	}
 
