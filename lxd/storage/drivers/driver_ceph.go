@@ -46,7 +46,7 @@ func (d *ceph) load() error {
 	for _, tool := range []string{"ceph", "rbd"} {
 		_, err := exec.LookPath(tool)
 		if err != nil {
-			return fmt.Errorf("Required tool '%s' is missing", tool)
+			return fmt.Errorf("Required tool %q is missing", tool)
 		}
 	}
 
