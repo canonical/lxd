@@ -2083,15 +2083,16 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, s.GlobalConfig.ShutdownTimeout())
-	defer cancel()
-
 	// Handle shutdown (unix.SIGPWR) and reload (unix.SIGTERM) signals.
 	if sig == unix.SIGPWR || sig == unix.SIGTERM {
 		// Full shutdown requested.
 		if sig == unix.SIGPWR {
 			logger.Debug("Shutting down instances")
-			instancesShutdown(ctx, instances)
+
+			shutdownCtx, cancel := context.WithTimeout(ctx, s.GlobalConfig.ShutdownTimeout())
+			defer cancel()
+
+			instancesShutdown(shutdownCtx, instances)
 
 			if d.db.Cluster != nil {
 				// Try to cancel any cancelable operations.
@@ -2107,7 +2108,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			// Unmount daemon image and backup volumes if set.
 			logger.Info("Stopping daemon storage volumes")
 			logger.Debug("Unmounting daemon storage volumes")
-			volUnmountCtx, cancel := context.WithTimeout(ctx, time.Minute)
+			volUnmountCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
 			err := daemonStorageVolumesUnmount(s, volUnmountCtx)
 			if err != nil {
