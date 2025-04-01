@@ -64,14 +64,6 @@ func (d *zfs) load() error {
 		return fmt.Errorf("Error loading %q module: %w", "zfs", err)
 	}
 
-	// Validate the needed tools are present.
-	for _, tool := range []string{"zpool", "zfs"} {
-		_, err := exec.LookPath(tool)
-		if err != nil {
-			return fmt.Errorf("Required tool %q is missing", tool)
-		}
-	}
-
 	// Get the version information.
 	if zfsVersion == "" {
 		version, err := d.version()
@@ -80,6 +72,14 @@ func (d *zfs) load() error {
 		}
 
 		zfsVersion = version
+	}
+
+	// Validate the needed tools are present.
+	for _, tool := range []string{"zpool", "zfs"} {
+		_, err := exec.LookPath(tool)
+		if err != nil {
+			return fmt.Errorf("Required tool %q is missing", tool)
+		}
 	}
 
 	// Decide whether we can use features added by 0.8.0.
