@@ -571,7 +571,9 @@ func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 	for i := 0; i < maxConcurrent; i++ {
 		go func(instShutdownCh <-chan instance.Instance) {
 			for inst := range instShutdownCh {
-				logger.Debug("Instance received for shutdown", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "timestamp": time.Now().UnixNano()})
+				l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+
+				l.Debug("Instance received for shutdown")
 				// Determine how long to wait for the instance to shutdown cleanly.
 				timeoutSeconds := 30
 				value, ok := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
@@ -581,10 +583,10 @@ func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 
 				err := inst.Shutdown(time.Second * time.Duration(timeoutSeconds))
 				if err != nil {
-					logger.Warn("Failed shutting down instance, forcefully stopping", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
+					l.Warn("Failed shutting down instance, forcefully stopping", logger.Ctx{"err": err})
 					err = inst.Stop(false)
 					if err != nil {
-						logger.Warn("Failed forcefully stopping instance", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
+						l.Warn("Failed forcefully stopping instance", logger.Ctx{"err": err})
 					}
 				}
 
@@ -596,7 +598,7 @@ func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 				}
 
 				wg.Done()
-				logger.Debug("Instance shutdown complete", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "timestamp": time.Now().UnixNano()})
+				l.Debug("Instance shutdown complete")
 			}
 		}(instShutdownCh)
 	}
