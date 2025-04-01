@@ -18,6 +18,20 @@ type InstanceSnapshotsPost struct {
 	// Example: false
 	Stateful bool `json:"stateful" yaml:"stateful"`
 
+	// Which disks should be included in the multi-volume snapshot.
+	// Can be "root" or empty (for just the instance root volume), and
+	// "volumes" (for all disks sourced by volumes; fails if an attached volume is being shared).
+	// Example: "volumes"
+	//
+	// API extension: instance_snapshot_multi_volume
+	DisksMode string `json:"disks,omitempty" yaml:"disks,omitempty"`
+
+	// Disks sourced by volumes that should not be included in a multi-volume snapshot.
+	// Example: ["disk1","disk2"]
+	//
+	// API extension: instance_snapshot_multi_volume
+	ExcludeDisks []string `json:"exclude_disks,omitempty" yaml:"exclude_disks,omitempty"`
+
 	// When the snapshot expires (gets auto-deleted)
 	// Example: 2021-03-23T17:38:37.753398689-04:00
 	//
