@@ -120,7 +120,7 @@ func (d *lvm) volumeGroupExists(vgName string) (bool, []string, error) {
 	}
 
 	output = strings.TrimSpace(output)
-	tags := strings.SplitN(output, ",", -1)
+	tags := strings.Split(output, ",")
 
 	return true, tags, nil
 }
@@ -484,14 +484,15 @@ func (d *lvm) lvmFullVolumeName(volType VolumeType, contentType ContentType, vol
 	}
 
 	contentTypeSuffix := ""
-	if contentType == ContentTypeBlock {
+	switch contentType {
+	case ContentTypeBlock:
 		contentTypeSuffix = lvmBlockVolSuffix
-	} else if contentType == ContentTypeISO {
+	case ContentTypeISO:
 		contentTypeSuffix = lvmISOVolSuffix
 	}
 
 	// Escape the volume name to a name suitable for using as a logical volume.
-	lvName := strings.Replace(strings.Replace(volName, "-", lvmEscapedHyphen, -1), shared.SnapshotDelimiter, lvmSnapshotSeparator, -1)
+	lvName := strings.ReplaceAll(strings.ReplaceAll(volName, "-", lvmEscapedHyphen), shared.SnapshotDelimiter, lvmSnapshotSeparator)
 
 	return string(volType) + "_" + lvName + contentTypeSuffix
 }
@@ -771,7 +772,7 @@ func (d *lvm) parseLogicalVolumeSnapshot(parent Volume, lvmVolName string) strin
 	// named volume that just has escaped "-" characters in it.
 	if strings.HasPrefix(lvmVolName, snapPrefix) && !strings.HasPrefix(lvmVolName, badPrefix) {
 		// Remove volume name prefix (including snapshot delimiter) and unescape snapshot name.
-		return strings.Replace(strings.TrimPrefix(lvmVolName, snapPrefix), lvmEscapedHyphen, "-", -1)
+		return strings.ReplaceAll(strings.TrimPrefix(lvmVolName, snapPrefix), lvmEscapedHyphen, "-")
 	}
 
 	return ""

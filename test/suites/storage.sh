@@ -494,6 +494,12 @@ EOF
 
       lxc launch testimage c12pool15 -s "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15"
       lxc list -c b c12pool15 | grep "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15"
+      lxc snapshot c12pool15
+      test -b "/dev/lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15/containers_c12pool15"
+      test -b "/dev/lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15/containers_c12pool15-snap0"
+      lxc stop -f c12pool15
+      ! test -b "/dev/lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15/containers_c12pool15" || false
+      ! test -b "/dev/lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15/containers_c12pool15-snap0" || false
 
       # Test that changing block filesystem works
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.block.filesystem xfs
@@ -585,6 +591,13 @@ EOF
 
       lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c10pool15
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c10pool15 c10pool15 testDevice /opt
+      ! test -b "/dev/lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15/custom_default_c10pool15" || false
+      lxc start c10pool15
+      test -b "/dev/lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15/custom_default_c10pool15"
+      lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c10pool15
+      test -b "/dev/lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15/custom_default_c10pool15-snap0"
+      lxc stop -f c10pool15
+      ! test -b "/dev/lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15/custom_default_c10pool15" || false
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c10pool15 c10pool15 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c10pool15 c10pool15 testDevice
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" custom/c10pool15 c10pool15 testDevice /opt
