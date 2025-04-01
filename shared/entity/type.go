@@ -108,6 +108,9 @@ const (
 
 	// TypeIdentityProviderGroup represents identity provider group resources.
 	TypeIdentityProviderGroup Type = "identity_provider_group"
+
+	// TypeClusterLink represents cluster link resources.
+	TypeClusterLink Type = "cluster_link"
 )
 
 const (
@@ -169,6 +172,7 @@ var entityTypes = map[Type]typeInfo{
 	TypeIdentity:              identity{},
 	TypeAuthGroup:             authGroup{},
 	TypeIdentityProviderGroup: identityProviderGroup{},
+	TypeClusterLink:           clusterLink{},
 }
 
 // metricsEntityTypes is the source of truth for which entity types can be used to categorize endpoints
@@ -186,6 +190,7 @@ var metricsEntityTypes = []Type{
 	TypeWarning,
 	TypeServer,
 	TypeIdentity,
+	TypeClusterLink,
 }
 
 // APIMetricsEntityTypes returns the list of entity types relevant for the API metrics.
@@ -497,4 +502,16 @@ func (identityProviderGroup) requiresProject() bool {
 
 func (identityProviderGroup) path() []string {
 	return []string{"auth", "identity-provider-groups", pathPlaceholder}
+}
+
+type clusterLink struct {
+	typeInfoCommon
+}
+
+func (clusterLink) requiresProject() bool {
+	return false
+}
+
+func (clusterLink) path() []string {
+	return []string{"cluster", "links", pathPlaceholder}
 }
