@@ -68,7 +68,7 @@ func (d *zfs) load() error {
 	for _, tool := range []string{"zpool", "zfs"} {
 		_, err := exec.LookPath(tool)
 		if err != nil {
-			return fmt.Errorf("Required tool '%s' is missing", tool)
+			return fmt.Errorf("Required tool %q is missing", tool)
 		}
 	}
 
