@@ -539,6 +539,8 @@ func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 			ticker := time.NewTicker(time.Second)
 			defer ticker.Stop()
 
+			var lastWaitingLog time.Time
+
 			for {
 				select {
 				case inst, ok := <-busyInstancesCh:
@@ -553,7 +555,10 @@ func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 				case <-ticker.C:
 					ctxErr := ctx.Err()
 					if ctxErr != nil {
-						logger.Info("Skip waiting for busy instances to complete")
+						logger.Info("Skipping waiting for instance operations to finish")
+					} else if time.Since(lastWaitingLog) > (time.Second * 10) {
+						logger.Info("Waiting for instance operations to finish", logger.Ctx{"instances": len(busyInstances)})
+						lastWaitingLog = time.Now()
 					}
 
 					for instanceURL, inst := range busyInstances {
