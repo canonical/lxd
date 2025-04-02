@@ -364,10 +364,6 @@ func devLXDUbuntuProGetHandler(d *Daemon, c instance.Instance, w http.ResponseWr
 		return resp
 	}
 
-	if r.Method != http.MethodGet {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusMethodNotAllowed), c.Type() == instancetype.VM)
-	}
-
 	settings := d.State().UbuntuPro.GuestAttachSettings(c.ExpandedConfig()["ubuntu_pro.guest_attach"])
 
 	// Otherwise, return the value from the instance configuration.
@@ -383,10 +379,6 @@ func devLXDUbuntuProTokenPostHandler(d *Daemon, c instance.Instance, w http.Resp
 	resp := checkDevLXDSecurityFlags(c, devLXDSecurityKey)
 	if resp != nil {
 		return resp
-	}
-
-	if r.Method != http.MethodPost {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusMethodNotAllowed), c.Type() == instancetype.VM)
 	}
 
 	// Return http.StatusForbidden if the host does not have guest attachment enabled.
