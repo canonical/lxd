@@ -1287,7 +1287,7 @@ func (g *cmdGlobal) cmpStoragePoolConfigs(poolName string) ([]string, cobra.Shel
 // It takes a partial input string and returns a list of storage pools and their volumes, along with a shell completion directive.
 func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra.ShellCompDirective) {
 	if !strings.Contains(toComplete, "/") {
-		pools, compdir := g.cmpStoragePools(toComplete, false)
+		pools, compdir := g.cmpTopLevelResource("storage_pool", toComplete)
 		if compdir == cobra.ShellCompDirectiveError {
 			return nil, compdir
 		}
@@ -1301,7 +1301,7 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 			}
 		}
 
-		return results, cobra.ShellCompDirectiveNoSpace
+		return results, compdir | cobra.ShellCompDirectiveNoSpace
 	}
 
 	pool := strings.Split(toComplete, "/")[0]
@@ -1314,44 +1314,6 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 	for _, volume := range volumes {
 		volName, _ := parseVolume("custom", volume)
 		results = append(results, pool+"/"+volName)
-	}
-
-	return results, cobra.ShellCompDirectiveNoFileComp
-}
-
-// cmpStoragePools provides shell completion for storage pool names.
-// It takes a partial input string and a boolean indicating whether to avoid appending a space after the completion. The function returns a list of matching storage pool names and a shell completion directive.
-func (g *cmdGlobal) cmpStoragePools(toComplete string, noSpace bool) ([]string, cobra.ShellCompDirective) {
-	var results []string
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		storagePools, _ := resource.server.GetStoragePoolNames()
-
-		results = make([]string, 0, len(storagePools))
-		for _, storage := range storagePools {
-			var name string
-
-			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = storage
-			} else {
-				name = resource.remote + ":" + storage
-			}
-
-			results = append(results, name)
-		}
-	}
-
-	if !strings.Contains(toComplete, ":") {
-		remotes, _ := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-	}
-
-	if noSpace {
-		return results, cobra.ShellCompDirectiveNoSpace
 	}
 
 	return results, cobra.ShellCompDirectiveNoFileComp
