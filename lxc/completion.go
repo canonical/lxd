@@ -817,46 +817,6 @@ func (g *cmdGlobal) cmpNetworkACLConfigs(aclName string) ([]string, cobra.ShellC
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
-// cmpNetworkACLs provides shell completion for network ACL's.
-// It takes a partial input string and returns a list of matching network ACL's along with a shell completion directive.
-func (g *cmdGlobal) cmpNetworkACLs(toComplete string) ([]string, cobra.ShellCompDirective) {
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) <= 0 {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	resource := resources[0]
-
-	acls, err := resource.server.GetNetworkACLNames()
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	results := make([]string, 0, len(acls))
-	for _, acl := range acls {
-		var name string
-
-		if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-			name = acl
-		} else {
-			name = resource.remote + ":" + acl
-		}
-
-		results = append(results, name)
-	}
-
-	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-		cmpDirectives |= directives
-	}
-
-	return results, cmpDirectives
-}
-
 // cmpNetworkACLRuleProperties provides shell completion for network ACL rule properties.
 // It returns a list of network ACL rules provided by `networkACLRuleJSONStructFieldMap()“ along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkACLRuleProperties() ([]string, cobra.ShellCompDirective) {
