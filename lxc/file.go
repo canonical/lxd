@@ -594,7 +594,7 @@ func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 			}
 
 			// Follow the symlink
-			if !(targetPath == "-" || c.file.flagRecursive) {
+			if targetPath != "-" && !c.file.flagRecursive {
 				err = os.Symlink(strings.TrimSpace(string(linkTarget)), targetPath)
 				if err != nil {
 					return err
