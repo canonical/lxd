@@ -103,7 +103,7 @@ lxc profile device add [<remote>:]profile1 <device-name> disk pool=some-pool sou
 			if c.config != nil {
 				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
@@ -237,7 +237,7 @@ func (c *cmdConfigDeviceGet) command() *cobra.Command {
 			if c.config != nil {
 				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
@@ -339,7 +339,7 @@ func (c *cmdConfigDeviceList) command() *cobra.Command {
 			if c.config != nil {
 				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
@@ -519,7 +519,7 @@ func (c *cmdConfigDeviceRemove) command() *cobra.Command {
 			if c.config != nil {
 				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
@@ -646,7 +646,7 @@ For backward compatibility, a single configuration key may still be set with:
 			if c.config != nil {
 				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
@@ -775,7 +775,7 @@ func (c *cmdConfigDeviceShow) command() *cobra.Command {
 			if c.config != nil {
 				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
@@ -860,7 +860,7 @@ func (c *cmdConfigDeviceUnset) command() *cobra.Command {
 			if c.config != nil {
 				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
