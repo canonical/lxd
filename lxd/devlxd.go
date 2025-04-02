@@ -458,7 +458,17 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
 		request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
 
-		handleRequest := func(action devLXDAPIEndpointAction) response.Response {
+		handleRequest := func(action devLXDAPIEndpointAction) (resp response.Response) {
+			// Handle panic in the handler.
+			defer func() {
+				err := recover()
+				if err != nil {
+					logger.Error("Panic in devLXD API handler", logger.Ctx{"err": err})
+					resp = response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "%v", err), rawResponse)
+				}
+			}()
+
+			// Verify handler.
 			if action.Handler == nil {
 				return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusNotImplemented), rawResponse)
 			}
