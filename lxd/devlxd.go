@@ -182,7 +182,7 @@ func devLXDConfigGetHandler(d *Daemon, r *http.Request) response.Response {
 	hasVendorData := false
 	hasUserData := false
 	for k := range inst.ExpandedConfig() {
-		if !(strings.HasPrefix(k, "user.") || strings.HasPrefix(k, "cloud-init.")) {
+		if !strings.HasPrefix(k, "user.") && !strings.HasPrefix(k, "cloud-init.") {
 			continue
 		}
 
