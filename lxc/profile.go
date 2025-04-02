@@ -114,7 +114,7 @@ func (c *cmdProfileAdd) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -198,7 +198,7 @@ lxc profile assign foo ''
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
 		return c.global.cmpProfiles(args[0], false)
@@ -871,7 +871,7 @@ func (c *cmdProfileRemove) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
 		if len(args) == 1 {

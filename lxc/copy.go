@@ -67,7 +67,7 @@ The pull transfer mode is the default as it is compatible with all LXD versions.
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
 		if len(args) == 1 {
