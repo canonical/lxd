@@ -319,6 +319,10 @@ func (c *cmdStorageVolumeAttachProfile) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 2 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
 		if len(args) == 0 {
 			return c.global.cmpStoragePools(toComplete, false)
 		}
@@ -327,11 +331,12 @@ func (c *cmdStorageVolumeAttachProfile) command() *cobra.Command {
 			return c.global.cmpStoragePoolVolumes(args[0], "custom")
 		}
 
-		if len(args) == 2 {
-			return c.global.cmpProfileNamesFromRemote(args[0])
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
 		}
 
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		return c.global.cmpTopLevelResourceInRemote(remote, "profile", toComplete)
 	}
 
 	return cmd
