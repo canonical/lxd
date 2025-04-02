@@ -477,6 +477,9 @@ type DevLXDServer interface {
 	GetState() (state *api.DevLXDGet, err error)
 	UpdateState(state api.DevLXDPut) error
 
+	// DevLXD devices.
+	GetDevices() (devices map[string]map[string]string, err error)
+
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data any, queryETag string) (resp *api.DevLXDResponse, ETag string, err error)
 }
