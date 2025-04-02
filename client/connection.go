@@ -308,6 +308,61 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 	return &server, nil
 }
 
+// ConnectDevLXD lets you connect to a LXD agent over a local unix socket.
+func ConnectDevLXD(socketPath string, args *ConnectionArgs) (DevLXDServer, error) {
+	return ConnectDevLXDWithContext(context.Background(), socketPath, args)
+}
+
+// ConnectDevLXDWithContext lets you connect to a LXD agent over a local unix socket.
+func ConnectDevLXDWithContext(ctx context.Context, socketPath string, args *ConnectionArgs) (DevLXDServer, error) {
+	logger.Debug("Connecting to a devLXD over a Unix socket")
+
+	if args == nil {
+		args = &ConnectionArgs{}
+	}
+
+	socketPath = shared.HostPath(socketPath)
+
+	// Verify provided socket path.
+	socketInfo, err := os.Stat(socketPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if socketInfo.Mode()&os.ModeSocket == 0 {
+		return nil, fmt.Errorf("Invalid unix socket path %q: Not a socket", socketPath)
+	}
+
+	// Base LXD agent url.
+	baseURL, err := url.Parse("http://lxd")
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a new HTTP client.
+	client, err := unixHTTPClient(args, socketPath, args.TransportWrapper)
+	if err != nil {
+		return nil, err
+	}
+
+	useragent := "devlxd"
+	if args.UserAgent != "" {
+		useragent = args.UserAgent
+	}
+
+	ctxConnected, ctxConnectedCancel := context.WithCancel(context.Background())
+
+	return &ProtocolDevLXD{
+		ctx:                ctx,
+		ctxConnected:       ctxConnected,
+		ctxConnectedCancel: ctxConnectedCancel,
+		http:               client,
+		httpBaseURL:        *baseURL,
+		httpUnixPath:       socketPath,
+		httpUserAgent:      useragent,
+	}, nil
+}
+
 // Internal function called by ConnectLXD and ConnectPublicLXD.
 func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (InstanceServer, error) {
 	// Use empty args if not specified
