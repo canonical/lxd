@@ -2625,3 +2625,7 @@ This adds support for listing images across all projects using the `all-projects
 ## `client_cert_presence`
 
 Adds the field `client_certificate` to `GET /1.0` to indicate if the current request has a client certificate in it. This is for informational purposes only and does not affect the behavior of the API.
+
+## `resources_device_fs_uuid`
+
+Adds the field `device_fs_uuid` including the respective UUID to each disk and partition indicating whether or not a filesystem is located on the device.
