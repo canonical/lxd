@@ -141,10 +141,6 @@ func devLXDAPIPatchHandler(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 
-	if shared.IsFalse(inst.ExpandedConfig()["security.devlxd"]) {
-		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), inst.Type() == instancetype.VM)
-	}
-
 	req := api.DevLXDPut{}
 
 	err = json.NewDecoder(r.Body).Decode(&req)
@@ -275,9 +271,16 @@ var devLXDImageExportEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDImageExportHandler(d *Daemon, r *http.Request) response.Response {
-	inst, err := getInstanceFromContextAndCheckSecurityFlags(r.Context(), devLXDSecurityKey, devLXDSecurityImagesKey)
+	_, err := getInstanceFromContextAndCheckSecurityFlags(r.Context(), devLXDSecurityKey, devLXDSecurityImagesKey)
 	if err != nil {
-		return response.DevLXDErrorResponse(err, inst != nil && inst.Type() == instancetype.VM)
+		// XXX: The imageExport returns a non-devLXD error response which is
+		// inconsistent with the rest of the devLXD API. This is because the response
+		// from the LXD API handler (imageExport) is called directly. This means that
+		// also the error responses will be returned in non-devLXD format.
+		//
+		// To make responses consistent and easy to parse on the client side, while reducing
+		// the impact of breaking changes, we return LXD API response error here as an exception.
+		return response.Forbidden(err)
 	}
 
 	return imageExport(d, r)
