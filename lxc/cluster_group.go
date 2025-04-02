@@ -98,8 +98,13 @@ lxc cluster group assign foo default
 			return c.global.cmpClusterMembers(toComplete)
 		}
 
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
+		}
+
 		if len(args) == 1 {
-			return c.global.cmpClusterGroupNames(args[0])
+			return c.global.cmpTopLevelResourceInRemote(remote, "cluster_group", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -260,7 +265,7 @@ func (c *cmdClusterGroupDelete) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterGroups(toComplete)
+			return c.global.cmpTopLevelResource("cluster_group", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -320,7 +325,7 @@ func (c *cmdClusterGroupEdit) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterGroups(toComplete)
+			return c.global.cmpTopLevelResource("cluster_group", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -529,8 +534,13 @@ func (c *cmdClusterGroupRemove) command() *cobra.Command {
 			return c.global.cmpClusterMembers(toComplete)
 		}
 
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
+		}
+
 		if len(args) == 1 {
-			return c.global.cmpClusterGroupNames(args[0])
+			return c.global.cmpTopLevelResourceInRemote(remote, "cluster_group", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -611,7 +621,7 @@ func (c *cmdClusterGroupRename) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterGroups(toComplete)
+			return c.global.cmpTopLevelResource("cluster_group", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -667,7 +677,7 @@ func (c *cmdClusterGroupShow) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterGroups(toComplete)
+			return c.global.cmpTopLevelResource("cluster_group", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -732,8 +742,13 @@ func (c *cmdClusterGroupAdd) command() *cobra.Command {
 			return c.global.cmpClusterMembers(toComplete)
 		}
 
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
+		}
+
 		if len(args) == 1 {
-			return c.global.cmpClusterGroupNames(args[0])
+			return c.global.cmpTopLevelResourceInRemote(remote, "cluster_group", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
