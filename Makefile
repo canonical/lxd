@@ -179,6 +179,11 @@ update-metadata: build
 		fi;\
 	fi
 
+.PHONY: update-godeps
+update-godeps:
+	@echo "Updating godeps.list files"
+	@UPDATE_LISTS=true test/lint/godeps.sh
+
 .PHONY: doc
 doc: doc-clean doc-install doc-html doc-objects
 
