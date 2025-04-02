@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -357,6 +358,12 @@ func GetStorage() (*api.ResourcesStorage, error) {
 
 				partition.Size = partitionSize * 512
 
+				// Pull device filesystem UUID information.
+				partition.DeviceFSUUID, err = block.DiskFSUUID(filepath.Join("/dev", subEntryName))
+				if err != nil {
+					return nil, err
+				}
+
 				// Add to list
 				disk.Partitions = append(disk.Partitions, partition)
 			}
@@ -418,6 +425,12 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				if err == nil {
 					disk.RPM = diskRotational
 				}
+			}
+
+			// Pull device filesystem UUID information.
+			disk.DeviceFSUUID, err = block.DiskFSUUID(filepath.Join("/dev", entryName))
+			if err != nil {
+				return nil, err
 			}
 
 			// Add to list
