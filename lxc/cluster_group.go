@@ -95,7 +95,7 @@ lxc cluster group assign foo default
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		remote, _, err := c.global.conf.ParseRemote(args[0])
@@ -531,7 +531,7 @@ func (c *cmdClusterGroupRemove) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		remote, _, err := c.global.conf.ParseRemote(args[0])
@@ -739,7 +739,7 @@ func (c *cmdClusterGroupAdd) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		remote, _, err := c.global.conf.ParseRemote(args[0])
