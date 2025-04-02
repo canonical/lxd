@@ -1215,45 +1215,6 @@ func (g *cmdGlobal) cmpProjectConfigs(projectName string) ([]string, cobra.Shell
 	return configs, cobra.ShellCompDirectiveNoFileComp
 }
 
-// cmpProjects provides shell completion for projects.
-// It takes a partial input string and returns a list of projects along with a shell completion directive.
-func (g *cmdGlobal) cmpProjects(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		projects, err := resource.server.GetProjectNames()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveError
-		}
-
-		results = make([]string, 0, len(projects))
-		for _, project := range projects {
-			var name string
-
-			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = project
-			} else {
-				name = resource.remote + ":" + project
-			}
-
-			results = append(results, name)
-		}
-	}
-
-	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-		cmpDirectives |= directives
-	}
-
-	return results, cmpDirectives
-}
-
 // cmpRemotes provides shell completion for remotes.
 // It takes a boolean specifying whether to include all remotes or not and returns a list of remotes along with a shell completion directive.
 func (g *cmdGlobal) cmpRemotes(toComplete string, includeAll bool) ([]string, cobra.ShellCompDirective) {
