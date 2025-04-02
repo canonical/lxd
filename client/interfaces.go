@@ -469,6 +469,11 @@ type InstanceServer interface {
 	RawOperation(method string, path string, data any, queryETag string) (op Operation, ETag string, err error)
 }
 
+// The DevLXDServer type represents a devLXD server.
+type DevLXDServer interface {
+	Server
+}
+
 // The ConnectionInfo struct represents general information for a connection.
 type ConnectionInfo struct {
 	Addresses   []string
