@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
@@ -26,9 +25,6 @@ func vSockServer(d *Daemon) *http.Server {
 }
 
 func hoistReqVM(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
-	// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
-	request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
-
 	trusted, inst, err := authenticateAgentCert(d.State(), r)
 	if err != nil {
 		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, err.Error()), true)
