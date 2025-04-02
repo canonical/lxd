@@ -679,6 +679,12 @@ type ResourcesStorageDisk struct {
 	//
 	// API extension: resources_disk_address
 	USBAddress string `json:"usb_address,omitempty" yaml:"usb_address,omitempty"`
+
+	// UUID of the filesystem on the device
+	// Example: 9313518c-0e13-4067-9746-5c1703830b78
+	//
+	// API extension: resources_device_fs_uuid
+	DeviceFSUUID string `json:"device_fs_uuid" yaml:"device_fs_uuid"`
 }
 
 // ResourcesStorageDiskPartition represents a partition on a disk
@@ -710,6 +716,12 @@ type ResourcesStorageDiskPartition struct {
 	// Mounted status of the partition.
 	// Example: true
 	Mounted bool `json:"mounted" yaml:"mounted"`
+
+	// UUID of the filesystem on the device
+	// Example: 9313518c-0e13-4067-9746-5c1703830b78
+	//
+	// API extension: resources_device_fs_uuid
+	DeviceFSUUID string `json:"device_fs_uuid" yaml:"device_fs_uuid"`
 }
 
 // ResourcesMemory represents the memory resources available on the system
