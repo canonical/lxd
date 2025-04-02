@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cloudinit"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/instance"
@@ -454,6 +455,9 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 
 	// Function that handles the request by calling the appropriate handler.
 	handleFunc := func(w http.ResponseWriter, r *http.Request) {
+		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
+		request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
+
 		handleRequest := func(action devLXDAPIEndpointAction) response.Response {
 			if action.Handler == nil {
 				return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusNotImplemented), rawResponse)
