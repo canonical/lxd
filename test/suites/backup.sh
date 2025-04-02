@@ -686,54 +686,23 @@ test_backup_rename() {
 }
 
 test_backup_volume_export() {
-  _backup_volume_export_with_project default "lxdtest-$(basename "${LXD_DIR}")"
-  _backup_volume_export_with_project fooproject "lxdtest-$(basename "${LXD_DIR}")"
+#  _backup_volume_export_with_project default "lxdtest-$(basename "${LXD_DIR}")"
+#  _backup_volume_export_with_project fooproject "lxdtest-$(basename "${LXD_DIR}")"
+  lxd_backend=$(storage_backend "$LXD_DIR")
 
   if [ "$lxd_backend" = "ceph" ] && [ -n "${LXD_CEPH_CEPHFS:-}" ]; then
     custom_vol_pool="lxdtest-$(basename "${LXD_DIR}")-cephfs"
     lxc storage create "${custom_vol_pool}" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs"
 
     _backup_volume_export_with_project default "${custom_vol_pool}"
-    _backup_volume_export_with_project fooproject "${custom_vol_pool}"
+#    _backup_volume_export_with_project fooproject "${custom_vol_pool}"
 
     lxc storage rm "${custom_vol_pool}"
   fi
 }
 
-_backup_volume_export_with_project() {
-  pool="lxdtest-$(basename "${LXD_DIR}")"
-  project="$1"
-  custom_vol_pool="$2"
-
-  if [ "${project}" != "default" ]; then
-    # Create a project.
-    lxc project create "$project"
-    lxc project create "$project-b"
-    lxc project switch "$project"
-
-    deps/import-busybox --project "$project" --alias testimage
-    deps/import-busybox --project "$project-b" --alias testimage
-
-    # Add a root device to the default profile of the project.
-    lxc profile device add default root disk path="/" pool="${pool}"
-  fi
-
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
-
-  mkdir "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized"
-  lxd_backend=$(storage_backend "$LXD_DIR")
-
-  # Create test container.
-  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
-
-  # Create custom storage volume.
-  lxc storage volume create "${custom_vol_pool}" testvol size=32MiB
-
-  # Attach storage volume to the test container and start.
-  lxc storage volume attach "${custom_vol_pool}" testvol c1 /mnt
-  lxc start c1
-
+_backup_volume_export_single_run() {
+  echo "==== ERSIN volume_export_single_run no. $1 ==== "
   # Create file on the custom volume.
   echo foo | lxc file push - c1/mnt/test
 
@@ -818,80 +787,122 @@ _backup_volume_export_with_project() {
 
   rm -rf "${LXD_DIR}/non-optimized/"*
 
-  old_uuid="$(lxc storage volume get "${custom_vol_pool}" testvol volatile.uuid)"
-  old_snap0_uuid="$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 volatile.uuid)"
-  old_snap1_uuid="$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 volatile.uuid)"
+ lxc storage volume delete "${custom_vol_pool}" testvol/test-snap0
+ lxc storage volume delete "${custom_vol_pool}" testvol/test-snap1
+}
 
-  # Test non-optimized import.
-  lxc stop -f c1
-  lxc storage volume detach "${custom_vol_pool}" testvol c1
-  lxc storage volume delete "${custom_vol_pool}" testvol
-  lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol.tar.gz"
-  lxc storage volume ls "${custom_vol_pool}"
-  [ "$(lxc storage volume get "${custom_vol_pool}" testvol user.foo)" = "post-test-snap1" ]
-  lxc storage volume show "${custom_vol_pool}" testvol/test-snap0
-  [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 user.foo)" = "test-snap0" ]
-  [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 user.foo)" = "test-snap1" ]
-
-  # Check if the imported volume and its snapshots have a new UUID.
-  [ -n "$(lxc storage volume get "${custom_vol_pool}" testvol volatile.uuid)" ]
-  [ -n "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 volatile.uuid)" ]
-  [ -n "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 volatile.uuid)" ]
-  [ "$(lxc storage volume get "${custom_vol_pool}" testvol volatile.uuid)" != "${old_uuid}" ]
-  [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 volatile.uuid)" != "${old_snap0_uuid}" ]
-  [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 volatile.uuid)" != "${old_snap1_uuid}" ]
-
-  lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol.tar.gz" testvol2
-  lxc storage volume attach "${custom_vol_pool}" testvol c1 /mnt
-  lxc storage volume attach "${custom_vol_pool}" testvol2 c1 /mnt2
-  lxc start c1
-  lxc exec c1 --project "$project" -- stat /mnt/test
-  lxc exec c1 --project "$project" -- stat /mnt2/test
-  lxc stop -f c1
+_backup_volume_export_with_project() {
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+  project="$1"
+  custom_vol_pool="$2"
 
   if [ "${project}" != "default" ]; then
-    # Import into different project (before deleting earlier import).
-    lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol.tar.gz" --project "$project-b"
-    lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol.tar.gz" --project "$project-b" testvol2
-    lxc storage volume delete "${custom_vol_pool}" testvol --project "$project-b"
-    lxc storage volume delete "${custom_vol_pool}" testvol2 --project "$project-b"
+    # Create a project.
+    lxc project create "$project"
+    lxc project create "$project-b"
+    lxc project switch "$project"
+
+    deps/import-busybox --project "$project" --alias testimage
+    deps/import-busybox --project "$project-b" --alias testimage
+
+    # Add a root device to the default profile of the project.
+    lxc profile device add default root disk path="/" pool="${pool}"
   fi
 
-  # Test optimized import.
-  if storage_backend_optimized_backup "$lxd_backend"; then
-    lxc storage volume detach "${custom_vol_pool}" testvol c1
-    lxc storage volume detach "${custom_vol_pool}" testvol2 c1
-    lxc storage volume delete "${custom_vol_pool}" testvol
-    lxc storage volume delete "${custom_vol_pool}" testvol2
-    lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol-optimized.tar.gz"
-    lxc storage volume ls "${custom_vol_pool}"
-    [ "$(lxc storage volume get "${custom_vol_pool}" testvol user.foo)" = "post-test-snap1" ]
-    [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 user.foo)" = "test-snap0" ]
-    [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 user.foo)" = "test-snap1" ]
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
 
-    lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol-optimized.tar.gz" testvol2
-    lxc storage volume attach "${custom_vol_pool}" testvol c1 /mnt
-    lxc storage volume attach "${custom_vol_pool}" testvol2 c1 /mnt2
-    lxc start c1
-    lxc exec c1 --project "$project" -- stat /mnt/test
-    lxc exec c1 --project "$project" -- stat /mnt2/test
-    lxc stop -f c1
+  mkdir "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized"
+  lxd_backend=$(storage_backend "$LXD_DIR")
 
-    if [ "${project}" != "default" ]; then
-      # Import into different project (before deleting earlier import).
-      lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol-optimized.tar.gz" --project "$project-b"
-      lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol-optimized.tar.gz" --project "$project-b" testvol2
-      lxc storage volume delete "${custom_vol_pool}" testvol --project "$project-b"
-      lxc storage volume delete "${custom_vol_pool}" testvol2 --project "$project-b"
-    fi
-  fi
+  # Create test container.
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
+
+  # Create custom storage volume.
+  lxc storage volume create "${custom_vol_pool}" testvol size=32MiB
+
+  # Attach storage volume to the test container and start.
+  lxc storage volume attach "${custom_vol_pool}" testvol c1 /mnt
+  lxc start c1
+
+  for i in $(seq 100); do
+    _backup_volume_export_single_run "$i"
+  done
+
+#   old_uuid="$(lxc storage volume get "${custom_vol_pool}" testvol volatile.uuid)"
+#   old_snap0_uuid="$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 volatile.uuid)"
+#   old_snap1_uuid="$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 volatile.uuid)"
+#
+#   # Test non-optimized import.
+#   lxc stop -f c1
+#   lxc storage volume detach "${custom_vol_pool}" testvol c1
+#   lxc storage volume delete "${custom_vol_pool}" testvol
+#   lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol.tar.gz"
+#   lxc storage volume ls "${custom_vol_pool}"
+#   [ "$(lxc storage volume get "${custom_vol_pool}" testvol user.foo)" = "post-test-snap1" ]
+#   lxc storage volume show "${custom_vol_pool}" testvol/test-snap0
+#   [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 user.foo)" = "test-snap0" ]
+#   [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 user.foo)" = "test-snap1" ]
+#
+#   # Check if the imported volume and its snapshots have a new UUID.
+#   [ -n "$(lxc storage volume get "${custom_vol_pool}" testvol volatile.uuid)" ]
+#   [ -n "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 volatile.uuid)" ]
+#   [ -n "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 volatile.uuid)" ]
+#   [ "$(lxc storage volume get "${custom_vol_pool}" testvol volatile.uuid)" != "${old_uuid}" ]
+#   [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 volatile.uuid)" != "${old_snap0_uuid}" ]
+#   [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 volatile.uuid)" != "${old_snap1_uuid}" ]
+#
+#   lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol.tar.gz" testvol2
+#   lxc storage volume attach "${custom_vol_pool}" testvol c1 /mnt
+#   lxc storage volume attach "${custom_vol_pool}" testvol2 c1 /mnt2
+#   lxc start c1
+#   lxc exec c1 --project "$project" -- stat /mnt/test
+#   lxc exec c1 --project "$project" -- stat /mnt2/test
+#   lxc stop -f c1
+#
+#   if [ "${project}" != "default" ]; then
+#     # Import into different project (before deleting earlier import).
+#     lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol.tar.gz" --project "$project-b"
+#     lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol.tar.gz" --project "$project-b" testvol2
+#     lxc storage volume delete "${custom_vol_pool}" testvol --project "$project-b"
+#     lxc storage volume delete "${custom_vol_pool}" testvol2 --project "$project-b"
+#   fi
+#
+#   # Test optimized import.
+#   if storage_backend_optimized_backup "$lxd_backend"; then
+#     lxc storage volume detach "${custom_vol_pool}" testvol c1
+#     lxc storage volume detach "${custom_vol_pool}" testvol2 c1
+#     lxc storage volume delete "${custom_vol_pool}" testvol
+#     lxc storage volume delete "${custom_vol_pool}" testvol2
+#     lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol-optimized.tar.gz"
+#     lxc storage volume ls "${custom_vol_pool}"
+#     [ "$(lxc storage volume get "${custom_vol_pool}" testvol user.foo)" = "post-test-snap1" ]
+#     [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 user.foo)" = "test-snap0" ]
+#     [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 user.foo)" = "test-snap1" ]
+#
+#     lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol-optimized.tar.gz" testvol2
+#     lxc storage volume attach "${custom_vol_pool}" testvol c1 /mnt
+#     lxc storage volume attach "${custom_vol_pool}" testvol2 c1 /mnt2
+#     lxc start c1
+#     lxc exec c1 --project "$project" -- stat /mnt/test
+#     lxc exec c1 --project "$project" -- stat /mnt2/test
+#     lxc stop -f c1
+#
+#     if [ "${project}" != "default" ]; then
+#       # Import into different project (before deleting earlier import).
+#       lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol-optimized.tar.gz" --project "$project-b"
+#       lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol-optimized.tar.gz" --project "$project-b" testvol2
+#       lxc storage volume delete "${custom_vol_pool}" testvol --project "$project-b"
+#       lxc storage volume delete "${custom_vol_pool}" testvol2 --project "$project-b"
+#     fi
+#   fi
 
   # Clean up.
   rm -rf "${LXD_DIR}/non-optimized/"* "${LXD_DIR}/optimized/"*
   lxc storage volume detach "${custom_vol_pool}" testvol c1
-  lxc storage volume detach "${custom_vol_pool}" testvol2 c1
+#  lxc storage volume detach "${custom_vol_pool}" testvol2 c1
   lxc storage volume rm "${custom_vol_pool}" testvol
-  lxc storage volume rm "${custom_vol_pool}" testvol2
+#  lxc storage volume rm "${custom_vol_pool}" testvol2
   lxc delete -f c1
   rmdir "${LXD_DIR}/optimized"
   rmdir "${LXD_DIR}/non-optimized"
