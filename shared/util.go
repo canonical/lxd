@@ -819,6 +819,16 @@ func StringMapHasStringKey(m map[string]string, keys ...string) bool {
 	return false
 }
 
+// BlockFsUUID returns the UUID of a filesystem from the block device.
+func BlockFsUUID(pathName string) (string, error) {
+	uuid, err := RunCommandContext(context.TODO(), "blkid", "-s", "UUID", "-o", "value", pathName)
+	if err != nil {
+		return "", fmt.Errorf("Failed to retrieve filesystem UUID from device %q: %w", pathName, err)
+	}
+
+	return strings.TrimSpace(uuid), nil
+}
+
 // IsBlockdev determines if a given file mode represents a block device. It returns true
 // if the mode has the os.ModeDevice bit set and the os.ModeCharDevice bit not set.
 func IsBlockdev(fm os.FileMode) bool {
