@@ -95,7 +95,7 @@ func (c *cmdNetworkForwardList) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -184,7 +184,7 @@ func (c *cmdNetworkForwardShow) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -267,7 +267,7 @@ lxc network forward create n1 127.0.0.1 < config.yaml
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -417,7 +417,7 @@ func (c *cmdNetworkForwardGet) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -507,7 +507,7 @@ For backward compatibility, a single configuration key may still be set with:
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -612,7 +612,7 @@ func (c *cmdNetworkForwardUnset) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -659,7 +659,7 @@ func (c *cmdNetworkForwardEdit) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -813,7 +813,7 @@ func (c *cmdNetworkForwardDelete) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -902,7 +902,7 @@ func (c *cmdNetworkForwardPort) commandAdd() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -988,7 +988,7 @@ func (c *cmdNetworkForwardPort) commandRemove() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {

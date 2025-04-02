@@ -985,45 +985,6 @@ func (g *cmdGlobal) cmpNetworkPeers(networkName string) ([]string, cobra.ShellCo
 	return results, cmpDirectives
 }
 
-// cmpNetworks provides shell completion for networks.
-// It takes a partial input string and returns a list of matching networks along with a shell completion directive.
-func (g *cmdGlobal) cmpNetworks(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		networks, err := resource.server.GetNetworkNames()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveError
-		}
-
-		results = make([]string, 0, len(networks))
-		for _, network := range networks {
-			var name string
-
-			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = network
-			} else {
-				name = resource.remote + ":" + network
-			}
-
-			results = append(results, name)
-		}
-	}
-
-	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-		cmpDirectives |= directives
-	}
-
-	return results, cmpDirectives
-}
-
 // cmpNetworkConfigs provides shell completion for network configs.
 // It takes a network name and returns a list of network configs along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkConfigs(networkName string) ([]string, cobra.ShellCompDirective) {
