@@ -55,7 +55,7 @@ func (c *cmdClusterRoleAdd) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -119,7 +119,7 @@ func (c *cmdClusterRoleRemove) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		if len(args) == 1 {

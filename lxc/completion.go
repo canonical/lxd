@@ -272,51 +272,6 @@ func (g *cmdGlobal) cmpClusterMemberRoles(memberName string) ([]string, cobra.Sh
 	return member.Roles, cobra.ShellCompDirectiveNoFileComp
 }
 
-// cmpClusterMembers provides shell completion for cluster members.
-// It takes a partial input string and returns a list of matching cluster members along with a shell completion directive.
-func (g *cmdGlobal) cmpClusterMembers(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		cluster, _, err := resource.server.GetCluster()
-		if err != nil || !cluster.Enabled {
-			return nil, cobra.ShellCompDirectiveError
-		}
-
-		// Get the cluster members
-		members, err := resource.server.GetClusterMembers()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveError
-		}
-
-		results = make([]string, 0, len(members))
-		for _, member := range members {
-			var name string
-
-			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = member.ServerName
-			} else {
-				name = resource.remote + ":" + member.ServerName
-			}
-
-			results = append(results, name)
-		}
-	}
-
-	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-		cmpDirectives |= directives
-	}
-
-	return results, cmpDirectives
-}
-
 // cmpImages provides shell completion for image aliases.
 // It takes a partial input string and returns a list of matching image aliases along with a shell completion directive.
 func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirective) {
