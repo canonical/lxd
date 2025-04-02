@@ -480,6 +480,11 @@ func isClusterNotification(r *http.Request) bool {
 	return r.Header.Get("User-Agent") == request.UserAgentNotifier
 }
 
+// isDelegator returns true if this is an API request coming from UserAgentDelegator.
+func isDelegator(r *http.Request) bool {
+	return r.Header.Get("User-Agent") == request.UserAgentDelegator
+}
+
 type uiHTTPDir struct {
 	http.FileSystem
 }
