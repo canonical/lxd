@@ -219,7 +219,7 @@ func (c *cmdClusterShow) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -276,7 +276,7 @@ func (c *cmdClusterInfo) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -335,7 +335,7 @@ func (c *cmdClusterGet) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -408,7 +408,7 @@ func (c *cmdClusterSet) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -492,7 +492,7 @@ func (c *cmdClusterUnset) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -536,7 +536,7 @@ func (c *cmdClusterRename) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -596,7 +596,7 @@ func (c *cmdClusterRemove) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -782,7 +782,7 @@ func (c *cmdClusterEdit) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -902,7 +902,7 @@ func (c *cmdClusterAdd) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1095,7 +1095,7 @@ func (c *cmdClusterRevokeToken) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1184,7 +1184,7 @@ func (c *cmdClusterUpdateCertificate) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -1308,7 +1308,7 @@ func (c *cmdClusterEvacuate) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1337,7 +1337,7 @@ func (c *cmdClusterRestore) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
