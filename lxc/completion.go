@@ -687,45 +687,6 @@ func (g *cmdGlobal) cmpInstanceAllDeviceOptions(instanceName string, deviceName 
 	return deviceOptions, cobra.ShellCompDirectiveNoFileComp
 }
 
-// cmpInstances provides shell completion for all instances.
-// It takes a partial input string and returns a list of matching instances along with a shell completion directive.
-func (g *cmdGlobal) cmpInstances(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		instances, _ := resource.server.GetInstanceNames("")
-
-		results = make([]string, 0, len(instances))
-		for _, instance := range instances {
-			var name string
-
-			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = instance
-			} else {
-				name = resource.remote + ":" + instance
-			}
-
-			if !strings.HasPrefix(name, toComplete) {
-				continue
-			}
-
-			results = append(results, name)
-		}
-	}
-
-	if !strings.Contains(toComplete, ":") {
-		remotes, _ := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-	}
-
-	return results, cmpDirectives
-}
-
 // cmpInstancesAction provides shell completion for all instance actions (start, pause, exec, stop and delete).
 // It takes a partial input string, an action, and a boolean indicating if the force flag has been passed in. It returns a list of applicable instances based on their state and the requested action, along with a shell completion directive.
 func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagForce bool) ([]string, cobra.ShellCompDirective) {
@@ -829,24 +790,6 @@ func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra
 	}
 
 	return results, cmpDirectives
-}
-
-// cmpInstanceNamesFromRemote provides shell completion for instances for a specific remote.
-// It takes a partial input string and returns a list of matching instances along with a shell completion directive.
-func (g *cmdGlobal) cmpInstanceNamesFromRemote(toComplete string) ([]string, cobra.ShellCompDirective) {
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		containers, _ := resource.server.GetInstanceNames("container")
-		vms, _ := resource.server.GetInstanceNames("virtual-machine")
-		results := append(containers, vms...)
-
-		return results, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	return nil, cobra.ShellCompDirectiveNoFileComp
 }
 
 // cmpNetworkACLConfigs provides shell completion for network ACL configs.
@@ -1820,7 +1763,7 @@ func isSymlinkToDir(path string, d fs.DirEntry) bool {
 //
 // If `includeLocalFiles` is true, it includes local file completions relative to the `toComplete` path.
 func (g *cmdGlobal) cmpFiles(toComplete string, includeLocalFiles bool) ([]string, cobra.ShellCompDirective) {
-	instances, directives := g.cmpInstances(toComplete)
+	instances, directives := g.cmpTopLevelResource("instance", toComplete)
 	// Append "/" to instances to indicate directory-like behavior.
 	for i := range instances {
 		if strings.HasSuffix(instances[i], ":") {
