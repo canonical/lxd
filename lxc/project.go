@@ -201,7 +201,7 @@ func (c *cmdProjectDelete) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpProjects(toComplete)
+			return c.global.cmpTopLevelResource("project", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -275,7 +275,7 @@ func (c *cmdProjectEdit) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpProjects(toComplete)
+			return c.global.cmpTopLevelResource("project", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -409,7 +409,7 @@ func (c *cmdProjectGet) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpProjects(toComplete)
+			return c.global.cmpTopLevelResource("project", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -602,7 +602,7 @@ func (c *cmdProjectRename) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpProjects(toComplete)
+			return c.global.cmpTopLevelResource("project", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -671,7 +671,7 @@ For backward compatibility, a single configuration key may still be set with:
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpProjects(toComplete)
+			return c.global.cmpTopLevelResource("project", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -756,7 +756,7 @@ func (c *cmdProjectUnset) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpProjects(toComplete)
+			return c.global.cmpTopLevelResource("project", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -799,7 +799,7 @@ func (c *cmdProjectShow) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpProjects(toComplete)
+			return c.global.cmpTopLevelResource("project", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -860,7 +860,7 @@ func (c *cmdProjectSwitch) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpProjects(toComplete)
+			return c.global.cmpTopLevelResource("project", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -928,7 +928,7 @@ func (c *cmdProjectInfo) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpProjects(toComplete)
+			return c.global.cmpTopLevelResource("project", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
