@@ -473,6 +473,10 @@ type InstanceServer interface {
 type DevLXDServer interface {
 	Server
 
+	// DevLXD info/state.
+	GetState() (state *api.DevLXDGet, err error)
+	UpdateState(state api.DevLXDPut) error
+
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data any, queryETag string) (resp *api.DevLXDResponse, ETag string, err error)
 }
