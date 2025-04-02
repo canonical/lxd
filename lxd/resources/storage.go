@@ -360,6 +360,12 @@ func GetStorage() (*api.ResourcesStorage, error) {
 
 				partition.Size = partitionSize * 512
 
+				// Pull device filesystem UUID information.
+				partition.DeviceFsUUID, err = shared.BlockFsUUID(filepath.Join("/dev", subEntryName))
+				if err != nil {
+					return nil, err
+				}
+
 				// Add to list
 				disk.Partitions = append(disk.Partitions, partition)
 			}
@@ -421,6 +427,12 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				if err == nil {
 					disk.RPM = diskRotational
 				}
+			}
+
+			// Pull device filesystem UUID information.
+			disk.DeviceFsUUID, err = shared.BlockFsUUID(filepath.Join("/dev", entryName))
+			if err != nil {
+				return nil, err
 			}
 
 			// Add to list
