@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/fs"
 	"net"
 	"os"
@@ -10,10 +11,163 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
+
+// handleCompletionError should always be returned when an error occurs in a cobra.CompletionFunc.
+// If the BASH_COMP_DEBUG_FILE environment variable is set, it logs the error message there before returning
+// the error directive.
+func handleCompletionError(err error) ([]string, cobra.ShellCompDirective) {
+	cobra.CompErrorln(err.Error())
+	return nil, cobra.ShellCompDirectiveError
+}
+
+// completionsFor returns completions for a given list of names, based on the partial input `toComplete`.
+// If a suffix is provided, it is appended to the completion (this is useful for config keys, where an "=" can be provided).
+func completionsFor(names []string, suffix string, toComplete string) []string {
+	results := make([]string, 0, len(names))
+	for _, n := range names {
+		if strings.HasPrefix(n, toComplete) {
+			results = append(results, n+suffix)
+		}
+	}
+
+	return results
+}
+
+// topLevelInstanceServerResourceNameFuncs is a map of functions that can return LXD API resource names without any arguments.
+// This is used when returning completions for arguments like `<remote>:<name>` where the remote is an instance server.
+var topLevelInstanceServerResourceNameFuncs = map[string]func(server lxd.InstanceServer) ([]string, error){
+	"certificate": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetCertificateFingerprints()
+	},
+	"group": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetAuthGroupNames()
+	},
+	"identity": func(server lxd.InstanceServer) ([]string, error) {
+		methodToIdentifier, err := server.GetIdentityAuthenticationMethodsIdentifiers()
+		if err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for method, identifiers := range methodToIdentifier {
+			for _, identifier := range identifiers {
+				names = append(names, strings.Join([]string{method, identifier}, "/"))
+			}
+		}
+
+		return names, nil
+	},
+	"identity_provider_group": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetIdentityProviderGroupNames()
+	},
+	"instance": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetInstanceNames(api.InstanceTypeAny)
+	},
+	"network": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetNetworkNames()
+	},
+	"network_acl": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetNetworkACLNames()
+	},
+	"network_zone": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetNetworkZoneNames()
+	},
+	"profile": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetProfileNames()
+	},
+	"project": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetProjectNames()
+	},
+	"storage_pool": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetStoragePoolNames()
+	},
+	"cluster_member": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetClusterMemberNames()
+	},
+	"cluster_group": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetClusterGroupNames()
+	},
+}
+
+var topLevelImageServerResourceNameFuncs = map[string]func(server lxd.ImageServer) ([]string, error){
+	"image": func(server lxd.ImageServer) ([]string, error) {
+		return server.GetImageFingerprints()
+	},
+	"image_alias": func(server lxd.ImageServer) ([]string, error) {
+		return server.GetImageAliasNames()
+	},
+}
+
+// cmpTopLevelResource is used for general comparison of `<remote>:<resource>` arguments.
+// If no `:` is present in the partial argument `toComplete`, resources from the default remote are returned alongside
+// a list of remote names. The default project for the given remote is used to get the resource list.
+func (g *cmdGlobal) cmpTopLevelResource(entityType string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	remote, partialResourceName, err := g.conf.ParseRemote(toComplete)
+	if err != nil {
+		return handleCompletionError(err)
+	}
+
+	names, _ := g.cmpTopLevelResourceInRemote(remote, entityType, partialResourceName)
+	results := make([]string, 0, len(names)+len(g.conf.Remotes))
+	for _, name := range names {
+		var completion string
+
+		if remote == g.conf.DefaultRemote {
+			completion = name
+		} else {
+			completion = remote + ":" + name
+		}
+
+		results = append(results, completion)
+	}
+
+	if !strings.Contains(toComplete, ":") {
+		remotes, _ := g.cmpRemotes(toComplete, shared.ValueInSlice(entityType, []string{"image", "image_alias"}))
+		results = append(results, remotes...)
+	}
+
+	return results, cobra.ShellCompDirectiveNoFileComp
+}
+
+// cmpTopLevelResourceInRemote returns completions for a given entity type in a given remote, based on the partial `toComplete` argument.
+func (g *cmdGlobal) cmpTopLevelResourceInRemote(remote string, entityType string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	instanceServerResourceNameFunc, ok := topLevelInstanceServerResourceNameFuncs[entityType]
+	if !ok {
+		imageServerResourceNameFunc, ok := topLevelImageServerResourceNameFuncs[entityType]
+		if !ok {
+			return handleCompletionError(fmt.Errorf("Cannot compare names: Entity type %q is not a top level resource", entityType))
+		}
+
+		server, err := g.conf.GetImageServer(remote)
+		if err != nil {
+			return handleCompletionError(err)
+		}
+
+		names, err := imageServerResourceNameFunc(server)
+		if err != nil {
+			handleCompletionError(err)
+		}
+
+		return completionsFor(names, "", toComplete), cobra.ShellCompDirectiveNoFileComp
+	}
+
+	server, err := g.conf.GetInstanceServerWithConnectionArgs(remote, &lxd.ConnectionArgs{SkipGetServer: true})
+	if err != nil {
+		return handleCompletionError(err)
+	}
+
+	names, err := instanceServerResourceNameFunc(server)
+	if err != nil {
+		return handleCompletionError(err)
+	}
+
+	return completionsFor(names, "", toComplete), cobra.ShellCompDirectiveNoFileComp
+}
 
 // cmpClusterGroupNames provides shell completion for cluster group names.
 // It takes a partial input string and returns a list of matching names along with a shell completion directive.
