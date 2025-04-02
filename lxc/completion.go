@@ -1191,58 +1191,6 @@ func (g *cmdGlobal) cmpProfileDeviceNames(instanceName string) ([]string, cobra.
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
-// cmpProfileNamesFromRemote provides shell completion for profile names from a remote.
-// It takes a partial input string and returns a list of profile names along with a shell completion directive.
-func (g *cmdGlobal) cmpProfileNamesFromRemote(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		results, _ = resource.server.GetProfileNames()
-	}
-
-	return results, cobra.ShellCompDirectiveNoFileComp
-}
-
-// cmpProfiles provides shell completion for profiles.
-// It takes a partial input string and a boolean specifying whether to include remotes or not, and returns a list of profiles along with a shell completion directive.
-func (g *cmdGlobal) cmpProfiles(toComplete string, includeRemotes bool) ([]string, cobra.ShellCompDirective) {
-	var results []string
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		profiles, _ := resource.server.GetProfileNames()
-
-		results = make([]string, 0, len(profiles))
-		for _, profile := range profiles {
-			var name string
-
-			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = profile
-			} else {
-				name = resource.remote + ":" + profile
-			}
-
-			results = append(results, name)
-		}
-	}
-
-	if includeRemotes && !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-		cmpDirectives |= directives
-	}
-
-	return results, cmpDirectives
-}
-
 // cmpProjectConfigs provides shell completion for project configs.
 // It takes a project name and returns a list of project configs along with a shell completion directive.
 func (g *cmdGlobal) cmpProjectConfigs(projectName string) ([]string, cobra.ShellCompDirective) {
