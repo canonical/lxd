@@ -108,7 +108,7 @@ func (c *cmdConfigEdit) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -404,7 +404,7 @@ func (c *cmdConfigGet) command() *cobra.Command {
 				return c.global.cmpServerAllKeys(toComplete)
 			}
 
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -565,7 +565,7 @@ lxc config set core.trust_password=blah
 				return c.global.cmpServerAllKeys(toComplete)
 			}
 
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -785,7 +785,7 @@ func (c *cmdConfigShow) command() *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpInstances(toComplete)
+		return c.global.cmpTopLevelResource("instance", toComplete)
 	}
 
 	return cmd
@@ -919,7 +919,7 @@ func (c *cmdConfigUnset) command() *cobra.Command {
 				return c.global.cmpServerSetKeys(toComplete)
 			}
 
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
 		if len(args) == 1 {
