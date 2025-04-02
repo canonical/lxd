@@ -915,10 +915,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	allNodes := false
-	if s.ServerClustered && request.QueryParam(r, "target") == "" {
-		allNodes = true
-	}
+	allNodes := s.ServerClustered && request.QueryParam(r, "target") == ""
 
 	n, err := doNetworkGet(s, r, allNodes, details.requestProject.Name, details.requestProject.Config, details.networkName)
 	if err != nil {
