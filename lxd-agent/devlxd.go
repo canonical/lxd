@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -16,33 +17,58 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/device/config"
-	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
 
+// devLXDAPIHandler is a function that handles requests to the DevLXD API.
 type devLXDHandlerFunc func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse
 
-// devLXDServer creates an http.Server capable of handling requests against the
+// DevLXDAPIEndpointAction represents an action on an devlxd API endpoint.
+type DevLXDAPIEndpointAction struct {
+	Handler devLXDHandlerFunc
+}
+
+// DevLXDAPIEndpoint represents a URL in devLXD API.
+type DevLXDAPIEndpoint struct {
+	Name   string // Name for this endpoint.
+	Path   string // Path pattern for this endpoint
+	Get    DevLXDAPIEndpointAction
+	Head   DevLXDAPIEndpointAction
+	Put    DevLXDAPIEndpointAction
+	Post   DevLXDAPIEndpointAction
+	Delete DevLXDAPIEndpointAction
+	Patch  DevLXDAPIEndpointAction
+}
+
+var devLXDEndpoints = []DevLXDAPIEndpoint{
+	{
+		Path: "/",
+		Get: DevLXDAPIEndpointAction{
+			Handler: func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
+				return okResponse([]string{"/1.0"}, "json")
+			},
+		},
+	},
+	devLXD10Endpoint,
+	devLXDConfigEndpoint,
+	devLXDConfigKeyEndpoint,
+	devLXDMetadataEndpoint,
+	devLXDEventsEndpoint,
+	devLXDDevicesEndpoint,
+	devLXDImageExportEndpoint,
+	devLXDUbuntuProEndpoint,
+	devLXDUbuntuProTokenEndpoint,
+}
+
+// DevLxdServer creates an http.Server capable of handling requests against the
 // /dev/lxd Unix socket endpoint created inside VMs.
 func devLXDServer(d *Daemon) *http.Server {
 	return &http.Server{
 		Handler: devLXDAPI(d),
 	}
-}
-
-type devLXDHandler struct {
-	path string
-
-	/*
-	 * This API will have to be changed slightly when we decide to support
-	 * websocket events upgrading, but since we don't have events on the
-	 * server side right now either, I went the simple route to avoid
-	 * needless noise.
-	 */
-	handlerFunc devLXDHandlerFunc
 }
 
 func getVsockClient(d *Daemon) (lxd.InstanceServer, error) {
@@ -60,9 +86,54 @@ func getVsockClient(d *Daemon) (lxd.InstanceServer, error) {
 	return server, nil
 }
 
-var devLXDConfigGet = devLXDHandler{
-	path:        "/1.0/config",
-	handlerFunc: devLXDConfigGetHandler,
+var devLXD10Endpoint = DevLXDAPIEndpoint{
+	Path:  "",
+	Get:   DevLXDAPIEndpointAction{Handler: devLXDAPIGetHandler},
+	Patch: DevLXDAPIEndpointAction{Handler: devLXDAPIPatchHandler},
+}
+
+func devLXDAPIGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
+	client, err := getVsockClient(d)
+	if err != nil {
+		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+	}
+
+	defer client.Disconnect()
+
+	resp, _, err := client.RawQuery(r.Method, "/1.0", nil, "")
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	var instanceData api.DevLXDGet
+
+	err = resp.MetadataAsStruct(&instanceData)
+	if err != nil {
+		return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
+	}
+
+	return okResponse(instanceData, "json")
+}
+
+func devLXDAPIPatchHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
+	client, err := getVsockClient(d)
+	if err != nil {
+		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+	}
+
+	defer client.Disconnect()
+
+	_, _, err = client.RawQuery(r.Method, "/1.0", r.Body, "")
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	return okResponse("", "raw")
+}
+
+var devLXDConfigEndpoint = DevLXDAPIEndpoint{
+	Path: "config",
+	Get:  DevLXDAPIEndpointAction{Handler: devLXDConfigGetHandler},
 }
 
 func devLXDConfigGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
@@ -91,12 +162,13 @@ func devLXDConfigGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *
 			filtered = append(filtered, k)
 		}
 	}
+
 	return okResponse(filtered, "json")
 }
 
-var devLXDConfigKeyGet = devLXDHandler{
-	path:        "/1.0/config/{key}",
-	handlerFunc: devLXDConfigKeyGetHandler,
+var devLXDConfigKeyEndpoint = DevLXDAPIEndpoint{
+	Path: "config/{key}",
+	Get:  DevLXDAPIEndpointAction{Handler: devLXDConfigKeyGetHandler},
 }
 
 func devLXDConfigKeyGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
@@ -131,9 +203,9 @@ func devLXDConfigKeyGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request
 	return okResponse(value, "raw")
 }
 
-var devLXDMetadataGet = devLXDHandler{
-	path:        "/1.0/meta-data",
-	handlerFunc: devLXDMetadataGetHandler,
+var devLXDMetadataEndpoint = DevLXDAPIEndpoint{
+	Path: "meta-data",
+	Get:  DevLXDAPIEndpointAction{Handler: devLXDMetadataGetHandler},
 }
 
 func devLXDMetadataGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
@@ -170,9 +242,9 @@ func devLXDMetadataGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request)
 	return okResponse(metaData, "raw")
 }
 
-var devLXDEventsGet = devLXDHandler{
-	path:        "/1.0/events",
-	handlerFunc: devLXDEventsGetHandler,
+var devLXDEventsEndpoint = DevLXDAPIEndpoint{
+	Path: "events",
+	Get:  DevLXDAPIEndpointAction{Handler: devLXDEventsGetHandler},
 }
 
 func devLXDEventsGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
@@ -184,48 +256,9 @@ func devLXDEventsGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *
 	return okResponse("", "raw")
 }
 
-var devLXDAPIGet = devLXDHandler{
-	path:        "/1.0",
-	handlerFunc: devLXDAPIGetHandler,
-}
-
-func devLXDAPIGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
-	client, err := getVsockClient(d)
-	if err != nil {
-		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
-	}
-
-	defer client.Disconnect()
-
-	if r.Method == "GET" {
-		resp, _, err := client.RawQuery(r.Method, "/1.0", nil, "")
-		if err != nil {
-			return smartResponse(err)
-		}
-
-		var instanceData api.DevLXDGet
-
-		err = resp.MetadataAsStruct(&instanceData)
-		if err != nil {
-			return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
-		}
-
-		return okResponse(instanceData, "json")
-	} else if r.Method == "PATCH" {
-		_, _, err := client.RawQuery(r.Method, "/1.0", r.Body, "")
-		if err != nil {
-			return smartResponse(err)
-		}
-
-		return okResponse("", "raw")
-	}
-
-	return &devLXDResponse{`method "` + r.Method + `" not allowed`, http.StatusBadRequest, "raw"}
-}
-
-var devLXDDevicesGet = devLXDHandler{
-	path:        "/1.0/devices",
-	handlerFunc: devLXDDevicesGetHandler,
+var devLXDDevicesEndpoint = DevLXDAPIEndpoint{
+	Path: "devices",
+	Get:  DevLXDAPIEndpointAction{Handler: devLXDDevicesGetHandler},
 }
 
 func devLXDDevicesGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
@@ -251,9 +284,9 @@ func devLXDDevicesGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) 
 	return okResponse(devices, "json")
 }
 
-var devLXDImageExport = devLXDHandler{
-	path:        "/1.0/images/{fingerprint}/export",
-	handlerFunc: devLXDImageExportHandler,
+var devLXDImageExportEndpoint = DevLXDAPIEndpoint{
+	Path: "images/{fingerprint}/export",
+	Get:  DevLXDAPIEndpointAction{Handler: devLXDImageExportHandler},
 }
 
 func devLXDImageExportHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
@@ -298,9 +331,9 @@ func devLXDImageExportHandler(d *Daemon, w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
-var devLXDUbuntuProGet = devLXDHandler{
-	path:        "/1.0/ubuntu-pro",
-	handlerFunc: devLXDUbuntuProGetHandler,
+var devLXDUbuntuProEndpoint = DevLXDAPIEndpoint{
+	Path: "ubuntu-pro",
+	Get:  DevLXDAPIEndpointAction{Handler: devLXDUbuntuProGetHandler},
 }
 
 func devLXDUbuntuProGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
@@ -341,9 +374,9 @@ func devLXDUbuntuProGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request
 	return okResponse(settingsResponse, "json")
 }
 
-var devLXDUbuntuProTokenPost = devLXDHandler{
-	path:        "/1.0/ubuntu-pro/token",
-	handlerFunc: devLXDUbuntuProTokenPostHandler,
+var devLXDUbuntuProTokenEndpoint = DevLXDAPIEndpoint{
+	Path: "/ubuntu-pro/token",
+	Post: DevLXDAPIEndpointAction{Handler: devLXDUbuntuProTokenPostHandler},
 }
 
 func devLXDUbuntuProTokenPostHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
@@ -388,54 +421,79 @@ func devLXDUbuntuProTokenPostHandler(d *Daemon, w http.ResponseWriter, r *http.R
 	return okResponse(tokenResponse, "json")
 }
 
-var handlers = []devLXDHandler{
-	{
-		path: "/",
-		handlerFunc: func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
-			return okResponse([]string{"/1.0"}, "json")
-		},
-	},
-	devLXDAPIGet,
-	devLXDConfigGet,
-	devLXDConfigKeyGet,
-	devLXDMetadataGet,
-	devLXDEventsGet,
-	devLXDDevicesGet,
-	devLXDImageExport,
-	devLXDUbuntuProGet,
-	devLXDUbuntuProTokenPost,
-}
-
-func hoistReq(f func(*Daemon, http.ResponseWriter, *http.Request) *devLXDResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		resp := f(d, w, r)
-		if resp == nil {
-			// The handler has already written the response.
-			return
-		}
-
-		if resp.code != http.StatusOK {
-			http.Error(w, fmt.Sprint(resp.content), resp.code)
-		} else if resp.ctype == "json" {
-			w.Header().Set("Content-Type", "application/json")
-
-			_ = util.WriteJSON(w, resp.content, nil)
-		} else if resp.ctype != "websocket" {
-			w.Header().Set("Content-Type", "application/octet-stream")
-			_, _ = fmt.Fprint(w, resp.content.(string))
-		}
-	}
-}
-
 func devLXDAPI(d *Daemon) http.Handler {
 	m := mux.NewRouter()
 	m.UseEncodedPath() // Allow encoded values in path segments.
 
-	for _, handler := range handlers {
-		m.HandleFunc(handler.path, hoistReq(handler.handlerFunc, d))
+	for _, ep := range devLXDEndpoints {
+		registerDevLXDEndpoint(d, m, "1.0", ep)
 	}
 
 	return m
+}
+
+func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string, ep DevLXDAPIEndpoint) {
+	uri := ep.Path
+	if uri != "/" {
+		uri = path.Join("/", apiVersion, ep.Path)
+	}
+
+	// Function that handles the request by calling the appropriate handler.
+	handleFunc := func(w http.ResponseWriter, r *http.Request) {
+		handleRequest := func(action DevLXDAPIEndpointAction) (resp *devLXDResponse) {
+			// Handle panic in the handler.
+			defer func() {
+				err := recover()
+				if err != nil {
+					logger.Error("Panic in LXD Agent devLXD API handler", logger.Ctx{"err": err})
+					resp = errorResponse(http.StatusInternalServerError, fmt.Sprintf("%v", err))
+				}
+			}()
+
+			// Verify handler.
+			if action.Handler == nil {
+				return errorResponse(http.StatusNotImplemented, "")
+			}
+
+			return action.Handler(d, w, r)
+		}
+
+		var resp *devLXDResponse
+
+		switch r.Method {
+		case http.MethodHead:
+			resp = handleRequest(ep.Head)
+		case http.MethodGet:
+			resp = handleRequest(ep.Get)
+		case http.MethodPost:
+			resp = handleRequest(ep.Post)
+		case http.MethodPut:
+			resp = handleRequest(ep.Put)
+		case http.MethodPatch:
+			resp = handleRequest(ep.Patch)
+		case http.MethodDelete:
+			resp = handleRequest(ep.Delete)
+		default:
+			resp = errorResponse(http.StatusNotFound, fmt.Sprintf("Method %q not found", r.Method))
+		}
+
+		// Write response.
+		err := resp.Render(w, r)
+		if err != nil {
+			writeErr := errorResponse(http.StatusInternalServerError, err.Error()).Render(w, r)
+			if writeErr != nil {
+				logger.Warn("Failed writing error for HTTP response", logger.Ctx{"url": uri, "err": err, "writeErr": writeErr})
+			}
+		}
+	}
+
+	route := apiRouter.HandleFunc(uri, handleFunc)
+
+	// If the endpoint has a canonical name then record it so it can be used to build URLS
+	// and accessed in the context of the request by the handler function.
+	if ep.Name != "" {
+		route.Name(ep.Name)
+	}
 }
 
 // Create a new net.Listener bound to the unix socket of the devLXD endpoint.
