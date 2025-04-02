@@ -705,6 +705,7 @@ _backup_volume_export_single_run() {
   echo "==== ERSIN volume_export_single_run no. $1 ==== "
   # Create file on the custom volume.
   echo foo | lxc file push - c1/mnt/test
+  lxc exec c1 sync /mnt/test
 
   # Snapshot the custom volume.
   lxc storage volume set "${custom_vol_pool}" testvol user.foo=test-snap0
@@ -712,6 +713,7 @@ _backup_volume_export_single_run() {
 
   # Change the content (the snapshot will contain the old value).
   echo bar | lxc file push - c1/mnt/test
+  lxc exec c1 sync /mnt/test
 
   lxc storage volume set "${custom_vol_pool}" testvol user.foo=test-snap1
   lxc storage volume snapshot "${custom_vol_pool}" testvol test-snap1
