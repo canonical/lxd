@@ -13,7 +13,6 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/request"
@@ -37,9 +36,6 @@ func devLXDServer(d *Daemon) *http.Server {
 }
 
 func hoistReqContainer(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
-	// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
-	request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
-
 	conn := ucred.GetConnFromContext(r.Context())
 
 	cred := pidMapper.GetConnUcred(conn.(*net.UnixConn))
