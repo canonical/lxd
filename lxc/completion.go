@@ -1142,45 +1142,6 @@ func (g *cmdGlobal) cmpNetworkZoneRecords(zoneName string) ([]string, cobra.Shel
 	return results, cmpDirectives
 }
 
-// cmpNetworkZones provides shell completion for network zones.
-// It takes a partial input string and returns a list of network zones along with a shell completion directive.
-func (g *cmdGlobal) cmpNetworkZones(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		zones, err := resource.server.GetNetworkZoneNames()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveError
-		}
-
-		results = make([]string, 0, len(zones))
-		for _, project := range zones {
-			var name string
-
-			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = project
-			} else {
-				name = resource.remote + ":" + project
-			}
-
-			results = append(results, name)
-		}
-	}
-
-	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-		cmpDirectives |= directives
-	}
-
-	return results, cmpDirectives
-}
-
 // cmpProfileConfigs provides shell completion for profile configs.
 // It takes a profile name and returns a list of profile configs along with a shell completion directive.
 func (g *cmdGlobal) cmpProfileConfigs(profileName string) ([]string, cobra.ShellCompDirective) {
