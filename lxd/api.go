@@ -11,7 +11,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/lxd/auth"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
@@ -222,28 +221,6 @@ func restServer(d *Daemon) *http.Server {
 	return &http.Server{
 		Handler:     &lxdHTTPServer{r: mux, d: d},
 		ConnContext: lxdRequest.SaveConnectionInContext,
-	}
-}
-
-func hoistReqVM(d *Daemon, w http.ResponseWriter, r *http.Request, handler DevLXDAPIHandlerFunc) response.Response {
-	// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
-	lxdRequest.SetCtxValue(r, lxdRequest.CtxProtocol, auth.AuthenticationMethodDevLXD)
-
-	trusted, inst, err := authenticateAgentCert(d.State(), r)
-	if err != nil {
-		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, err.Error()), true)
-	}
-
-	if !trusted {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusUnauthorized), true)
-	}
-
-	return handler(d, inst, w, r)
-}
-
-func vSockServer(d *Daemon) *http.Server {
-	return &http.Server{
-		Handler: devLXDAPI(d, hoistReqVM, true),
 	}
 }
 
