@@ -341,10 +341,6 @@ var devLXDUbuntuProEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDUbuntuProGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	if r.Method != http.MethodGet {
-		return errorResponse(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
-	}
-
 	// Get a http.Client.
 	client, err := getClient(d.serverCID, int(d.serverPort), d.serverCertificate)
 	if err != nil {
@@ -384,10 +380,6 @@ var devLXDUbuntuProTokenEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDUbuntuProTokenPostHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	if r.Method != http.MethodPost {
-		return errorResponse(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
-	}
-
 	// Get a http.Client.
 	client, err := getClient(d.serverCID, int(d.serverPort), d.serverCertificate)
 	if err != nil {
