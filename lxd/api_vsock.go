@@ -14,40 +14,31 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
-	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/api"
 )
 
 func vSockServer(d *Daemon) *http.Server {
-	return &http.Server{Handler: devLXDAPI(d, hoistReqVM)}
+	rawResponse := true
+
+	return &http.Server{
+		Handler: devLXDAPI(d, hoistReqVM, rawResponse),
+	}
 }
 
-func hoistReqVM(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
-		request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
+func hoistReqVM(d *Daemon, w http.ResponseWriter, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
+	// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
+	request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
 
-		trusted, inst, err := authenticateAgentCert(d.State(), r)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		if !trusted {
-			http.Error(w, "", http.StatusUnauthorized)
-			return
-		}
-
-		resp := f(d, inst, w, r)
-		if resp != nil {
-			err = resp.Render(w, r)
-			if err != nil {
-				writeErr := response.DevLXDErrorResponse(err, true).Render(w, r)
-				if writeErr != nil {
-					logger.Warn("Failed writing error for HTTP response", logger.Ctx{"url": r.URL, "err": err, "writeErr": writeErr})
-				}
-			}
-		}
+	trusted, inst, err := authenticateAgentCert(d.State(), r)
+	if err != nil {
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, err.Error()), true)
 	}
+
+	if !trusted {
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusUnauthorized), true)
+	}
+
+	return handler(d, inst, w, r)
 }
 
 func authenticateAgentCert(s *state.State, r *http.Request) (bool, instance.Instance, error) {
