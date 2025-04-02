@@ -477,6 +477,9 @@ type DevLXDServer interface {
 	GetState() (state *api.DevLXDGet, err error)
 	UpdateState(state api.DevLXDPut) error
 
+	// DevLXD metadata.
+	GetMetadata() (metadata string, err error)
+
 	// DevLXD devices.
 	GetDevices() (devices map[string]map[string]string, err error)
 
