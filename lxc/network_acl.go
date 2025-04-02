@@ -176,7 +176,7 @@ func (c *cmdNetworkACLShow) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -237,7 +237,7 @@ func (c *cmdNetworkACLShowLog) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -295,7 +295,7 @@ func (c *cmdNetworkACLGet) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -371,7 +371,7 @@ lxc network acl create a1 < config.yaml
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -469,7 +469,7 @@ For backward compatibility, a single configuration key may still be set with:
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -553,7 +553,7 @@ func (c *cmdNetworkACLUnset) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -595,7 +595,7 @@ func (c *cmdNetworkACLEdit) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -733,7 +733,7 @@ func (c *cmdNetworkACLRename) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -790,7 +790,7 @@ func (c *cmdNetworkACLDelete) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -862,7 +862,7 @@ func (c *cmdNetworkACLRule) commandAdd() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -1001,7 +1001,7 @@ func (c *cmdNetworkACLRule) commandRemove() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		if len(args) == 1 {
