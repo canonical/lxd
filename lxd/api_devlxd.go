@@ -27,59 +27,47 @@ import (
 // devLXDServer creates an http.Server capable of handling requests against the
 // /dev/lxd Unix socket endpoint created inside containers.
 func devLXDServer(d *Daemon) *http.Server {
+	rawResponse := false
+
 	return &http.Server{
-		Handler:     devLXDAPI(d, hoistReqContainer),
+		Handler:     devLXDAPI(d, hoistReqContainer, rawResponse),
 		ConnState:   pidMapper.ConnStateHandler,
 		ConnContext: request.SaveConnectionInContext,
 	}
 }
 
-func hoistReqContainer(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
-		request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
+func hoistReqContainer(d *Daemon, w http.ResponseWriter, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
+	// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
+	request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
 
-		conn := ucred.GetConnFromContext(r.Context())
+	conn := ucred.GetConnFromContext(r.Context())
 
-		cred := pidMapper.GetConnUcred(conn.(*net.UnixConn))
-		if cred == nil {
-			http.Error(w, errPIDNotInContainer.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		s := d.State()
-
-		c, err := findContainerForPid(cred.Pid, s)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		// Access control
-		rootUID := uint32(0)
-
-		idmapset, err := c.CurrentIdmap()
-		if err == nil && idmapset != nil {
-			uid, _ := idmapset.ShiftIntoNs(0, 0)
-			rootUID = uint32(uid)
-		}
-
-		if rootUID != cred.Uid {
-			http.Error(w, "Access denied for non-root user", http.StatusUnauthorized)
-			return
-		}
-
-		resp := f(d, c, w, r)
-		if resp != nil {
-			err = resp.Render(w, r)
-			if err != nil {
-				writeErr := response.DevLXDErrorResponse(err, false).Render(w, r)
-				if writeErr != nil {
-					logger.Warn("Failed writing error for HTTP response", logger.Ctx{"url": r.URL, "err": err, "writeErr": writeErr})
-				}
-			}
-		}
+	cred := pidMapper.GetConnUcred(conn.(*net.UnixConn))
+	if cred == nil {
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, errPIDNotInContainer.Error()), false)
 	}
+
+	s := d.State()
+
+	c, err := findContainerForPid(cred.Pid, s)
+	if err != nil {
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, err.Error()), false)
+	}
+
+	// Access control
+	rootUID := uint32(0)
+
+	idmapset, err := c.CurrentIdmap()
+	if err == nil && idmapset != nil {
+		uid, _ := idmapset.ShiftIntoNs(0, 0)
+		rootUID = uint32(uid)
+	}
+
+	if rootUID != cred.Uid {
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusUnauthorized, "Access denied for non-root user"), false)
+	}
+
+	return handler(d, c, w, r)
 }
 
 /*
