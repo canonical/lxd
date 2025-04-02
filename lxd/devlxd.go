@@ -27,7 +27,18 @@ import (
 	"github.com/canonical/lxd/shared/ws"
 )
 
-// devLXDAPIHandlerFunc is a function that handles requests to the DevLXD API.
+// DevLXDSecurityKey are instance configuration keys used to enable devLXD features.
+type DevLXDSecurityKey string
+
+const (
+	// The security.devlxd key is used to enable devLXD for an instance.
+	devLXDSecurityKey DevLXDSecurityKey = "security.devlxd"
+
+	// The security.devlxd.images key is used to enable devLXD image export.
+	devLXDSecurityImagesKey DevLXDSecurityKey = "security.devlxd.images"
+)
+
+// DevLXDAPIHandlerFunc is a function that handles requests to the DevLXD API.
 type devLXDAPIHandlerFunc func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response
 
 // hoistFunc is a function that wraps the incoming requests, retrieves the targeted instance, and passes
@@ -103,11 +114,12 @@ func devLXDAPIGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, 
 }
 
 func devLXDAPIPatchHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
-	s := d.State()
-
-	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
-		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	resp := checkDevLXDSecurityFlags(c, devLXDSecurityKey)
+	if resp != nil {
+		return resp
 	}
+
+	s := d.State()
 
 	req := api.DevLXDPut{}
 
@@ -140,8 +152,9 @@ var devLXDConfigEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDConfigGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
-	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
-		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	resp := checkDevLXDSecurityFlags(c, devLXDSecurityKey)
+	if resp != nil {
+		return resp
 	}
 
 	filtered := []string{}
@@ -192,8 +205,9 @@ var devLXDConfigKeyEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDConfigKeyGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
-	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
-		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	resp := checkDevLXDSecurityFlags(c, devLXDSecurityKey)
+	if resp != nil {
+		return resp
 	}
 
 	key, err := url.PathUnescape(mux.Vars(r)["key"])
@@ -237,12 +251,9 @@ var devLXDImageExportEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDImageExportHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
-	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
-		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
-	}
-
-	if shared.IsFalseOrEmpty(c.ExpandedConfig()["security.devlxd.images"]) {
-		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	resp := checkDevLXDSecurityFlags(c, devLXDSecurityKey, devLXDSecurityImagesKey)
+	if resp != nil {
+		return resp
 	}
 
 	return imageExport(d, r)
@@ -254,8 +265,9 @@ var devLXDMetadataEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDMetadataGetHandler(d *Daemon, inst instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
-	if shared.IsFalse(inst.ExpandedConfig()["security.devlxd"]) {
-		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), inst.Type() == instancetype.VM)
+	resp := checkDevLXDSecurityFlags(inst, devLXDSecurityKey)
+	if resp != nil {
+		return resp
 	}
 
 	value := inst.ExpandedConfig()["user.meta-data"]
@@ -268,8 +280,9 @@ var devLXDEventsEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDEventsGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
-	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
-		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	resp := checkDevLXDSecurityFlags(c, devLXDSecurityKey)
+	if resp != nil {
+		return resp
 	}
 
 	typeStr := r.FormValue("type")
@@ -278,7 +291,6 @@ func devLXDEventsGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrite
 	}
 
 	var listenerConnection events.EventListenerConnection
-	var resp response.Response
 
 	// If the client has not requested a websocket connection then fallback to long polling event stream mode.
 	if r.Header.Get("Upgrade") == "websocket" {
@@ -330,8 +342,9 @@ var devLXDDevicesEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDDevicesGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
-	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
-		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	resp := checkDevLXDSecurityFlags(c, devLXDSecurityKey)
+	if resp != nil {
+		return resp
 	}
 
 	// Populate NIC hwaddr from volatile if not explicitly specified.
@@ -354,8 +367,9 @@ var devLXDUbuntuProEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDUbuntuProGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
-	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusForbidden), c.Type() == instancetype.VM)
+	resp := checkDevLXDSecurityFlags(c, devLXDSecurityKey)
+	if resp != nil {
+		return resp
 	}
 
 	if r.Method != http.MethodGet {
@@ -374,8 +388,9 @@ var devLXDUbuntuProTokenEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDUbuntuProTokenPostHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
-	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusForbidden), c.Type() == instancetype.VM)
+	resp := checkDevLXDSecurityFlags(c, devLXDSecurityKey)
+	if resp != nil {
+		return resp
 	}
 
 	if r.Method != http.MethodPost {
@@ -468,4 +483,20 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 	if ep.Name != "" {
 		route.Name(ep.Name)
 	}
+}
+
+// checkDevLXDSecurityFlags checks if the instance has the provided devLXD security features enabled.
+func checkDevLXDSecurityFlags(inst instance.Instance, keys ...DevLXDSecurityKey) response.Response {
+	config := inst.ExpandedConfig()
+	for _, key := range keys {
+		value := config[string(key)]
+
+		// The devLXD is enabled by default, therefore we only prevent access if the feature
+		// is explicitly disabled (set to "false"). All other features must be explicitly enabled.
+		if shared.IsFalse(value) || (value == "" && key != devLXDSecurityKey) {
+			return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), inst.Type() == instancetype.VM)
+		}
+	}
+
+	return nil
 }
