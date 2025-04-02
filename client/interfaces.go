@@ -472,6 +472,9 @@ type InstanceServer interface {
 // The DevLXDServer type represents a devLXD server.
 type DevLXDServer interface {
 	Server
+
+	// Internal functions (for internal use)
+	RawQuery(method string, path string, data any, queryETag string) (resp *api.DevLXDResponse, ETag string, err error)
 }
 
 // The ConnectionInfo struct represents general information for a connection.
