@@ -437,12 +437,12 @@ func (c *cmdMove) moveInstance(conf *config.Config, sourceResource string, destR
 		req.Profiles = *profiles
 	}
 
-	// Traditionally, if instance with snapshots is copied across projects,
+	// Traditionally, if instance with snapshots is transferred across projects,
 	// the snapshots keep their own profiles.
-	// This doesn't work if the profiles don't exist in target instance.
-	// If --no-profiles is applied, instruct the server to apply the profiles
-	// of the source instance, ie. none.
-	if c.flagNoProfiles {
+	// This doesn't work if the snapshot profiles don't exist in the target project.
+	// If different profiles are specified for the instance,
+	// instruct the server to apply the profiles of the source instance to the snapshots as well.
+	if c.flagNoProfiles || profiles != nil {
 		req.OverrideSnapshotProfiles = true
 	}
 
