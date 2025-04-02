@@ -143,8 +143,13 @@ func (c *cmdNetworkAttach) command() *cobra.Command {
 			return c.global.cmpNetworks(toComplete)
 		}
 
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
+		}
+
 		if len(args) == 1 {
-			return c.global.cmpInstances(args[0])
+			return c.global.cmpTopLevelResourceInRemote(remote, "instance", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
