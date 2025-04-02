@@ -254,67 +254,6 @@ func (g *cmdGlobal) cmpClusterMemberRoles(memberName string) ([]string, cobra.Sh
 	return member.Roles, cobra.ShellCompDirectiveNoFileComp
 }
 
-// cmpImages provides shell completion for image aliases.
-// It takes a partial input string and returns a list of matching image aliases along with a shell completion directive.
-func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirective) {
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	remote, _, found := strings.Cut(toComplete, ":")
-	if !found {
-		remote = g.conf.DefaultRemote
-	}
-
-	remoteServer, _ := g.conf.GetImageServer(remote)
-
-	images, _ := remoteServer.GetImages()
-
-	results := make([]string, 0, len(images))
-	for _, image := range images {
-		for _, alias := range image.Aliases {
-			var name string
-
-			if remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = alias.Name
-			} else {
-				name = remote + ":" + alias.Name
-			}
-
-			results = append(results, name)
-		}
-	}
-
-	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, true)
-		results = append(results, remotes...)
-		cmpDirectives |= directives
-	}
-
-	return results, cmpDirectives
-}
-
-// cmpImageFingerprintsFromRemote provides shell completion for image fingerprints.
-// It takes a partial input string and a remote and returns image fingerprints for that remote along with a shell completion directive.
-func (g *cmdGlobal) cmpImageFingerprintsFromRemote(toComplete string, remote string) ([]string, cobra.ShellCompDirective) {
-	if remote == "" {
-		remote = g.conf.DefaultRemote
-	}
-
-	remoteServer, _ := g.conf.GetImageServer(remote)
-
-	images, _ := remoteServer.GetImages()
-
-	results := make([]string, 0, len(images))
-	for _, image := range images {
-		if !strings.HasPrefix(image.Fingerprint, toComplete) {
-			continue
-		}
-
-		results = append(results, image.Fingerprint)
-	}
-
-	return results, cobra.ShellCompDirectiveNoFileComp
-}
-
 // cmpInstanceKeys provides shell completion for all instance configuration keys.
 // It takes an instance name to determine instance type and returns a list of all instance configuration keys along with a shell completion directive.
 func (g *cmdGlobal) cmpInstanceKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
