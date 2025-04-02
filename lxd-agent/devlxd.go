@@ -140,7 +140,7 @@ func devLXDMetadataGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request)
 	var client lxd.InstanceServer
 	var err error
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		client, err = getVsockClient(d)
 		if err == nil {
 			break
