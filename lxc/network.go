@@ -241,15 +241,20 @@ func (c *cmdNetworkAttachProfile) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 1 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
 		if len(args) == 0 {
 			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
-		if len(args) == 1 {
-			return c.global.cmpProfiles(args[0], false)
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
 		}
 
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		return c.global.cmpTopLevelResourceInRemote(remote, "profile", toComplete)
 	}
 
 	return cmd
