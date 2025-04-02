@@ -62,6 +62,14 @@ func (r *ProtocolDevLXD) Disconnect() {
 	r.ctxConnectedCancel()
 }
 
+// RawQuery allows directly querying the devLXD.
+//
+// This should only be used by internal LXD tools.
+func (r *ProtocolDevLXD) RawQuery(method string, path string, data any, ETag string) (*api.DevLXDResponse, string, error) {
+	url := r.httpBaseURL.String() + path
+	return r.rawQuery(method, url, data, ETag)
+}
+
 // rawQuery is a method that sends HTTP request to the devLXD with the provided
 // method, URL, data, and ETag. It processes the request based on the data's
 // type and handles the HTTP response, returning parsed results or an error
