@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/db/schema"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // WriteTempFile creates a temp file with the specified content.
@@ -243,7 +245,7 @@ func TestSchemaEnsure_CheckGracefulAbort(t *testing.T) {
 	check := func(ctx context.Context, current int, tx *sql.Tx) error {
 		_, err := tx.Exec("CREATE TABLE test (n INTEGER)")
 		require.NoError(t, err)
-		return schema.ErrGracefulAbort
+		return api.NewStatusError(http.StatusPreconditionFailed, "schema check gracefully aborted")
 	}
 
 	schema, db := newSchemaAndDB(t)
