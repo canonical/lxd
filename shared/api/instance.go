@@ -209,6 +209,12 @@ type InstancePut struct {
 	// Instance description
 	// Example: My test instance
 	Description string `json:"description" yaml:"description"`
+
+	// Which disk volumes to restore from an instance snapshot. Possible values are "root" or "all-exclusive".
+	// Example: all-exclusive
+	//
+	// API extension: instance_snapshot_multi_volume
+	DiskVolumesMode string `json:"disks,omitempty" yaml:"disks,omitempty"`
 }
 
 // InstanceRebuildPost indicates how to rebuild an instance.
