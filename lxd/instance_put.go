@@ -131,6 +131,10 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	var do func(*operations.Operation) error
 	var opType operationtype.Type
 	if configRaw.Restore == "" {
+		if configRaw.IncludeAttached {
+			return response.BadRequest(errors.New(`No snapshot provided on "restore" and "include_attached" set`))
+		}
+
 		// Check project limits.
 		apiProfiles := make([]api.Profile, 0, len(configRaw.Profiles))
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -192,7 +196,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		do = func(_ *operations.Operation) error {
 			defer unlock()
 
-			return instanceSnapRestore(s, projectName, name, configRaw.Restore, configRaw.Stateful)
+			return instanceSnapRestore(s, projectName, name, configRaw)
 		}
 
 		opType = operationtype.SnapshotRestore
@@ -214,8 +218,9 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-func instanceSnapRestore(s *state.State, projectName string, name string, snap string, stateful bool) error {
+func instanceSnapRestore(s *state.State, projectName string, name string, req api.InstancePut) error {
 	// normalize snapshot name
+	snap := req.Restore
 	if !shared.IsSnapshot(snap) {
 		snap = name + shared.SnapshotDelimiter + snap
 	}
@@ -235,10 +240,16 @@ func instanceSnapRestore(s *state.State, projectName string, name string, snap s
 		}
 	}
 
+	// Multi-volume restore.
+	disks, err := instance.ParseSnapshotDisks(source, req.IncludeAttached, req.Disks)
+	if err != nil {
+		return api.NewStatusError(http.StatusBadRequest, err.Error())
+	}
+
 	// Generate a new `volatile.uuid.generation` to differentiate this instance restored from a snapshot from the original instance.
 	source.LocalConfig()["volatile.uuid.generation"] = uuid.New().String()
 
-	err = inst.Restore(source, stateful)
+	err = inst.Restore(source, req.Stateful, disks)
 	if err != nil {
 		return err
 	}
