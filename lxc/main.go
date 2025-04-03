@@ -100,7 +100,17 @@ For help with any of those, simply call them with --help.`))
 	app.PersistentFlags().BoolVar(&globalCmd.flagSubCmds, "sub-commands", false, i18n.G("Use with help or --help to view sub-commands"))
 
 	_ = app.RegisterFlagCompletionFunc("project", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		projects, directives := globalCmd.cmpProjects(toComplete)
+		// We don't know which remote we're using, so use the default
+		remote := globalCmd.conf.DefaultRemote
+		if len(args) > 0 {
+			// The remote is usually part of the first argument, so attempt to get it from that if present.
+			maybeRemote, _, err := globalCmd.conf.ParseRemote(args[0])
+			if err == nil && maybeRemote != "" {
+				remote = maybeRemote
+			}
+		}
+
+		projects, directives := globalCmd.cmpTopLevelResourceInRemote(remote, "project", toComplete)
 		if projects != nil {
 			return projects, directives
 		}

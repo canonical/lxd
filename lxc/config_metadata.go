@@ -60,7 +60,7 @@ func (c *cmdConfigMetadataEdit) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -193,7 +193,7 @@ func (c *cmdConfigMetadataShow) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp

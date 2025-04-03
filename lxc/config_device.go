@@ -101,9 +101,9 @@ lxc profile device add [<remote>:]profile1 <device-name> disk pool=some-pool sou
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			if c.config != nil {
-				return c.global.cmpInstances(toComplete)
+				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
@@ -235,9 +235,9 @@ func (c *cmdConfigDeviceGet) command() *cobra.Command {
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			if c.config != nil {
-				return c.global.cmpInstances(toComplete)
+				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
@@ -337,9 +337,9 @@ func (c *cmdConfigDeviceList) command() *cobra.Command {
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			if c.config != nil {
-				return c.global.cmpInstances(toComplete)
+				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
@@ -414,7 +414,7 @@ func (c *cmdConfigDeviceOverride) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -517,9 +517,9 @@ func (c *cmdConfigDeviceRemove) command() *cobra.Command {
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			if c.config != nil {
-				return c.global.cmpInstances(toComplete)
+				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
@@ -644,9 +644,9 @@ For backward compatibility, a single configuration key may still be set with:
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			if c.config != nil {
-				return c.global.cmpInstances(toComplete)
+				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
@@ -773,9 +773,9 @@ func (c *cmdConfigDeviceShow) command() *cobra.Command {
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			if c.config != nil {
-				return c.global.cmpInstances(toComplete)
+				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
@@ -858,9 +858,9 @@ func (c *cmdConfigDeviceUnset) command() *cobra.Command {
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			if c.config != nil {
-				return c.global.cmpInstances(toComplete)
+				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
