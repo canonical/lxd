@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
@@ -516,7 +517,7 @@ func autoCreateInstanceSnapshots(ctx context.Context, s *state.State, instances 
 			return err
 		}
 
-		err = inst.Snapshot(snapshotName, expiry, false)
+		err = inst.Snapshot(snapshotName, expiry, false, deviceConfig.Devices{})
 		if err != nil {
 			l.Error("Error creating snapshot", logger.Ctx{"snapshot": snapshotName, "err": err})
 			return err
