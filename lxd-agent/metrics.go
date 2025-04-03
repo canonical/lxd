@@ -311,6 +311,9 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 	out := metrics.MemoryMetrics{}
 	scanner := bufio.NewScanner(bytes.NewReader(content))
 
+	// Track if we have the fields needed for RSS calculation
+	var foundMemTotal, foundMemAvailable bool
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		fields := strings.Fields(line)
@@ -331,7 +334,7 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 			value *= 1024
 		}
 
-		// FIXME: Missing RSS
+		// Parse fields for metrics collection
 		switch fields[0] {
 		case "Active":
 			out.ActiveBytes = value
@@ -339,6 +342,8 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 			out.ActiveAnonBytes = value
 		case "Active(file)":
 			out.ActiveFileBytes = value
+		case "Buffers":
+			// No dedicated field in MemoryMetrics for Buffers
 		case "Cached":
 			out.CachedBytes = value
 		case "Dirty":
@@ -357,10 +362,12 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 			out.MappedBytes = value
 		case "MemAvailable":
 			out.MemAvailableBytes = value
+			foundMemAvailable = true
 		case "MemFree":
 			out.MemFreeBytes = value
 		case "MemTotal":
 			out.MemTotalBytes = value
+			foundMemTotal = true
 		case "Shmem":
 			out.ShmemBytes = value
 		case "SwapCached":
@@ -370,6 +377,13 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 		case "Writeback":
 			out.WritebackBytes = value
 		}
+	}
+
+	// Calculate RSS using the simpler and more modern approach
+	if foundMemTotal && foundMemAvailable {
+		// Formula: RSS = MemTotal - MemAvailable
+		// This is how modern tools like 'free' calculate used memory
+		out.RSSBytes = out.MemTotalBytes - out.MemAvailableBytes
 	}
 
 	return out, nil
