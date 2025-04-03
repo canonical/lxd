@@ -258,7 +258,7 @@ func (b *mockBackend) UnmountInstance(inst instance.Instance, op *operations.Ope
 }
 
 // CreateInstanceSnapshot ...
-func (b *mockBackend) CreateInstanceSnapshot(i instance.Instance, src instance.Instance, op *operations.Operation) error {
+func (b *mockBackend) CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, volumes []*api.StorageVolume, op *operations.Operation) error {
 	return nil
 }
 
@@ -273,7 +273,7 @@ func (b *mockBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operati
 }
 
 // RestoreInstanceSnapshot ...
-func (b *mockBackend) RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error {
+func (b *mockBackend) RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, volumeSnapshots []*api.StorageVolume, op *operations.Operation) error {
 	return nil
 }
 
@@ -408,7 +408,7 @@ func (b *mockBackend) ImportCustomVolume(projectName string, poolVol *backupConf
 }
 
 // CreateCustomVolumeSnapshot ...
-func (b *mockBackend) CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, newDescription string, expiryDate *time.Time, op *operations.Operation) error {
+func (b *mockBackend) CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, newDescription string, expiryDate *time.Time, newSnapshotUUID string, op *operations.Operation) error {
 	return nil
 }
 
