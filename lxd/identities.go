@@ -316,7 +316,7 @@ func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertifi
 	}
 
 	// If so then check there is a matching pending TLS identity.
-	identifier, err := tlsIdentityTokenValidate(ctx, s, *joinToken)
+	identifier, err := identityTokenValidate(ctx, s, *joinToken)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed during search for pending TLS identity: %w", err))
 	}
@@ -540,7 +540,7 @@ func createIdentityPending(ctx context.Context, s *state.State, req api.Identiti
 	return response.SyncResponseLocation(true, token, lc.Source)
 }
 
-func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.CertificateAddToken) (uuid.UUID, error) {
+func identityTokenValidate(ctx context.Context, s *state.State, token api.CertificateAddToken) (uuid.UUID, error) {
 	var id *dbCluster.Identity
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
