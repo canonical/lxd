@@ -363,7 +363,7 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 
 	// If a token is requested, create a pending TLS identity and return an api.CertificateAddToken.
 	if req.Token {
-		return createIdentityTLSPending(ctx, s, req, notify, api.IdentityTypeCertificateClientPending, api.ClusterLink{})
+		return createIdentityPending(ctx, s, req, notify, api.IdentityTypeCertificateClientPending, api.ClusterLink{})
 	}
 
 	fingerprint, metadata, err := validateIdentityCert(networkCert, req.Certificate)
@@ -409,7 +409,7 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
-func createIdentityTLSPending(ctx context.Context, s *state.State, req api.IdentitiesTLSPost, notify identityNotificationFunc, identityType dbCluster.IdentityType, clusterLink api.ClusterLink) response.Response {
+func createIdentityPending(ctx context.Context, s *state.State, req api.IdentitiesTLSPost, notify identityNotificationFunc, identityType dbCluster.IdentityType, clusterLink api.ClusterLink) response.Response {
 	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
 
 	// Tokens are useless if the server isn't listening (how will the untrusted client contact the server?)
