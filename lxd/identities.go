@@ -544,7 +544,7 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 	var id *dbCluster.Identity
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		id, err = dbCluster.GetPendingTLSIdentityByTokenSecret(ctx, tx.Tx(), token.Secret)
+		id, err = dbCluster.GetPendingIdentityByTokenSecret(ctx, tx.Tx(), token.Secret)
 		return err
 	})
 	if err != nil {
@@ -559,13 +559,13 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 			return dbCluster.DeleteIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier)
 		})
 		if err != nil {
-			logger.Warn("Failed to delete invalid or expired pending TLS identity", logger.Ctx{"err": err, "identity_id": id.Identifier})
+			logger.Warn("Failed to delete invalid or expired pending identity", logger.Ctx{"err": err, "identity_id": id.Identifier})
 		}
 	})
 
 	metadata, err := id.PendingTLSMetadata()
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("Failed extracting pending TLS identity metadata: %w", err)
+		return uuid.UUID{}, fmt.Errorf("Failed extracting pending identity metadata: %w", err)
 	}
 
 	if !metadata.Expiry.IsZero() && metadata.Expiry.Before(time.Now()) {
@@ -574,7 +574,7 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 
 	uid, err := uuid.Parse(id.Identifier)
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("Unexpected identifier format for pending TLS identity: %w", err)
+		return uuid.UUID{}, fmt.Errorf("Unexpected identifier format for pending identity: %w", err)
 	}
 
 	reverter.Success()
