@@ -2,8 +2,6 @@ module github.com/canonical/lxd
 
 go 1.23.0
 
-toolchain go1.24.1
-
 // https://github.com/minio/minio-go/issues/1931
 replace github.com/minio/minio-go/v7 => github.com/minio/minio-go/v7 v7.0.66
 
