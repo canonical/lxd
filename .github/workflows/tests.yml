@@ -421,23 +421,17 @@ jobs:
         run: mkdir -p "${GOCOVERDIR}"
         if: env.GOCOVERDIR != ''
 
-      - name: Build static lxc (x86_64)
+      - name: Build static lxc
         env:
           CGO_ENABLED: 0
-          GOARCH: amd64
           EXTRAS: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '-ldflags "-s -w"' }}
         run: |
           set -eux
-          go build ${{ env.EXTRAS }} -o trimpath -o bin/lxc.x86_64 ./lxc
-
-      - name: Build static lxc (aarch64)
-        env:
-          CGO_ENABLED: 0
-          GOARCH: arm64
-          EXTRAS: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '-ldflags "-s -w"' }}
-        run: |
-          set -eux
+          # Using `go env -w` to avoid dealing with setting variables on Windows
+          go env -w GOARCH=arm64
           go build ${{ env.EXTRAS }} -o trimpath -o bin/lxc.aarch64 ./lxc
+          go env -w GOARCH=amd64
+          go build ${{ env.EXTRAS }} -o trimpath -o bin/lxc.x86_64 ./lxc
 
       - name: Build static lxd-benchmark
         if: runner.os == 'Linux'
