@@ -389,3 +389,112 @@ func (c *ClusterGroup) SetWritable(put ClusterGroupPut) {
 	c.Description = put.Description
 	c.Members = put.Members
 }
+
+const (
+	// ClusterLinkTypeUser represents cluster links that are user created.
+	ClusterLinkTypeUser = "user"
+)
+
+// ClusterLink represents high-level information about a cluster link.
+//
+// swagger:model
+//
+// API extension: cluster_links.
+type ClusterLink struct {
+	WithEntitlements `yaml:",inline"`
+
+	// lxdmeta:generate(entities=cluster-link; group=properties; key=name)
+	//
+	// ---
+	//  type: string
+	//  required: no
+	//  shortdesc: The name of the cluster link
+
+	// Name of the cluster link.
+	// Example: lxd02
+	Name string `json:"name" yaml:"name"`
+
+	// lxdmeta:generate(entities=cluster-link; group=properties; key=description)
+	//
+	// ---
+	//  type: string
+	//  required: no
+	//  shortdesc: Description of the cluster link
+
+	// Description of the cluster link.
+	// Example: Backup LXD cluster
+	Description string `json:"description" yaml:"description"`
+
+	// Cluster link type.
+	// Example: user
+	Type string `json:"type" yaml:"type"`
+
+	// Cluster link configuration map (refer to doc/clustering.md).
+	// Example: {"user.*": ""}
+	Config map[string]string `json:"config" yaml:"config"`
+}
+
+// ClusterLinkPut represents the modifiable fields of a cluster link.
+//
+// swagger:model
+//
+// API extension: cluster_links.
+type ClusterLinkPut struct {
+	// Cluster link configuration map (refer to doc/clustering.md).
+	// Example: {"user.*": ""}
+	Config map[string]string `json:"config" yaml:"config"`
+
+	// Description of the cluster link.
+	// Example: Linked cluster.
+	Description string `json:"description" yaml:"description"`
+}
+
+// ClusterLinkPost represents the fields available for a new cluster link.
+//
+// swagger:model
+//
+// API extension: cluster_links.
+type ClusterLinkPost struct {
+	ClusterLinkPut `yaml:",inline"`
+
+	// Name of the cluster.
+	// Example: lxd02
+	Name string `json:"name" yaml:"name"`
+
+	// TrustToken for creating a cluster link. This is included in requests to create an active cluster link on the local cluster and activate a pending cluster link on the linked cluster.
+	// API extension: explicit_trust_token
+	TrustToken string `json:"trust_token" yaml:"trust_token"`
+
+	// List of auth groups this cluster link belongs to.
+	// Example: ["foo", "bar"]
+	AuthGroups []string `json:"auth_groups" yaml:"auth_groups"`
+
+	// The certificate (X509 PEM encoded) for the linked cluster. This is included in server-side POST requests to activate the pending cluster link on the linked cluster that generated the trust token.
+	// Example: X509 PEM certificate
+	ClusterCertificate string `json:"cluster_certificate" yaml:"cluster_certificate"`
+}
+
+// ClusterLinkRename represents the fields available for renaming a cluster link.
+//
+// swagger:model
+//
+// API extension: cluster_links.
+type ClusterLinkRename struct {
+	// Name of the cluster link.
+	// Example: lxd02
+	Name string `json:"name" yaml:"name"`
+}
+
+// Writable converts a full ClusterLink struct into a [ClusterLinkPut] struct (filters read-only fields).
+func (clusterLink *ClusterLink) Writable() ClusterLinkPut {
+	return ClusterLinkPut{
+		Description: clusterLink.Description,
+		Config:      clusterLink.Config,
+	}
+}
+
+// SetWritable sets applicable values from [ClusterLinkPut] struct to [ClusterLink] struct.
+func (clusterLink *ClusterLink) SetWritable(put ClusterLinkPut) {
+	clusterLink.Description = put.Description
+	clusterLink.Config = put.Config
+}
