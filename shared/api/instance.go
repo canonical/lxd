@@ -209,6 +209,12 @@ type InstancePut struct {
 	// Instance description
 	// Example: My test instance
 	Description string `json:"description" yaml:"description"`
+
+	// Disk types to include in restore. Possible values are "root" and "exclusive-volumes". If not specified, only the root disk is restored.
+	// Example: ["root", "exclusive-volumes"]
+	//
+	// API extension: instance_snapshot_multi_volume
+	Disks []string `json:"disks,omitempty" yaml:"disks,omitempty"`
 }
 
 // InstanceRebuildPost indicates how to rebuild an instance.
