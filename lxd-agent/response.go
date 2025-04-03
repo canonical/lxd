@@ -29,7 +29,9 @@ func (r *devLXDResponse) Render(w http.ResponseWriter, req *http.Request) error 
 		err = util.WriteJSON(w, r.content, nil)
 	} else if r.ctype != "websocket" {
 		w.Header().Set("Content-Type", "application/octet-stream")
-		_, err = fmt.Fprint(w, fmt.Sprint(r.content))
+		if r.content != nil {
+			_, err = fmt.Fprint(w, fmt.Sprint(r.content))
+		}
 	}
 
 	return err
