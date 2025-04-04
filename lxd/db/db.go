@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -21,6 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/node"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -159,7 +161,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 		logPriority := 1 // 0 is discard, 1 is Debug, 2 is Error
 		if i > 5 {
 			logPriority = 2
-			if i > 15 && !((i % 5) == 0) {
+			if i > 15 && (i%5) != 0 {
 				logPriority = 0
 			}
 		}
@@ -222,18 +224,18 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 		}
 	}
 
-	nodesVersionsMatch, err := cluster.EnsureSchema(db, address, dir)
+	err = cluster.EnsureSchema(db, address, dir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to ensure schema: %w", err)
-	}
+		if api.StatusErrorCheck(err, http.StatusPreconditionFailed) {
+			cluster := &Cluster{
+				db:         db,
+				closingCtx: closingCtx,
+			}
 
-	if !nodesVersionsMatch {
-		cluster := &Cluster{
-			db:         db,
-			closingCtx: closingCtx,
+			return cluster, err
 		}
 
-		return cluster, ErrSomeNodesAreBehind
+		return nil, fmt.Errorf("Failed to ensure schema: %w", err)
 	}
 
 	stmts, err := cluster.PrepareStmts(db, false)
@@ -289,10 +291,6 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 
 	return clusterDB, err
 }
-
-// ErrSomeNodesAreBehind is returned by OpenCluster if some of the nodes in the
-// cluster have a schema or API version that is less recent than this node.
-var ErrSomeNodesAreBehind = fmt.Errorf("some nodes are behind this node's version")
 
 // ForLocalInspection is a aid for the hack in initializeDbObject, which
 // sets the db-related Deamon attributes upfront, to be backward compatible
