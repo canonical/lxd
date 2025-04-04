@@ -71,12 +71,12 @@ func (c *cmdImageAliasCreate) command() *cobra.Command {
 			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
-		remote, _, found := strings.Cut(args[0], ":")
-		if !found {
-			remote = ""
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
 		}
 
-		return c.global.cmpImageFingerprintsFromRemote(toComplete, remote)
+		return c.global.cmpTopLevelResourceInRemote(remote, "image", toComplete)
 	}
 
 	return cmd
