@@ -229,7 +229,7 @@ func restServer(d *Daemon) *http.Server {
 
 func hoistReqVM(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Set devlxd auth method to identify this request as coming from the /dev/lxd socket.
+		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
 		lxdRequest.SetCtxValue(r, lxdRequest.CtxProtocol, auth.AuthenticationMethodDevLXD)
 
 		trusted, inst, err := authenticateAgentCert(d.State(), r)
@@ -257,7 +257,7 @@ func hoistReqVM(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Re
 }
 
 func vSockServer(d *Daemon) *http.Server {
-	return &http.Server{Handler: devLxdAPI(d, hoistReqVM)}
+	return &http.Server{Handler: devLXDAPI(d, hoistReqVM)}
 }
 
 func metricsServer(d *Daemon) *http.Server {

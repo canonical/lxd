@@ -1422,7 +1422,7 @@ func (d *Daemon) init() error {
 		UnixSocket:           d.UnixSocket(),
 		Cert:                 networkCert,
 		RestServer:           restServer(d),
-		DevLxdServer:         devLxdServer(d),
+		DevLxdServer:         devLXDServer(d),
 		LocalUnixSocketGroup: d.config.Group,
 		NetworkAddress:       localHTTPAddress,
 		ClusterAddress:       localClusterAddress,
