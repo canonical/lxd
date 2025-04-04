@@ -52,6 +52,7 @@ github.com/mdlayher/vsock
 github.com/muhlemmer/gu
 github.com/pkg/sftp
 github.com/pkg/sftp/internal/encoding/ssh/filexfer
+github.com/pkg/sftp/internal/encoding/ssh/filexfer/openssh
 github.com/pkg/xattr
 github.com/robfig/cron/v3
 github.com/rogpeppe/fastuuid

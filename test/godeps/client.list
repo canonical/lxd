@@ -27,6 +27,7 @@ github.com/kr/fs
 github.com/muhlemmer/gu
 github.com/pkg/sftp
 github.com/pkg/sftp/internal/encoding/ssh/filexfer
+github.com/pkg/sftp/internal/encoding/ssh/filexfer/openssh
 github.com/pkg/xattr
 github.com/rogpeppe/fastuuid
 github.com/sirupsen/logrus
