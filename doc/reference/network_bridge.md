@@ -1,5 +1,5 @@
 ---
-discourse: 7322
+discourse: '[Getting&#32;universally&#32;routable&#32;IPv6&#32;Addresses&#32;for&#32;your&#32;Linux&#32;Containers&#32;on&#32;Ubuntu&#32;18.04&#32;with&#32;LXD&#32;4.0&#32;on&#32;a&#32;VPS](7322)'
 ---
 
 (network-bridge)=
