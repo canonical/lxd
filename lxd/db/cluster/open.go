@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -15,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/schema"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/version"
@@ -53,14 +55,11 @@ func Open(name string, store driver.NodeStore, options ...driver.Option) (*sql.D
 
 // EnsureSchema applies all relevant schema updates to the cluster database.
 //
-// Before actually doing anything, this function will make sure that all nodes
-// in the cluster have a schema version and a number of API extensions that
-// match our one. If it's not the case, we either return an error (if some
-// nodes have version greater than us and we need to be upgraded), or return
-// false and no error (if some nodes have a lower version, and we need to wait
-// till they get upgraded and restarted).
-func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
-	someNodesAreBehind := false
+// Before actually doing anything, this function will make sure that all members in the cluster have a schema
+// version and a number of API extensions that match our one.
+// If it's not the case an api.StatusError with code http.StatusPreconditionFailed is returned,
+// this indicates that this member should wait for them to become aligned.
+func EnsureSchema(db *sql.DB, address string, dir string) error {
 	apiExtensions := version.APIExtensionsCount()
 
 	backupDone := false
@@ -141,13 +140,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 			return fmt.Errorf("Failed to update cluster member version info: %w", err)
 		}
 
-		err = checkClusterIsUpgradable(ctx, tx, [2]int{len(updates), apiExtensions})
-		if err == errSomeNodesAreBehind {
-			someNodesAreBehind = true
-			return schema.ErrGracefulAbort
-		}
-
-		return err
+		return checkClusterIsUpgradable(ctx, tx, [2]int{len(updates), apiExtensions})
 	}
 
 	schema := Schema()
@@ -172,12 +165,8 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 
 		return err
 	})
-	if someNodesAreBehind {
-		return false, nil
-	}
-
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	// When creating a database from scratch, insert an entry for node
@@ -186,7 +175,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 	if initial == 0 {
 		arch, err := osarch.ArchitectureGetLocalID()
 		if err != nil {
-			return false, err
+			return err
 		}
 
 		err = query.Transaction(context.TODO(), db, func(_ context.Context, tx *sql.Tx) error {
@@ -247,11 +236,11 @@ INSERT INTO nodes_cluster_groups (node_id, group_id) VALUES(1, 1);
 			return nil
 		})
 		if err != nil {
-			return false, err
+			return err
 		}
 	}
 
-	return true, err
+	return nil
 }
 
 // Generate a new name for the dqlite driver registration. We need it to be
@@ -271,7 +260,7 @@ func checkClusterIsUpgradable(ctx context.Context, tx *sql.Tx, target [2]int) er
 	// Get the current versions in the nodes table.
 	versions, err := selectNodesVersions(ctx, tx)
 	if err != nil {
-		return fmt.Errorf("failed to fetch current nodes versions: %w", err)
+		return fmt.Errorf("Failed fetching current member versions: %w", err)
 	}
 
 	for _, version := range versions {
@@ -289,18 +278,16 @@ func checkClusterIsUpgradable(ctx context.Context, tx *sql.Tx, target [2]int) er
 			// Our version is bigger, we should stop here
 			// and wait for other nodes to be upgraded and
 			// restarted.
-			return errSomeNodesAreBehind
+			return api.StatusErrorf(http.StatusPreconditionFailed, "A cluster member's version (%v) is behind this cluster member's version (%v), please ensure versions match", version, target)
 		case 2:
 			// Another node has a version greater than ours
-			// and presumeably is waiting for other nodes
+			// and presumably is waiting for other nodes
 			// to upgrade. Let's error out and shutdown
 			// since we need a greater version.
-			return fmt.Errorf("This cluster member's version is behind, please upgrade")
+			return api.StatusErrorf(http.StatusPreconditionFailed, "This cluster member's version (%v) is behind another member's version (%v), please ensure versions match", target, version)
 		default:
 			panic("Unexpected return value from compareVersions")
 		}
 	}
 	return nil
 }
-
-var errSomeNodesAreBehind = fmt.Errorf("Some cluster members are behind this cluster member's version")

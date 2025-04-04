@@ -1478,12 +1478,12 @@ func (d *Daemon) init() error {
 		if err == nil {
 			logger.Info("Initialized global database")
 			break
-		} else if errors.Is(err, db.ErrSomeNodesAreBehind) {
+		} else if api.StatusErrorCheck(err, http.StatusPreconditionFailed) {
 			// If some other nodes have schema or API versions less recent
 			// than this node, we block until we receive a notification
 			// from the last node being upgraded that everything should be
 			// now fine, and then retry
-			logger.Warn("Wait for other cluster nodes to upgrade their versions, cluster not started yet")
+			logger.Warn("Wait for other cluster members to align their versions, cluster not started yet")
 
 			// The only thing we want to still do on this node is
 			// to run the heartbeat task, in case we are the raft
