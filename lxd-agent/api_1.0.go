@@ -136,10 +136,10 @@ func startDevlxdServer(d *Daemon) error {
 		return nil
 	}
 
-	servers["devlxd"] = devLxdServer(d)
+	servers["devlxd"] = devLXDServer(d)
 
 	// Prepare the devlxd server.
-	devlxdListener, err := createDevLxdlListener("/dev")
+	devlxdListener, err := createDevLXDListener("/dev")
 	if err != nil {
 		return err
 	}
