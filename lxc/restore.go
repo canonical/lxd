@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/shared"
@@ -12,7 +14,9 @@ import (
 type cmdRestore struct {
 	global *cmdGlobal
 
-	flagStateful bool
+	flagStateful        bool
+	flagIncludeAttached bool
+	flagDisks           string
 }
 
 func (c *cmdRestore) command() *cobra.Command {
@@ -32,6 +36,8 @@ lxc restore u1 snap0
 
 	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Whether or not to restore the instance's running state from snapshot (if available)"))
+	cmd.Flags().BoolVar(&c.flagIncludeAttached, "include-attached", false, i18n.G(`Whether or not to restore snapshots of all attached volumes alongside instance's root disk snapshot.`))
+	cmd.Flags().StringVar(&c.flagDisks, "disks", "", i18n.G(`Disks to include in restore.`))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
 		if len(args) > 1 {
@@ -62,6 +68,10 @@ func (c *cmdRestore) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if c.flagIncludeAttached && c.flagDisks != "" {
+		return errors.New("Cannot use --include-attached flag with --disks")
+	}
+
 	// Connect to LXD
 	remote, name, err := conf.ParseRemote(args[0])
 	if err != nil {
@@ -80,8 +90,10 @@ func (c *cmdRestore) run(cmd *cobra.Command, args []string) error {
 	}
 
 	req := api.InstancePut{
-		Restore:  snapname,
-		Stateful: c.flagStateful,
+		Restore:         snapname,
+		Stateful:        c.flagStateful,
+		IncludeAttached: c.flagIncludeAttached,
+		Disks:           shared.SplitNTrimSpace(c.flagDisks, ",", -1, true),
 	}
 
 	// Restore the snapshot
