@@ -4230,3 +4230,69 @@ test_clustering_trust_add() {
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
 }
+
+test_clustering_link_trust_establishment() {
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  # Create two cluster nodes.
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  # Get a cluster link trust token from LXD_ONE.
+  lxd_one_trust_token="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link add lxd_two --quiet)"
+
+  # The cluster link identity on LXD_ONE should be pending.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc auth identity list --format csv | grep -cF 'Cluster link certificate (pending)')" = 1 ]
+
+  # Get the address of LXD_ONE.
+  lxd_one_address="$(LXD_DIR="${LXD_ONE_DIR}" lxc config get core.https_address)"
+
+  # Add cluster link on LXD_TWO using the token from LXD_ONE.
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link add lxd_one --token "${lxd_one_trust_token}"
+
+  # The cluster link on LXD_TWO should contain the address of LXD_ONE.
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster link list --format csv | grep -cF "${lxd_one_address%%:*}")" = 1 ]
+
+  # The cluster link identity on LXD_TWO should be active.
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc auth identity list --format csv | grep -cF 'Cluster link certificate')" = 1 ]
+
+  # Get the address of LXD_TWO.
+  lxd_two_address="$(LXD_DIR="${LXD_TWO_DIR}" lxc config get core.https_address)"
+
+  # The cluster link identity on LXD_ONE should be active.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc auth identity list --format csv | grep -cF 'Cluster link certificate')" = 1 ]
+
+  # The cluster link on LXD_ONE should contain the address of LXD_TWO.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link list --format csv | grep -cF "${lxd_two_address%%:*}")" = 1 ]
+
+  # The fingerprint on the identity stored on LXD_ONE should match the fingerprint of the cluster certificate on LXD_TWO.
+
+  # The fingerprint on the identity stored on LXD_TWO should match the fingerprint of the cluster certificate on LXD_ONE.
+
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
