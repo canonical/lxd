@@ -84,14 +84,13 @@ type NodeInfoArgs struct {
 	FailureDomains       map[uint64]string
 	MemberFailureDomains map[string]uint64
 	OfflineThreshold     time.Duration
-	MaxMemberVersion     [2]int
+	Members              []NodeInfo
 	RaftNodes            []RaftNode
 }
 
 // ToAPI returns a LXD API entry.
 func (n NodeInfo) ToAPI(ctx context.Context, tx *ClusterTx, args NodeInfoArgs) (*api.ClusterMember, error) {
 	var err error
-	var maxVersion [2]int
 	var failureDomain string
 
 	domainID := args.MemberFailureDomains[n.Address]
@@ -155,15 +154,26 @@ func (n NodeInfo) ToAPI(ctx context.Context, tx *ClusterTx, args NodeInfoArgs) (
 		result.Status = "Offline"
 		result.Message = fmt.Sprintf("No heartbeat for %s (%s)", time.Since(n.Heartbeat), n.Heartbeat)
 	} else {
-		// Check if up to date.
-		cmp, err := util.CompareVersions(maxVersion, n.Version())
-		if err != nil {
-			return nil, err
-		}
+		for _, member := range args.Members {
+			if member.ID == n.ID {
+				continue // Skip ourselves.
+			}
 
-		if cmp == 1 {
-			result.Status = "Blocked"
-			result.Message = "Needs updating to newer version"
+			// Check if up to date.
+			cmp, err := util.CompareVersions(member.Version(), n.Version())
+			if err != nil {
+				return nil, fmt.Errorf("Failed comparing with version of member %q: %w", member.Name, err)
+			}
+
+			if cmp == 1 {
+				result.Status = "Blocked"
+				result.Message = "LXD version is older than other members"
+				break
+			} else if cmp == 2 {
+				result.Status = "Blocked"
+				result.Message = "LXD version is newer than other members"
+				break
+			}
 		}
 	}
 
