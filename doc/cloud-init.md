@@ -1,6 +1,6 @@
 ---
-discourse: 12559
-relatedlinks: https://cloudinit.readthedocs.org/
+discourse: '[First&#32;class&#32;cloud-init&#32;support](12559)'
+relatedlinks: '[Cloud-init&#32;documentation](https://cloudinit.readthedocs.org/)'
 ---
 
 (cloud-init)=
