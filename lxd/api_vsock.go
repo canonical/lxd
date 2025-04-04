@@ -9,9 +9,32 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared/api"
 )
+
+func vSockServer(d *Daemon) *http.Server {
+	rawResponse := true
+
+	return &http.Server{
+		Handler: devLXDAPI(d, hoistReqVM, rawResponse),
+	}
+}
+
+func hoistReqVM(d *Daemon, w http.ResponseWriter, r *http.Request, handler DevLXDAPIHandlerFunc) response.Response {
+	trusted, inst, err := authenticateAgentCert(d.State(), r)
+	if err != nil {
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, err.Error()), true)
+	}
+
+	if !trusted {
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusUnauthorized), true)
+	}
+
+	return handler(d, inst, w, r)
+}
 
 func authenticateAgentCert(s *state.State, r *http.Request) (bool, instance.Instance, error) {
 	var vsockID int

@@ -155,13 +155,13 @@ func TestHttpRequest(t *testing.T) {
 
 	c := http.Client{Transport: &http.Transport{DialContext: DevLxdDialer{Path: fmt.Sprintf("%s/devlxd/sock", testDir)}.DevLxdDial}}
 
-	raw, err := c.Get("http://1.0")
+	raw, err := c.Get("http://lxd/1.0")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if raw.StatusCode != 500 {
-		t.Fatal(err)
+		t.Fatalf("Expected status code 500, got %d: %v", raw.StatusCode, err)
 	}
 
 	resp, err := io.ReadAll(raw.Body)
