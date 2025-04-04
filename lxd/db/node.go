@@ -338,7 +338,7 @@ func (c *ClusterTx) NodeIsOutdated(ctx context.Context) (bool, error) {
 
 		n, err := util.CompareVersions(node.Version(), version)
 		if err != nil {
-			return false, fmt.Errorf("Failed to compare with version of member %s: %w", node.Name, err)
+			return false, fmt.Errorf("Failed comparing with version of member %q: %w", node.Name, err)
 		}
 
 		if n == 1 {
