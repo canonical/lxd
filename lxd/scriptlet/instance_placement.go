@@ -271,9 +271,9 @@ func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, 
 			return fmt.Errorf("Failed loading member failure domains: %w", err)
 		}
 
-		maxVersion, err := tx.GetNodeMaxVersion(ctx)
+		members, err := tx.GetNodes(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed getting max member version: %w", err)
+			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
 		args := db.NodeInfoArgs{
@@ -281,7 +281,7 @@ func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, 
 			FailureDomains:       failureDomains,
 			MemberFailureDomains: memberFailureDomains,
 			OfflineThreshold:     s.GlobalConfig.OfflineThreshold(),
-			MaxMemberVersion:     maxVersion,
+			Members:              members,
 			RaftNodes:            raftNodes,
 		}
 
