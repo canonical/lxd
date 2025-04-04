@@ -1,5 +1,5 @@
 ---
-discourse: 15872
+discourse: '[ZFS&#32;block&#32;mode](15872)'
 ---
 
 (storage-zfs)=
