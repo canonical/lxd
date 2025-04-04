@@ -247,7 +247,7 @@ func hoistReqVM(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Re
 		if resp != nil {
 			err = resp.Render(w, r)
 			if err != nil {
-				writeErr := response.DevLxdErrorResponse(err, true).Render(w, r)
+				writeErr := response.DevLXDErrorResponse(err, true).Render(w, r)
 				if writeErr != nil {
 					logger.Warn("Failed writing error for HTTP response", logger.Ctx{"url": r.URL, "err": err, "writeErr": writeErr})
 				}
