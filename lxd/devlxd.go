@@ -35,19 +35,19 @@ import (
 
 type hoistFunc func(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request)
 
-type devlxdHandlerFunc func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response
+type devLXDHandlerFunc func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response
 
-// DevLxdServer creates an http.Server capable of handling requests against the
+// devLXDServer creates an http.Server capable of handling requests against the
 // /dev/lxd Unix socket endpoint created inside containers.
-func devLxdServer(d *Daemon) *http.Server {
+func devLXDServer(d *Daemon) *http.Server {
 	return &http.Server{
-		Handler:     devLxdAPI(d, hoistReq),
+		Handler:     devLXDAPI(d, hoistReq),
 		ConnState:   pidMapper.ConnStateHandler,
 		ConnContext: request.SaveConnectionInContext,
 	}
 }
 
-type devLxdHandler struct {
+type devLXDHandler struct {
 	path string
 
 	/*
@@ -56,15 +56,15 @@ type devLxdHandler struct {
 	 * server side right now either, I went the simple route to avoid
 	 * needless noise.
 	 */
-	handlerFunc devlxdHandlerFunc
+	handlerFunc devLXDHandlerFunc
 }
 
-var devlxdConfigGet = devLxdHandler{
+var devLXDConfigGet = devLXDHandler{
 	path:        "/1.0/config",
-	handlerFunc: devlxdConfigGetHandler,
+	handlerFunc: devLXDConfigGetHandler,
 }
 
-func devlxdConfigGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+func devLXDConfigGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
@@ -111,12 +111,12 @@ func devlxdConfigGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrite
 	return response.DevLxdResponse(http.StatusOK, filtered, "json", c.Type() == instancetype.VM)
 }
 
-var devlxdConfigKeyGet = devLxdHandler{
+var devLXDConfigKeyGet = devLXDHandler{
 	path:        "/1.0/config/{key}",
-	handlerFunc: devlxdConfigKeyGetHandler,
+	handlerFunc: devLXDConfigKeyGetHandler,
 }
 
-func devlxdConfigKeyGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+func devLXDConfigKeyGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
@@ -156,12 +156,12 @@ func devlxdConfigKeyGetHandler(d *Daemon, c instance.Instance, w http.ResponseWr
 	return response.DevLxdResponse(http.StatusOK, value, "raw", c.Type() == instancetype.VM)
 }
 
-var devlxdImageExport = devLxdHandler{
+var devLXDImageExport = devLXDHandler{
 	path:        "/1.0/images/{fingerprint}/export",
-	handlerFunc: devlxdImageExportHandler,
+	handlerFunc: devLXDImageExportHandler,
 }
 
-func devlxdImageExportHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+func devLXDImageExportHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
@@ -173,12 +173,12 @@ func devlxdImageExportHandler(d *Daemon, c instance.Instance, w http.ResponseWri
 	return imageExport(d, r)
 }
 
-var devlxdMetadataGet = devLxdHandler{
+var devLXDMetadataGet = devLXDHandler{
 	path:        "/1.0/meta-data",
-	handlerFunc: devlxdMetadataGetHandler,
+	handlerFunc: devLXDMetadataGetHandler,
 }
 
-func devlxdMetadataGetHandler(d *Daemon, inst instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+func devLXDMetadataGetHandler(d *Daemon, inst instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	if shared.IsFalse(inst.ExpandedConfig()["security.devlxd"]) {
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), inst.Type() == instancetype.VM)
 	}
@@ -188,12 +188,12 @@ func devlxdMetadataGetHandler(d *Daemon, inst instance.Instance, w http.Response
 	return response.DevLxdResponse(http.StatusOK, "instance-id: "+inst.CloudInitID()+"\nlocal-hostname: "+inst.Name()+"\n"+value, "raw", inst.Type() == instancetype.VM)
 }
 
-var devlxdEventsGet = devLxdHandler{
+var devLXDEventsGet = devLXDHandler{
 	path:        "/1.0/events",
-	handlerFunc: devlxdEventsGetHandler,
+	handlerFunc: devLXDEventsGetHandler,
 }
 
-func devlxdEventsGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+func devLXDEventsGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
@@ -250,12 +250,12 @@ func devlxdEventsGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrite
 	return resp
 }
 
-var devlxdAPIHandler = devLxdHandler{
+var devLXDAPIHandler = devLXDHandler{
 	path:        "/1.0",
-	handlerFunc: devlxdAPIHandlerFunc,
+	handlerFunc: devLXDAPIHandlerFunc,
 }
 
-func devlxdAPIHandlerFunc(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+func devLXDAPIHandlerFunc(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	s := d.State()
 
 	if r.Method == "GET" {
@@ -313,12 +313,12 @@ func devlxdAPIHandlerFunc(d *Daemon, c instance.Instance, w http.ResponseWriter,
 	return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusMethodNotAllowed, "method %q not allowed", r.Method), c.Type() == instancetype.VM)
 }
 
-var devlxdDevicesGet = devLxdHandler{
+var devLXDDevicesGet = devLXDHandler{
 	path:        "/1.0/devices",
-	handlerFunc: devlxdDevicesGetHandler,
+	handlerFunc: devLXDDevicesGetHandler,
 }
 
-func devlxdDevicesGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+func devLXDDevicesGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
@@ -337,12 +337,12 @@ func devlxdDevicesGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrit
 	return response.DevLxdResponse(http.StatusOK, c.ExpandedDevices(), "json", c.Type() == instancetype.VM)
 }
 
-var devlxdUbuntuProGet = devLxdHandler{
+var devLXDUbuntuProGet = devLXDHandler{
 	path:        "/1.0/ubuntu-pro",
-	handlerFunc: devlxdUbuntuProGetHandler,
+	handlerFunc: devLXDUbuntuProGetHandler,
 }
 
-func devlxdUbuntuProGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+func devLXDUbuntuProGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
 		return response.DevLxdErrorResponse(api.NewGenericStatusError(http.StatusForbidden), c.Type() == instancetype.VM)
 	}
@@ -357,12 +357,12 @@ func devlxdUbuntuProGetHandler(d *Daemon, c instance.Instance, w http.ResponseWr
 	return response.DevLxdResponse(http.StatusOK, settings, "json", c.Type() == instancetype.VM)
 }
 
-var devlxdUbuntuProTokenPost = devLxdHandler{
+var devLXDUbuntuProTokenPost = devLXDHandler{
 	path:        "/1.0/ubuntu-pro/token",
-	handlerFunc: devlxdUbuntuProTokenPostHandler,
+	handlerFunc: devLXDUbuntuProTokenPostHandler,
 }
 
-func devlxdUbuntuProTokenPostHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+func devLXDUbuntuProTokenPostHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
 		return response.DevLxdErrorResponse(api.NewGenericStatusError(http.StatusForbidden), c.Type() == instancetype.VM)
 	}
@@ -381,27 +381,27 @@ func devlxdUbuntuProTokenPostHandler(d *Daemon, c instance.Instance, w http.Resp
 	return response.DevLxdResponse(http.StatusOK, tokenJSON, "json", c.Type() == instancetype.VM)
 }
 
-var handlers = []devLxdHandler{
+var handlers = []devLXDHandler{
 	{
 		path: "/",
 		handlerFunc: func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 			return response.DevLxdResponse(http.StatusOK, []string{"/1.0"}, "json", c.Type() == instancetype.VM)
 		},
 	},
-	devlxdAPIHandler,
-	devlxdConfigGet,
-	devlxdConfigKeyGet,
-	devlxdMetadataGet,
-	devlxdEventsGet,
-	devlxdImageExport,
-	devlxdDevicesGet,
-	devlxdUbuntuProGet,
-	devlxdUbuntuProTokenPost,
+	devLXDAPIHandler,
+	devLXDConfigGet,
+	devLXDConfigKeyGet,
+	devLXDMetadataGet,
+	devLXDEventsGet,
+	devLXDImageExport,
+	devLXDDevicesGet,
+	devLXDUbuntuProGet,
+	devLXDUbuntuProTokenPost,
 }
 
 func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Set devlxd auth method to identify this request as coming from the /dev/lxd socket.
+		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
 		request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
 
 		conn := ucred.GetConnFromContext(r.Context())
@@ -447,7 +447,7 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 	}
 }
 
-func devLxdAPI(d *Daemon, f hoistFunc) http.Handler {
+func devLXDAPI(d *Daemon, f hoistFunc) http.Handler {
 	m := mux.NewRouter()
 	m.UseEncodedPath() // Allow encoded values in path segments.
 
@@ -492,7 +492,7 @@ type ConnPidMapper struct {
 	mLock sync.Mutex
 }
 
-// ConnStateHandler is used in the `ConnState` field of the devlxd http.Server so that we can cache the process ID of the
+// ConnStateHandler is used in the `ConnState` field of the devLXD http.Server so that we can cache the process ID of the
 // caller when a new connection is made and delete it when the connection is closed.
 func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	unixConn, _ := conn.(*net.UnixConn)
