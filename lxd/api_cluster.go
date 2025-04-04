@@ -1264,31 +1264,31 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed loading failure domains names: %w", err)
 		}
 
-		memberFailureDomains, err := tx.GetNodesFailureDomains(ctx)
-		if err != nil {
-			return fmt.Errorf("Failed loading member failure domains: %w", err)
-		}
-
 		members, err = tx.GetNodes(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
-		maxVersion, err := tx.GetNodeMaxVersion(ctx)
-		if err != nil {
-			return fmt.Errorf("Failed getting max member version: %w", err)
-		}
-
-		args := db.NodeInfoArgs{
-			LeaderAddress:        leaderInfo.Address,
-			FailureDomains:       failureDomains,
-			MemberFailureDomains: memberFailureDomains,
-			OfflineThreshold:     s.GlobalConfig.OfflineThreshold(),
-			MaxMemberVersion:     maxVersion,
-			RaftNodes:            raftNodes,
-		}
-
 		if recursion {
+			memberFailureDomains, err := tx.GetNodesFailureDomains(ctx)
+			if err != nil {
+				return fmt.Errorf("Failed loading member failure domains: %w", err)
+			}
+
+			maxVersion, err := tx.GetNodeMaxVersion(ctx)
+			if err != nil {
+				return fmt.Errorf("Failed getting max member version: %w", err)
+			}
+
+			args := db.NodeInfoArgs{
+				LeaderAddress:        leaderInfo.Address,
+				FailureDomains:       failureDomains,
+				MemberFailureDomains: memberFailureDomains,
+				OfflineThreshold:     s.GlobalConfig.OfflineThreshold(),
+				MaxMemberVersion:     maxVersion,
+				RaftNodes:            raftNodes,
+			}
+
 			membersInfo = make([]api.ClusterMember, 0, len(members))
 			for i := range members {
 				member, err := members[i].ToAPI(ctx, tx, args)
