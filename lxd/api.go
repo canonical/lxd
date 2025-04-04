@@ -480,6 +480,11 @@ func isClusterNotification(r *http.Request) bool {
 	return r.Header.Get("User-Agent") == request.UserAgentNotifier
 }
 
+// Return true if this an API request coming from a Micro* service that is creating a delegated cluster link.
+func isDelegatedClusterLink(r *http.Request) bool {
+	return r.Header.Get("User-Agent") == request.UserAgentDelegator
+}
+
 type uiHTTPDir struct {
 	http.FileSystem
 }

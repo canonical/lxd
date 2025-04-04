@@ -315,3 +315,9 @@ endif
 .PHONY: update-auth
 update-auth:
 	go generate ./lxd/auth
+	if [ -t 0 ] && ! git diff --quiet -- ./lxd/auth/; then \
+		read -rp "Would you like to commit auth changes (Y/n)? " answer; \
+		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
+			git commit -S -sm "lxd/auth: Update auth" -- ./lxd/auth/;\
+		fi;\
+	fi
