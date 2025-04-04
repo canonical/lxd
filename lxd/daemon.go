@@ -94,7 +94,7 @@ type Daemon struct {
 	dns           *dns.Server
 
 	// Event servers
-	devlxdEvents     *events.DevLXDServer
+	devLXDEvents     *events.DevLXDServer
 	events           *events.Server
 	internalListener *events.InternalListener
 
@@ -183,13 +183,13 @@ type DaemonConfig struct {
 // newDaemon returns a new Daemon object with the given configuration.
 func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	lxdEvents := events.NewServer(daemon.Debug, daemon.Verbose, cluster.EventHubPush)
-	devlxdEvents := events.NewDevLXDServer(daemon.Debug, daemon.Verbose)
+	devLXDEvents := events.NewDevLXDServer(daemon.Debug, daemon.Verbose)
 	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
 
 	d := &Daemon{
 		identityCache:  &identity.Cache{},
 		config:         config,
-		devlxdEvents:   devlxdEvents,
+		devLXDEvents:   devLXDEvents,
 		events:         lxdEvents,
 		tasks:          task.NewGroup(),
 		clusterTasks:   task.NewGroup(),
@@ -683,7 +683,7 @@ func (d *Daemon) State() *state.State {
 		OS:                  d.os,
 		Endpoints:           d.endpoints,
 		Events:              d.events,
-		DevlxdEvents:        d.devlxdEvents,
+		DevlxdEvents:        d.devLXDEvents,
 		Firewall:            d.firewall,
 		Proxy:               d.proxy,
 		ServerCert:          d.serverCert,
@@ -1389,12 +1389,12 @@ func (d *Daemon) init() error {
 			logger.Warn("Failed setting up shared mounts", logger.Ctx{"err": err})
 		}
 
-		// Attempt to Mount the devlxd tmpfs
-		devlxd := filepath.Join(d.os.VarDir, "devlxd")
-		if !filesystem.IsMountPoint(devlxd) {
-			err = unix.Mount("tmpfs", devlxd, "tmpfs", 0, "size=100k,mode=0755")
+		// Attempt to Mount the devLXD tmpfs
+		devLXD := filepath.Join(d.os.VarDir, "devlxd")
+		if !filesystem.IsMountPoint(devLXD) {
+			err = unix.Mount("tmpfs", devLXD, "tmpfs", 0, "size=100k,mode=0755")
 			if err != nil {
-				logger.Warn("Failed to mount devlxd", logger.Ctx{"err": err})
+				logger.Warn("Failed to mount devLXD", logger.Ctx{"err": err})
 			}
 		}
 	}
