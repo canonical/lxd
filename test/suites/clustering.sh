@@ -1328,8 +1328,8 @@ test_clustering_upgrade() {
   # The second daemon is blocked waiting for the other to be upgraded
   ! LXD_DIR="${LXD_TWO_DIR}" lxd waitready --timeout=5 || false
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "message: Fully operational"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: waiting for other nodes to be upgraded"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "message: LXD version is older than other members"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: LXD version is newer than other members"
 
   # Respawn the first node, so it matches the version the second node
   # believes to have.
@@ -1340,7 +1340,7 @@ test_clustering_upgrade() {
   LXD_DIR="${LXD_TWO_DIR}" lxd waitready --timeout=30
 
   # The cluster is again operational
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "OFFLINE" || false
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -c "Fully operational")" -eq 2 ]
 
   # Now spawn a third node and test the upgrade with a 3-node cluster.
   setup_clustering_netns 3
@@ -1359,9 +1359,9 @@ test_clustering_upgrade() {
   # upgraded
   ! LXD_DIR="${LXD_TWO_DIR}" lxd waitready --timeout=5 || false
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "message: Fully operational"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: waiting for other nodes to be upgraded"
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node3 | grep -q "message: Fully operational"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "message: LXD version is older than other members"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: LXD version is newer than other members"
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node3 | grep -q "message: LXD version is older than other members"
 
   # Respawn the first node and third node, so they match the version
   # the second node believes to have.
@@ -1371,7 +1371,7 @@ test_clustering_upgrade() {
   LXD_NETNS="${ns3}" respawn_lxd "${LXD_THREE_DIR}" true
 
   # The cluster is again operational
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "OFFLINE" || false
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -c "Fully operational")" -eq 3 ]
 
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
