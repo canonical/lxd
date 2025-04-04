@@ -1,5 +1,5 @@
 ---
-relatedlinks: https://www.youtube.com/watch?v=pqV0Z1qwbkg
+relatedlinks: "[LXD's&#32;development&#32;process&#32;-&#32;YouTube](https://www.youtube.com/watch?v=pqV0Z1qwbkg)"
 ---
 
 % Include content from [../CONTRIBUTING.md](../CONTRIBUTING.md)
