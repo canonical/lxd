@@ -5025,3 +5025,101 @@ EOF
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
 }
+
+test_clustering_link() {
+  # Create clusters LXD_ONE and LXD_TWO
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  spawn_lxd "${LXD_ONE_DIR}" false
+
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  spawn_lxd "${LXD_TWO_DIR}" false
+
+  # Get the address of LXD_ONE.
+  LXD_ONE_ADDR="$(LXD_DIR="${LXD_ONE_DIR}" lxc config get core.https_address)"
+
+  # Enable clustering on LXD_ONE.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster enable node1
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -cwF 'node1')" = 1 ]
+
+  sub_test "Check local cluster link deletion with pending identity"
+
+  # Create pending cluster link on LXD_ONE
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create foo --quiet
+
+  # Check that it is not possible to create a cluster link with the same name as a pre-existing cluster link.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create foo --quiet || false
+
+  # Delete pending cluster link on LXD_ONE
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete foo
+
+  # Check pending cluster link identity is removed
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc auth identity list --format csv | grep -cF 'Cluster link certificate (pending)')" = 0 ]
+
+  sub_test "Check cluster link trust establishment"
+
+  # Get a cluster link trust token from LXD_ONE.
+  # Create pending cluster link on LXD_ONE
+  LXD_ONE_TRUST_TOKEN="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_two --quiet)"
+
+  # Check that the cluster link identity on LXD_ONE is pending
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc auth identity list --format csv | grep -cF 'Cluster link certificate (pending)')" = 1 ]
+
+  # Get the address of LXD_TWO.
+  LXD_TWO_ADDR="$(LXD_DIR="${LXD_TWO_DIR}" lxc config get core.https_address)"
+
+  # Enable clustering on LXD_TWO.
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster enable node2
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -cwF 'node2')" = 1 ]
+
+  # Create cluster link on LXD_TWO using the token from LXD_ONE
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link create lxd_one --token "${LXD_ONE_TRUST_TOKEN}"
+
+  # Check that the cluster link on LXD_TWO contains the address of LXD_ONE
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster link list --format csv | grep -cF "${LXD_ONE_ADDR}")" = 1 ]
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link info lxd_one
+
+  # Check that the cluster link identity on LXD_TWO is active
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc auth identity list --format csv | grep -F 'Cluster link certificate' | grep -cvF '(pending)')" = 1 ]
+
+  # Check that the cluster link identity on LXD_ONE is active
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc auth identity list --format csv | grep -cF 'Cluster link certificate')" = 1 ]
+
+  # Check that the cluster link on LXD_ONE contains the address of LXD_TWO
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link list --format csv | grep -cF "${LXD_TWO_ADDR}")" = 1 ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link info lxd_two
+
+  # Check that LXD_TWO trusts LXD_ONE
+  curl -s --cert "${LXD_ONE_DIR}/cluster.crt" --key "${LXD_ONE_DIR}/cluster.key" --cacert "${LXD_TWO_DIR}/cluster.crt" "https://${LXD_TWO_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
+
+  # Check that LXD_ONE trusts LXD_TWO
+  curl -s --cert "${LXD_TWO_DIR}/cluster.crt" --key "${LXD_TWO_DIR}/cluster.key" --cacert "${LXD_ONE_DIR}/cluster.crt" "https://${LXD_ONE_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
+
+  sub_test "Check cluster link deletion and trust removal"
+
+  # Delete cluster link on LXD_ONE
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete lxd_two
+
+  # Check cluster link identity on LXD_ONE is removed
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc auth identity list --format csv | grep -cF 'Cluster link certificate')" = 0 ]
+
+  # Check that LXD_ONE no longer trusts LXD_TWO
+  curl -s --cert "${LXD_TWO_DIR}/cluster.crt" --key "${LXD_TWO_DIR}/cluster.key" --cacert "${LXD_ONE_DIR}/cluster.crt" "https://${LXD_ONE_ADDR}/1.0" | jq --exit-status '.metadata.auth == "untrusted"'
+
+  # Check that LXD_TWO still trusts LXD_ONE
+  curl -s --cert "${LXD_ONE_DIR}/cluster.crt" --key "${LXD_ONE_DIR}/cluster.key" --cacert "${LXD_TWO_DIR}/cluster.crt" "https://${LXD_TWO_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
+
+  # Delete cluster link on LXD_TWO
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link delete lxd_one
+
+  # Check cluster link identity on LXD_TWO is removed
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc auth identity list --format csv | grep -cF 'Cluster link certificate')" = 0 ]
+
+  # Check that LXD_TWO no longer trusts LXD_ONE
+  curl -s --cert "${LXD_ONE_DIR}/cluster.crt" --key "${LXD_ONE_DIR}/cluster.key" --cacert "${LXD_TWO_DIR}/cluster.crt" "https://${LXD_TWO_ADDR}/1.0" | jq --exit-status '.metadata.auth == "untrusted"'
+
+  # Cleanup
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
+}
