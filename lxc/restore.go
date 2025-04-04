@@ -12,7 +12,9 @@ import (
 type cmdRestore struct {
 	global *cmdGlobal
 
-	flagStateful bool
+	flagStateful     bool
+	flagDisks        string
+	flagExcludeDisks string
 }
 
 func (c *cmdRestore) command() *cobra.Command {
@@ -32,6 +34,8 @@ lxc restore u1 snap0
 
 	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Whether or not to restore the instance's running state from snapshot (if available)"))
+	cmd.Flags().StringVar(&c.flagDisks, "disks", "", i18n.G(`Which disks should be included when restoring; can be "root" or "volumes"`))
+	cmd.Flags().StringVar(&c.flagExcludeDisks, "exclude-disks", "", i18n.G(`Comma-separated list of names for which disks should be ignored when performing a multi-volume restore`))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
 		if len(args) > 1 {
@@ -80,8 +84,10 @@ func (c *cmdRestore) run(cmd *cobra.Command, args []string) error {
 	}
 
 	req := api.InstancePut{
-		Restore:  snapname,
-		Stateful: c.flagStateful,
+		Restore:      snapname,
+		Stateful:     c.flagStateful,
+		DisksMode:    c.flagDisks,
+		ExcludeDisks: shared.SplitNTrimSpace(c.flagExcludeDisks, ",", -1, true),
 	}
 
 	// Restore the snapshot
