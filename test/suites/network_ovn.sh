@@ -80,6 +80,25 @@ test_network_ovn() {
       ipv4.address=10.24.140.1/24 ipv4.nat=true \
       ipv6.address=fd42:bd85:5f89:5293::1/64 ipv6.nat=true
 
+  echo "Create a dummy uplink physical network to test network collision validation."
+  ip link add dummy0 type dummy
+  physical_network="physical$$"
+  lxc network create "${physical_network}" --type=physical parent=dummy0
+
+  echo "Set dummy OVN ranges."
+  lxc network set "${physical_network}" ipv4.ovn.ranges=10.145.237.100-10.145.237.254
+  lxc network set "${physical_network}" ipv6.ovn.ranges=fd42:8cf6:32a0:8087::100-fd42:8cf6:32a0:8087::254
+
+  echo "Check that ipv4.routes cannot be set to include ipv4.ovn.ranges on a physical uplink network."
+  ! lxc network set "${physical_network}" ipv4.routes=10.145.237.0/24 || false
+
+  echo "Check that ipv6.routes cannot be set to include ipv6.ovn.ranges on a physical uplink network."
+  ! lxc network set "${physical_network}" ipv6.routes=fd42:8cf6:32a0:8087::/64 || false
+
+  echo "Delete the dummy physical network."
+  lxc network delete "${physical_network}"
+  ip link delete dummy0
+
   # Check this created the correct number of entries.
   tables["ACL"]=15
   tables["Address_Set"]=2
@@ -200,6 +219,12 @@ test_network_ovn() {
   # Check that volatile uplink IPs must be in the allowed ranges specified on the uplink.
   ! lxc network set "${ovn_network}" volatile.network.ipv4.address=10.10.10.199 || false
   ! lxc network set "${ovn_network}" volatile.network.ipv6.address=fd42:4242:4242:1010::199 || false
+
+  echo "Check that ipv4.routes cannot be set to include ipv4.ovn.ranges on a bridge uplink network."
+  ! lxc network set "${uplink_network}" ipv4.routes=10.10.10.0/24 || false
+
+  echo "Check that ipv6.routes cannot be set to include ipv6.ovn.ranges on a bridge uplink network."
+  ! lxc network set "${uplink_network}" ipv6.routes=fd42:4242:4242:1010::/64 || false
 
   # Launch an instance on the OVN network and assert configuration changes.
   ensure_import_testimage

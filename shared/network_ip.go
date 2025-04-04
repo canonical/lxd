@@ -147,10 +147,31 @@ func (r *IPRange) Overlaps(otherRange *IPRange) bool {
 	return r.ContainsIP(otherRange.Start) || r.ContainsIP(otherRange.End)
 }
 
+// OverlapsNetwork checks whether ip range is at least partially inside of a given network.
+func (r *IPRange) OverlapsNetwork(network *net.IPNet) bool {
+	return network.Contains(r.Start) || network.Contains(r.End)
+}
+
 func (r *IPRange) String() string {
 	if r.End == nil {
 		return r.Start.String()
 	}
 
 	return fmt.Sprintf("%v-%v", r.Start, r.End)
+}
+
+// ParseNetworks parses a comma separated list of IP networks in CIDR notation.
+func ParseNetworks(netList string) ([]*net.IPNet, error) {
+	networks := strings.Split(netList, ",")
+	ipNetworks := make([]*net.IPNet, 0, len(networks))
+	for _, network := range networks {
+		_, ipNet, err := net.ParseCIDR(strings.TrimSpace(network))
+		if err != nil {
+			return nil, err
+		}
+
+		ipNetworks = append(ipNetworks, ipNet)
+	}
+
+	return ipNetworks, nil
 }

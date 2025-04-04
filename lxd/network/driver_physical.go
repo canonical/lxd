@@ -219,6 +219,73 @@ func (n *physical) Validate(config map[string]string) error {
 		return err
 	}
 
+	// Avoid network collisions.
+	err = n.validateRoutes(config)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateRoutes checks for network collisions. I.e., ipv4.ovn.ranges must not be included in ipv4.routes.
+func (n *physical) validateRoutes(config map[string]string) error {
+	var (
+		routesListIPv4 []*net.IPNet
+		routesListIPv6 []*net.IPNet
+
+		ovnRangesListIPv4 []*shared.IPRange
+		ovnRangesListIPv6 []*shared.IPRange
+
+		err error
+	)
+
+	if config["ipv4.routes"] != "" {
+		routesListIPv4, err = shared.ParseNetworks(config["ipv4.routes"])
+		if err != nil {
+			return fmt.Errorf("Failed parsing ipv4.routes: %w", err)
+		}
+
+		if config["ipv4.ovn.ranges"] != "" {
+			ovnRangesListIPv4, err = shared.ParseIPRanges(config["ipv4.ovn.ranges"])
+			if err != nil {
+				return fmt.Errorf("Failed parsing ipv4.ovn.ranges: %w", err)
+			}
+		}
+	}
+
+	if config["ipv6.routes"] != "" {
+		routesListIPv6, err = shared.ParseNetworks(config["ipv6.routes"])
+		if err != nil {
+			return fmt.Errorf("Failed parsing ipv6.routes: %w", err)
+		}
+
+		if config["ipv6.ovn.ranges"] != "" {
+			ovnRangesListIPv6, err = shared.ParseIPRanges(config["ipv6.ovn.ranges"])
+			if err != nil {
+				return fmt.Errorf("Failed parsing ipv6.ovn.ranges: %w", err)
+			}
+		}
+	}
+
+	// Validate ipv4.routes.
+	for _, routes := range routesListIPv4 {
+		for _, ovnRange := range ovnRangesListIPv4 {
+			if ovnRange.OverlapsNetwork(routes) {
+				return fmt.Errorf(`"ipv4.routes" (%q) should not include "ipv4.ovn.ranges" (%q)`, routes, ovnRange)
+			}
+		}
+	}
+
+	// Validate ipv6.routes.
+	for _, routes := range routesListIPv6 {
+		for _, ovnRange := range ovnRangesListIPv6 {
+			if ovnRange.OverlapsNetwork(routes) {
+				return fmt.Errorf(`"ipv6.routes" (%q) should not include "ipv6.ovn.ranges" (%q)`, routes, ovnRange)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -289,7 +356,7 @@ func (n *physical) Delete(clientType request.ClientType) error {
 		return err
 	}
 
-	return n.common.delete()
+	return n.delete()
 }
 
 // Rename renames a network.
@@ -297,7 +364,7 @@ func (n *physical) Rename(newName string) error {
 	n.logger.Debug("Rename", logger.Ctx{"newName": newName})
 
 	// Rename common steps.
-	err := n.common.rename(newName)
+	err := n.rename(newName)
 	if err != nil {
 		return err
 	}
@@ -429,7 +496,7 @@ func (n *physical) Stop() error {
 func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
 	n.logger.Debug("Update", logger.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
-	dbUpdateNeeded, changedKeys, oldNetwork, err := n.common.configChanged(newNetwork)
+	dbUpdateNeeded, changedKeys, oldNetwork, err := n.configChanged(newNetwork)
 	if err != nil {
 		return err
 	}
@@ -442,7 +509,7 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 	// pending, then don't apply the new settings to the node, just to the database record (ready for the
 	// actual global create request to be initiated).
 	if n.Status() == api.NetworkStatusPending || n.LocalStatus() == api.NetworkStatusPending {
-		return n.common.update(newNetwork, targetNode, clientType)
+		return n.update(newNetwork, targetNode, clientType)
 	}
 
 	revert := revert.New()
@@ -482,11 +549,11 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 	// Define a function which reverts everything.
 	revert.Add(func() {
 		// Reset changes to all nodes and database.
-		_ = n.common.update(oldNetwork, targetNode, clientType)
+		_ = n.update(oldNetwork, targetNode, clientType)
 	})
 
 	// Apply changes to all nodes and databse.
-	err = n.common.update(newNetwork, targetNode, clientType)
+	err = n.update(newNetwork, targetNode, clientType)
 	if err != nil {
 		return err
 	}
@@ -509,7 +576,7 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 	// Do this after the network has been successfully updated so that a failure to notify a dependent network
 	// doesn't prevent the network itself from being updated.
 	if clientType == request.ClientTypeNormal && len(changedKeys) > 0 {
-		n.common.notifyDependentNetworks(changedKeys)
+		n.notifyDependentNetworks(changedKeys)
 	}
 
 	return nil
