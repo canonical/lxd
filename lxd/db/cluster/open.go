@@ -260,7 +260,7 @@ func checkClusterIsUpgradable(ctx context.Context, tx *sql.Tx, target [2]int) er
 	// Get the current versions in the nodes table.
 	versions, err := selectNodesVersions(ctx, tx)
 	if err != nil {
-		return fmt.Errorf("failed to fetch current nodes versions: %w", err)
+		return fmt.Errorf("Failed fetching current member versions: %w", err)
 	}
 
 	for _, version := range versions {
