@@ -6,21 +6,21 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-type devLxdResponse struct {
+type devLXDResponse struct {
 	content any
 	code    int
 	ctype   string
 }
 
-func errorResponse(code int, msg string) *devLxdResponse {
-	return &devLxdResponse{msg, code, "raw"}
+func errorResponse(code int, msg string) *devLXDResponse {
+	return &devLXDResponse{msg, code, "raw"}
 }
 
-func okResponse(ct any, ctype string) *devLxdResponse {
-	return &devLxdResponse{ct, http.StatusOK, ctype}
+func okResponse(ct any, ctype string) *devLXDResponse {
+	return &devLXDResponse{ct, http.StatusOK, ctype}
 }
 
-func smartResponse(err error) *devLxdResponse {
+func smartResponse(err error) *devLXDResponse {
 	if err == nil {
 		return okResponse(nil, "")
 	}
