@@ -61,8 +61,8 @@ func CephGetRBDImageName(vol Volume, zombie bool) (imageName string, snapName st
 // parseCephMonHost parses the mon-host line from the ceph configuration file
 // and returns a list of addresses and ports.
 func parseCephMonHost(line string) []string {
-	fields := strings.SplitN(line, "=", 2)
-	if len(fields) < 2 {
+	_, monHost, found := strings.Cut(line, "=")
+	if !found {
 		return nil
 	}
 
@@ -82,7 +82,7 @@ func parseCephMonHost(line string) []string {
 	// doesn't take the version indication, trailing bits or supports those
 	// tuples, all of those effectively get stripped away to get a clean
 	// address list (with ports).
-	entries := strings.Split(fields[1], " ")
+	entries := strings.Split(monHost, " ")
 	for _, entry := range entries {
 		servers := strings.Split(entry, ",")
 		for _, server := range servers {
