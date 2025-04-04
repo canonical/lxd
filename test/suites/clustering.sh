@@ -3936,7 +3936,7 @@ test_clustering_events() {
   ns4="${prefix}4"
   spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
 
-  # Spawn a firth node.
+  # Spawn a fith node.
   setup_clustering_netns 5
   LXD_FIVE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_FIVE_DIR}"
