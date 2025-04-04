@@ -2,8 +2,10 @@ package drivers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -825,7 +827,7 @@ func (d *common) runHooks(hooks []func() error) error {
 // inst's "snapshots.expiry"" if expiry is nil, mounts the instance to update
 // backup.yaml, and reverts on error. The snapshot is marked stateful when
 // stateful is true.
-func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *time.Time, stateful bool) error {
+func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *time.Time, stateful bool, disks deviceConfig.Devices) (err error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -840,6 +842,59 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		}
 
 		expiry = &instanceSnapshotExpiry
+	}
+
+	snapshotConfig := inst.LocalConfig()
+	var volumeMap map[volumeKey]*api.StorageVolume
+
+	// If any disks were provided, include attached volumes.
+	if len(disks) > 0 {
+		// Get a map of attached volumes and check for shared ones.
+		var shared []*api.StorageVolume
+		err := d.state.DB.Cluster.Transaction(d.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			volumeMap, err = d.attachedCustomVolumes(ctx, tx, inst, disks)
+			if err != nil {
+				return err
+			}
+
+			shared, err = d.getSharedVolumes(ctx, tx, volumeMap, inst)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("Failed retrieving records for attached volumes: %w", err)
+		}
+
+		// Shared volumes cannot be snapshotted as they may be in use by other instances.
+		if len(shared) > 0 {
+			var errorMessageBuilder strings.Builder
+			volumeToDevice := make(map[volumeKey]string)
+			for name, device := range disks {
+				volumeToDevice[volumeKey{device["pool"], device["source"]}] = name
+			}
+
+			errorMessageBuilder.WriteString("Cannot snapshot source volumes for the following devices:\n")
+
+			for _, volume := range shared {
+				errorMessageBuilder.WriteString(volumeToDevice[volumeKey{volume.Pool, volume.Name}] + " (shared volume)")
+			}
+
+			return errors.New(errorMessageBuilder.String())
+		}
+
+		// Generate a UUID for each attached volume to be snapshotted.
+		attachedVolumesUUIDs := make(map[string]string)
+		for _, volume := range volumeMap {
+			attachedVolumesUUIDs[volume.Config["volatile.uuid"]] = uuid.NewString()
+		}
+
+		// Set "volatile.attached_volumes" to reference attached volume snapshots' UUIDs.
+		marshaledUUIDs, err := json.Marshal(attachedVolumesUUIDs)
+
+		snapshotConfig["volatile.attached_volumes"] = string(marshaledUUIDs)
 	}
 
 	// Setup the arguments.
@@ -872,7 +927,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		return err
 	}
 
-	err = pool.CreateInstanceSnapshot(snap, inst, d.op)
+	err = pool.CreateInstanceSnapshot(snap, inst, slices.Collect[*api.StorageVolume](maps.Values(volumeMap)), d.op)
 	if err != nil {
 		return fmt.Errorf("Create instance snapshot: %w", err)
 	}
