@@ -89,11 +89,11 @@ func MaybeUpdate(state *state.State) error {
 
 	if err != nil {
 		// Just log the error and return.
-		return fmt.Errorf("Failed to check if this node is out-of-date: %w", err)
+		return fmt.Errorf("Failed to check if this member is out-of-date: %w", err)
 	}
 
 	if !shouldUpdate {
-		logger.Debugf("Cluster node is up-to-date")
+		logger.Debugf("Cluster member is up-to-date")
 		return nil
 	}
 
