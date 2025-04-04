@@ -89,11 +89,23 @@ func parseCephMonHost(line string) []string {
 			// Trim leading/trailing spaces.
 			server = strings.TrimSpace(server)
 
+			// v1 uses 6789 and v2 uses 3300.
+			// v1 is the default if no port is specified.
+			defaultPort := "6789"
+
 			// Trim leading protocol version.
 			server = strings.TrimPrefix(server, "v1:")
-			server = strings.TrimPrefix(server, "v2:")
 			server = strings.TrimPrefix(server, "[v1:")
-			server = strings.TrimPrefix(server, "[v2:")
+
+			server, found = strings.CutPrefix(server, "v2:")
+			if found {
+				defaultPort = "3300"
+			}
+
+			server, found = strings.CutPrefix(server, "[v2:")
+			if found {
+				defaultPort = "3300"
+			}
 
 			// Trim trailing divider.
 			server = strings.Split(server, "/")[0]
@@ -114,7 +126,7 @@ func parseCephMonHost(line string) []string {
 
 			// Append the default v1 port if none are present.
 			if !strings.HasSuffix(server, ":6789") && !strings.HasSuffix(server, ":3300") {
-				server += ":6789"
+				server += ":" + defaultPort
 			}
 
 			cephMon = append(cephMon, strings.TrimSpace(server))
