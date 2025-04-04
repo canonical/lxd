@@ -204,32 +204,6 @@ func (c *ClusterTx) GetNodeByAddress(ctx context.Context, address string) (NodeI
 	}
 }
 
-// GetNodeMaxVersion returns the highest schema and API versions possible on the cluster.
-func (c *ClusterTx) GetNodeMaxVersion(ctx context.Context) ([2]int, error) {
-	version := [2]int{}
-
-	// Get the maximum DB schema.
-	var maxSchema int
-	row := c.tx.QueryRowContext(ctx, "SELECT MAX(schema) FROM nodes")
-	err := row.Scan(&maxSchema)
-	if err != nil {
-		return version, err
-	}
-
-	// Get the maximum API extension.
-	var maxAPI int
-	row = c.tx.QueryRowContext(ctx, "SELECT MAX(api_extensions) FROM nodes")
-	err = row.Scan(&maxAPI)
-	if err != nil {
-		return version, err
-	}
-
-	// Compute the combined version.
-	version = [2]int{maxSchema, maxAPI}
-
-	return version, nil
-}
-
 // GetNodeWithID returns the node with the given ID.
 func (c *ClusterTx) GetNodeWithID(ctx context.Context, nodeID int) (NodeInfo, error) {
 	null := NodeInfo{}
