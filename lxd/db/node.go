@@ -530,7 +530,7 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 		}
 	}
 
-	config, err := cluster.GetConfig(context.TODO(), c.Tx(), "node")
+	config, err := cluster.GetConfig(ctx, c.Tx(), "node")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch nodes config: %w", err)
 	}
