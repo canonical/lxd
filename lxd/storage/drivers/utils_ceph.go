@@ -34,9 +34,10 @@ func CephGetRBDImageName(vol Volume, zombie bool) (imageName string, snapName st
 		parentName = parentName + "_" + vol.ConfigBlockFilesystem()
 	}
 
-	if vol.contentType == ContentTypeBlock {
+	switch vol.contentType {
+	case ContentTypeBlock:
 		parentName = parentName + cephBlockVolSuffix
-	} else if vol.contentType == ContentTypeISO {
+	case ContentTypeISO:
 		parentName = parentName + cephISOVolSuffix
 	}
 
@@ -56,6 +57,84 @@ func CephGetRBDImageName(vol Volume, zombie bool) (imageName string, snapName st
 	}
 
 	return imageName, snapName
+}
+
+// parseCephMonHost parses the mon-host line from the ceph configuration file
+// and returns a list of addresses and ports.
+func parseCephMonHost(line string) []string {
+	_, monHost, found := strings.Cut(line, "=")
+	if !found {
+		return nil
+	}
+
+	cephMon := []string{}
+
+	// Parsing mon_host is quite tricky.
+	// It supports a space separate list of comma separated lists of:
+	//  - DNS names
+	//  - IPv4 addresses
+	//  - IPv6 addresses (square brackets)
+	//  - Optional version indicator
+	//  - Optional port numbers
+	//  - Optional data (after / separator)
+	//  - Tuples of addresses with all the above still applying inside the tuple
+	//
+	// As this function is primarily used for cephfs which
+	// doesn't take the version indication, trailing bits or supports those
+	// tuples, all of those effectively get stripped away to get a clean
+	// address list (with ports).
+	entries := strings.Split(monHost, " ")
+	for _, entry := range entries {
+		servers := strings.Split(entry, ",")
+		for _, server := range servers {
+			// Trim leading/trailing spaces.
+			server = strings.TrimSpace(server)
+
+			// v1 uses 6789 and v2 uses 3300.
+			// v1 is the default if no port is specified.
+			defaultPort := "6789"
+
+			// Trim leading protocol version.
+			server = strings.TrimPrefix(server, "v1:")
+			server = strings.TrimPrefix(server, "[v1:")
+
+			server, found = strings.CutPrefix(server, "v2:")
+			if found {
+				defaultPort = "3300"
+			}
+
+			server, found = strings.CutPrefix(server, "[v2:")
+			if found {
+				defaultPort = "3300"
+			}
+
+			// Trim trailing divider.
+			server = strings.Split(server, "/")[0]
+
+			// Handle end of nested blocks.
+			server = strings.ReplaceAll(server, "]]", "]")
+			if !strings.HasPrefix(server, "[") {
+				server = strings.TrimSuffix(server, "]")
+			}
+
+			// Trim any spaces.
+			server = strings.TrimSpace(server)
+
+			// If nothing left, skip.
+			if server == "" {
+				continue
+			}
+
+			// Append the default v1 port if none are present.
+			if !strings.HasSuffix(server, ":6789") && !strings.HasSuffix(server, ":3300") {
+				server += ":" + defaultPort
+			}
+
+			cephMon = append(cephMon, strings.TrimSpace(server))
+		}
+	}
+
+	return cephMon
 }
 
 // CephMonitors gets the mon-host field for the relevant cluster and extracts the list of addresses and ports.
@@ -78,63 +157,8 @@ func CephMonitors(cluster string) ([]string, error) {
 		}
 
 		if strings.HasPrefix(line, "mon_host") || strings.HasPrefix(line, "mon-host") || strings.HasPrefix(line, "mon host") {
-			fields := strings.SplitN(line, "=", 2)
-			if len(fields) < 2 {
-				continue
-			}
-
-			// Parsing mon_host is quite tricky.
-			// It supports a space separate list of comma separated lists of:
-			//  - DNS names
-			//  - IPv4 addresses
-			//  - IPv6 addresses (square brackets)
-			//  - Optional version indicator
-			//  - Optional port numbers
-			//  - Optional data (after / separator)
-			//  - Tuples of addresses with all the above still applying inside the tuple
-			//
-			// As this function is primarily used for cephfs which
-			// doesn't take the version indication, trailing bits or supports those
-			// tuples, all of those effectively get stripped away to get a clean
-			// address list (with ports).
-			entries := strings.Split(fields[1], " ")
-			for _, entry := range entries {
-				servers := strings.Split(entry, ",")
-				for _, server := range servers {
-					// Trim leading/trailing spaces.
-					server = strings.TrimSpace(server)
-
-					// Trim leading protocol version.
-					server = strings.TrimPrefix(server, "v1:")
-					server = strings.TrimPrefix(server, "v2:")
-					server = strings.TrimPrefix(server, "[v1:")
-					server = strings.TrimPrefix(server, "[v2:")
-
-					// Trim trailing divider.
-					server = strings.Split(server, "/")[0]
-
-					// Handle end of nested blocks.
-					server = strings.ReplaceAll(server, "]]", "]")
-					if !strings.HasPrefix(server, "[") {
-						server = strings.TrimSuffix(server, "]")
-					}
-
-					// Trim any spaces.
-					server = strings.TrimSpace(server)
-
-					// If nothing left, skip.
-					if server == "" {
-						continue
-					}
-
-					// Append the default v1 port if none are present.
-					if !strings.HasSuffix(server, ":6789") && !strings.HasSuffix(server, ":3300") {
-						server += ":6789"
-					}
-
-					cephMon = append(cephMon, strings.TrimSpace(server))
-				}
-			}
+			cephMon = parseCephMonHost(line)
+			break
 		}
 	}
 
