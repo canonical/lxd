@@ -35,6 +35,11 @@ type ProfilePut struct {
 	// List of devices
 	// Example: {"root": {"type": "disk", "pool": "default", "path": "/"}, "eth0": {"type": "nic", "network": "lxdbr0", "name": "eth0"}}
 	Devices map[string]map[string]string `json:"devices" yaml:"devices"`
+
+	// List of instance placement rules
+	//
+	// API extension: instance_placement_rules
+	PlacementRules map[string]InstancePlacementRule `json:"placement_rules" yaml:"placement_rules"`
 }
 
 // Profile represents a LXD profile
@@ -60,6 +65,11 @@ type Profile struct {
 	// Example: {"root": {"type": "disk", "pool": "default", "path": "/"}, "eth0": {"type": "nic", "network": "lxdbr0", "name": "eth0"}}
 	Devices map[string]map[string]string `json:"devices" yaml:"devices"`
 
+	// List of instance placement rules
+	//
+	// API extension: instance_placement_rules
+	PlacementRules map[string]InstancePlacementRule `json:"placement_rules" yaml:"placement_rules"`
+
 	// List of URLs of objects using this profile
 	// Read only: true
 	// Example: ["/1.0/instances/c1", "/1.0/instances/v1"]
@@ -77,9 +87,10 @@ type Profile struct {
 // Writable converts a full Profile struct into a ProfilePut struct (filters read-only fields).
 func (profile *Profile) Writable() ProfilePut {
 	return ProfilePut{
-		Description: profile.Description,
-		Config:      profile.Config,
-		Devices:     profile.Devices,
+		Description:    profile.Description,
+		Config:         profile.Config,
+		Devices:        profile.Devices,
+		PlacementRules: profile.PlacementRules,
 	}
 }
 
@@ -88,6 +99,7 @@ func (profile *Profile) SetWritable(put ProfilePut) {
 	profile.Description = put.Description
 	profile.Config = put.Config
 	profile.Devices = put.Devices
+	profile.PlacementRules = put.PlacementRules
 }
 
 // URL returns the URL for the profile.

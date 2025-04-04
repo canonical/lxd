@@ -411,6 +411,11 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	placementRules, err := dbCluster.InstancePlacementRulesFromAPI(req.PlacementRules)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
 	// Update DB entry.
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		devices, err := dbCluster.APIToDevices(req.Devices)
@@ -443,6 +448,8 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
+
+		err = dbCluster.UpsertInstancePlacementRules(ctx, tx.Tx(), entity.TypeProfile, int(id), placementRules)
 
 		return err
 	})
@@ -787,6 +794,17 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 			_, ok := req.Devices[k]
 			if !ok {
 				req.Devices[k] = v
+			}
+		}
+	}
+
+	if req.PlacementRules == nil {
+		req.PlacementRules = profile.PlacementRules
+	} else {
+		for k, v := range profile.PlacementRules {
+			_, ok := req.PlacementRules[k]
+			if !ok {
+				req.PlacementRules[k] = v
 			}
 		}
 	}

@@ -44,6 +44,48 @@ const (
 	SourceTypeNone = "none"
 )
 
+// InstancePlacementRuleKind denotes the placement strategy for a set of selectors under InstancePlacementRule.
+//
+// API extension: instance_placement_rules.
+type InstancePlacementRuleKind string
+
+const (
+	// InstancePlacementRuleKindAffinity indicates that an instance should be placed in or with entities that are found by associated selectors.
+	InstancePlacementRuleKindAffinity InstancePlacementRuleKind = "affinity"
+
+	// InstancePlacementRuleKindAntiAffinity indicates that an instance should be placed away from or not with entities that are found by associated selectors.
+	InstancePlacementRuleKindAntiAffinity InstancePlacementRuleKind = "anti-affinity"
+
+	// InstancePlacementRuleKindNone is used to override an InstancePlacementRule that is inherited from a profile.
+	InstancePlacementRuleKindNone InstancePlacementRuleKind = "none"
+)
+
+// InstancePlacementRule represents a scheduling rule for an instance.
+//
+// swagger:model
+//
+// API extension: instance_placement_rules.
+type InstancePlacementRule struct {
+	// Required indicates that placement should fail if the rule cannot be satisfied.
+	//
+	// Example: true
+	Required bool `json:"required" yaml:"required"`
+
+	// Kind indicates how to apply the rule.
+	//
+	// Example: affinity
+	Kind InstancePlacementRuleKind `json:"kind" yaml:"kind"`
+
+	// Priority indicates the apply order of the rule if it is not required.
+	// Non-required rules are applied in descending order of priority.
+	//
+	// Example: 1
+	Priority int `json:"priority" yaml:"priority"`
+
+	// Selector determines the entities that the rule is applied against.
+	Selector Selector `json:"selector" yaml:"selector"`
+}
+
 // InstancesPost represents the fields available for a new LXD instance.
 //
 // swagger:model
@@ -214,6 +256,11 @@ type InstancePut struct {
 	// Instance description
 	// Example: My test instance
 	Description string `json:"description" yaml:"description"`
+
+	// PlacementRules are a map of rule name to InstancePlacementRule.
+	//
+	// API Extension: instance_placement_rules
+	PlacementRules map[string]InstancePlacementRule `json:"placement_rules" yaml:"placement_rules"`
 }
 
 // InstanceRebuildPost indicates how to rebuild an instance.
@@ -296,6 +343,11 @@ type Instance struct {
 	// Example: {"root": {"type": "disk", "pool": "default", "path": "/"}}
 	Devices map[string]map[string]string `json:"devices" yaml:"devices"`
 
+	// PlacementRules are a map of rule name to InstancePlacementRule.
+	//
+	// API Extension: instance_placement_rules
+	PlacementRules map[string]InstancePlacementRule `json:"placement_rules" yaml:"placement_rules"`
+
 	// Expanded configuration (all profiles and local config merged)
 	// Example: {"security.nesting": "true"}
 	ExpandedConfig map[string]string `json:"expanded_config,omitempty" yaml:"expanded_config,omitempty"`
@@ -303,6 +355,11 @@ type Instance struct {
 	// Expanded devices (all profiles and local devices merged)
 	// Example: {"root": {"type": "disk", "pool": "default", "path": "/"}}
 	ExpandedDevices map[string]map[string]string `json:"expanded_devices,omitempty" yaml:"expanded_devices,omitempty"`
+
+	// PlacementRules are a map of rule name to InstancePlacementRule.
+	//
+	// API Extension: instance_placement_rules
+	ExpandedPlacementRules map[string]InstancePlacementRule `json:"expanded_placement_rules" yaml:"expanded_placement_rules"`
 }
 
 // InstanceFull is a combination of Instance, InstanceBackup, InstanceState and InstanceSnapshot.
@@ -328,13 +385,14 @@ type InstanceFull struct {
 // API extension: instances.
 func (c *Instance) Writable() InstancePut {
 	return InstancePut{
-		Architecture: c.Architecture,
-		Config:       c.Config,
-		Devices:      c.Devices,
-		Ephemeral:    c.Ephemeral,
-		Profiles:     c.Profiles,
-		Stateful:     c.Stateful,
-		Description:  c.Description,
+		Architecture:   c.Architecture,
+		Config:         c.Config,
+		Devices:        c.Devices,
+		Ephemeral:      c.Ephemeral,
+		Profiles:       c.Profiles,
+		Stateful:       c.Stateful,
+		Description:    c.Description,
+		PlacementRules: c.PlacementRules,
 	}
 }
 
@@ -347,6 +405,7 @@ func (c *Instance) SetWritable(put InstancePut) {
 	c.Profiles = put.Profiles
 	c.Stateful = put.Stateful
 	c.Description = put.Description
+	c.PlacementRules = put.PlacementRules
 }
 
 // IsActive checks whether the instance state indicates the instance is active.

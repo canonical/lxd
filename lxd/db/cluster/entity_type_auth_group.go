@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeAuthGroup implements entityTypeDBInfo for an AuthGroup.
-type entityTypeAuthGroup struct{}
+type entityTypeAuthGroup struct {
+	entityTypeCommon
+}
 
 func (e entityTypeAuthGroup) code() int64 {
 	return entityTypeCodeAuthGroup
@@ -13,10 +15,6 @@ func (e entityTypeAuthGroup) code() int64 {
 
 func (e entityTypeAuthGroup) allURLsQuery() string {
 	return fmt.Sprintf(`SELECT %d, auth_groups.id, '', '', json_array(auth_groups.name) FROM auth_groups`, e.code())
-}
-
-func (e entityTypeAuthGroup) urlsByProjectQuery() string {
-	return ""
 }
 
 func (e entityTypeAuthGroup) urlByIDQuery() string {

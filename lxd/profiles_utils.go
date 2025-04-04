@@ -13,9 +13,10 @@ import (
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
-func doProfileUpdate(s *state.State, p api.Project, profileName string, id int64, profile *api.Profile, req api.ProfilePut) error {
+func doProfileUpdate(s *state.State, p api.Project, profileName string, _ int64, profile *api.Profile, req api.ProfilePut) error {
 	// Check project limits.
 	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return limits.AllowProfileUpdate(ctx, s.GlobalConfig, tx, p.Name, profileName, req)
@@ -85,6 +86,11 @@ func doProfileUpdate(s *state.State, p api.Project, profileName string, id int64
 		}
 	}
 
+	placementRules, err := cluster.InstancePlacementRulesFromAPI(req.PlacementRules)
+	if err != nil {
+		return err
+	}
+
 	// Update the database.
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		devices, err := cluster.APIToDevices(req.Devices)
@@ -112,6 +118,11 @@ func doProfileUpdate(s *state.State, p api.Project, profileName string, id int64
 		}
 
 		err = cluster.UpdateProfileDevices(ctx, tx.Tx(), id, devices)
+		if err != nil {
+			return err
+		}
+
+		err = cluster.UpsertInstancePlacementRules(ctx, tx.Tx(), entity.TypeProfile, int(id), placementRules)
 		if err != nil {
 			return err
 		}
@@ -232,15 +243,16 @@ func doProfileUpdateInstance(s *state.State, args db.InstanceArgs, p api.Project
 
 	// Update will internally load the new profile configs and detect the changes to apply.
 	return inst.Update(db.InstanceArgs{
-		Architecture: inst.Architecture(),
-		Config:       inst.LocalConfig(),
-		Description:  inst.Description(),
-		Devices:      inst.LocalDevices(),
-		Ephemeral:    inst.IsEphemeral(),
-		Profiles:     profiles, // Supply with new profile config.
-		Project:      inst.Project().Name,
-		Type:         inst.Type(),
-		Snapshot:     inst.IsSnapshot(),
+		Architecture:   inst.Architecture(),
+		Config:         inst.LocalConfig(),
+		Description:    inst.Description(),
+		Devices:        inst.LocalDevices(),
+		Ephemeral:      inst.IsEphemeral(),
+		Profiles:       profiles, // Supply with new profile config.
+		Project:        inst.Project().Name,
+		Type:           inst.Type(),
+		Snapshot:       inst.IsSnapshot(),
+		PlacementRules: inst.LocalPlacementRules(),
 	}, true)
 }
 

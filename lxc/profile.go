@@ -59,6 +59,10 @@ func (c *cmdProfile) command() *cobra.Command {
 	profileDeviceCmd := cmdConfigDevice{global: c.global, profile: c}
 	cmd.AddCommand(profileDeviceCmd.command())
 
+	// Placement
+	profilePlacementCmd := cmdConfigPlacement{global: c.global, profile: c}
+	cmd.AddCommand(profilePlacementCmd.command())
+
 	// Edit
 	profileEditCmd := cmdProfileEdit{global: c.global, profile: c}
 	cmd.AddCommand(profileEditCmd.command())

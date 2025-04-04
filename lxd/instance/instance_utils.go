@@ -32,6 +32,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
@@ -812,6 +813,11 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 	var dbInst cluster.Instance
 	var p *api.Project
 
+	instancePlacementRules, err := cluster.InstancePlacementRulesFromAPI(args.PlacementRules)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		proj, err := cluster.GetProject(ctx, tx.Tx(), args.Project)
 		if err != nil {
@@ -910,6 +916,11 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 		}
 
 		err = cluster.CreateInstanceConfig(ctx, tx.Tx(), instanceID, args.Config)
+		if err != nil {
+			return err
+		}
+
+		err = cluster.UpsertInstancePlacementRules(ctx, tx.Tx(), entity.TypeInstance, int(instanceID), instancePlacementRules)
 		if err != nil {
 			return err
 		}

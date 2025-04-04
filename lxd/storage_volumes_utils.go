@@ -43,15 +43,16 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 		}
 
 		args := db.InstanceArgs{
-			Architecture: inst.Architecture(),
-			Description:  inst.Description(),
-			Config:       inst.LocalConfig(),
-			Devices:      newDevices,
-			Ephemeral:    inst.IsEphemeral(),
-			Profiles:     inst.Profiles(),
-			Project:      inst.Project().Name,
-			Type:         inst.Type(),
-			Snapshot:     inst.IsSnapshot(),
+			Architecture:   inst.Architecture(),
+			Description:    inst.Description(),
+			Config:         inst.LocalConfig(),
+			Devices:        newDevices,
+			Ephemeral:      inst.IsEphemeral(),
+			Profiles:       inst.Profiles(),
+			Project:        inst.Project().Name,
+			Type:           inst.Type(),
+			Snapshot:       inst.IsSnapshot(),
+			PlacementRules: inst.LocalPlacementRules(),
 		}
 
 		err = inst.Update(args, false)
