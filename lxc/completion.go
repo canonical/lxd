@@ -283,65 +283,68 @@ func (g *cmdGlobal) cmpClusterMemberRoles(memberName string) ([]string, cobra.Sh
 	return member.Roles, cobra.ShellCompDirectiveNoFileComp
 }
 
-// cmpImages provides shell completion for image aliases.
-// It takes a partial input string and returns a list of matching image aliases along with a shell completion directive.
-func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirective) {
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	remote, _, found := strings.Cut(toComplete, ":")
-	if !found {
-		remote = g.conf.DefaultRemote
+// cmpImages provides shell completion for image fingerprints and aliases. It takes a partial input string and returns a
+// list of matching image aliases and fingerprints along with a shell completion directive.
+func (g *cmdGlobal) cmpImages(toComplete string, instanceServerOnly bool) ([]string, cobra.ShellCompDirective) {
+	remote, partial, err := g.conf.ParseRemote(toComplete)
+	if err != nil {
+		return handleCompletionError(err)
 	}
 
-	remoteServer, _ := g.conf.GetImageServer(remote)
+	client, err := g.conf.GetImageServer(remote)
+	if err != nil {
+		return handleCompletionError(err)
+	}
 
-	images, _ := remoteServer.GetImages()
+	images, err := client.GetImages()
+	if err != nil {
+		return handleCompletionError(err)
+	}
 
 	results := make([]string, 0, len(images))
+	appendResult := func(result string) {
+		if !strings.HasPrefix(result, partial) {
+			return
+		}
+
+		var name string
+		if remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
+			name = result
+		} else {
+			name = remote + ":" + result
+		}
+
+		results = append(results, name)
+	}
+
 	for _, image := range images {
+		// Only suggest fingerprints if there are no aliases, the remote is private, and the image is not cached.
+		// This is so that user provided images with no aliases can still be suggested, but we'll never suggest
+		// images that have more friendly names elsewhere. E.g. we won't suggest `local:<fingerprint>` if it is a
+		// cached version of `images:<alias>`.
+		if len(image.Aliases) == 0 && !g.conf.Remotes[remote].Public && !image.Cached {
+			// Only take the first 12 characters as it should be enough to be unique and we don't want long completions.
+			appendResult(image.Fingerprint[:12])
+		}
+
 		for _, alias := range image.Aliases {
-			var name string
-
-			if remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = alias.Name
-			} else {
-				name = remote + ":" + alias.Name
-			}
-
-			results = append(results, name)
+			appendResult(alias.Name)
 		}
 	}
 
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, true)
+		filters := imageServerRemoteCompletionFilters(*g.conf)
+		if instanceServerOnly {
+			filters = instanceServerRemoteCompletionFilters(*g.conf)
+		}
+
+		remotes, directives := g.cmpRemotes(toComplete, ":", true, filters...)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
 
 	return results, cmpDirectives
-}
-
-// cmpImageFingerprintsFromRemote provides shell completion for image fingerprints.
-// It takes a partial input string and a remote and returns image fingerprints for that remote along with a shell completion directive.
-func (g *cmdGlobal) cmpImageFingerprintsFromRemote(toComplete string, remote string) ([]string, cobra.ShellCompDirective) {
-	if remote == "" {
-		remote = g.conf.DefaultRemote
-	}
-
-	remoteServer, _ := g.conf.GetImageServer(remote)
-
-	images, _ := remoteServer.GetImages()
-
-	results := make([]string, 0, len(images))
-	for _, image := range images {
-		if !strings.HasPrefix(image.Fingerprint, toComplete) {
-			continue
-		}
-
-		results = append(results, image.Fingerprint)
-	}
-
-	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
 // cmpInstanceKeys provides shell completion for all instance configuration keys.
