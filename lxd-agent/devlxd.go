@@ -25,15 +25,15 @@ import (
 
 type devLXDHandlerFunc func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse
 
-// DevLxdServer creates an http.Server capable of handling requests against the
+// devLXDServer creates an http.Server capable of handling requests against the
 // /dev/lxd Unix socket endpoint created inside VMs.
-func devLxdServer(d *Daemon) *http.Server {
+func devLXDServer(d *Daemon) *http.Server {
 	return &http.Server{
-		Handler: devLxdAPI(d),
+		Handler: devLXDAPI(d),
 	}
 }
 
-type devLxdHandler struct {
+type devLXDHandler struct {
 	path string
 
 	/*
@@ -60,12 +60,12 @@ func getVsockClient(d *Daemon) (lxd.InstanceServer, error) {
 	return server, nil
 }
 
-var devlxdConfigGet = devLxdHandler{
+var devLXDConfigGet = devLXDHandler{
 	path:        "/1.0/config",
-	handlerFunc: devlxdConfigGetHandler,
+	handlerFunc: devLXDConfigGetHandler,
 }
 
-func devlxdConfigGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+func devLXDConfigGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	client, err := getVsockClient(d)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
@@ -94,12 +94,12 @@ func devlxdConfigGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *
 	return okResponse(filtered, "json")
 }
 
-var devlxdConfigKeyGet = devLxdHandler{
+var devLXDConfigKeyGet = devLXDHandler{
 	path:        "/1.0/config/{key}",
-	handlerFunc: devlxdConfigKeyGetHandler,
+	handlerFunc: devLXDConfigKeyGetHandler,
 }
 
-func devlxdConfigKeyGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+func devLXDConfigKeyGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	key, err := url.PathUnescape(mux.Vars(r)["key"])
 	if err != nil {
 		return &devLxdResponse{"bad request", http.StatusBadRequest, "raw"}
@@ -131,12 +131,12 @@ func devlxdConfigKeyGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request
 	return okResponse(value, "raw")
 }
 
-var devlxdMetadataGet = devLxdHandler{
+var devLXDMetadataGet = devLXDHandler{
 	path:        "/1.0/meta-data",
-	handlerFunc: devlxdMetadataGetHandler,
+	handlerFunc: devLXDMetadataGetHandler,
 }
 
-func devlxdMetadataGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+func devLXDMetadataGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	var client lxd.InstanceServer
 	var err error
 
@@ -170,12 +170,12 @@ func devlxdMetadataGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request)
 	return okResponse(metaData, "raw")
 }
 
-var devLxdEventsGet = devLxdHandler{
+var devLXDEventsGet = devLXDHandler{
 	path:        "/1.0/events",
-	handlerFunc: devlxdEventsGetHandler,
+	handlerFunc: devLXDEventsGetHandler,
 }
 
-func devlxdEventsGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+func devLXDEventsGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	err := eventsGet(d, r).Render(w, r)
 	if err != nil {
 		return smartResponse(err)
@@ -184,12 +184,12 @@ func devlxdEventsGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *
 	return okResponse("", "raw")
 }
 
-var devlxdAPIGet = devLxdHandler{
+var devLXDAPIGet = devLXDHandler{
 	path:        "/1.0",
-	handlerFunc: devlxdAPIGetHandler,
+	handlerFunc: devLXDAPIGetHandler,
 }
 
-func devlxdAPIGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+func devLXDAPIGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	client, err := getVsockClient(d)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
@@ -223,12 +223,12 @@ func devlxdAPIGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *dev
 	return &devLxdResponse{`method "` + r.Method + `" not allowed`, http.StatusBadRequest, "raw"}
 }
 
-var devlxdDevicesGet = devLxdHandler{
+var devLXDDevicesGet = devLXDHandler{
 	path:        "/1.0/devices",
-	handlerFunc: devlxdDevicesGetHandler,
+	handlerFunc: devLXDDevicesGetHandler,
 }
 
-func devlxdDevicesGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+func devLXDDevicesGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	client, err := getVsockClient(d)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
@@ -251,12 +251,12 @@ func devlxdDevicesGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) 
 	return okResponse(devices, "json")
 }
 
-var devlxdImageExport = devLxdHandler{
+var devLXDImageExport = devLXDHandler{
 	path:        "/1.0/images/{fingerprint}/export",
-	handlerFunc: devlxdImageExportHandler,
+	handlerFunc: devLXDImageExportHandler,
 }
 
-func devlxdImageExportHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+func devLXDImageExportHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	// Extract the fingerprint.
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
 	if err != nil {
@@ -298,12 +298,12 @@ func devlxdImageExportHandler(d *Daemon, w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
-var devlxdUbuntuProGet = devLxdHandler{
+var devLXDUbuntuProGet = devLXDHandler{
 	path:        "/1.0/ubuntu-pro",
-	handlerFunc: devlxdUbuntuProGetHandler,
+	handlerFunc: devLXDUbuntuProGetHandler,
 }
 
-func devlxdUbuntuProGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+func devLXDUbuntuProGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	if r.Method != http.MethodGet {
 		return errorResponse(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
 	}
@@ -341,12 +341,12 @@ func devlxdUbuntuProGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request
 	return okResponse(settingsResponse, "json")
 }
 
-var devlxdUbuntuProTokenPost = devLxdHandler{
+var devLXDUbuntuProTokenPost = devLXDHandler{
 	path:        "/1.0/ubuntu-pro/token",
-	handlerFunc: devlxdUbuntuProTokenPostHandler,
+	handlerFunc: devLXDUbuntuProTokenPostHandler,
 }
 
-func devlxdUbuntuProTokenPostHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+func devLXDUbuntuProTokenPostHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	if r.Method != http.MethodPost {
 		return errorResponse(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
 	}
@@ -388,22 +388,22 @@ func devlxdUbuntuProTokenPostHandler(d *Daemon, w http.ResponseWriter, r *http.R
 	return okResponse(tokenResponse, "json")
 }
 
-var handlers = []devLxdHandler{
+var handlers = []devLXDHandler{
 	{
 		path: "/",
 		handlerFunc: func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 			return okResponse([]string{"/1.0"}, "json")
 		},
 	},
-	devlxdAPIGet,
-	devlxdConfigGet,
-	devlxdConfigKeyGet,
-	devlxdMetadataGet,
-	devLxdEventsGet,
-	devlxdDevicesGet,
-	devlxdImageExport,
-	devlxdUbuntuProGet,
-	devlxdUbuntuProTokenPost,
+	devLXDAPIGet,
+	devLXDConfigGet,
+	devLXDConfigKeyGet,
+	devLXDMetadataGet,
+	devLXDEventsGet,
+	devLXDDevicesGet,
+	devLXDImageExport,
+	devLXDUbuntuProGet,
+	devLXDUbuntuProTokenPost,
 }
 
 func hoistReq(f func(*Daemon, http.ResponseWriter, *http.Request) *devLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {
@@ -427,7 +427,7 @@ func hoistReq(f func(*Daemon, http.ResponseWriter, *http.Request) *devLxdRespons
 	}
 }
 
-func devLxdAPI(d *Daemon) http.Handler {
+func devLXDAPI(d *Daemon) http.Handler {
 	m := mux.NewRouter()
 	m.UseEncodedPath() // Allow encoded values in path segments.
 
@@ -438,8 +438,8 @@ func devLxdAPI(d *Daemon) http.Handler {
 	return m
 }
 
-// Create a new net.Listener bound to the unix socket of the devlxd endpoint.
-func createDevLxdlListener(dir string) (net.Listener, error) {
+// Create a new net.Listener bound to the unix socket of the devLXD endpoint.
+func createDevLXDListener(dir string) (net.Listener, error) {
 	path := filepath.Join(dir, "lxd", "sock")
 
 	err := os.MkdirAll(filepath.Dir(path), 0755)
