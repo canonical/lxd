@@ -1,5 +1,5 @@
 ---
-discourse: 15871
+relatedlinks: '[MicroCloud](https://canonical.com/microcloud)'
 ---
 
 (exp-clustering)=
