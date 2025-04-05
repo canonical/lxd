@@ -1,5 +1,5 @@
 ---
-discourse: 12716
+discourse: '[Cluster&#32;server&#32;grouping](12716)'
 ---
 
 (howto-cluster-groups)=

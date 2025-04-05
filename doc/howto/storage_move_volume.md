@@ -1,5 +1,5 @@
 ---
-discourse: 10877
+discourse: '[Migrate&#32;from&#32;one&#32;storage&#32;pool&#32;to&#32;another](10877)'
 ---
 
 (howto-storage-move-volume)=

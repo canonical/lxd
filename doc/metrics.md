@@ -1,6 +1,6 @@
 ---
-discourse: 12281,11735
-relatedlinks: https://grafana.com/grafana/dashboards/19131-lxd/
+discourse: '[Retrieve&#32;LXD&#32;metrics&#32;with&#32;Telegraf&#32;and&#32;InfluxDB&#32;2.x](12281),[Metric&#32;exporter&#32;for&#32;instances](11735)'
+relatedlinks: '[LXD&#32;|&#32;Grafana&#32;Labs](https://grafana.com/grafana/dashboards/19131-lxd/)'
 ---
 
 (metrics)=

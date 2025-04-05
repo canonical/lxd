@@ -1,5 +1,5 @@
 ---
-discourse: 11801
+discourse: '[Floating&#32;IP&#32;addresses](11801)'
 ---
 
 (network-forwards)=

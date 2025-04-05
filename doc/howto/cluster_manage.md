@@ -1,5 +1,5 @@
 ---
-discourse: 11330
+discourse: '[Cluster&#32;member&#32;evacuation](11330)'
 ---
 
 (cluster-manage)=

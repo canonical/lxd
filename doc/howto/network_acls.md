@@ -1,5 +1,5 @@
 ---
-discourse: 13223
+discourse: '[Network&#32;ACL&#32;logging](13223)'
 ---
 
 (network-acls)=

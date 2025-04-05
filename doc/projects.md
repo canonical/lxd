@@ -1,5 +1,5 @@
 ---
-relatedlinks: https://www.youtube.com/watch?v=6O0q3rSWr8A, [Introduction&#32;to&#32;LXD&#32;projects](https://ubuntu.com/tutorials/introduction-to-lxd-projects)
+relatedlinks: '[LXD&#32;for&#32;multi-user&#32;systems&#32;-&#32;YouTube](https://www.youtube.com/watch?v=6O0q3rSWr8A), [Introduction&#32;to&#32;LXD&#32;projects](https://ubuntu.com/tutorials/introduction-to-lxd-projects)'
 ---
 
 (projects)=

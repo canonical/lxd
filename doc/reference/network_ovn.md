@@ -1,5 +1,5 @@
 ---
-discourse: 11033
+discourse: '[OVN&#32;high&#32;availability&#32;cluster&#32;tutorial](11033)'
 ---
 
 (network-ovn)=

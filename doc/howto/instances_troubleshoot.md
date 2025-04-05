@@ -1,5 +1,5 @@
 ---
-discourse: 7362
+discourse: '[How&#32;to&#32;best&#32;ask&#32;questions&#32;on&#32;Discourse](7362)'
 ---
 
 (instances-troubleshoot)=

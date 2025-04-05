@@ -1,5 +1,5 @@
 ---
-discourse: 12033,13128
+discourse: '[Built-in&#32;DNS&#32;server](12033),[Custom&#32;DNS&#32;records&#32;in&#32;network&#32;zones](13128)'
 ---
 
 (network-zones)=

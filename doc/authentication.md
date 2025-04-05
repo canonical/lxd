@@ -1,6 +1,6 @@
 ---
-discourse: 13114,15142
-relatedlinks: https://www.youtube.com/watch?v=6O0q3rSWr8A
+discourse: '[Token&#32;based&#32;remote&#32;connection](13114),[ACME&#32;support&#32;for&#32;server&#32;certificate](15142)'
+relatedlinks: '[LXD&#32;for&#32;multi-user&#32;systems&#32;-&#32;YouTube](https://www.youtube.com/watch?v=6O0q3rSWr8A)'
 ---
 
 (authentication)=
