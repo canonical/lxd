@@ -136,7 +136,10 @@ func (proCLI) getGuestToken(ctx context.Context) (*api.UbuntuProGuestTokenRespon
 func New(ctx context.Context, osName string) *Client {
 	if osName != "Ubuntu" {
 		// If we're not on Ubuntu, return a static Client.
-		return &Client{guestAttachSetting: guestAttachSettingOff}
+		return &Client{
+			guestAttachSetting: guestAttachSettingOff,
+			static:             true,
+		}
 	}
 
 	s := &Client{}
@@ -227,6 +230,7 @@ func (s *Client) watch(ctx context.Context, ubuntuProDir string) error {
 		<-ctx.Done()
 
 		// On cancel, set the guestAttachSetting back to "off" and unwatch the file.
+		s.static = true
 		s.guestAttachSetting = guestAttachSettingOff
 		err := monitor.Unwatch(path.Join(ubuntuProDir, "interfaces", "lxd-config.json"), "")
 		if err != nil {
