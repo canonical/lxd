@@ -24,6 +24,8 @@ func vSockServer(d *Daemon) *http.Server {
 	}
 }
 
+// hoistReqVM authenticates a VM accessing /dev/lxd over vsock using its agent certificate,
+// identifies and retrieves the corresponding instance, and passes it to the handler if trusted.
 func hoistReqVM(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
 	trusted, inst, err := authenticateAgentCert(d.State(), r)
 	if err != nil {
