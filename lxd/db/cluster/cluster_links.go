@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/canonical/lxd/shared/api"
@@ -159,4 +160,27 @@ func (c ClusterLinkType) Value() (driver.Value, error) {
 	}
 
 	return nil, fmt.Errorf("Invalid cluster link type %q", c)
+}
+
+// ActivateClusterLink updates a cluster link to make it valid by adding its addresses.
+func ActivateClusterLink(ctx context.Context, tx *sql.Tx, name string, addresses Addresses) error {
+	stmt := `UPDATE cluster_links SET addresses = ? WHERE name = ?`
+
+	res, err := tx.ExecContext(ctx, stmt, addresses, name)
+	if err != nil {
+		return fmt.Errorf("Failed to activate cluster link: %w", err)
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed to check for activated cluster link: %w", err)
+	}
+
+	if n == 0 {
+		return api.StatusErrorf(http.StatusNotFound, "No pending cluster link found with name %q", name)
+	} else if n > 1 {
+		return fmt.Errorf("Unknown error occurred when activating a cluster link: %w", err)
+	}
+
+	return nil
 }
