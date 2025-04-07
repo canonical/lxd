@@ -4101,7 +4101,8 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 			qemuDev["driver"] = "scsi-cd"
 		}
 	} else if shared.ValueInSlice(bus, []string{"nvme", "virtio-blk"}) {
-		if qemuDev["bus"] == "" {
+		qemuDevBus, ok := qemuDev["bus"].(string)
+		if !ok || qemuDevBus == "" {
 			// Figure out a hotplug slot.
 			pciDevID := qemuPCIDeviceIDStart
 
