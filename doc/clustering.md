@@ -42,6 +42,16 @@ How to recover a cluster:
 :diataxis:Recover a cluster </howto/cluster_recover>
 ```
 
+```{only} diataxis
+How to link a cluster:
+```
+
+```{filtered-toctree}
+:titlesonly:
+
+:diataxis:Set up cluster links </howto/cluster_links>
+```
+
 ## Related topics
 
 ```{only} diataxis
@@ -61,5 +71,7 @@ How to recover a cluster:
 :topical:Configure storage </howto/cluster_config_storage>
 :topical:Configure networks </howto/cluster_config_networks>
 :topical:Set up cluster groups </howto/cluster_groups>
+:topical:Set up cluster links </howto/cluster_links>
 :topical:/reference/cluster_member_config
+:topical:/reference/cluster_link_config
 ```
