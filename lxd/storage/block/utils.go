@@ -108,6 +108,16 @@ func DiskBlockSize(path string) (uint32, error) {
 	return res, nil
 }
 
+// DiskFSUUID returns the UUID of a filesystem on the device.
+func DiskFSUUID(pathName string) (string, error) {
+	uuid, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "UUID", "-o", "value", pathName)
+	if err != nil {
+		return "", fmt.Errorf("Failed to retrieve filesystem UUID from device %q: %w", pathName, err)
+	}
+
+	return strings.TrimSpace(uuid), nil
+}
+
 // WaitDiskDeviceResize waits until the disk device reflects the new size.
 func WaitDiskDeviceResize(ctx context.Context, diskPath string, newSizeBytes int64) error {
 	_, ok := ctx.Deadline()
