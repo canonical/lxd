@@ -459,7 +459,7 @@ jobs:
           COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover -test.gocoverdir="${GOCOVERDIR}"' || '' }}
         run: |
           set -eux
-          go test -v ${{ env.COVER }} ./client/...
+          go test -v ./client/... ${{ env.COVER }}
 
       - name: Unit tests (lxc)
         env:
@@ -467,7 +467,7 @@ jobs:
           COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover -test.gocoverdir="${GOCOVERDIR}"' || '' }}
         run: |
           set -eux
-          go test -v ${{ env.COVER }} ./lxc/...
+          go test -v ./lxc/... ${{ env.COVER }}
 
       - name: Unit tests (shared)
         env:
@@ -475,7 +475,7 @@ jobs:
           COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover -test.gocoverdir="${GOCOVERDIR}"' || '' }}
         run: |
           set -eux
-          go test -v ${{ env.COVER }} ./shared/...
+          go test -v ./shared/... ${{ env.COVER }}
 
       - name: Upload coverage data
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
