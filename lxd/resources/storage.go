@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -13,12 +12,11 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/shared/api"
 )
 
 var devDiskByPath = "/dev/disk/by-path"
-var devDiskByID = "/dev/disk/by-id"
 var runUdevData = "/run/udev/data"
 var sysClassBlock = "/sys/class/block"
 var procSelfMountInfo = "/proc/self/mountinfo"
@@ -360,6 +358,12 @@ func GetStorage() (*api.ResourcesStorage, error) {
 
 				partition.Size = partitionSize * 512
 
+				// Pull device filesystem UUID information.
+				partition.DeviceFSUUID, err = block.DiskFSUUID(filepath.Join("/dev", subEntryName))
+				if err != nil {
+					return nil, err
+				}
+
 				// Add to list
 				disk.Partitions = append(disk.Partitions, partition)
 			}
@@ -387,15 +391,15 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			}
 
 			// Try to find the udev device id
-			if sysfsExists(devDiskByID) {
-				links, err := os.ReadDir(devDiskByID)
+			if sysfsExists(block.DevDiskByID) {
+				links, err := os.ReadDir(block.DevDiskByID)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to list the links in %q: %w", devDiskByID, err)
+					return nil, fmt.Errorf("Failed to list the links in %q: %w", block.DevDiskByID, err)
 				}
 
 				for _, link := range links {
 					linkName := link.Name()
-					linkPath := filepath.Join(devDiskByID, linkName)
+					linkPath := filepath.Join(block.DevDiskByID, linkName)
 
 					linkTarget, err := filepath.EvalSymlinks(linkPath)
 					if err != nil {
@@ -423,6 +427,12 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				}
 			}
 
+			// Pull device filesystem UUID information.
+			disk.DeviceFSUUID, err = block.DiskFSUUID(filepath.Join("/dev", entryName))
+			if err != nil {
+				return nil, err
+			}
+
 			// Add to list
 			storage.Disks = append(storage.Disks, disk)
 		}
@@ -438,24 +448,4 @@ func GetStorage() (*api.ResourcesStorage, error) {
 	}
 
 	return &storage, nil
-}
-
-// GetDisksByID returns all disks whose ID contains the filter prefix.
-func GetDisksByID(filterPrefix string) ([]string, error) {
-	disks, err := os.ReadDir(devDiskByID)
-	if err != nil {
-		return nil, fmt.Errorf("Failed getting disks by ID: %w", err)
-	}
-
-	var filteredDisks []string
-	for _, disk := range disks {
-		// Skip the disk if it does not have the prefix.
-		if !shared.StringHasPrefix(disk.Name(), filterPrefix) {
-			continue
-		}
-
-		filteredDisks = append(filteredDisks, path.Join(devDiskByID, disk.Name()))
-	}
-
-	return filteredDisks, nil
 }

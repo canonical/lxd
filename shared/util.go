@@ -996,7 +996,7 @@ func RemoveDuplicatesFromString(s string, sep string) string {
 
 	dup := sep + sep
 	for strings.Contains(s, dup) {
-		s = strings.Replace(s, dup, sep, -1)
+		s = strings.ReplaceAll(s, dup, sep)
 	}
 
 	return s

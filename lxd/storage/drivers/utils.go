@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -223,7 +224,7 @@ func tryExists(ctx context.Context, path string) bool {
 // fsUUID returns the filesystem UUID for the given block path.
 // error is returned if the given block device exists but has no UUID.
 func fsUUID(path string) (string, error) {
-	val, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "UUID", "-o", "value", path)
+	val, err := block.DiskFSUUID(path)
 	if err != nil {
 		return "", err
 	}
@@ -234,7 +235,7 @@ func fsUUID(path string) (string, error) {
 		return "", fmt.Errorf("No UUID for device %q", path)
 	}
 
-	return strings.TrimSpace(val), nil
+	return val, nil
 }
 
 // fsProbe returns the filesystem type for the given block path.
@@ -783,7 +784,7 @@ func loopDeviceSetup(sourcePath string) (string, error) {
 		return strings.TrimSpace(out), nil
 	}
 
-	if !(strings.Contains(err.Error(), "direct io") || strings.Contains(err.Error(), "Invalid argument")) {
+	if !strings.Contains(err.Error(), "direct io") && !strings.Contains(err.Error(), "Invalid argument") {
 		return "", err
 	}
 
