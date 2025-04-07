@@ -630,3 +630,26 @@ WHERE auth_groups.name IN %s
 
 	return nil
 }
+
+// DeleteClusterLinkIdentity deletes the cluster link identity (pending or active) matching the given name.
+func DeleteClusterLinkIdentity(ctx context.Context, tx *sql.Tx, name string) error {
+	stmt := `DELETE FROM identities WHERE name = ? AND type IN (?,?)`
+
+	res, err := tx.ExecContext(ctx, stmt, name, identityTypeCertificateClusterLink, identityTypeCertificateClusterLinkPending)
+	if err != nil {
+		return fmt.Errorf("Delete \"identity\": %w", err)
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed to check for deleted cluster link identity: %w", err)
+	}
+
+	if n == 0 {
+		return api.StatusErrorf(http.StatusNotFound, "No cluster link identity found with name %q", name)
+	} else if n > 1 {
+		return fmt.Errorf("Unknown error occurred when deleting a cluster link identity: %w", err)
+	}
+
+	return nil
+}
