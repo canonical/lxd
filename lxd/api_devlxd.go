@@ -45,7 +45,7 @@ func hoistReqContainer(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc)
 
 	s := d.State()
 
-	c, err := findContainerForPid(cred.Pid, s)
+	c, err := findContainerForPID(cred.Pid, s)
 	if err != nil {
 		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, err.Error()), false)
 	}
@@ -156,7 +156,7 @@ func (m *ConnPidMapper) GetConnUcred(conn *net.UnixConn) *unix.Ucred {
 
 var errPIDNotInContainer = errors.New("Process ID not found in container")
 
-func findContainerForPid(pid int32, s *state.State) (instance.Container, error) {
+func findContainerForPID(pid int32, s *state.State) (instance.Container, error) {
 	/*
 	 * Try and figure out which container a pid is in. There is probably a
 	 * better way to do this. Based on rharper's initial performance
