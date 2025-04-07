@@ -150,6 +150,33 @@ func New(ctx context.Context, osName string) *Client {
 // getGuestAttachSetting returns the correct attachment setting for an instance based the on the instance configuration
 // and the current GuestAttachSetting of the host.
 func (s *Client) getGuestAttachSetting(instanceSetting string) (string, error) {
+	// Cases where the monitor could not be initially configured (e.g. /var/lib/ubuntu-pro doesn't exist), but the host is Ubuntu.
+	if !s.static && s.monitor == nil {
+		// Monitor context was cancelled.
+		// Make the Client static and return "off".
+		if s.watchCtx.Err() != nil {
+			s.static = true
+			s.guestAttachSetting = guestAttachSettingOff
+			return s.guestAttachSetting, nil
+		}
+
+		// One or more guests have requested the guest attachment setting recently.
+		if time.Now().Before(s.watchRetryCooldown) {
+			return guestAttachSettingOff, api.NewGenericStatusError(http.StatusTooManyRequests)
+		}
+
+		// The client is not static, the monitor has not been created yet, and the context has not been cancelled.
+		// Attempt to watch the directory again. If this fails, cool down for guestSettingRequestCooldown so that guests cannot
+		// continuously retry.
+		err := s.watch()
+		if err != nil {
+			s.guestAttachSetting = guestAttachSettingOff
+			s.watchRetryCooldown = time.Now().Add(guestSettingRequestCooldown)
+			logger.Warn("Failed to configure Ubuntu configuration watcher on guest request - cooling down", logger.Ctx{"err": err, "cooldown": guestSettingRequestCooldown})
+			return s.guestAttachSetting, nil
+		}
+	}
+
 	// If the setting is "off" on the host then no guest attachment should take place.
 	if s.guestAttachSetting == guestAttachSettingOff {
 		return guestAttachSettingOff, nil
