@@ -1832,7 +1832,7 @@ func (d *Daemon) init() error {
 		// Setup seccomp handler
 		if d.os.SeccompListener {
 			seccompServer, err := seccomp.NewSeccompServer(d.State(), shared.VarPath("seccomp.socket"), func(pid int32, state *state.State) (seccomp.Instance, error) {
-				return findContainerForPid(pid, state)
+				return findContainerForPID(pid, state)
 			})
 			if err != nil {
 				return err
