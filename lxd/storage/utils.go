@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,7 +34,10 @@ import (
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
+	"github.com/flosch/pongo2"
 )
+
+const defaultSnapshotPattern = "snap%d"
 
 // ConfigDiff returns a diff of the provided configs. Additionally, it returns whether or not
 // only user properties have been changed.
@@ -1363,4 +1367,92 @@ func GetPoolDefaultBlockSize(s *state.State, poolName string) (string, error) {
 	}
 
 	return pool.Driver().Info().DefaultBlockSize, nil
+}
+
+// VolumeDetermineNextSnapshotName determines a name for next snapshot of a volume
+// following the volume's snapshots.pattern or the provided default pattern.
+func VolumeDetermineNextSnapshotName(ctx context.Context, s *state.State, pool string, volumeName string, volumeConfig map[string]string) (string, error) {
+	var err error
+
+	pattern, ok := volumeConfig["snapshots.pattern"]
+	if !ok {
+		pattern = defaultSnapshotPattern
+	}
+
+	pattern, err = shared.RenderTemplate(pattern, pongo2.Context{
+		"creation_date": time.Now(),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	count := strings.Count(pattern, "%d")
+	if count > 1 {
+		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
+	} else if count == 1 {
+		var i int
+		_ = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			i = tx.GetNextStorageVolumeSnapshotIndex(ctx, pool, volumeName, cluster.StoragePoolVolumeTypeCustom, pattern)
+
+			return nil
+		})
+
+		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
+	}
+
+	snapshotExists := false
+
+	var snapshots []db.StorageVolumeArgs
+	var projects []string
+	var pools []string
+
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		projects, err = cluster.GetProjectNames(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		pools, err = tx.GetStoragePoolNames(ctx)
+		if err != nil {
+			return err
+		}
+
+		for _, pool := range pools {
+			var poolID int64
+			poolID, err = tx.GetStoragePoolID(ctx, pool)
+			if err != nil {
+				return err
+			}
+
+			for _, project := range projects {
+				snaps, err := tx.GetLocalStoragePoolVolumeSnapshotsWithType(ctx, project, volumeName, cluster.StoragePoolVolumeTypeCustom, poolID)
+				if err != nil {
+					return err
+				}
+
+				snapshots = append(snapshots, snaps...)
+			}
+		}
+
+		for _, snap := range snapshots {
+			_, snapOnlyName, _ := api.GetParentAndSnapshotName(snap.Name)
+
+			if snapOnlyName == pattern {
+				snapshotExists = true
+				break
+			}
+		}
+
+		if snapshotExists {
+			i := tx.GetNextStorageVolumeSnapshotIndex(ctx, pool, volumeName, cluster.StoragePoolVolumeTypeCustom, pattern)
+			pattern = strings.Replace(pattern, "%d", strconv.Itoa(i), 1)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return pattern, nil
 }
