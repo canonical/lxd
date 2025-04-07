@@ -41,6 +41,7 @@ Configuration option index </config-options>
 /reference/storage_drivers
 /reference/networks
 Cluster configuration </reference/cluster_member_config>
+Cluster link configuration </reference/cluster_link_config>
 ```
 
 (reference-production)=
