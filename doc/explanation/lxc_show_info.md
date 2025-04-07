@@ -48,3 +48,4 @@ Refer to the manual pages for details of the commands for managing entities:
 - Profiles: [`lxc profile list`](lxc_profile_list.md), [`lxc profile show`](lxc_profile_show.md)
 - Projects: [`lxc project list`](lxc_project_list.md), [`lxc project info`](lxc_project_info.md), [`lxc project show`](lxc_project_show.md)
 - Storage: [`lxc storage list`](lxc_storage_list.md), [`lxc storage info`](lxc_storage_info.md), [`lxc storage show`](lxc_storage_show.md)
+- Cluster links: [`lxc cluster link list`](lxc_cluster_link_list.md), [`lxc cluster link info`](lxc_cluster_link_info.md), [`lxc cluster link show`](lxc_cluster_link_show.md)
