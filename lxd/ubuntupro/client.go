@@ -149,15 +149,15 @@ func New(ctx context.Context, osName string) *Client {
 
 // getGuestAttachSetting returns the correct attachment setting for an instance based the on the instance configuration
 // and the current GuestAttachSetting of the host.
-func (s *Client) getGuestAttachSetting(instanceSetting string) string {
+func (s *Client) getGuestAttachSetting(instanceSetting string) (string, error) {
 	// If the setting is "off" on the host then no guest attachment should take place.
 	if s.guestAttachSetting == guestAttachSettingOff {
-		return guestAttachSettingOff
+		return guestAttachSettingOff, nil
 	}
 
 	// The `ubuntu_pro.guest_attach` setting is optional. If it is not set, return the host's guest attach setting.
 	if instanceSetting == "" {
-		return s.guestAttachSetting
+		return s.guestAttachSetting, nil
 	}
 
 	// If the setting is not empty, check it is valid. This should have been validated already when setting the value so
@@ -165,21 +165,31 @@ func (s *Client) getGuestAttachSetting(instanceSetting string) string {
 	err := validateGuestAttachSetting(instanceSetting)
 	if err != nil {
 		logger.Warn("Received invalid Ubuntu Pro guest attachment setting", logger.Ctx{"setting": instanceSetting})
-		return guestAttachSettingOff
+		return guestAttachSettingOff, nil
 	}
 
-	return instanceSetting
+	return instanceSetting, nil
 }
 
 // GuestAttachSettings returns UbuntuProSettings based on the instance configuration and the GuestAttachSetting of the host.
-func (s *Client) GuestAttachSettings(instanceSetting string) api.UbuntuProSettings {
-	return api.UbuntuProSettings{GuestAttach: s.getGuestAttachSetting(instanceSetting)}
+func (s *Client) GuestAttachSettings(instanceSetting string) (*api.UbuntuProSettings, error) {
+	setting, err := s.getGuestAttachSetting(instanceSetting)
+	if err != nil {
+		return nil, err
+	}
+
+	return &api.UbuntuProSettings{GuestAttach: setting}, nil
 }
 
 // GetGuestToken returns a 403 Forbidden error if the host or the instance has guestAttachSettingOff, otherwise
 // it calls the pro shim to get a token.
 func (s *Client) GetGuestToken(ctx context.Context, instanceSetting string) (*api.UbuntuProGuestTokenResponse, error) {
-	if s.getGuestAttachSetting(instanceSetting) == guestAttachSettingOff {
+	setting, err := s.getGuestAttachSetting(instanceSetting)
+	if err != nil {
+		return nil, err
+	}
+
+	if setting == guestAttachSettingOff {
 		return nil, api.NewStatusError(http.StatusForbidden, "Guest attachment not allowed")
 	}
 

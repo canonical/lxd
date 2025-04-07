@@ -351,7 +351,10 @@ func devlxdUbuntuProGetHandler(d *Daemon, c instance.Instance, w http.ResponseWr
 		return response.DevLxdErrorResponse(api.NewGenericStatusError(http.StatusMethodNotAllowed), c.Type() == instancetype.VM)
 	}
 
-	settings := d.State().UbuntuPro.GuestAttachSettings(c.ExpandedConfig()["ubuntu_pro.guest_attach"])
+	settings, err := d.State().UbuntuPro.GuestAttachSettings(c.ExpandedConfig()["ubuntu_pro.guest_attach"])
+	if err != nil {
+		return response.DevLxdErrorResponse(err, c.Type() == instancetype.VM)
+	}
 
 	// Otherwise, return the value from the instance configuration.
 	return response.DevLxdResponse(http.StatusOK, settings, "json", c.Type() == instancetype.VM)
