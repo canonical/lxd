@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"time"
 
 	"github.com/canonical/lxd/lxd/fsmonitor"
 	"github.com/canonical/lxd/lxd/fsmonitor/drivers"
@@ -53,9 +54,30 @@ const ubuntuProDirectory = "/var/lib/ubuntu-pro"
 
 // Client is our wrapper for Ubuntu Pro configuration and the Ubuntu Pro CLI.
 type Client struct {
+	// guestAttachSetting is the current host guest attachment setting.
 	guestAttachSetting string
-	monitor            fsmonitor.FSMonitor
-	pro                pro
+
+	// monitor is the filesystem monitor. This watches everything under /var/lib/ubuntu-pro
+	// The monitor may not be running if /var/lib/ubuntu-pro is not created yet.
+	monitor fsmonitor.FSMonitor
+
+	// watchCtx is passed by the caller when instantiating a Client.
+	// When it is cancelled, the monitor will be cancelled
+	watchCtx context.Context
+
+	// watchPath is the path that the monitor watches on (/var/lib/ubuntu-pro)
+	watchPath string
+
+	// watchRetryCooldown is used when no monitor is set, but the host is Ubuntu.
+	// This is used to allow guests to trigger a re-watch of the Ubuntu Pro configuration directory.
+	// These re-watch triggers are limited by the timeout.
+	watchRetryCooldown time.Time
+
+	// static is used when LXD is not running on Ubuntu.
+	static bool
+
+	// pro is the Ubuntu Pro client shim. It is shimmed to allow for unit testing.
+	pro pro
 }
 
 // pro is an internal interface that is used for mocking calls to the pro CLI.
