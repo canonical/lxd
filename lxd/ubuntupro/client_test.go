@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -141,18 +142,45 @@ func TestClient(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// Make a temporary directory to test file watcher behaviour.
-	tmpDir, err := os.MkdirTemp("", "")
+	// Get a random name for a temporary directory under /tmp for testing.
+	randomString, err := shared.RandomCryptoString()
 	require.NoError(t, err)
+	tmpDir := "/tmp/pro-test." + randomString[:3]
 
 	// Create and initialise the Client. Don't call New(), as this will create a real client watching the actual
 	// /var/lib/ubuntu-advantage directory.
 	s := &Client{}
 	s.init(ctx, tmpDir, mockProCLI)
 
+	// Call GuestAttachSettings. The watch directory doesn't exist yet, so this should attempt to create a file watcher
+	// then fail and set a cooldown on future requests. The first request doesn't error, it just returns "off".
+	settings, err := s.GuestAttachSettings("on")
+	assert.NoError(t, err)
+	assert.Equal(t, guestAttachSettingOff, settings.GuestAttach)
+
+	// The second request to get the attachment setting should return a "too many requests" error.
+	settings, err = s.GuestAttachSettings("on")
+	assert.True(t, api.StatusErrorCheck(err, http.StatusTooManyRequests))
+	assert.Nil(t, settings)
+
+	// Actually create the directory.
+	err = os.Mkdir(tmpDir, 0700)
+	require.NoError(t, err)
+
+	// We should still have a "too many requests" error (even though the directory now exists, neither the guest nor the
+	// Client know about it).
+	settings, err = s.GuestAttachSettings("on")
+	assert.True(t, api.StatusErrorCheck(err, http.StatusTooManyRequests))
+	assert.Nil(t, settings)
+
+	// Manually reset the cool down. On the next call, LXD should be able to configure a watcher.
+	s.watchRetryCooldown = time.Now()
+
 	runAssertions := func(assertions []assertion) {
 		for _, a := range assertions {
-			assert.Equal(t, api.UbuntuProSettings{GuestAttach: a.expectedSetting}, s.GuestAttachSettings(a.instanceSetting))
+			settings, err := s.GuestAttachSettings(a.instanceSetting)
+			assert.NoError(t, err)
+			assert.Equal(t, api.UbuntuProSettings{GuestAttach: a.expectedSetting}, *settings)
 			token, err := s.GetGuestToken(ctx, a.instanceSetting)
 			assert.Equal(t, a.expectedToken, token)
 			if a.expectErr {
