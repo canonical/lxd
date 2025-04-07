@@ -356,7 +356,7 @@ type PendingTLSMetadata struct {
 
 // PendingTLSMetadata returns the pending TLS identity metadata.
 func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
-	if i.Type != api.IdentityTypeCertificateClientPending {
+	if i.Type != api.IdentityTypeCertificateClientPending && i.Type != api.IdentityTypeCertificateClusterLinkPending {
 		return nil, api.NewStatusError(http.StatusBadRequest, "Cannot extract pending TLS identity secret: Identity is not pending")
 	}
 
