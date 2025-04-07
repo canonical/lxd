@@ -1012,9 +1012,21 @@ func (d *Daemon) Init() error {
 	// cleanup any state we produced so far. Errors happening here will be
 	// ignored.
 	if err != nil {
+		// Notify the systemd daemon of the error.
+		_, err2 := shared.RunCommandContext(d.shutdownCtx, "systemd-notify", "ERRNO=1") // 1=EXIT_FAILURE code (generic failure code)
+		if err2 != nil {
+			logger.Error("Failed to notify systemd of error", logger.Ctx{"err": err2})
+		}
+
 		logger.Error("Failed to start the daemon", logger.Ctx{"err": err})
 		_ = d.Stop(context.Background(), unix.SIGINT)
 		return err
+	}
+
+	// Notify the systemd daemon that we're ready.
+	_, err = shared.RunCommandContext(d.shutdownCtx, "systemd-notify", "READY=1")
+	if err != nil {
+		logger.Error("Failed to notify systemd of readiness", logger.Ctx{"err": err})
 	}
 
 	return nil
