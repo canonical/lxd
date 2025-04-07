@@ -2638,3 +2638,7 @@ Adds new {config:option}`instance-security:security.delegate_bpf`.* group of opt
 ## `override_snapshot_profiles_on_copy`
 
 This adds a request option to set snapshot's target profile on instance copy to be inherited from target instance.
+
+## `resources_device_fs_uuid`
+
+Adds the field `device_fs_uuid` including the respective UUID to each disk and partition indicating whether or not a filesystem is located on the device.
