@@ -156,14 +156,7 @@ func devLXDConfigGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *
 		return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
 	}
 
-	filtered := []string{}
-	for _, k := range config {
-		if strings.HasPrefix(k, "/1.0/config/user.") || strings.HasPrefix(k, "/1.0/config/cloud-init.") {
-			filtered = append(filtered, k)
-		}
-	}
-
-	return okResponse(filtered, "json")
+		return okResponse(config, "json")
 }
 
 var devLXDConfigKeyEndpoint = devLXDAPIEndpoint{
