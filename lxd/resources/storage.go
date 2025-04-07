@@ -16,7 +16,6 @@ import (
 )
 
 var devDiskByPath = "/dev/disk/by-path"
-var devDiskByID = "/dev/disk/by-id"
 var runUdevData = "/run/udev/data"
 var sysClassBlock = "/sys/class/block"
 var procSelfMountInfo = "/proc/self/mountinfo"
@@ -385,15 +384,15 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			}
 
 			// Try to find the udev device id
-			if sysfsExists(devDiskByID) {
-				links, err := os.ReadDir(devDiskByID)
+			if sysfsExists(block.DevDiskByID) {
+				links, err := os.ReadDir(block.DevDiskByID)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to list the links in %q: %w", devDiskByID, err)
+					return nil, fmt.Errorf("Failed to list the links in %q: %w", block.DevDiskByID, err)
 				}
 
 				for _, link := range links {
 					linkName := link.Name()
-					linkPath := filepath.Join(devDiskByID, linkName)
+					linkPath := filepath.Join(block.DevDiskByID, linkName)
 
 					linkTarget, err := filepath.EvalSymlinks(linkPath)
 					if err != nil {
