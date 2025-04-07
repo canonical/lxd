@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"golang.org/x/sys/unix"
 
-	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/shared"
 )
 
@@ -27,7 +27,7 @@ func findDiskDevicePath(diskNamePrefix string, diskPathFilter devicePathFilterFu
 
 	// If there are no other disks on the system by id, the directory might not
 	// even be there. Returns ENOENT in case the by-id/ directory does not exist.
-	diskPaths, err := resources.GetDisksByID(diskNamePrefix)
+	diskPaths, err := GetDisksByID(diskNamePrefix)
 	if err != nil {
 		return "", err
 	}
@@ -215,4 +215,24 @@ func GetDiskDevicePath(diskNamePrefix string, diskPathFilter devicePathFilterFun
 	}
 
 	return devPath, nil
+}
+
+// GetDisksByID returns all disks whose ID contains the filter prefix.
+func GetDisksByID(filterPrefix string) ([]string, error) {
+	disks, err := os.ReadDir(DevDiskByID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting disks by ID: %w", err)
+	}
+
+	var filteredDisks []string //nolint:prealloc
+	for _, disk := range disks {
+		// Skip the disk if it does not have the prefix.
+		if !shared.StringHasPrefix(disk.Name(), filterPrefix) {
+			continue
+		}
+
+		filteredDisks = append(filteredDisks, path.Join(DevDiskByID, disk.Name()))
+	}
+
+	return filteredDisks, nil
 }
