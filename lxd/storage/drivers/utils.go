@@ -784,7 +784,7 @@ func loopDeviceSetup(sourcePath string) (string, error) {
 		return strings.TrimSpace(out), nil
 	}
 
-	if !(strings.Contains(err.Error(), "direct io") || strings.Contains(err.Error(), "Invalid argument")) {
+	if !strings.Contains(err.Error(), "direct io") && !strings.Contains(err.Error(), "Invalid argument") {
 		return "", err
 	}
 
