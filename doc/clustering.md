@@ -45,6 +45,15 @@ How to set up a highly available virtual IP for clusters:
 Set up a highly available virtual IP </howto/cluster_vip>
 ```
 
+How to link a cluster:
+
+```{toctree}
+:titlesonly:
+
+Create cluster links </howto/cluster_links_create>
+Manage cluster links </howto/cluster_links_manage>
+```
+
 ## Related topics
 
 {{clustering_exp}}
