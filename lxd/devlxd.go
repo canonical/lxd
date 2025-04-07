@@ -258,7 +258,8 @@ var devlxdAPIHandler = devLxdHandler{
 func devlxdAPIHandlerFunc(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	s := d.State()
 
-	if r.Method == "GET" {
+	switch r.Method {
+	case http.MethodGet:
 		var location string
 		if d.serverClustered {
 			location = c.Location()
@@ -280,7 +281,7 @@ func devlxdAPIHandlerFunc(d *Daemon, c instance.Instance, w http.ResponseWriter,
 		}
 
 		return response.DevLxdResponse(http.StatusOK, api.DevLXDGet{APIVersion: version.APIVersion, Location: location, InstanceType: c.Type().String(), DevLXDPut: api.DevLXDPut{State: state.String()}}, "json", c.Type() == instancetype.VM)
-	} else if r.Method == "PATCH" {
+	case http.MethodPatch:
 		if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
 			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 		}
