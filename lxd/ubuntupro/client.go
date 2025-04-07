@@ -40,6 +40,11 @@ const (
 	guestAttachSettingOn = "on"
 )
 
+const (
+	// guestSettingRequestCooldown determines the cooldown between guest requests that may re-trigger file watcher creation.
+	guestSettingRequestCooldown = 5 * time.Minute
+)
+
 // isValid returns an error if the GuestAttachSetting is not one of the pre-defined values.
 func validateGuestAttachSetting(guestAttachSetting string) error {
 	if !shared.ValueInSlice(guestAttachSetting, []string{guestAttachSettingOff, guestAttachSettingAvailable, guestAttachSettingOn}) {
