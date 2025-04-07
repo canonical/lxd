@@ -36,6 +36,8 @@ func devLXDServer(d *Daemon) *http.Server {
 	}
 }
 
+// hoistReqContainer identifies the calling container based on the Unix socket credentials,
+// verifies it's the container's root user, and passes the identified container to the handler.
 func hoistReqContainer(d *Daemon, w http.ResponseWriter, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
 	// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
 	request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
