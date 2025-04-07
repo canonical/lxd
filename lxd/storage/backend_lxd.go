@@ -6549,6 +6549,18 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 		return fmt.Errorf("Volume of content type %q does not support snapshots", contentType)
 	}
 
+	mountPath := drivers.GetVolumeMountPath(parentVol.Pool, drivers.VolumeType(parentVol.Type), project.StorageVolume(projectName, volName))
+
+	// If the volume is a filesystem and is mounted, attempt to sync the filesystem before taking the snapshot.
+	// If RunningCopyFreeze is false for the driver in use, it means the driver syncs the volume on snapshot,
+	// so we don't have to do it here.
+	if parentVol.ContentType == cluster.StoragePoolVolumeContentTypeNameFS && b.driver.Info().RunningCopyFreeze && filesystem.IsMountPoint(mountPath) {
+		err = filesystem.SyncFS(mountPath)
+		if err != nil {
+			l.Warn("Failed to flush writes to custom volume", logger.Ctx{"err": err})
+		}
+	}
+
 	parentUUID := parentVol.Config["volatile.uuid"]
 	if parentUUID == "" {
 		return fmt.Errorf(`Volume %q is missing the required "volatile.uuid" setting`, parentVol.Name)
