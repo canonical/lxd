@@ -191,6 +191,8 @@ func (s *Client) init(ctx context.Context, ubuntuProDir string, proShim pro) {
 	// Initial setting should be "off".
 	s.guestAttachSetting = guestAttachSettingOff
 	s.pro = proShim
+	s.watchCtx = ctx
+	s.watchPath = ubuntuProDir
 
 	// Check that the given directory exists.
 	_, err := os.Stat(ubuntuProDir)
@@ -205,34 +207,34 @@ func (s *Client) init(ctx context.Context, ubuntuProDir string, proShim pro) {
 	}
 
 	// Set up a watcher on the ubuntu pro directory.
-	err = s.watch(ctx, ubuntuProDir)
+	err = s.watch()
 	if err != nil {
 		logger.Warn("Failed to configure Ubuntu configuration watcher", logger.Ctx{"err": err})
 	}
 }
 
-func (s *Client) watch(ctx context.Context, ubuntuProDir string) error {
+func (s *Client) watch() error {
 	// On first call, attempt to read the contents of the config file.
-	configFilePath := path.Join(ubuntuProDir, "interfaces", "lxd-config.json")
+	configFilePath := path.Join(s.watchPath, "interfaces", "lxd-config.json")
 	err := s.parseConfigFile(configFilePath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		logger.Warn("Failed to read Ubunto Pro LXD configuration file", logger.Ctx{"err": err})
 	}
 
 	// Watch /var/lib/ubuntu-pro for write, remove, and rename events.
-	monitor, err := drivers.Load(ctx, ubuntuProDir, fsmonitor.EventWrite, fsmonitor.EventRemove, fsmonitor.EventRename)
+	monitor, err := drivers.Load(s.watchCtx, s.watchPath, fsmonitor.EventWrite, fsmonitor.EventRemove, fsmonitor.EventRename)
 	if err != nil {
 		return fmt.Errorf("Failed to create a file monitor: %w", err)
 	}
 
 	go func() {
 		// Wait for the context to be cancelled.
-		<-ctx.Done()
+		<-s.watchCtx.Done()
 
 		// On cancel, set the guestAttachSetting back to "off" and unwatch the file.
 		s.static = true
 		s.guestAttachSetting = guestAttachSettingOff
-		err := monitor.Unwatch(path.Join(ubuntuProDir, "interfaces", "lxd-config.json"), "")
+		err := monitor.Unwatch(path.Join(s.watchPath, "interfaces", "lxd-config.json"), "")
 		if err != nil {
 			logger.Warn("Failed to remove Ubuntu Pro configuration file watcher", logger.Ctx{"err": err})
 		}
