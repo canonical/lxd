@@ -416,7 +416,9 @@ jobs:
           mkdir bin
 
       - name: Make GOCOVERDIR
-        run: mkdir -p "${GOCOVERDIR}"
+        run: |
+          set -eux
+          [ -d "${GOCOVERDIR}" ] || mkdir "${GOCOVERDIR}"
         if: env.GOCOVERDIR != ''
 
       - name: Build static lxc
