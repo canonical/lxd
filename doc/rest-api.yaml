@@ -5496,6 +5496,11 @@ definitions:
                 example: "259:0"
                 type: string
                 x-go-name: Device
+            device_fs_uuid:
+                description: UUID of the filesystem on the device
+                example: 9313518c-0e13-4067-9746-5c1703830b78
+                type: string
+                x-go-name: DeviceFSUUID
             device_id:
                 description: Device by-id identifier
                 example: nvme-eui.0000000001000000e4d25cafae2e4c00
@@ -5595,6 +5600,11 @@ definitions:
                 example: "259:1"
                 type: string
                 x-go-name: Device
+            device_fs_uuid:
+                description: UUID of the filesystem on the device
+                example: 9313518c-0e13-4067-9746-5c1703830b78
+                type: string
+                x-go-name: DeviceFSUUID
             id:
                 description: ID of the partition (device name)
                 example: nvme0n1p1
