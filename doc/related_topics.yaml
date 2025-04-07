@@ -2,7 +2,7 @@
 # should make it easier to keep links in sync.
 {clustering_exp: "Explanation:\n\n- {ref}`exp-clusters`",
 clustering_how: "How-to guides:\n\n- {ref}`clustering`",
-clustering_ref: "Reference:\n\n- {ref}`cluster-member-config`",
+clustering_ref: "Reference:\n\n- {ref}`ref-clusters`",
 getting_started_exp: "Explanation:\n\n- {ref}`containers-and-vms`",
 getting_started_how: "How-to guides:\n\n- {ref}`getting-started`",
 getting_started_ref: "Reference:\n\n- {ref}`requirements`\n- {ref}`ref-releases-snap`",

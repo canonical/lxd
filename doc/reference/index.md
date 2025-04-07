@@ -40,7 +40,7 @@ Configuration option index </config-options>
 /reference/projects
 /reference/storage_drivers
 /reference/networks
-Cluster configuration </reference/cluster_member_config>
+/reference/clusters
 ```
 
 (reference-production)=
