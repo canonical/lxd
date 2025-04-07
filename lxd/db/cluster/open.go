@@ -271,19 +271,14 @@ func checkClusterIsUpgradable(ctx context.Context, tx *sql.Tx, target [2]int) er
 
 		switch n {
 		case 0:
-			// Versions are equal, there's hope for the
-			// update. Let's check the next node.
+			// Versions are equal, there's hope for the update.
+			// Let's check the next member.
 			continue
 		case 1:
-			// Our version is bigger, we should stop here
-			// and wait for other nodes to be upgraded and
-			// restarted.
+			// Our version is ahead, we should wait for other members to align to our version.
 			return api.StatusErrorf(http.StatusPreconditionFailed, "A cluster member's version (%v) is behind this cluster member's version (%v), please ensure versions match", version, target)
 		case 2:
-			// Another node has a version greater than ours
-			// and presumably is waiting for other nodes
-			// to upgrade. Let's error out and shutdown
-			// since we need a greater version.
+			// Our version is behind, we should wait for other members to align to our version.
 			return api.StatusErrorf(http.StatusPreconditionFailed, "This cluster member's version (%v) is behind another member's version (%v), please ensure versions match", target, version)
 		default:
 			panic("Unexpected return value from compareVersions")
