@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -109,9 +110,20 @@ func DiskBlockSize(path string) (uint32, error) {
 }
 
 // DiskFSUUID returns the UUID of a filesystem on the device.
+// An empty string is returned in case of a pristine disk.
 func DiskFSUUID(pathName string) (string, error) {
 	uuid, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "UUID", "-o", "value", pathName)
 	if err != nil {
+		runErr, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runErr.Unwrap().(*exec.ExitError)
+
+			// blkid manpage says that blkid exits with code 2 if it is impossible to gather any information about the device identifiers or device content.
+			if ok && exitError.ExitCode() == 2 {
+				return "", nil
+			}
+		}
+
 		return "", fmt.Errorf("Failed to retrieve filesystem UUID from device %q: %w", pathName, err)
 	}
 
