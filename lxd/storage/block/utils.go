@@ -15,6 +15,9 @@ import (
 	"github.com/canonical/lxd/shared"
 )
 
+// DevDiskByID represents the system's path for disks identified by their ID.
+const DevDiskByID = "/dev/disk/by-id"
+
 // devicePathFilterFunc is a function that accepts device path and returns true
 // if the path matches the required criteria.
 type devicePathFilterFunc func(devPath string) bool
