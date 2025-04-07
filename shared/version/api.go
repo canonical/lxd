@@ -441,6 +441,7 @@ var APIExtensions = []string{
 	"ubuntu_pro_guest_attach",
 	"images_all_projects",
 	"client_cert_presence",
+	"resources_device_fs_uuid",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

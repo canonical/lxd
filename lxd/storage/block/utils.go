@@ -5,15 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"golang.org/x/sys/unix"
 
-	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/shared"
 )
+
+// DevDiskByID represents the system's path for disks identified by their ID.
+const DevDiskByID = "/dev/disk/by-id"
 
 // devicePathFilterFunc is a function that accepts device path and returns true
 // if the path matches the required criteria.
@@ -27,7 +31,7 @@ func findDiskDevicePath(diskNamePrefix string, diskPathFilter devicePathFilterFu
 
 	// If there are no other disks on the system by id, the directory might not
 	// even be there. Returns ENOENT in case the by-id/ directory does not exist.
-	diskPaths, err := resources.GetDisksByID(diskNamePrefix)
+	diskPaths, err := GetDisksByID(diskNamePrefix)
 	if err != nil {
 		return "", err
 	}
@@ -103,6 +107,27 @@ func DiskBlockSize(path string) (uint32, error) {
 	}
 
 	return res, nil
+}
+
+// DiskFSUUID returns the UUID of a filesystem on the device.
+// An empty string is returned in case of a pristine disk.
+func DiskFSUUID(pathName string) (string, error) {
+	uuid, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "UUID", "-o", "value", pathName)
+	if err != nil {
+		runErr, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runErr.Unwrap().(*exec.ExitError)
+
+			// blkid manpage says that blkid exits with code 2 if it is impossible to gather any information about the device identifiers or device content.
+			if ok && exitError.ExitCode() == 2 {
+				return "", nil
+			}
+		}
+
+		return "", fmt.Errorf("Failed to retrieve filesystem UUID from device %q: %w", pathName, err)
+	}
+
+	return strings.TrimSpace(uuid), nil
 }
 
 // WaitDiskDeviceResize waits until the disk device reflects the new size.
@@ -215,4 +240,24 @@ func GetDiskDevicePath(diskNamePrefix string, diskPathFilter devicePathFilterFun
 	}
 
 	return devPath, nil
+}
+
+// GetDisksByID returns all disks whose ID contains the filter prefix.
+func GetDisksByID(filterPrefix string) ([]string, error) {
+	disks, err := os.ReadDir(DevDiskByID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting disks by ID: %w", err)
+	}
+
+	var filteredDisks []string //nolint:prealloc
+	for _, disk := range disks {
+		// Skip the disk if it does not have the prefix.
+		if !shared.StringHasPrefix(disk.Name(), filterPrefix) {
+			continue
+		}
+
+		filteredDisks = append(filteredDisks, path.Join(DevDiskByID, disk.Name()))
+	}
+
+	return filteredDisks, nil
 }
