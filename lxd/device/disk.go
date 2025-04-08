@@ -1203,21 +1203,12 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					vol := d.pool.GetVolume(volumeType, contentType, volStorageName, dbVolume.Config)
 					rbdImageName, snapName := storageDrivers.CephGetRBDImageName(vol, false)
 
-					mount := deviceConfig.MountEntryItem{
-						DevSource: deviceConfig.DevSourceRBD{
-							ClusterName: clusterName,
-							UserName:    userName,
-							PoolName:    poolName,
-							ImageName:   rbdImageName,
-							Snapshot:    snapName,
-						},
-						DevName: d.name,
-						Opts:    opts,
-						Limits:  diskLimits,
-					}
-
-					if dbContentType == cluster.StoragePoolVolumeContentTypeISO {
-						mount.FSType = "iso9660"
+					mount.DevSource = deviceConfig.DevSourceRBD{
+						ClusterName: clusterName,
+						UserName:    userName,
+						PoolName:    poolName,
+						ImageName:   rbdImageName,
+						Snapshot:    snapName,
 					}
 
 					runConf.Mounts = []deviceConfig.MountEntryItem{mount}
