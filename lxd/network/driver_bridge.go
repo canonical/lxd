@@ -3120,6 +3120,16 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 	return externalSubnets, nil
 }
 
+// forwardValidate validates the forward request.
+func (n *bridge) forwardValidate(listenAddress net.IP, forward api.NetworkForwardPut) ([]*forwardPortMap, error) {
+	err := n.checkAddressNotInOVNRange(listenAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	return n.common.forwardValidate(listenAddress, forward)
+}
+
 // ForwardCreate creates a network forward.
 func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) (net.IP, error) {
 	memberSpecific := true // bridge supports per-member forwards.
@@ -3738,4 +3748,36 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 // UsesDNSMasq indicates if network's config indicates if it needs to use dnsmasq.
 func (n *bridge) UsesDNSMasq() bool {
 	return n.config["bridge.mode"] == "fan" || !shared.ValueInSlice(n.config["ipv4.address"], []string{"", "none"}) || !shared.ValueInSlice(n.config["ipv6.address"], []string{"", "none"})
+}
+
+// checkAddressNotInOVNRange checks that a given IP address does not overlap
+// with OVN ranges set on this network bridge.
+// Returns an error if the check could not be performed or the IP address
+// overlaps with OVN ranges.
+func (n *bridge) checkAddressNotInOVNRange(addr net.IP) error {
+	if addr == nil {
+		return fmt.Errorf("Invalid listen address")
+	}
+
+	addrIsIP4 := addr.To4() != nil
+
+	ovnRangesKey := "ipv4.ovn.ranges"
+	if !addrIsIP4 {
+		ovnRangesKey = "ipv6.ovn.ranges"
+	}
+
+	if n.config[ovnRangesKey] != "" {
+		ovnRanges, err := shared.ParseIPRanges(n.config[ovnRangesKey])
+		if err != nil {
+			return fmt.Errorf("Failed parsing %q: %w", ovnRangesKey, err)
+		}
+
+		for _, ovnRange := range ovnRanges {
+			if ovnRange.ContainsIP(addr) {
+				return fmt.Errorf("Listen address %q overlaps with %q (%q)", addr, ovnRangesKey, ovnRange)
+			}
+		}
+	}
+
+	return nil
 }
