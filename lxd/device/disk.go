@@ -976,7 +976,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		// Instruct LXD to perform the mount.
 		runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
 			DevName:    d.name,
-			DevSource:  DevSourcePath{Path: sourceDevPath},
+			DevSource:  deviceConfig.DevSourcePath{Path: sourceDevPath},
 			TargetPath: relativeDestPath,
 			FSType:     "none",
 			Opts:       options,
@@ -1109,7 +1109,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		// Encode the file descriptor and original isoPath into the DevPath field.
 		runConf.Mounts = []deviceConfig.MountEntryItem{
 			{
-				DevSource: DevSourceFD{FD: f.Fd(), Path: isoPath},
+				DevSource: deviceConfig.DevSourceFD{FD: f.Fd(), Path: isoPath},
 				DevName:   d.name,
 				FSType:    "iso9660",
 				Opts:      opts,
@@ -1126,7 +1126,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			clusterName, userName := d.cephCreds()
 			runConf.Mounts = []deviceConfig.MountEntryItem{
 				{
-					DevSource: DevSourceRBD{
+					DevSource: deviceConfig.DevSourceRBD{
 						ClusterName: clusterName,
 						UserName:    userName,
 						PoolName:    fields[0],
@@ -1140,7 +1140,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		} else {
 			// Default to block device or image file passthrough first.
 			mount := deviceConfig.MountEntryItem{
-				DevSource: DevSourcePath{Path: shared.HostPath(d.config["source"])},
+				DevSource: deviceConfig.DevSourcePath{Path: shared.HostPath(d.config["source"])},
 				DevName:   d.name,
 				Opts:      opts,
 				Limits:    diskLimits,
@@ -1209,7 +1209,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					rbdImageName, snapName := storageDrivers.CephGetRBDImageName(vol, false)
 
 					mount := deviceConfig.MountEntryItem{
-						DevSource: DevSourceRBD{
+						DevSource: deviceConfig.DevSourceRBD{
 							ClusterName: clusterName,
 							UserName:    userName,
 							PoolName:    poolName,
@@ -1235,7 +1235,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 				}
 
-				mount.DevSource = DevSourcePath{Path: mountedPath}
+				mount.DevSource = deviceConfig.DevSourcePath{Path: mountedPath}
 
 				revert.Add(revertFunc)
 
@@ -1245,7 +1245,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			// If the source being added is a directory or cephfs share, then we will use the lxd-agent
 			// directory sharing feature to mount the directory inside the VM, and as such we need to
 			// indicate to the VM the target path to mount to.
-			pathSource, isPath := mount.DevSource.(DevSourcePath)
+			pathSource, isPath := mount.DevSource.(deviceConfig.DevSourcePath)
 			if (isPath && shared.IsDir(pathSource.Path)) || d.sourceIsCephFs() {
 				if d.config["path"] == "" {
 					return nil, fmt.Errorf(`Missing mount "path" setting`)
@@ -1261,7 +1261,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil, err
 				}
 
-				mount.DevSource = DevSourcePath{Path: mountedPath}
+				mount.DevSource = deviceConfig.DevSourcePath{Path: mountedPath}
 
 				revert.Add(revertFunc)
 
@@ -1352,7 +1352,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						runConf.PostHooks = append(runConf.PostHooks, unixListener.Close)
 
 						// Use 9p socket FD number as dev path so qemu can connect to the proxy.
-						mount.DevSource = DevSourceFD{FD: unixListener.Fd()}
+						mount.DevSource = deviceConfig.DevSourceFD{FD: unixListener.Fd()}
 
 						return nil
 					}()
@@ -1376,9 +1376,9 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					mount.FSType = "iso9660"
 				}
 
-				mount.DevSource = DevSourceFD{FD: f.Fd(), Path: pathSource.Path}
+				mount.DevSource = deviceConfig.DevSourceFD{FD: f.Fd(), Path: pathSource.Path}
 			} else {
-				return nil, fmt.Errorf("Unexpected DevSource for runConf.Mount; expected %T, got %T", DevSourcePath{}, mount.DevSource)
+				return nil, fmt.Errorf("Unexpected DevSource for runConf.Mount; expected %T, got %T", deviceConfig.DevSourcePath{}, mount.DevSource)
 			}
 
 			// Add successfully setup mount config to runConf.
