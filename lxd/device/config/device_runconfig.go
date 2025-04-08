@@ -25,6 +25,32 @@ type RunConfigItem struct {
 // - A Ceph RBD Image description.
 type DevSource any
 
+// DevSourcePath is a path on the LXD host.
+// See `deviceConfig.DevSource`.
+type DevSourcePath struct {
+	Path string
+}
+
+// DevSourceFD is a file descriptor held by the LXD process.
+// See `deviceConfig.DevSource`.
+type DevSourceFD struct {
+	FD   uintptr
+	Path string
+}
+
+// DevSourceRBD describes an RBD image.
+// See `deviceConfig.DevSource`.
+//
+// This structure roughly corresponds to a qmp BlockdevOptionsRbd:
+// https://www.qemu.org/docs/master/interop/qemu-storage-daemon-qmp-ref.html#qapidoc-708
+type DevSourceRBD struct {
+	ClusterName string
+	UserName    string
+	PoolName    string
+	ImageName   string
+	Snapshot    string
+}
+
 // MountEntryItem represents a single mount entry item.
 type MountEntryItem struct {
 	DevName    string      // The internal name for the device.
