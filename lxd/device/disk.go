@@ -939,10 +939,17 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			var revertFunc func()
 			var mountInfo *storagePools.MountInfo
 
-			revertFunc, srcPath, mountInfo, err = d.mountPoolVolume()
+			revertFunc, mountInfo, err = d.mountPoolVolume()
 			if err != nil {
 				return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 			}
+
+			pathSource, isPath := mountInfo.DevSource.(deviceConfig.DevSourcePath)
+			if !isPath {
+				return nil, fmt.Errorf("Unhandled DevSource type %T", mountInfo.DevSource)
+			}
+
+			srcPath = pathSource.Path
 
 			revert.Add(revertFunc)
 
@@ -1230,12 +1237,12 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return &runConf, nil
 				}
 
-				revertFunc, mountedPath, _, err := d.mountPoolVolume()
+				revertFunc, mountInfo, err := d.mountPoolVolume()
 				if err != nil {
 					return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 				}
 
-				mount.DevSource = deviceConfig.DevSourcePath{Path: mountedPath}
+				mount.DevSource = mountInfo.DevSource
 
 				revert.Add(revertFunc)
 
@@ -1660,21 +1667,20 @@ func (w *cgroupWriter) Set(version cgroup.Backend, controller string, key string
 //   - d.config["source.type"] : volume type
 //   - d.config["source.snapshot"] : snapshot name
 //
-// Returns the mount path and MountInfo struct. If d.inst type is container the
-// volume will be shifted if needed.
-func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error) {
+// Returns MountInfo struct. If d.inst type is container the volume will be shifted if needed.
+func (d *disk) mountPoolVolume() (func(), *storagePools.MountInfo, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
 	var mountInfo *storagePools.MountInfo
 
 	if filepath.IsAbs(d.config["source"]) {
-		return nil, "", nil, fmt.Errorf(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
+		return nil, nil, fmt.Errorf(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
 	}
 
 	volumeName, volumeType, dbVolumeType, err := d.sourceVolumeFields()
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
 	instProj := d.inst.Project()
@@ -1683,7 +1689,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	if dbVolumeType == cluster.StoragePoolVolumeTypeVM {
 		diskInst, err := instance.LoadByProjectAndName(d.state, d.inst.Project().Name, volumeName)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, nil, err
 		}
 
 		if d.config["source.snapshot"] != "" {
@@ -1693,7 +1699,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		}
 
 		if err != nil {
-			return nil, "", nil, err
+			return nil, nil, err
 		}
 
 		revert.Add(func() {
@@ -1706,7 +1712,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	} else {
 		mountInfo, err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
 		if err != nil {
-			return nil, "", nil, fmt.Errorf(`Failed mounting storage volume "%s/%s" from storage pool %q: %w`, dbVolumeType, volumeName, d.pool.Name(), err)
+			return nil, nil, fmt.Errorf(`Failed mounting storage volume "%s/%s" from storage pool %q: %w`, dbVolumeType, volumeName, d.pool.Name(), err)
 		}
 
 		revert.Add(func() { _, _ = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
@@ -1718,7 +1724,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		return err
 	})
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("Failed to fetch local storage volume record: %w", err)
+		return nil, nil, fmt.Errorf("Failed to fetch local storage volume record: %w", err)
 	}
 
 	var volStorageName string
@@ -1732,12 +1738,12 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 
 	if d.inst.Type() == instancetype.Container {
 		if dbVolume.ContentType != cluster.StoragePoolVolumeContentTypeNameFS {
-			return nil, "", nil, fmt.Errorf("Only filesystem volumes are supported for containers")
+			return nil, nil, fmt.Errorf("Only filesystem volumes are supported for containers")
 		}
 
 		err = d.storagePoolVolumeAttachShift(storageProjectName, d.pool.Name(), volumeName, dbVolumeType, srcPath)
 		if err != nil {
-			return nil, "", nil, fmt.Errorf(`Failed shifting storage volume "%s/%s" on storage pool %q: %w`, dbVolumeType, volumeName, d.pool.Name(), err)
+			return nil, nil, fmt.Errorf(`Failed shifting storage volume "%s/%s" on storage pool %q: %w`, dbVolumeType, volumeName, d.pool.Name(), err)
 		}
 	}
 
@@ -1746,13 +1752,21 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 
 		srcPath, err = d.pool.Driver().GetVolumeDiskPath(volume)
 		if err != nil {
-			return nil, "", nil, fmt.Errorf("Failed to get disk path: %w", err)
+			return nil, nil, fmt.Errorf("Failed to get disk path: %w", err)
 		}
 	}
 
+	pathSource, isPath := mountInfo.DevSource.(deviceConfig.DevSourcePath)
+	if !isPath {
+		return nil, nil, fmt.Errorf("Unhandled DevSource type %T", mountInfo.DevSource)
+	}
+
+	pathSource.Path = srcPath
+	mountInfo.DevSource = pathSource
+
 	cleanup := revert.Clone().Fail // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
-	return cleanup, srcPath, mountInfo, err
+	return cleanup, mountInfo, err
 }
 
 // createDevice creates a disk device mount on host.
