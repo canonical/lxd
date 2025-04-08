@@ -199,6 +199,7 @@ jobs:
         with:
           name: coverage-unit
           path: ${{env.GOCOVERDIR}}
+          retention-days: 1
         if: env.GOCOVERDIR != ''
 
       - name: Download minio/mc to add to system test dependencies
@@ -317,6 +318,7 @@ jobs:
         with:
           name: coverage-${{ matrix.suite }}-${{ matrix.backend }}
           path: ${{env.GOCOVERDIR}}
+          retention-days: 1
         if: env.GOCOVERDIR != ''
 
   tics:
@@ -482,6 +484,7 @@ jobs:
         with:
           name: coverage-clients-${{ runner.os }}
           path: ${{env.GOCOVERDIR}}
+          retention-days: 1
         if: env.GOCOVERDIR != ''
 
       - name: Upload lxc client artifacts
@@ -644,6 +647,7 @@ jobs:
         with:
           name: coverage-ui-e2e-tests
           path: ${{env.GOCOVERDIR}}
+          retention-days: 1
         if: env.GOCOVERDIR != ''
 
   documentation:
