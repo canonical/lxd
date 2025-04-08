@@ -1955,7 +1955,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 		return err
 	}
 
-	poolVolumePut := dbVolume.StorageVolume.Writable()
+	poolVolumePut := dbVolume.Writable()
 
 	// Check if unmapped.
 	if shared.IsTrue(poolVolumePut.Config["security.unmapped"]) {
