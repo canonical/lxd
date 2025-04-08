@@ -3910,7 +3910,9 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 }
 
 // RestoreInstanceSnapshot restores an instance snapshot.
-func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error {
+// The volumeSnapshots argument may contain snapshots for other volumes that have
+// to be restored together with the instance snapshot.
+func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, volumeSnapshots []*api.StorageVolume, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "src": src.Name()})
 	l.Debug("RestoreInstanceSnapshot started")
 	defer l.Debug("RestoreInstanceSnapshot finished")
@@ -4044,6 +4046,34 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 		}
 
 		return err
+	}
+
+	// Keep track of known pools.
+	// When creating snapshots concurrently, access to this map should be locked.
+	poolMap := make(map[string]Pool)
+	poolMap[b.name] = b
+
+	// Restore each of the provided volume snapshots.
+	// TODO: Improve this by implementing concurrency.
+	for _, volume := range volumeSnapshots {
+		volumeName, snapshotName, _ := api.GetParentAndSnapshotName(volume.Name)
+		l.Debug("Restoring attached volume snapshot", logger.Ctx{"volumeProject": volume.Project, "volumePool": volume.Pool, "volumeName": volumeName})
+
+		// If pool is not known, load it.
+		volumePool, knownPool := poolMap[volume.Pool]
+		if !knownPool {
+			volumePool, err = LoadByName(b.state, volume.Pool)
+			if err != nil {
+				return err
+			}
+
+			poolMap[volume.Pool] = volumePool
+		}
+
+		err := volumePool.RestoreCustomVolume(volume.Project, volumeName, snapshotName, op)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
