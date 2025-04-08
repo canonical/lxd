@@ -40,7 +40,12 @@ func devLXDServer(d *Daemon) *http.Server {
 func hoistReqContainer(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
 	conn := ucred.GetConnFromContext(r.Context())
 
-	cred := pidMapper.GetConnUcred(conn.(*net.UnixConn))
+	unixConn, ok := conn.(*net.UnixConn)
+	if !ok {
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, "Not a unix connection"), false)
+	}
+
+	cred := pidMapper.GetConnUcred(unixConn)
 	if cred == nil {
 		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, errPIDNotInContainer.Error()), false)
 	}
