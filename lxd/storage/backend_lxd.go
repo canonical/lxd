@@ -33,6 +33,7 @@ import (
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instancewriter"
@@ -3444,8 +3445,12 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 		return nil, fmt.Errorf("Failed getting disk path: %w", err)
 	}
 
-	mountInfo := &MountInfo{
-		DiskPath: diskPath,
+	var mountInfo MountInfo
+
+	if diskPath != "" {
+		mountInfo.DevSource = config.DevSourcePath{
+			Path: diskPath,
+		}
 	}
 
 	revert.Success() // From here on it is up to caller to call UnmountInstance() when done.
@@ -3464,7 +3469,7 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 		})
 	}
 
-	return mountInfo, nil
+	return &mountInfo, nil
 }
 
 // UnmountInstance unmounts the instance's root volume.
@@ -3991,11 +3996,15 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 		return nil, fmt.Errorf("Failed getting disk path: %w", err)
 	}
 
-	mountInfo := &MountInfo{
-		DiskPath: diskPath,
+	var mountInfo MountInfo
+
+	if diskPath != "" {
+		mountInfo.DevSource = config.DevSourcePath{
+			Path: diskPath,
+		}
 	}
 
-	return mountInfo, nil
+	return &mountInfo, nil
 }
 
 // UnmountInstanceSnapshot unmounts an instance snapshot.
