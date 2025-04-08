@@ -8,6 +8,7 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	backupConfig "github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/cluster/request"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
@@ -26,7 +27,7 @@ type VolumeUsage struct {
 
 // MountInfo represents info about the result of a mount operation.
 type MountInfo struct {
-	DiskPath  string                               // The location of the block disk (if supported).
+	DevSource deviceConfig.DevSource               // The location of the block disk (if supported).
 	PostHooks []func(inst instance.Instance) error // Hooks to be called following a mount.
 }
 
