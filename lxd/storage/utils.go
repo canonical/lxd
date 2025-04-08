@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/archive"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/migration"
@@ -1265,13 +1266,19 @@ func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Ope
 
 	defer func() { _ = InstanceUnmount(pool, inst, op) }()
 
-	if mountInfo.DiskPath == "" {
+	devSource, isPath := mountInfo.DevSource.(deviceConfig.DevSourcePath)
+
+	if !isPath {
+		return -1, fmt.Errorf("Unhandled DevSource type %T", mountInfo.DevSource)
+	}
+
+	if devSource.Path == "" {
 		return -1, fmt.Errorf("No disk path available from mount")
 	}
 
-	blockDiskSize, err := block.DiskSizeBytes(mountInfo.DiskPath)
+	blockDiskSize, err := block.DiskSizeBytes(devSource.Path)
 	if err != nil {
-		return -1, fmt.Errorf("Error getting block disk size %q: %w", mountInfo.DiskPath, err)
+		return -1, fmt.Errorf("Error getting block disk size %q: %w", devSource.Path, err)
 	}
 
 	return blockDiskSize, nil
