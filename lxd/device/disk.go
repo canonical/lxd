@@ -2637,7 +2637,7 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 	// Single quotes included in the value itself are escaped by being replaced with `''`.
 	for key, value := range instanceConfig {
 		if strings.HasPrefix(key, "user.") && !shared.ValueInSlice(key, excludedKeys) {
-			metaDataBuilder.WriteString(key + ": '" + strings.Replace(value, "'", "''", -1) + "'\n")
+			metaDataBuilder.WriteString(key + ": '" + strings.ReplaceAll(value, "'", "''") + "'\n")
 		}
 	}
 
