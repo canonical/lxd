@@ -3849,8 +3849,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 		return err
 	}
 
-	_, _, isSnap := api.GetParentAndSnapshotName(src.Name())
-	if !isSnap {
+	if !shared.IsSnapshot(src.Name()) {
 		return fmt.Errorf("Volume name must be a snapshot")
 	}
 
@@ -6243,8 +6242,7 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	l.Debug("DeleteCustomVolume started")
 	defer l.Debug("DeleteCustomVolume finished")
 
-	_, _, isSnap := api.GetParentAndSnapshotName(volName)
-	if isSnap {
+	if shared.IsSnapshot(volName) {
 		return fmt.Errorf("Volume name cannot be a snapshot")
 	}
 
