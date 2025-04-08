@@ -3592,7 +3592,8 @@ func (b *lxdBackend) getInstanceDisk(inst instance.Instance) (string, error) {
 }
 
 // CreateInstanceSnapshot creates a snaphot of an instance volume.
-func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error {
+// The volumes argument allows for also snapshotting volumes attached to the instance.
+func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, volumes []*api.StorageVolume, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "src": src.Name()})
 	l.Debug("CreateInstanceSnapshot started")
 	defer l.Debug("CreateInstanceSnapshot finished")
@@ -3616,6 +3617,20 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 	}
 
 	contentType := InstanceContentType(inst)
+
+	// There must be the same number of volumes being snapshotted and referenced by "volatile.attached_volumes".
+	var attachedVolumeSnapshotUUIDs map[string]string
+	rawSnapshotUUIDs := inst.LocalConfig()["volatile.attached_volumes"]
+	if rawSnapshotUUIDs != "" {
+		err = json.Unmarshal([]byte(inst.LocalConfig()["volatile.attached_volumes"]), &attachedVolumeSnapshotUUIDs)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(attachedVolumeSnapshotUUIDs) != len(volumes) {
+		return fmt.Errorf(`Different number of entries in "volatile.attached_volumes" (%d) and non-shared attached volumes (%d)`, len(attachedVolumeSnapshotUUIDs), len(volumes))
+	}
 
 	// Load storage volume from database.
 	srcDBVol, err := VolumeDBGet(b, src.Project().Name, src.Name(), volType)
@@ -3657,7 +3672,8 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 	revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
 
 	// Some driver backing stores require that running instances be frozen during snapshot.
-	if b.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() {
+	// Also freeze if performing a multi volume snapshot.
+	if (src.IsRunning() && !src.IsFrozen()) && (len(volumes) > 0 || b.driver.Info().RunningCopyFreeze) {
 		// Freeze the processes.
 		err = src.Freeze()
 		if err != nil {
@@ -3681,6 +3697,48 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 	err = b.ensureInstanceSnapshotSymlink(inst.Type(), inst.Project().Name, inst.Name())
 	if err != nil {
 		return err
+	}
+
+	// Keep track of known pools.
+	// When creating snapshots concurrently, access to this map should be locked.
+	poolMap := make(map[string]Pool)
+	poolMap[b.name] = b
+
+	// Snapshot attached volumes.
+	// TODO: Improve this by implementing concurrency.
+	for _, volume := range volumes {
+		l.Debug("Creating attached volume snapshot", logger.Ctx{"volumeProject": volume.Project, "volumePool": volume.Pool, "volumeName": volume.Name})
+
+		// Use shutdown context here as we don't have access to the request context.
+		snapshotName, err := VolumeDetermineNextSnapshotName(b.state.ShutdownCtx, b.state, volume.Pool, volume.Name, volume.Config)
+		if err != nil {
+			return err
+		}
+
+		// Add a description to easily identify attached volume snapshots.
+		description := "Created alongside " + inst.Type().String() + "/" + inst.Name() + " on project " + inst.Project().Name
+
+		// If pool is not known, load it.
+		volumePool, knownPool := poolMap[volume.Pool]
+		if !knownPool {
+			volumePool, err = LoadByName(b.state, volume.Pool)
+			if err != nil {
+				return err
+			}
+
+			poolMap[volume.Pool] = volumePool
+		}
+
+		// Attached volume snapshots inherit expiration time from instance snapshot.
+		err = volumePool.CreateCustomVolumeSnapshot(volume.Project, volume.Name, snapshotName, description, inst.ExpiryDate(), attachedVolumeSnapshotUUIDs[volume.Config["volatile.uuid"]], op)
+		if err != nil {
+			return err
+		}
+
+		// Delete attached volume snapshot in case of failure.
+		revert.Add(func() {
+			_ = b.DeleteCustomVolumeSnapshot(volume.Project, volume.Name+"/"+snapshotName, op)
+		})
 	}
 
 	revert.Success()
@@ -3951,6 +4009,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 	snapshotStorageName := project.StorageVolume(src.Project().Name, dbSnapVol.Name)
 	snapVol := b.GetVolume(volType, contentType, snapshotStorageName, dbSnapVol.Config)
 
+	// Restore instance volume.
 	err = b.driver.RestoreVolume(vol, snapVol, op)
 	if err != nil {
 		snapErr, ok := err.(drivers.ErrDeleteSnapshots)
