@@ -698,6 +698,7 @@ jobs:
         with:
           name: documentation
           path: doc/_build
+          retention-days: 5
 
   documentation-linkcheck:
     name: Documentation link check
