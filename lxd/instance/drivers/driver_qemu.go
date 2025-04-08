@@ -3737,7 +3737,7 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]any, mountInfo *storagePool
 	// Generate a new device config with the root device path expanded.
 	driveConf := deviceConfig.MountEntryItem{
 		DevName:    rootDriveConf.DevName,
-		DevSource:  device.DevSourcePath{Path: mountInfo.DiskPath},
+		DevSource:  deviceConfig.DevSourcePath{Path: mountInfo.DiskPath},
 		Opts:       rootDriveConf.Opts,
 		TargetPath: rootDriveConf.TargetPath,
 		Limits:     rootDriveConf.Limits,
@@ -3761,7 +3761,7 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]any, mountInfo *storagePool
 
 			rbdImageName, snapName := storageDrivers.CephGetRBDImageName(vol, false)
 
-			driveConf.DevSource = device.DevSourceRBD{
+			driveConf.DevSource = deviceConfig.DevSourceRBD{
 				ClusterName: clusterName,
 				UserName:    userName,
 				PoolName:    config["ceph.osd.pool_name"],
@@ -3842,7 +3842,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 	// Add 9p share config.
 	devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
-	fdSource, ok := driveConf.DevSource.(device.DevSourceFD)
+	fdSource, ok := driveConf.DevSource.(deviceConfig.DevSourceFD)
 	if !ok {
 		return fmt.Errorf("Drive config for %q was not a file descriptor", driveConf.DevName)
 	}
@@ -3872,9 +3872,9 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 	aioMode := "native" // Use native kernel async IO and O_DIRECT by default.
 	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics by default.
 	media := "disk"
-	rbdSource, isRBDImage := driveConf.DevSource.(device.DevSourceRBD)
-	fdSource, isFd := driveConf.DevSource.(device.DevSourceFD)
-	pathSource, _ := driveConf.DevSource.(device.DevSourcePath)
+	rbdSource, isRBDImage := driveConf.DevSource.(deviceConfig.DevSourceRBD)
+	fdSource, isFd := driveConf.DevSource.(deviceConfig.DevSourceFD)
+	pathSource, _ := driveConf.DevSource.(deviceConfig.DevSourcePath)
 
 	// Check supported features.
 	// Use io_uring over native for added performance (if supported by QEMU and kernel is recent enough).
