@@ -3730,14 +3730,20 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]any, mountInfo *storagePool
 		return nil, fmt.Errorf("Non-root drive config supplied")
 	}
 
-	if !d.storagePool.Driver().Info().Remote && mountInfo.DiskPath == "" {
+	devSource, isPath := mountInfo.DevSource.(deviceConfig.DevSourcePath)
+
+	if !isPath {
+		return nil, fmt.Errorf("Unhandled DevSource type %T", mountInfo.DevSource)
+	}
+
+	if !d.storagePool.Driver().Info().Remote && devSource.Path == "" {
 		return nil, fmt.Errorf("No root disk path available from mount")
 	}
 
 	// Generate a new device config with the root device path expanded.
 	driveConf := deviceConfig.MountEntryItem{
 		DevName:    rootDriveConf.DevName,
-		DevSource:  deviceConfig.DevSourcePath{Path: mountInfo.DiskPath},
+		DevSource:  mountInfo.DevSource,
 		Opts:       rootDriveConf.Opts,
 		TargetPath: rootDriveConf.TargetPath,
 		Limits:     rootDriveConf.Limits,
@@ -6443,7 +6449,13 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 	defer func() { _ = os.RemoveAll(tmpPath) }()
 
-	if mountInfo.DiskPath == "" {
+	devSource, isPath := mountInfo.DevSource.(deviceConfig.DevSourcePath)
+
+	if !isPath {
+		return meta, fmt.Errorf("Unhandled DevSource type %T", mountInfo.DevSource)
+	}
+
+	if devSource.Path == "" {
 		return meta, fmt.Errorf("No disk path available from mount")
 	}
 
@@ -6459,7 +6471,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	defer revert.Fail()
 
 	// Check for Direct I/O support.
-	from, err := os.OpenFile(mountInfo.DiskPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+	from, err := os.OpenFile(devSource.Path, unix.O_DIRECT|unix.O_RDONLY, 0)
 	if err == nil {
 		cmd = append(cmd, "-T", "none")
 		_ = from.Close()
@@ -6473,9 +6485,9 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 	revert.Add(func() { _ = os.Remove(fPath) })
 
-	cmd = append(cmd, mountInfo.DiskPath, fPath)
+	cmd = append(cmd, devSource.Path, fPath)
 
-	_, err = apparmor.QemuImg(d.state.OS, cmd, mountInfo.DiskPath, fPath, tracker)
+	_, err = apparmor.QemuImg(d.state.OS, cmd, devSource.Path, fPath, tracker)
 	if err != nil {
 		return meta, fmt.Errorf("Failed converting instance to qcow2: %w", err)
 	}
