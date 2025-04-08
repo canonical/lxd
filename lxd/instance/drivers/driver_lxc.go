@@ -1454,7 +1454,7 @@ func (d *lxc) deviceStaticShiftMounts(mounts []deviceConfig.MountEntryItem) erro
 	// device files before they are mounted.
 	if idmapSet != nil && !d.state.OS.RunningInUserNS {
 		for _, mount := range mounts {
-			pathSource, isPath := mount.DevSource.(device.DevSourcePath)
+			pathSource, isPath := mount.DevSource.(deviceConfig.DevSourcePath)
 			if mount.DevSource != nil && !isPath {
 				return fmt.Errorf("Device source for device %q was not a host path (was %T)", mount.DevName, mount.DevSource)
 			}
@@ -1661,7 +1661,7 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 	defer reverter.Fail()
 
 	for _, mount := range mounts {
-		pathSource, isPath := mount.DevSource.(device.DevSourcePath)
+		pathSource, isPath := mount.DevSource.(deviceConfig.DevSourcePath)
 		if mount.DevSource != nil && !isPath {
 			return fmt.Errorf("Device source for device %q was not a host path (was %T)", mount.DevName, mount.DevSource)
 		}
@@ -2136,7 +2136,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		// Pass any mounts into LXC.
 		if len(runConf.Mounts) > 0 {
 			for _, mount := range runConf.Mounts {
-				pathSource, isPath := mount.DevSource.(device.DevSourcePath)
+				pathSource, isPath := mount.DevSource.(deviceConfig.DevSourcePath)
 				if mount.DevSource != nil && !isPath {
 					return "", nil, fmt.Errorf("Device source for device %q was not a host path (was %T)", mount.DevName, mount.DevSource)
 				}
