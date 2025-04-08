@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/flosch/pongo2"
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/apparmor"
@@ -34,7 +35,6 @@ import (
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
-	"github.com/flosch/pongo2"
 )
 
 const defaultSnapshotPattern = "snap%d"
