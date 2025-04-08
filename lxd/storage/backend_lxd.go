@@ -1106,7 +1106,10 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		defer func() { _ = src.Unfreeze() }()
 
 		// Attempt to sync the filesystem.
-		_ = filesystem.SyncFS(src.RootfsPath())
+		err = filesystem.SyncFS(src.RootfsPath())
+		if err != nil {
+			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
+		}
 	}
 
 	revert.Add(func() { _ = b.DeleteInstance(inst, op) })
@@ -1667,7 +1670,10 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		defer func() { _ = src.Unfreeze() }()
 
 		// Attempt to sync the filesystem.
-		_ = filesystem.SyncFS(src.RootfsPath())
+		err = filesystem.SyncFS(src.RootfsPath())
+		if err != nil {
+			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
+		}
 	}
 
 	if b.Name() == srcPool.Name() {
@@ -3109,7 +3115,10 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 		defer func() { _ = inst.Unfreeze() }()
 
 		// Attempt to sync the filesystem.
-		_ = filesystem.SyncFS(inst.RootfsPath())
+		err = filesystem.SyncFS(inst.RootfsPath())
+		if err != nil {
+			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
+		}
 	}
 
 	// Set the parent volume UUID.
@@ -3621,7 +3630,10 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 		defer func() { _ = src.Unfreeze() }()
 
 		// Attempt to sync the filesystem.
-		_ = filesystem.SyncFS(src.RootfsPath())
+		err = filesystem.SyncFS(src.RootfsPath())
+		if err != nil {
+			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
+		}
 	}
 
 	err = b.driver.CreateVolumeSnapshot(vol, op)
