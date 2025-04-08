@@ -30,11 +30,12 @@ func unixDeviceAttributes(path string) (dType string, major uint32, minor uint32
 	}
 
 	// Check what kind of file it is
-	if stat.Mode&unix.S_IFMT == unix.S_IFBLK {
+	switch stat.Mode & unix.S_IFMT {
+	case unix.S_IFBLK:
 		dType = "b"
-	} else if stat.Mode&unix.S_IFMT == unix.S_IFCHR {
+	case unix.S_IFCHR:
 		dType = "c"
-	} else {
+	default:
 		return "", 0, 0, fmt.Errorf("Not a device")
 	}
 
@@ -338,7 +339,7 @@ func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, devi
 
 	// Instruct LXD to perform the mount.
 	runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
-		DevSource:  DevSourcePath{Path: d.HostPath},
+		DevSource:  deviceConfig.DevSourcePath{Path: d.HostPath},
 		TargetPath: d.RelativePath,
 		FSType:     "none",
 		Opts:       []string{"bind", "create=file"},
