@@ -1198,9 +1198,14 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 					contentType := storagePools.VolumeDBContentTypeToContentType(dbContentType)
 
-					projectStorageVolumeName := project.StorageVolume(d.inst.Project().Name, volumeName)
+					var volStorageName string
+					if dbVolume.Type == cluster.StoragePoolVolumeTypeNameCustom {
+						volStorageName = project.StorageVolume(storageProjectName, volumeName)
+					} else {
+						volStorageName = project.Instance(storageProjectName, volumeName)
+					}
 
-					vol := d.pool.GetVolume(volumeType, contentType, projectStorageVolumeName, dbVolume.Config)
+					vol := d.pool.GetVolume(volumeType, contentType, volStorageName, dbVolume.Config)
 					rbdImageName, snapName := storageDrivers.CephGetRBDImageName(vol, false)
 
 					mount := deviceConfig.MountEntryItem{
