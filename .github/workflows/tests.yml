@@ -68,6 +68,7 @@ jobs:
         with:
           name: Differential ShellCheck SARIF
           path: ${{ steps.ShellCheck.outputs.sarif }}
+          retention-days: 1
         if: github.event_name == 'pull_request'
 
       - name: Install Go
@@ -198,6 +199,7 @@ jobs:
         with:
           name: coverage-unit
           path: ${{env.GOCOVERDIR}}
+          retention-days: 1
         if: env.GOCOVERDIR != ''
 
       - name: Download minio/mc to add to system test dependencies
@@ -315,6 +317,7 @@ jobs:
         with:
           name: coverage-${{ matrix.suite }}-${{ matrix.backend }}
           path: ${{env.GOCOVERDIR}}
+          retention-days: 1
         if: env.GOCOVERDIR != ''
 
   tics:
@@ -480,6 +483,7 @@ jobs:
         with:
           name: coverage-clients-${{ runner.os }}
           path: ${{env.GOCOVERDIR}}
+          retention-days: 1
         if: env.GOCOVERDIR != ''
 
       - name: Upload lxc client artifacts
@@ -642,6 +646,7 @@ jobs:
         with:
           name: coverage-ui-e2e-tests
           path: ${{env.GOCOVERDIR}}
+          retention-days: 1
         if: env.GOCOVERDIR != ''
 
   documentation:
@@ -691,6 +696,7 @@ jobs:
         with:
           name: documentation
           path: doc/_build
+          retention-days: 5
 
   documentation-linkcheck:
     name: Documentation link check
