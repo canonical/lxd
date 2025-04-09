@@ -48,8 +48,8 @@ func validateGuestAttachSetting(guestAttachSetting string) error {
 	return nil
 }
 
-// ubuntuProDirectory is the base directory for Ubuntu Pro related configuration.
-const ubuntuProDirectory = "/var/lib/ubuntu-pro"
+// ubuntuAdvantageDirectory is the base directory for Ubuntu Pro related configuration.
+const ubuntuAdvantageDirectory = "/var/lib/ubuntu-advantage"
 
 // Client is our wrapper for Ubuntu Pro configuration and the Ubuntu Pro CLI.
 type Client struct {
@@ -103,7 +103,7 @@ func (proCLI) getGuestToken(ctx context.Context) (*api.UbuntuProGuestTokenRespon
 	return &getGuestTokenResponse.Data.Attributes, nil
 }
 
-// New returns a new Client that watches /var/lib/ubuntu-pro for changes to LXD configuration and contains a shim
+// New returns a new Client that watches /var/lib/ubuntu-advantage for changes to LXD configuration and contains a shim
 // for the actual Ubuntu Pro CLI. If the host is not Ubuntu, it returns a static Client that always returns
 // guestAttachSettingOff.
 func New(ctx context.Context, osName string) *Client {
@@ -113,7 +113,7 @@ func New(ctx context.Context, osName string) *Client {
 	}
 
 	s := &Client{}
-	s.init(ctx, shared.HostPath(ubuntuProDirectory), proCLI{})
+	s.init(ctx, shared.HostPath(ubuntuAdvantageDirectory), proCLI{})
 	return s
 }
 
@@ -156,14 +156,14 @@ func (s *Client) GetGuestToken(ctx context.Context, instanceSetting string) (*ap
 	return s.pro.getGuestToken(ctx)
 }
 
-// init configures the Client to watch the ubuntu pro directory for file changes.
-func (s *Client) init(ctx context.Context, ubuntuProDir string, proShim pro) {
+// init configures the Client to watch the ubuntu advantage directory for file changes.
+func (s *Client) init(ctx context.Context, ubuntuAdvantageDir string, proShim pro) {
 	// Initial setting should be "off".
 	s.guestAttachSetting = guestAttachSettingOff
 	s.pro = proShim
 
 	// Check that the given directory exists.
-	_, err := os.Stat(ubuntuProDir)
+	_, err := os.Stat(ubuntuAdvantageDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			logger.Debug("Ubuntu Pro guest attachment disabled - host is Ubuntu but no Pro configuration directory exists")
@@ -174,23 +174,23 @@ func (s *Client) init(ctx context.Context, ubuntuProDir string, proShim pro) {
 		return
 	}
 
-	// Set up a watcher on the ubuntu pro directory.
-	err = s.watch(ctx, ubuntuProDir)
+	// Set up a watcher on the ubuntu advantage directory.
+	err = s.watch(ctx, ubuntuAdvantageDir)
 	if err != nil {
-		logger.Warn("Failed to configure Ubuntu configuration watcher", logger.Ctx{"err": err})
+		logger.Warn("Failed to configure Ubuntu Pro configuration watcher", logger.Ctx{"err": err})
 	}
 }
 
-func (s *Client) watch(ctx context.Context, ubuntuProDir string) error {
+func (s *Client) watch(ctx context.Context, ubuntuAdvantageDir string) error {
 	// On first call, attempt to read the contents of the config file.
-	configFilePath := path.Join(ubuntuProDir, "interfaces", "lxd-config.json")
+	configFilePath := path.Join(ubuntuAdvantageDir, "interfaces", "lxd-config.json")
 	err := s.parseConfigFile(configFilePath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		logger.Warn("Failed to read Ubunto Pro LXD configuration file", logger.Ctx{"err": err})
 	}
 
-	// Watch /var/lib/ubuntu-pro for write, remove, and rename events.
-	monitor, err := drivers.Load(ctx, ubuntuProDir, fsmonitor.EventWrite, fsmonitor.EventRemove, fsmonitor.EventRename)
+	// Watch /var/lib/ubuntu-advantage for write, remove, and rename events.
+	monitor, err := drivers.Load(ctx, ubuntuAdvantageDir, fsmonitor.EventWrite, fsmonitor.EventRemove, fsmonitor.EventRename)
 	if err != nil {
 		return fmt.Errorf("Failed to create a file monitor: %w", err)
 	}
@@ -201,7 +201,7 @@ func (s *Client) watch(ctx context.Context, ubuntuProDir string) error {
 
 		// On cancel, set the guestAttachSetting back to "off" and unwatch the file.
 		s.guestAttachSetting = guestAttachSettingOff
-		err := monitor.Unwatch(path.Join(ubuntuProDir, "interfaces", "lxd-config.json"), "")
+		err := monitor.Unwatch(path.Join(ubuntuAdvantageDir, "interfaces", "lxd-config.json"), "")
 		if err != nil {
 			logger.Warn("Failed to remove Ubuntu Pro configuration file watcher", logger.Ctx{"err": err})
 		}
