@@ -486,6 +486,9 @@ type DevLXDServer interface {
 	// DevLXD events.
 	GetEvents() (*EventListener, error)
 
+	// DevLXD images.
+	GetImageFile(fingerprint string, req ImageFileRequest) (resp *ImageFileResponse, err error)
+
 	// DevLXD Ubuntu Pro.
 	GetUbuntuPro() (*api.UbuntuProSettings, error)
 	CreateUbuntuProToken() (*api.UbuntuProGuestTokenResponse, error)
