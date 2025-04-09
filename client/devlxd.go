@@ -31,6 +31,8 @@ type ProtocolDevLXD struct {
 	httpBaseURL   url.URL
 	httpUnixPath  string
 	httpUserAgent string
+
+	eventListenerManager *eventListenerManager
 }
 
 // GetConnectionInfo returns the basic connection information used to interact with the server.
