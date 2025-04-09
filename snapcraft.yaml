@@ -1343,9 +1343,9 @@ parts:
       - libapparmor-dev
       - libcap-dev
       - libdbus-1-dev
-      - libgnutls28-dev
       - libseccomp-dev
       - libselinux1-dev
+      - libssl-dev
       - pkg-config
       - meson
       - ninja-build
