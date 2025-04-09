@@ -486,6 +486,9 @@ type DevLXDServer interface {
 	// DevLXD events.
 	GetEvents() (*DevLXDEventListener, error)
 
+	// DevLXD images.
+	ExportImage(fingerprint string, receiveFileFunc func(filename string, content io.Reader) error) error
+
 	// DevLXD Ubuntu Pro.
 	GetUbuntuPro() (*api.UbuntuProSettings, error)
 	CreateUbuntuProToken() (*api.UbuntuProGuestTokenResponse, error)
