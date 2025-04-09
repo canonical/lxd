@@ -1106,7 +1106,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		defer func() { _ = src.Unfreeze() }()
 
 		// Attempt to sync the filesystem.
-		err = filesystem.SyncFS(src.RootfsPath())
+		err = filesystem.SyncFS(src.Path())
 		if err != nil {
 			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
 		}
@@ -1670,7 +1670,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		defer func() { _ = src.Unfreeze() }()
 
 		// Attempt to sync the filesystem.
-		err = filesystem.SyncFS(src.RootfsPath())
+		err = filesystem.SyncFS(src.Path())
 		if err != nil {
 			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
 		}
@@ -3115,7 +3115,7 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 		defer func() { _ = inst.Unfreeze() }()
 
 		// Attempt to sync the filesystem.
-		err = filesystem.SyncFS(inst.RootfsPath())
+		err = filesystem.SyncFS(inst.Path())
 		if err != nil {
 			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
 		}
@@ -3630,7 +3630,7 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 		defer func() { _ = src.Unfreeze() }()
 
 		// Attempt to sync the filesystem.
-		err = filesystem.SyncFS(src.RootfsPath())
+		err = filesystem.SyncFS(src.Path())
 		if err != nil {
 			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
 		}
