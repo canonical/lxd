@@ -156,7 +156,7 @@ func devLXDConfigGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 		return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
 	}
 
-		return okResponse(config, "json")
+	return okResponse(config, "json")
 }
 
 var devLXDConfigKeyEndpoint = devLXDAPIEndpoint{
@@ -464,6 +464,11 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 			resp = handleRequest(ep.Delete)
 		default:
 			resp = errorResponse(http.StatusNotFound, fmt.Sprintf("Method %q not found", r.Method))
+		}
+
+		if resp == nil {
+			// The response may be nil in case of octet-stream or multipart responses.
+			return
 		}
 
 		// Write response.
