@@ -3501,6 +3501,13 @@ func restoreClusterMember(d *Daemon, r *http.Request, statusOnly bool) response.
 			return err
 		}
 
+		// If status-only is true, just update the database state without affecting instances.
+		if statusOnly {
+			logger.Info("Cluster member restored (status only)", logger.Ctx{"member": originName})
+			revert.Success()
+			return nil
+		}
+
 		// Restart the local instances.
 		for _, inst := range localInstances {
 			// Don't start instances which were stopped by the user.
