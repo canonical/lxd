@@ -114,8 +114,9 @@ func getExpiredPendingIdentities(ctx context.Context, s *state.State) ([]cluster
 	var pendingTLSIdentities []cluster.Identity
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		dbPendingIdentityType := cluster.IdentityType(api.IdentityTypeCertificateClientPending)
-		pendingTLSIdentities, err = cluster.GetIdentitys(ctx, tx.Tx(), cluster.IdentityFilter{Type: &dbPendingIdentityType})
+		dbPendingClientIdentityType := cluster.IdentityType(api.IdentityTypeCertificateClientPending)
+		dbPendingClusterLinkIdentityType := cluster.IdentityType(api.IdentityTypeCertificateClusterLinkPending)
+		pendingTLSIdentities, err = cluster.GetIdentitys(ctx, tx.Tx(), cluster.IdentityFilter{Type: &dbPendingClientIdentityType}, cluster.IdentityFilter{Type: &dbPendingClusterLinkIdentityType})
 		if err != nil {
 			return err
 		}
