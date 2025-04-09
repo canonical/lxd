@@ -483,6 +483,9 @@ type DevLXDServer interface {
 	// DevLXD devices.
 	GetDevices() (devices map[string]map[string]string, err error)
 
+	// DevLXD events.
+	GetEvents() (*DevLXDEventListener, error)
+
 	// DevLXD Ubuntu Pro.
 	GetUbuntuPro() (*api.UbuntuProSettings, error)
 	CreateUbuntuProToken() (*api.UbuntuProGuestTokenResponse, error)

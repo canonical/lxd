@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -27,6 +28,14 @@ type ProtocolDevLXD struct {
 	httpBaseURL   url.URL
 	httpUnixPath  string
 	httpUserAgent string
+
+	// eventListeners is a slice of event listeners.
+	eventListeners     []*DevLXDEventListener
+	eventListenersLock sync.Mutex
+
+	// eventConn contains an event listener connection.
+	eventConn     *websocket.Conn
+	eventConnLock sync.Mutex
 }
 
 // GetConnectionInfo returns the basic connection information used to interact with the server.
