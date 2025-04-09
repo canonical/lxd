@@ -350,13 +350,14 @@ func ConnectDevLXDWithContext(ctx context.Context, socketPath string, args *Conn
 	ctxConnected, ctxConnectedCancel := context.WithCancel(context.Background())
 
 	return &ProtocolDevLXD{
-		ctx:                ctx,
-		ctxConnected:       ctxConnected,
-		ctxConnectedCancel: ctxConnectedCancel,
-		http:               client,
-		httpBaseURL:        *baseURL,
-		httpUnixPath:       socketPath,
-		httpUserAgent:      useragent,
+		ctx:                  ctx,
+		ctxConnected:         ctxConnected,
+		ctxConnectedCancel:   ctxConnectedCancel,
+		http:                 client,
+		httpBaseURL:          *baseURL,
+		httpUnixPath:         socketPath,
+		httpUserAgent:        useragent,
+		eventListenerManager: newEventListenerManager(ctx),
 	}, nil
 }
 
