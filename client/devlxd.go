@@ -8,9 +8,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
+
+	"github.com/gorilla/websocket"
 
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/tcp"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -161,6 +165,73 @@ func (r *ProtocolDevLXD) queryStruct(method string, urlPath string, data any, ET
 	}
 
 	return etag, nil
+}
+
+// RawWebsocket allows connection to LXD API websockets over the devLXD.
+// It generates a websocket URL based on the provided path and the base URL of the ProtocolDevLXD receiver.
+// It then leverages the rawWebsocket method to establish and return a websocket connection to the generated URL.
+//
+// This should only be used by internal LXD tools.
+func (r *ProtocolDevLXD) RawWebsocket(path string) (*websocket.Conn, error) {
+	// Generate the URL
+	url := r.httpBaseURL.Host + "/1.0" + path
+	if r.httpBaseURL.Scheme == "https" {
+		return r.rawWebsocket("wss://" + url)
+	}
+
+	return r.rawWebsocket("ws://" + url)
+}
+
+// rawWebsocket creates a websocket connection to the provided URL using the underlying HTTP transport of
+// the ProtocolDevLXD receiver. It sets up the request headers, manages the connection handshake, sets TCP
+// timeouts, and handles any errors that may occur during these operations.
+func (r *ProtocolDevLXD) rawWebsocket(url string) (*websocket.Conn, error) {
+	var httpTransport *http.Transport
+
+	switch t := r.http.Transport.(type) {
+	case *http.Transport:
+		httpTransport = t
+	case HTTPTransporter:
+		httpTransport = t.Transport()
+	default:
+		return nil, fmt.Errorf("Unexpected http.Transport type, %T", r)
+	}
+
+	// Setup a new websocket dialer based on it
+	dialer := websocket.Dialer{
+		NetDialContext:   httpTransport.DialContext,
+		TLSClientConfig:  httpTransport.TLSClientConfig,
+		Proxy:            httpTransport.Proxy,
+		HandshakeTimeout: time.Second * 5,
+	}
+
+	// Create client headersfor the websocket request.
+	headers := http.Header{}
+	headers.Set("User-Agent", r.httpUserAgent)
+
+	// Establish the connection.
+	conn, resp, err := dialer.Dial(url, headers)
+	if err != nil {
+		if resp != nil {
+			_, _, err = devLXDParseResponse(resp)
+		}
+
+		return nil, err
+	}
+
+	// Set TCP timeout options.
+	remoteTCP, _ := tcp.ExtractConn(conn.UnderlyingConn())
+	if remoteTCP != nil {
+		err = tcp.SetTimeouts(remoteTCP, 0)
+		if err != nil {
+			logger.Warn("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
+		}
+	}
+
+	// Log the data.
+	logger.Debugf("Connected to the websocket: %v", url)
+
+	return conn, nil
 }
 
 // devLXDParseResponse processes the HTTP response from the devLXD. It reads the response body,
