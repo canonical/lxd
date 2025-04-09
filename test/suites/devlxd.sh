@@ -8,7 +8,7 @@ test_devlxd() {
   (
     cd devlxd-client || return
     # Use -buildvcs=false here to prevent git complaining about untrusted directory when tests are run as root.
-    go build -tags netgo -v -buildvcs=false ./...
+    CGO_ENABLED=0 go build -tags netgo -v -buildvcs=false ./...
   )
 
   lxc launch testimage devlxd -c security.devlxd=false
@@ -23,7 +23,7 @@ test_devlxd() {
   lxc config set devlxd security.devlxd.images true
   # Trying to get a private image should return a not found error so that the client can't infer the existence
   # of an image with the provided fingerprint.
-  [ "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}" | jq -r '.error')" = "not found" ]
+  [ "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" = "not found" ]
   lxd sql global "UPDATE images SET cached=1 WHERE fingerprint=\"${fingerprint}\""
   # No output means the export succeeded.
   [ -z "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" ]
@@ -48,33 +48,41 @@ test_devlxd() {
 
   (
     cat << EOF
-metadata:
-  key: user.foo
-  old_value: bar
-  value: baz
-timestamp: null
-type: config
-
-metadata:
-  action: added
-  config:
-    path: /mnt
-    source: ${TEST_DIR}
-    type: disk
-  name: mnt
-timestamp: null
-type: device
-
-metadata:
-  action: removed
-  config:
-    path: /mnt
-    source: ${TEST_DIR}
-    type: disk
-  name: mnt
-timestamp: null
-type: device
-
+{
+  "type": "config",
+  "timestamp": "0001-01-01T00:00:00Z",
+  "metadata": {
+    "key": "user.foo",
+    "old_value": "bar",
+    "value": "baz"
+  }
+}
+{
+  "type": "device",
+  "timestamp": "0001-01-01T00:00:00Z",
+  "metadata": {
+    "action": "added",
+    "config": {
+      "path": "/mnt",
+      "source": "${TEST_DIR}",
+      "type": "disk"
+    },
+    "name": "mnt"
+  }
+}
+{
+  "type": "device",
+  "timestamp": "0001-01-01T00:00:00Z",
+  "metadata": {
+    "action": "removed",
+    "config": {
+      "path": "/mnt",
+      "source": "${TEST_DIR}",
+      "type": "disk"
+    },
+    "name": "mnt"
+  }
+}
 EOF
   ) > "${TEST_DIR}/devlxd.expected"
 
