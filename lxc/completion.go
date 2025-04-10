@@ -180,6 +180,43 @@ func (g *cmdGlobal) cmpTopLevelResourceInRemote(remote string, entityType string
 	return completionsFor(names, "", toComplete), cobra.ShellCompDirectiveNoFileComp
 }
 
+// configOptionAppender returns two functions, the first appends config options to a slice, the second returns the current
+// slice value. Config options are trimmed to the last '.' to improve discoverability. If there is no trailing '.', the
+// given suffix will be appended. This allows lists like: ["gid=", "id=", "mdev=", "mig."] when setting configuration.
+func configOptionAppender(toComplete string, suffix string, size int) (func(option string), func() []string) {
+	var out []string
+	if size > 0 {
+		out = make([]string, 0, size)
+	}
+
+	return func(option string) {
+			trimmed, found := strings.CutPrefix(option, toComplete)
+			if !found {
+				return // Does not have prefix
+			}
+
+			var key string
+			remaining, _, ok := strings.Cut(trimmed, ".")
+			if ok {
+				// The option contains a `.<something>` after the completion, append only up to the '.'
+				key = toComplete + remaining + "."
+			} else if !strings.HasSuffix(option, ".") {
+				// The option does not contain anymore `.<something>` after the completion and does not end with '.', append the suffix.
+				key = option + suffix
+			} else {
+				// The option ends with a '.', so it's a general prefix. Don't append the suffix (else we'll get "user.=").
+				key = option
+			}
+
+			// Avoid duplicates.
+			if !shared.ValueInSlice(key, out) {
+				out = append(out, key)
+			}
+		}, func() []string {
+			return out
+		}
+}
+
 // cmpClusterMemberAllConfigKeys provides shell completion for all cluster member configuration keys.
 // It takes a partial input string and returns a list of all cluster member configuration keys along with a shell completion directive.
 func (g *cmdGlobal) cmpClusterMemberAllConfigKeys(memberName string) ([]string, cobra.ShellCompDirective) {
