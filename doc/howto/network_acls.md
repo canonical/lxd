@@ -531,10 +531,7 @@ lxc config device set <instance_name> <device_name> security.acls.default.ingres
 
 When using network ACLs with a bridge network, be aware of the following limitations:
 
-- Unlike OVN ACLs, bridge ACLs are applied only on the boundary between the bridge and the LXD host.
-  This means they can only be used to apply network policies for traffic going to or from external networks.
-  They cannot be used for to create {spellexception}`intra-bridge` firewalls, thus firewalls that control traffic between instances connected to the same bridge.
+- Unlike OVN ACLs, bridge ACLs apply only at the boundary between the bridge and the LXD host. This means they can enforce network policies only for traffic entering or leaving the host. {spellexception}`Intra-bridge` firewalls (rules controlling traffic between instances on the same bridge) are not supported.
 - {ref}`ACL groups and network selectors <network-acls-selectors>` are not supported.
-- When using the `iptables` firewall driver, you cannot use IP range subjects (for example, `192.0.2.1-192.0.2.10`).
-- Baseline network service rules are added before ACL rules (in their respective INPUT/OUTPUT chains), because we cannot differentiate between INPUT/OUTPUT and FORWARD traffic once we have jumped into the ACL chain.
-  Because of this, ACL rules cannot be used to block baseline service rules.
+- If you're using the `iptables` firewall driver, you cannot use IP range subjects (such as `192.0.2.1-192.0.2.10`).
+- Baseline network service rules are added before ACL rules in their respective INPUT/OUTPUT chains. Because we cannot differentiate between INPUT/OUTPUT and FORWARD traffic after jumping into the ACL chain, ACL rules cannot block these baseline rules.
