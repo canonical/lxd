@@ -451,7 +451,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Error inserting %q into database: %w", req.Name, err))
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	lc := lifecycle.ProfileCreated.Event(req.Name, p.Name, requestor, nil)
 	s.Events.SendLifecycle(p.Name, lc)
 
@@ -665,7 +665,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor, nil))
 
 	return response.SmartError(err)
@@ -792,7 +792,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor, nil))
 
 	return response.SmartError(doProfileUpdate(s, details.effectiveProject, details.profileName, id, profile, req))
@@ -874,7 +874,7 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	lc := lifecycle.ProfileRenamed.Event(req.Name, details.effectiveProject.Name, requestor, logger.Ctx{"old_name": details.profileName})
 	s.Events.SendLifecycle(details.effectiveProject.Name, lc)
 
@@ -938,7 +938,7 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileDeleted.Event(details.profileName, details.effectiveProject.Name, requestor, nil))
 
 	return response.EmptySyncResponse

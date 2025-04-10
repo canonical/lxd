@@ -379,7 +379,7 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Send a lifecycle event for the group creation
-	lc := lifecycle.AuthGroupCreated.Event(group.Name, request.CreateRequestor(r), nil)
+	lc := lifecycle.AuthGroupCreated.Event(group.Name, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	return response.SyncResponseLocation(true, nil, entity.AuthGroupURL(group.Name).String())
@@ -564,7 +564,7 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Send a lifecycle event for the group update
-	lc := lifecycle.AuthGroupUpdated.Event(groupName, request.CreateRequestor(r), nil)
+	lc := lifecycle.AuthGroupUpdated.Event(groupName, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	return response.EmptySyncResponse
@@ -672,7 +672,7 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Send a lifecycle event for the group update
-	lc := lifecycle.AuthGroupUpdated.Event(groupName, request.CreateRequestor(r), nil)
+	lc := lifecycle.AuthGroupUpdated.Event(groupName, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	return response.EmptySyncResponse
@@ -757,7 +757,7 @@ func renameAuthGroup(d *Daemon, r *http.Request) response.Response {
 	s.UpdateIdentityCache()
 
 	// Send a lifecycle event for the group rename
-	lc := lifecycle.AuthGroupRenamed.Event(groupPost.Name, request.CreateRequestor(r), map[string]any{"old_name": groupName})
+	lc := lifecycle.AuthGroupRenamed.Event(groupPost.Name, request.CreateRequestor(r.Context()), map[string]any{"old_name": groupName})
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	return response.SyncResponseLocation(true, nil, entity.AuthGroupURL(groupPost.Name).String())
@@ -817,7 +817,7 @@ func deleteAuthGroup(d *Daemon, r *http.Request) response.Response {
 	s.UpdateIdentityCache()
 
 	// Send a lifecycle event for the group deletion
-	lc := lifecycle.AuthGroupDeleted.Event(groupName, request.CreateRequestor(r), nil)
+	lc := lifecycle.AuthGroupDeleted.Event(groupName, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	return response.EmptySyncResponse

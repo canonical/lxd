@@ -321,7 +321,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		ctx["target"] = targetNode
 	}
 
-	lc := lifecycle.StoragePoolCreated.Event(req.Name, request.CreateRequestor(r), ctx)
+	lc := lifecycle.StoragePoolCreated.Event(req.Name, request.CreateRequestor(r.Context()), ctx)
 	resp := response.SyncResponseLocation(true, nil, lc.Source)
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
@@ -825,7 +825,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 
 	response := doStoragePoolUpdate(s, pool, req, targetNode, clientType, r.Method, s.ServerClustered)
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 
 	ctx := logger.Ctx{}
 	if targetNode != "" {
@@ -1069,7 +1069,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.StoragePoolDeleted.Event(pool.Name(), requestor, nil))
 
 	return response.EmptySyncResponse

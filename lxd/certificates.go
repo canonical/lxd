@@ -779,7 +779,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	// Reload the identity cache to add the new certificate.
 	s.UpdateIdentityCache()
 
-	lc := lifecycle.CertificateCreated.Event(fingerprint, request.CreateRequestor(r), nil)
+	lc := lifecycle.CertificateCreated.Event(fingerprint, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
@@ -1132,7 +1132,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 	// Reload the identity cache.
 	s.UpdateIdentityCache()
 
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateUpdated.Event(dbInfo.Fingerprint, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateUpdated.Event(dbInfo.Fingerprint, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }
@@ -1248,7 +1248,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	// Reload the cache.
 	s.UpdateIdentityCache()
 
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateDeleted.Event(fingerprint, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateDeleted.Event(fingerprint, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }

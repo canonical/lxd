@@ -286,7 +286,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(err)
 		}
 
-		s.Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(op, request.CreateRequestor(r), nil))
+		s.Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(op, request.CreateRequestor(r.Context()), nil))
 
 		return response.EmptySyncResponse
 	}
@@ -337,7 +337,7 @@ func operationCancel(s *state.State, r *http.Request, projectName string, op *ap
 			}
 		}
 
-		s.Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(localOp, request.CreateRequestor(r), nil))
+		s.Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(localOp, request.CreateRequestor(r.Context()), nil))
 
 		return nil
 	}

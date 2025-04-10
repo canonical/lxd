@@ -626,7 +626,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 	if op != nil {
 		requestor = op.Requestor()
 	} else if r != nil {
-		requestor = request.CreateRequestor(r)
+		requestor = request.CreateRequestor(r.Context())
 	}
 
 	s.Events.SendLifecycle(args.ProjectName, lifecycle.ImageCreated.Event(info.Fingerprint, args.ProjectName, requestor, logger.Ctx{"type": info.Type}))

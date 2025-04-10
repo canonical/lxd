@@ -1738,7 +1738,7 @@ func newIdentityNotificationFunc(s *state.State, r *http.Request, networkCert *s
 			s.UpdateIdentityCache()
 		}
 
-		lc := action.Event(authenticationMethod, identifier, request.CreateRequestor(r), nil)
+		lc := action.Event(authenticationMethod, identifier, request.CreateRequestor(r.Context()), nil)
 		s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 		return &lc, nil
