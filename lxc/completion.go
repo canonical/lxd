@@ -587,42 +587,25 @@ func (g *cmdGlobal) cmpServerAllKeys(toComplete string) ([]string, cobra.ShellCo
 
 // cmpServerSetKeys provides shell completion for server configuration keys which are currently set.
 // It takes a partial input string and returns a list of server configuration keys along with a shell completion directive.
-func (g *cmdGlobal) cmpServerSetKeys(toComplete string) ([]string, cobra.ShellCompDirective) {
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, err := g.ParseServers(toComplete)
-	if err != nil || len(resources) == 0 {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	resource := resources[0]
-	server, _, err := resource.server.GetServer()
+func (g *cmdGlobal) cmpServerSetKeys(remote string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	client, err := g.conf.GetInstanceServerWithAdditionalConnectionArgs(remote, &lxd.ConnectionArgs{SkipGetServer: true})
 	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
+		return handleCompletionError(err)
 	}
 
-	// Fetch all server config keys that can be set.
-	allServerConfigKeys, _ := g.cmpServerAllKeys(resource.remote)
-
-	// Convert slice to map[string]struct{} for O(1) lookups.
-	keySet := make(map[string]struct{}, len(allServerConfigKeys))
-	for _, key := range allServerConfigKeys {
-		keySet[key] = struct{}{}
+	server, _, err := client.GetServer()
+	if err != nil {
+		return handleCompletionError(err)
 	}
 
-	// Pre-allocate configKeys slice capacity.
-	keyCount := len(allServerConfigKeys)
-	configKeys := make([]string, 0, keyCount)
-
-	for configKey := range server.Config {
-		// We only want to return the intersection between allServerConfigKeys and configKeys to avoid returning the full server config.
-		_, exists := keySet[configKey]
-		if exists {
-			configKeys = append(configKeys, configKey)
+	results := make([]string, 0, len(server.Config))
+	for k := range server.Config {
+		if strings.HasPrefix(k, toComplete) {
+			results = append(results, k)
 		}
 	}
 
-	return configKeys, cmpDirectives | cobra.ShellCompDirectiveNoSpace
+	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
 // cmpInstanceConfigTemplates provides shell completion for instance config templates.
