@@ -664,6 +664,45 @@ Any ACL properties you omit from this request (aside from `config` and `name`) w
 
 This `PATCH` endpoint allows you to add or update custom `config.user.*` keys without affecting other existing `config.user.*` entries. However, this {ref}`partial update behavior <rest-api-patch>` applies _only_ to the `config` property. For the `description`, `egress`, and `ingress` properties, this request behaves like a {ref}`PUT request <rest-api-put>`: it replaces any provided values and resets any omitted properties to their defaults. Thus, ensure you include any properties you want to keep.
 
+#### Example
+
+Consider an ACL named `my-acl` with the following properties (shown in JSON):
+
+```json
+{
+  "name": "my-acl",
+  "description": "My test ACL",
+  "config": {
+    "user.my-key1": "1"
+  },
+}
+```
+
+The following query adds a `config.user.my-key2` key with the value of `2`:
+
+```bash
+lxc query --request PATCH /1.0/network-acls/my-acl --data '{
+  "config": {
+    "user.my-key2": "2"
+  }
+}'
+```
+
+After sending the above request, `my-acl`'s properties are updated to:
+
+```json
+{
+  "name": "my-acl",
+  "description": "",
+  "config": {
+    "user.my-key1": "1",
+    "user.my-key2": "2"
+  }
+}
+```
+
+Note that the request _inserted_ the new `user.my-key2` key without affecting the pre-existing `user.my-key1` key. Also notice that the `description` property was not sent in the request, and thus was reset to an empty value.
+
 (network-acls-delete)=
 ## Delete an ACL
 
