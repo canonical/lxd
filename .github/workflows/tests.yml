@@ -11,7 +11,8 @@ on:
 
 env:
   LXD_REQUIRED_TESTS: "storage_buckets,network_ovn"
-  GOCOVERDIR: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && '"${GITHUB_WORKSPACE}/coverage"' || '' }}
+  GOCOVERAGE: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && '"${GITHUB_WORKSPACE}/coverage"' || '' }}
+  GOCOVERDIR: ''  # Later set to the fully qualified path if needed
 
 permissions:
   contents: read
@@ -94,6 +95,14 @@ jobs:
           DOC_GOMIN="$(sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md)"
           [ "${GOMIN}" = "${DOC_GOMIN}" ]
 
+      - name: Make GOCOVERDIR
+        run: |
+          set -eux
+          mkdir -p coverage
+          cd coverage
+          echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
+        if: env.GOCOVERAGE == 'true'
+
       - name: Make LXD tarball and unpack it
         env:
           CUSTOM_VERSION: "test"
@@ -172,10 +181,6 @@ jobs:
             echo "${UNEXPECTED_GO_VER}"
             exit 1
           fi
-
-      - name: Make GOCOVERDIR
-        run: mkdir -p "${GOCOVERDIR}"
-        if: env.GOCOVERDIR != ''
 
       - name: Run static analysis
         env:
@@ -290,8 +295,10 @@ jobs:
       - name: Make GOCOVERDIR
         run: |
           set -eux
-          mkdir -p "${GOCOVERDIR}"
-        if: env.GOCOVERDIR != ''
+          mkdir -p coverage
+          cd coverage
+          echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
+        if: env.GOCOVERAGE == 'true'
 
       - name: "Run system tests (${{ matrix.suite }}, ${{ matrix.backend }})"
         run: |
@@ -351,6 +358,14 @@ jobs:
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
           go-version-file: 'go.mod'
+
+      - name: Make GOCOVERDIR
+        run: |
+          set -eux
+          mkdir -p coverage
+          cd coverage
+          echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
+        if: env.GOCOVERAGE == 'true'
 
       - name: Download coverage data
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -420,8 +435,12 @@ jobs:
           mkdir bin
 
       - name: Make GOCOVERDIR
-        run: mkdir -p "${GOCOVERDIR}"
-        if: env.GOCOVERDIR != ''
+        run: |
+          set -eux
+          mkdir -p coverage
+          cd coverage
+          echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
+        if: env.GOCOVERAGE == 'true'
 
       - name: Build static lxc
         env:
@@ -569,8 +588,10 @@ jobs:
       - name: Make GOCOVERDIR
         run: |
           set -eux
-          mkdir -p "${GOCOVERDIR}"
-        if: env.GOCOVERDIR != ''
+          mkdir -p coverage
+          cd coverage
+          echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
+        if: env.GOCOVERAGE == 'true'
 
       - name: Run LXD daemon
         run: |
