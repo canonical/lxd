@@ -168,6 +168,57 @@ lxc network acl create my-acl < config.yaml
 ````
 % End of group-tab CLI
 
+````{group-tab} API
+
+To create an ACL, query the [`POST /1.0/network-acls`](swagger:/network-acls/network_acls_post) endpoint:
+
+```bash
+lxc query --request POST /1.0/network-acls --data '{
+  "name": "<ACL-name>",
+  "config": {
+    "user.<custom-key-name>": "<custom-key-value>"
+  },
+  "description": "<description of the ACL>",
+  "egress": [{<egress rule object>}, {<another egress rule object>, ...}],
+  "ingress": [{<ingress rule object>}, {<another ingress rule object>, ...}]
+}'
+```
+
+- You must provide an ACL name that meets the {ref}`network-acls-name-requirements`.
+- You can optionally provide one or more custom `config.user.*` keys to store metadata or other information.
+- The `ingress` and `egress` lists contain rules for inbound and outbound traffic. See {ref}`network-acls-rules` for details.
+
+### Examples
+
+Create an ACL with the name `my-acl`, a custom user key of `my-key`, and a `description`:
+
+```bash
+lxc query --request POST /1.0/network-acls --data '{
+  "name": "my-acl",
+  "config": {
+    "user.my-key": "my-value"
+  },
+  "description": "Web servers"
+}'
+```
+
+Create an ACL with the name `my-acl` and an `ingress` rule:
+
+```bash
+lxc query --request POST /1.0/network-acls --data '{
+  "name": "my-acl",
+  "ingress": [
+    {
+      "action": "drop",
+      "state": "enabled"
+    }
+  ]
+}'
+```
+
+````
+% End of group-tab API
+
 `````
 
 ### ACL properties
