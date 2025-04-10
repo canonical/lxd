@@ -350,6 +350,10 @@ There is no specific endpoint for removing a rule. Instead, you must {ref}`edit 
 
 `````
 
+### Edit a rule
+
+You cannot edit a rule directly. Instead, you must {ref}`edit the full ACL <network-acls-edit>`, which contains the `egress` and `ingress` lists.
+
 ### Rule ordering and priorities
 
 Rules are provided as lists.
