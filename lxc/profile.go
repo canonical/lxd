@@ -376,7 +376,7 @@ lxc profile create p1 < config.yaml
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -739,7 +739,7 @@ u - Used By`))
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp

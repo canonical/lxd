@@ -127,12 +127,22 @@ func (g *cmdGlobal) cmpTopLevelResource(entityType string, toComplete string) ([
 		results = append(results, completion)
 	}
 
+	directive := cobra.ShellCompDirectiveNoFileComp
 	if !strings.Contains(toComplete, ":") {
-		remotes, _ := g.cmpRemotes(toComplete, shared.ValueInSlice(entityType, []string{"image", "image_alias"}))
-		results = append(results, remotes...)
+		filters := instanceServerRemoteCompletionFilters(*g.conf)
+		if shared.ValueInSlice(entityType, []string{"image", "image_alias"}) {
+			filters = imageServerRemoteCompletionFilters(*g.conf)
+		}
+
+		remotes, directives := g.cmpRemotes(toComplete, ":", true, filters...)
+		if len(remotes) > 0 {
+			// Only append the no space directive if we're returning any remotes.
+			results = append(results, remotes...)
+			directive |= directives
+		}
 	}
 
-	return results, cobra.ShellCompDirectiveNoFileComp
+	return results, directive
 }
 
 // cmpTopLevelResourceInRemote returns completions for a given entity type in a given remote, based on the partial `toComplete` argument.
@@ -303,7 +313,7 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, true)
+		remotes, directives := g.cmpRemotes(toComplete, "", true, imageServerRemoteCompletionFilters(*g.conf)...)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
@@ -742,7 +752,7 @@ func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagFor
 		}
 
 		if !strings.Contains(toComplete, ":") {
-			remotes, directives := g.cmpRemotes(toComplete, false)
+			remotes, directives := g.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*g.conf)...)
 			results = append(results, remotes...)
 			cmpDirectives |= directives
 		}
@@ -785,7 +795,7 @@ func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
+		remotes, directives := g.cmpRemotes(toComplete, "", true, instanceServerRemoteCompletionFilters(*g.conf)...)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
