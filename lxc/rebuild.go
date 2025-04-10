@@ -32,6 +32,18 @@ func (c *cmdRebuild) command() *cobra.Command {
 	cmd.Flags().BoolVar(&c.flagEmpty, "empty", false, i18n.G("Rebuild as an empty instance"))
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("If an instance is running, stop it and then rebuild it"))
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+		if len(args) > 1 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		if len(args) == 0 {
+			return c.global.cmpImages(toComplete, false)
+		}
+
+		return c.global.cmpTopLevelResource("instance", toComplete)
+	}
+
 	return cmd
 }
 
