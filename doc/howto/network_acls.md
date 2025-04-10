@@ -645,6 +645,25 @@ lxc query --request PUT /1.0/network-acls/my-acl --data '{
 
 `````
 
+(network-acls-edit-custom-api)=
+### Edit a custom user key via PATCH API
+
+There's one more way to add or update a custom `config.user.*` key when using the API. Instead of the PUT method shown in the {ref}`network-acls-edit-properties` section above, you can query the [`PATCH /1.0/network-acls/{ACL-name}`](swagger:/network-acls/network_acl_patch) endpoint:
+
+```bash
+lxc query --request PATCH /1.0/network-acls/{ACL-name} --data '{
+  "config": {
+    "user.<custom-key-name>": "<custom-key-value>"
+  }
+}'
+```
+
+```{caution}
+Any ACL properties you omit from this request (aside from `config` and `name`) will be reset to defaults.
+```
+
+This `PATCH` endpoint allows you to add or update custom `config.user.*` keys without affecting other existing `config.user.*` entries. However, this {ref}`partial update behavior <rest-api-patch>` applies _only_ to the `config` property. For the `description`, `egress`, and `ingress` properties, this request behaves like a {ref}`PUT request <rest-api-put>`: it replaces any provided values and resets any omitted properties to their defaults. Thus, ensure you include any properties you want to keep.
+
 (network-acls-delete)=
 ## Delete an ACL
 
