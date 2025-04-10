@@ -508,11 +508,10 @@ lxc config device set <instance_name> <device_name> security.acls="<ACL_name>"
 (network-acls-defaults)=
 ## Configure default actions
 
-When one or more ACLs are applied to a NIC (either explicitly or implicitly through a network), a default reject rule is added to the NIC.
-This rule rejects all traffic that doesn't match any of the rules in the applied ACLs.
+When one or more ACLs are assigned to a NIC—either directly or through its network—a default reject rule is added to the NIC.
+This rule rejects all traffic that doesn't match any of the rules in the assigned ACLs.
 
-You can change this behavior with the network and NIC level `security.acls.default.ingress.action` and `security.acls.default.egress.action` settings.
-The NIC level settings override the network level settings.
+You can change this behavior with the network- and NIC-level `security.acls.default.ingress.action` and `security.acls.default.egress.action` settings. The NIC-level settings override the network-level settings.
 
 For example, to set the default action for inbound traffic to `allow` for all instances connected to a network, use the following command:
 
