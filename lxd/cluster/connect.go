@@ -113,7 +113,7 @@ func ConnectIfInstanceIsRemote(s *state.State, projectName string, instName stri
 		return nil, nil // The instance is running on this local member, no need to connect.
 	}
 
-	client, err := Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+	client, err := Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return nil, err
 	}
