@@ -385,9 +385,14 @@ ACL rules have the following properties:
 This feature is supported only for the {ref}`OVN NIC type <nic-ovn>` and the {ref}`network-ovn`.
 ```
 
-The `source` field (for ingress rules) and the `destination` field (for egress rules) support using selectors instead of CIDR or IP ranges.
+In ACL rules, the `source` and `destination` properties support using selectors instead of CIDR blocks or IP ranges. You can only use selectors in the `source` of `ingress` rules, and in the `destination` of `egress` rules.
 
-With this method, you can use ACL groups or network selectors to define rules for groups of instances without needing to maintain IP lists or create additional subnets.
+Using selectors allows you to define rules for groups of instances instead of managing lists of IP addresses or subnets manually.
+
+There are two types of selectors:
+
+- subject name selectors (ACL groups)
+- network subject selectors
 
 (network-acls-groups)=
 #### ACL groups
