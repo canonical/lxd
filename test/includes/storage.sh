@@ -177,6 +177,11 @@ delete_object_storage_pool() {
   lxd_backend=$(storage_backend "$LXD_DIR")
 
   lxc storage delete "${poolName}"
+
+  if [ "${lxd_backend}" != "ceph" ]; then
+    lxc config unset core.storage_buckets_address
+  fi
+
   if [ "$lxd_backend" = "dir" ]; then
     loop_file="$(cat "${TEST_DIR}/s3/${poolName}/file")"
     loop_device="$(cat "${TEST_DIR}/s3/${poolName}/dev")"
