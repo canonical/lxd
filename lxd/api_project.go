@@ -712,22 +712,32 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 
 	// Record which features have been changed.
 	var featuresChanged []string
+	var storageConfig string
 	for _, configKeyChanged := range configChanged {
 		_, isFeature := cluster.ProjectFeatures[configKeyChanged]
 		if isFeature {
 			featuresChanged = append(featuresChanged, configKeyChanged)
 		}
+
+		if configKeyChanged == "storage.images_volume" || configKeyChanged == "storage.backups_volume" {
+			storageConfig = configKeyChanged
+		}
 	}
 
+	usedByLen := len(project.UsedBy)
+	projectInUse := usedByLen > 1 || (usedByLen == 1 && !strings.Contains(project.UsedBy[0], "/profiles/default"))
+
 	// Quick checks.
+	if projectInUse && storageConfig != "" {
+		return response.BadRequest(fmt.Errorf("Project config %q cannot be changed on non-empty projects", storageConfig))
+	}
+
 	if len(featuresChanged) > 0 {
 		if project.Name == api.ProjectDefaultName {
 			return response.BadRequest(errors.New("You can't change the features of the default project"))
 		}
 
 		// Consider the project empty if it is only used by the default profile.
-		usedByLen := len(project.UsedBy)
-		projectInUse := usedByLen > 1 || (usedByLen == 1 && !strings.Contains(project.UsedBy[0], "/profiles/default"))
 		if projectInUse {
 			// Check if feature is allowed to be changed.
 			for _, featureChanged := range featuresChanged {
@@ -1083,6 +1093,12 @@ func isEitherAllowOrBlock(value string) error {
 
 func isEitherAllowOrBlockOrManaged(value string) error {
 	return validate.Optional(validate.IsOneOf("block", "allow", "managed"))(value)
+}
+
+// isValidProjectStorageVolume validates a daemon storage volume in the form of "<pool_name>/<volume_name>".
+func isValidProjectStorageVolume(s *state.State, daemonStorageVolume string) (err error) {
+	_, err = daemonStorageValidate(s, daemonStorageVolume)
+	return err
 }
 
 // projectValidateConfig validates whether project config keys follow the expected format.
@@ -1472,6 +1488,22 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 		//  defaultdesc: `block`
 		//  shortdesc: Whether to prevent creating instance or volume snapshots
 		"restricted.snapshots": isEitherAllowOrBlock,
+		// lxdmeta:generate(entities=project; group=specific; key=storage.backups_volume)
+		// Specify the volume using the syntax `POOL/VOLUME`.
+		// ---
+		//  type: string
+		//  shortdesc: Volume to use to store backup tarballs
+		"storage.backups_volume": func(daemonStorageVolume string) error {
+			return isValidProjectStorageVolume(s, daemonStorageVolume)
+		},
+		// lxdmeta:generate(entities=project; group=specific; key=storage.images_volume)
+		// Specify the volume using the syntax `POOL/VOLUME`.
+		// ---
+		//  type: string
+		//  shortdesc: Volume to use to store the image tarballs
+		"storage.images_volume": func(daemonStorageVolume string) error {
+			return isValidProjectStorageVolume(s, daemonStorageVolume)
+		},
 	}
 
 	// Add the storage pool keys.
@@ -1570,6 +1602,11 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 	// restrictions when they are configured.
 	if shared.IsTrue(config["restricted"]) && shared.IsFalse(config["features.profiles"]) {
 		return errors.New("Projects without their own profiles cannot be restricted")
+	}
+
+	// Disallow setting external storage for images for projects without images.
+	if config["features.images"] == "false" && config["storage.images_volume"] != "" {
+		return errors.New("Projects without images cannot have images storage configured")
 	}
 
 	return nil
