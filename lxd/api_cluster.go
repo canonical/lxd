@@ -868,7 +868,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			logger.Errorf("Failed starting networks: %v", err)
 		}
 
-		client, err = cluster.Connect(req.ClusterAddress, s.Endpoints.NetworkCert(), serverCert, r, true)
+		client, err = cluster.Connect(r.Context(), req.ClusterAddress, s.Endpoints.NetworkCert(), serverCert, true)
 		if err != nil {
 			return err
 		}
@@ -2073,7 +2073,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		logger.Debugf("Redirect member delete request to %s", leaderInfo.Address)
-		client, err := cluster.Connect(leaderInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+		client, err := cluster.Connect(r.Context(), leaderInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -2154,7 +2154,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	if force != 1 {
 		// Try to gracefully delete all networks and storage pools on it.
 		// Delete all networks on this node
-		client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, true)
+		client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -2226,7 +2226,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		return clusterPutDisable(d, r, api.ClusterPut{})
 	} else if force != 1 {
 		// Try to gracefully reset the database on the node.
-		client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, true)
+		client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -2389,7 +2389,7 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 				continue
 			}
 
-			client, err = cluster.Connect(member.Address, s.Endpoints.NetworkCert(), s.ServerCert(), r, true)
+			client, err = cluster.Connect(r.Context(), member.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 			if err != nil {
 				return err
 			}
@@ -2402,7 +2402,7 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 			// When reverting the certificate, we need to connect to the cluster members using the
 			// new certificate otherwise we'll get a bad certificate error.
 			revert.Add(func() {
-				client, err := cluster.Connect(member.Address, newCertInfo, s.ServerCert(), r, true)
+				client, err := cluster.Connect(r.Context(), member.Address, newCertInfo, s.ServerCert(), true)
 				if err != nil {
 					logger.Error("Failed to connect to cluster member", logger.Ctx{"address": member.Address, "err": err})
 					return
@@ -2670,7 +2670,7 @@ func changeMemberRole(s *state.State, r *http.Request, address string, nodes []d
 		})
 	}
 
-	client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, true)
+	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 	if err != nil {
 		return err
 	}
@@ -2717,7 +2717,7 @@ findLeader:
 	}
 
 	logger.Info("Handing over cluster member role", logCtx)
-	client, err := cluster.Connect(leaderInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), nil, true)
+	client, err := cluster.Connect(context.Background(), leaderInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 	if err != nil {
 		return fmt.Errorf("Failed connecting to leader to hand over cluster member role: %w", err)
 	}
@@ -3125,7 +3125,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Start it back up on target.
-			dest, err := cluster.Connect(targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), r, true)
+			dest, err := cluster.Connect(r.Context(), targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 			if err != nil {
 				return fmt.Errorf("Failed to connect to destination %q for instance %q in project %q: %w", targetMemberInfo.Address, inst.Name(), inst.Project().Name, err)
 			}
@@ -3186,7 +3186,7 @@ func internalClusterHeal(d *Daemon, r *http.Request) response.Response {
 			Migration: true,
 		}
 
-		dest, err := cluster.Connect(targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), nil, true)
+		dest, err := cluster.Connect(context.Background(), targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 		if err != nil {
 			return err
 		}
@@ -3567,7 +3567,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 					return fmt.Errorf("Failed to get node: %w", err)
 				}
 
-				source, err = cluster.Connect(sourceNode.Address, s.Endpoints.NetworkCert(), s.ServerCert(), r, true)
+				source, err = cluster.Connect(r.Context(), sourceNode.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 				if err != nil {
 					return fmt.Errorf("Failed to connect to source: %w", err)
 				}
@@ -4613,7 +4613,7 @@ func autoHealClusterTask(stateFunc func() *state.State) (task.Func, task.Schedul
 func autoHealCluster(_ context.Context, s *state.State, offlineMembers []db.NodeInfo) error {
 	logger.Info("Healing cluster instances")
 
-	dest, err := cluster.Connect(s.LocalConfig.ClusterAddress(), s.Endpoints.NetworkCert(), s.ServerCert(), nil, true)
+	dest, err := cluster.Connect(context.Background(), s.LocalConfig.ClusterAddress(), s.Endpoints.NetworkCert(), s.ServerCert(), true)
 	if err != nil {
 		return err
 	}

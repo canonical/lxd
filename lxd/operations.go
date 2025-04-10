@@ -198,7 +198,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -318,7 +318,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -370,7 +370,7 @@ func operationCancel(s *state.State, r *http.Request, projectName string, op *ap
 		return err
 	}
 
-	client, err := cluster.Connect(memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), r, true)
+	client, err := cluster.Connect(r.Context(), memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 	if err != nil {
 		return fmt.Errorf("Failed to connect to %q: %w", memberAddress, err)
 	}
@@ -666,7 +666,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Connect to the remote server. Use notify=true to only get local operations on remote member.
-		client, err := cluster.Connect(memberAddress, networkCert, s.ServerCert(), r, true)
+		client, err := cluster.Connect(r.Context(), memberAddress, networkCert, s.ServerCert(), true)
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed connecting to member %q: %w", memberAddress, err))
 		}
@@ -794,7 +794,7 @@ func operationsGetByType(s *state.State, r *http.Request, projectName string, op
 		}
 
 		// Connect to the remote server. Use notify=true to only get local operations on remote member.
-		client, err := cluster.Connect(memberAddress, networkCert, serverCert, r, true)
+		client, err := cluster.Connect(r.Context(), memberAddress, networkCert, serverCert, true)
 		if err != nil {
 			return nil, fmt.Errorf("Failed connecting to member %q: %w", memberAddress, err)
 		}
@@ -1009,7 +1009,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1116,7 +1116,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}

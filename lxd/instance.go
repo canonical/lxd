@@ -69,7 +69,7 @@ func instanceCreateAsEmpty(s *state.State, args db.InstanceArgs) (instance.Insta
 // instanceImageTransfer transfers an image from another cluster node.
 func instanceImageTransfer(s *state.State, r *http.Request, projectName string, hash string, nodeAddress string) error {
 	logger.Debugf("Transferring image %q from node %q", hash, nodeAddress)
-	client, err := cluster.Connect(nodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+	client, err := cluster.Connect(r.Context(), nodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return err
 	}
