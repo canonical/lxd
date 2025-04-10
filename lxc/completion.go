@@ -635,6 +635,35 @@ func (g *cmdGlobal) cmpInstanceAllDeviceTypes(remote string, toComplete string) 
 	return devices, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpDeviceSubtype returns completions for device subtypes. For example, if the device type is "nic", the subtype may be "bridged".
+// It is expected that the metadata API returns config keys per subtype under "device-<device_type>-<subtype>".
+// A prefix may be provided so that the completed result may be used as a config key directly, e.g. "nictype=".
+func (g *cmdGlobal) cmpDeviceSubtype(remote string, deviceType string, prefix string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	client, err := g.conf.GetInstanceServerWithAdditionalConnectionArgs(remote, &lxd.ConnectionArgs{SkipGetServer: true})
+	if err != nil {
+		return handleCompletionError(err)
+	}
+
+	metadataConfiguration, err := client.GetMetadataConfiguration()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	subTypes := make([]string, 0, len(metadataConfiguration.Configs))
+	for key := range metadataConfiguration.Configs {
+		subType, ok := strings.CutPrefix(key, "device-"+deviceType+"-")
+		if !ok {
+			continue
+		}
+
+		if strings.HasPrefix(subType, toComplete) {
+			subTypes = append(subTypes, prefix+subType)
+		}
+	}
+
+	return subTypes, cobra.ShellCompDirectiveNoFileComp
+}
+
 // cmpInstanceAllDeviceOptions provides shell completion for all instance device options.
 // It takes an instance name and device name and returns a list of all possible instance device options along with a shell completion directive.
 func (g *cmdGlobal) cmpInstanceAllDeviceOptions(instanceName string, deviceName string) ([]string, cobra.ShellCompDirective) {
