@@ -221,6 +221,7 @@ lxc query --request POST /1.0/network-acls --data '{
 
 `````
 
+(network-acls-properties)=
 ### ACL properties
 
 ACLs have the following properties:
