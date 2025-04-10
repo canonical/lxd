@@ -11,7 +11,7 @@ on:
 
 env:
   LXD_REQUIRED_TESTS: "storage_buckets,network_ovn"
-  GOCOVERDIR: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && '"${GITHUB_WORKSPACE}/coverage"' || '' }}
+  GOCOVERDIR: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name != 'schedule' ) && '${GITHUB_WORKSPACE}/coverage' || '' }}
 
 permissions:
   contents: read
@@ -174,7 +174,9 @@ jobs:
           fi
 
       - name: Make GOCOVERDIR
-        run: mkdir -p "${GOCOVERDIR}"
+        run: |
+          set -eux
+          mkdir -p "${GOCOVERDIR}"
         if: env.GOCOVERDIR != ''
 
       - name: Run static analysis
@@ -419,7 +421,9 @@ jobs:
           mkdir bin
 
       - name: Make GOCOVERDIR
-        run: mkdir -p "${GOCOVERDIR}"
+        run: |
+          set -eux
+          mkdir -p "${GOCOVERDIR}"
         if: env.GOCOVERDIR != ''
 
       - name: Build static lxc
