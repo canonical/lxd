@@ -41,7 +41,7 @@ type Response struct {
 	Metadata json.RawMessage `json:"metadata" yaml:"metadata"`
 }
 
-// MetadataAsMap parses the Response metadata into a map.
+// MetadataAsMap unmarshals the Response metadata into a map.
 func (r *Response) MetadataAsMap() (map[string]any, error) {
 	ret := map[string]any{}
 	err := r.MetadataAsStruct(&ret)
@@ -63,7 +63,7 @@ func (r *Response) MetadataAsOperation() (*Operation, error) {
 	return &op, nil
 }
 
-// MetadataAsStringSlice parses the Response metadata into a slice of string.
+// MetadataAsStringSlice unmarshals the Response metadata into a slice of string.
 func (r *Response) MetadataAsStringSlice() ([]string, error) {
 	sl := []string{}
 	err := r.MetadataAsStruct(&sl)
@@ -74,7 +74,7 @@ func (r *Response) MetadataAsStringSlice() ([]string, error) {
 	return sl, nil
 }
 
-// MetadataAsStruct parses the Response metadata into a provided struct.
+// MetadataAsStruct unmarshals the Response metadata content.
 func (r *Response) MetadataAsStruct(target any) error {
 	return json.Unmarshal(r.Metadata, &target)
 }
