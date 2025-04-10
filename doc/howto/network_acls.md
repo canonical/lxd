@@ -21,6 +21,40 @@ Network ACLs can be assigned directly to the {abbr}`NIC (Network Interface Contr
 
 When an ACL is assigned to multiple instance NICs, either directly or indirectly, those NICs form a logical port group. You can use the name of that ACL to refer to that group in the traffic rules of other ACLs. For more information, see: {ref}`network-acls-selectors-subject-name`.
 
+(network-acls-list)=
+## List ACLs
+
+`````{tabs}
+````{group-tab} CLI
+
+To list all ACLs, run:
+
+```bash
+lxc network acl list
+```
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+To list all ACLs, query the [`GET /1.0/network-acls`](swagger:/network-acls/network_acls_get) endpoint:
+
+```bash
+lxc query --request GET /1.0/network-acls
+```
+
+You can also use {ref}`recursion <rest-api-recursion>` to list the ACLs with a higher level of detail:
+
+```bash
+lxc query --request GET /1.0/network-acls?recursion=1
+```
+
+````
+% End of group-tab API
+
+`````
+
 ## Create an ACL
 
 Use the following command to create an ACL:
