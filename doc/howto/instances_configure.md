@@ -208,6 +208,14 @@ For example, to add the storage at `/share/c1` on the host system to your instan
     }'
 
 See [`PATCH /1.0/instances/{name}`](swagger:/instances/instance_patch) for more information.
+
+(instances-configure-devices-api-required)=
+### Required keys
+
+You must include any required keys for the device in your PATCH request body. Include these along with the key to update, and any other existing keys (unless you want to remove them). Omitted optional keys are reset to default values.
+
+The `type` key specifying the device type is always required. To find any other required keys for a device type, view the {ref}`devices` reference guides. For example, for an OVN NIC device, the {config:option}`device-nic-ovn-device-conf:network` key is required.
+
 ````
 
 ````{group-tab} UI
