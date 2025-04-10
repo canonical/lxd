@@ -6,12 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/flosch/pongo2"
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
@@ -184,7 +181,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	if req.Name == "" {
-		snapName, err := volumeDetermineNextSnapshotName(s, parentVolumeArgs, "snap%d")
+		snapName, err := storagePools.VolumeDetermineNextSnapshotName(r.Context(), s, parentVolumeArgs.PoolName, parentVolumeArgs.Name, parentVolumeArgs.Config)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1269,7 +1266,7 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, s *state.State, volume
 			return err // Stop if context is cancelled.
 		}
 
-		snapshotName, err := volumeDetermineNextSnapshotName(s, v, "snap%d")
+		snapshotName, err := storagePools.VolumeDetermineNextSnapshotName(ctx, s, v.PoolName, v.Name, v.Config)
 		if err != nil {
 			return fmt.Errorf("Error retrieving next snapshot name for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
@@ -1291,105 +1288,4 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, s *state.State, volume
 	}
 
 	return nil
-}
-
-func volumeDetermineNextSnapshotName(s *state.State, volume db.StorageVolumeArgs, defaultPattern string) (string, error) {
-	var err error
-
-	pattern, ok := volume.Config["snapshots.pattern"]
-	if !ok {
-		pattern = defaultPattern
-	}
-
-	pattern, err = shared.RenderTemplate(pattern, pongo2.Context{
-		"creation_date": time.Now(),
-	})
-	if err != nil {
-		return "", err
-	}
-
-	count := strings.Count(pattern, "%d")
-	if count > 1 {
-		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
-	} else if count == 1 {
-		var i int
-		_ = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-			i = tx.GetNextStorageVolumeSnapshotIndex(ctx, volume.PoolName, volume.Name, dbCluster.StoragePoolVolumeTypeCustom, pattern)
-
-			return nil
-		})
-
-		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
-	}
-
-	snapshotExists := false
-
-	var snapshots []db.StorageVolumeArgs
-	var projects []string
-	var pools []string
-
-	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		projects, err = dbCluster.GetProjectNames(ctx, tx.Tx())
-		if err != nil {
-			return err
-		}
-
-		pools, err = tx.GetStoragePoolNames(ctx)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return "", err
-	}
-
-	for _, pool := range pools {
-		var poolID int64
-
-		err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-			poolID, err = tx.GetStoragePoolID(ctx, pool)
-			if err != nil {
-				return err
-			}
-
-			for _, project := range projects {
-				snaps, err := tx.GetLocalStoragePoolVolumeSnapshotsWithType(ctx, project, volume.Name, dbCluster.StoragePoolVolumeTypeCustom, poolID)
-				if err != nil {
-					return err
-				}
-
-				snapshots = append(snapshots, snaps...)
-			}
-
-			return nil
-		})
-		if err != nil {
-			return "", err
-		}
-	}
-
-	for _, snap := range snapshots {
-		_, snapOnlyName, _ := api.GetParentAndSnapshotName(snap.Name)
-
-		if snapOnlyName == pattern {
-			snapshotExists = true
-			break
-		}
-	}
-
-	if snapshotExists {
-		var i int
-
-		_ = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-			i = tx.GetNextStorageVolumeSnapshotIndex(ctx, volume.PoolName, volume.Name, dbCluster.StoragePoolVolumeTypeCustom, pattern)
-
-			return nil
-		})
-
-		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
-	}
-
-	return pattern, nil
 }
