@@ -524,12 +524,24 @@ lxc query --request POST /1.0/network-acls/web-traffic --data '{
 
 `````
 
+(network-acls-edit-properties)=
+### Edit other properties
+
+`````{tabs}
+````{group-tab} CLI
+
+Run:
+
 ```bash
-lxc network acl edit <ACL_name>
+lxc network acl edit <ACL-name>
 ```
 
-This command opens the ACL in YAML format for editing.
-You can edit both the ACL configuration and the rules.
+This command opens the ACL configuration in YAML format for editing. You can edit any part of the configuration _except_ for the ACL name, including the custom user keys.
+
+````
+% End of group-tab CLI
+
+`````
 
 (network-acls-delete)=
 ## Delete an ACL
