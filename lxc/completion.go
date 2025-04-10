@@ -665,36 +665,56 @@ func (g *cmdGlobal) cmpDeviceSubtype(remote string, deviceType string, prefix st
 }
 
 // cmpInstanceAllDeviceOptions provides shell completion for all instance device options.
-// It takes an instance name and device name and returns a list of all possible instance device options along with a shell completion directive.
-func (g *cmdGlobal) cmpInstanceAllDeviceOptions(instanceName string, deviceName string) ([]string, cobra.ShellCompDirective) {
-	resources, err := g.ParseServers(instanceName)
-	if err != nil || len(resources) == 0 {
-		return nil, cobra.ShellCompDirectiveError
+// It takes an instance name and device type and returns a list of all possible instance device options along with a shell completion directive.
+// If the subtype is given, only options supported by that subtype will be returned.
+func (g *cmdGlobal) cmpInstanceAllDeviceOptions(remote string, deviceType string, subtype string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	client, err := g.conf.GetInstanceServerWithAdditionalConnectionArgs(remote, &lxd.ConnectionArgs{SkipGetServer: true})
+	if err != nil {
+		return handleCompletionError(err)
 	}
-
-	resource := resources[0]
-	client := resource.server
 
 	metadataConfiguration, err := client.GetMetadataConfiguration()
 	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
+		return handleCompletionError(err)
 	}
 
-	deviceOptions := make([]string, 0, len(metadataConfiguration.Configs))
-
+	appendOption, result := configOptionAppender(toComplete, "=", -1)
 	for key, device := range metadataConfiguration.Configs {
+		if !strings.HasPrefix(key, "device-") {
+			continue
+		}
+
 		parts := strings.Split(key, "-")
-		if strings.HasPrefix(key, "device-") && parts[1] == deviceName {
+		metadataDeviceType := parts[1]
+		if metadataDeviceType == "unix" && len(parts) > 2 {
+			if parts[2] == "usb" {
+				metadataDeviceType = "usb"
+			} else {
+				metadataDeviceType += "-" + parts[2]
+			}
+		}
+
+		if metadataDeviceType == deviceType {
+			if subtype != "" {
+				if len(parts) < 3 {
+					continue
+				}
+
+				if parts[2] != subtype {
+					continue
+				}
+			}
+
 			conf := device["device-conf"]
 			for _, keyMap := range conf.Keys {
 				for option := range keyMap {
-					deviceOptions = append(deviceOptions, option)
+					appendOption(option)
 				}
 			}
 		}
 	}
 
-	return deviceOptions, cobra.ShellCompDirectiveNoFileComp
+	return result(), cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 }
 
 // cmpInstancesAction provides shell completion for all instance actions (start, pause, exec, stop and delete).
