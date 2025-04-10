@@ -131,7 +131,7 @@ func (c *cmdImageAliasDelete) command() *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpImages(toComplete)
+		return c.global.cmpTopLevelResource("image_alias", toComplete)
 	}
 
 	return cmd
@@ -295,7 +295,7 @@ func (c *cmdImageAliasRename) command() *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpImages(toComplete)
+		return c.global.cmpTopLevelResource("image_alias", toComplete)
 	}
 
 	return cmd

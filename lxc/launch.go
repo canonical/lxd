@@ -50,7 +50,7 @@ lxc launch ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,si
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpImages(toComplete)
+		return c.global.cmpImages(toComplete, false)
 	}
 
 	return cmd
