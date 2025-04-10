@@ -535,6 +535,15 @@ For instance NICs, use the following command:
 lxc config device set <instance_name> <device_name> security.acls="<ACL_name>"
 ```
 
+(network-acls-assign-additional)=
+### Additional options
+
+To view additional options for the `security.acls` lists, refer to the configuration options for the target network or NIC:
+
+- Bridget network's {config:option}`network-bridge-network-conf:security.acls`
+- OVN network's {config:option}`network-ovn-network-conf:security.acls`
+- Instance's OVN NIC {config:option}`device-nic-ovn-device-conf:security.acls`
+
 (network-acls-defaults)=
 ## Configure default actions
 
