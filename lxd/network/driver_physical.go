@@ -219,6 +219,13 @@ func (n *physical) Validate(config map[string]string) error {
 		return err
 	}
 
+	// Check that ipv4.routes and ipv6.routes contain the routes for existing OVN network
+	// forwards and load balancers.
+	err = n.validateRoutes(config)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
