@@ -55,6 +55,45 @@ lxc query --request GET /1.0/network-acls?recursion=1
 
 `````
 
+(network-acls-show)=
+## Show an ACL
+
+`````{tabs}
+````{group-tab} CLI
+
+To show details about a specific ACL, run:
+
+```bash
+lxc network acl show <ACL-name>
+```
+
+Example:
+
+```bash
+lxc network acl show my-acl
+```
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+For details about a specific ACL, query the [`GET /1.0/network-acls/{ACL-name}`](swagger:/network-acls/network_acl_get) endpoint`:
+
+```bash
+lxc query --request GET /1.0/network-acls/{ACL-name}
+```
+
+Example:
+
+```bash
+lxc query --request GET /1.0/network-acls/my-acl
+```
+
+````
+% End of group-tab API
+
+`````
 ## Create an ACL
 
 Use the following command to create an ACL:
