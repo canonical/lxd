@@ -548,23 +548,20 @@ func (g *cmdGlobal) cmpInstanceSetKeys(instanceName string) ([]string, cobra.She
 
 // cmpServerAllKeys provides shell completion for all server configuration keys.
 // It takes a partial input string and returns a list of all server configuration keys along with a shell completion directive.
-func (g *cmdGlobal) cmpServerAllKeys(toComplete string) ([]string, cobra.ShellCompDirective) {
-	resources, err := g.ParseServers(toComplete)
-	if err != nil || len(resources) == 0 {
-		return nil, cobra.ShellCompDirectiveError
+func (g *cmdGlobal) cmpServerAllKeys(remote string, suffix string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	client, err := g.conf.GetInstanceServerWithConnectionArgs(remote, &lxd.ConnectionArgs{SkipGetServer: true})
+	if err != nil {
+		return handleCompletionError(err)
 	}
-
-	resource := resources[0]
-	client := resource.server
 
 	metadataConfiguration, err := client.GetMetadataConfiguration()
 	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
+		return handleCompletionError(err)
 	}
 
 	server, ok := metadataConfiguration.Configs["server"]
 	if !ok {
-		return nil, cobra.ShellCompDirectiveError
+		return handleCompletionError(fmt.Errorf("Remote %q metadata response did not include server configuration", remote))
 	}
 
 	keyCount := 0
@@ -572,17 +569,16 @@ func (g *cmdGlobal) cmpServerAllKeys(toComplete string) ([]string, cobra.ShellCo
 		keyCount += len(field.Keys)
 	}
 
-	keys := make([]string, 0, keyCount)
-
+	appendOption, result := configOptionAppender(toComplete, suffix, keyCount)
 	for _, field := range server {
 		for _, keyMap := range field.Keys {
 			for key := range keyMap {
-				keys = append(keys, key)
+				appendOption(key)
 			}
 		}
 	}
 
-	return keys, cobra.ShellCompDirectiveNoFileComp
+	return result(), cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 }
 
 // cmpServerSetKeys provides shell completion for server configuration keys which are currently set.
