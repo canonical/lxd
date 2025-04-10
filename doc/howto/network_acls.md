@@ -562,6 +562,84 @@ Any properties you omit from this request (aside from the ACL `name`) will be re
 
 If you _only_ want to update the `config` custom user keys, see: {ref}`network-acls-edit-custom-api`.
 
+#### Example
+
+Consider an ACL named `my-acl` with the following properties (shown in JSON):
+
+```json
+{
+  "name": "my-acl",
+  "config": {
+    "user.my-key": "my-value"
+  },
+  "description": "My test ACL",
+  "egress": [
+    {
+      "action": "allow",
+      "state": "logged"
+    }
+  ]
+  "ingress": [
+    {
+      "action": "drop",
+      "state": "enabled"
+    }
+  ]
+}
+```
+
+This query updates that ACL's `egress` rule `state` from `logged` to `enabled`:
+
+```bash
+lxc query --request PUT /1.0/network-acls/my-acl --data '{
+  "egress": [
+    {
+      "action": "allow",
+      "state": "enabled"
+    }
+  ]
+}'
+```
+
+After the above query is run, `my-acl` contains the following properties:
+
+```json
+{
+  "name": "test",
+  "config": {},
+  "description": "",
+  "egress": [
+    {
+      "action": "allow",
+      "state": "enabled"
+    }
+  ],
+  "ingress": []
+}
+```
+
+Note that the `description` and `ingress` properties have been reset to defaults because they were not provided in the API request.
+
+To avoid this behavior and preserve the values of any existing properties, you must include them in the `PUT` request along with the updated property:
+
+```bash
+lxc query --request PUT /1.0/network-acls/my-acl --data '{
+  "description": "My test ACL",
+  "egress": [
+    {
+      "action": "allow",
+      "state": "enabled"
+    }
+  ],
+  "ingress": [
+    {
+      "action": "drop",
+      "state": "enabled"
+    }
+  ]
+}'
+```
+
 ````
 % End of group-tab API
 
