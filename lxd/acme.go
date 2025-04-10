@@ -49,7 +49,7 @@ func acmeProvideChallenge(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		return response.ForwardedResponse(client, r)
+		return response.ForwardedResponse(client)
 	}
 
 	if d.http01Provider == nil || d.http01Provider.Token() != token {
