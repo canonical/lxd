@@ -518,12 +518,18 @@ lxc query --request DELETE /1.0/network-acls/{ACL-name}
 
 `````
 
+(network-acls-assign)=
 ## Assign an ACL
 
-After configuring an ACL, you must assign it to a network or an instance NIC.
+An ACL is inactive until it is assigned to one of the following targets:
 
-To do so, add it to the `security.acls` list of the network or NIC configuration.
-For networks, use the following command:
+- a {ref}`network-ovn`
+- a {ref}`network-bridge`
+- an {ref}`OVN NIC type of an instance <nic-ovn>`
+
+To assign an ACL, you must update the `security.acls` option within its target's configuration.
+
+Assigning one or more ACLs to a NIC or network adds a default rule that rejects all unmatched traffic. See {ref}`network-acls-defaults` for details.
 
 ```bash
 lxc network set <network_name> security.acls="<ACL_name>"
