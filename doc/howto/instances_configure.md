@@ -180,10 +180,14 @@ See [`lxc config device --help`](lxc_config_device.md) for a full list of availa
 ````
 
 ````{group-tab} API
-To add and configure an instance device for your instance, use the same mechanism of patching the instance configuration.
+To add or configure an instance device for your instance, use the same mechanism of patching the instance configuration.
 The device configuration is located under the `devices` field of the configuration.
 
-Specify the instance name, a device name, the device type and maybe device options (depending on the {ref}`device type <devices>`):
+```{caution}
+Patching a device's configuration unsets any omitted options for that device, along with the instance's `description` property. See {ref}`instances-configure-devices-api-patch-effects` for details.
+```
+
+Specify the instance name, a device name, and any {ref}`instances-configure-devices-api-required` (depending on the {ref}`device type <devices>`):
 
     lxc query --request PATCH /1.0/instances/<instance_name> --data '{
       "devices": {
@@ -208,6 +212,69 @@ For example, to add the storage at `/share/c1` on the host system to your instan
     }'
 
 See [`PATCH /1.0/instances/{name}`](swagger:/instances/instance_patch) for more information.
+
+(instances-configure-devices-api-required)=
+### Required device options
+
+When using a PATCH request to update an instance's `devices` property, you must include any required options for each device in the request body. The device's `type` option is always required. To find any other required keys for a specific device type, view the {ref}`devices` reference guides. For example, for an OVN NIC device, the {config:option}`device-nic-ovn-device-conf:network` key is required.
+
+(instances-configure-devices-api-patch-effects)=
+### Effects of patching device options
+
+For any device in your PATCH request, the request acts similar to a conventional PUT: it replaces all options for that device. This means that if you omit a non-required option, it is unset. Thus, include not only the options you want to add or update in your patch, but also any other existing options whose values you want to keep.
+
+This behavior only affects the specific device or devices that you are patching; if there are other devices, you don't need to include them. It also does not affect any other instance properties, with one exception: if the instance includes a `description` property, that property must be passed along with `devices`; otherwise, it is unset.
+
+For example, consider an instance that contains this `devices` property:
+
+```bash
+"devices": {
+  "my-bridge-nic": {
+    "name": "my-bridge-nic-name",
+    "network": "my-bridge-network",
+    "type": "nic"
+  },
+  "my-ovn-nic": {
+    "name": "my-ovn-nic-name",
+    "network": "my-ovn-network",
+    "type": "nic"
+  }
+}
+```
+
+Let's say the following PATCH request is sent for this instance:
+
+```bash
+lxc query --request PATCH /1.0/instances/my-instance --data '{
+  "devices": {
+    "my-bridge-nic": {
+      "type": "nic",
+      "network": "test-bridge",
+      "ipv4.address": "192.0.2.10"
+    }
+  }
+}'
+```
+
+This PATCH request updates only the `my-bridge-nic` device, without affecting the `my-ovn-nic` device. The device options defined in the request body replace the existing options. After the request, this is the `devices` property's configuration:
+
+```bash
+"devices": {
+  "my-bridge-nic": {
+    "network": "my-bridge-network",
+    "type": "nic",
+    "ipv4.address": "192.0.2.10"
+  },
+  "my-ovn-nic": {
+    "name": "my-ovn-nic-name",
+    "network": "my-ovn-network",
+    "type": "nic"
+  }
+}
+```
+
+Notice that in the updated `my-bridge-nic` device, the `name` option is unset and no longer appears, due to not being sent in the PATCH request.
+
 ````
 
 ````{group-tab} UI
