@@ -75,7 +75,7 @@ lxc move <instance>/<old snapshot name> <instance>/<new snapshot name>
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
