@@ -182,7 +182,7 @@ func (d *disk) checkBlockVolSharing(instanceType instancetype.Type, projectName 
 		return fmt.Errorf("Cannot add block volume to profiles if security.shared is false or unset")
 	}
 
-	err := storagePools.VolumeUsedByInstanceDevices(d.state, d.pool.Name(), projectName, volume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+	return storagePools.VolumeUsedByInstanceDevices(d.state, d.pool.Name(), projectName, volume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
 		// Don't count the current instance.
 		if d.inst != nil && d.inst.Project().Name == inst.Project && d.inst.Name() == inst.Name {
 			return nil
@@ -205,11 +205,6 @@ func (d *disk) checkBlockVolSharing(instanceType instancetype.Type, projectName 
 
 		return fmt.Errorf("Cannot add block volume to more than one instance if security.shared is false or unset")
 	})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // validateConfig checks the supplied config for correctness.
