@@ -367,6 +367,7 @@ LXD automatically prioritizes rules based on the action property, in the followi
 
 When you assign multiple ACLs to a NIC, you do not need to coordinate rule order across them. As soon as a rule matches, its action is applied and no further rules are evaluated.
 
+(network-acls-rule-properties)=
 ### Rule properties
 
 ACL rules have the following properties:
