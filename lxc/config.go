@@ -86,6 +86,47 @@ func (c *cmdConfig) command() *cobra.Command {
 	return cmd
 }
 
+// configSetValidArgsFunc returns completions for server and instance configuration keys (and remotes if no remote is
+// specified). If the command is targeting an instance, only configuration keys valid for that instance type are offered.
+// This function can also be used for the `config get` command, since it is valid to get any key (even if unset). If the
+// command name is "set", configuration key completions are suffixed with an `=`.
+func (c *cmdConfig) configSetValidArgsFunc(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	var suffix string
+	if cmd.Name() == "set" {
+		suffix = "="
+	}
+
+	if len(args) == 0 {
+		remote, partial, err := c.global.conf.ParseRemote(toComplete)
+		if err != nil {
+			return handleCompletionError(err)
+		}
+
+		// Default remote: Return all config keys, remotes, and instances.
+		if partial == toComplete {
+			serverConfigKeys, _ := c.global.cmpServerAllKeys(remote, suffix, toComplete)
+			instancesAndRemotes, _ := c.global.cmpTopLevelResource("instance", toComplete)
+			return append(serverConfigKeys, instancesAndRemotes...), cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
+		}
+
+		// Non-default remote: Return instances and remotes
+		return c.global.cmpTopLevelResource("instance", toComplete)
+	}
+
+	remote, instanceName, err := c.global.conf.ParseRemote(args[0])
+	if err != nil {
+		return handleCompletionError(err)
+	}
+
+	if instanceName == "" {
+		return c.global.cmpServerAllKeys(remote, suffix, toComplete)
+	}
+
+	instanceType := c.global.getInstanceType(remote, instanceName)
+
+	return c.global.cmpInstanceKeysByType(instanceType, suffix, toComplete)
+}
+
 // Edit.
 type cmdConfigEdit struct {
 	global *cmdGlobal
@@ -398,20 +439,14 @@ func (c *cmdConfigGet) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
 
-	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) == 0 {
-			if strings.Contains(toComplete, ".") {
-				return c.global.cmpServerAllKeys(toComplete)
-			}
-
-			return c.global.cmpTopLevelResource("instance", toComplete)
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		// Only one key is allowed.
+		if len(args) > 1 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		if len(args) == 1 {
-			return c.global.cmpInstanceKeys(args[0])
-		}
-
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		// The caller can get any key, even if unset. So call completions for 'config set'.
+		return c.config.configSetValidArgsFunc(cmd, args, toComplete)
 	}
 
 	return cmd
@@ -559,22 +594,7 @@ lxc config set core.trust_password=blah
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as an instance property"))
 	cmd.RunE = c.run
 
-	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) == 0 {
-			if strings.Contains(toComplete, ".") {
-				return c.global.cmpServerAllKeys(toComplete)
-			}
-
-			return c.global.cmpTopLevelResource("instance", toComplete)
-		}
-
-		if len(args) == 1 {
-			return c.global.cmpInstanceKeys(args[0])
-		}
-
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
+	cmd.ValidArgsFunction = c.config.configSetValidArgsFunc
 	return cmd
 }
 
@@ -913,21 +933,39 @@ func (c *cmdConfigUnset) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 1 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
 		if len(args) == 0 {
-			if strings.Contains(toComplete, ".") {
-				// Only complete config keys which are currently set.
-				return c.global.cmpServerSetKeys(toComplete)
+			remote, partial, err := c.global.conf.ParseRemote(toComplete)
+			if err != nil {
+				return handleCompletionError(err)
 			}
 
+			// Default remote: Return set config keys in the default remote, instance remotes, and instances in the default remote.
+			if partial == toComplete {
+				serverConfigKeys, _ := c.global.cmpServerSetKeys(remote, toComplete)
+				instancesAndRemotes, _ := c.global.cmpTopLevelResource("instance", toComplete)
+				return append(serverConfigKeys, instancesAndRemotes...), cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
+			}
+
+			// Non-default remote: Return instances and remotes
 			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
-		if len(args) == 1 {
-			// Only complete config keys which are currently set.
-			return c.global.cmpInstanceSetKeys(args[0])
+		remote, instanceName, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
 		}
 
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		// If we have a remote but no instance, return set config keys in the specified remote.
+		if instanceName == "" {
+			return c.global.cmpServerSetKeys(remote, toComplete)
+		}
+
+		// Return set config keys for the instance.
+		return c.global.cmpInstanceSetKeys(remote, instanceName, toComplete)
 	}
 
 	return cmd
