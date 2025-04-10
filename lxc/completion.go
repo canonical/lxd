@@ -593,16 +593,13 @@ func (g *cmdGlobal) cmpInstanceDeviceNames(instanceName string) ([]string, cobra
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
-// cmpInstanceAllDevices provides shell completion for all instance devices.
+// cmpInstanceAllDeviceTypes provides shell completion for all instance device types.
 // It takes an instance name and returns a list of all possible instance devices along with a shell completion directive.
-func (g *cmdGlobal) cmpInstanceAllDevices(instanceName string) ([]string, cobra.ShellCompDirective) {
-	resources, err := g.ParseServers(instanceName)
-	if err != nil || len(resources) == 0 {
-		return nil, cobra.ShellCompDirectiveError
+func (g *cmdGlobal) cmpInstanceAllDeviceTypes(remote string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	client, err := g.conf.GetInstanceServerWithAdditionalConnectionArgs(remote, &lxd.ConnectionArgs{SkipGetServer: true})
+	if err != nil {
+		return handleCompletionError(err)
 	}
-
-	resource := resources[0]
-	client := resource.server
 
 	metadataConfiguration, err := client.GetMetadataConfiguration()
 	if err != nil {
@@ -612,10 +609,26 @@ func (g *cmdGlobal) cmpInstanceAllDevices(instanceName string) ([]string, cobra.
 	devices := make([]string, 0, len(metadataConfiguration.Configs))
 
 	for key := range metadataConfiguration.Configs {
-		if strings.HasPrefix(key, "device-") {
-			parts := strings.Split(key, "-")
-			deviceName := parts[1]
-			devices = append(devices, deviceName)
+		if !strings.HasPrefix(key, "device-") {
+			continue
+		}
+
+		parts := strings.Split(key, "-")
+		deviceType := parts[1]
+
+		// "unix" is not a device, get the next part.
+		if deviceType == "unix" && len(parts) > 2 {
+			// The metadata API has "unix-usb", but the device type is just "usb"
+			if parts[2] == "usb" {
+				deviceType = "usb"
+			} else {
+				// Otherwise append the next part.
+				deviceType += "-" + parts[2]
+			}
+		}
+
+		if strings.HasPrefix(deviceType, toComplete) && !shared.ValueInSlice(deviceType, devices) {
+			devices = append(devices, deviceType)
 		}
 	}
 
