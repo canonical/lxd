@@ -325,11 +325,30 @@ There is no specific endpoint for adding a rule. Instead, you must {ref}`edit th
 
 `````
 
+### Remove a rule
+
+`````{tabs}
+````{group-tab} CLI
+
+To remove a rule from an ACL, run:
+
 ```bash
-lxc network acl rule remove <ACL_name> <direction> [properties...]
+lxc network acl rule remove <ACL-name> <egress|ingress> [properties...]
 ```
 
 You must either specify all properties needed to uniquely identify a rule or add `--force` to the command to delete all matching rules.
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+There is no specific endpoint for removing a rule. Instead, you must {ref}`edit the full ACL <network-acls-edit>`, which contains the `egress` and `ingress` lists.
+
+````
+% End of group-tab API
+
+`````
 
 ### Rule ordering and priorities
 
