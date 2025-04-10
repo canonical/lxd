@@ -237,7 +237,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 				}
 
 				// Connect to the remote server.
-				client, err := cluster.Connect(member.Address, networkCert, s.ServerCert(), r, true)
+				client, err := cluster.Connect(r.Context(), member.Address, networkCert, s.ServerCert(), true)
 				if err != nil {
 					failuresLock.Lock()
 					failures[member.Name] = err

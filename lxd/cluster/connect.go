@@ -24,10 +24,13 @@ import (
 // Connect is a convenience around lxd.ConnectLXD that configures the client
 // with the correct parameters for node-to-node communication.
 //
+// If a context is passed, the proxy is configured as well. The context must be a request
+// context, as it is used to extract the various information from the request.
+//
 // If 'notify' switch is true, then the user agent will be set to the special
 // to the UserAgentNotifier value, which can be used in some cases to distinguish
 // between a regular client request and an internal cluster request.
-func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, notify bool) (lxd.InstanceServer, error) {
+func Connect(reqContext context.Context, address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, notify bool) (lxd.InstanceServer, error) {
 	// Wait for a connection to the events API first for non-notify connections.
 	if !notify {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Second)
@@ -50,23 +53,22 @@ func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.Ce
 		args.UserAgent = clusterRequest.UserAgentNotifier
 	}
 
-	if r != nil {
+	if request.IsRequestContext(reqContext) {
 		proxy := func(req *http.Request) (*url.URL, error) {
-			ctx := r.Context()
-
-			val, ok := ctx.Value(request.CtxUsername).(string)
+			val, ok := reqContext.Value(request.CtxUsername).(string)
 			if ok {
 				req.Header.Add(request.HeaderForwardedUsername, val)
 			}
 
-			val, ok = ctx.Value(request.CtxProtocol).(string)
+			val, ok = reqContext.Value(request.CtxProtocol).(string)
 			if ok {
 				req.Header.Add(request.HeaderForwardedProtocol, val)
 			}
 
-			req.Header.Add(request.HeaderForwardedAddress, r.RemoteAddr)
+			reqSourceAddress, _ := reqContext.Value(request.CtxRequestSourceAddress).(string)
+			req.Header.Add(request.HeaderForwardedAddress, reqSourceAddress)
 
-			identityProviderGroupsAny := ctx.Value(request.CtxIdentityProviderGroups)
+			identityProviderGroupsAny := reqContext.Value(request.CtxIdentityProviderGroups)
 			if ok {
 				identityProviderGroups, ok := identityProviderGroupsAny.([]string)
 				if ok {
@@ -110,7 +112,7 @@ func ConnectIfInstanceIsRemote(s *state.State, projectName string, instName stri
 		return nil, nil // The instance is running on this local member, no need to connect.
 	}
 
-	client, err := Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+	client, err := Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return nil, err
 	}
