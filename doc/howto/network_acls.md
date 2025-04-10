@@ -513,17 +513,59 @@ This rule rejects all traffic that doesn't match any of the rules in the assigne
 
 You can change this behavior with the network- and NIC-level `security.acls.default.ingress.action` and `security.acls.default.egress.action` settings. The NIC-level settings override the network-level settings.
 
-For example, to set the default action for inbound traffic to `allow` for all instances connected to a network, use the following command:
+`````{tabs}
+````{group-tab} CLI
+
+### Configure a default action for a network
+
+To set the default action for a network's egress or ingress traffic, run:
 
 ```bash
-lxc network set <network_name> security.acls.default.ingress.action=allow
+lxc network set <network-name> security.acls.default.<egress|ingress>.action=<allow|reject|drop>
 ```
 
-To configure the same default action for an instance NIC, use the following command:
+#### Example
+
+To set the default action for inbound traffic to `allow` for all instances on the `my-network` network, run:
 
 ```bash
-lxc config device set <instance_name> <device_name> security.acls.default.ingress.action=allow
+lxc network set my-network security.acls.default.ingress.action=allow
 ```
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+### Configure a default action for a network
+
+To set the default action for a network's egress or ingress traffic, query the [`PATCH /1.0/networks/{network-name}`](swagger:/networks/network_patch) endpoint:
+
+```bash
+lxc query --request PATCH /1.0/networks/{network-name} --data '{
+  "config": {
+    "security.acls.default.egress.action": "<allow|reject|drop>",
+    "security.acls.default.ingress.action": "<allow|reject|drop>",
+  }
+}'
+```
+
+#### Example
+
+Set the `my-network` network's default egress action to `allow`:
+
+```bash
+lxc query --request PATCH /1.0/networks/my-network --data '{
+  "config": {
+    "security.acls.default.egress.action": "allow"
+  }
+}'
+```
+
+````
+% End of group-tab API
+
+`````
 
 (network-acls-bridge-limitations)=
 ## Bridge limitations
