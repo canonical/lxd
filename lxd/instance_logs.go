@@ -263,7 +263,7 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 		Filename: file,
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.InstanceLogRetrieved.Event(file, inst, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.InstanceLogRetrieved.Event(file, inst, request.CreateRequestor(r.Context()), nil))
 
 	return response.FileResponse([]response.FileResponseEntry{ent}, nil)
 }
@@ -346,7 +346,7 @@ func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.InstanceLogDeleted.Event(file, inst, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.InstanceLogDeleted.Event(file, inst, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }
@@ -565,7 +565,7 @@ func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 		Cleanup:  cleanup.Fail,
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.InstanceLogRetrieved.Event(file, inst, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.InstanceLogRetrieved.Event(file, inst, request.CreateRequestor(r.Context()), nil))
 
 	return response.FileResponse([]response.FileResponseEntry{ent}, nil)
 }
@@ -657,7 +657,7 @@ func instanceExecOutputDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.InstanceLogDeleted.Event(file, inst, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.InstanceLogDeleted.Event(file, inst, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }
