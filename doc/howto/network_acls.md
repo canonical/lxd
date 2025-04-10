@@ -541,6 +541,30 @@ This command opens the ACL configuration in YAML format for editing. You can edi
 ````
 % End of group-tab CLI
 
+````{group-tab} API
+
+You can update any ACL property except for `name`, including the custom user keys, by querying the [`PUT /1.0/network-acls/{ACL-name}`](swagger:/network-acls/network_acl_put) endpoint:
+
+```bash
+lxc query --request PUT /1.0/network-acls/{ACL-name} --data '{
+  "config": {
+    "user.<custom key name>": "<custom key value>"
+  },
+  "description": "<description of the ACL>",
+  "egress": [<egress rule>, <another egress rule...>,...],
+  "ingress": [<ingress rule>, <another ingress rule...>,...]
+}'
+```
+
+```{caution}
+Any properties you omit from this request (aside from the ACL `name`) will be reset to defaults. See: {ref}`rest-api-put`.
+```
+
+If you _only_ want to update the `config` custom user keys, see: {ref}`network-acls-edit-custom-api`.
+
+````
+% End of group-tab API
+
 `````
 
 (network-acls-delete)=
