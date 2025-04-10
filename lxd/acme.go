@@ -44,7 +44,7 @@ func acmeProvideChallenge(d *Daemon, r *http.Request) response.Response {
 
 	if !leaderInfo.Leader {
 		// Forward the request to the leader
-		client, err := cluster.Connect(leaderInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), r, true)
+		client, err := cluster.Connect(r.Context(), leaderInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 		if err != nil {
 			return response.SmartError(err)
 		}

@@ -19,7 +19,7 @@ func forwardedResponseToNode(s *state.State, r *http.Request, memberName string)
 
 	// Forward the response if not local.
 	if address != "" {
-		client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+		client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -68,7 +68,7 @@ func forwardedResponseIfVolumeIsRemote(s *state.State, r *http.Request) response
 		return nil
 	}
 
-	client, err := cluster.Connect(storageVolumeDetails.forwardingNodeInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+	client, err := cluster.Connect(r.Context(), storageVolumeDetails.forwardingNodeInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
