@@ -428,16 +428,52 @@ source: "@my-network/my-peer"
 
 When using a network subject selector, the network that has the ACL assigned to it must have the specified peer connection.
 
+(network-acls-log)=
 ### Log traffic
 
-Generally, ACL rules are meant to control the network traffic between instances and networks.
-However, you can also use them to log specific network traffic, which can be useful for monitoring, or to test rules before actually enabling them.
+ACL rules are primarily used to control network traffic between instances and networks. However, they can also be used to log specific types of traffic, which is useful for monitoring or testing rules before enabling them.
 
-To add a rule for logging, create it with the `state=logged` property.
-You can then display the log output for all logging rules in the ACL with the following command:
+To configure a rule so that it only logs traffic, configure its `state` to `logged` when you {ref}`add the rule <network-acls-rules>` or {ref}`edit the ACL <network-acls-edit>`.
+
+#### View logs
+
+`````{tabs}
+````{group-tab} CLI
+
+To display the logs for all `logged` rules in an ACL, run:
 
 ```bash
-lxc network acl show-log <ACL_name>
+lxc network acl show-log <ACL-name>
+```
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+To display the logs for all `logged` rules in an ACL, query the [`GET /1.0/network-acls/{ACL-name}/log`](swagger:/network-acls/network_acl_log_get) endpoint:
+
+```bash
+lxc query --request GET /1.0/network-acls/{ACL-name}/log
+```
+
+##### Example
+
+```bash
+lxc query --request GET /1.0/network-acls/my-acl/log
+```
+
+````
+% End of group-tab API
+
+`````
+
+```{note}
+If your attempt to view logs returns no data, that means either:
+- No `logged` rules have matched any traffic yet.
+- The ACL does not contain any rules with a `state` of `logged`.
+
+When displaying logs for an ACL, LXD intentionally displays all existing logs for that ACL, including logs from formerly `logged` rules that are no longer set to log traffic. Thus, if you see logs from an ACL rule, that does not necessarily mean that its `state` is _currently_ set to `logged`.
 ```
 
 (network-acls-edit)=
