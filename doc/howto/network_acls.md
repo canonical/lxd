@@ -488,6 +488,36 @@ lxc network acl edit <ACL_name>
 This command opens the ACL in YAML format for editing.
 You can edit both the ACL configuration and the rules.
 
+(network-acls-delete)=
+## Delete an ACL
+
+You can only delete an ACL that is not {ref}`assigned to a NIC or network <network-acls-assign>`.
+
+`````{tabs}
+````{group-tab} CLI
+
+To delete an ACL, run:
+
+```bash
+lxc network acl delete <ACL-name>
+```
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+To delete an ACL, query the [`DELETE /1.0/network-acls/{ACL-name}`](swagger:/network-acls/network_acl_delete) endpoint:
+
+```bash
+lxc query --request DELETE /1.0/network-acls/{ACL-name}
+```
+
+````
+% End of group-tab API
+
+`````
+
 ## Assign an ACL
 
 After configuring an ACL, you must assign it to a network or an instance NIC.
