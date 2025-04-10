@@ -410,7 +410,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	fullSrv := &api.Server{ServerUntrusted: srv}
 	fullSrv.Environment = env
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	fullSrv.AuthUserName = requestor.Username
 	fullSrv.AuthUserMethod = requestor.Protocol
 
@@ -835,7 +835,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 	revert.Success()
 
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ConfigUpdated.Event(request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ConfigUpdated.Event(request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }
