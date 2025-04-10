@@ -401,27 +401,32 @@ When an ACL is assigned to multiple instance NICs, either directly or through th
 
 For example, if you have an ACL with the name `my-acl`, you can specify the group of instance NICs that are assigned this ACL as an egress or ingress rule's source by setting `source` to `my-acl`.
 
-#### Network selectors
+(network-acls-selectors-network-subject)=
+#### Network subject selectors
 
-You can use *network subject selectors* to define rules based on the network that the traffic is coming from or going to.
+Use _network subject selectors_ to define rules based on the network that the traffic is coming from or going to.
 
-There are two special network subject selectors called `@internal` and `@external`.
-They represent network local and external traffic, respectively.
-For example:
+All network subject selectors begin with the `@` symbol. There are two special network subject selectors called `@internal` and `@external`. They represent the network's local and external traffic, respectively.
 
-```bash
-source=@internal
+Here's an example ACL rule (in YAML) that allows all internal traffic with the specified destination port:
+
+```yaml
+ingress:
+  - action: allow
+    description: Allow HTTP/HTTPS from internal
+    protocol: tcp
+    source: "@internal"
+    destination_port: "80,443"
+    state: enabled
 ```
 
-If your network supports [network peers](network_ovn_peers.md), you can reference traffic to or from the peer connection by using a network subject selector in the format `@<network_name>/<peer_name>`.
-For example:
+If your network supports [network peers](network_ovn_peers.md), you can reference traffic to or from the peer connection by using a network subject selector in the format `@<network-name>/<peer-name>`. Example:
 
-```bash
-source=@ovn1/mypeer
+```yaml
+source: "@my-network/my-peer"
 ```
 
-When using a network subject selector, the network that has the ACL applied to it must have the specified peer connection.
-Otherwise, the ACL cannot be applied to it.
+When using a network subject selector, the network that has the ACL assigned to it must have the specified peer connection.
 
 ### Log traffic
 
