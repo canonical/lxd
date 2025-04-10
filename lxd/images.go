@@ -4304,7 +4304,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		return response.ForwardedResponse(client, r)
+		return response.ForwardedResponse(client)
 	}
 
 	imagePath := filepath.Join(s.ImagesStoragePath(), imgInfo.Fingerprint)

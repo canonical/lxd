@@ -203,7 +203,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return response.ForwardedResponse(client, r)
+	return response.ForwardedResponse(client)
 }
 
 // swagger:operation DELETE /1.0/operations/{id} operations operation_delete
@@ -323,7 +323,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return response.ForwardedResponse(client, r)
+	return response.ForwardedResponse(client)
 }
 
 // operationCancel cancels an operation that exists on any member.
@@ -1014,7 +1014,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return response.ForwardedResponse(client, r)
+	return response.ForwardedResponse(client)
 }
 
 // swagger:operation GET /1.0/operations/{id}/websocket?public operations operation_websocket_get_untrusted
