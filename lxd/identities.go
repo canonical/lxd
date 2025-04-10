@@ -1850,6 +1850,7 @@ func updateIdentityCache(d *Daemon) {
 		api.IdentityTypeCertificateMetricsRestricted,
 		api.IdentityTypeCertificateMetricsUnrestricted,
 		api.IdentityTypeOIDCClient,
+		api.IdentityTypeCertificateClusterLink,
 	}
 
 	identityCacheEntries := make([]identity.CacheEntry, 0, len(identities))
