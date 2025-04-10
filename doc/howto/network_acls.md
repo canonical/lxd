@@ -294,13 +294,36 @@ state: <enabled|disabled|logged>
 
 For more information, see: {ref}`network-acls-rule-properties`.
 
+### Add a rule
+
+`````{tabs}
+````{group-tab} CLI
+
+To add a rule to an ACL, run:
+
 ```bash
-lxc network acl rule add <ACL_name> <direction> [properties...]
+lxc network acl rule add <ACL-name> <egress|ingress> [properties...]
 ```
 
-This command adds a rule to the list for the specified direction.
+#### Example
 
-You cannot edit a rule (except if you {ref}`edit the full ACL <network-acls-edit>`), but you can delete rules with the following command:
+Add an `egress` rule with an `action` of `drop` to `my-acl`:
+
+```bash
+lxc network acl rule add my-acl egress action=drop
+```
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+There is no specific endpoint for adding a rule. Instead, you must {ref}`edit the full ACL <network-acls-edit>`, which contains the `egress` and `ingress` lists.
+
+````
+% End of group-tab API
+
+`````
 
 ```bash
 lxc network acl rule remove <ACL_name> <direction> [properties...]
