@@ -6,19 +6,20 @@ discourse: lxc:[Network&#32;ACL&#32;logging](13223)
 # How to configure network ACLs
 
 ```{note}
-Network ACLs are available for the {ref}`OVN NIC type <nic-ovn>`, the {ref}`network-ovn` and the {ref}`network-bridge` (with some exceptions, see {ref}`network-acls-bridge-limitations`).
+Network ACLs are available for the {ref}`OVN NIC type <nic-ovn>`, the {ref}`network-ovn` and the {ref}`network-bridge` (with some exceptions; see {ref}`network-acls-bridge-limitations`).
 ```
 
 ```{youtube} https://www.youtube.com/watch?v=mu34G0cX6Io
 ```
 
-Network {abbr}`ACLs (Access Control Lists)` define traffic rules that allow controlling network access between different instances connected to the same network, and access to and from other networks.
+Network {abbr}`ACLs (Access Control Lists)` define rules for controlling traffic:
 
-Network ACLs can be assigned directly to the {abbr}`NIC (Network Interface Controller)` of an instance or to a network.
-When assigned to a network, the ACL applies to all NICs connected to the network.
+- Between instances connected to the same network
+- To and from other networks
 
-The instance NICs that have a particular ACL applied (either explicitly or implicitly through a network) make up a logical group, which can be referenced from other rules as a source or destination.
-See {ref}`network-acls-groups` for more information.
+Network ACLs can be assigned directly to the {abbr}`NIC (Network Interface Controller)` of an instance, or to a network. When assigned to a network, the ACL applies indirectly to all NICs connected to that network.
+
+When an ACL is assigned to multiple instance NICs, either directly or indirectly, those NICs form a logical port group. You can use the name of that ACL to refer to that group in the traffic rules of other ACLs. For more information, see: {ref}`network-acls-selectors-subject-name`.
 
 ## Create an ACL
 
