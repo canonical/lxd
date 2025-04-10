@@ -95,6 +95,7 @@ lxc query --request GET /1.0/network-acls/my-acl
 
 `````
 
+(network-acls-create)=
 ## Create an ACL
 
 (network-acls-name-requirements)=
@@ -107,12 +108,67 @@ Network ACL names must meet the following requirements:
 - Cannot begin with a digit or a dash.
 - Cannot end with a dash.
 
+### Instructions
+
+`````{tabs}
+````{group-tab} CLI
+
+To create an ACL, run:
+
 ```bash
-lxc network acl create <ACL_name> [configuration_options...]
+lxc network acl create <ACL-name> [user.KEY=value ...]
 ```
 
-This command creates an ACL without rules.
-As a next step, {ref}`add rules <network-acls-rules>` to the ACL.
+- You must provide an ACL name that meets the {ref}`network-acls-name-requirements`.
+- You can optionally provide one or more custom `user` keys to store metadata or other information.
+
+ACLs have no rules upon creation via command line, so as a next step, {ref}`add rules <network-acls-rules>` to the ACL. You can also {ref}`edit the ACL configuration <network-acls-edit>`, or {ref}`assign the ACL to a network or NIC <network-acls-assign>`.
+
+Another way to create ACLs from the command line is to provide a YAML configuration file:
+
+```bash
+lxc network acl create <ACL-name> < <filename.yaml>
+```
+
+This file can include any other {ref}`network-acls-properties`, including the `egress` and `ingress` properties for defining {ref}`ACL rules <network-acls-rules>`. See the second example in the set below.
+
+### Examples
+
+Create an ACL with the name `my-acl` and an optional custom user key:
+
+```bash
+lxc network acl create my-acl user.my-key=my-value
+```
+
+Create an ACL using a YAML configuration file:
+
+First, create a file named `config.yaml` with the following content:
+
+```yaml
+description: Allow web traffic from internal network
+config:
+  user.owner: devops
+ingress:
+  - action: allow
+    description: Allow HTTP/HTTPS from internal
+    protocol: tcp
+    source: "@internal"
+    destination_port: "80,443"
+    state: enabled
+```
+
+Note that the custom user keys are stored under the `config` property.
+
+The following command creates an ACL from that file's configuration:
+
+```bash
+lxc network acl create my-acl < config.yaml
+```
+
+````
+% End of group-tab CLI
+
+`````
 
 ### ACL properties
 
