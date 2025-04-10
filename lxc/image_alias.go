@@ -131,7 +131,19 @@ func (c *cmdImageAliasDelete) command() *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpTopLevelResource("image_alias", toComplete)
+		remote, partial, err := c.global.conf.ParseRemote(toComplete)
+		if err != nil {
+			return handleCompletionError(err)
+		}
+
+		completions, directive := c.global.cmpTopLevelResourceInRemote(remote, "image_alias", partial)
+		if !strings.Contains(toComplete, ":") {
+			remotes, remoteDirective := c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
+			completions = append(completions, remotes...)
+			directive |= remoteDirective
+		}
+
+		return completions, directive
 	}
 
 	return cmd
@@ -295,7 +307,19 @@ func (c *cmdImageAliasRename) command() *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpTopLevelResource("image_alias", toComplete)
+		remote, partial, err := c.global.conf.ParseRemote(toComplete)
+		if err != nil {
+			return handleCompletionError(err)
+		}
+
+		completions, directive := c.global.cmpTopLevelResourceInRemote(remote, "image_alias", partial)
+		if !strings.Contains(toComplete, ":") {
+			remotes, remoteDirective := c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
+			completions = append(completions, remotes...)
+			directive |= remoteDirective
+		}
+
+		return completions, directive
 	}
 
 	return cmd
