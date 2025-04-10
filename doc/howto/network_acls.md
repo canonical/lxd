@@ -479,7 +479,50 @@ When displaying logs for an ACL, LXD intentionally displays all existing logs fo
 (network-acls-edit)=
 ## Edit an ACL
 
-Use the following command to edit an ACL:
+(network-acls-edit-rename)=
+### Rename an ACL
+
+Requirements:
+
+- You can only rename an ACL that is not currently {ref}`assigned to a NIC or network <network-acls-assign>`.
+- The new name must meet the {ref}`network-acls-name-requirements`.
+
+`````{tabs}
+````{group-tab} CLI
+
+To rename an ACL, run:
+
+```bash
+lxc network acl rename <old-ACL-name> <new-ACL-name>
+```
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+To rename an ACL, query the [`POST /1.0/network-acls/{ACL-name}`](swagger:/network-acls/network_acl_post) endpoint:
+
+```bash
+lxc query --request POST /1.0/network-acls/{ACL-name} --data '{
+  "name": "<new-ACL-name>"
+}'
+```
+
+#### Example
+
+Rename an ACL named `web-traffic` to `internal-web-traffic`:
+
+```bash
+lxc query --request POST /1.0/network-acls/web-traffic --data '{
+  "name": "internal-web-traffic"
+}'
+```
+
+````
+% End of group-tab API
+
+`````
 
 ```bash
 lxc network acl edit <ACL_name>
