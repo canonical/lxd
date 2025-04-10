@@ -326,14 +326,6 @@ func (c *cmdFileDelete) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) == 0 {
-			return c.global.cmpTopLevelResource("instance", toComplete)
-		}
-
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return c.global.cmpFiles(toComplete, false)
 	}
 
