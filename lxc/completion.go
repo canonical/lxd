@@ -777,7 +777,21 @@ func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagFor
 		}
 	}
 
-	return results, cmpDirectives
+	return completionsFor(results, "", toComplete), cmpDirectives
+}
+
+func (g *cmdGlobal) cmpSnapshotNames(remote string, instanceName string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	server, err := g.conf.GetInstanceServerWithAdditionalConnectionArgs(remote, &lxd.ConnectionArgs{SkipGetServer: true})
+	if err != nil {
+		return handleCompletionError(err)
+	}
+
+	snapshotNames, err := server.GetInstanceSnapshotNames(instanceName)
+	if err != nil {
+		return handleCompletionError(err)
+	}
+
+	return completionsFor(snapshotNames, "", toComplete), cobra.ShellCompDirectiveNoFileComp
 }
 
 // cmpInstancesAndSnapshots provides shell completion for instances and their snapshots.
@@ -785,41 +799,33 @@ func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagFor
 func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra.ShellCompDirective) {
 	results := []string{}
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
+	remote, partial, err := g.conf.ParseRemote(toComplete)
+	if err != nil {
+		return handleCompletionError(err)
+	}
 
-	resources, _ := g.ParseServers(toComplete)
+	instanceName, partialSnapshotName, isSnapshot := strings.Cut(partial, shared.SnapshotDelimiter)
+	if !isSnapshot {
+		return g.cmpTopLevelResource("instance", toComplete)
+	}
 
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		if strings.Contains(resource.name, shared.SnapshotDelimiter) {
-			instName, _, _ := strings.Cut(resource.name, shared.SnapshotDelimiter)
-			snapshots, _ := resource.server.GetInstanceSnapshotNames(instName)
-			for _, snapshot := range snapshots {
-				results = append(results, instName+"/"+snapshot)
-			}
-		} else {
-			instances, _ := resource.server.GetInstanceNames("")
-			for _, instance := range instances {
-				var name string
-
-				if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-					name = instance
-				} else {
-					name = resource.remote + ":" + instance
-				}
-
-				results = append(results, name)
-			}
+	completions, _ := g.cmpSnapshotNames(remote, instanceName, partialSnapshotName)
+	for _, snapshot := range completions {
+		name := instanceName + shared.SnapshotDelimiter + snapshot
+		if remote != g.conf.DefaultRemote || strings.Contains(toComplete, g.conf.DefaultRemote) {
+			name = remote + ":" + name
 		}
+
+		results = append(results, name)
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
+		remotes, directives := g.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*g.conf)...)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
 
-	return results, cmpDirectives
+	return completionsFor(results, "", toComplete), cmpDirectives
 }
 
 // cmpNetworkACLConfigs provides shell completion for network ACL configs.
