@@ -2654,7 +2654,7 @@ func (c *cmdStorageVolumeExport) command() *cobra.Command {
 		i18n.G("Use storage driver optimized format (can only be restored on a similar pool)"))
 	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Define a compression algorithm: for backup or none")+"``")
 	cmd.Flags().StringVar(&c.flagExportVersion, "export-version", "",
-		i18n.G("Use a different metadata format version than the latest one supported by the server")+"``")
+		i18n.G("Use a different metadata format version than the latest one supported by the server (to support imports on older LXD versions)")+"``")
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
 

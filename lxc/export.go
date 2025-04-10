@@ -45,7 +45,7 @@ func (c *cmdExport) command() *cobra.Command {
 		i18n.G("Use storage driver optimized format (can only be restored on a similar pool)"))
 	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Compression algorithm to use (none for uncompressed)")+"``")
 	cmd.Flags().StringVar(&c.flagExportVersion, "export-version", "",
-		i18n.G("Use a different metadata format version than the latest one supported by the server")+"``")
+		i18n.G("Use a different metadata format version than the latest one supported by the server (to support imports on older LXD versions)")+"``")
 
 	return cmd
 }
