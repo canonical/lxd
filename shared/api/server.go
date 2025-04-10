@@ -10,6 +10,12 @@ type ServerEnvironment struct {
 	// Example: ["x86_64", "i686"]
 	Architectures []string `json:"architectures" yaml:"architectures"`
 
+	// Range of supported backup metadata versions
+	// Example: [1, 2]
+	//
+	// API extension: backup_metadata_version
+	BackupMetadataVersionRange []uint32 `json:"backup_metadata_version_range" yaml:"backup_metadata_version_range"`
+
 	// Server certificate as PEM encoded X509
 	// Example: X509 PEM certificate
 	Certificate string `json:"certificate" yaml:"certificate"`
