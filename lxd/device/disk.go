@@ -1175,6 +1175,16 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					mount.FSType = "iso9660"
 				}
 
+				revertFunc, mountedPath, _, err := d.mountPoolVolume()
+				if err != nil {
+					return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
+				}
+
+				mount.DevSource = deviceConfig.DevSourcePath{Path: mountedPath}
+				mount.Opts = append(mount.Opts, d.detectVMPoolMountOpts()...)
+
+				revert.Add(revertFunc)
+
 				// If the pool is ceph backed and a block device, don't mount it, instead pass config to QEMU instance
 				// to use the built in RBD support.
 				if d.pool.Driver().Info().Name == "ceph" && (dbContentType == cluster.StoragePoolVolumeContentTypeBlock || dbContentType == cluster.StoragePoolVolumeContentTypeISO) {
@@ -1213,19 +1223,9 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 					runConf.Mounts = []deviceConfig.MountEntryItem{mount}
 
+					revert.Success()
 					return &runConf, nil
 				}
-
-				revertFunc, mountedPath, _, err := d.mountPoolVolume()
-				if err != nil {
-					return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
-				}
-
-				mount.DevSource = deviceConfig.DevSourcePath{Path: mountedPath}
-
-				revert.Add(revertFunc)
-
-				mount.Opts = append(mount.Opts, d.detectVMPoolMountOpts()...)
 			}
 
 			// If the source being added is a directory or cephfs share, then we will use the lxd-agent
