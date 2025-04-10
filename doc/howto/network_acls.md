@@ -531,9 +531,60 @@ To assign an ACL, you must update the `security.acls` option within its target's
 
 Assigning one or more ACLs to a NIC or network adds a default rule that rejects all unmatched traffic. See {ref}`network-acls-defaults` for details.
 
+### Assign an ACL to a bridge or OVN network
+
+`````{tabs}
+````{group-tab} CLI
+
+To set the network's `security.acls`, run the following command. Set the value to a string that contains the ACL name or names you want to add, and comma-separate multiple names:
+
+Set the network's `security.acls` to a string that contains the ACL name or names you want to add. Comma-separate multiple names:
+
 ```bash
-lxc network set <network_name> security.acls="<ACL_name>"
+lxc network set <network-name> security.acls="<ACL-name>[,<ACL-name>,...]"
 ```
+
+For more information about using `lxc network set`, see: {ref}`network-configure`.
+
+#### Example
+
+Set the `my-network` network's `security.acls` to contain three ACLs:
+
+```bash
+lxc network set my-network security.acls="my-acl1,my-acl2,my-acl3"
+```
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+To set the network's `security.acls`, query the [`PATCH /1.0/networks/{network-name}`](swagger:/networks/network_patch) endpoint. Set the value to a string that contains the ACL name or names you want to add, and comma-separate multiple names:
+
+```bash
+lxc query --request PATCH /1.0/networks/{network-name} --data '{
+  "config": {
+    "security.acls": "<ACL-name>[,<ACL-name>,...]"
+  }
+}'
+```
+
+#### Example
+
+Set the `my-network` network's `security.acls` to contain three ACLs:
+
+```bash
+lxc query --request PATCH /1.0/networks/my-network --data '{
+  "config": {
+    "security.acls": "my-acl1,my-acl2,my-acl3"
+  }
+}'
+```
+
+````
+% End of group-tab API
+
+`````
 
 For instance NICs, use the following command:
 
