@@ -354,21 +354,18 @@ There is no specific endpoint for removing a rule. Instead, you must {ref}`edit 
 
 You cannot edit a rule directly. Instead, you must {ref}`edit the full ACL <network-acls-edit>`, which contains the `egress` and `ingress` lists.
 
-### Rule ordering and priorities
+### Rule ordering and application of actions
 
-Rules are provided as lists.
-However, the order of the rules in the list is not important and does not affect
-filtering.
+ACL rules are defined as lists, but their order within the list does not affect how they are applied.
 
-LXD automatically orders the rules based on the `action` property as follows:
+LXD automatically prioritizes rules based on the action property, in the following order:
 
 - `drop`
 - `reject`
 - `allow`
-- Automatic default action for any unmatched traffic (defaults to `reject`, see {ref}`network-acls-defaults`).
+- The default action for unmatched traffic (defaults to `reject`, see {ref}`network-acls-defaults`)
 
-This means that when you apply multiple ACLs to a NIC, there is no need to specify a combined rule ordering.
-If one of the rules in the ACLs matches, the action for that rule is taken and no other rules are considered.
+When you assign multiple ACLs to a NIC, you do not need to coordinate rule order across them. As soon as a rule matches, its action is applied and no further rules are evaluated.
 
 ### Rule properties
 
