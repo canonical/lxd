@@ -251,7 +251,7 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, projectName st
 
 	if foundOp != nil {
 		// Token is single-use, so cancel it now.
-		err = operationCancel(s, r, projectName, foundOp)
+		err = operationCancel(r.Context(), s, projectName, foundOp)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
 		}
@@ -338,7 +338,7 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 	}
 
 	// Token is single-use, so cancel it now.
-	err = operationCancel(s, r, api.ProjectDefaultName, foundOp)
+	err = operationCancel(r.Context(), s, api.ProjectDefaultName, foundOp)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
 	}
