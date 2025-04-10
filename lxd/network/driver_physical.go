@@ -219,6 +219,12 @@ func (n *physical) Validate(config map[string]string) error {
 		return err
 	}
 
+	// Validate IP routes.
+	err = n.validateRoutes(config)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
