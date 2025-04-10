@@ -586,11 +586,75 @@ lxc query --request PATCH /1.0/networks/my-network --data '{
 
 `````
 
-For instance NICs, use the following command:
+### Assign an ACL to the OVN NIC of an instance
+
+For {abbr}`NICs (Network Interface Cards)`, ACLs can only be used with the {ref}`OVN NIC type <nic-ovn>`.
+
+An NIC is considered a type of instance {ref}`device <devices>`. For general information about configuring instance devices, see: {ref}`instances-configure-devices`.
+
+`````{tabs}
+````{group-tab} CLI
+
+To assign an ACL to an instance's OVN NIC, run:
 
 ```bash
-lxc config device set <instance_name> <device_name> security.acls="<ACL_name>"
+lxc config device set <instance-name> <NIC-name> security.acls="<ACL-name>[,ACL-name,...]"
 ```
+
+#### Example
+
+Assign three ACLs to an instance's OVN NIC:
+
+```bash
+lxc config device set my-instance my-ovn-nic security.acls="my-acl1,my-acl2,my-acl3"
+```
+
+````
+% End of group-tab CLI
+
+````{group-tab} API
+
+To assign an ACL to an instance's OVN NIC, query the [`PATCH /1.0/instances/{instance-name}`](swagger:/instances/instance_patch) endpoint. Set `security.acls` to a string that contains the ACL name or names you want to add, and comma-separate multiple names:
+
+```bash
+lxc query --request PATCH /1.0/instances/{instance-name} --data '{
+  "devices": {
+    "<NIC-name>": {
+      "network": <network-name>,
+      "type": "nic",
+      "security.acls": "<ACL-name>[,<ACL-name>,...]",
+      <other options>
+    }
+  }
+}'
+```
+
+The `type` and `network` options are required in the body (see: {ref}`instances-configure-devices-api-required`).
+
+```{caution}
+Patching an instance device's configuration unsets any options for that device omitted from the PATCH request body. For more information, see {ref}`instances-configure-devices-api-patch-effects`.
+```
+
+##### Example
+
+For `my-instance`, set its `my-ovn-nic` device's `security.acls` to contain three ACLs:
+
+```bash
+lxc query --request PATCH /1.0/instances/my-instance --data '{
+  "devices": {
+    "my-ovn-nic": {
+      "network": "my-ovn-network",
+      "type": "nic",
+      "security.acls": "my-acl1,my-acl2,my-acl3"
+    }
+  }
+}'
+```
+
+````
+% End of group-tab API
+
+`````
 
 (network-acls-assign-additional)=
 ### Additional options
