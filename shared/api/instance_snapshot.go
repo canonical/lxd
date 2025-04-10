@@ -18,6 +18,15 @@ type InstanceSnapshotsPost struct {
 	// Example: false
 	Stateful bool `json:"stateful" yaml:"stateful"`
 
+	// Which volumes should be snapshotted.
+	// Can be "root" or empty (for just the instance root volume),
+	// "exclusive" (for all non-shared attached volumes), and
+	// "all" (for all attached volumes; fails if has a shared attached volume).
+	// Example: "all"
+	//
+	// API extension: instance_snapshot_multi_volume
+	Volumes string `json:"volumes" yaml:"volumes"`
+
 	// When the snapshot expires (gets auto-deleted)
 	// Example: 2021-03-23T17:38:37.753398689-04:00
 	//

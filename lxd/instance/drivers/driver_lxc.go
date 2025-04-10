@@ -2255,7 +2255,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	}
 
 	if snapName != "" && expiry != nil {
-		err := d.snapshot(snapName, *expiry, false)
+		err := d.snapshot(snapName, *expiry, false, instance.SnapshotVolumesRoot)
 		if err != nil {
 			return "", nil, fmt.Errorf("Failed taking startup snapshot: %w", err)
 		}
@@ -3451,7 +3451,7 @@ func (d *lxc) RenderState(hostInterfaces []net.Interface) (*api.InstanceState, e
 }
 
 // snapshot creates a snapshot of the instance.
-func (d *lxc) snapshot(name string, expiry time.Time, stateful bool) error {
+func (d *lxc) snapshot(name string, expiry time.Time, stateful bool, volumes instance.SnapshotVolumes) error {
 	// Deal with state.
 	if stateful {
 		// Quick checks.
@@ -3528,11 +3528,11 @@ func (d *lxc) snapshot(name string, expiry time.Time, stateful bool) error {
 	// Wait for any file operations to complete to have a more consistent snapshot.
 	d.stopForkfile(false)
 
-	return d.snapshotCommon(d, name, expiry, stateful)
+	return d.snapshotCommon(d, name, expiry, stateful, volumes)
 }
 
 // Snapshot takes a new snapshot.
-func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
+func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool, volumes instance.SnapshotVolumes) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
@@ -3540,11 +3540,11 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 
 	defer unlock()
 
-	return d.snapshot(name, expiry, stateful)
+	return d.snapshot(name, expiry, stateful, volumes)
 }
 
 // Restore restores a snapshot.
-func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
+func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool, volumes instance.RestoreVolumes) error {
 	var ctxMap logger.Ctx
 
 	op, err := operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
@@ -3654,7 +3654,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	revert.Success()
 
 	// Restore the rootfs.
-	err = pool.RestoreInstanceSnapshot(d, sourceContainer, nil)
+	err = pool.RestoreInstanceSnapshot(d, sourceContainer, volumes, nil)
 	if err != nil {
 		op.Done(err)
 		return fmt.Errorf("Failed to restore snapshot rootfs: %w", err)

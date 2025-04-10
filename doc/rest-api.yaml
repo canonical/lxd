@@ -2274,6 +2274,15 @@ definitions:
                 example: false
                 type: boolean
                 x-go-name: Stateful
+            volumes:
+                description: |-
+                    Which volumes should be restored.
+                    Can be "root" or empty (for just the instance root volume),
+                    "available" (for all volumes; ignores attached volumes whose snapshots were deleted),
+                    "all" (for all attached volumes; fails if an attached volumes snapshot was deleted).
+                example: '"available"'
+                type: string
+                x-go-name: Volumes
         title: InstancePut represents the modifiable fields of a LXD instance.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
@@ -2434,6 +2443,15 @@ definitions:
                 example: false
                 type: boolean
                 x-go-name: Stateful
+            volumes:
+                description: |-
+                    Which volumes should be snapshotted.
+                    Can be "root" or empty (for just the instance root volume),
+                    "exclusive" (for all non-shared attached volumes), and
+                    "all" (for all attached volumes; fails if has a shared attached volume).
+                example: '"all"'
+                type: string
+                x-go-name: Volumes
         title: InstanceSnapshotsPost represents the fields available for a new LXD instance snapshot.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
@@ -2937,6 +2955,15 @@ definitions:
                 x-go-name: Stateful
             type:
                 $ref: '#/definitions/InstanceType'
+            volumes:
+                description: |-
+                    Which volumes should be restored.
+                    Can be "root" or empty (for just the instance root volume),
+                    "available" (for all volumes; ignores attached volumes whose snapshots were deleted),
+                    "all" (for all attached volumes; fails if an attached volumes snapshot was deleted).
+                example: '"available"'
+                type: string
+                x-go-name: Volumes
         title: InstancesPost represents the fields available for a new LXD instance.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api

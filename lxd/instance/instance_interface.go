@@ -3,6 +3,7 @@ package instance
 import (
 	"context"
 	"crypto/x509"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -42,6 +43,58 @@ const (
 	ConsoleTypeConsole = "console"
 	ConsoleTypeVGA     = "vga"
 )
+
+// SnapshotVolumes indicates which volume should be part of an instance snapshot.
+type SnapshotVolumes int8
+
+const (
+	// SnapshotVolumesRoot indicates only the instnce root volume should be included.
+	SnapshotVolumesRoot SnapshotVolumes = iota
+	// SnapshotVolumesExclusive indicates only the non-shared attached volumes should be included.
+	SnapshotVolumesExclusive
+	// SnapshotVolumesAll indicates all attached volumes should be included.
+	SnapshotVolumesAll
+)
+
+// SnapshotVolumesFromString converts a string into a SnapshotVolumes object.
+func SnapshotVolumesFromString(snapshotVolumes string) (SnapshotVolumes, error) {
+	switch snapshotVolumes {
+	case "", "root":
+		return SnapshotVolumesRoot, nil
+	case "exclusive":
+		return SnapshotVolumesExclusive, nil
+	case "all":
+		return SnapshotVolumesAll, nil
+	default:
+		return -1, fmt.Errorf(`Unknown "volumes" option: %s`, snapshotVolumes)
+	}
+}
+
+// RestoreVolumes indicates which volume should be part of an instance restore.
+type RestoreVolumes int8
+
+const (
+	// RestoreVolumesRoot indicates only the instnce root volume should be included.
+	RestoreVolumesRoot RestoreVolumes = iota
+	// RestoreVolumesAvailable indicates only the non-shared attached volumes should be included.
+	RestoreVolumesAvailable
+	// RestoreVolumesAll indicates all attached volumes should be included.
+	RestoreVolumesAll
+)
+
+// RestoreVolumesFromString converts a string into a RestoreVolumes object.
+func RestoreVolumesFromString(restoreVolumes string) (RestoreVolumes, error) {
+	switch restoreVolumes {
+	case "", "root":
+		return RestoreVolumesRoot, nil
+	case "available":
+		return RestoreVolumesAvailable, nil
+	case "all":
+		return RestoreVolumesAll, nil
+	default:
+		return -1, fmt.Errorf(`Unknown "volumes" option: %s`, restoreVolumes)
+	}
+}
 
 // TemplateTrigger trigger name.
 type TemplateTrigger string
@@ -92,8 +145,8 @@ type Instance interface {
 	IsPrivileged() bool
 
 	// Snapshots & migration & backups.
-	Restore(source Instance, stateful bool) error
-	Snapshot(name string, expiry time.Time, stateful bool) error
+	Restore(source Instance, stateful bool, volumes RestoreVolumes) error
+	Snapshot(name string, expiry time.Time, stateful bool, volumes SnapshotVolumes) error
 	Snapshots() ([]Instance, error)
 	Backups() ([]backup.InstanceBackup, error)
 	UpdateBackupFile() error

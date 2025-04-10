@@ -13,6 +13,7 @@ type cmdRestore struct {
 	global *cmdGlobal
 
 	flagStateful bool
+	flagVolumes  string
 }
 
 func (c *cmdRestore) command() *cobra.Command {
@@ -32,6 +33,7 @@ lxc restore u1 snap0
 
 	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Whether or not to restore the instance's running state from snapshot (if available)"))
+	cmd.Flags().StringVar(&c.flagVolumes, "volumes", "", i18n.G(`Which volumes should be included when restoring; can be "root", "all" or "available"`))
 
 	return cmd
 }
@@ -65,6 +67,7 @@ func (c *cmdRestore) run(cmd *cobra.Command, args []string) error {
 	req := api.InstancePut{
 		Restore:  snapname,
 		Stateful: c.flagStateful,
+		Volumes:  c.flagVolumes,
 	}
 
 	// Restore the snapshot

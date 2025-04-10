@@ -2642,3 +2642,21 @@ This adds a request option to set snapshot's target profile on instance copy to 
 ## `resources_device_fs_uuid`
 
 Adds the field `device_fs_uuid` including the respective UUID to each disk and partition indicating whether or not a filesystem is located on the device.
+
+## `instance_snapshots_multi_volume`
+
+This API extension enables creating a snapshot and restoring an instance along with its attached volumes, while guaranteeing crash consistency across volumes. To support this, this extension adds a `volumes` field to `POST /1.0/instances/{name}/snapshots` with the following possible values:
+
+1. `root`: Represents a snapshot of only the instance root volume. This same behavior is kept if `volumes` is unset.
+1. `all`: Represents a multi-volume restore of the instance root volume and all attached volumes. Fails if any attached volume's snapshot is not available. This can happen if one of the snapshots for an attached volume or the volume itself was deleted.
+1. `exclusive`: Represents a multi-volume snapshot of the instance root volume and all non-shared attached volumes. Ignores shared attached volumes.
+
+A `volumes` field is also added to `PUT /1.0/instances/{name}` with the following possible values:
+
+1. `root`: Represents a restore of only the instance root volume. This same behavior is kept if `volumes` is unset.
+1. `all`: Represents a multi-volume restore of the instance root volume and all attached volumes. Fails if any attached volume's snapshot is not available.
+1. `available`: Represents a multi-volume restore of the instance root volume and all available attached volumes. Ignores attached volumes that are not available to restore.
+
+To track which volumes' snapshots are created together, this extension introduces a new volatile configuration key, `volatile.attached_volumes`, in the configuration of supported storage drivers for instance snapshots. This key contains a comma-separated list of UUIDs representing the snapshots of attached volumes that were created along with the instance snapshot. For an example, see the Btrfs-specific {config:option}`storage-btrfs-volume-conf:volatile.attached_volumes` configuration.
+
+Lastly, a new configuration key for instances called `snapshots.schedule.volumes` is introduced to enable scheduling multi-volume snapshots. This key defines the behavior of scheduled snapshots and follows the same possible values (`root`, `all` and `exclusive`). It describes the same respective behaviors as `volumes` in `POST /1.0/instances/{name}/snapshots`.

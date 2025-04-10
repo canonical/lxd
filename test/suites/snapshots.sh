@@ -468,3 +468,97 @@ test_snap_fail() {
     lxc delete --force c1
   fi
 }
+
+test_multi_volume_snap() {
+  local lxd_backend
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  poolName=$(lxc profile device get default root pool)
+
+  # First test a simple single volume snapshot.
+  lxc launch testimage c1
+  lxc snapshot c1 c1-snap0 --volumes=root
+  lxc config show c1/c1-snap0
+
+  # Attach volumes to perform a multi-volume snapshot.
+  lxc storage volume create "${poolName}" non-shared
+  lxc storage volume create "${poolName}" shared
+  lxc storage volume attach "${poolName}" shared c1 /mnt/shared
+  lxc storage volume attach "${poolName}" non-shared c1 /mnt/non-shared
+  lxc config set c1 snapshots.expiry=2H
+  lxc storage volume set "${poolName}" non-shared snapshots.expiry=1H
+
+  # Create some files to check for when restoring.
+  lxc exec c1 -- touch /mnt/shared/snap1
+  lxc exec c1 -- touch /mnt/non-shared/snap1
+  lxc exec c1 -- touch snap1
+
+  # Check attached volume snapshots inherit expiration time from the instance snapshot.
+  lxc snapshot c1 c1-snap1 --volumes=all
+  [ "$(lxc storage volume get "${poolName}" non-shared/snap0 expires_at)" = "$(lxc storage volume get "${poolName}" conainer/c1/snap0 expires_at)" ]
+  [ "$(lxc storage volume get "${poolName}" shared/snap0 expires_at)" = "$(lxc storage volume get "${poolName}" conainer/c1/snap0 expires_at)" ]
+
+  # Switch created files for next snapshot.
+  lxc exec c1 -- rm /mnt/shared/snap1
+  lxc exec c1 -- rm /mnt/non-shared/snap1
+  lxc exec c1 -- rm snap1
+  lxc exec c1 -- touch /mnt/shared/snap2
+  lxc exec c1 -- touch /mnt/non-shared/snap2
+  lxc exec c1 -- touch snap2
+
+  lxc init testimage c2
+  lxc storage volume attach "${poolName}" shared c2 /mnt
+  ! lxc snapshot c1 --volumes=all || false
+  lxc snapshot c1 c1-snap2 --volumes=exclusive
+
+  # Remove created files
+  lxc exec c1 -- rm /mnt/shared/snap2
+  lxc exec c1 -- rm /mnt/non-shared/snap2
+  lxc exec c1 -- rm snap2
+
+  # c1-snap2 was taken as exclusive and thus did not include the "shared" volume
+  lxc restore c1 c1/c1-snap2 --volumes=all
+  lxc exec c1 -- stat snap2
+  lxc exec c1 -- stat /mnt/non-shared/snap2
+  ! lxc exec c1 -- stat /mnt/shared/snap2 || false
+
+  # If using zfs, we can only restore the latest snapshot.
+  if [ "$lxd_backend" = "zfs" ]; then
+      lxc delete c1/c1-snap2
+      lxc storage volume delete "${poolName}" non-shared/snap1
+  fi
+
+  # First simply restore the root volume
+  lxc restore c1 c1/c1-snap1 --volumes=root
+  lxc exec c1 -- stat snap1
+
+  # Creating c1-snap1 included a "shared" snapshot, so restoring now fails as it is currently being shared with c2.
+  ! lxc restore c1 c1/c1-snap1 --volumes=all || false
+  lxc start c1 # A failed restore leaves the instance as stopped.
+  lxc delete c2
+  lxc restore c1 c1/c1-snap1 --volumes=all
+  lxc exec c1 -- stat snap1
+  lxc exec c1 -- stat /mnt/non-shared/snap1
+  lxc exec c1 -- stat /mnt/shared/snap1
+
+  lxc exec c1 -- rm snap1
+  lxc exec c1 -- rm /mnt/non-shared/snap1
+  lxc exec c1 -- rm /mnt/shared/snap1
+
+  lxc storage volume delete "${poolName}" non-shared/snap0 # The snapshot taken with c1-snap1 was "non-shared"'s first snapshot.
+
+  # Restoring all does not work anymore since we lost one snapshot, restore all available ones instead.
+  ! lxc restore c1 c1/c1-snap1 --volumes=all || false
+  lxc start c1 # A failed restore leaves the instance as stopped.
+  lxc restore c1 c1/c1-snap1 --volumes=available
+  lxc exec c1 -- stat snap1
+  lxc exec c1 -- stat /mnt/shared/snap1
+  ! lxc exec c1 -- stat /mnt/non-shared/snap1 || false
+
+  lxc delete c1 -f
+  lxc storage volume delete "${poolName}" shared
+  lxc storage volume delete "${poolName}" non-shared
+}

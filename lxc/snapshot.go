@@ -23,6 +23,7 @@ type cmdSnapshot struct {
 	flagStateful bool
 	flagNoExpiry bool
 	flagReuse    bool
+	flagVolumes  string
 }
 
 func (c *cmdSnapshot) command() *cobra.Command {
@@ -44,6 +45,7 @@ running state, including process memory state, TCP connections, ...`))
 	cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Whether or not to snapshot the instance's running state"))
 	cmd.Flags().BoolVar(&c.flagNoExpiry, "no-expiry", false, i18n.G("Ignore any configured auto-expiry for the instance"))
 	cmd.Flags().BoolVar(&c.flagReuse, "reuse", false, i18n.G("If the snapshot name already exists, delete and create a new one"))
+	cmd.Flags().StringVar(&c.flagVolumes, "volumes", "", i18n.G(`Which volumes should be included in the snapshot; can be "root", "all" or "exclusive"`))
 
 	return cmd
 }
@@ -116,6 +118,7 @@ func (c *cmdSnapshot) run(cmd *cobra.Command, args []string) error {
 	req := api.InstanceSnapshotsPost{
 		Name:     snapname,
 		Stateful: c.flagStateful,
+		Volumes:  c.flagVolumes,
 	}
 
 	if !stdinData.ExpiresAt.IsZero() {

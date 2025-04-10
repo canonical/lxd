@@ -691,7 +691,7 @@ func (d *common) runHooks(hooks []func() error) error {
 }
 
 // snapshot handles the common part of the snapshoting process.
-func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time.Time, stateful bool) error {
+func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time.Time, stateful bool, volumes instance.SnapshotVolumes) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -724,7 +724,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 		return err
 	}
 
-	err = pool.CreateInstanceSnapshot(snap, inst, d.op)
+	err = pool.CreateInstanceSnapshot(snap, inst, volumes, d.op)
 	if err != nil {
 		return fmt.Errorf("Create instance snapshot: %w", err)
 	}

@@ -3545,8 +3545,183 @@ func (b *lxdBackend) getInstanceDisk(inst instance.Instance) (string, error) {
 	return diskPath, nil
 }
 
+// The volumeKey type is used to identify a volume on a map for filterSharedVolume to efficiently check if
+// each volume on a list is being shared.
+// If the volume under the key is a snapshot, volumeName should be its parent's name so filterSharedVolume
+// can check if the parent is being shared.
+type volumeKey struct {
+	pool       string
+	volumeName string
+}
+
+// filterSharedVolumes filters shared volumes from a map of volumes, each volume can be only attached to inst.
+// For each snapshot on original, check if its parent is being shared instead.
+// If removeShared is true, shared volumes are removed from the map in place
+// else, this returns an error upon finding a shared volume.
+func (b *lxdBackend) filterSharedVolumes(ctx context.Context, tx *db.ClusterTx, original map[volumeKey]*api.StorageVolume, inst instance.Instance, removeShared bool) error {
+	instanceProject := inst.Project()
+	effectiveProject := project.StorageVolumeProjectFromRecord(&instanceProject, cluster.StoragePoolVolumeTypeCustom)
+
+	// Return early if an empty map was provided.
+	if len(original) == 0 {
+		return nil
+	}
+
+	err := tx.InstanceList(ctx, func(listedInstance db.InstanceArgs, p api.Project) error {
+		// Ignore the provided instance.
+		if instanceProject.Name == listedInstance.Project && inst.Name() == listedInstance.Name {
+			return nil
+		}
+
+		// Ignore instances with a different effective project for volumes.
+		if effectiveProject != project.StorageVolumeProjectFromRecord(&p, cluster.StoragePoolVolumeTypeCustom) {
+			return nil
+		}
+
+		expandedDevices := instancetype.ExpandInstanceDevices(listedInstance.Devices, listedInstance.Profiles)
+
+		// Iterate through each of the instance's devices, looking for disks sourced by volumes attached to inst.
+		for _, dev := range expandedDevices {
+			key := volumeKey{dev["pool"], dev["source"]}
+
+			vol, usesVol := original[volumeKey{dev["pool"], dev["source"]}]
+
+			if !usesVol {
+				continue
+			}
+
+			if !removeShared {
+				// If shared volumes are not allowed, return an error.
+				return fmt.Errorf("Volume %s is being shared with %s", vol.Name, listedInstance.Name)
+			}
+
+			// Delete the shared volume from the map and move on.
+			delete(original, key)
+		}
+
+		return nil
+	})
+
+	return err
+}
+
+// attachedExclusiveCustomVolumes returns a list of non-shared custom volumes attached to the provided instance.
+// If skipShared=false, this fails if a shared custom volume is attached, if true, simply ignore it.
+func (b *lxdBackend) attachedExclusiveCustomVolumes(inst instance.Instance, skipShared bool) (map[volumeKey]*api.StorageVolume, error) {
+	instanceProject := inst.Project()
+
+	// Get the instance's effective project for volumes.
+	// Create a variables so we can point to them.
+	customType := cluster.StoragePoolVolumeTypeCustom
+	effectiveProject := project.StorageVolumeProjectFromRecord(&instanceProject, cluster.StoragePoolVolumeTypeCustom)
+	filter := db.StorageVolumeFilter{
+		Type:    &customType,
+		Project: &effectiveProject,
+	}
+
+	targetVolumes := make(map[volumeKey]*api.StorageVolume)
+
+	err := b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		accessibleVolumes, err := tx.GetStorageVolumes(ctx, true, filter)
+		if err != nil {
+			return err
+		}
+
+		// Add all volumes attached to inst to targetVolumes.
+		for _, device := range inst.ExpandedDevices() {
+			// Find StorageVolume object for the volume used as source for this disk, if any.
+			for _, dbVol := range accessibleVolumes {
+				// Snapshotting ISO volumes is not possible, so skip those.
+				if dbVol.ContentType == cluster.StoragePoolVolumeContentTypeNameISO {
+					continue
+				}
+
+				volumeType, err := cluster.StoragePoolVolumeTypeFromName(dbVol.Type)
+				if err != nil {
+					return err
+				}
+
+				// Skip if volume if not from the correct project
+				if effectiveProject != project.StorageVolumeProjectFromRecord(&instanceProject, volumeType) {
+					continue
+				}
+
+				volumeIsUsed, err := volumeIsUsedByDevice(dbVol.StorageVolume, inst.Type(), inst.Name(), device)
+				if err != nil {
+					return err
+				}
+
+				// Check if the volume shares the name with disk source and is in the appropriate project.
+				if volumeIsUsed {
+					targetVolumes[volumeKey{dbVol.Pool, dbVol.Name}] = &dbVol.StorageVolume
+					break
+				}
+			}
+		}
+
+		// Check if attached volumes are being shared.
+		return b.filterSharedVolumes(ctx, tx, targetVolumes, inst, skipShared)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return targetVolumes, nil
+}
+
+// exclusiveVolumeSnapshotsFromUUID returns a list of api.StorageVolume's objects from a list of UUIDs.
+// The parent volumes for the snapshots on the list must not be attached to any instance that not the
+// one provided as an argument.
+func (b *lxdBackend) exclusiveVolumeSnapshotsFromUUID(uuidList []string, inst instance.Instance, skipMissing bool) (map[volumeKey]*api.StorageVolume, error) {
+	instanceProject := inst.Project()
+
+	// Get the instance's effective project for volumes.
+	// Create a variables so we can point to them.
+	customType := cluster.StoragePoolVolumeTypeCustom
+	effectiveProject := project.StorageVolumeProjectFromRecord(&instanceProject, cluster.StoragePoolVolumeTypeCustom)
+	filter := db.StorageVolumeFilter{
+		Type:    &customType,
+		Project: &effectiveProject,
+	}
+
+	targetSnapshots := make(map[volumeKey]*api.StorageVolume)
+
+	err := b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		accessibleVolumes, err := tx.GetStorageVolumes(ctx, true, filter)
+		if err != nil {
+			return err
+		}
+
+		for _, volume := range accessibleVolumes {
+			if shared.ValueInSlice(volume.Config["volatile.uuid"], uuidList) {
+				parentName, _, isSnapshot := api.GetParentAndSnapshotName(volume.Name)
+				if !isSnapshot {
+					return fmt.Errorf("Volume with uuid %s is not a snapshot", volume.Config["volatile.uuid"])
+				}
+
+				// Key the snapshot volume using its parent's name so filterSharedVolumes can check if the parent
+				// is being shared.
+				targetSnapshots[volumeKey{volume.Pool, parentName}] = &volume.StorageVolume
+			}
+		}
+
+		// Check if attached volumes are being used by an instance other than inst.
+		return b.filterSharedVolumes(ctx, tx, targetSnapshots, inst, false)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if !skipMissing && len(targetSnapshots) < len(uuidList) {
+		return nil, errors.New("Missing attached volume snapshot")
+	}
+
+	return targetSnapshots, nil
+}
+
 // CreateInstanceSnapshot creates a snaphot of an instance volume.
-func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error {
+// The volumes argument allows for also snapshotting volumes attached to the instance.
+func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, volumes instance.SnapshotVolumes, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "src": src.Name()})
 	l.Debug("CreateInstanceSnapshot started")
 	defer l.Debug("CreateInstanceSnapshot finished")
@@ -3593,6 +3768,43 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 	revert := revert.New()
 	defer revert.Fail()
 
+	var targetVolumes map[volumeKey]*api.StorageVolume
+
+	if volumes != instance.SnapshotVolumesRoot {
+		// Select attached volumes to be snapshotted as part of a multi volume snapshot.
+		targetVolumes, err = b.attachedExclusiveCustomVolumes(src, volumes == instance.SnapshotVolumesExclusive)
+		if err != nil {
+			return err
+		}
+
+		// Keep track of attached volume snapshots through volatile.attached_volumes.
+		var attachedVolumesUUIDs strings.Builder
+
+		// Assign uuids to the volumes early and reference them through volatile.attached_volumes.
+		first := true
+		for _, volume := range targetVolumes {
+			volume.Config["volatile.uuid"] = uuid.NewString()
+
+			if !first {
+				attachedVolumesUUIDs.WriteString(",")
+			}
+
+			attachedVolumesUUIDs.WriteString(volume.Config["volatile.uuid"])
+			first = false
+		}
+
+		vol.Config()["volatile.attached_volumes"] = attachedVolumesUUIDs.String()
+	}
+
+	// Lock this operation to ensure that the only one snapshot is made at the time.
+	// Other operations will wait for this one to finish.
+	unlock, err := locking.Lock(context.TODO(), drivers.OperationLockName("CreateInstanceSnapshot", b.name, vol.Type(), contentType, src.Name()))
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
 	// Validate config and create database entry for new storage volume.
 	err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), srcDBVol.Description, volType, true, vol.Config(), inst.CreationDate(), time.Time{}, contentType, false, true)
 	if err != nil {
@@ -3602,7 +3814,8 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 	revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
 
 	// Some driver backing stores require that running instances be frozen during snapshot.
-	if b.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() {
+	// Also freeze if performing a multi volume snapshot.
+	if (src.IsRunning() && !src.IsFrozen()) && (volumes != instance.SnapshotVolumesRoot || b.driver.Info().RunningCopyFreeze) {
 		// Freeze the processes.
 		err = src.Freeze()
 		if err != nil {
@@ -3615,15 +3828,6 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 		_ = filesystem.SyncFS(src.RootfsPath())
 	}
 
-	// Lock this operation to ensure that the only one snapshot is made at the time.
-	// Other operations will wait for this one to finish.
-	unlock, err := locking.Lock(context.TODO(), drivers.OperationLockName("CreateInstanceSnapshot", b.name, vol.Type(), contentType, src.Name()))
-	if err != nil {
-		return err
-	}
-
-	defer unlock()
-
 	err = b.driver.CreateVolumeSnapshot(vol, op)
 	if err != nil {
 		return err
@@ -3632,6 +3836,25 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 	err = b.ensureInstanceSnapshotSymlink(inst.Type(), inst.Project().Name, inst.Name())
 	if err != nil {
 		return err
+	}
+
+	// Snapshot attached volumes.
+	// TODO: Improve this by implementing concurrency.
+	for _, volume := range targetVolumes {
+		// Use shutdown context here as we don't have access to the request context.
+		snapshotName, err := VolumeDetermineNextSnapshotName(b.state.ShutdownCtx, b.state, volume.Pool, volume.Name, volume.Config)
+		if err != nil {
+			return err
+		}
+
+		// Add a description to easily identify attached volume snapshots.
+		description := "Attached volume snapshot for " + inst.Type().String() + "/" + inst.Name() + " on project " + inst.Project().Name
+
+		// Attached volume snapshots inherid expiration time from instance snapshot.
+		err = b.CreateCustomVolumeSnapshot(volume.Project, volume.Name, snapshotName, description, volume.Config["volatile.uuid"], inst.ExpiryDate(), op)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
@@ -3802,7 +4025,7 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 }
 
 // RestoreInstanceSnapshot restores an instance snapshot.
-func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error {
+func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, volumes instance.RestoreVolumes, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "src": src.Name()})
 	l.Debug("RestoreInstanceSnapshot started")
 	defer l.Debug("RestoreInstanceSnapshot finished")
@@ -3849,8 +4072,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 		return err
 	}
 
-	_, _, isSnap := api.GetParentAndSnapshotName(src.Name())
-	if !isSnap {
+	if !shared.IsSnapshot(src.Name()) {
 		return fmt.Errorf("Volume name must be a snapshot")
 	}
 
@@ -3859,6 +4081,28 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 	if err != nil {
 		return err
 	}
+
+	var targetSnapshots map[volumeKey]*api.StorageVolume
+
+	// If performing a multi volume restore, get the snapshots used to restore attached volumes.
+	if volumes != instance.RestoreVolumesRoot {
+		// Snapshots for attached volumes should be referenced by their UUIDs in volatile.attached_volumes.
+		rawAttachedVolumes, hasAttachedVolumes := srcDBVol.Config["volatile.attached_volumes"]
+		if !hasAttachedVolumes {
+			return errors.New(`Cannot restore attached volumes as "volatile.attached_volumes" is unset`)
+		}
+
+		attachedVolumesUUIDs := shared.SplitNTrimSpace(rawAttachedVolumes, ",", -1, false)
+
+		// Ignore unavailable snapshots if volumes=available.
+		targetSnapshots, err = b.exclusiveVolumeSnapshotsFromUUID(attachedVolumesUUIDs, inst, volumes == instance.RestoreVolumesAvailable)
+		if err != nil {
+			return err
+		}
+	}
+
+	// volatile.attached_volumes should not enter the instance config.
+	delete(srcDBVol.Config, "volatile.attached_volumes")
 
 	// Restore snapshot volume config if different.
 	changedConfig, _ := b.detectChangedConfig(dbVol.Config, srcDBVol.Config)
@@ -3936,6 +4180,17 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 		}
 
 		return err
+	}
+
+	// Restore each of the attached volumes.
+	// TODO: Improve this by implementing concurrency.
+	for _, volume := range targetSnapshots {
+		volumeName, snapshotName, _ := api.GetParentAndSnapshotName(volume.Name)
+
+		err := b.RestoreCustomVolume(volume.Project, volumeName, snapshotName, op)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
@@ -6243,8 +6498,7 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	l.Debug("DeleteCustomVolume started")
 	defer l.Debug("DeleteCustomVolume finished")
 
-	_, _, isSnap := api.GetParentAndSnapshotName(volName)
-	if isSnap {
+	if shared.IsSnapshot(volName) {
 		return fmt.Errorf("Volume name cannot be a snapshot")
 	}
 
@@ -6495,7 +6749,8 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 }
 
 // CreateCustomVolumeSnapshot creates a snapshot of a custom volume.
-func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, newSnapshotName string, newDescription string, newExpiryDate time.Time, op *operations.Operation) error {
+// The newSnapshotUUID argument is optional and a UUID will be generated if an empty string is provided.
+func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, newSnapshotName string, newDescription string, newSnapshotUUID string, newExpiryDate time.Time, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volName": volName, "newSnapshotName": newSnapshotName, "newDescription": newDescription, "newExpiryDate": newExpiryDate})
 	l.Debug("CreateCustomVolumeSnapshot started")
 	defer l.Debug("CreateCustomVolumeSnapshot finished")
@@ -6547,6 +6802,9 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, fullSnapshotName)
 	vol := b.GetNewVolume(drivers.VolumeTypeCustom, contentType, volStorageName, parentVol.Config)
+	if newSnapshotUUID != "" {
+		vol.Config()["volatile.uuid"] = newSnapshotUUID
+	}
 
 	// Set the parent volume's UUID.
 	vol.SetParentUUID(parentUUID)
@@ -6560,15 +6818,6 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 		description = newDescription
 	}
 
-	// Validate config and create database entry for new storage volume.
-	// Copy volume config from parent.
-	err = VolumeDBCreate(b, projectName, fullSnapshotName, description, drivers.VolumeTypeCustom, true, vol.Config(), time.Now().UTC(), newExpiryDate, drivers.ContentType(parentVol.ContentType), false, true)
-	if err != nil {
-		return err
-	}
-
-	revert.Add(func() { _ = VolumeDBDelete(b, projectName, fullSnapshotName, drivers.VolumeTypeCustom) })
-
 	// Lock this operation to ensure that the only one snapshot is made at the time.
 	// Other operations will wait for this one to finish.
 	unlock, err := locking.Lock(context.TODO(), drivers.OperationLockName("CreateCustomVolumeSnapshot", b.name, vol.Type(), contentType, volName))
@@ -6577,6 +6826,15 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	}
 
 	defer unlock()
+
+	// Validate config and create database entry for new storage volume.
+	// Copy volume config from parent.
+	err = VolumeDBCreate(b, projectName, fullSnapshotName, description, drivers.VolumeTypeCustom, true, vol.Config(), time.Now().UTC(), newExpiryDate, drivers.ContentType(parentVol.ContentType), false, true)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() { _ = VolumeDBDelete(b, projectName, fullSnapshotName, drivers.VolumeTypeCustom) })
 
 	// Create the snapshot on the storage device.
 	err = b.driver.CreateVolumeSnapshot(vol, op)

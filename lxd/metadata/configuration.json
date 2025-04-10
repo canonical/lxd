@@ -5690,6 +5690,14 @@
 						}
 					},
 					{
+						"volatile.attached_volumes": {
+							"condition": "virtual-machine snapshot or container snapshot",
+							"longdesc": "",
+							"shortdesc": "Comma-separated list of UUIDs for attached volume snapshots created as part of a multi-volume snapshot.",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.idmap.last": {
 							"condition": "filesystem",
 							"longdesc": "",
@@ -5911,6 +5919,14 @@
 						}
 					},
 					{
+						"volatile.attached_volumes": {
+							"condition": "virtual-machine snapshot or container snapshot",
+							"longdesc": "",
+							"shortdesc": "Comma-separated list of UUIDs for attached volume snapshots created as part of a multi-volume snapshot.",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.idmap.last": {
 							"condition": "filesystem",
 							"longdesc": "",
@@ -6096,6 +6112,14 @@
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
 							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.attached_volumes": {
+							"condition": "virtual-machine snapshot or container snapshot",
+							"longdesc": "",
+							"shortdesc": "Comma-separated list of UUIDs for attached volume snapshots created as part of a multi-volume snapshot.",
 							"type": "string"
 						}
 					},
@@ -6295,6 +6319,14 @@
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
 							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.attached_volumes": {
+							"condition": "virtual-machine snapshot or container snapshot",
+							"longdesc": "",
+							"shortdesc": "Comma-separated list of UUIDs for attached volume snapshots created as part of a multi-volume snapshot.",
 							"type": "string"
 						}
 					},
@@ -6545,6 +6577,14 @@
 						}
 					},
 					{
+						"volatile.attached_volumes": {
+							"condition": "virtual-machine snapshot or container snapshot",
+							"longdesc": "",
+							"shortdesc": "Comma-separated list of UUIDs for attached volume snapshots created as part of a multi-volume snapshot.",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.idmap.last": {
 							"condition": "filesystem",
 							"longdesc": "",
@@ -6777,6 +6817,14 @@
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
 							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.attached_volumes": {
+							"condition": "virtual-machine snapshot or container snapshot",
+							"longdesc": "",
+							"shortdesc": "Comma-separated list of UUIDs for attached volume snapshots created as part of a multi-volume snapshot.",
 							"type": "string"
 						}
 					},
@@ -7090,6 +7138,14 @@
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
 							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.attached_volumes": {
+							"condition": "virtual-machine snapshot or container snapshot",
+							"longdesc": "",
+							"shortdesc": "Comma-separated list of UUIDs for attached volume snapshots created as part of a multi-volume snapshot.",
 							"type": "string"
 						}
 					},

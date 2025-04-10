@@ -207,6 +207,15 @@ type InstancePut struct {
 	// Example: snap0
 	Restore string `json:"restore,omitempty" yaml:"restore,omitempty"`
 
+	// Which volumes should be restored.
+	// Can be "root" or empty (for just the instance root volume),
+	// "available" (for all volumes; ignores attached volumes whose snapshots were deleted),
+	// "all" (for all attached volumes; fails if an attached volumes snapshot was deleted).
+	// Example: "available"
+	//
+	// API extension: instance_snapshot_multi_volume
+	Volumes string `json:"volumes,omitempty" yaml:"volumes,omitempty"`
+
 	// Whether the instance currently has saved state on disk
 	// Example: false
 	Stateful bool `json:"stateful" yaml:"stateful"`
