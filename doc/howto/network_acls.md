@@ -94,9 +94,18 @@ lxc query --request GET /1.0/network-acls/my-acl
 % End of group-tab API
 
 `````
+
 ## Create an ACL
 
-Use the following command to create an ACL:
+(network-acls-name-requirements)=
+### Name requirements
+
+Network ACL names must meet the following requirements:
+
+- Must be between 1 and 63 characters long.
+- Can contain only ASCII letters (a–z, A–Z), numbers (0–9), and dashes (-).
+- Cannot begin with a digit or a dash.
+- Cannot end with a dash.
 
 ```bash
 lxc network acl create <ACL_name> [configuration_options...]
@@ -104,13 +113,6 @@ lxc network acl create <ACL_name> [configuration_options...]
 
 This command creates an ACL without rules.
 As a next step, {ref}`add rules <network-acls-rules>` to the ACL.
-
-Valid network ACL names must adhere to the following rules:
-
-- Names must be between 1 and 63 characters long.
-- Names must be made up exclusively of letters, numbers and dashes from the ASCII table.
-- Names must not start with a digit or a dash.
-- Names must not end with a dash.
 
 ### ACL properties
 
