@@ -688,7 +688,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 		// Connect to the destination member, i.e. the member to migrate the instance to.
 		// Use the notify argument to indicate to the destination that we are moving an instance between
 		// cluster members.
-		dest, err := cluster.Connect(newMember.Address, networkCert, s.ServerCert(), r, true)
+		dest, err := cluster.Connect(r.Context(), newMember.Address, networkCert, s.ServerCert(), true)
 		if err != nil {
 			return fmt.Errorf("Failed to connect to destination server %q: %w", newMember.Address, err)
 		}

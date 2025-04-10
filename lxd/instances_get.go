@@ -544,7 +544,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 // rest API and with a timeout of 30 seconds.
 func doContainersGetFromNode(projects []string, node string, allProjects bool, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, instanceType instancetype.Type) ([]api.Instance, error) {
 	f := func() ([]api.Instance, error) {
-		client, err := cluster.Connect(node, networkCert, serverCert, r, true)
+		client, err := cluster.Connect(r.Context(), node, networkCert, serverCert, true)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to connect to member %s: %w", node, err)
 		}
@@ -593,7 +593,7 @@ func doContainersGetFromNode(projects []string, node string, allProjects bool, n
 
 func doContainersFullGetFromNode(projects []string, node string, allProjects bool, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, instanceType instancetype.Type) ([]api.InstanceFull, error) {
 	f := func() ([]api.InstanceFull, error) {
-		client, err := cluster.Connect(node, networkCert, serverCert, r, true)
+		client, err := cluster.Connect(r.Context(), node, networkCert, serverCert, true)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to connect to member %s: %w", node, err)
 		}

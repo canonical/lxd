@@ -1132,7 +1132,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 func clusterCopyCustomVolumeInternal(s *state.State, r *http.Request, sourceAddress string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
 	websockets := map[string]string{}
 
-	client, err := lxdCluster.Connect(sourceAddress, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+	client, err := lxdCluster.Connect(r.Context(), sourceAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1762,7 +1762,7 @@ func storageVolumePostClusteringMigrate(s *state.State, r *http.Request, srcPool
 		// Connect to the destination member, i.e. the member to migrate the custom volume to.
 		// Use the notify argument to indicate to the destination that we are moving a custom volume between
 		// cluster members.
-		dest, err := lxdCluster.Connect(newMember.Address, networkCert, s.ServerCert(), r, true)
+		dest, err := lxdCluster.Connect(r.Context(), newMember.Address, networkCert, s.ServerCert(), true)
 		if err != nil {
 			return fmt.Errorf("Failed to connect to destination server %q: %w", newMember.Address, err)
 		}

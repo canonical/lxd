@@ -2478,7 +2478,7 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 			continue
 		}
 
-		client, err := cluster.Connect(node.Address, networkCert, n.state.ServerCert(), nil, true)
+		client, err := cluster.Connect(context.Background(), node.Address, networkCert, n.state.ServerCert(), true)
 		if err != nil {
 			return err
 		}
