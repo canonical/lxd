@@ -652,7 +652,7 @@ func (d *Daemon) handleOIDCAuthenticationResult(r *http.Request, result *oidc.Au
 			return fmt.Errorf("Failed to notify cluster members of new or updated OIDC identity: %w", err)
 		}
 
-		lc := action.Event(api.AuthenticationMethodOIDC, result.Email, request.CreateRequestor(r), nil)
+		lc := action.Event(api.AuthenticationMethodOIDC, result.Email, request.CreateRequestor(r.Context()), nil)
 		s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 		s.UpdateIdentityCache()
