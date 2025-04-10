@@ -45,6 +45,14 @@ func (c *cmdExport) command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagExportVersion, "export-version", "",
 		i18n.G("Use a different metadata format version than the latest one supported by the server")+"``")
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+		if len(args) > 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		return c.global.cmpTopLevelResource("instance", toComplete)
+	}
+
 	return cmd
 }
 
