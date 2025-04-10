@@ -3017,7 +3017,7 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 
 		if subtle.ConstantTimeCompare([]byte(opSecretStr), []byte(secret)) == 1 {
 			// Token is single-use, so cancel it now.
-			err = operationCancel(s, r, projectName, op)
+			err = operationCancel(r.Context(), s, projectName, op)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to cancel operation %q: %w", op.ID, err)
 			}
