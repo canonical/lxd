@@ -342,7 +342,7 @@ lxc network create bar network=baz --type ovn
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpRemotes(toComplete, false)
+		return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 	}
 
 	return cmd
@@ -1027,7 +1027,7 @@ func (c *cmdNetworkList) command() *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpRemotes(toComplete, false)
+		return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 	}
 
 	return cmd
