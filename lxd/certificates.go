@@ -208,7 +208,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 // clusterMemberJoinTokenValid searches for cluster join token that matches the join token provided.
 // Returns matching operation if found and cancels the operation, otherwise returns nil.
 func clusterMemberJoinTokenValid(s *state.State, r *http.Request, projectName string, joinToken *api.ClusterMemberJoinToken) (*api.Operation, error) {
-	ops, err := operationsGetByType(s, r, projectName, operationtype.ClusterJoinToken)
+	ops, err := operationsGetByType(r.Context(), s, projectName, operationtype.ClusterJoinToken)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting cluster join token operations: %w", err)
 	}
@@ -295,7 +295,7 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, projectName st
 // If an operation is found it is cancelled and the request metadata is returned. If no operation is found then a nil value
 // is returned. An error is only returned if an internal error occurs, or if a token is found but is not valid.
 func certificateTokenValid(s *state.State, r *http.Request, addToken *api.CertificateAddToken) (*api.CertificatesPost, error) {
-	ops, err := operationsGetByType(s, r, api.ProjectDefaultName, operationtype.CertificateAddToken)
+	ops, err := operationsGetByType(r.Context(), s, api.ProjectDefaultName, operationtype.CertificateAddToken)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting certificate token operations: %w", err)
 	}
