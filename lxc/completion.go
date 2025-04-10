@@ -1556,6 +1556,69 @@ func isSymlinkToDir(path string, d fs.DirEntry) bool {
 	return true
 }
 
+func (g *cmdGlobal) cmpLocalFiles(toComplete string, allowedExtensions []string) ([]string, cobra.ShellCompDirective) {
+	var files []string
+	sep := string(filepath.Separator)
+	dir, prefix := filepath.Split(toComplete)
+	if prefix == "." || prefix == ".." {
+		files = append(files, dir+prefix+sep)
+	}
+
+	root, err := filepath.EvalSymlinks(filepath.Dir(dir))
+	if err != nil {
+		return handleCompletionError(err)
+	}
+
+	hasExtension := func(entry string) bool {
+		if len(allowedExtensions) == 0 {
+			return true
+		}
+
+		for _, e := range allowedExtensions {
+			if strings.HasSuffix(entry, e) {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || path == root {
+			return err
+		}
+
+		base := filepath.Base(path)
+		if strings.HasPrefix(base, prefix) {
+			// Match files and directories starting with the given prefix.
+			file := dir + base
+			switch {
+			case d.IsDir():
+				file += sep
+			case isSymlinkToDir(path, d):
+				if base == prefix {
+					file += sep
+				}
+
+			default:
+				if !hasExtension(file) {
+					return nil
+				}
+			}
+
+			files = append(files, file)
+		}
+
+		if d.IsDir() {
+			return fs.SkipDir
+		}
+
+		return nil
+	})
+
+	return files, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
+}
+
 // cmpFiles provides shell completions for instances and files based on the input.
 //
 // If `includeLocalFiles` is true, it includes local file completions relative to the `toComplete` path.
@@ -1586,45 +1649,6 @@ func (g *cmdGlobal) cmpFiles(toComplete string, includeLocalFiles bool) ([]strin
 		return instances, directives
 	}
 
-	var files []string
-	sep := string(filepath.Separator)
-	dir, prefix := filepath.Split(toComplete)
-	if prefix == "." || prefix == ".." {
-		files = append(files, dir+prefix+sep)
-	}
-
-	root, err := filepath.EvalSymlinks(filepath.Dir(dir))
-	if err != nil {
-		return append(instances, files...), directives
-	}
-
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || path == root {
-			return err
-		}
-
-		base := filepath.Base(path)
-		if strings.HasPrefix(base, prefix) {
-			// Match files and directories starting with the given prefix.
-			file := dir + base
-			switch {
-			case d.IsDir():
-				file += sep
-			case isSymlinkToDir(path, d):
-				if base == prefix {
-					file += sep
-				}
-			}
-
-			files = append(files, file)
-		}
-
-		if d.IsDir() {
-			return fs.SkipDir
-		}
-
-		return nil
-	})
-
-	return append(instances, files...), directives
+	files, fileDirectives := g.cmpLocalFiles(toComplete, nil)
+	return append(instances, files...), directives | fileDirectives
 }
