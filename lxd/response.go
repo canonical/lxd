@@ -24,7 +24,7 @@ func forwardedResponseToNode(s *state.State, r *http.Request, memberName string)
 			return response.SmartError(err)
 		}
 
-		return response.ForwardedResponse(client, r)
+		return response.ForwardedResponse(client)
 	}
 
 	return nil
@@ -54,7 +54,7 @@ func forwardedResponseIfInstanceIsRemote(s *state.State, r *http.Request, projec
 		return nil, nil
 	}
 
-	return response.ForwardedResponse(client, r), nil
+	return response.ForwardedResponse(client), nil
 }
 
 // forwardedResponseIfVolumeIsRemote checks for the presence of the ctxStorageVolumeRemoteNodeInfo key in the request context.
@@ -73,5 +73,5 @@ func forwardedResponseIfVolumeIsRemote(s *state.State, r *http.Request) response
 		return response.SmartError(err)
 	}
 
-	return response.ForwardedResponse(client, r)
+	return response.ForwardedResponse(client)
 }
