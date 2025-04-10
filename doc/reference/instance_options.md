@@ -371,19 +371,14 @@ The following instance options control the creation and expiry of {ref}`instance
 (instance-options-volatile)=
 ## Volatile internal data
 
-The following volatile keys are currently used internally by LXD to store internal data specific to an instance:
-
-```{important}
-Setting these `volatile.*` keys might break LXD in non-obvious ways.
-Therefore, you should avoid setting any of these keys.
+```{warning}
+The `volatile.*` keys cannot be manipulated by the user. Do not attempt to modify these keys in any way. LXD modifies these keys, and attempting to manipulate them yourself might break LXD in non-obvious ways.
 ```
+
+The following volatile keys are currently used internally by LXD to store internal data specific to an instance:
 
 % Include content from [../metadata.txt](../metadata.txt)
 ```{include} ../metadata.txt
     :start-after: <!-- config group instance-volatile start -->
     :end-before: <!-- config group instance-volatile end -->
-```
-
-```{note}
-Volatile keys cannot be set by the user.
 ```
