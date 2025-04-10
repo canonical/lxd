@@ -394,14 +394,12 @@ There are two types of selectors:
 - subject name selectors (ACL groups)
 - network subject selectors
 
-(network-acls-groups)=
-#### ACL groups
+(network-acls-selectors-subject-name)=
+#### Subject name selectors (ACL groups)
 
-Instance NICs that are assigned a particular ACL (either explicitly or implicitly through a network) make up a logical port group.
+When an ACL is assigned to multiple instance NICs, either directly or through their networks, those NICs form a logical port group. You can use the name of that ACL as a _subject name selector_ to refer to that group in the egress and ingress lists of other ACLs.
 
-Such ACL groups are called *subject name selectors*, and they can be referenced with the name of the ACL in other ACL groups.
-
-For example, if you have an ACL with the name `foo`, you can specify the group of instance NICs that are assigned this ACL as source with `source=foo`.
+For example, if you have an ACL with the name `my-acl`, you can specify the group of instance NICs that are assigned this ACL as an egress or ingress rule's source by setting `source` to `my-acl`.
 
 #### Network selectors
 
