@@ -532,6 +532,22 @@ To set the default action for inbound traffic to `allow` for all instances on th
 lxc network set my-network security.acls.default.ingress.action=allow
 ```
 
+### Configure a default action for an instance OVN NIC device
+
+To set the default action for an instance OVN NIC's egress or ingress traffic, run:
+
+```bash
+lxc config device set <instance-name> <NIC-name> security.acls.default.<egress|ingress>.action=<allow|reject|drop>
+```
+
+#### Example
+
+To set the default action for inbound traffic to `allow` for the `my-ovn-nic` device of `my-instance`, run:
+
+```bash
+lxc config device set my-instance my-ovn-nic security.acls.default.ingress.action=allow
+```
+
 ````
 % End of group-tab CLI
 
@@ -558,6 +574,45 @@ Set the `my-network` network's default egress action to `allow`:
 lxc query --request PATCH /1.0/networks/my-network --data '{
   "config": {
     "security.acls.default.egress.action": "allow"
+  }
+}'
+```
+
+### Configure a default action for an instance's OVN NIC device
+
+To set the default action for an instance's OVN NIC's traffic, query the [`PATCH /1.0/instances/{instance-name}`](swagger:/instances/instance_patch) endpoint:
+
+```bash
+lxc query --request PATCH /1.0/instances/{instance-name} --data '{
+  "devices": {
+    "<NIC-name>": {
+      "network": <network-name>,
+      "type": "nic",
+      "security.acls.default.<egress|ingress>.action": "<allow|reject|drop>"
+      <other-options>
+    }
+  }
+}'
+```
+
+The `type` and `network` options are required in the body (see: {ref}`instances-configure-devices-api-required`).
+
+```{caution}
+Patching an instance device's configuration unsets any options for that device omitted from the PATCH request body. For more information, see {ref}`instances-configure-devices-api-patch-effects`.
+```
+
+#### Example
+
+This request sets the default action for inbound traffic to `allow` for the `my-ovn-nic` device of `my-instance`:
+
+```bash
+lxc query --request PATCH /1.0/instances/my-instance --data '{
+  "devices": {
+    "my-ovn-nic": {
+      "network": "my-network",
+      "type": "nic",
+      "security.acls.default.ingress.action": "allow"
+    }
   }
 }'
 ```
