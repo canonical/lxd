@@ -908,7 +908,7 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 			urlToIdentity := make(map[*api.URL]auth.EntitlementReporter, len(identities))
 			for _, id := range identities {
 				var certificate string
-				if id.AuthMethod == api.AuthenticationMethodTLS && id.Type != api.IdentityTypeCertificateClientPending {
+				if id.AuthMethod == api.AuthenticationMethodTLS && id.Type != api.IdentityTypeCertificateClientPending && id.Type != api.IdentityTypeCertificateClusterLinkPending {
 					metadata, err := id.CertificateMetadata()
 					if err != nil {
 						return response.SmartError(err)
