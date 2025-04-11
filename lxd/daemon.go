@@ -646,7 +646,7 @@ func (d *Daemon) handleOIDCAuthenticationResult(r *http.Request, result *oidc.Au
 			return fmt.Errorf("Failed to notify cluster members of new or updated OIDC identity: %w", err)
 		}
 
-		lc := action.Event(api.AuthenticationMethodOIDC, result.Email, request.CreateRequestor(r), nil)
+		lc := action.Event(api.AuthenticationMethodOIDC, result.Email, request.CreateRequestor(r.Context(), r.RemoteAddr), nil)
 		s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 		s.UpdateIdentityCache()
@@ -794,6 +794,9 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 
 		// Set the "trusted" value in the request context.
 		request.SetCtxValue(r, request.CtxTrusted, trusted)
+
+		// Set request source address value in the request context.
+		request.SetCtxValue(r, request.CtxRequestSourceAddress, r.RemoteAddr)
 
 		// Reject internal queries to remote, non-cluster, clients
 		if version == "internal" && !shared.ValueInSlice(protocol, []string{auth.AuthenticationMethodUnix, auth.AuthenticationMethodCluster}) {
