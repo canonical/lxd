@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
+	"github.com/canonical/lxd/lxd/request"
 	"net/http"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -25,7 +26,7 @@ func vSockServer(d *Daemon) *http.Server {
 
 // hoistReqVM authenticates a VM accessing /dev/lxd over vsock using its agent certificate,
 // identifies and retrieves the corresponding instance, and passes it to the handler if trusted.
-func hoistReqVM(d *Daemon, w http.ResponseWriter, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
+func hoistReqVM(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
 	trusted, inst, err := authenticateAgentCert(d.State(), r)
 	if err != nil {
 		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, err.Error()), true)
@@ -35,7 +36,8 @@ func hoistReqVM(d *Daemon, w http.ResponseWriter, r *http.Request, handler devLX
 		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusUnauthorized), true)
 	}
 
-	return handler(d, inst, w, r)
+	request.SetCtxValue(r, request.CtxDevLXDInstance, inst)
+	return handler(d, r)
 }
 
 func authenticateAgentCert(s *state.State, r *http.Request) (bool, instance.Instance, error) {

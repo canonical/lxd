@@ -37,7 +37,7 @@ func devLXDServer(d *Daemon) *http.Server {
 
 // hoistReqContainer identifies the calling container based on the Unix socket credentials,
 // verifies it's the container's root user, and passes the identified container to the handler.
-func hoistReqContainer(d *Daemon, w http.ResponseWriter, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
+func hoistReqContainer(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
 	conn := ucred.GetConnFromContext(r.Context())
 
 	unixConn, ok := conn.(*net.UnixConn)
@@ -70,7 +70,8 @@ func hoistReqContainer(d *Daemon, w http.ResponseWriter, r *http.Request, handle
 		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusUnauthorized, "Access denied for non-root user"), false)
 	}
 
-	return handler(d, c, w, r)
+	request.SetCtxValue(r, request.CtxDevLXDInstance, c)
+	return handler(d, r)
 }
 
 /*
