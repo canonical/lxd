@@ -1,8 +1,7 @@
 package lxd
 
 import (
-	"fmt"
-	"net/url"
+	"net/http"
 
 	"github.com/canonical/lxd/shared/api"
 )
@@ -16,14 +15,14 @@ func (r *ProtocolLXD) GetNetworkNames() ([]string, error) {
 
 	// Fetch the raw values.
 	urls := []string{}
-	baseURL := "/networks"
-	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
+	u := api.NewURL().Path("networks")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
 	// Parse it.
-	return urlsToResourceNames(baseURL, urls...)
+	return urlsToResourceNames(u.String(), urls...)
 }
 
 // GetNetworks returns a list of Network struct.
@@ -36,7 +35,8 @@ func (r *ProtocolLXD) GetNetworks() ([]api.Network, error) {
 	networks := []api.Network{}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", "/networks?recursion=1", nil, "", &networks)
+	u := api.NewURL().Path("networks").WithQuery("recursion", "1")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &networks)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,8 @@ func (r *ProtocolLXD) GetNetwork(name string) (*api.Network, string, error) {
 	network := api.Network{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/networks/%s", url.PathEscape(name)), nil, "", &network)
+	u := api.NewURL().Path("networks", name)
+	etag, err := r.queryStruct(http.MethodGet, u.String(), nil, "", &network)
 	if err != nil {
 		return nil, "", err
 	}
@@ -72,7 +73,8 @@ func (r *ProtocolLXD) GetNetworkLeases(name string) ([]api.NetworkLease, error) 
 	leases := []api.NetworkLease{}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", fmt.Sprintf("/networks/%s/leases", url.PathEscape(name)), nil, "", &leases)
+	u := api.NewURL().Path("networks", name, "leases")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &leases)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +92,8 @@ func (r *ProtocolLXD) GetNetworkState(name string) (*api.NetworkState, error) {
 	state := api.NetworkState{}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", fmt.Sprintf("/networks/%s/state", url.PathEscape(name)), nil, "", &state)
+	u := api.NewURL().Path("networks", name, "state")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &state)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +109,8 @@ func (r *ProtocolLXD) CreateNetwork(network api.NetworksPost) error {
 	}
 
 	// Send the request
-	_, _, err = r.query("POST", "/networks", network, "")
+	u := api.NewURL().Path("networks")
+	_, _, err = r.query(http.MethodPost, u.String(), network, "")
 	if err != nil {
 		return err
 	}
@@ -122,7 +126,8 @@ func (r *ProtocolLXD) UpdateNetwork(name string, network api.NetworkPut, ETag st
 	}
 
 	// Send the request
-	_, _, err = r.query("PUT", fmt.Sprintf("/networks/%s", url.PathEscape(name)), network, ETag)
+	u := api.NewURL().Path("networks", name)
+	_, _, err = r.query(http.MethodPut, u.String(), network, ETag)
 	if err != nil {
 		return err
 	}
@@ -138,7 +143,8 @@ func (r *ProtocolLXD) RenameNetwork(name string, network api.NetworkPost) error 
 	}
 
 	// Send the request
-	_, _, err = r.query("POST", fmt.Sprintf("/networks/%s", url.PathEscape(name)), network, "")
+	u := api.NewURL().Path("networks", name)
+	_, _, err = r.query(http.MethodPost, u.String(), network, "")
 	if err != nil {
 		return err
 	}
@@ -154,7 +160,8 @@ func (r *ProtocolLXD) DeleteNetwork(name string) error {
 	}
 
 	// Send the request
-	_, _, err = r.query("DELETE", fmt.Sprintf("/networks/%s", url.PathEscape(name)), nil, "")
+	u := api.NewURL().Path("networks", name)
+	_, _, err = r.query(http.MethodDelete, u.String(), nil, "")
 	if err != nil {
 		return err
 	}

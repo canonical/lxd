@@ -3,7 +3,7 @@ package lxd
 import (
 	"fmt"
 	"net"
-	"net/url"
+	"net/http"
 
 	"github.com/canonical/lxd/shared/api"
 )
@@ -17,14 +17,14 @@ func (r *ProtocolLXD) GetNetworkForwardAddresses(networkName string) ([]string, 
 
 	// Fetch the raw URL values.
 	urls := []string{}
-	baseURL := "/networks/" + url.PathEscape(networkName) + "/forwards"
-	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
+	u := api.NewURL().Path("networks", networkName, "forwards")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
 	// Parse it.
-	return urlsToResourceNames(baseURL, urls...)
+	return urlsToResourceNames(u.String(), urls...)
 }
 
 // GetNetworkForwards returns a list of Network forward structs.
@@ -37,7 +37,8 @@ func (r *ProtocolLXD) GetNetworkForwards(networkName string) ([]api.NetworkForwa
 	forwards := []api.NetworkForward{}
 
 	// Fetch the raw value.
-	_, err = r.queryStruct("GET", "/networks/"+url.PathEscape(networkName)+"/forwards?recursion=1", nil, "", &forwards)
+	u := api.NewURL().Path("networks", networkName, "forwards").WithQuery("recursion", "1")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &forwards)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +56,8 @@ func (r *ProtocolLXD) GetNetworkForward(networkName string, listenAddress string
 	forward := api.NetworkForward{}
 
 	// Fetch the raw value.
-	etag, err := r.queryStruct("GET", "/networks/"+url.PathEscape(networkName)+"/forwards/"+url.PathEscape(listenAddress), nil, "", &forward)
+	u := api.NewURL().Path("networks", networkName, "forwards", listenAddress)
+	etag, err := r.queryStruct(http.MethodGet, u.String(), nil, "", &forward)
 	if err != nil {
 		return nil, "", err
 	}
@@ -83,7 +85,8 @@ func (r *ProtocolLXD) CreateNetworkForward(networkName string, forward api.Netwo
 	}
 
 	// Send the request.
-	_, _, err = r.query("POST", "/networks/"+url.PathEscape(networkName)+"/forwards", forward, "")
+	u := api.NewURL().Path("networks", networkName, "forwards")
+	_, _, err = r.query(http.MethodPost, u.String(), forward, "")
 	if err != nil {
 		return err
 	}
@@ -99,7 +102,8 @@ func (r *ProtocolLXD) UpdateNetworkForward(networkName string, listenAddress str
 	}
 
 	// Send the request.
-	_, _, err = r.query("PUT", "/networks/"+url.PathEscape(networkName)+"/forwards/"+url.PathEscape(listenAddress), forward, ETag)
+	u := api.NewURL().Path("networks", networkName, "forwards", listenAddress)
+	_, _, err = r.query(http.MethodPut, u.String(), forward, ETag)
 	if err != nil {
 		return err
 	}
@@ -115,7 +119,8 @@ func (r *ProtocolLXD) DeleteNetworkForward(networkName string, listenAddress str
 	}
 
 	// Send the request.
-	_, _, err = r.query("DELETE", "/networks/"+url.PathEscape(networkName)+"/forwards/"+url.PathEscape(listenAddress), nil, "")
+	u := api.NewURL().Path("networks", networkName, "forwards", listenAddress)
+	_, _, err = r.query(http.MethodDelete, u.String(), nil, "")
 	if err != nil {
 		return err
 	}
