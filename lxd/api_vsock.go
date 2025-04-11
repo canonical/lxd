@@ -25,7 +25,7 @@ func vSockServer(d *Daemon) *http.Server {
 	}
 }
 
-func hoistReqVM(d *Daemon, w http.ResponseWriter, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
+func hoistReqVM(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
 	// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
 	request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
 
@@ -38,7 +38,7 @@ func hoistReqVM(d *Daemon, w http.ResponseWriter, r *http.Request, handler devLX
 		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusUnauthorized), true)
 	}
 
-	return handler(d, inst, w, r)
+	return handler(d, inst, r)
 }
 
 func authenticateAgentCert(s *state.State, r *http.Request) (bool, instance.Instance, error) {
