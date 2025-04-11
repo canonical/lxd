@@ -24,7 +24,7 @@ import (
 )
 
 // devLXDAPIHandler is a function that handles requests to the DevLXD API.
-type devLXDHandlerFunc func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse
+type devLXDHandlerFunc func(d *Daemon, r *http.Request) *devLXDResponse
 
 // devLXDAPIEndpointAction represents an action on an devlxd API endpoint.
 type devLXDAPIEndpointAction struct {
@@ -47,7 +47,7 @@ var devLXDEndpoints = []devLXDAPIEndpoint{
 	{
 		Path: "/",
 		Get: devLXDAPIEndpointAction{
-			Handler: func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
+			Handler: func(d *Daemon, r *http.Request) *devLXDResponse {
 				return okResponse([]string{"/1.0"}, "json")
 			},
 		},
@@ -92,7 +92,7 @@ var devLXD10Endpoint = devLXDAPIEndpoint{
 	Patch: devLXDAPIEndpointAction{Handler: devLXDAPIPatchHandler},
 }
 
-func devLXDAPIGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
+func devLXDAPIGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 	client, err := getVsockClient(d)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
@@ -115,7 +115,7 @@ func devLXDAPIGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *dev
 	return okResponse(instanceData, "json")
 }
 
-func devLXDAPIPatchHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
+func devLXDAPIPatchHandler(d *Daemon, r *http.Request) *devLXDResponse {
 	client, err := getVsockClient(d)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
@@ -136,7 +136,7 @@ var devLXDConfigEndpoint = devLXDAPIEndpoint{
 	Get:  devLXDAPIEndpointAction{Handler: devLXDConfigGetHandler},
 }
 
-func devLXDConfigGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
+func devLXDConfigGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 	client, err := getVsockClient(d)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
@@ -171,14 +171,14 @@ var devLXDConfigKeyEndpoint = devLXDAPIEndpoint{
 	Get:  devLXDAPIEndpointAction{Handler: devLXDConfigKeyGetHandler},
 }
 
-func devLXDConfigKeyGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
+func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 	key, err := url.PathUnescape(mux.Vars(r)["key"])
 	if err != nil {
-		return &devLXDResponse{"bad request", http.StatusBadRequest, "raw"}
+		return errorResponse(http.StatusBadRequest, "bad request")
 	}
 
 	if !strings.HasPrefix(key, "user.") && !strings.HasPrefix(key, "cloud-init.") {
-		return &devLXDResponse{"not authorized", http.StatusForbidden, "raw"}
+		return errorResponse(http.StatusForbidden, "not authorized")
 	}
 
 	client, err := getVsockClient(d)
@@ -208,7 +208,7 @@ var devLXDMetadataEndpoint = devLXDAPIEndpoint{
 	Get:  devLXDAPIEndpointAction{Handler: devLXDMetadataGetHandler},
 }
 
-func devLXDMetadataGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
+func devLXDMetadataGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 	var client lxd.InstanceServer
 	var err error
 
@@ -247,13 +247,15 @@ var devLXDEventsEndpoint = devLXDAPIEndpoint{
 	Get:  devLXDAPIEndpointAction{Handler: devLXDEventsGetHandler},
 }
 
-func devLXDEventsGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
-	err := eventsGet(d, r).Render(w, r)
-	if err != nil {
-		return smartResponse(err)
-	}
+func devLXDEventsGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
+	return manualResponse(func(w http.ResponseWriter) error {
+		err := eventsGet(d, r).Render(w, r)
+		if err != nil {
+			return err
+		}
 
-	return okResponse("", "raw")
+		return nil
+	})
 }
 
 var devLXDDevicesEndpoint = devLXDAPIEndpoint{
@@ -261,7 +263,7 @@ var devLXDDevicesEndpoint = devLXDAPIEndpoint{
 	Get:  devLXDAPIEndpointAction{Handler: devLXDDevicesGetHandler},
 }
 
-func devLXDDevicesGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
+func devLXDDevicesGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 	client, err := getVsockClient(d)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
@@ -289,7 +291,7 @@ var devLXDImageExportEndpoint = devLXDAPIEndpoint{
 	Get:  devLXDAPIEndpointAction{Handler: devLXDImageExportHandler},
 }
 
-func devLXDImageExportHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
+func devLXDImageExportHandler(d *Daemon, r *http.Request) *devLXDResponse {
 	// Extract the fingerprint.
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
 	if err != nil {
@@ -314,21 +316,23 @@ func devLXDImageExportHandler(d *Daemon, w http.ResponseWriter, r *http.Request)
 		return errorResponse(http.StatusInternalServerError, err.Error())
 	}
 
-	// Set headers from the host LXD.
-	for k, vv := range resp.Header {
-		for _, v := range vv {
-			w.Header().Set(k, v)
+	return manualResponse(func(w http.ResponseWriter) error {
+		// Set headers from the host LXD.
+		for k, vv := range resp.Header {
+			for _, v := range vv {
+				w.Header().Set(k, v)
+			}
 		}
-	}
 
-	// Copy headers and response body.
-	w.WriteHeader(resp.StatusCode)
-	_, err = io.Copy(w, resp.Body)
-	if err != nil {
-		return smartResponse(err)
-	}
+		// Copy headers and response body.
+		w.WriteHeader(resp.StatusCode)
+		_, err = io.Copy(w, resp.Body)
+		if err != nil {
+			return err
+		}
 
-	return nil
+		return nil
+	})
 }
 
 var devLXDUbuntuProEndpoint = devLXDAPIEndpoint{
@@ -336,7 +340,7 @@ var devLXDUbuntuProEndpoint = devLXDAPIEndpoint{
 	Get:  devLXDAPIEndpointAction{Handler: devLXDUbuntuProGetHandler},
 }
 
-func devLXDUbuntuProGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
+func devLXDUbuntuProGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 	if r.Method != http.MethodGet {
 		return errorResponse(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
 	}
@@ -379,7 +383,7 @@ var devLXDUbuntuProTokenEndpoint = devLXDAPIEndpoint{
 	Post: devLXDAPIEndpointAction{Handler: devLXDUbuntuProTokenPostHandler},
 }
 
-func devLXDUbuntuProTokenPostHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLXDResponse {
+func devLXDUbuntuProTokenPostHandler(d *Daemon, r *http.Request) *devLXDResponse {
 	if r.Method != http.MethodPost {
 		return errorResponse(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
 	}
@@ -455,7 +459,7 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 				return errorResponse(http.StatusNotImplemented, "")
 			}
 
-			return action.Handler(d, w, r)
+			return action.Handler(d, r)
 		}
 
 		var resp *devLXDResponse
