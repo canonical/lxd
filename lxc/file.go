@@ -223,9 +223,10 @@ func (c *cmdFileCreate) run(cmd *cobra.Command, args []string) error {
 	var mode os.FileMode
 
 	// Determine the target mode
-	if c.flagType == "directory" {
+	switch c.flagType {
+	case "directory":
 		mode = os.FileMode(DirMode)
-	} else if c.flagType == "file" {
+	case "file":
 		mode = os.FileMode(FileMode)
 	}
 
@@ -254,11 +255,12 @@ func (c *cmdFileCreate) run(cmd *cobra.Command, args []string) error {
 	var readCloser io.ReadCloser
 	var contentLength int64
 
-	if c.flagType == "symlink" {
+	switch c.flagType {
+	case "symlink":
 		content = strings.NewReader(symlinkTargetPath)
 		readCloser = io.NopCloser(content)
 		contentLength = int64(len(symlinkTargetPath))
-	} else if c.flagType == "file" {
+	case "file":
 		// Just creating an empty file.
 		content = strings.NewReader("")
 		readCloser = io.NopCloser(content)
@@ -324,14 +326,6 @@ func (c *cmdFileDelete) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
-		}
-
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return c.global.cmpFiles(toComplete, false)
 	}
 
@@ -386,7 +380,7 @@ func (c *cmdFileEdit) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -592,7 +586,7 @@ func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 			}
 
 			// Follow the symlink
-			if !(targetPath == "-" || c.file.flagRecursive) {
+			if targetPath != "-" && !c.file.flagRecursive {
 				err = os.Symlink(strings.TrimSpace(string(linkTarget)), targetPath)
 				if err != nil {
 					return err
@@ -977,7 +971,8 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 	target := filepath.Join(targetDir, filepath.Base(p))
 	logger.Infof("Pulling %s from %s (%s)", target, p, resp.Type)
 
-	if resp.Type == "directory" {
+	switch resp.Type {
+	case "directory":
 		err := os.Mkdir(target, os.FileMode(resp.Mode))
 		if err != nil {
 			return err
@@ -991,7 +986,7 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 				return err
 			}
 		}
-	} else if resp.Type == "file" {
+	case "file":
 		f, err := os.Create(target)
 		if err != nil {
 			return err
@@ -1033,7 +1028,7 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 		}
 
 		progress.Done("")
-	} else if resp.Type == "symlink" {
+	case "symlink":
 		linkTarget, err := io.ReadAll(buf)
 		if err != nil {
 			return err
@@ -1043,7 +1038,8 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 		if err != nil {
 			return err
 		}
-	} else {
+
+	default:
 		return fmt.Errorf(i18n.G("Unknown file type '%s'"), resp.Type)
 	}
 

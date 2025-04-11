@@ -113,15 +113,20 @@ func (c *cmdProfileAdd) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 1 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
-		if len(args) == 1 {
-			return c.global.cmpProfiles(args[0], false)
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
 		}
 
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		return c.global.cmpTopLevelResourceInRemote(remote, "profile", toComplete)
 	}
 
 	return cmd
@@ -198,10 +203,15 @@ lxc profile assign foo ''
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
-		return c.global.cmpProfiles(args[0], false)
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
+		}
+
+		return c.global.cmpTopLevelResourceInRemote(remote, "profile", toComplete)
 	}
 
 	return cmd
@@ -282,11 +292,11 @@ func (c *cmdProfileCopy) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpProfiles(toComplete, true)
+			return c.global.cmpTopLevelResource("profile", toComplete)
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpProfiles(toComplete, true)
+			return c.global.cmpTopLevelResource("profile", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -366,7 +376,7 @@ lxc profile create p1 < config.yaml
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -444,7 +454,7 @@ func (c *cmdProfileDelete) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpProfiles(toComplete, true)
+			return c.global.cmpTopLevelResource("profile", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -505,7 +515,7 @@ func (c *cmdProfileEdit) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpProfiles(toComplete, true)
+			return c.global.cmpTopLevelResource("profile", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -640,7 +650,7 @@ func (c *cmdProfileGet) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpProfiles(toComplete, true)
+			return c.global.cmpTopLevelResource("profile", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -729,7 +739,7 @@ u - Used By`))
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -870,15 +880,20 @@ func (c *cmdProfileRemove) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 1 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
-		if len(args) == 1 {
-			return c.global.cmpProfiles(args[0], false)
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
 		}
 
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		return c.global.cmpTopLevelResourceInRemote(remote, "profile", toComplete)
 	}
 
 	return cmd
@@ -959,7 +974,7 @@ func (c *cmdProfileRename) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpProfiles(toComplete, true)
+			return c.global.cmpTopLevelResource("profile", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1022,15 +1037,20 @@ For backward compatibility, a single configuration key may still be set with:
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a profile property"))
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 1 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
 		if len(args) == 0 {
-			return c.global.cmpProfiles(toComplete, true)
+			return c.global.cmpTopLevelResource("profile", toComplete)
 		}
 
-		if len(args) == 1 {
-			return c.global.cmpInstanceAllKeys(args[0])
+		remote, partial, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
 		}
 
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		return c.global.cmpInstanceKeysByType(remote, api.InstanceTypeAny, "=", partial)
 	}
 
 	return cmd
@@ -1108,7 +1128,7 @@ func (c *cmdProfileShow) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpProfiles(toComplete, true)
+			return c.global.cmpTopLevelResource("profile", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1173,7 +1193,7 @@ func (c *cmdProfileUnset) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpProfiles(toComplete, true)
+			return c.global.cmpTopLevelResource("profile", toComplete)
 		}
 
 		if len(args) == 1 {

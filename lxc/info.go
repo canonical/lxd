@@ -46,7 +46,7 @@ lxc info [<remote>:] [--resources]
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -710,17 +710,20 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 
 	if showLog {
 		var log io.Reader
-		if inst.Type == "container" {
+		switch api.InstanceType(inst.Type) {
+		case api.InstanceTypeContainer:
 			log, err = d.GetInstanceLogfile(name, "lxc.log")
 			if err != nil {
 				return err
 			}
-		} else if inst.Type == "virtual-machine" {
+
+		case api.InstanceTypeVM:
 			log, err = d.GetInstanceLogfile(name, "qemu.log")
 			if err != nil {
 				return err
 			}
-		} else {
+
+		default:
 			return fmt.Errorf(i18n.G("Unsupported instance type: %s"), inst.Type)
 		}
 
