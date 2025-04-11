@@ -337,7 +337,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 			resources := map[string][]api.URL{}
 			resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-			op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil, r)
+			op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -373,7 +373,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				resources["containers"] = resources["instances"]
 			}
 
-			op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil, r)
+			op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -406,7 +406,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 		if req.Target != nil {
 			// Push mode.
-			op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil, r)
+			op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -415,7 +415,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Pull mode.
-		op, err := operations.OperationCreate(s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, ws.Metadata(), run, cancel, ws.Connect, r)
+		op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, ws.Metadata(), run, cancel, ws.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -446,7 +446,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceRename, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceRename, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -760,7 +760,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 			return nil
 		}
 
-		srcOp, err := operations.OperationCreate(s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, srcMigration.Metadata(), run, cancel, srcMigration.Connect, r)
+		srcOp, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, srcMigration.Metadata(), run, cancel, srcMigration.Connect)
 		if err != nil {
 			return err
 		}
