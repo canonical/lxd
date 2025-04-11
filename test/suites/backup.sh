@@ -1086,3 +1086,83 @@ test_backup_export_import_instance_only() {
   rm "${LXD_DIR}/c1.tar.gz"
   lxc delete -f c1
 }
+
+test_backup_metadata() {
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  # Fetch the least and most recent supported backup metadata version from the range.
+  lowest_version=$(lxc query /1.0 | jq -r .environment.backup_metadata_version_range[0])
+  highest_version=$(lxc query /1.0 | jq -r .environment.backup_metadata_version_range[1])
+
+  tmpDir=$(mktemp -d)
+
+  # Create an instance with one snapshot.
+  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
+  lxc snapshot c1
+
+  # Export the instance without setting an export version.
+  # The server should implicitly pick its latest supported version.
+  lxc export c1 "${tmpDir}/c1.tar.gz"
+  tar -xzf "${tmpDir}/c1.tar.gz" -C "${tmpDir}" backup/index.yaml
+
+  cat "${tmpDir}/backup/index.yaml"
+  [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "${highest_version}" ]
+  [ "$(yq '.config.volumes | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  [ "$(yq '.config.volumes.[0].snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+
+  rm -rf "${tmpDir}/backup" "${tmpDir}/c1.tar.gz"
+
+  # Export the instance using the specified lowest export version.
+  # The server should used the provided version instead of its default.
+  lxc export c1 "${tmpDir}/c1.tar.gz" --export-version "${lowest_version}"
+  tar -xzf "${tmpDir}/c1.tar.gz" -C "${tmpDir}" backup/index.yaml
+
+  cat "${tmpDir}/backup/index.yaml"
+  [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "null" ]
+  [ "$(yq .config.container < "${tmpDir}/backup/index.yaml")" != "null" ]
+  [ "$(yq .config.pool < "${tmpDir}/backup/index.yaml")" != "null" ]
+  [ "$(yq .config.volume < "${tmpDir}/backup/index.yaml")" != "null" ]
+  [ "$(yq '.config.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  [ "$(yq '.config.volume_snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+
+  rm -rf "${tmpDir}/backup" "${tmpDir}/c1.tar.gz"
+  lxc delete -f c1
+
+  # Create a custom storage volume with one snapshot.
+  poolName=$(lxc profile device get default root pool)
+  lxc storage volume create "${poolName}" vol1 size=32MiB
+  lxc storage volume snapshot "${poolName}" vol1
+
+  # Export the custom storage volume without setting an export version.
+  # The server should implicitly pick its latest supported version.
+  lxc storage volume export "${poolName}" vol1 "${tmpDir}/vol1.tar.gz"
+  tar -xzf "${tmpDir}/vol1.tar.gz" -C "${tmpDir}" backup/index.yaml
+
+  cat "${tmpDir}/backup/index.yaml"
+  [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "${highest_version}" ]
+  [ "$(yq .config.instance < "${tmpDir}/backup/index.yaml")" = "null" ]
+  [ "$(yq '.config.volumes | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  [ "$(yq '.config.volumes.[0].snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+
+  rm -rf "${tmpDir}/backup" "${tmpDir}/vol1.tar.gz"
+
+  # Export the custom storage volume using the specified lowest export version.
+  # The server should used the provided version instead of its default.
+  lxc storage volume export "${poolName}" vol1 "${tmpDir}/vol1.tar.gz" --export-version "${lowest_version}"
+  tar -xzf "${tmpDir}/vol1.tar.gz" -C "${tmpDir}" backup/index.yaml
+
+  cat "${tmpDir}/backup/index.yaml"
+  [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "null" ]
+  [ "$(yq .config.container < "${tmpDir}/backup/index.yaml")" = "null" ]
+  [ "$(yq .config.volume < "${tmpDir}/backup/index.yaml")" != "null" ]
+  [ "$(yq '.config.volume_snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+
+  rm -rf "${tmpDir}/backup" "${tmpDir}/vol1.tar.gz"
+  lxc storage volume delete "${poolName}" vol1
+
+  rm -rf "${tmpDir}"
+}
