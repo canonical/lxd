@@ -657,7 +657,7 @@ user_is_not_project_operator() {
 
   # Should not be able to see or create network ACLs.
   lxc_remote network acl create acl1
-  [ "$(lxc_remote network acl list "${remote}:" -f csv | wc -l)" = 0 ]
+  [ "$(lxc_remote network acl list "${remote}:" -f csv)" = "" ]
   ! lxc_remote network acl create "${remote}:test-acl" || false
   lxc_remote network acl delete acl1
 
