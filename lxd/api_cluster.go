@@ -3143,7 +3143,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 
 		return evacuateClusterMember(s, d.gateway, r, req.Mode, stopFunc, migrateFunc)
 	case "restore":
-		return restoreClusterMember(d, r)
+		return restoreClusterMember(d, r, req.StatusOnly)
 	}
 
 	return response.BadRequest(fmt.Errorf("Unknown action %q", req.Action))
@@ -3430,7 +3430,7 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 	return nil
 }
 
-func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
+func restoreClusterMember(d *Daemon, r *http.Request, statusOnly bool) response.Response {
 	s := d.State()
 
 	originName, err := url.PathUnescape(mux.Vars(r)["name"])
@@ -3438,41 +3438,40 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// List the instances.
-	var dbInstances []dbCluster.Instance
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbInstances, err = dbCluster.GetInstances(ctx, tx.Tx())
+	var instances []instance.Instance
+	var localInstances []instance.Instance
+
+	if !statusOnly {
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = tx.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
+				inst, err := instance.LoadByProjectAndName(s, dbInst.Project, dbInst.Name)
+				if err != nil {
+					return fmt.Errorf("Failed to load instance: %w", err)
+				}
+
+				if dbInst.Node == originName {
+					localInstances = append(localInstances, inst)
+					return nil
+				}
+
+				// Only consider instances where volatile.evacuate.origin is set to the node which needs to be restored
+				val, ok := inst.LocalConfig()["volatile.evacuate.origin"]
+				if !ok || val != originName {
+					return nil
+				}
+
+				instances = append(instances, inst)
+				return nil
+			}, dbCluster.InstanceFilter{})
+			if err != nil {
+				return fmt.Errorf("Failed to get instances: %w", err)
+			}
+
+			return nil
+		})
 		if err != nil {
-			return fmt.Errorf("Failed to get instances: %w", err)
+			return response.SmartError(err)
 		}
-
-		return nil
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	instances := make([]instance.Instance, 0, len(dbInstances))
-	localInstances := make([]instance.Instance, 0, len(dbInstances))
-
-	for _, dbInst := range dbInstances {
-		inst, err := instance.LoadByProjectAndName(s, dbInst.Project, dbInst.Name)
-		if err != nil {
-			return response.SmartError(fmt.Errorf("Failed to load instance: %w", err))
-		}
-
-		if dbInst.Node == originName {
-			localInstances = append(localInstances, inst)
-			continue
-		}
-
-		// Only consider instances where volatile.evacuate.origin is set to the node which needs to be restored.
-		val, ok := inst.LocalConfig()["volatile.evacuate.origin"]
-		if !ok || val != originName {
-			continue
-		}
-
-		instances = append(instances, inst)
 	}
 
 	run := func(op *operations.Operation) error {
@@ -3500,6 +3499,13 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 		err = networkStartup(d.State)
 		if err != nil {
 			return err
+		}
+
+		// If status-only is true, just update the database state without affecting instances.
+		if statusOnly {
+			logger.Info("Cluster member restored (status only)", logger.Ctx{"member": originName})
+			revert.Success()
+			return nil
 		}
 
 		// Restart the local instances.
