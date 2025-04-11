@@ -3903,7 +3903,7 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	for _, clusterGroup := range apiClusterGroups {
-		clusterGroup.UsedBy = project.FilterUsedBy(s.Authorizer, r, clusterGroup.UsedBy)
+		clusterGroup.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, clusterGroup.UsedBy)
 	}
 
 	return response.SyncResponse(true, apiClusterGroups)
@@ -3985,7 +3985,7 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	apiGroup.UsedBy = project.FilterUsedBy(s.Authorizer, r, apiGroup.UsedBy)
+	apiGroup.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, apiGroup.UsedBy)
 
 	return response.SyncResponseETag(true, apiGroup, apiGroup.Writable())
 }

@@ -313,7 +313,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	for _, apiProfile := range apiProfiles {
-		apiProfile.UsedBy = project.FilterUsedBy(s.Authorizer, r, apiProfile.UsedBy)
+		apiProfile.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, apiProfile.UsedBy)
 	}
 
 	if len(withEntitlements) > 0 {
@@ -545,7 +545,7 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	resp.UsedBy = project.FilterUsedBy(s.Authorizer, r, resp.UsedBy)
+	resp.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, resp.UsedBy)
 
 	if len(withEntitlements) > 0 {
 		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProfile, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ProfileURL(details.effectiveProject.Name, details.profileName): resp})
