@@ -11,7 +11,7 @@ on:
 
 env:
   LXD_REQUIRED_TESTS: "storage_buckets,network_ovn"
-  GOCOVERDIR: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name != 'schedule' ) && '${GITHUB_WORKSPACE}/coverage' || '' }}
+  GOCOVERDIR: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name != 'schedule' ) && "${GITHUB_WORKSPACE}/coverage" || '' }}
 
 permissions:
   contents: read
