@@ -531,7 +531,13 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 
 	// List of candidate identity types for this request. We have already checked server certificates at the beginning of this method
 	// so we only need to consider client and metrics certificates. (OIDC auth was completed above).
-	candidateIdentityTypes := []string{api.IdentityTypeCertificateClientUnrestricted, api.IdentityTypeCertificateClientRestricted, api.IdentityTypeCertificateClient}
+	candidateIdentityTypes := []string{
+		api.IdentityTypeCertificateClientUnrestricted,
+		api.IdentityTypeCertificateClientRestricted,
+		api.IdentityTypeCertificateClient,
+		api.IdentityTypeCertificateClusterLink,
+	}
+
 	if isMetricsRequest(*r.URL) {
 		// Metrics certificates can only authenticate when calling metrics related endpoints.
 		candidateIdentityTypes = append(candidateIdentityTypes, api.IdentityTypeCertificateMetricsUnrestricted, api.IdentityTypeCertificateMetricsRestricted)
