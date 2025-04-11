@@ -54,6 +54,9 @@ const (
 
 	// CtxOpenFGARequestCache is used to set a cache for the OpenFGA datastore to improve driver performance on a per request basis.
 	CtxOpenFGARequestCache CtxKey = "openfga_request_cache"
+
+	// CtxRequestSourceAddress is the request's source address.
+	CtxRequestSourceAddress CtxKey = "request_source_address"
 )
 
 // Headers.
