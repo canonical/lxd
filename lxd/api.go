@@ -11,11 +11,9 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/lxd/auth"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
-	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/metrics"
 	lxdRequest "github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -225,39 +223,6 @@ func restServer(d *Daemon) *http.Server {
 		Handler:     &lxdHTTPServer{r: mux, d: d},
 		ConnContext: lxdRequest.SaveConnectionInContext,
 	}
-}
-
-func hoistReqVM(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
-		lxdRequest.SetCtxValue(r, lxdRequest.CtxProtocol, auth.AuthenticationMethodDevLXD)
-
-		trusted, inst, err := authenticateAgentCert(d.State(), r)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		if !trusted {
-			http.Error(w, "", http.StatusUnauthorized)
-			return
-		}
-
-		resp := f(d, inst, w, r)
-		if resp != nil {
-			err = resp.Render(w, r)
-			if err != nil {
-				writeErr := response.DevLXDErrorResponse(err, true).Render(w, r)
-				if writeErr != nil {
-					logger.Warn("Failed writing error for HTTP response", logger.Ctx{"url": r.URL, "err": err, "writeErr": writeErr})
-				}
-			}
-		}
-	}
-}
-
-func vSockServer(d *Daemon) *http.Server {
-	return &http.Server{Handler: devLXDAPI(d, hoistReqVM)}
 }
 
 func metricsServer(d *Daemon) *http.Server {
