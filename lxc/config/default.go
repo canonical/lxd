@@ -10,6 +10,7 @@ var LocalRemote = Remote{
 // ImagesRemote is the main image server (over simplestreams).
 var ImagesRemote = Remote{
 	Addr:     "https://images.lxd.canonical.com",
+	Static:   true,
 	Public:   true,
 	Protocol: "simplestreams",
 }
