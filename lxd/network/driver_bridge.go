@@ -798,6 +798,12 @@ func (n *bridge) Validate(config map[string]string) error {
 		return err
 	}
 
+	// Validate IP routes.
+	err = n.validateRoutes(config)
+	if err != nil {
+		return err
+	}
+
 	// Validate network name when used in fan mode.
 	bridgeMode := config["bridge.mode"]
 	if bridgeMode == "fan" && len(n.name) > 11 {
@@ -970,7 +976,7 @@ func (n *bridge) Delete(clientType request.ClientType) error {
 		return err
 	}
 
-	return n.common.delete()
+	return n.delete()
 }
 
 // Rename renames a network.
@@ -1004,7 +1010,7 @@ func (n *bridge) Rename(newName string) error {
 	}
 
 	// Rename common steps.
-	err := n.common.rename(newName)
+	err := n.rename(newName)
 	if err != nil {
 		return err
 	}
@@ -1455,7 +1461,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if n.config["ipv4.dhcp.ranges"] != "" {
 				for _, dhcpRange := range strings.Split(n.config["ipv4.dhcp.ranges"], ",") {
 					dhcpRange = strings.TrimSpace(dhcpRange)
-					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s", strings.Replace(dhcpRange, "-", ",", -1), expiry)}...)
+					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s", strings.ReplaceAll(dhcpRange, "-", ","), expiry)}...)
 				}
 			} else {
 				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s,%s", dhcpalloc.GetIP(subnet, 2).String(), dhcpalloc.GetIP(subnet, -2).String(), expiry)}...)
@@ -1600,7 +1606,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				if n.config["ipv6.dhcp.ranges"] != "" {
 					for _, dhcpRange := range strings.Split(n.config["ipv6.dhcp.ranges"], ",") {
 						dhcpRange = strings.TrimSpace(dhcpRange)
-						dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%d,%s", strings.Replace(dhcpRange, "-", ",", -1), subnetSize, expiry)}...)
+						dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%d,%s", strings.ReplaceAll(dhcpRange, "-", ","), subnetSize, expiry)}...)
 					}
 				} else {
 					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s,%d,%s", dhcpalloc.GetIP(subnet, 2), dhcpalloc.GetIP(subnet, -1), subnetSize, expiry)}...)
@@ -2318,7 +2324,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 		return fmt.Errorf("Failed generating auto config: %w", err)
 	}
 
-	dbUpdateNeeded, changedKeys, oldNetwork, err := n.common.configChanged(newNetwork)
+	dbUpdateNeeded, changedKeys, oldNetwork, err := n.configChanged(newNetwork)
 	if err != nil {
 		return err
 	}
@@ -2331,7 +2337,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 	// pending, then don't apply the new settings to the node, just to the database record (ready for the
 	// actual global create request to be initiated).
 	if n.Status() == api.NetworkStatusPending || n.LocalStatus() == api.NetworkStatusPending {
-		return n.common.update(newNetwork, targetNode, clientType)
+		return n.update(newNetwork, targetNode, clientType)
 	}
 
 	revert := revert.New()
@@ -2342,7 +2348,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 		// Define a function which reverts everything.
 		revert.Add(func() {
 			// Reset changes to all nodes and database.
-			_ = n.common.update(oldNetwork, targetNode, clientType)
+			_ = n.update(oldNetwork, targetNode, clientType)
 
 			// Reset any change that was made to local bridge.
 			_ = n.setup(newNetwork.Config)
@@ -2381,7 +2387,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 	}
 
 	// Apply changes to all nodes and database.
-	err = n.common.update(newNetwork, targetNode, clientType)
+	err = n.update(newNetwork, targetNode, clientType)
 	if err != nil {
 		return err
 	}
@@ -3120,6 +3126,16 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 	return externalSubnets, nil
 }
 
+// forwardValidate validates the forward request.
+func (n *bridge) forwardValidate(listenAddress net.IP, forward api.NetworkForwardPut) ([]*forwardPortMap, error) {
+	err := n.checkAddressNotInOVNRange(listenAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	return n.common.forwardValidate(listenAddress, forward)
+}
+
 // ForwardCreate creates a network forward.
 func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) (net.IP, error) {
 	memberSpecific := true // bridge supports per-member forwards.
@@ -3738,4 +3754,36 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 // UsesDNSMasq indicates if network's config indicates if it needs to use dnsmasq.
 func (n *bridge) UsesDNSMasq() bool {
 	return n.config["bridge.mode"] == "fan" || !shared.ValueInSlice(n.config["ipv4.address"], []string{"", "none"}) || !shared.ValueInSlice(n.config["ipv6.address"], []string{"", "none"})
+}
+
+// checkAddressNotInOVNRange checks that a given IP address does not overlap
+// with OVN ranges set on this network bridge.
+// Returns an error if the check could not be performed or the IP address
+// overlaps with OVN ranges.
+func (n *bridge) checkAddressNotInOVNRange(addr net.IP) error {
+	if addr == nil {
+		return fmt.Errorf("Invalid listen address")
+	}
+
+	addrIsIP4 := addr.To4() != nil
+
+	ovnRangesKey := "ipv4.ovn.ranges"
+	if !addrIsIP4 {
+		ovnRangesKey = "ipv6.ovn.ranges"
+	}
+
+	if n.config[ovnRangesKey] != "" {
+		ovnRanges, err := shared.ParseIPRanges(n.config[ovnRangesKey])
+		if err != nil {
+			return fmt.Errorf("Failed parsing %q: %w", ovnRangesKey, err)
+		}
+
+		for _, ovnRange := range ovnRanges {
+			if ovnRange.ContainsIP(addr) {
+				return fmt.Errorf("Listen address %q overlaps with %q (%q)", addr, ovnRangesKey, ovnRange)
+			}
+		}
+	}
+
+	return nil
 }
