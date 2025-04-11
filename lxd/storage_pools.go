@@ -209,7 +209,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			poolAPI := pool.ToAPI()
-			poolAPI.UsedBy = project.FilterUsedBy(s.Authorizer, r, poolUsedBy)
+			poolAPI.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, poolUsedBy)
 
 			if !hasEditPermission(entity.StoragePoolURL(poolName)) {
 				// Don't allow non-admins to see pool config as sensitive info can be stored there.
@@ -676,7 +676,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	poolAPI := pool.ToAPI()
-	poolAPI.UsedBy = project.FilterUsedBy(s.Authorizer, r, poolUsedBy)
+	poolAPI.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, poolUsedBy)
 
 	err = s.Authorizer.CheckPermission(r.Context(), entity.StoragePoolURL(poolName), auth.EntitlementCanEdit)
 	if err != nil && !auth.IsDeniedError(err) {

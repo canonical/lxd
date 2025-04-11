@@ -204,7 +204,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	for _, apiProject := range apiProjects {
-		apiProject.UsedBy = projecthelpers.FilterUsedBy(s.Authorizer, r, apiProject.UsedBy)
+		apiProject.UsedBy = projecthelpers.FilterUsedBy(r.Context(), s.Authorizer, apiProject.UsedBy)
 	}
 
 	if len(withEntitlements) > 0 {
@@ -486,7 +486,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 		project.Config,
 	}
 
-	project.UsedBy = projecthelpers.FilterUsedBy(s.Authorizer, r, project.UsedBy)
+	project.UsedBy = projecthelpers.FilterUsedBy(r.Context(), s.Authorizer, project.UsedBy)
 
 	return response.SyncResponseETag(true, project, etag)
 }

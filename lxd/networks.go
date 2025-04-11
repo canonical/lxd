@@ -1071,7 +1071,7 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProject
 			return api.Network{}, err
 		}
 
-		apiNet.UsedBy = project.FilterUsedBy(s.Authorizer, r, usedBy)
+		apiNet.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, usedBy)
 	}
 
 	if n != nil {

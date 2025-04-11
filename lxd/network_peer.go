@@ -176,7 +176,7 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 		peers := make([]*api.NetworkPeer, 0, len(records))
 		for _, record := range records {
 			record.UsedBy, _ = n.PeerUsedBy(record.Name)
-			record.UsedBy = project.FilterUsedBy(s.Authorizer, r, record.UsedBy)
+			record.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, record.UsedBy)
 			peers = append(peers, record)
 		}
 
@@ -449,7 +449,7 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	peer.UsedBy, _ = n.PeerUsedBy(peer.Name)
-	peer.UsedBy = project.FilterUsedBy(s.Authorizer, r, peer.UsedBy)
+	peer.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, peer.UsedBy)
 
 	return response.SyncResponseETag(true, peer, peer.Etag())
 }

@@ -778,7 +778,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 				return response.InternalError(err)
 			}
 
-			dbVolumes[i].UsedBy = project.FilterUsedBy(s.Authorizer, r, volumeUsedBy)
+			dbVolumes[i].UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, volumeUsedBy)
 		}
 	}
 
@@ -838,7 +838,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 					return response.InternalError(err)
 				}
 
-				vol.UsedBy = project.FilterUsedBy(s.Authorizer, r, volumeUsedBy)
+				vol.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, volumeUsedBy)
 			}
 
 			volumes = append(volumes, vol)
@@ -2064,7 +2064,7 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	dbVolume.UsedBy = project.FilterUsedBy(s.Authorizer, r, volumeUsedBy)
+	dbVolume.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, volumeUsedBy)
 
 	if len(withEntitlements) > 0 {
 		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStorageVolume, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.StorageVolumeURL(dbVolume.Project, dbVolume.Location, dbVolume.Pool, dbVolume.Type, dbVolume.Name): dbVolume})
