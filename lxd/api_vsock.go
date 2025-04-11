@@ -38,7 +38,8 @@ func hoistReqVM(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc) respon
 		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusUnauthorized), true)
 	}
 
-	return handler(d, inst, r)
+	request.SetCtxValue(r, request.CtxDevLXDInstance, inst)
+	return handler(d, r)
 }
 
 func authenticateAgentCert(s *state.State, r *http.Request) (bool, instance.Instance, error) {

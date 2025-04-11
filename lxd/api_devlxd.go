@@ -67,7 +67,8 @@ func hoistReqContainer(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc)
 		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusUnauthorized, "Access denied for non-root user"), false)
 	}
 
-	return handler(d, c, r)
+	request.SetCtxValue(r, request.CtxDevLXDInstance, c)
+	return handler(d, r)
 }
 
 /*
