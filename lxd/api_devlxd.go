@@ -36,7 +36,7 @@ func devLXDServer(d *Daemon) *http.Server {
 	}
 }
 
-func hoistReqContainer(d *Daemon, w http.ResponseWriter, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
+func hoistReqContainer(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
 	// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
 	request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
 
@@ -67,7 +67,7 @@ func hoistReqContainer(d *Daemon, w http.ResponseWriter, r *http.Request, handle
 		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusUnauthorized, "Access denied for non-root user"), false)
 	}
 
-	return handler(d, c, w, r)
+	return handler(d, c, r)
 }
 
 /*
