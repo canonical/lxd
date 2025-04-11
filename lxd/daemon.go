@@ -821,6 +821,9 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		// Set the "trusted" value in the request context.
 		request.SetCtxValue(r, request.CtxTrusted, trusted)
 
+		// Set request source address value in the request context.
+		request.SetCtxValue(r, request.CtxRequestSourceAddress, r.RemoteAddr)
+
 		// Reject internal queries to remote, non-cluster, clients
 		if version == "internal" && !slices.Contains([]string{auth.AuthenticationMethodUnix, auth.AuthenticationMethodCluster}, protocol) {
 			// Except for the initial cluster accept request (done over trusted TLS)
