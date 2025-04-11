@@ -24,6 +24,17 @@ import (
 	"github.com/canonical/lxd/shared/ws"
 )
 
+// DevLXDSecurityKey are instance configuration keys used to enable devLXD features.
+type DevLXDSecurityKey string
+
+const (
+	// The security.devlxd key is used to enable devLXD for an instance.
+	devLXDSecurityKey DevLXDSecurityKey = "security.devlxd"
+
+	// The security.devlxd.images key is used to enable devLXD image export.
+	devLXDSecurityImagesKey DevLXDSecurityKey = "security.devlxd.images"
+)
+
 type hoistFunc func(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request)
 
 type devLXDHandlerFunc func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response
