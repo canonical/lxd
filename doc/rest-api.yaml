@@ -1869,6 +1869,11 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     InstanceBackupsPost:
         properties:
+            Version:
+                description: What backup format version to use
+                example: 1
+                format: uint32
+                type: integer
             compression_algorithm:
                 description: What compression algorithm to use
                 example: gzip
@@ -6029,6 +6034,16 @@ definitions:
                     type: string
                 type: array
                 x-go-name: Architectures
+            backup_metadata_version_range:
+                description: Range of supported backup metadata versions
+                example:
+                    - 1
+                    - 2
+                items:
+                    format: uint32
+                    type: integer
+                type: array
+                x-go-name: BackupMetadataVersionRange
             certificate:
                 description: Server certificate as PEM encoded X509
                 example: X509 PEM certificate
@@ -6565,6 +6580,11 @@ definitions:
     StoragePoolVolumeBackupsPost:
         description: StoragePoolVolumeBackupsPost represents the fields available for a new LXD volume backup
         properties:
+            Version:
+                description: What backup format version to use
+                example: 1
+                format: uint32
+                type: integer
             compression_algorithm:
                 description: What compression algorithm to use
                 example: gzip
