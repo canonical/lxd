@@ -7,16 +7,26 @@ test_network_acl() {
   lxc network acl create testacl
   lxc project create testproj -c features.networks=true
   lxc project create testproj2 -c features.networks=false
+  lxc project create testproj3 -c features.networks=true
   lxc network acl create testacl --project testproj
+  lxc network acl create testacl2 --project testproj3
   lxc project show testproj | grep testacl # Check project sees testacl using it.
   ! lxc network acl create testacl --project testproj2 || false
   lxc network acl ls | grep testacl
   lxc network acl ls --project testproj | grep testacl
+  [ "$(lxc network acl ls --project testproj3 -f csv | grep -cF 'testacl2')" = 1 ]
+  [ "$(lxc network acl ls --all-projects -f csv | grep -cF 'testacl2')" = 1 ]
+  [ "$(lxc network acl ls -f csv | grep -cF 'testacl2')" = 0 ]
   lxc network acl delete testacl
   lxc network acl delete testacl --project testproj
+  lxc network acl delete testacl2 --project testproj3
   ! lxc network acl ls | grep testacl || false
+  [ "$(lxc network acl ls -f csv | wc -l)" = 0 ]
   ! lxc network acl ls --project testproj | grep testacl || false
+  [ "$(lxc network acl ls --project testproj3 -f csv | wc -l)" = 0 ]
+  [ "$(lxc network acl ls --all-projects -f csv | wc -l)" = 0 ]
   lxc project delete testproj
+  lxc project delete testproj3
 
   # ACL creation from stdin.
   cat <<EOF | lxc network acl create testacl
