@@ -142,7 +142,7 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, p.Name, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(r.Context(), s, p.Name, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -199,7 +199,7 @@ func createFromNone(s *state.State, r *http.Request, projectName string, profile
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -364,12 +364,12 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 
 	var op *operations.Operation
 	if push {
-		op, err = operations.OperationCreate(s, projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect, r)
+		op, err = operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
 	} else {
-		op, err = operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
+		op, err = operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -476,7 +476,7 @@ func createFromConversion(s *state.State, r *http.Request, projectName string, p
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect, r)
+	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -648,7 +648,7 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, targetProject, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(r.Context(), s, targetProject, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -885,7 +885,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	resources := map[string][]api.URL{}
 	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", bInfo.Name)}
 
-	op, err := operations.OperationCreate(s, bInfo.Project, operations.OperationClassTask, operationtype.BackupRestore, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(r.Context(), s, bInfo.Project, operations.OperationClassTask, operationtype.BackupRestore, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
