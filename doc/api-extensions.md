@@ -2642,3 +2642,8 @@ This adds a request option to set snapshot's target profile on instance copy to 
 ## `resources_device_fs_uuid`
 
 Adds the field `device_fs_uuid` including the respective UUID to each disk and partition indicating whether or not a filesystem is located on the device.
+
+## `backup_metadata_version`
+
+Adds the field `version` when exporting instances and custom storage volumes to define the backup file format.
+In case the field is omitted, the original (old) version is used to maintain compatibility with older clients.

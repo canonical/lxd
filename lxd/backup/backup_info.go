@@ -130,5 +130,8 @@ func GetInfo(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*Info, error) {
 		return nil, fmt.Errorf("Backup is missing at %q", backupIndexPath)
 	}
 
+	// Upgrade the config file in any case to the new format.
+	ConvertFormat(result.Config, api.BackupMetadataVersion2)
+
 	return &result, nil
 }

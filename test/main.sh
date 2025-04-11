@@ -45,7 +45,7 @@ import_subdir_files() {
 import_subdir_files includes
 
 echo "==> Checking for dependencies"
-check_dependencies lxd lxc curl dnsmasq jq git sqlite3 msgmerge msgfmt shuf setfacl socat swtpm dig
+check_dependencies lxd lxc curl dnsmasq jq yq git sqlite3 msgmerge msgfmt shuf setfacl socat swtpm dig
 
 if [ "${USER:-'root'}" != "root" ]; then
   echo "The testsuite must be run as root." >&2
@@ -422,6 +422,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_backup_rename "backup rename"
     run_test test_backup_volume_export "backup volume export"
     run_test test_backup_export_import_instance_only "backup export and import instance only"
+    run_test test_backup_metadata "backup metadata checks for containers and custom storage volumes"
     run_test test_backup_volume_rename_delete "backup volume rename and delete"
     run_test test_backup_instance_uuid "backup instance and check instance UUIDs"
     run_test test_backup_volume_expiry "backup volume expiry"
