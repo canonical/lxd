@@ -126,6 +126,8 @@ const (
 	identityTypeCertificateMetricsUnrestricted int64 = 6
 	identityTypeCertificateClient              int64 = 7
 	identityTypeCertificateClientPending       int64 = 8
+	identityTypeCertificateClusterLink         int64 = 9
+	identityTypeCertificateClusterLinkPending  int64 = 10
 )
 
 // Scan implements sql.Scanner for IdentityType. This converts the integer value back into the correct API constant or
@@ -162,6 +164,10 @@ func (i *IdentityType) Scan(value any) error {
 		*i = api.IdentityTypeCertificateClient
 	case identityTypeCertificateClientPending:
 		*i = api.IdentityTypeCertificateClientPending
+	case identityTypeCertificateClusterLink:
+		*i = api.IdentityTypeCertificateClusterLink
+	case identityTypeCertificateClusterLinkPending:
+		*i = api.IdentityTypeCertificateClusterLinkPending
 	default:
 		return fmt.Errorf("Unknown identity type `%d`", identityTypeInt)
 	}
@@ -188,6 +194,10 @@ func (i IdentityType) Value() (driver.Value, error) {
 		return identityTypeCertificateClient, nil
 	case api.IdentityTypeCertificateClientPending:
 		return identityTypeCertificateClientPending, nil
+	case api.IdentityTypeCertificateClusterLink:
+		return identityTypeCertificateClusterLink, nil
+	case api.IdentityTypeCertificateClusterLinkPending:
+		return identityTypeCertificateClusterLinkPending, nil
 	}
 
 	return nil, fmt.Errorf("Invalid identity type %q", i)
@@ -295,7 +305,7 @@ func (i Identity) CertificateMetadata() (*CertificateMetadata, error) {
 		return nil, fmt.Errorf("Cannot get certificate metadata: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodTLS)
 	}
 
-	if i.Type == api.IdentityTypeCertificateClientPending {
+	if i.Type == api.IdentityTypeCertificateClientPending || i.Type == api.IdentityTypeCertificateClusterLinkPending {
 		return nil, fmt.Errorf("Cannot get certificate metadata: Identity is pending")
 	}
 
@@ -346,7 +356,7 @@ type PendingTLSMetadata struct {
 
 // PendingTLSMetadata returns the pending TLS identity metadata.
 func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
-	if i.Type != api.IdentityTypeCertificateClientPending {
+	if i.Type != api.IdentityTypeCertificateClientPending && i.Type != api.IdentityTypeCertificateClusterLinkPending {
 		return nil, api.NewStatusError(http.StatusBadRequest, "Cannot extract pending TLS identity secret: Identity is not pending")
 	}
 
@@ -374,7 +384,7 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 	}
 
 	var tlsCertificate string
-	if i.AuthMethod == api.AuthenticationMethodTLS && i.Type != api.IdentityTypeCertificateClientPending {
+	if i.AuthMethod == api.AuthenticationMethodTLS && i.Type != api.IdentityTypeCertificateClientPending && i.Type != api.IdentityTypeCertificateClusterLinkPending {
 		metadata, err := i.CertificateMetadata()
 		if err != nil {
 			return nil, err
@@ -394,8 +404,8 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 }
 
 // ActivateTLSIdentity updates a TLS identity to make it valid by adding the fingerprint, PEM encoded certificate, and setting
-// the type to api.IdentityTypeCertificateClient.
-func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate) error {
+// the type.
+func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate, identityType IdentityType) error {
 	fingerprint := shared.CertFingerprint(cert)
 	_, err := GetIdentityID(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
 	if err == nil {
@@ -409,36 +419,53 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 	}
 
 	stmt := `UPDATE identities SET type = ?, identifier = ?, metadata = ? WHERE identifier = ? AND auth_method = ?`
-	res, err := tx.ExecContext(ctx, stmt, identityTypeCertificateClient, fingerprint, string(b), identifier.String(), authMethodTLS)
+	res, err := tx.ExecContext(ctx, stmt, identityType, fingerprint, string(b), identifier.String(), authMethodTLS)
 	if err != nil {
-		return fmt.Errorf("Failed to activate TLS identity: %w", err)
+		return fmt.Errorf("Failed to activate identity: %w", err)
 	}
 
 	n, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to check for activated TLS identity: %w", err)
+		return fmt.Errorf("Failed to check for activated identity: %w", err)
 	}
 
 	if n == 0 {
-		return api.StatusErrorf(http.StatusNotFound, "No pending TLS identity found with identifier %q", identifier)
+		return api.StatusErrorf(http.StatusNotFound, "No pending identity found with identifier %q", identifier)
 	} else if n > 1 {
-		return fmt.Errorf("Unknown error occurred when activating a TLS identity: %w", err)
+		return fmt.Errorf("Unknown error occurred when activating an identity: %w", err)
 	}
 
 	return nil
 }
 
-var getPendingTLSIdentityByTokenSecretStmt = fmt.Sprintf(`
+var getPendingTLSIdentityByTokenSecretStmt = `
 SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
 	FROM identities
-	WHERE identities.type = %d
+	WHERE identities.type IN (%s)
 	AND json_extract(identities.metadata, '$.secret') = ?
-`, identityTypeCertificateClientPending)
+`
 
-// GetPendingTLSIdentityByTokenSecret gets a single identity of type identityTypeCertificateClientPending with the given
+// GetPendingTLSIdentityByTokenSecret gets a single identity matching the specified identity types with the given
 // secret in its metadata. If no pending identity is found, an api.StatusError is returned with http.StatusNotFound.
-func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*Identity, error) {
-	identities, err := getIdentitysRaw(ctx, tx, getPendingTLSIdentityByTokenSecretStmt, secret)
+func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string, identityTypes ...int64) (*Identity, error) {
+	if len(identityTypes) == 0 {
+		identityTypes = []int64{
+			identityTypeCertificateClientPending,
+			identityTypeCertificateClusterLinkPending,
+		}
+	}
+
+	// Convert identity types to strings for the IN clause.
+	typeStrings := make([]string, len(identityTypes))
+	for i, idType := range identityTypes {
+		typeStrings[i] = fmt.Sprintf("%d", idType)
+	}
+
+	// Construct statement with identity types.
+	stmt := fmt.Sprintf(getPendingTLSIdentityByTokenSecretStmt, strings.Join(typeStrings, ","))
+
+	// Get identities using secret.
+	identities, err := getIdentitysRaw(ctx, tx, stmt, secret)
 	if err != nil {
 		return nil, err
 	}
@@ -594,6 +621,29 @@ WHERE auth_groups.name IN %s
 		}
 
 		return fmt.Errorf("Failed to write expected number of rows to identity auth group association table (expected %d, got %d)", len(groupNames), rowsAffected)
+	}
+
+	return nil
+}
+
+// DeleteClusterLinkIdentity deletes the cluster link identity matching the given name.
+func DeleteClusterLinkIdentity(ctx context.Context, tx *sql.Tx, name string) error {
+	stmt := `DELETE FROM identities WHERE name = ? AND type = ?`
+
+	res, err := tx.ExecContext(ctx, stmt, name, identityTypeCertificateClusterLink)
+	if err != nil {
+		return fmt.Errorf("Delete \"identity\": %w", err)
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed to check for deleted cluster link identity: %w", err)
+	}
+
+	if n == 0 {
+		return api.StatusErrorf(http.StatusNotFound, "No cluster link identity found with name %q", name)
+	} else if n > 1 {
+		return fmt.Errorf("Unknown error occurred when deleting a cluster link identity: %w", err)
 	}
 
 	return nil

@@ -2642,3 +2642,15 @@ This adds a request option to set snapshot's target profile on instance copy to 
 ## `resources_device_fs_uuid`
 
 Adds the field `device_fs_uuid` including the respective UUID to each disk and partition indicating whether or not a filesystem is located on the device.
+
+## `cluster_links`
+
+This introduces the cluster links API and identity type.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/clusters/<name>` - returns information about a specific cluster link.
+* `GET /1.0/clusters` - returns a combined view of cluster links (if any).
+* `PUT /1.0/clusters/<name>` - allows for modification of a specific cluster link.
+* `POST /1.0/clusters` - adds a cluster link.
+* `DELETE /1.0/clusters/<name>` - deletes a specific cluster link.
