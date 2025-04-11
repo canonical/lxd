@@ -1,6 +1,8 @@
 package lxd
 
 import (
+	"net/http"
+
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -12,13 +14,14 @@ func (r *ProtocolLXD) GetNetworkAllocations(allProjects bool) ([]api.NetworkAllo
 	}
 
 	netAllocations := []api.NetworkAllocations{}
-	uri := "/network-allocations"
-	if allProjects {
-		uri += "?all-projects=true"
-	}
 
 	// Fetch the raw value.
-	_, err = r.queryStruct("GET", uri, nil, "", &netAllocations)
+	u := api.NewURL().Path("network-allocations")
+	if allProjects {
+		u = u.WithQuery("all-projects", "true")
+	}
+
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &netAllocations)
 	if err != nil {
 		return nil, err
 	}
