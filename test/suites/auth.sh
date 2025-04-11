@@ -765,6 +765,7 @@ auth_project_features() {
   [ "$(lxc_remote network list "${remote}:" --project default --format csv)" = "" ]
   [ "$(lxc_remote operation list "${remote}:" --project default --format csv)" = "" ]
   [ "$(lxc_remote network zone list "${remote}:" --project default --format csv)" = "" ]
+  [ "$(lxc_remote network zone list "${remote}:" --all-projects --format csv)" = "" ]
   [ "$(lxc_remote network list "${remote}:" --all-projects --format csv)" = "" ]
   [ "$(lxc_remote network acl list "${remote}:" --all-projects --format csv)" = "" ]
   [ "$(lxc_remote storage volume list "${remote}:${pool_name}" --project default --format csv)" = "" ]
