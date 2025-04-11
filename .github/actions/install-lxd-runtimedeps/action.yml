@@ -47,5 +47,7 @@ runs:
           zfsutils-linux \
           openvswitch-switch
 
+        sudo snap install yq
+
         # reclaim some space
         sudo apt-get clean
