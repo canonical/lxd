@@ -798,6 +798,13 @@ func (n *bridge) Validate(config map[string]string) error {
 		return err
 	}
 
+	// Check that ipv4.routes and ipv6.routes contain the routes for existing OVN network
+	// forwards and load balancers.
+	err = n.validateRoutes(config)
+	if err != nil {
+		return err
+	}
+
 	// Validate network name when used in fan mode.
 	bridgeMode := config["bridge.mode"]
 	if bridgeMode == "fan" && len(n.name) > 11 {
