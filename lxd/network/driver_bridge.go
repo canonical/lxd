@@ -798,6 +798,12 @@ func (n *bridge) Validate(config map[string]string) error {
 		return err
 	}
 
+	// Validate IP routes.
+	err = n.validateRoutes(config)
+	if err != nil {
+		return err
+	}
+
 	// Validate network name when used in fan mode.
 	bridgeMode := config["bridge.mode"]
 	if bridgeMode == "fan" && len(n.name) > 11 {
