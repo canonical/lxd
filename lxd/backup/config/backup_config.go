@@ -9,7 +9,8 @@ import (
 
 // DefaultMetadataVersion represents the current default version of the format used when writing a backup's metadata.
 // The metadata is used both for exporting backups and for migration.
-const DefaultMetadataVersion = api.BackupMetadataVersion1
+// Starting from LXD 6.x onwards version 2 of the format is used.
+const DefaultMetadataVersion = api.BackupMetadataVersion2
 
 // MaxMetadataVersion represents the latest supported metadata version.
 const MaxMetadataVersion = api.BackupMetadataVersion2
