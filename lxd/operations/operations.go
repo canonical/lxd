@@ -187,7 +187,7 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 
 	// Set requestor if request was provided.
 	if r != nil {
-		op.SetRequestor(r)
+		op.SetRequestor(r.Context())
 	}
 
 	operationsLock.Lock()

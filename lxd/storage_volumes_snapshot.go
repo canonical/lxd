@@ -885,7 +885,7 @@ func doStoragePoolVolumeSnapshotUpdate(s *state.State, r *http.Request, projectN
 
 	// Use an empty operation for this sync response to pass the requestor
 	op := &operations.Operation{}
-	op.SetRequestor(r)
+	op.SetRequestor(r.Context())
 
 	// Update the database.
 	if volumeType == dbCluster.StoragePoolVolumeTypeCustom {
