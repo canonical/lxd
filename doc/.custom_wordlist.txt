@@ -282,6 +282,7 @@ subnet
 subnets
 subpage
 subpages
+submenu
 subtrees
 subvolume
 subvolumes
