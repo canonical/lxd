@@ -95,6 +95,9 @@ const (
 
 	// TypeIdentityProviderGroup represents identity provider group resources.
 	TypeIdentityProviderGroup Type = "identity_provider_group"
+
+	// TypePlacementRuleset represents placement ruleset resources.
+	TypePlacementRuleset Type = "placement_ruleset"
 )
 
 const (
@@ -156,6 +159,7 @@ var entityTypes = map[Type]typeInfo{
 	TypeIdentity:              identity{},
 	TypeAuthGroup:             authGroup{},
 	TypeIdentityProviderGroup: identityProviderGroup{},
+	TypePlacementRuleset:      placementRuleset{},
 }
 
 // metricsEntityTypes is the source of truth for which entity types can be used to categorize endpoints
@@ -173,6 +177,7 @@ var metricsEntityTypes = []Type{
 	TypeWarning,
 	TypeServer,
 	TypeIdentity,
+	TypePlacementRuleset,
 }
 
 // APIMetricsEntityTypes returns the list of entity types relevant for the API metrics.
@@ -428,4 +433,14 @@ func (identityProviderGroup) requiresProject() bool {
 
 func (identityProviderGroup) path() []string {
 	return []string{"auth", "identity-provider-groups", pathPlaceholder}
+}
+
+type placementRuleset struct{}
+
+func (placementRuleset) requiresProject() bool {
+	return true
+}
+
+func (placementRuleset) path() []string {
+	return []string{"placement-rulesets", pathPlaceholder}
 }
