@@ -536,7 +536,8 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	if d.config["nested"] != "" {
 		delete(saveData, "host_name") // Nested NICs don't have a host side interface.
 	} else {
-		if d.config["acceleration"] == "sriov" {
+		switch d.config["acceleration"] {
+		case "sriov":
 			ovs := openvswitch.NewOVS()
 			if !ovs.HardwareOffloadingEnabled() {
 				return nil, fmt.Errorf("SR-IOV acceleration requires hardware offloading be enabled in OVS")
@@ -583,7 +584,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 			integrationBridgeNICName = vfRepresentor
 			peerName = vfDev
-		} else if d.config["acceleration"] == "vdpa" {
+		case "vdpa":
 			ovs := openvswitch.NewOVS()
 			if !ovs.HardwareOffloadingEnabled() {
 				return nil, fmt.Errorf("SR-IOV acceleration requires hardware offloading be enabled in OVS")
@@ -639,7 +640,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 			integrationBridgeNICName = vfRepresentor
 			peerName = vfDev
-		} else {
+		default:
 			// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
 			if d.inst.Type() == instancetype.Container {
 				if saveData["host_name"] == "" {
@@ -740,8 +741,11 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		}
 
 		instType := d.inst.Type()
-		if instType == instancetype.VM {
-			if d.config["acceleration"] == "sriov" {
+
+		switch instType {
+		case instancetype.VM:
+			switch d.config["acceleration"] {
+			case "sriov":
 				runConf.NetworkInterface = append(runConf.NetworkInterface,
 					[]deviceConfig.RunConfigItem{
 						{Key: "devName", Value: d.name},
@@ -749,7 +753,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 						{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
 						{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
 					}...)
-			} else if d.config["acceleration"] == "vdpa" {
+			case "vdpa":
 				if vDPADevice == nil {
 					return nil, fmt.Errorf("vDPA device is nil")
 				}
@@ -764,7 +768,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 						{Key: "vhostVDPAPath", Value: vDPADevice.VhostVDPA.Path},
 						{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
 					}...)
-			} else {
+			default:
 				runConf.NetworkInterface = append(runConf.NetworkInterface,
 					[]deviceConfig.RunConfigItem{
 						{Key: "devName", Value: d.name},
@@ -772,7 +776,8 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 						{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
 					}...)
 			}
-		} else if instType == instancetype.Container {
+
+		case instancetype.Container:
 			runConf.NetworkInterface = append(runConf.NetworkInterface,
 				deviceConfig.RunConfigItem{Key: "hwaddr", Value: d.config["hwaddr"]},
 			)
