@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 
 	"github.com/canonical/lxd/shared"
@@ -116,14 +115,13 @@ func ConnectLXDHTTPWithContext(ctx context.Context, args *ConnectionArgs, client
 
 	// Initialize the client struct
 	server := ProtocolLXD{
-		ctx:                ctx,
-		httpBaseURL:        *httpBaseURL,
-		httpProtocol:       "custom",
-		httpUserAgent:      args.UserAgent,
-		ctxConnected:       ctxConnected,
-		ctxConnectedCancel: ctxConnectedCancel,
-		eventConns:         make(map[string]*websocket.Conn),
-		eventListeners:     make(map[string][]*EventListener),
+		ctx:                  ctx,
+		httpBaseURL:          *httpBaseURL,
+		httpProtocol:         "custom",
+		httpUserAgent:        args.UserAgent,
+		ctxConnected:         ctxConnected,
+		ctxConnectedCancel:   ctxConnectedCancel,
+		eventListenerManager: newEventListenerManager(ctx),
 	}
 
 	// Setup the HTTP client
@@ -175,15 +173,14 @@ func ConnectLXDUnixWithContext(ctx context.Context, path string, args *Connectio
 
 	// Initialize the client struct
 	server := ProtocolLXD{
-		ctx:                ctx,
-		httpBaseURL:        *httpBaseURL,
-		httpUnixPath:       path,
-		httpProtocol:       "unix",
-		httpUserAgent:      args.UserAgent,
-		ctxConnected:       ctxConnected,
-		ctxConnectedCancel: ctxConnectedCancel,
-		eventConns:         make(map[string]*websocket.Conn),
-		eventListeners:     make(map[string][]*EventListener),
+		ctx:                  ctx,
+		httpBaseURL:          *httpBaseURL,
+		httpUnixPath:         path,
+		httpProtocol:         "unix",
+		httpUserAgent:        args.UserAgent,
+		ctxConnected:         ctxConnected,
+		ctxConnectedCancel:   ctxConnectedCancel,
+		eventListenerManager: newEventListenerManager(ctx),
 	}
 
 	// Determine the socket path.
@@ -379,15 +376,14 @@ func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (Ins
 
 	// Initialize the client struct
 	server := ProtocolLXD{
-		ctx:                ctx,
-		httpCertificate:    args.TLSServerCert,
-		httpBaseURL:        *httpBaseURL,
-		httpProtocol:       "https",
-		httpUserAgent:      args.UserAgent,
-		ctxConnected:       ctxConnected,
-		ctxConnectedCancel: ctxConnectedCancel,
-		eventConns:         make(map[string]*websocket.Conn),
-		eventListeners:     make(map[string][]*EventListener),
+		ctx:                  ctx,
+		httpCertificate:      args.TLSServerCert,
+		httpBaseURL:          *httpBaseURL,
+		httpProtocol:         "https",
+		httpUserAgent:        args.UserAgent,
+		ctxConnected:         ctxConnected,
+		ctxConnectedCancel:   ctxConnectedCancel,
+		eventListenerManager: newEventListenerManager(ctx),
 	}
 
 	if shared.ValueInSlice(args.AuthType, []string{api.AuthenticationMethodOIDC}) {
