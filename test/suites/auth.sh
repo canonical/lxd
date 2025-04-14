@@ -866,6 +866,7 @@ auth_project_features() {
   # The network we created in the default project is not visible in project blah.
   ! lxc_remote network show "${remote}:${networkName}" --project blah || false
   ! lxc_remote network list "${remote}:" --project blah | grep -F "${networkName}" || false
+  [ "$(lxc_remote network list "${remote}:" --all-projects -f csv | wc -l)" = 0 ]
 
   # Make networks in the default project viewable to members of test-group
   lxc auth group permission add test-group project default can_view_networks
@@ -877,6 +878,9 @@ auth_project_features() {
   # Members of test-group can view it via project default.
   lxc_remote network show "${remote}:${networkName}" --project default
   lxc_remote network list "${remote}:" --project default | grep -F "${networkName}"
+
+  # Members of test-group can view it using the "all-projects" flag.
+  [ "$(lxc_remote network list "${remote}:" --all-projects -f csv | grep -cF "${networkName}")" = 1 ]
 
   # Members of test-group cannot edit the network.
   ! lxc_remote network set "${remote}:${networkName}" user.foo=bar --project blah || false
