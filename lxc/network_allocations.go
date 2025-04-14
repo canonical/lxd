@@ -57,7 +57,7 @@ func (c *cmdNetworkListAllocations) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
-	cmd.Flags().StringVarP(&c.flagProject, "project", "p", "default", i18n.G("Run again a specific project"))
+	cmd.Flags().StringVarP(&c.flagProject, "project", "p", "default", i18n.G("Run against a specific project"))
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("Display network allocations from all projects"))
 
 	return cmd
