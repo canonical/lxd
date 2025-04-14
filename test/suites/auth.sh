@@ -767,6 +767,7 @@ auth_project_features() {
   [ "$(lxc_remote network list "${remote}:" --all-projects --format csv)" = "" ]
   [ "$(lxc_remote storage volume list "${remote}:${pool_name}" --project default --format csv)" = "" ]
   [ "$(lxc_remote storage bucket list "${remote}:${pool_name}" --project default --format csv)" = "" ]
+  [ "$(lxc_remote storage bucket list "${remote}:" --all-projects --format csv)" = "" ]
 
   ### Validate images.
   test_image_fingerprint="$(lxc image info testimage --project default | awk '/^Fingerprint/ {print $2}')"
@@ -1063,6 +1064,7 @@ auth_project_features() {
   # The storage bucket we created in the default project is not visible in project blah.
   ! lxc_remote storage bucket show "${remote}:s3" "${bucketName}" --project blah || false
   ! lxc_remote storage bucket list "${remote}:s3" --project blah | grep -F "${bucketName}" || false
+  [ "$(lxc_remote storage bucket list "${remote}:s3" --all-projects -f csv | wc -l)" = 0 ]
 
   # Grant view permission on storage buckets in project default to members of test-group
   lxc auth group permission add test-group project default can_view_storage_buckets
@@ -1072,6 +1074,9 @@ auth_project_features() {
   lxc_remote storage bucket list "${remote}:s3" --project default | grep -F "${bucketName}"
   lxc_remote storage bucket show "${remote}:s3" "${bucketName}" --project blah
   lxc_remote storage bucket list "${remote}:s3" --project blah | grep -F "${bucketName}"
+
+  # Members of test-group can now view the bucket using the "all-projects" flag.
+  [ "$(lxc_remote storage bucket list "${remote}:s3" --all-projects -f csv | grep -cF "${bucketName}")" = 1 ]
 
   # Members of test-group cannot edit the storage bucket.
   ! lxc_remote storage bucket set "${remote}:s3" "${bucketName}" user.foo=bar --project blah || false
@@ -1085,6 +1090,7 @@ auth_project_features() {
   # Storage bucket is visible to members of test-group in project blah (because they can view buckets in the default project).
   lxc_remote storage bucket show "${remote}:s3" blah-bucket --project blah
   lxc_remote storage bucket list "${remote}:s3" --project blah | grep blah-bucket
+  [ "$(lxc_remote storage bucket list "${remote}:s3" --all-projects -f csv | grep -cF 'blah-bucket')" = 1 ]
 
   # Members of test-group cannot delete the storage bucket.
   ! lxc_remote storage bucket delete "${remote}:s3" blah-bucket --project blah || false
