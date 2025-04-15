@@ -4987,7 +4987,7 @@ func (d *qemu) Stop(stateful bool) error {
 		return err
 	}
 
-	// Trigger a rebalance
+	// Trigger a scheduler rebalance after DB changes made.
 	cgroup.TaskSchedulerTrigger(d.dbType, d.name, "stopped")
 
 	return nil
@@ -5913,7 +5913,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	revert.Success()
 
 	if cpuLimitWasChanged {
-		// Trigger a scheduler re-run
+		// Trigger a scheduler rebalance after DB changes made.
 		cgroup.TaskSchedulerTrigger(d.dbType, d.name, "changed")
 	}
 
