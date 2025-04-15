@@ -36,6 +36,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -3832,8 +3833,8 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
-	var result any
-
+	var clusterGroupURIs []string
+	var apiClusterGroups []*api.ClusterGroup
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
@@ -3843,7 +3844,7 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			apiClusterGroups := make([]*api.ClusterGroup, 0, len(clusterGroups))
+			apiClusterGroups = make([]*api.ClusterGroup, 0, len(clusterGroups))
 			for _, clusterGroup := range clusterGroups {
 				nodeClusterGroups, err := dbCluster.GetNodeClusterGroups(ctx, tx.Tx(), dbCluster.NodeClusterGroupFilter{GroupID: &clusterGroup.ID})
 				if err != nil {
@@ -3862,10 +3863,8 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 
 				apiClusterGroups = append(apiClusterGroups, apiClusterGroup)
 			}
-
-			result = apiClusterGroups
 		} else {
-			result, err = tx.GetClusterGroupURIs(ctx, dbCluster.ClusterGroupFilter{})
+			clusterGroupURIs, err = tx.GetClusterGroupURIs(ctx, dbCluster.ClusterGroupFilter{})
 		}
 
 		return err
@@ -3874,7 +3873,15 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return response.SyncResponse(true, result)
+	if !recursion {
+		return response.SyncResponse(true, clusterGroupURIs)
+	}
+
+	for _, clusterGroup := range apiClusterGroups {
+		clusterGroup.UsedBy = project.FilterUsedBy(s.Authorizer, r, clusterGroup.UsedBy)
+	}
+
+	return response.SyncResponse(true, apiClusterGroups)
 }
 
 // swagger:operation GET /1.0/cluster/groups/{name} cluster-groups cluster_group_get
@@ -3953,9 +3960,7 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if err != nil {
-		return response.InternalError(err)
-	}
+	apiGroup.UsedBy = project.FilterUsedBy(s.Authorizer, r, apiGroup.UsedBy)
 
 	return response.SyncResponseETag(true, apiGroup, apiGroup.Writable())
 }
