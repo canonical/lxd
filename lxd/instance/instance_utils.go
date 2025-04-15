@@ -749,12 +749,12 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 		if args.Config["volatile.cloud-init.instance-id"] == "" {
 			args.Config["volatile.cloud-init.instance-id"] = uuid.New().String()
 		}
-	}
 
-	// Validate instance config.
-	err = ValidConfig(s.OS, args.Config, false, args.Type)
-	if err != nil {
-		return nil, nil, nil, err
+		// If not a snapshot, validate instance config.
+		err = ValidConfig(s.OS, args.Config, false, args.Type)
+		if err != nil {
+			return nil, nil, nil, err
+		}
 	}
 
 	// Leave validating devices to Create function call below.
