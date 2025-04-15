@@ -1244,7 +1244,32 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 		// ---
 		//  type: string
 		//  shortdesc: Cluster groups that can be targeted
-		"restricted.cluster.groups": validate.Optional(validate.IsListOf(validate.IsAny)),
+		"restricted.cluster.groups": func(value string) error {
+			if value == "" {
+				return nil
+			}
+
+			groupNames := shared.SplitNTrimSpace(value, ",", -1, true)
+			return s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+				groups, err := cluster.GetClusterGroups(ctx, tx.Tx())
+				if err != nil {
+					return fmt.Errorf("Failed to validate restricted cluster group configuration: %w", err)
+				}
+
+			outer:
+				for _, groupName := range groupNames {
+					for _, group := range groups {
+						if groupName == group.Name {
+							continue outer
+						}
+					}
+
+					return api.StatusErrorf(http.StatusNotFound, "Cluster group %q not found", groupName)
+				}
+
+				return nil
+			})
+		},
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.cluster.target)
 		// Possible values are `allow` or `block`.
 		// When set to `allow`, this option allows targeting of cluster members (either directly or via a group) when creating or moving instances.
