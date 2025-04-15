@@ -10,6 +10,9 @@ See the following sections for instructions on how to create, configure, view an
 
 You can display a list of all available storage volumes and check their configuration.
 
+`````{tabs}
+````{group-tab} CLI
+
 To list all available storage volumes, use the following command:
 
     lxc storage volume list
@@ -37,6 +40,15 @@ To show state information about a specific volume, use the following command:
 
 In both commands, the default {ref}`storage volume type <storage-volume-types>` is `custom`, so you can leave out the `custom/` when displaying information about a custom storage volume.
 
+````
+```` {group-tab} UI
+
+From the main navigation, select {guilabel}`Storage` > {guilabel}`Volumes`.
+The resulting page displays a table of available volumes. You can sort volumes by their pool by clicking the {guilabel}`Pool` column header of the table.
+
+````
+`````
+
 ## Create a custom storage volume
 
 When you create an instance, LXD automatically creates a storage volume that is used as the root disk for the instance.
@@ -49,6 +61,9 @@ See {ref}`storage-volumes` for detailed information.
 
 ### Create the volume
 
+`````{tabs}
+````{group-tab} CLI
+
 Use the following command to create a custom storage volume `vol1` of type `filesystem` in storage pool `my-pool`:
 
     lxc storage volume create my-pool vol1
@@ -57,19 +72,27 @@ By default, custom storage volumes use the `filesystem` {ref}`content type <stor
 To create a custom volume with content type `block`, add the `--type` flag:
 
     lxc storage volume create my-pool vol2 --type=block
+````
+```` {group-tab} UI
 
-```{note}
-For most storage drivers, custom storage volumes are not replicated across the cluster and exist only on the member for which they were created.
-This behavior is different for remote storage pools (`ceph`, `cephfs` and `powerflex`), where volumes are available from any cluster member.
+
+From the main navigation, select {guilabel}`Storage` > {guilabel}`Volumes`.
+
+On the resulting page, click {guilabel}`Create volume` in the upper-right corner.
+
+You can then configure the name and size of your storage volume.
+
+You can select a content type from the {guilabel}`Content type` dropdown. Additional settings might appear, depending on the content type selected.
+
+Click {guilabel}`Create` to create the storage pool.
+
+```{figure} /images/storage/storage_volumes_create.png
+:width: 80%
+:alt: Create a storage volume in LXD
 ```
 
-To add a custom storage volume on cluster member `member1`, add the `--target` flag:
-
-    lxc storage volume create my-pool vol3 --target=member1
-
-To create a custom storage volume of type `iso`, use `import` instead of `create`:
-
-    lxc storage volume import my-pool <iso_path> vol4 --type=iso
+````
+`````
 
 (storage-attach-volume)=
 ### Attach the volume to an instance
@@ -83,6 +106,9 @@ The following restrictions apply:
   Attaching a `block` volume to more than one instance at a time risks data corruption.
 - Storage volumes of {ref}`content type <storage-content-types>` `iso` are always read-only, and can therefore be attached to more than one virtual machine at a time without corrupting data.
 - Storage volumes of {ref}`content type <storage-content-types>` `filesystem` can't be attached to virtual machines while they're running.
+
+`````{tabs}
+````{group-tab} CLI
 
 Use the following command to attach a custom storage volume `fs-vol` with content type `filesystem` to instance `c1`.
 `/data` is the mount point for the storage volume inside the instance:
@@ -131,10 +157,51 @@ All I/O limits only apply to actual block device access.
 Therefore, consider the file system's own overhead when setting limits.
 Access to cached data is not affected by the limit.
 
+````
+
+```` {group-tab} UI
+You can attach a storage volume to an existing instance, or when creating a new instance:
+
+- For an existing instance, select {guilabel}`Instances` from the main navigation, then select the target instance to view its details page. Open its {guilabel}`Configuration` tab.
+- For a new instance, you must first select a base image during the instance creation process.
+
+In either scenario, then select {guilabel}`Disk` from the {guilabel}`Devices` section of the secondary menu.
+
+Click {guilabel}`Attach disk device`.
+
+```{figure} /images/storage/storage_volumes_attach_to_instance_1.png
+:width: 80%
+:alt: Attach a storage volume to an instance - Disk configuration page
+```
+
+The resulting modal allows you to choose your disk type. Select {guilabel}`Attach custom volume`:
+
+```{figure} /images/storage/storage_volumes_attach_to_instance_2.png
+:width: 80%
+:alt: Attach a storage volume to an instance - Attach disk device modal
+```
+
+Next, you can either select a pre-existing volume to attach to the instance by clicking its corresponding {guilabel}`Select` button, or create a new custom volume by clicking {guilabel}`Create volume`:
+
+```{figure} /images/storage/storage_volumes_attach_to_instance_3.png
+:width: 80%
+:alt: Attach a storage volume to an instance - Attach custom volume modal
+```
+
+Once the modal closes, you might be required to add a mount point file path in the {guilabel}`Mount point` field.
+Finally, you can save your instance changes. If you are in the instance creation process, create your instance by clicking {guilabel}`Create`.
+
+
+````
+`````
+
 (storage-volume-special)=
 ### Use the volume for backups or images
 
 Instead of attaching a custom volume to an instance as a disk device, you can also use it as a special kind of volume to store {ref}`backups <backups>` or {ref}`images <about-images>`.
+
+`````{tabs}
+````{group-tab} CLI
 
 To do so, you must set the corresponding {ref}`server configuration <server-options-misc>`:
 
@@ -146,10 +213,22 @@ To do so, you must set the corresponding {ref}`server configuration <server-opti
 
       lxc config set storage.images_volume=my-pool/my-images-volume
 
+````
+````{group-tab} UI
+
+To use a volume to store backups or images, select {guilabel}`Settings` from the main navigation. From this page, set the value of the {guilabel}`storage.backups_volume` key or the {guilabel}`storage.images_volume` key to the name of the target storage volume, then select {guilabel}`Save`.
+
+
+````
+`````
+
 (storage-configure-volume)=
 ## Configure storage volume settings
 
 See the {ref}`storage-drivers` documentation for a list of available storage volume configuration options for each driver.
+
+`````{tabs}
+````{group-tab} CLI
 
 To set the maximum size of custom storage volume `my-volume` to 1 GiB, use the following command:
 
@@ -231,3 +310,66 @@ For example, to resize `my-volume` in storage pool `my-pool` to `15GiB`, use the
 - Shrinking a storage volume with content type `block` is not possible.
 
 ```
+
+````
+```` {group-tab} UI
+
+To configure a custom storage volume, select {guilabel}`Storage` > {guilabel}`Volumes` from the main navigation. Next, click the name of your target storage volume to view its details page.
+
+```{note}
+Volume details pages are only available for volumes of type Custom. Volumes of other types—such as Instance root disks—can also be accessed from the Volumes page and redirect to their respective entity overview or list page.
+
+To sort the Volumes table by type, you can click the {guilabel}`Content type` column header.
+```
+
+On the volume's overview page, go to the {guilabel}`Configuration` tab. Here, you can configure settings such as the storage volume size. Further configuration options can be found in the secondary menu.
+After making changes, click the {guilabel}`Save changes` button. This button also displays the number of changes you have made.
+
+````
+`````
+
+## Create a storage volume in a cluster
+
+For most storage drivers, custom storage volumes are not replicated across the cluster and exist only on the member for which they were created.
+This behavior differs for remote storage pools (`ceph`, `cephfs` and `powerflex`), where volumes are available from any cluster member.
+
+`````{tabs}
+````{group-tab} CLI
+
+To add a custom storage volume on a cluster member, add the `--target` flag:
+
+```bash
+lxc storage volume create <pool-name> <volume-name> --target=<member-name>
+```
+
+Example:
+```bash
+lxc storage volume create my-pool my-volume --target=my-member
+```
+
+To create a custom storage volume of type `iso`, use `import` instead of `create`:
+
+```bash
+lxc storage volume import <pool-name> <path-to-iso> <volume-name> --type=iso
+```
+
+
+````
+```` {group-tab} UI
+
+To create a storage volume in a clustered environment, select {guilabel}`Storage` > {guilabel}`Volumes` from the main navigation. On the Volumes page, click {guilabel}`Create volume` in the upper-right corner.
+
+On the volume creation page, select the cluster member on which to base the storage volume from the {guilabel}`Cluster member` dropdown. This dropdown is only available if the storage pool selected for this volume is cluster-member specific, rather than shared across the cluster.
+
+```{figure} /images/storage/storage_volumes_create_clustered.png
+:width: 80%
+:alt: Create a custom storage volume in a clustered environment
+```
+
+````
+`````
+
+To find out more about clusters in LXD, see:
+
+- {ref}`Clustering how-to guides <clustering>`
+- {ref}`An explanation about clusters <exp-clusters>`
