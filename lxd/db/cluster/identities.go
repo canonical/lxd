@@ -431,18 +431,18 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 	stmt := `UPDATE identities SET type = ?, identifier = ?, metadata = ? WHERE identifier = ? AND auth_method = ?`
 	res, err := tx.ExecContext(ctx, stmt, identityTypeActive, fingerprint, string(b), identifier.String(), authMethodTLS)
 	if err != nil {
-		return fmt.Errorf("Failed to activate TLS identity: %w", err)
+		return fmt.Errorf("Failed to activate %q TLS identity: %w", identity.Type, err)
 	}
 
 	n, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to check for activated TLS identity: %w", err)
+		return fmt.Errorf("Failed to check for activated %q TLS identity: %w", identity.Type, err)
 	}
 
 	if n == 0 {
-		return api.StatusErrorf(http.StatusNotFound, "No pending TLS identity found with identifier %q", identifier)
+		return api.StatusErrorf(http.StatusNotFound, "No pending %q TLS identity found with identifier %q", identity.Type, identifier)
 	} else if n > 1 {
-		return fmt.Errorf("Unknown error occurred when activating a TLS identity: %w", err)
+		return fmt.Errorf("Unknown error occurred when activating %q TLS identity: %w", identity.Type, err)
 	}
 
 	return nil
