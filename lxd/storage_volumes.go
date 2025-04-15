@@ -1292,10 +1292,7 @@ func doVolumeMigration(s *state.State, r *http.Request, requestProjectName strin
 		return response.InternalError(err)
 	}
 
-	push := false
-	if req.Source.Mode == "push" {
-		push = true
-	}
+	push := req.Source.Mode == "push"
 
 	// Initialise migrationArgs, don't set the Storage property yet, this is done in DoStorage,
 	// to avoid this function relying on the legacy storage layer.
@@ -2169,7 +2166,8 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	op := &operations.Operation{}
 	op.SetRequestor(r)
 
-	if details.volumeType == cluster.StoragePoolVolumeTypeCustom {
+	switch details.volumeType {
+	case cluster.StoragePoolVolumeTypeCustom:
 		// Restore custom volume from snapshot if requested. This should occur first
 		// before applying config changes so that changes are applied to the
 		// restored volume.
@@ -2197,7 +2195,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 				return response.SmartError(err)
 			}
 		}
-	} else if details.volumeType == cluster.StoragePoolVolumeTypeContainer || details.volumeType == cluster.StoragePoolVolumeTypeVM {
+	case cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM:
 		inst, err := instance.LoadByProjectAndName(s, effectiveProjectName, dbVolume.Name)
 		if err != nil {
 			return response.SmartError(err)
@@ -2208,13 +2206,15 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
-	} else if details.volumeType == cluster.StoragePoolVolumeTypeImage {
+
+	case cluster.StoragePoolVolumeTypeImage:
 		// Handle image update requests.
 		err = details.pool.UpdateImage(dbVolume.Name, req.Description, req.Config, op)
 		if err != nil {
 			return response.SmartError(err)
 		}
-	} else {
+
+	default:
 		return response.SmartError(fmt.Errorf("Invalid volume type"))
 	}
 
