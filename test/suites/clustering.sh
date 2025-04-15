@@ -3932,9 +3932,32 @@ EOF
   ! lxc init testimage cluster:c1 --project buzz || false
 
   # Group fizz has no members, but it cannot be deleted because it is referenced by project buzz.
+  [ "$(lxc_remote query cluster:/1.0/cluster/groups/fizz | jq -r '.used_by | @csv')" = '"/1.0/projects/buzz"' ]
   ! lxc cluster group delete cluster:fizz || false
 
+  # Restricted certificate does not see project fizz in cluster group used by URLs
+  token1="$(lxc config trust add cluster: --name cg-cert1 --quiet --restricted --projects default)"
+  LXD_CONF1=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF1}" gen_cert_and_key "client"
+  LXD_CONF="${LXD_CONF1}" lxc remote add cluster_remote "${token1}"
+  [ "$(LXD_CONF="${LXD_CONF1}" lxc_remote query cluster_remote:/1.0/cluster/groups/fizz | jq -r '.used_by | length')" = 0 ]
+
+  # Fine-grained TLS identity does not see project fizz in cluster group used by URLs unless any groups it is a member of
+  # have can_view on the project.
+  lxc auth group create cluster:test-group
+  token2="$(lxc auth identity create cluster:tls/gc-cert2 --group test-group --quiet)"
+  LXD_CONF2=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF2}" gen_cert_and_key "client"
+  LXD_CONF="${LXD_CONF2}" lxc remote add cluster_remote "${token2}"
+  [ "$(LXD_CONF="${LXD_CONF2}" lxc_remote query cluster_remote:/1.0/cluster/groups/fizz | jq -r '.used_by | length')" = 0 ]
+  lxc auth group permission add cluster:test-group project buzz can_view
+  [ "$(LXD_CONF="${LXD_CONF2}" lxc_remote query cluster_remote:/1.0/cluster/groups/fizz | jq -r '.used_by | @csv')" = '"/1.0/projects/buzz"' ]
+
   # Clean up.
+  lxc config trust remove "cluster:$(cert_fingerprint "${LXD_CONF1}/client.crt")"
+  lxc auth identity delete cluster:tls/gc-cert2
+  lxc auth group delete cluster:test-group
+  rm -rf "${LXD_CONF1}" "${LXD_CONF2}"
   lxc project delete cluster:buzz
   lxc cluster group delete cluster:fizz
 
