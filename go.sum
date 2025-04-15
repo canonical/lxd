@@ -391,8 +391,8 @@ github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20250220223040-ed0cfba54336/g
 github.com/openfga/openfga v1.8.9 h1:+F6C2m+7tZuMrC0JU+oZEAvIXVO1IsMIBxPzBH+iMMk=
 github.com/openfga/openfga v1.8.9/go.mod h1:v/KGkaR66VWYLBr/I4sne0Wh1Livf/x3Z9zdzzXSud4=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
-github.com/osrg/gobgp/v3 v3.35.0 h1:8HQyCCoByAJyXiSzTFBl77wuOyVdDXozPdXX+tjYyHQ=
-github.com/osrg/gobgp/v3 v3.35.0/go.mod h1:l2nPaHaLmIoKbFxMUzKon/h6c9BTzCp5zJI9Dhnrx5c=
+github.com/osrg/gobgp/v3 v3.36.0 h1:6KbNDyvSbN2GAIiVMykAgLUsvcSldNPiCCP5KzV0VP4=
+github.com/osrg/gobgp/v3 v3.36.0/go.mod h1:ldZ/eydK80FuAmTGYBV23tWhTRJtIk2tw5NSYhPeqVk=
 github.com/pborman/getopt v0.0.0-20170112200414-7148bc3a4c30/go.mod h1:85jBQOZwpVEaDAr341tbn15RS4fCAsIst0qp7i8ex1o=
 github.com/pelletier/go-toml/v2 v2.2.3 h1:YmeHyLY8mFWbdkNWwpr+qIL2bEqT0o95WSdkNHvL12M=
 github.com/pelletier/go-toml/v2 v2.2.3/go.mod h1:MfCQTFTvCcUyyvvwm1+G6H/jORL20Xlb6rzQu9GuUkc=
