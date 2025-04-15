@@ -12,6 +12,8 @@ CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
 GOMIN=1.23.7
+GOTOOLCHAIN=local
+export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
 DQLITE_BRANCH=lts-1.17.x
 
@@ -122,6 +124,7 @@ endif
 	# Static pins
 	go get github.com/gorilla/websocket@v1.5.1 # Due to riscv64 crashes in LP
 	go get tags.cncf.io/container-device-interface@v0.8.1 # Due to incompat with nvidia-container-toolkit
+	go get github.com/go-jose/go-jose/v4@v4.0.5 # Due to requirement for go 1.24 which needs a fix for with nvidia-container-toolkit
 
 	# Enforce minimum go version
 	go mod tidy -go=$(GOMIN)
@@ -176,6 +179,11 @@ update-metadata: build
 			git commit -S -sm "doc: Update metadata" -- ./lxd/metadata/configuration.json ./doc/metadata.txt;\
 		fi;\
 	fi
+
+.PHONY: update-godeps
+update-godeps:
+	@echo "Updating godeps.list files"
+	@UPDATE_LISTS=true test/lint/godeps.sh
 
 .PHONY: doc
 doc: doc-clean doc-install doc-html doc-objects
@@ -281,7 +289,7 @@ ifeq ($(shell command -v go-licenses),)
 	(cd / ; go install github.com/google/go-licenses@latest)
 endif
 ifeq ($(shell command -v golangci-lint),)
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.0.0
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.0.2
 endif
 ifneq ($(shell command -v yamllint),)
 	yamllint .github/workflows/*.yml
@@ -290,17 +298,15 @@ ifeq ($(shell command -v shellcheck),)
 	echo "Please install shellcheck"
 	exit 1
 else
-ifneq "$(shell shellcheck --version | grep version: | cut -d ' ' -f2)" "0.8.0"
-	@echo "WARN: shellcheck version is not 0.8.0"
-endif
 endif
 	shellcheck test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh test/extras/*.sh
-	NOT_EXEC="$(shell find test/lint -type f -not -executable)"; \
+	echo "Verify test/lint files are properly named and executable"
+	@NOT_EXEC="$(shell find test/lint -type f -not -executable)"; \
 	if [ -n "$$NOT_EXEC" ]; then \
 		echo "lint scripts not executable: $$NOT_EXEC"; \
 		exit 1; \
 	fi
-	BAD_NAME="$(shell find test/lint -type f -not -name '*.sh')"; \
+	@BAD_NAME="$(shell find test/lint -type f -not -name '*.sh')"; \
 	if [ -n "$$BAD_NAME" ]; then \
 		echo "lint scripts missing .sh extension: $$BAD_NAME"; \
 		exit 1; \
@@ -310,3 +316,9 @@ endif
 .PHONY: update-auth
 update-auth:
 	go generate ./lxd/auth
+	if [ -t 0 ] && ! git diff --quiet -- ./lxd/auth/; then \
+		read -rp "Would you like to commit auth changes (Y/n)? " answer; \
+		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
+			git commit -S -sm "lxd/auth: Update auth" -- ./lxd/auth/;\
+		fi;\
+	fi

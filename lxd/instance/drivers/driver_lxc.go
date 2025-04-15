@@ -163,15 +163,18 @@ func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.In
 		return nil, nil, fmt.Errorf("Failed to expand config: %w", err)
 	}
 
-	// Validate expanded config (allows mixed instance types for profiles).
-	err = instance.ValidConfig(s.OS, d.expandedConfig, true, instancetype.Any)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Invalid config: %w", err)
-	}
+	// When not a snapshot, perform full validation.
+	if !args.Snapshot {
+		// Validate expanded config (allows mixed instance types for profiles).
+		err = instance.ValidConfig(s.OS, d.expandedConfig, true, instancetype.Any)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Invalid config: %w", err)
+		}
 
-	err = instance.ValidDevices(s, d.project, d.Type(), d.localDevices, d.expandedDevices)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Invalid devices: %w", err)
+		err = instance.ValidDevices(s, d.project, d.Type(), d.localDevices, d.expandedDevices)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Invalid devices: %w", err)
+		}
 	}
 
 	_, rootDiskDevice, err := d.getRootDiskDevice()
@@ -387,10 +390,7 @@ type lxc struct {
 }
 
 func idmapSize(state *state.State, isolatedStr string, size string) (int64, error) {
-	isolated := false
-	if shared.IsTrue(isolatedStr) {
-		isolated = true
-	}
+	isolated := shared.IsTrue(isolatedStr)
 
 	var idMapSize int64
 	if size == "" || size == "auto" {
@@ -418,10 +418,7 @@ func idmapSize(state *state.State, isolatedStr string, size string) (int64, erro
 var idmapLock sync.Mutex
 
 func findIdmap(state *state.State, cName string, isolatedStr string, configBase string, configSize string, rawIdmap string) (*idmap.IdmapSet, int64, error) {
-	isolated := false
-	if shared.IsTrue(isolatedStr) {
-		isolated = true
-	}
+	isolated := shared.IsTrue(isolatedStr)
 
 	rawMaps, err := idmap.ParseRawIdmap(rawIdmap)
 	if err != nil {
@@ -1101,6 +1098,13 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		}
 	}
 
+	if shared.IsTrue(d.expandedConfig["security.delegate_bpf"]) {
+		err = lxcSetConfigItem(cc, "lxc.hook.start-host", d.state.OS.ExecPath+" callhook "+shared.VarPath("")+" "+strconv.Quote(d.Project().Name)+" "+strconv.Quote(d.Name())+" starthost")
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Memory limits
 	if d.state.OS.CGInfo.Supports(cgroup.Memory, cg) {
 		memory := d.expandedConfig["limits.memory"]
@@ -1450,7 +1454,7 @@ func (d *lxc) deviceStaticShiftMounts(mounts []deviceConfig.MountEntryItem) erro
 	// device files before they are mounted.
 	if idmapSet != nil && !d.state.OS.RunningInUserNS {
 		for _, mount := range mounts {
-			pathSource, isPath := mount.DevSource.(device.DevSourcePath)
+			pathSource, isPath := mount.DevSource.(deviceConfig.DevSourcePath)
 			if mount.DevSource != nil && !isPath {
 				return fmt.Errorf("Device source for device %q was not a host path (was %T)", mount.DevName, mount.DevSource)
 			}
@@ -1657,7 +1661,7 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 	defer reverter.Fail()
 
 	for _, mount := range mounts {
-		pathSource, isPath := mount.DevSource.(device.DevSourcePath)
+		pathSource, isPath := mount.DevSource.(deviceConfig.DevSourcePath)
 		if mount.DevSource != nil && !isPath {
 			return fmt.Errorf("Device source for device %q was not a host path (was %T)", mount.DevName, mount.DevSource)
 		}
@@ -1667,11 +1671,12 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 
 			// Convert options into flags.
 			for _, opt := range mount.Opts {
-				if opt == "bind" {
+				switch opt {
+				case "bind":
 					flags |= unix.MS_BIND
-				} else if opt == "rbind" {
+				case "rbind":
 					flags |= unix.MS_BIND | unix.MS_REC
-				} else if opt == "ro" {
+				case "ro":
 					flags |= unix.MS_RDONLY
 				}
 			}
@@ -1839,11 +1844,12 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 
 	// Revert the currently applied on-disk idmap.
 	if diskIdmap != nil {
-		if storageType == "zfs" {
+		switch storageType {
+		case "zfs":
 			err = diskIdmap.UnshiftRootfs(d.RootfsPath(), storageDrivers.ShiftZFSSkipper)
-		} else if storageType == "btrfs" {
+		case "btrfs":
 			err = storageDrivers.UnshiftBtrfsRootfs(d.RootfsPath(), diskIdmap)
-		} else {
+		default:
 			err = diskIdmap.UnshiftRootfs(d.RootfsPath(), nil)
 		}
 
@@ -1858,11 +1864,12 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 	// idmap of the container now. Otherwise we will later instruct LXC to
 	// make use of idmapped storage.
 	if nextIdmap != nil && idmapType == idmap.IdmapStorageNone {
-		if storageType == "zfs" {
+		switch storageType {
+		case "zfs":
 			err = nextIdmap.ShiftRootfs(d.RootfsPath(), storageDrivers.ShiftZFSSkipper)
-		} else if storageType == "btrfs" {
+		case "btrfs":
 			err = storageDrivers.ShiftBtrfsRootfs(d.RootfsPath(), nextIdmap)
-		} else {
+		default:
 			err = nextIdmap.ShiftRootfs(d.RootfsPath(), nil)
 		}
 
@@ -2129,7 +2136,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		// Pass any mounts into LXC.
 		if len(runConf.Mounts) > 0 {
 			for _, mount := range runConf.Mounts {
-				pathSource, isPath := mount.DevSource.(device.DevSourcePath)
+				pathSource, isPath := mount.DevSource.(deviceConfig.DevSourcePath)
 				if mount.DevSource != nil && !isPath {
 					return "", nil, fmt.Errorf("Device source for device %q was not a host path (was %T)", mount.DevName, mount.DevSource)
 				}
@@ -2479,6 +2486,8 @@ func (d *lxc) OnHook(hookName string, args map[string]string) error {
 	switch hookName {
 	case instance.HookStart:
 		return d.onStart(args)
+	case instance.HookStartHost:
+		return d.onStartHost(args)
 	case instance.HookStopNS:
 		return d.onStopNS(args)
 	case instance.HookStop:
@@ -2537,6 +2546,93 @@ func (d *lxc) onStart(_ map[string]string) error {
 	return nil
 }
 
+// mountBpfFs mounts bpffs inside the container.
+func (d *lxc) mountBpfFs(pid int, bpffsParams map[string]string) error {
+	if !d.state.OS.BPFToken {
+		return fmt.Errorf("BPF Token mechanism is not supported by kernel running")
+	}
+
+	pidFdNr, pidFd := seccomp.MakePidFd(pid, d.state)
+	if pidFdNr >= 0 {
+		defer func() { _ = pidFd.Close() }()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	d.logger.Debug("bpffs mount helper is being called", logger.Ctx{"pid": pid, "bpffsParams": bpffsParams})
+	_, err := shared.RunCommandInheritFds(
+		ctx,
+		[]*os.File{pidFd},
+		d.state.OS.ExecPath,
+		"forkmount",
+		"bpffs",
+		"--",
+		fmt.Sprint(pid),
+		fmt.Sprint(pidFdNr),
+		bpffsParams["mountpoint"],
+		bpffsParams["delegate_cmds"],
+		bpffsParams["delegate_maps"],
+		bpffsParams["delegate_progs"],
+		bpffsParams["delegate_attachs"])
+	if err != nil {
+		d.logger.Error("bpffs mount helper has failed", logger.Ctx{"err": err})
+		return err
+	}
+
+	d.logger.Debug("bpffs mount helper has finished without errors")
+
+	return nil
+}
+
+func (d *lxc) onStartHostBPFDelegate(args map[string]string) error {
+	// Get the init PID
+	pidStr, ok := args["LXC_PID"]
+	if !ok {
+		return fmt.Errorf("No LXC_PID parameter was provided to start-host hook")
+	}
+
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil {
+		return fmt.Errorf("Invalid LXC_PID parameter was provided to start-host hook %q: %w", pidStr, err)
+	}
+
+	bpffsParams := map[string]string{
+		"delegate_cmds":    "0",
+		"delegate_maps":    "0",
+		"delegate_progs":   "0",
+		"delegate_attachs": "0",
+		"mountpoint":       "/sys/fs/bpf",
+	}
+
+	if d.expandedConfig["security.delegate_bpf.cmd_types"] != "" {
+		bpffsParams["delegate_cmds"] = d.expandedConfig["security.delegate_bpf.cmd_types"]
+	}
+
+	if d.expandedConfig["security.delegate_bpf.map_types"] != "" {
+		bpffsParams["delegate_maps"] = d.expandedConfig["security.delegate_bpf.map_types"]
+	}
+
+	if d.expandedConfig["security.delegate_bpf.prog_types"] != "" {
+		bpffsParams["delegate_progs"] = d.expandedConfig["security.delegate_bpf.prog_types"]
+	}
+
+	if d.expandedConfig["security.delegate_bpf.attach_types"] != "" {
+		bpffsParams["delegate_attachs"] = d.expandedConfig["security.delegate_bpf.attach_types"]
+	}
+
+	return d.mountBpfFs(pid, bpffsParams)
+}
+
+// onStartHost implements the LXC start-host hook.
+func (d *lxc) onStartHost(args map[string]string) error {
+	if shared.IsTrue(d.expandedConfig["security.delegate_bpf"]) {
+		return d.onStartHostBPFDelegate(args)
+	}
+
+	return nil
+}
+
 // validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
 func (d *lxc) validateStartup(statusCode api.StatusCode) error {
 	err := d.common.validateStartup(statusCode)
@@ -2552,6 +2648,10 @@ func (d *lxc) validateStartup(statusCode api.StatusCode) error {
 	// Check if instance is start protected.
 	if shared.IsTrue(d.expandedConfig["security.protection.start"]) {
 		return fmt.Errorf("Instance is protected from being started")
+	}
+
+	if shared.IsTrue(d.expandedConfig["security.delegate_bpf"]) && !d.state.OS.BPFToken {
+		return fmt.Errorf("BPF Token mechanism is not supported by your kernel. Linux kernel 6.9+ is required to start this instance, or security.delegate_bpf option must be disabled")
 	}
 
 	return nil
@@ -3529,7 +3629,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	_, err = d.mount()
 	if err != nil {
 		op.Done(err)
-		return err
+		return fmt.Errorf("Failed mounting instance: %w", err)
 	}
 
 	revert.Add(func() { _ = d.unmount() })
@@ -3548,7 +3648,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	err = d.unmount()
 	if err != nil {
 		op.Done(err)
-		return err
+		return fmt.Errorf("Failed unmounting instance: %w", err)
 	}
 
 	revert.Success()
@@ -3557,7 +3657,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	err = pool.RestoreInstanceSnapshot(d, sourceContainer, nil)
 	if err != nil {
 		op.Done(err)
-		return err
+		return fmt.Errorf("Failed to restore snapshot rootfs: %w", err)
 	}
 
 	// Restore the configuration.
@@ -4845,7 +4945,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 }
 
 // Export backs up the instance.
-func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.Time, tracker *ioprogress.ProgressTracker) (api.ImageMetadata, error) {
+func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.Time, _ *ioprogress.ProgressTracker) (api.ImageMetadata, error) {
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -5433,7 +5533,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 				operationtype.InstanceLiveMigrate,
 				nil,
 				nil,
-				func(op *operations.Operation) error {
+				func(_ *operations.Operation) error {
 					result := <-restoreSuccess
 					if !result {
 						return fmt.Errorf("restore failed, failing CRIU")
@@ -5442,7 +5542,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 					return nil
 				},
 				nil,
-				func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+				func(_ *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 					secret := r.FormValue("secret")
 					if secret == "" {
 						return fmt.Errorf("Missing action script secret")
@@ -6408,11 +6508,12 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 				return fmt.Errorf("Storage type: %w", err)
 			}
 
-			if storageType == "zfs" {
+			switch storageType {
+			case "zfs":
 				err = idmapset.ShiftRootfs(args.StateDir, storageDrivers.ShiftZFSSkipper)
-			} else if storageType == "btrfs" {
+			case "btrfs":
 				err = storageDrivers.ShiftBtrfsRootfs(args.StateDir, idmapset)
-			} else {
+			default:
 				err = idmapset.ShiftRootfs(args.StateDir, nil)
 			}
 
@@ -7252,7 +7353,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 			usage, err = pool.GetInstanceUsage(d)
 			if err != nil {
 				if !errors.Is(err, storageDrivers.ErrNotSupported) {
-					d.logger.Error("Error getting disk usage", logger.Ctx{"err": err})
+					d.logger.Info("Unable to get disk usage", logger.Ctx{"err": err})
 				}
 
 				continue
@@ -7267,7 +7368,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 			usage, err = pool.GetCustomVolumeUsage(d.Project().Name, dev.Config["source"])
 			if err != nil {
 				if !errors.Is(err, storageDrivers.ErrNotSupported) {
-					d.logger.Error("Error getting volume usage", logger.Ctx{"volume": dev.Config["source"], "err": err})
+					d.logger.Info("Unable to get volume usage", logger.Ctx{"volume": dev.Config["source"], "err": err})
 				}
 
 				continue
@@ -8179,7 +8280,7 @@ type lxcCgroupReadWriter struct {
 }
 
 // Get retrieves the value of a cgroup key for a specific controller and version.
-func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, key string) (string, error) {
+func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, _ string, key string) (string, error) {
 	if !rw.running {
 		lxcKey := "lxc.cgroup." + key
 
@@ -8194,7 +8295,7 @@ func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, ke
 }
 
 // Set writes a value to a cgroup key for a specific controller and version.
-func (rw *lxcCgroupReadWriter) Set(version cgroup.Backend, controller string, key string, value string) error {
+func (rw *lxcCgroupReadWriter) Set(version cgroup.Backend, _ string, key string, value string) error {
 	if !rw.running {
 		if version == cgroup.V1 {
 			return lxcSetConfigItem(rw.cc, "lxc.cgroup."+key, value)

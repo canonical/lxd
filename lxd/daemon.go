@@ -58,6 +58,7 @@ import (
 	"github.com/canonical/lxd/lxd/metrics"
 	networkZone "github.com/canonical/lxd/lxd/network/zone"
 	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
@@ -760,7 +761,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		if !(r.RemoteAddr == "@" && version == "internal") {
+		if r.RemoteAddr != "@" || version != "internal" {
 			// Block public API requests until we're done with basic
 			// initialization tasks, such setting up the cluster database.
 			select {
@@ -1241,6 +1242,13 @@ func (d *Daemon) init() error {
 		logger.Info(" - unprivileged binfmt_misc: no")
 	}
 
+	d.os.BPFToken = canUseBPFToken()
+	if d.os.BPFToken {
+		logger.Info(" - BPF Token: yes")
+	} else {
+		logger.Info(" - BPF Token: no")
+	}
+
 	/*
 	 * During daemon startup we're the only thread that touches VFS3Fscaps
 	 * so we don't need to bother with atomic.StoreInt32() when touching
@@ -1470,12 +1478,12 @@ func (d *Daemon) init() error {
 		if err == nil {
 			logger.Info("Initialized global database")
 			break
-		} else if errors.Is(err, db.ErrSomeNodesAreBehind) {
+		} else if api.StatusErrorCheck(err, http.StatusPreconditionFailed) {
 			// If some other nodes have schema or API versions less recent
 			// than this node, we block until we receive a notification
 			// from the last node being upgraded that everything should be
 			// now fine, and then retry
-			logger.Warn("Wait for other cluster nodes to upgrade their versions, cluster not started yet")
+			logger.Warn("Wait for other cluster members to align their versions, cluster not started yet")
 
 			// The only thing we want to still do on this node is
 			// to run the heartbeat task, in case we are the raft
@@ -1516,26 +1524,6 @@ func (d *Daemon) init() error {
 	}
 
 	d.gateway.Cluster = d.db.Cluster
-
-	// This logic used to belong to patchUpdateFromV10, but has been moved
-	// here because it needs database access.
-	if shared.PathExists(shared.VarPath("lxc")) {
-		err := os.Rename(shared.VarPath("lxc"), shared.VarPath("containers"))
-		if err != nil {
-			return err
-		}
-
-		logger.Debug("Restarting all the containers following directory rename")
-
-		s := d.State()
-		instances, err := instance.LoadNodeAll(s, instancetype.Container)
-		if err != nil {
-			return fmt.Errorf("Failed loading containers to restart: %w", err)
-		}
-
-		instancesShutdown(instances)
-		instancesStart(s, instances)
-	}
 
 	// Setup the user-agent.
 	if d.serverClustered {
@@ -1683,7 +1671,7 @@ func (d *Daemon) init() error {
 	if lokiURL != "" {
 		err = d.setupLoki(lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes)
 		if err != nil {
-			return err
+			logger.Warn("Failed to setup Loki", logger.Ctx{"err": err})
 		}
 	}
 
@@ -1708,18 +1696,6 @@ func (d *Daemon) init() error {
 
 	// Setup BGP listener.
 	d.bgp = bgp.NewServer()
-	if bgpAddress != "" && bgpASN != 0 && bgpRouterID != "" {
-		if bgpASN > math.MaxUint32 {
-			return fmt.Errorf("Cannot convert BGP ASN to uint32: Upper bound exceeded")
-		}
-
-		err := d.bgp.Start(bgpAddress, uint32(bgpASN), net.ParseIP(bgpRouterID))
-		if err != nil {
-			return err
-		}
-
-		logger.Info("Started BGP server")
-	}
 
 	// Setup DNS listener.
 	d.dns = dns.NewServer(d.db.Cluster, func(name string, full bool) (*dns.Zone, error) {
@@ -1769,6 +1745,19 @@ func (d *Daemon) init() error {
 	}
 
 	// Setup tertiary listeners that may use managed network addresses and must be started after networks.
+	if bgpAddress != "" && bgpASN != 0 && bgpRouterID != "" {
+		if bgpASN > math.MaxUint32 {
+			return fmt.Errorf("Cannot convert BGP ASN to uint32: Upper bound exceeded")
+		}
+
+		err := d.bgp.Configure(bgpAddress, uint32(bgpASN), net.ParseIP(bgpRouterID))
+		if err != nil {
+			return err
+		}
+
+		logger.Info("Started BGP server")
+	}
+
 	dnsAddress := d.localConfig.DNSAddress()
 	if dnsAddress != "" {
 		err = d.dns.Start(dnsAddress)
@@ -2027,6 +2016,27 @@ func (d *Daemon) numRunningInstances(instances []instance.Instance) int {
 	return count
 }
 
+// cancelCancelableOps cancels all running cancelable operations.
+func cancelCancelableOps() error {
+	ops := operations.Clone()
+	for _, op := range ops {
+		if op.Status() != api.Running || op.Class() == operations.OperationClassToken {
+			continue
+		}
+
+		_, opAPI, err := op.Render()
+		if err != nil {
+			return fmt.Errorf("Failed to render an operation while attempting to stop cancelable operations: %w", err)
+		}
+
+		if opAPI.MayCancel {
+			_, _ = op.Cancel()
+		}
+	}
+
+	return nil
+}
+
 // Stop stops the shared daemon.
 func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	logger.Info("Starting shutdown sequence", logger.Ctx{"signal": sig})
@@ -2075,45 +2085,44 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 
 	// Handle shutdown (unix.SIGPWR) and reload (unix.SIGTERM) signals.
 	if sig == unix.SIGPWR || sig == unix.SIGTERM {
-		if d.db.Cluster != nil {
-			// waitForOperations will block until all operations are done, or it's forced to shut down.
-			// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
-			// initiated using `lxd shutdown`.
-			waitForOperations(ctx, d.db.Cluster, s.GlobalConfig.ShutdownTimeout())
-		}
-
-		// Unmount daemon image and backup volumes if set.
-		logger.Info("Stopping daemon storage volumes")
-		done := make(chan struct{})
-		go func() {
-			err := daemonStorageVolumesUnmount(s)
-			if err != nil {
-				logger.Error("Failed to unmount image and backup volumes", logger.Ctx{"err": err})
-			}
-
-			done <- struct{}{}
-		}()
-
-		// Only wait 60 seconds in case the storage backend is unreachable.
-		select {
-		case <-time.After(time.Minute):
-			logger.Error("Timed out waiting for image and backup volume")
-		case <-done:
-		}
-
 		// Full shutdown requested.
 		if sig == unix.SIGPWR {
-			instancesShutdown(instances)
+			logger.Debug("Shutting down instances")
+
+			shutdownCtx, cancel := context.WithTimeout(ctx, s.GlobalConfig.ShutdownTimeout())
+			defer cancel()
+
+			instancesShutdown(shutdownCtx, instances)
+
+			if d.db.Cluster != nil {
+				// Try to cancel any cancelable operations.
+				err = cancelCancelableOps()
+				if err != nil {
+					logger.Error("Failed to cancel cancelable operations", logger.Ctx{"err": err})
+				}
+			}
 
 			logger.Info("Stopping networks")
 			networkShutdown(s)
 
-			// Unmount storage pools after instances stopped.
+			// Unmount daemon image and backup volumes if set.
+			logger.Info("Stopping daemon storage volumes")
+			logger.Debug("Unmounting daemon storage volumes")
+			volUnmountCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			err := daemonStorageVolumesUnmount(s, volUnmountCtx)
+			if err != nil {
+				logger.Error("Failed to unmount image and backup volumes", logger.Ctx{"err": err})
+			}
+
+			logger.Debug("Daemon storage volumes unmounted")
+
+			// Unmount storage pools after instances stopped and images/backup volumes unmounted.
 			logger.Info("Stopping storage pools")
 
 			var pools []string
 
-			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				var err error
 
 				pools, err = tx.GetStoragePoolNames(ctx)
@@ -2136,6 +2145,23 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 					logger.Error("Unable to unmount storage pool", logger.Ctx{"pool": poolName, "err": err})
 					continue
 				}
+			}
+		}
+
+		if d.db.Cluster != nil {
+			// Remove remaining operations before closing the database.
+			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				err := dbCluster.DeleteOperations(ctx, tx.Tx(), s.DB.Cluster.GetNodeID())
+				if err != nil {
+					logger.Error("Failed cleaning up operations")
+				}
+
+				return nil
+			})
+			if err != nil {
+				logger.Error("Failed cleaning up operations", logger.Ctx{"err": err})
+			} else {
+				logger.Debug("Operations deleted from the database")
 			}
 		}
 	}

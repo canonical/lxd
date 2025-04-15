@@ -63,6 +63,25 @@ EOF
   # Delete the snapshot
   lxc delete foo/tester_yaml
 
+  # Check if the instance with snapshots and non-default profile can be copied to a new project
+  lxc profile create source-profile
+  lxc profile add foo source-profile
+  lxc project create test-project
+
+  lxc copy foo foo --no-profiles -s "${pool}" --project default --target-project test-project
+  [ "$(lxc info --project test-project foo | grep -c snap)" -eq 2 ]
+  lxc delete --project=test-project foo
+
+  lxc profile create target-profile --project=test-project
+  lxc copy foo foo --profile=target-profile -s "${pool}" --target-project=test-project
+  [ "$(lxc info --project test-project foo | grep -c snap)" -eq 2 ]
+  lxc delete --project test-project foo
+
+  lxc profile delete target-profile --project=test-project
+  lxc profile remove foo source-profile
+  lxc profile delete source-profile
+  lxc project delete test-project
+
   lxc copy foo/tester foosnap1
   # FIXME: make this backend agnostic
   if [ "$lxd_backend" != "lvm" ] && [ "${lxd_backend}" != "zfs" ] && [ "$lxd_backend" != "ceph" ]; then

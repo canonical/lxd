@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -248,15 +249,18 @@ func qemuCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.I
 		return nil, nil, fmt.Errorf("Failed to expand config: %w", err)
 	}
 
-	// Validate expanded config (allows mixed instance types for profiles).
-	err = instance.ValidConfig(s.OS, d.expandedConfig, true, instancetype.Any)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Invalid config: %w", err)
-	}
+	// When not a snapshot, perform full validation.
+	if !args.Snapshot {
+		// Validate expanded config (allows mixed instance types for profiles).
+		err = instance.ValidConfig(s.OS, d.expandedConfig, true, instancetype.Any)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Invalid config: %w", err)
+		}
 
-	err = instance.ValidDevices(s, d.project, d.Type(), d.localDevices, d.expandedDevices)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Invalid devices: %w", err)
+		err = instance.ValidDevices(s, d.project, d.Type(), d.localDevices, d.expandedDevices)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Invalid devices: %w", err)
+		}
 	}
 
 	// Retrieve the instance's storage pool.
@@ -411,14 +415,16 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 			return
 		}
 
-		if event == qmp.EventAgentStarted {
+		switch event {
+		case qmp.EventAgentStarted:
 			d.logger.Debug("Instance agent started")
 			err := d.advertiseVsockAddress()
 			if err != nil {
 				d.logger.Warn("Failed to advertise vsock address to instance agent", logger.Ctx{"err": err})
 				return
 			}
-		} else if event == qmp.EventVMShutdown {
+
+		case qmp.EventVMShutdown:
 			target := "stop"
 			entry, ok := data["reason"]
 			if ok && entry == "guest-reset" {
@@ -1575,7 +1581,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		// files be sure to mount the 9P share in the VM with the "access=0" option to allow
 		// only root user in VM to access the mounted share.
 		err := filepath.Walk(filepath.Join(d.Path(), "config"),
-			func(path string, info os.FileInfo, err error) error {
+			func(path string, _ os.FileInfo, err error) error {
 				if err != nil {
 					return err
 				}
@@ -2054,28 +2060,29 @@ func (d *qemu) qemuArchConfig(arch int) (path string, bus string, err error) {
 		basePath = filepath.Join(os.Getenv("SNAP"), os.Getenv("SNAP_QEMU_PREFIX")) + "/bin/"
 	}
 
-	if arch == osarch.ARCH_64BIT_INTEL_X86 {
+	switch arch {
+	case osarch.ARCH_64BIT_INTEL_X86:
 		path, err := exec.LookPath(basePath + "qemu-system-x86_64")
 		if err != nil {
 			return "", "", err
 		}
 
 		return path, "pcie", nil
-	} else if arch == osarch.ARCH_32BIT_ARMV7_LITTLE_ENDIAN || arch == osarch.ARCH_32BIT_ARMV8_LITTLE_ENDIAN || arch == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN {
+	case osarch.ARCH_32BIT_ARMV7_LITTLE_ENDIAN, osarch.ARCH_32BIT_ARMV8_LITTLE_ENDIAN, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN:
 		path, err := exec.LookPath(basePath + "qemu-system-aarch64")
 		if err != nil {
 			return "", "", err
 		}
 
 		return path, "pcie", nil
-	} else if arch == osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN {
+	case osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN:
 		path, err := exec.LookPath(basePath + "qemu-system-ppc64")
 		if err != nil {
 			return "", "", err
 		}
 
 		return path, "pci", nil
-	} else if arch == osarch.ARCH_64BIT_S390_BIG_ENDIAN {
+	case osarch.ARCH_64BIT_S390_BIG_ENDIAN:
 		path, err := exec.LookPath(basePath + "qemu-system-s390x")
 		if err != nil {
 			return "", "", err
@@ -2113,7 +2120,7 @@ func (d *qemu) saveConnectionInfo(connInfo *agentAPI.API10Put) error {
 }
 
 // OnHook is the top-level hook handler.
-func (d *qemu) OnHook(hookName string, args map[string]string) error {
+func (d *qemu) OnHook(_ string, _ map[string]string) error {
 	return instance.ErrNotImplemented
 }
 
@@ -2279,7 +2286,7 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	pciDeviceName := fmt.Sprintf("%s%d", busDevicePortPrefix, pciDevID)
 	d.logger.Debug("Using PCI bus device to hotplug virtiofs into", logger.Ctx{"device": deviceName, "port": pciDeviceName})
 
-	qemuDev := map[string]string{
+	qemuDev := map[string]any{
 		"driver":  "vhost-user-fs-pci",
 		"bus":     pciDeviceName,
 		"addr":    "00.0",
@@ -2418,7 +2425,7 @@ func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfig
 		return err
 	}
 
-	qemuDev := make(map[string]string)
+	qemuDev := make(map[string]any)
 
 	// PCIe and PCI require a port device name to hotplug the NIC into.
 	if shared.ValueInSlice(qemuBus, []string{"pcie", "pci"}) {
@@ -2714,7 +2721,7 @@ func (d *qemu) generateConfigShare() error {
 				return fmt.Errorf("Failed getting info for existing lxd-agent install %q: %w", lxdAgentInstallPath, err)
 			}
 
-			if lxdAgentInstallInfo.ModTime() == lxdAgentSrcInfo.ModTime() && lxdAgentInstallInfo.Size() == lxdAgentSrcInfo.Size() {
+			if lxdAgentInstallInfo.ModTime().Equal(lxdAgentSrcInfo.ModTime()) && lxdAgentInstallInfo.Size() == lxdAgentSrcInfo.Size() {
 				lxdAgentNeedsInstall = false
 			}
 		}
@@ -3471,8 +3478,8 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 					break
 				}
 
-				qemuDev := make(map[string]string)
-				if shared.ValueInSlice(busName, []string{"nvme", "virtio-blk"}) {
+				qemuDev := make(map[string]any)
+				if slices.Contains([]string{"nvme", "virtio-blk"}, busName) {
 					// Allocate a PCI(e) port and write it to the config file so QMP can "hotplug" the
 					// drive into it later.
 					devBus, devAddr, multi := bus.allocate(busFunctionGroupNone)
@@ -3482,7 +3489,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 					qemuDev["addr"] = devAddr
 
 					if multi {
-						qemuDev["multifunction"] = "on"
+						qemuDev["multifunction"] = true
 					}
 				}
 
@@ -3506,8 +3513,8 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		// Add network device.
 		if len(runConf.NetworkInterface) > 0 {
-			qemuDev := make(map[string]string)
-			if shared.ValueInSlice(bus.name, []string{"pcie", "pci"}) {
+			qemuDev := make(map[string]any)
+			if slices.Contains([]string{"pcie", "pci"}, bus.name) {
 				// Allocate a PCI(e) port and write it to the config file so QMP can "hotplug" the
 				// NIC into it later.
 				devBus, devAddr, multi := bus.allocate(busFunctionGroupNone)
@@ -3517,7 +3524,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 				qemuDev["addr"] = devAddr
 
 				if multi {
-					qemuDev["multifunction"] = "on"
+					qemuDev["multifunction"] = true
 				}
 			}
 
@@ -3718,19 +3725,25 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error
 }
 
 // addRootDriveConfig adds the qemu config required for adding the root drive.
-func (d *qemu) addRootDriveConfig(qemuDev map[string]string, mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) (monitorHook, error) {
+func (d *qemu) addRootDriveConfig(qemuDev map[string]any, mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) (monitorHook, error) {
 	if rootDriveConf.TargetPath != "/" {
 		return nil, fmt.Errorf("Non-root drive config supplied")
 	}
 
-	if !d.storagePool.Driver().Info().Remote && mountInfo.DiskPath == "" {
+	devSource, isPath := mountInfo.DevSource.(deviceConfig.DevSourcePath)
+
+	if !isPath {
+		return nil, fmt.Errorf("Unhandled DevSource type %T", mountInfo.DevSource)
+	}
+
+	if !d.storagePool.Driver().Info().Remote && devSource.Path == "" {
 		return nil, fmt.Errorf("No root disk path available from mount")
 	}
 
 	// Generate a new device config with the root device path expanded.
 	driveConf := deviceConfig.MountEntryItem{
 		DevName:    rootDriveConf.DevName,
-		DevSource:  device.DevSourcePath{Path: mountInfo.DiskPath},
+		DevSource:  mountInfo.DevSource,
 		Opts:       rootDriveConf.Opts,
 		TargetPath: rootDriveConf.TargetPath,
 		Limits:     rootDriveConf.Limits,
@@ -3754,7 +3767,7 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]string, mountInfo *storageP
 
 			rbdImageName, snapName := storageDrivers.CephGetRBDImageName(vol, false)
 
-			driveConf.DevSource = device.DevSourceRBD{
+			driveConf.DevSource = deviceConfig.DevSourceRBD{
 				ClusterName: clusterName,
 				UserName:    userName,
 				PoolName:    config["ceph.osd.pool_name"],
@@ -3835,7 +3848,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 	// Add 9p share config.
 	devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
-	fdSource, ok := driveConf.DevSource.(device.DevSourceFD)
+	fdSource, ok := driveConf.DevSource.(deviceConfig.DevSourceFD)
 	if !ok {
 		return fmt.Errorf("Drive config for %q was not a file descriptor", driveConf.DevName)
 	}
@@ -3861,13 +3874,13 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
-func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) (monitorHook, error) {
+func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) (monitorHook, error) {
 	aioMode := "native" // Use native kernel async IO and O_DIRECT by default.
 	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics by default.
 	media := "disk"
-	rbdSource, isRBDImage := driveConf.DevSource.(device.DevSourceRBD)
-	fdSource, isFd := driveConf.DevSource.(device.DevSourceFD)
-	pathSource, _ := driveConf.DevSource.(device.DevSourcePath)
+	rbdSource, isRBDImage := driveConf.DevSource.(deviceConfig.DevSourceRBD)
+	fdSource, isFd := driveConf.DevSource.(deviceConfig.DevSourceFD)
+	pathSource, _ := driveConf.DevSource.(deviceConfig.DevSourcePath)
 
 	// Check supported features.
 	// Use io_uring over native for added performance (if supported by QEMU and kernel is recent enough).
@@ -3972,10 +3985,11 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 	directCache := true   // Bypass host cache, use O_DIRECT semantics by default.
 	noFlushCache := false // Don't ignore any flush requests for the device.
 
-	if cacheMode == "unsafe" {
+	switch cacheMode {
+	case "unsafe":
 		directCache = false
 		noFlushCache = true
-	} else if cacheMode == "writeback" {
+	case "writeback":
 		directCache = false
 	}
 
@@ -4058,7 +4072,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 	}
 
 	if qemuDev == nil {
-		qemuDev = map[string]string{}
+		qemuDev = map[string]any{}
 	}
 
 	escapedDeviceName := filesystem.PathNameEncode(driveConf.DevName)
@@ -4070,20 +4084,31 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 	}
 
 	qemuDev["drive"] = qemuDevDrive
-	qemuDev["serial"] = qemuDeviceNamePrefix + escapedDeviceName
+
+	qemuDeviceSerial := qemuDeviceNamePrefix + escapedDeviceName
+	qemuDev["serial"] = qemuDeviceSerial
+
+	// Trim the serial down to 36 characters if longer than that, since this is the max size of a serial in QEMU.
+	// Do not hash as to not break older guests that were relying on QEMU to reduce the size of the device serial.
+	if len(qemuDeviceSerial) > 36 {
+		qemuDev["serial"] = qemuDeviceSerial[:36]
+	}
 
 	if bus == "virtio-scsi" {
-		qemuDev["channel"] = "0"
-		qemuDev["lun"] = "1"
+		qemuDev["device_id"] = qemuDeviceNameOrID(qemuDeviceNamePrefix, driveConf.DevName, "", qemuDeviceNameMaxLength)
+		qemuDev["channel"] = 0
+		qemuDev["lun"] = 1
 		qemuDev["bus"] = "qemu_scsi.0"
 
-		if media == "disk" {
+		switch media {
+		case "disk":
 			qemuDev["driver"] = "scsi-hd"
-		} else if media == "cdrom" {
+		case "cdrom":
 			qemuDev["driver"] = "scsi-cd"
 		}
 	} else if shared.ValueInSlice(bus, []string{"nvme", "virtio-blk"}) {
-		if qemuDev["bus"] == "" {
+		qemuDevBus, ok := qemuDev["bus"].(string)
+		if !ok || qemuDevBus == "" {
 			// Figure out a hotplug slot.
 			pciDevID := qemuPCIDeviceIDStart
 
@@ -4108,7 +4133,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 	}
 
 	if bootIndexes != nil {
-		qemuDev["bootindex"] = strconv.Itoa(bootIndexes[driveConf.DevName])
+		qemuDev["bootindex"] = bootIndexes[driveConf.DevName]
 	}
 
 	monHook := func(m *qmp.Monitor) error {
@@ -4132,6 +4157,8 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 			if readonly {
 				permissions = unix.O_RDONLY
 			}
+
+			permissions |= unix.O_DIRECT
 
 			f, err := os.OpenFile(pathSource.Path, permissions, 0)
 			if err != nil {
@@ -4158,7 +4185,12 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		}
 
 		if driveConf.Limits != nil {
-			err = m.SetBlockThrottle(qemuDev["id"], int(driveConf.Limits.ReadBytes), int(driveConf.Limits.WriteBytes), int(driveConf.Limits.ReadIOps), int(driveConf.Limits.WriteIOps))
+			qemuDevID, ok := qemuDev["id"].(string)
+			if !ok {
+				return fmt.Errorf("Failed getting QEMU device id")
+			}
+
+			err = m.SetBlockThrottle(qemuDevID, int(driveConf.Limits.ReadBytes), int(driveConf.Limits.WriteBytes), int(driveConf.Limits.ReadIOps), int(driveConf.Limits.WriteIOps))
 			if err != nil {
 				return fmt.Errorf("Failed applying limits for disk device %q: %w", driveConf.DevName, err)
 			}
@@ -4173,31 +4205,32 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 
 // addNetDevConfig adds the qemu config required for adding a network device.
 // The qemuDev map is expected to be preconfigured with the settings for an existing port to use for the device.
-func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem) (monitorHook, error) {
+func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]any, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem) (monitorHook, error) {
 	reverter := revert.New()
 	defer reverter.Fail()
 
 	var devName, nicName, devHwaddr, pciSlotName, pciIOMMUGroup, vDPADevName, vhostVDPAPath, maxVQP, mtu, name string
 	for _, nicItem := range nicConfig {
-		if nicItem.Key == "devName" {
+		switch nicItem.Key {
+		case "devName":
 			devName = nicItem.Value
-		} else if nicItem.Key == "link" {
+		case "link":
 			nicName = nicItem.Value
-		} else if nicItem.Key == "hwaddr" {
+		case "hwaddr":
 			devHwaddr = nicItem.Value
-		} else if nicItem.Key == "pciSlotName" {
+		case "pciSlotName":
 			pciSlotName = nicItem.Value
-		} else if nicItem.Key == "pciIOMMUGroup" {
+		case "pciIOMMUGroup":
 			pciIOMMUGroup = nicItem.Value
-		} else if nicItem.Key == "vDPADevName" {
+		case "vDPADevName":
 			vDPADevName = nicItem.Value
-		} else if nicItem.Key == "vhostVDPAPath" {
+		case "vhostVDPAPath":
 			vhostVDPAPath = nicItem.Value
-		} else if nicItem.Key == "maxVQP" {
+		case "maxVQP":
 			maxVQP = nicItem.Value
-		} else if nicItem.Key == "mtu" {
+		case "mtu":
 			mtu = nicItem.Value
-		} else if nicItem.Key == "name" {
+		case "name":
 			name = nicItem.Value
 		}
 	}
@@ -4215,7 +4248,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 	if len(bootIndexes) > 0 {
 		bootIndex, found := bootIndexes[devName]
 		if found {
-			qemuDev["bootindex"] = strconv.Itoa(bootIndex)
+			qemuDev["bootindex"] = bootIndex
 		}
 	}
 
@@ -4233,9 +4266,9 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 		// Number of vectors is number of vCPUs * 2 (RX/TX) + 2 (config/control MSI-X).
 		vectors := 2*queueCount + 2
 		if vectors > 0 {
-			qemuDev["mq"] = "on"
-			if shared.ValueInSlice(busName, []string{"pcie", "pci"}) {
-				qemuDev["vectors"] = strconv.Itoa(vectors)
+			qemuDev["mq"] = true
+			if slices.Contains([]string{"pcie", "pci"}, busName) {
+				qemuDev["vectors"] = vectors
 			}
 		}
 
@@ -4442,9 +4475,9 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 			}
 
 			qemuDev["netdev"] = qemuNetDevID
-			qemuDev["page-per-vq"] = "on"
-			qemuDev["iommu_platform"] = "on"
-			qemuDev["disable-legacy"] = "on"
+			qemuDev["page-per-vq"] = true
+			qemuDev["iommu_platform"] = true
+			qemuDev["disable-legacy"] = true
 
 			err = m.AddNIC(qemuNetDev, qemuDev)
 			if err != nil {
@@ -4539,9 +4572,10 @@ func (d *qemu) writeNICDevConfig(mtuStr string, devName string, nicName string, 
 func (d *qemu) addPCIDevConfig(cfg *[]cfgSection, bus *qemuBus, pciConfig []deviceConfig.RunConfigItem) error {
 	var devName, pciSlotName string
 	for _, pciItem := range pciConfig {
-		if pciItem.Key == "devName" {
+		switch pciItem.Key {
+		case "devName":
 			devName = pciItem.Value
-		} else if pciItem.Key == "pciSlotName" {
+		case "pciSlotName":
 			pciSlotName = pciItem.Value
 		}
 	}
@@ -4566,11 +4600,12 @@ func (d *qemu) addPCIDevConfig(cfg *[]cfgSection, bus *qemuBus, pciConfig []devi
 func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []deviceConfig.RunConfigItem) error {
 	var devName, pciSlotName, vgpu string
 	for _, gpuItem := range gpuConfig {
-		if gpuItem.Key == "devName" {
+		switch gpuItem.Key {
+		case "devName":
 			devName = gpuItem.Value
-		} else if gpuItem.Key == "pciSlotName" {
+		case "pciSlotName":
 			pciSlotName = gpuItem.Value
-		} else if gpuItem.Key == "vgpu" {
+		case "vgpu":
 			vgpu = gpuItem.Value
 		}
 	}
@@ -4670,7 +4705,7 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []devi
 }
 
 func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHook, error) {
-	device := map[string]string{
+	qemuDev := map[string]any{
 		"id":     qemuDeviceIDPrefix + usbDev.DeviceName,
 		"driver": "usb-host",
 		"bus":    "qemu_usb.0",
@@ -4687,18 +4722,23 @@ func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHoo
 
 		defer func() { _ = f.Close() }()
 
-		info, err := m.SendFileWithFDSet(device["id"], f, false)
+		qemuDevID, ok := qemuDev["id"].(string)
+		if !ok {
+			return fmt.Errorf("Failed getting QEMU device id")
+		}
+
+		info, err := m.SendFileWithFDSet(qemuDevID, f, false)
 		if err != nil {
 			return fmt.Errorf("Failed to send file descriptor: %w", err)
 		}
 
 		revert.Add(func() {
-			_ = m.RemoveFDFromFDSet(device["id"])
+			_ = m.RemoveFDFromFDSet(qemuDevID)
 		})
 
-		device["hostdevice"] = fmt.Sprintf("/dev/fdset/%d", info.ID)
+		qemuDev["hostdevice"] = fmt.Sprintf("/dev/fdset/%d", info.ID)
 
-		err = m.AddDevice(device)
+		err = m.AddDevice(qemuDev)
 		if err != nil {
 			return fmt.Errorf("Failed to add device: %w", err)
 		}
@@ -4714,9 +4754,10 @@ func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.Ru
 	var devName, socketPath string
 
 	for _, tpmItem := range tpmConfig {
-		if tpmItem.Key == "path" {
+		switch tpmItem.Key {
+		case "path":
 			socketPath = tpmItem.Value
-		} else if tpmItem.Key == "devName" {
+		case "devName":
 			devName = tpmItem.Value
 		}
 	}
@@ -5356,14 +5397,13 @@ func allowRemoveSecurityProtectionStart(state *state.State, poolName string, vol
 		return err
 	})
 	if err != nil {
-		volumeTypeName := dbCluster.StoragePoolVolumeTypeNames[volumeType]
-		return fmt.Errorf(`Failed loading "%s/%s" from project %q: %w`, volumeTypeName, volumeName, volumeProject, err)
+		return fmt.Errorf(`Failed loading "%s/%s" from project %q: %w`, volumeType, volumeName, volumeProject, err)
 	}
 
 	if shared.IsFalseOrEmpty(dbVolume.Config["security.shared"]) {
 		// Only check instances here, as a VM root volume cannot be part of a profile
 		// when not using security.shared
-		err := storagePools.VolumeUsedByInstanceDevices(state, pool.Name(), volumeProject, &dbVolume.StorageVolume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+		err := storagePools.VolumeUsedByInstanceDevices(state, pool.Name(), volumeProject, &dbVolume.StorageVolume, true, func(inst db.InstanceArgs, _ api.Project, _ []string) error {
 			// The volume is always attached to its instance
 			if proj.Name == inst.Project && volumeName == inst.Name {
 				return nil
@@ -5634,7 +5674,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		// If security.protection.start is being removed, we need to make sure that
 		// our root disk device is not attached to another instance.
 		if shared.IsTrue(oldExpandedConfig["security.protection.start"]) && shared.IsFalseOrEmpty(d.expandedConfig["security.protection.start"]) {
-			err := allowRemoveSecurityProtectionStart(d.state, newRootDev["pool"], d.common.name, &d.common.project)
+			err := allowRemoveSecurityProtectionStart(d.state, newRootDev["pool"], d.name, &d.project)
 			if err != nil {
 				return err
 			}
@@ -5714,7 +5754,8 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		for _, key := range changedConfig {
 			value := d.expandedConfig[key]
 
-			if key == "limits.cpu" {
+			switch key {
+			case "limits.cpu":
 				oldValue := oldExpandedConfig["limits.cpu"]
 
 				if oldValue != "" {
@@ -5740,20 +5781,20 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				}
 
 				cpuLimitWasChanged = true
-			} else if key == "limits.memory" {
+			case "limits.memory":
 				err = d.updateMemoryLimit(value)
 				if err != nil {
 					if err != nil {
 						return fmt.Errorf("Failed updating memory limit: %w", err)
 					}
 				}
-			} else if key == "security.csm" {
+			case "security.csm":
 				// Defer rebuilding nvram until next start.
 				d.localConfig["volatile.apply_nvram"] = "true"
-			} else if key == "security.secureboot" {
+			case "security.secureboot":
 				// Defer rebuilding nvram until next start.
 				d.localConfig["volatile.apply_nvram"] = "true"
-			} else if key == "security.devlxd" {
+			case "security.devlxd":
 				err = d.advertiseVsockAddress()
 				if err != nil {
 					return err
@@ -6408,7 +6449,13 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 	defer func() { _ = os.RemoveAll(tmpPath) }()
 
-	if mountInfo.DiskPath == "" {
+	devSource, isPath := mountInfo.DevSource.(deviceConfig.DevSourcePath)
+
+	if !isPath {
+		return meta, fmt.Errorf("Unhandled DevSource type %T", mountInfo.DevSource)
+	}
+
+	if devSource.Path == "" {
 		return meta, fmt.Errorf("No disk path available from mount")
 	}
 
@@ -6424,7 +6471,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	defer revert.Fail()
 
 	// Check for Direct I/O support.
-	from, err := os.OpenFile(mountInfo.DiskPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+	from, err := os.OpenFile(devSource.Path, unix.O_DIRECT|unix.O_RDONLY, 0)
 	if err == nil {
 		cmd = append(cmd, "-T", "none")
 		_ = from.Close()
@@ -6438,9 +6485,9 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 	revert.Add(func() { _ = os.Remove(fPath) })
 
-	cmd = append(cmd, mountInfo.DiskPath, fPath)
+	cmd = append(cmd, devSource.Path, fPath)
 
-	_, err = apparmor.QemuImg(d.state.OS, cmd, mountInfo.DiskPath, fPath, tracker)
+	_, err = apparmor.QemuImg(d.state.OS, cmd, devSource.Path, fPath, tracker)
 	if err != nil {
 		return meta, fmt.Errorf("Failed converting instance to qcow2: %w", err)
 	}
@@ -7892,7 +7939,7 @@ func (d *qemu) Render(options ...func(response any) error) (state any, etag any,
 }
 
 // RenderFull returns all info about the instance.
-func (d *qemu) RenderFull(hostInterfaces []net.Interface) (*api.InstanceFull, any, error) {
+func (d *qemu) RenderFull(_ []net.Interface) (*api.InstanceFull, any, error) {
 	if d.IsSnapshot() {
 		return nil, nil, fmt.Errorf("RenderFull doesn't work with snapshots")
 	}
@@ -8015,14 +8062,14 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 	status.StatusCode = statusCode
 	status.Disk, err = d.diskState()
 	if err != nil && !errors.Is(err, storageDrivers.ErrNotSupported) {
-		d.logger.Warn("Error getting disk usage", logger.Ctx{"err": err})
+		d.logger.Info("Unable to get disk usage", logger.Ctx{"err": err})
 	}
 
 	return status, nil
 }
 
 // RenderState returns just state info about the instance.
-func (d *qemu) RenderState(hostInterfaces []net.Interface) (*api.InstanceState, error) {
+func (d *qemu) RenderState(_ []net.Interface) (*api.InstanceState, error) {
 	return d.renderState(d.statusCode())
 }
 
@@ -8451,6 +8498,36 @@ func (d *qemu) cpuTopology(limit string) (*cpuTopology, error) {
 		topology.sockets = 1
 		topology.cores = nrLimit
 		topology.threads = 1
+
+		// Check for NUMA node assignment without pinning
+		if d.expandedConfig["limits.cpu.nodes"] != "" {
+			numaNodeIDs, err := resources.ParseNumaNodeSet(d.expandedConfig["limits.cpu.nodes"])
+			if err != nil {
+				return nil, fmt.Errorf("Invalid NUMA node selection: %v", err)
+			}
+
+			topology.vcpus = map[uint64]uint64{}
+			topology.nodes = map[uint64][]uint64{}
+
+			// Assign all vCPUs to the first specified node if a single NUMA node is specified
+			// (Note: virtual to physical mapping doesn't matter in non-pinned mode)
+			if len(numaNodeIDs) == 1 {
+				node := numaNodeIDs[0]
+				topology.nodes[uint64(node)] = []uint64{}
+				for i := uint64(0); i < uint64(nrLimit); i++ {
+					topology.vcpus[i] = i
+					topology.nodes[uint64(node)] = append(topology.nodes[uint64(node)], i)
+				}
+			} else {
+				// If multiple NUMA nodes are given, distribute vCPUs evenly across specified nodes.
+				node := numaNodeIDs[0]
+				topology.nodes[uint64(node)] = []uint64{}
+				for i := uint64(0); i < uint64(nrLimit); i++ {
+					topology.vcpus[i] = i
+					topology.nodes[uint64(node)] = append(topology.nodes[uint64(node)], i)
+				}
+			}
+		}
 
 		return topology, nil
 	}
@@ -8882,7 +8959,7 @@ func (d *qemu) version() (*version.DottedVersion, error) {
 // If the instance is not running, it returns ErrInstanceIsStopped.
 // If agent metrics are enabled, it tries to get the metrics from the agent.
 // If the agent is not reachable, it falls back to getting the metrics directly from QEMU.
-func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
+func (d *qemu) Metrics(_ []net.Interface) (*metrics.MetricSet, error) {
 	if !d.IsRunning() {
 		return nil, ErrInstanceIsStopped
 	}
@@ -9079,19 +9156,19 @@ func (d *qemu) setCPUs(count int) error {
 
 			devID := fmt.Sprintf("cpu%d%d%d", cpu.Props.SocketID, cpu.Props.CoreID, cpu.Props.ThreadID)
 
-			dev := map[string]string{
+			qemuDev := map[string]any{
 				"id":      devID,
 				"driver":  cpu.Type,
-				"core-id": fmt.Sprint(cpu.Props.CoreID),
+				"core-id": cpu.Props.CoreID,
 			}
 
 			// No such thing as sockets and threads on s390x.
 			if d.architecture != osarch.ARCH_64BIT_S390_BIG_ENDIAN {
-				dev["socket-id"] = fmt.Sprint(cpu.Props.SocketID)
-				dev["thread-id"] = fmt.Sprint(cpu.Props.ThreadID)
+				qemuDev["socket-id"] = cpu.Props.SocketID
+				qemuDev["thread-id"] = cpu.Props.ThreadID
 			}
 
-			err := monitor.AddDevice(dev)
+			err := monitor.AddDevice(qemuDev)
 			if err != nil {
 				return fmt.Errorf("Failed to add device: %w", err)
 			}
@@ -9120,12 +9197,12 @@ func (d *qemu) setCPUs(count int) error {
 			}
 
 			revert.Add(func() {
-				err := monitor.AddDevice(map[string]string{
+				err := monitor.AddDevice(map[string]any{
 					"id":        devID,
 					"driver":    cpu.Type,
-					"socket-id": fmt.Sprint(cpu.Props.SocketID),
-					"core-id":   fmt.Sprint(cpu.Props.CoreID),
-					"thread-id": fmt.Sprint(cpu.Props.ThreadID),
+					"socket-id": cpu.Props.SocketID,
+					"core-id":   cpu.Props.CoreID,
+					"thread-id": cpu.Props.ThreadID,
 				})
 				d.logger.Warn("Failed to add CPU device", logger.Ctx{"err": err})
 			})

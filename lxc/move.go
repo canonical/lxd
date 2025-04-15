@@ -233,7 +233,7 @@ func (c *cmdMove) run(cmd *cobra.Command, args []string) error {
 				profiles = &[]string{}
 			}
 
-			return moveInstance(conf, sourceResource, destResource, c.flagStorage, c.flagTargetProject, c.flagConfig, c.flagDevice, profiles, c.flagInstanceOnly, stateful)
+			return c.moveInstance(conf, sourceResource, destResource, profiles, stateful)
 		}
 
 		if source.HasExtension("instance_pool_move") && source.HasExtension("instance_project_move") {
@@ -245,7 +245,9 @@ func (c *cmdMove) run(cmd *cobra.Command, args []string) error {
 				return errors.New(i18n.G("The --mode flag can't be used with --storage or --target-project"))
 			}
 
-			return moveInstance(conf, sourceResource, destResource, c.flagStorage, c.flagTargetProject, []string{}, []string{}, nil, c.flagInstanceOnly, stateful)
+			c.flagConfig = []string{}
+			c.flagDevice = []string{}
+			return c.moveInstance(conf, sourceResource, destResource, nil, stateful)
 		}
 	}
 
@@ -356,7 +358,7 @@ func moveClusterInstance(conf *config.Config, sourceResource string, destResourc
 }
 
 // Move an instance between pools and projects using special POST /instances/<name> API.
-func moveInstance(conf *config.Config, sourceResource string, destResource string, storage string, targetProject string, config []string, devices []string, profiles *[]string, instanceOnly bool, stateful bool) error {
+func (c *cmdMove) moveInstance(conf *config.Config, sourceResource string, destResource string, profiles *[]string, stateful bool) error {
 	// Parse the source.
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
 	if err != nil {
@@ -392,7 +394,7 @@ func moveInstance(conf *config.Config, sourceResource string, destResource strin
 	}
 
 	// Overwrite the config values.
-	for _, entry := range config {
+	for _, entry := range c.flagConfig {
 		key, value, found := strings.Cut(entry, "=")
 		if !found {
 			return fmt.Errorf(i18n.G("Bad key=value pair: %q"), entry)
@@ -402,7 +404,7 @@ func moveInstance(conf *config.Config, sourceResource string, destResource strin
 	}
 
 	// Parse device map and overwrite device settings.
-	deviceMap, err := parseDeviceOverrides(devices)
+	deviceMap, err := parseDeviceOverrides(c.flagDevice)
 	if err != nil {
 		return err
 	}
@@ -422,9 +424,9 @@ func moveInstance(conf *config.Config, sourceResource string, destResource strin
 	req := api.InstancePost{
 		Name:         destName,
 		Migration:    true,
-		InstanceOnly: instanceOnly,
-		Pool:         storage,
-		Project:      targetProject,
+		InstanceOnly: c.flagInstanceOnly,
+		Pool:         c.flagStorage,
+		Project:      c.flagTargetProject,
 		Live:         stateful,
 		Config:       inst.Config,
 		Devices:      inst.Devices,
@@ -433,6 +435,15 @@ func moveInstance(conf *config.Config, sourceResource string, destResource strin
 	// Overwrite profiles.
 	if profiles != nil {
 		req.Profiles = *profiles
+	}
+
+	// Traditionally, if instance with snapshots is transferred across projects,
+	// the snapshots keep their own profiles.
+	// This doesn't work if the snapshot profiles don't exist in the target project.
+	// If different profiles are specified for the instance,
+	// instruct the server to apply the profiles of the source instance to the snapshots as well.
+	if c.flagNoProfiles || profiles != nil {
+		req.OverrideSnapshotProfiles = true
 	}
 
 	op, err := source.MigrateInstance(sourceName, req)

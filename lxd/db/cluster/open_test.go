@@ -1,9 +1,10 @@
-package cluster_test
+package cluster
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -24,21 +25,20 @@ func TestEnsureSchema_NoClustered(t *testing.T) {
 	assert.NoError(t, os.Mkdir(filepath.Join(dir, "global"), 0711))
 	db := newDB(t)
 	addNode(t, db, "0.0.0.0", 1, 1)
-	ready, err := cluster.EnsureSchema(db, "1.2.3.4:666", dir)
-	assert.True(t, ready)
+	err := EnsureSchema(db, "1.2.3.4:666", dir)
 	assert.NoError(t, err)
 }
 
 // Exercise EnsureSchema failures when the cluster can't be upgraded right now.
 func TestEnsureSchema_ClusterNotUpgradable(t *testing.T) {
-	schema := cluster.SchemaVersion
+	schema := SchemaVersion
 	apiExtensions := len(version.APIExtensions)
 
 	cases := []struct {
-		title string
-		setup func(*testing.T, *sql.DB)
-		ready bool
-		error string
+		title              string
+		setup              func(*testing.T, *sql.DB)
+		apiStatusErrorCode int
+		error              string
 	}{
 		{
 			`a node's schema version is behind`,
@@ -46,8 +46,8 @@ func TestEnsureSchema_ClusterNotUpgradable(t *testing.T) {
 				addNode(t, db, "1", schema, apiExtensions)
 				addNode(t, db, "2", schema-1, apiExtensions)
 			},
-			false, // The schema was not updated
-			"",    // No error is returned
+			http.StatusPreconditionFailed, // The schema was not updated
+			"",
 		},
 		{
 			`a node's number of API extensions is behind`,
@@ -55,8 +55,8 @@ func TestEnsureSchema_ClusterNotUpgradable(t *testing.T) {
 				addNode(t, db, "1", schema, apiExtensions)
 				addNode(t, db, "2", schema, apiExtensions-1)
 			},
-			false, // The schema was not updated
-			"",    // No error is returned
+			http.StatusPreconditionFailed, // The schema was not updated
+			"",
 		},
 		{
 			`this node's schema is behind`,
@@ -64,8 +64,8 @@ func TestEnsureSchema_ClusterNotUpgradable(t *testing.T) {
 				addNode(t, db, "1", schema, apiExtensions)
 				addNode(t, db, "2", schema+1, apiExtensions)
 			},
-			false,
-			"Failed to ensure schema: This cluster member's version is behind, please upgrade",
+			http.StatusPreconditionFailed,
+			"",
 		},
 		{
 			`this node's number of API extensions is behind`,
@@ -73,8 +73,8 @@ func TestEnsureSchema_ClusterNotUpgradable(t *testing.T) {
 				addNode(t, db, "1", schema, apiExtensions)
 				addNode(t, db, "2", schema, apiExtensions+1)
 			},
-			false,
-			"Failed to ensure schema: This cluster member's version is behind, please upgrade",
+			http.StatusPreconditionFailed,
+			"",
 		},
 		{
 			`inconsistent schema version and API extensions number`,
@@ -82,7 +82,7 @@ func TestEnsureSchema_ClusterNotUpgradable(t *testing.T) {
 				addNode(t, db, "1", schema, apiExtensions)
 				addNode(t, db, "2", schema+1, apiExtensions-1)
 			},
-			false,
+			0,
 			"Failed to ensure schema: Cluster members have inconsistent versions",
 		},
 	}
@@ -91,9 +91,12 @@ func TestEnsureSchema_ClusterNotUpgradable(t *testing.T) {
 		t.Run(c.title, func(t *testing.T) {
 			db := newDB(t)
 			c.setup(t, db)
-			ready, err := cluster.EnsureSchema(db, "1", "/unused/db/dir")
-			assert.Equal(t, c.ready, ready)
-			if c.error == "" {
+			err := EnsureSchema(db, "1", "/unused/db/dir")
+			if c.apiStatusErrorCode > 0 {
+				statusErrCode, isStatusErr := api.StatusErrorMatch(err)
+				assert.True(t, isStatusErr)
+				assert.Equal(t, c.apiStatusErrorCode, statusErrCode)
+			} else if c.error == "" {
 				assert.NoError(t, err)
 			} else {
 				assert.EqualError(t, err, c.error)
@@ -105,28 +108,28 @@ func TestEnsureSchema_ClusterNotUpgradable(t *testing.T) {
 // Regardless of whether the schema could actually be upgraded or not, the
 // version of this node gets updated.
 func TestEnsureSchema_UpdateNodeVersion(t *testing.T) {
-	schema := cluster.SchemaVersion
+	schema := SchemaVersion
 	apiExtensions := len(version.APIExtensions)
 
 	cases := []struct {
-		setup func(*testing.T, *sql.DB)
-		ready bool
+		setup              func(*testing.T, *sql.DB)
+		apiStatusErrorCode int
 	}{
 		{
-			func(t *testing.T, db *sql.DB) {},
-			true,
+			func(_ *testing.T, _ *sql.DB) {},
+			0,
 		},
 		{
 			func(t *testing.T, db *sql.DB) {
 				// Add a node which is behind.
 				addNode(t, db, "2", schema, apiExtensions-1)
 			},
-			true,
+			0,
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(fmt.Sprint(c.ready), func(t *testing.T) {
+	for i, c := range cases {
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
 			db := newDB(t)
 
 			// Add ourselves with an older schema version and API
@@ -134,9 +137,15 @@ func TestEnsureSchema_UpdateNodeVersion(t *testing.T) {
 			addNode(t, db, "1", schema-1, apiExtensions-1)
 
 			// Ensure the schema.
-			ready, err := cluster.EnsureSchema(db, "1", "/unused/db/dir")
-			assert.NoError(t, err)
-			assert.Equal(t, c.ready, ready)
+			err := EnsureSchema(db, "1", "/unused/db/dir")
+
+			statusErrCode, isStatusErr := api.StatusErrorMatch(err)
+			if c.apiStatusErrorCode > 0 {
+				assert.True(t, isStatusErr)
+				assert.Equal(t, c.apiStatusErrorCode, statusErrCode)
+			} else {
+				assert.NoError(t, err)
+			}
 
 			// Check that the nodes table was updated with our new
 			// schema version and API extensions number.
@@ -158,7 +167,7 @@ CREATE TABLE schema (
     UNIQUE (version)
 );
 `
-	_, err = db.Exec(createTableSchema + cluster.FreshSchema())
+	_, err = db.Exec(createTableSchema + FreshSchema())
 	require.NoError(t, err)
 
 	return db
@@ -166,7 +175,7 @@ CREATE TABLE schema (
 
 // Add a new node with the given address, schema version and number of api extensions.
 func addNode(t *testing.T, db *sql.DB, address string, schema int, apiExtensions int) {
-	err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
+	err := query.Transaction(context.TODO(), db, func(_ context.Context, tx *sql.Tx) error {
 		stmt := `
 INSERT INTO nodes(name, address, schema, api_extensions, arch, description) VALUES (?, ?, ?, ?, ?, '')
 `

@@ -50,6 +50,7 @@ var apiInternal = []APIEndpoint{
 	internalClusterRebalanceCmd,
 	internalClusterHealCmd,
 	internalContainerOnStartCmd,
+	internalContainerOnStartHostCmd,
 	internalContainerOnStopCmd,
 	internalContainerOnStopNSCmd,
 	internalGarbageCollectorCmd,
@@ -62,6 +63,7 @@ var apiInternal = []APIEndpoint{
 	internalWarningCreateCmd,
 	internalIdentityCacheRefreshCmd,
 	internalPruneTokenCmd,
+	internalOperationWaitCmd,
 }
 
 var internalShutdownCmd = APIEndpoint{
@@ -80,6 +82,12 @@ var internalContainerOnStartCmd = APIEndpoint{
 	Path: "containers/{instanceRef}/onstart",
 
 	Get: APIEndpointAction{Handler: internalContainerOnStart, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+}
+
+var internalContainerOnStartHostCmd = APIEndpoint{
+	Path: "containers/{instanceRef}/onstarthost",
+
+	Get: APIEndpointAction{Handler: internalContainerOnStartHost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalContainerOnStopNSCmd = APIEndpoint{
@@ -140,6 +148,11 @@ var internalBGPStateCmd = APIEndpoint{
 var internalPruneTokenCmd = APIEndpoint{
 	Path: "testing/prune-tokens",
 	Post: APIEndpointAction{Handler: removeTokenHandler, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+}
+
+var internalOperationWaitCmd = APIEndpoint{
+	Path: "testing/operation-wait",
+	Post: APIEndpointAction{Handler: operationWaitHandler, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalIdentityCacheRefreshCmd = APIEndpoint{
@@ -207,7 +220,7 @@ func internalOptimizeImage(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func internalRefreshImage(d *Daemon, r *http.Request) response.Response {
+func internalRefreshImage(d *Daemon, _ *http.Request) response.Response {
 	s := d.State()
 
 	err := autoUpdateImages(s.ShutdownCtx, s)
@@ -218,7 +231,7 @@ func internalRefreshImage(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func internalWaitReady(d *Daemon, r *http.Request) response.Response {
+func internalWaitReady(d *Daemon, _ *http.Request) response.Response {
 	// Check that we're not shutting down.
 	isClosing := d.State().ShutdownCtx.Err() != nil
 	if isClosing {
@@ -333,9 +346,42 @@ func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+
 	err = inst.OnHook(instance.HookStart, nil)
 	if err != nil {
-		logger.Error("The start hook failed", logger.Ctx{"instance": inst.Name(), "err": err})
+		l.Error("The start hook failed", logger.Ctx{"err": err})
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
+}
+
+func internalContainerOnStartHost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	inst, err := internalContainerHookLoadFromReference(s, r)
+	if err != nil {
+		logger.Error("The start-host hook failed to load", logger.Ctx{"err": err})
+		return response.SmartError(err)
+	}
+
+	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+
+	lxcPID := request.QueryParam(r, "lxc_pid")
+	if lxcPID == "" {
+		err := fmt.Errorf("No lxc_pid GET parameter was provided")
+		l.Error("The start-host hook failed", logger.Ctx{"err": err})
+		return response.BadRequest(err)
+	}
+
+	args := map[string]string{
+		"LXC_PID": lxcPID,
+	}
+
+	err = inst.OnHook(instance.HookStartHost, args)
+	if err != nil {
+		l.Error("The start-host hook failed", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
@@ -351,6 +397,8 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+
 	target := request.QueryParam(r, "target")
 	if target == "" {
 		target = "unknown"
@@ -365,7 +413,7 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 
 	err = inst.OnHook(instance.HookStopNS, args)
 	if err != nil {
-		logger.Error("The stopns hook failed", logger.Ctx{"instance": inst.Name(), "err": err})
+		l.Error("The stopns hook failed", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
@@ -381,6 +429,8 @@ func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+
 	target := request.QueryParam(r, "target")
 	if target == "" {
 		target = "unknown"
@@ -392,7 +442,7 @@ func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
 
 	err = inst.OnHook(instance.HookStop, args)
 	if err != nil {
-		logger.Error("The stop hook failed", logger.Ctx{"instance": inst.Name(), "err": err})
+		l.Error("The stop hook failed", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
@@ -819,10 +869,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	defer instOp.Done(err)
 
 	instancePath := storagePools.InstancePath(instanceType, projectName, backupConf.Container.Name, false)
-	isPrivileged := false
-	if backupConf.Container.Config["security.privileged"] == "" {
-		isPrivileged = true
-	}
+	isPrivileged := backupConf.Container.Config["security.privileged"] == ""
 
 	err = storagePools.CreateContainerMountpoint(instanceMountPoint, instancePath, isPrivileged)
 	if err != nil {
@@ -1024,7 +1071,7 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 	}
 }
 
-func internalGC(d *Daemon, r *http.Request) response.Response {
+func internalGC(_ *Daemon, _ *http.Request) response.Response {
 	logger.Infof("Started forced garbage collection run")
 	runtime.GC()
 	runtimeDebug.FreeOSMemory()
@@ -1041,19 +1088,19 @@ func internalGC(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func internalRAFTSnapshot(d *Daemon, r *http.Request) response.Response {
+func internalRAFTSnapshot(_ *Daemon, _ *http.Request) response.Response {
 	logger.Warn("Forced RAFT snapshot not supported")
 
 	return response.InternalError(fmt.Errorf("Not supported"))
 }
 
-func internalBGPState(d *Daemon, r *http.Request) response.Response {
+func internalBGPState(d *Daemon, _ *http.Request) response.Response {
 	s := d.State()
 
 	return response.SyncResponse(true, s.BGP.Debug())
 }
 
-func internalIdentityCacheRefresh(d *Daemon, r *http.Request) response.Response {
+func internalIdentityCacheRefresh(d *Daemon, _ *http.Request) response.Response {
 	logger.Debug("Received identity cache update notification - refreshing cache")
 	d.State().UpdateIdentityCache()
 	return response.EmptySyncResponse

@@ -2629,3 +2629,16 @@ Adds the field `client_certificate` to `GET /1.0` to indicate if the current req
 ## `resources_device_fs_uuid`
 
 Adds the field `device_fs_uuid` including the respective UUID to each disk and partition indicating whether or not a filesystem is located on the device.
+
+## `clustering_groups_used_by`
+
+This API extension adds a `used_by` field to the API response for a {ref}`cluster group <cluster-groups>`.
+Deletion of a cluster group is disallowed if the cluster group is referenced by project configuration (see {config:option}`project-restricted:restricted.cluster.groups`).
+
+## `container_bpf_delegation`
+
+Adds new {config:option}`instance-security:security.delegate_bpf`.* group of options in order to support eBPF delegation using BPF Token mechanism. See {ref}`bpf-delegation-token` for more information.
+
+## `override_snapshot_profiles_on_copy`
+
+This adds a request option to set snapshot's target profile on instance copy to be inherited from target instance.

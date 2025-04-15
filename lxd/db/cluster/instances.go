@@ -3,14 +3,10 @@
 package cluster
 
 import (
-	"context"
 	"database/sql"
 	"time"
 
-	"github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
-	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/osarch"
 )
 
 // Code generation directives.
@@ -76,85 +72,4 @@ type InstanceFilter struct {
 	Name    *string
 	Node    *string
 	Type    *instancetype.Type
-}
-
-// ToAPI converts the database Instance to API type.
-func (i *Instance) ToAPI(ctx context.Context, tx *sql.Tx, globalConfig map[string]any, instanceDevices map[int][]Device, profileConfigs map[int]map[string]string, profileDevices map[int][]Device) (*api.Instance, error) {
-	profiles, err := GetInstanceProfiles(ctx, tx, i.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	if profileConfigs == nil {
-		profileConfigs, err = GetConfig(ctx, tx, "profile")
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if profileDevices == nil {
-		profileDevices, err = GetDevices(ctx, tx, "profile")
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	apiProfiles := make([]api.Profile, 0, len(profiles))
-	profileNames := make([]string, 0, len(profiles))
-	for _, p := range profiles {
-		apiProfile, err := p.ToAPI(ctx, tx, profileConfigs, profileDevices)
-		if err != nil {
-			return nil, err
-		}
-
-		apiProfiles = append(apiProfiles, *apiProfile)
-		profileNames = append(profileNames, p.Name)
-	}
-
-	var devices map[string]Device
-	if instanceDevices != nil {
-		devices = map[string]Device{}
-
-		for _, dev := range instanceDevices[i.ID] {
-			devices[dev.Name] = dev
-		}
-	} else {
-		devices, err = GetInstanceDevices(ctx, tx, i.ID)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	apiDevices := DevicesToAPI(devices)
-	expandedDevices := instancetype.ExpandInstanceDevices(config.NewDevices(apiDevices), apiProfiles)
-
-	config, err := GetInstanceConfig(ctx, tx, i.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	expandedConfig := instancetype.ExpandInstanceConfig(globalConfig, config, apiProfiles)
-
-	archName, err := osarch.ArchitectureName(i.Architecture)
-	if err != nil {
-		return nil, err
-	}
-
-	return &api.Instance{
-		Architecture:    archName,
-		Config:          config,
-		Devices:         apiDevices,
-		Ephemeral:       i.Ephemeral,
-		Profiles:        profileNames,
-		Stateful:        i.Stateful,
-		Description:     i.Description,
-		CreatedAt:       i.CreationDate,
-		ExpandedConfig:  expandedConfig,
-		ExpandedDevices: expandedDevices.CloneNative(),
-		Name:            i.Name,
-		LastUsedAt:      i.LastUseDate.Time,
-		Location:        i.Node,
-		Type:            i.Type.String(),
-		Project:         i.Project,
-	}, nil
 }

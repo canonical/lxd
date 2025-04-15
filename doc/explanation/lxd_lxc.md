@@ -1,5 +1,5 @@
 ---
-discourse: lxc:24
+discourse: lxc:[Comparing&#32;LXD&#32;vs.&#32;LXC](24)
 ---
 
 (lxd-lxc)=

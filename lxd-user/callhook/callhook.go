@@ -73,6 +73,10 @@ func HandleContainerHook(lxdPath string, projectName string, instanceRef string,
 	u := api.NewURL().Path("internal", "containers", instanceRef, "on"+hook)
 	u.WithQuery("target", target)
 
+	if hook == "starthost" {
+		u.WithQuery("lxc_pid", os.Getenv("LXC_PID"))
+	}
+
 	if projectName != "" {
 		u.WithQuery("project", projectName)
 	}

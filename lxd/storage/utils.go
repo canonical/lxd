@@ -6,15 +6,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/flosch/pongo2"
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/archive"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/migration"
@@ -33,6 +36,8 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
 )
+
+const defaultSnapshotPattern = "snap%d"
 
 // ConfigDiff returns a diff of the provided configs. Additionally, it returns whether or not
 // only user properties have been changed.
@@ -71,24 +76,8 @@ func ConfigDiff(oldConfig map[string]string, newConfig map[string]string) ([]str
 	return changedConfig, userOnly
 }
 
-// VolumeTypeNameToDBType converts a volume type string to internal volume type DB code.
-func VolumeTypeNameToDBType(volumeTypeName string) (int, error) {
-	switch volumeTypeName {
-	case cluster.StoragePoolVolumeTypeNameContainer:
-		return cluster.StoragePoolVolumeTypeContainer, nil
-	case cluster.StoragePoolVolumeTypeNameVM:
-		return cluster.StoragePoolVolumeTypeVM, nil
-	case cluster.StoragePoolVolumeTypeNameImage:
-		return cluster.StoragePoolVolumeTypeImage, nil
-	case cluster.StoragePoolVolumeTypeNameCustom:
-		return cluster.StoragePoolVolumeTypeCustom, nil
-	}
-
-	return -1, fmt.Errorf("Invalid storage volume type name")
-}
-
 // VolumeTypeToDBType converts volume type to internal volume type DB code.
-func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
+func VolumeTypeToDBType(volType drivers.VolumeType) (cluster.StoragePoolVolumeType, error) {
 	switch volType {
 	case drivers.VolumeTypeContainer:
 		return cluster.StoragePoolVolumeTypeContainer, nil
@@ -104,19 +93,19 @@ func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
 }
 
 // VolumeDBTypeToType converts internal volume type DB code to storage driver volume type.
-func VolumeDBTypeToType(volDBType int) (drivers.VolumeType, error) {
+func VolumeDBTypeToType(volDBType cluster.StoragePoolVolumeType) drivers.VolumeType {
 	switch volDBType {
 	case cluster.StoragePoolVolumeTypeContainer:
-		return drivers.VolumeTypeContainer, nil
+		return drivers.VolumeTypeContainer
 	case cluster.StoragePoolVolumeTypeVM:
-		return drivers.VolumeTypeVM, nil
+		return drivers.VolumeTypeVM
 	case cluster.StoragePoolVolumeTypeImage:
-		return drivers.VolumeTypeImage, nil
+		return drivers.VolumeTypeImage
 	case cluster.StoragePoolVolumeTypeCustom:
-		return drivers.VolumeTypeCustom, nil
+		return drivers.VolumeTypeCustom
 	}
 
-	return "", fmt.Errorf("Invalid storage volume DB type: %d", volDBType)
+	return drivers.VolumeTypeCustom
 }
 
 // InstanceTypeToVolumeType converts instance type to storage driver volume type.
@@ -144,7 +133,7 @@ func VolumeTypeToAPIInstanceType(volType drivers.VolumeType) (api.InstanceType, 
 }
 
 // VolumeContentTypeToDBContentType converts volume type to internal code.
-func VolumeContentTypeToDBContentType(contentType drivers.ContentType) (int, error) {
+func VolumeContentTypeToDBContentType(contentType drivers.ContentType) (cluster.StoragePoolVolumeContentType, error) {
 	switch contentType {
 	case drivers.ContentTypeBlock:
 		return cluster.StoragePoolVolumeContentTypeBlock, nil
@@ -158,31 +147,17 @@ func VolumeContentTypeToDBContentType(contentType drivers.ContentType) (int, err
 }
 
 // VolumeDBContentTypeToContentType converts internal content type DB code to driver representation.
-func VolumeDBContentTypeToContentType(volDBType int) (drivers.ContentType, error) {
+func VolumeDBContentTypeToContentType(volDBType cluster.StoragePoolVolumeContentType) drivers.ContentType {
 	switch volDBType {
 	case cluster.StoragePoolVolumeContentTypeBlock:
-		return drivers.ContentTypeBlock, nil
+		return drivers.ContentTypeBlock
 	case cluster.StoragePoolVolumeContentTypeFS:
-		return drivers.ContentTypeFS, nil
+		return drivers.ContentTypeFS
 	case cluster.StoragePoolVolumeContentTypeISO:
-		return drivers.ContentTypeISO, nil
+		return drivers.ContentTypeISO
 	}
 
-	return "", fmt.Errorf("Invalid volume content type")
-}
-
-// VolumeContentTypeNameToContentType converts volume content type string internal code.
-func VolumeContentTypeNameToContentType(contentTypeName string) (int, error) {
-	switch contentTypeName {
-	case cluster.StoragePoolVolumeContentTypeNameFS:
-		return cluster.StoragePoolVolumeContentTypeFS, nil
-	case cluster.StoragePoolVolumeContentTypeNameBlock:
-		return cluster.StoragePoolVolumeContentTypeBlock, nil
-	case cluster.StoragePoolVolumeContentTypeNameISO:
-		return cluster.StoragePoolVolumeContentTypeISO, nil
-	}
-
-	return -1, fmt.Errorf("Invalid volume content type name")
+	return drivers.ContentTypeFS
 }
 
 // VolumeDBGet loads a volume from the database.
@@ -259,11 +234,7 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 		volumeConfig = map[string]string{}
 	}
 
-	volType, err := VolumeDBTypeToType(volDBType)
-	if err != nil {
-		return err
-	}
-
+	volType := VolumeDBTypeToType(volDBType)
 	vol := drivers.NewVolume(pool.Driver(), pool.Name(), volType, contentType, volumeName, volumeConfig, pool.Driver().Config())
 
 	// Set source indicator.
@@ -942,9 +913,11 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 	return contentType
 }
 
-// volumeIsUsedByDevice; true when vol is referred to by dev
-// inst is the instance dev belongs to, or nil if dev is part of a profile.
-func volumeIsUsedByDevice(vol api.StorageVolume, inst *db.InstanceArgs, dev map[string]string) (bool, error) {
+// volumeIsUsedByDevice; true when vol is referred to by dev, assumes the volume
+// belongs to the correct project to be referenced by the instance.
+// instanceType=instanceType.Any indicates the device is used by a profile.
+// The instanceName argument is only used if instanceType != instanceType.Any.
+func volumeIsUsedByDevice(vol api.StorageVolume, instanceType instancetype.Type, instanceName string, dev map[string]string) (bool, error) {
 	if dev["type"] != cluster.TypeDisk.String() {
 		return false, nil
 	}
@@ -953,8 +926,8 @@ func volumeIsUsedByDevice(vol api.StorageVolume, inst *db.InstanceArgs, dev map[
 		return false, nil
 	}
 
-	if inst != nil && instancetype.IsRootDiskDevice(dev) {
-		rootVolumeType, err := InstanceTypeToVolumeType(inst.Type)
+	if instanceType != instancetype.Any && instancetype.IsRootDiskDevice(dev) {
+		rootVolumeType, err := InstanceTypeToVolumeType(instanceType)
 		if err != nil {
 			return false, err
 		}
@@ -964,7 +937,7 @@ func volumeIsUsedByDevice(vol api.StorageVolume, inst *db.InstanceArgs, dev map[
 			return false, err
 		}
 
-		if inst.Name == vol.Name && cluster.StoragePoolVolumeTypeNames[rootVolumeDBType] == vol.Type {
+		if instanceName == vol.Name && rootVolumeDBType.String() == vol.Type {
 			return true, nil
 		}
 	}
@@ -999,7 +972,7 @@ func volumeIsUsedByDevice(vol api.StorageVolume, inst *db.InstanceArgs, dev map[
 // the volume.
 func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, profileFunc func(profileID int64, profile api.Profile, project api.Project, usedByDevices []string) error) error {
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := VolumeTypeNameToDBType(vol.Type)
+	volumeType, err := cluster.StoragePoolVolumeTypeFromName(vol.Type)
 	if err != nil {
 		return err
 	}
@@ -1078,7 +1051,7 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 		// Iterate through each of the profiles's devices, looking for disks in the same pool as volume.
 		// Then try and match the volume name against the profile device's "source" property.
 		for name, dev := range profile.Devices {
-			usesVol, err := volumeIsUsedByDevice(*vol, nil, dev)
+			usesVol, err := volumeIsUsedByDevice(*vol, instancetype.Any, "", dev)
 			if err != nil {
 				return err
 			}
@@ -1106,7 +1079,7 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 // names that are using the volume.
 func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, expandDevices bool, instanceFunc func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error) error {
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := VolumeTypeNameToDBType(vol.Type)
+	volumeType, err := cluster.StoragePoolVolumeTypeFromName(vol.Type)
 	if err != nil {
 		return err
 	}
@@ -1141,7 +1114,7 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 			// Iterate through each of the instance's devices, looking for disks in the same pool as volume.
 			// Then try and match the volume name against the instance device's "source" property.
 			for devName, dev := range devices {
-				usesVol, err := volumeIsUsedByDevice(*vol, &inst, dev)
+				usesVol, err := volumeIsUsedByDevice(*vol, inst.Type, inst.Name, dev)
 				if err != nil {
 					return err
 				}
@@ -1299,13 +1272,19 @@ func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Ope
 
 	defer func() { _ = InstanceUnmount(pool, inst, op) }()
 
-	if mountInfo.DiskPath == "" {
+	devSource, isPath := mountInfo.DevSource.(deviceConfig.DevSourcePath)
+
+	if !isPath {
+		return -1, fmt.Errorf("Unhandled DevSource type %T", mountInfo.DevSource)
+	}
+
+	if devSource.Path == "" {
 		return -1, fmt.Errorf("No disk path available from mount")
 	}
 
-	blockDiskSize, err := block.DiskSizeBytes(mountInfo.DiskPath)
+	blockDiskSize, err := block.DiskSizeBytes(devSource.Path)
 	if err != nil {
-		return -1, fmt.Errorf("Error getting block disk size %q: %w", mountInfo.DiskPath, err)
+		return -1, fmt.Errorf("Error getting block disk size %q: %w", devSource.Path, err)
 	}
 
 	return blockDiskSize, nil
@@ -1390,4 +1369,92 @@ func GetPoolDefaultBlockSize(s *state.State, poolName string) (string, error) {
 	}
 
 	return pool.Driver().Info().DefaultBlockSize, nil
+}
+
+// VolumeDetermineNextSnapshotName determines a name for next snapshot of a volume
+// following the volume's snapshots.pattern or the provided default pattern.
+func VolumeDetermineNextSnapshotName(ctx context.Context, s *state.State, pool string, volumeName string, volumeConfig map[string]string) (string, error) {
+	var err error
+
+	pattern, ok := volumeConfig["snapshots.pattern"]
+	if !ok {
+		pattern = defaultSnapshotPattern
+	}
+
+	pattern, err = shared.RenderTemplate(pattern, pongo2.Context{
+		"creation_date": time.Now(),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	count := strings.Count(pattern, "%d")
+	if count > 1 {
+		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
+	} else if count == 1 {
+		var i int
+		_ = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			i = tx.GetNextStorageVolumeSnapshotIndex(ctx, pool, volumeName, cluster.StoragePoolVolumeTypeCustom, pattern)
+
+			return nil
+		})
+
+		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
+	}
+
+	snapshotExists := false
+
+	var snapshots []db.StorageVolumeArgs
+	var projects []string
+	var pools []string
+
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		projects, err = cluster.GetProjectNames(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		pools, err = tx.GetStoragePoolNames(ctx)
+		if err != nil {
+			return err
+		}
+
+		for _, pool := range pools {
+			var poolID int64
+			poolID, err = tx.GetStoragePoolID(ctx, pool)
+			if err != nil {
+				return err
+			}
+
+			for _, project := range projects {
+				snaps, err := tx.GetLocalStoragePoolVolumeSnapshotsWithType(ctx, project, volumeName, cluster.StoragePoolVolumeTypeCustom, poolID)
+				if err != nil {
+					return err
+				}
+
+				snapshots = append(snapshots, snaps...)
+			}
+		}
+
+		for _, snap := range snapshots {
+			_, snapOnlyName, _ := api.GetParentAndSnapshotName(snap.Name)
+
+			if snapOnlyName == pattern {
+				snapshotExists = true
+				break
+			}
+		}
+
+		if snapshotExists {
+			i := tx.GetNextStorageVolumeSnapshotIndex(ctx, pool, volumeName, cluster.StoragePoolVolumeTypeCustom, pattern)
+			pattern = strings.Replace(pattern, "%d", strconv.Itoa(i), 1)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return pattern, nil
 }

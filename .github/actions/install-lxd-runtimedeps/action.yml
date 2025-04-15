@@ -44,7 +44,8 @@ runs:
           uuid-runtime \
           xfsprogs \
           xz-utils \
-          zfsutils-linux
+          zfsutils-linux \
+          openvswitch-switch
 
         # reclaim some space
         sudo apt-get clean

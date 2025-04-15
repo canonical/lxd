@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 	"sort"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // Schema captures the schema of a database in terms of a series of ordered
@@ -137,7 +139,7 @@ func (s *Schema) File(path string) {
 // initial version that the schema has been upgraded from.
 func (s *Schema) Ensure(db *sql.DB) (int, error) {
 	var current int
-	aborted := false
+	var gracefulAbortErr error
 	err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 		err := execFromFile(ctx, tx, s.path, s.hook)
 		if err != nil {
@@ -156,14 +158,13 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 
 		if s.check != nil {
 			err := s.check(ctx, current, tx)
-			if err == ErrGracefulAbort {
-				// Abort the update gracefully, committing what
-				// we've done so far.
-				aborted = true
-				return nil
-			}
-
 			if err != nil {
+				if api.StatusErrorCheck(err, http.StatusPreconditionFailed) {
+					// Abort the update gracefully, committing what we've done so far.
+					gracefulAbortErr = err
+					return nil
+				}
+
 				return err
 			}
 		}
@@ -188,8 +189,8 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 		return -1, err
 	}
 
-	if aborted {
-		return current, ErrGracefulAbort
+	if gracefulAbortErr != nil {
+		return current, gracefulAbortErr
 	}
 
 	return current, nil
@@ -433,7 +434,7 @@ func formatSQL(statement string) string {
 			continue
 		}
 
-		lines[i] = strings.Replace(line, ", ", ",\n    ", -1)
+		lines[i] = strings.ReplaceAll(line, ", ", ",\n    ")
 	}
 
 	return strings.Join(lines, "\n")

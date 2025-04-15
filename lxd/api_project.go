@@ -1041,12 +1041,8 @@ func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.Cluste
 		return false, err
 	}
 
-	if len(profiles) > 0 {
-		// Consider the project empty if it is only used by the default profile.
-		if len(profiles) == 1 && profiles[0].Name == "default" {
-			return true, nil
-		}
-
+	// Consider the project empty if it is only used by the default profile.
+	if len(profiles) > 1 || (len(profiles) == 1 && profiles[0].Name != "default") {
 		return false, nil
 	}
 

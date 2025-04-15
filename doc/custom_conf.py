@@ -159,6 +159,8 @@ linkcheck_ignore = [
     'https://127.0.0.1:8443/1.0',
     'https://web.libera.chat/#lxd',
     'http://localhost:8000',
+    'http://localhost:8080',
+    'http://localhost:8080/admin',
     r'/lxd/en/latest/api/.*',
     r'/api/.*',
     # Those links may fail from time to time
@@ -236,10 +238,14 @@ custom_excludes = [
 ]
 
 # Add CSS files (located in .sphinx/_static/)
-custom_html_css_files = []
+custom_html_css_files = [
+    'cookie-banner.css'
+]
 
 # Add JavaScript files (located in .sphinx/_static/)
-custom_html_js_files = []
+custom_html_js_files = [
+    'js/bundle.js',
+]
 
 ## The following settings override the default configuration.
 

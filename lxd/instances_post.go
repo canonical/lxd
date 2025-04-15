@@ -182,7 +182,7 @@ func createFromNone(s *state.State, r *http.Request, projectName string, profile
 		args.Architecture = architecture
 	}
 
-	run := func(op *operations.Operation) error {
+	run := func(_ *operations.Operation) error {
 		// Actually create the instance.
 		_, err := instanceCreateAsEmpty(s, args)
 		if err != nil {
@@ -621,10 +621,11 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 			sourceInstance: source,
 			targetInstance: args,
 			// We keep the ContainerOnly for backward compatibility.
-			instanceOnly:         req.Source.InstanceOnly || req.Source.ContainerOnly, //nolint:staticcheck,unused
-			refresh:              req.Source.Refresh,
-			applyTemplateTrigger: true,
-			allowInconsistent:    req.Source.AllowInconsistent,
+			instanceOnly:             req.Source.InstanceOnly || req.Source.ContainerOnly, //nolint:staticcheck,unused
+			refresh:                  req.Source.Refresh,
+			applyTemplateTrigger:     true,
+			allowInconsistent:        req.Source.AllowInconsistent,
+			overrideSnapshotProfiles: req.Source.OverrideSnapshotProfiles,
 		}, op)
 		if err != nil {
 			return err
@@ -821,7 +822,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	// Copy reverter so far so we can use it inside run after this function has finished.
 	runRevert := revert.Clone()
 
-	run := func(op *operations.Operation) error {
+	run := func(_ *operations.Operation) error {
 		defer func() { _ = backupFile.Close() }()
 		defer runRevert.Fail()
 

@@ -21,9 +21,12 @@ balancers
 benchmarking
 BGP
 BitLocker
+bitmask
 BLK
 bool
 bootable
+bpffs
+BPFFS
 BPF
 Btrfs
 bugfix
@@ -80,6 +83,7 @@ ETag
 failover
 filesystem
 firmware
+frontend
 FQDNs
 gapped
 GARP
@@ -129,6 +133,7 @@ KiB
 kibi
 Kibit
 KVM
+libbpf
 Libera
 LogCLI
 lookups
@@ -183,6 +188,7 @@ OpenSSL
 OpenSUSE
 OpenVSwitch
 OptiPNG
+Ory
 OSD
 overcommitting
 OverlayFS

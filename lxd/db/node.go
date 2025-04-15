@@ -84,14 +84,13 @@ type NodeInfoArgs struct {
 	FailureDomains       map[uint64]string
 	MemberFailureDomains map[string]uint64
 	OfflineThreshold     time.Duration
-	MaxMemberVersion     [2]int
+	Members              []NodeInfo
 	RaftNodes            []RaftNode
 }
 
 // ToAPI returns a LXD API entry.
 func (n NodeInfo) ToAPI(ctx context.Context, tx *ClusterTx, args NodeInfoArgs) (*api.ClusterMember, error) {
 	var err error
-	var maxVersion [2]int
 	var failureDomain string
 
 	domainID := args.MemberFailureDomains[n.Address]
@@ -155,15 +154,26 @@ func (n NodeInfo) ToAPI(ctx context.Context, tx *ClusterTx, args NodeInfoArgs) (
 		result.Status = "Offline"
 		result.Message = fmt.Sprintf("No heartbeat for %s (%s)", time.Since(n.Heartbeat), n.Heartbeat)
 	} else {
-		// Check if up to date.
-		cmp, err := util.CompareVersions(maxVersion, n.Version())
-		if err != nil {
-			return nil, err
-		}
+		for _, member := range args.Members {
+			if member.ID == n.ID {
+				continue // Skip ourselves.
+			}
 
-		if cmp == 1 {
-			result.Status = "Blocked"
-			result.Message = "Needs updating to newer version"
+			// Check if up to date.
+			cmp, err := util.CompareVersions(member.Version(), n.Version())
+			if err != nil {
+				return nil, fmt.Errorf("Failed comparing with version of member %q: %w", member.Name, err)
+			}
+
+			if cmp == 1 {
+				result.Status = "Blocked"
+				result.Message = "LXD version is older than other members"
+				break
+			} else if cmp == 2 {
+				result.Status = "Blocked"
+				result.Message = "LXD version is newer than other members"
+				break
+			}
 		}
 	}
 
@@ -192,32 +202,6 @@ func (c *ClusterTx) GetNodeByAddress(ctx context.Context, address string) (NodeI
 	default:
 		return null, fmt.Errorf("more than one node matches")
 	}
-}
-
-// GetNodeMaxVersion returns the highest schema and API versions possible on the cluster.
-func (c *ClusterTx) GetNodeMaxVersion(ctx context.Context) ([2]int, error) {
-	version := [2]int{}
-
-	// Get the maximum DB schema.
-	var maxSchema int
-	row := c.tx.QueryRowContext(ctx, "SELECT MAX(schema) FROM nodes")
-	err := row.Scan(&maxSchema)
-	if err != nil {
-		return version, err
-	}
-
-	// Get the maximum API extension.
-	var maxAPI int
-	row = c.tx.QueryRowContext(ctx, "SELECT MAX(api_extensions) FROM nodes")
-	err = row.Scan(&maxAPI)
-	if err != nil {
-		return version, err
-	}
-
-	// Compute the combined version.
-	version = [2]int{maxSchema, maxAPI}
-
-	return version, nil
 }
 
 // GetNodeWithID returns the node with the given ID.
@@ -338,7 +322,7 @@ func (c *ClusterTx) NodeIsOutdated(ctx context.Context) (bool, error) {
 
 		n, err := util.CompareVersions(node.Version(), version)
 		if err != nil {
-			return false, fmt.Errorf("Failed to compare with version of member %s: %w", node.Name, err)
+			return false, fmt.Errorf("Failed comparing with version of member %q: %w", node.Name, err)
 		}
 
 		if n == 1 {
@@ -530,7 +514,7 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 		}
 	}
 
-	config, err := cluster.GetConfig(context.TODO(), c.Tx(), "node")
+	config, err := cluster.GetConfig(ctx, c.Tx(), "node")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch nodes config: %w", err)
 	}

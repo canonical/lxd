@@ -1,5 +1,5 @@
 ---
-discourse: lxc:15457
+discourse: lxc:[Introducing&#32;MicroCeph](15457)
 ---
 
 (storage-cephfs)=

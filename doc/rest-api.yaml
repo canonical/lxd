@@ -327,6 +327,15 @@ definitions:
                 example: group1
                 type: string
                 x-go-name: Name
+            used_by:
+                description: |-
+                    UsedBy is a list or LXD entity URLs that reference the cluster group.
+
+                    API extension: clustering_groups_used_by
+                items:
+                    type: string
+                type: array
+                x-go-name: UsedBy
         title: ClusterGroup represents a cluster group.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
@@ -2175,6 +2184,11 @@ definitions:
                 example: bar
                 type: string
                 x-go-name: Name
+            override_snapshot_profiles:
+                description: Whether the instances's snapshot should receive target instances profile on copy
+                example: true
+                type: boolean
+                x-go-name: OverrideSnapshotProfiles
             pool:
                 description: Target pool for local cross-pool move
                 example: baz
@@ -2493,6 +2507,11 @@ definitions:
                 example: https://1.2.3.4:8443/1.0/operations/1721ae08-b6a8-416a-9614-3f89302466e1
                 type: string
                 x-go-name: Operation
+            override_snapshot_profiles:
+                description: Whether the instances's snapshot should receive target instances profile on copy
+                example: true
+                type: boolean
+                x-go-name: OverrideSnapshotProfiles
             project:
                 description: Source project name (for copy and local image)
                 example: blah
@@ -7785,7 +7804,7 @@ paths:
                   name: TLS identity
                   required: true
                   schema:
-                    $ref: '#/definitions/IdentitiesPostTLS'
+                    $ref: '#/definitions/IdentitiesTLSPost'
             produces:
                 - application/json
             responses:
@@ -7917,7 +7936,7 @@ paths:
                 - application/json
             description: |-
                 Adds a TLS identity as a trusted client.
-                In this mode, the `token` property must be set to the correct value.
+                In this mode, the `trust_token` property must be set to the correct value.
                 The certificate that the client sent during the TLS handshake will be added.
                 The `certificate` field must be omitted.
 

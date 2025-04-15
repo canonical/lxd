@@ -915,10 +915,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	allNodes := false
-	if s.ServerClustered && request.QueryParam(r, "target") == "" {
-		allNodes = true
-	}
+	allNodes := s.ServerClustered && request.QueryParam(r, "target") == ""
 
 	n, err := doNetworkGet(s, r, allNodes, details.requestProject.Name, details.requestProject.Config, details.networkName)
 	if err != nil {
@@ -1662,8 +1659,8 @@ func networkStartup(stateFunc func() *state.State) error {
 			initNetworks[networkPriorityPhysical][pn] = struct{}{}
 
 			return nil
-		} else if netConfig["network"] != "" && priority != networkPriorityLogical {
-			// Start networks that depend on other logical networks after networks after
+		} else if (netConfig["network"] != "" || netConfig["bridge.external_interfaces"] != "") && priority != networkPriorityLogical {
+			// Start networks that depend on other logical networks after
 			// non-dependent networks and networks that depend on physical interfaces.
 			delete(initNetworks[priority], pn)
 			initNetworks[networkPriorityLogical][pn] = struct{}{}

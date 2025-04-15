@@ -639,9 +639,9 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Convert volume type name to internal integer representation if requested.
-	var volumeType int
+	var volumeType cluster.StoragePoolVolumeType
 	if volumeTypeName != "" {
-		volumeType, err = storagePools.VolumeTypeNameToDBType(volumeTypeName)
+		volumeType, err = cluster.StoragePoolVolumeTypeFromName(volumeTypeName)
 		if err != nil {
 			return response.BadRequest(err)
 		}
@@ -1031,7 +1031,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 		req.ContentType = cluster.StoragePoolVolumeContentTypeNameFS
 	}
 
-	_, err = storagePools.VolumeContentTypeNameToContentType(req.ContentType)
+	_, err = cluster.StoragePoolVolumeContentTypeFromName(req.ContentType)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -1229,15 +1229,12 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 		}
 	}
 
-	volumeDBContentType, err := storagePools.VolumeContentTypeNameToContentType(req.ContentType)
+	volumeDBContentType, err := cluster.StoragePoolVolumeContentTypeFromName(req.ContentType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	contentType, err := storagePools.VolumeDBContentTypeToContentType(volumeDBContentType)
-	if err != nil {
-		return response.SmartError(err)
-	}
+	contentType := storagePools.VolumeDBContentTypeToContentType(volumeDBContentType)
 
 	run := func(op *operations.Operation) error {
 		if req.Source.Name == "" {
@@ -1295,10 +1292,7 @@ func doVolumeMigration(s *state.State, r *http.Request, requestProjectName strin
 		return response.InternalError(err)
 	}
 
-	push := false
-	if req.Source.Mode == "push" {
-		push = true
-	}
+	push := req.Source.Mode == "push"
 
 	// Initialise migrationArgs, don't set the Storage property yet, this is done in DoStorage,
 	// to avoid this function relying on the legacy storage layer.
@@ -2172,7 +2166,8 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	op := &operations.Operation{}
 	op.SetRequestor(r)
 
-	if details.volumeType == cluster.StoragePoolVolumeTypeCustom {
+	switch details.volumeType {
+	case cluster.StoragePoolVolumeTypeCustom:
 		// Restore custom volume from snapshot if requested. This should occur first
 		// before applying config changes so that changes are applied to the
 		// restored volume.
@@ -2200,7 +2195,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 				return response.SmartError(err)
 			}
 		}
-	} else if details.volumeType == cluster.StoragePoolVolumeTypeContainer || details.volumeType == cluster.StoragePoolVolumeTypeVM {
+	case cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM:
 		inst, err := instance.LoadByProjectAndName(s, effectiveProjectName, dbVolume.Name)
 		if err != nil {
 			return response.SmartError(err)
@@ -2211,13 +2206,15 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
-	} else if details.volumeType == cluster.StoragePoolVolumeTypeImage {
+
+	case cluster.StoragePoolVolumeTypeImage:
 		// Handle image update requests.
 		err = details.pool.UpdateImage(dbVolume.Name, req.Description, req.Config, op)
 		if err != nil {
 			return response.SmartError(err)
 		}
-	} else {
+
+	default:
 		return response.SmartError(fmt.Errorf("Invalid volume type"))
 	}
 
@@ -2703,7 +2700,7 @@ const ctxStorageVolumeDetails request.CtxKey = "storage-volume-details"
 type storageVolumeDetails struct {
 	volumeName         string
 	volumeTypeName     string
-	volumeType         int
+	volumeType         cluster.StoragePoolVolumeType
 	location           string
 	pool               storagePools.Pool
 	forwardingNodeInfo *db.NodeInfo
@@ -2756,7 +2753,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 	details.volumeTypeName = volumeTypeName
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
+	volumeType, err := cluster.StoragePoolVolumeTypeFromName(volumeTypeName)
 	if err != nil {
 		return api.StatusErrorf(http.StatusBadRequest, "Failed to get storage volume type: %w", err)
 	}
@@ -2822,7 +2819,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 // the local cluster member it returns nil and no error. If it is another cluster member it returns a db.NodeInfo containing
 // the name and address of the remote member. If there is more than one cluster member with a matching volume name, an
 // error is returned.
-func getRemoteVolumeNodeInfo(ctx context.Context, s *state.State, poolName string, projectName string, volumeName string, volumeType int) (*db.NodeInfo, error) {
+func getRemoteVolumeNodeInfo(ctx context.Context, s *state.State, poolName string, projectName string, volumeName string, volumeType cluster.StoragePoolVolumeType) (*db.NodeInfo, error) {
 	localNodeID := s.DB.Cluster.GetNodeID()
 	var err error
 	var nodes []db.NodeInfo

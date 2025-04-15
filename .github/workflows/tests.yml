@@ -11,8 +11,7 @@ on:
 
 env:
   LXD_REQUIRED_TESTS: "storage_buckets,network_ovn"
-  LXD_SKIP_TESTS: "clustering_upgrade clustering_upgrade_large"
-  GOCOVERDIR: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && '/home/runner/work/lxd/lxd/coverage' || '' }}
+  GOCOVERDIR: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && '"${GITHUB_WORKSPACE}/coverage"' || '' }}
 
 permissions:
   contents: read
@@ -44,6 +43,9 @@ jobs:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
 
+      - name: Require GHA pinning
+        uses: ./.github/actions/require-gha-pinning
+
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
 
@@ -66,6 +68,7 @@ jobs:
         with:
           name: Differential ShellCheck SARIF
           path: ${{ steps.ShellCheck.outputs.sarif }}
+          retention-days: 1
         if: github.event_name == 'pull_request'
 
       - name: Install Go
@@ -157,6 +160,19 @@ jobs:
             echo "OK: ${bin} is between ${min} and ${max}MiB"
           done <<< ${SIZES}
 
+      - name: Check binaries were compiled with the Go minimum version
+        run: |
+          set -eux
+
+          # Check which Go version was used to compile each of the lxc/lxd binaries
+          GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
+          UNEXPECTED_GO_VER="$(go version -v ~/go/bin/lxc* ~/go/bin/lxd* | grep -vF ": go${GOMIN}" || true)"
+          if [ -n "${UNEXPECTED_GO_VER:-}" ]; then
+            echo "Some binaries were compiled with an unexpected Go version (!= ${GOMIN}):"
+            echo "${UNEXPECTED_GO_VER}"
+            exit 1
+          fi
+
       - name: Make GOCOVERDIR
         run: mkdir -p "${GOCOVERDIR}"
         if: env.GOCOVERDIR != ''
@@ -183,6 +199,7 @@ jobs:
         with:
           name: coverage-unit
           path: ${{env.GOCOVERDIR}}
+          retention-days: 1
         if: env.GOCOVERDIR != ''
 
       - name: Download minio/mc to add to system test dependencies
@@ -301,12 +318,13 @@ jobs:
         with:
           name: coverage-${{ matrix.suite }}-${{ matrix.backend }}
           path: ${{env.GOCOVERDIR}}
+          retention-days: 1
         if: env.GOCOVERDIR != ''
 
   tics:
     name: Tiobe TICS
     runs-on: ubuntu-22.04
-    needs: [system-tests, ui-e2e-tests]
+    needs: [client, system-tests, ui-e2e-tests]
     env:
       CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/"
       CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
@@ -401,60 +419,73 @@ jobs:
           set -eux
           mkdir bin
 
-      - name: Build static lxc (x86_64)
-        env:
-          CGO_ENABLED: 0
-          GOARCH: amd64
-        run: |
-          set -eux
-          go build -ldflags "-s -w" -o trimpath -o bin/lxc.x86_64 ./lxc
+      - name: Make GOCOVERDIR
+        run: mkdir -p "${GOCOVERDIR}"
+        if: env.GOCOVERDIR != ''
 
-      - name: Build static lxc (aarch64)
+      - name: Build static lxc
         env:
           CGO_ENABLED: 0
-          GOARCH: arm64
+          EXTRAS: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '-ldflags "-s -w"' }}
         run: |
           set -eux
-          go build -ldflags "-s -w" -o trimpath -o bin/lxc.aarch64 ./lxc
+          # Using `go env -w` to avoid dealing with setting variables on Windows
+          go env -w GOARCH=arm64
+          go build ${{ env.EXTRAS }} -o trimpath -o bin/lxc.aarch64 ./lxc
+          go env -w GOARCH=amd64
+          go build ${{ env.EXTRAS }} -o trimpath -o bin/lxc.x86_64 ./lxc
 
       - name: Build static lxd-benchmark
         if: runner.os == 'Linux'
         env:
           CGO_ENABLED: 0
+          EXTRAS: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '-ldflags "-s -w"' }}
         run: |
           set -eux
-          GOARCH=amd64 go build -ldflags "-s -w" -o trimpath -o bin/lxd-benchmark.x86_64 ./lxd-benchmark
-          GOARCH=arm64 go build -ldflags "-s -w" -o trimpath -o bin/lxd-benchmark.aarch64 ./lxd-benchmark
+          GOARCH=amd64 go build ${{ env.EXTRAS }} -o trimpath -o bin/lxd-benchmark.x86_64 ./lxd-benchmark
+          GOARCH=arm64 go build ${{ env.EXTRAS }} -o trimpath -o bin/lxd-benchmark.aarch64 ./lxd-benchmark
 
       - name: Build static lxd-migrate
         if: runner.os == 'Linux'
         env:
           CGO_ENABLED: 0
+          EXTRAS: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '-ldflags "-s -w"' }}
         run: |
           set -eux
-          GOARCH=amd64 go build -ldflags "-s -w" -o trimpath -o bin/lxd-migrate.x86_64 ./lxd-migrate
-          GOARCH=arm64 go build -ldflags "-s -w" -o trimpath -o bin/lxd-migrate.aarch64 ./lxd-migrate
+          GOARCH=amd64 go build ${{ env.EXTRAS }} -o trimpath -o bin/lxd-migrate.x86_64 ./lxd-migrate
+          GOARCH=arm64 go build ${{ env.EXTRAS }} -o trimpath -o bin/lxd-migrate.aarch64 ./lxd-migrate
 
       - name: Unit tests (client)
         env:
           CGO_ENABLED: 0
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover -test.gocoverdir="${GOCOVERDIR}"' || '' }}
         run: |
           set -eux
-          go test -v ./client/...
+          go test -v ./client/... ${{ env.COVER }}
 
       - name: Unit tests (lxc)
         env:
           CGO_ENABLED: 0
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover -test.gocoverdir="${GOCOVERDIR}"' || '' }}
         run: |
           set -eux
-          go test -v ./lxc/...
+          go test -v ./lxc/... ${{ env.COVER }}
 
       - name: Unit tests (shared)
         env:
           CGO_ENABLED: 0
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover -test.gocoverdir="${GOCOVERDIR}"' || '' }}
         run: |
           set -eux
-          go test -v ./shared/...
+          go test -v ./shared/... ${{ env.COVER }}
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-clients-${{ runner.os }}
+          path: ${{env.GOCOVERDIR}}
+          retention-days: 1
+        if: env.GOCOVERDIR != ''
 
       - name: Upload lxc client artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -466,7 +497,7 @@ jobs:
 
   ui-e2e-tests:
     name: UI e2e tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [code-tests, documentation]
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     env:
@@ -499,7 +530,7 @@ jobs:
           cd lxd-ui
           dotrun install
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
 
@@ -616,6 +647,7 @@ jobs:
         with:
           name: coverage-ui-e2e-tests
           path: ${{env.GOCOVERDIR}}
+          retention-days: 1
         if: env.GOCOVERDIR != ''
 
   documentation:
@@ -665,6 +697,7 @@ jobs:
         with:
           name: documentation
           path: doc/_build
+          retention-days: 5
 
   documentation-linkcheck:
     name: Documentation link check

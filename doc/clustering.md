@@ -1,5 +1,6 @@
 ---
-discourse: lxc:[LXD&#32;cluster&#32;on&#32;Raspberry&#32;Pi&#32;4](9076),lxc:[Introducing&#32;MicroCloud](15871)
+discourse: lxc:[LXD&#32;cluster&#32;on&#32;Raspberry&#32;Pi&#32;4](9076)
+relatedlinks: '[MicroCloud](https://canonical.com/microcloud)'
 ---
 
 (clustering)=

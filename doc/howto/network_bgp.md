@@ -1,5 +1,5 @@
 ---
-discourse: lxc:11567
+discourse: lxc:[BGP&#32;address/route&#32;advertisement](11567)
 ---
 
 (network-bgp)=

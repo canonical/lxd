@@ -297,7 +297,7 @@ config:
 
 To inject SSH keys into LXD instances for an arbitrary user, use the configuration key `cloud-init.ssh-keys.<keyName>`.
 
-Use the format `<user>:<key>` for its value, where `<user>` is a Linux username and `<key>` can be either a pure SSH public key or an import ID for a key hosted elsewhere. For example, `root:gh:githubUser` and `myUser:ssh-keyAlg publicKeyHash` are valid values.
+Use the format `<user>:<key>` for its value, where `<user>` is a Linux username and `<key>` can be either a pure SSH public key or an import ID for a key hosted elsewhere. For example, `root:gh:githubUser` and `myUser:ssh-keyAlg publicKeyHash` are valid values. To prevent a particular SSH key from being inherited from a profile by an instance, edit the instance configuration by setting the `cloud-init.ssh-keys.<keyName>` key that references the target SSH key to `none`, and the key will not be injected.
 
 The contents of the `cloud-init.ssh-keys.<keyName>` keys are merged into both {config:option}`instance-cloud-init:cloud-init.vendor-data` and {config:option}`instance-cloud-init:cloud-init.user-data` before being passed to the guest, following the `cloud-config` specification. (See the {ref}`cloud-init documentation <cloud-init:about-cloud-config>` for details.) Therefore, keys defined via `cloud-init.ssh-keys.<keyName>` cannot be applied if LXD cannot parse the existing `cloud-init.vendor-data` and `cloud-init.user-data` for that instance. This might occur if those keys are not in YAML format or contain invalid YAML. Other configuration formats are not yet supported.
 
@@ -310,7 +310,7 @@ Since `cloud-init` only runs on instance start, updates to `cloud-init.*` keys o
 The following command injects `someuser`'s key from Launchpad into the newly created `container`:
 
 ```bash
-lxc launch ubuntu:24.04 container -c cloud-init.ssh-keys.mykey root:lp:someuser
+lxc launch ubuntu:24.04 container -c cloud-init.ssh-keys.mykey=root:lp:someuser
 ```
 
 The example profile configuration below defines a key to be injected on an instance. The injected key enables the owner of the private key to SSH into the instance as a user named `user`:

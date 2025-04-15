@@ -12,18 +12,6 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-// ClusterGroupToAPI is a convenience to convert a ClusterGroup db struct into
-// an API cluster group struct.
-func ClusterGroupToAPI(clusterGroup *cluster.ClusterGroup, nodes []string) *api.ClusterGroup {
-	c := &api.ClusterGroup{
-		Name:        clusterGroup.Name,
-		Description: clusterGroup.Description,
-		Members:     nodes,
-	}
-
-	return c
-}
-
 // GetClusterGroupNodes returns a list of nodes of the given cluster group.
 func (c *ClusterTx) GetClusterGroupNodes(ctx context.Context, groupName string) ([]string, error) {
 	q := `SELECT nodes.name FROM nodes_cluster_groups

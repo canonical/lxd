@@ -337,11 +337,11 @@ func (d *common) VolatileSet(changes map[string]string) error {
 	if !d.volatileSetPersistDisable {
 		var err error
 		if d.isSnapshot {
-			err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = d.state.DB.Cluster.Transaction(context.TODO(), func(_ context.Context, tx *db.ClusterTx) error {
 				return tx.UpdateInstanceSnapshotConfig(d.id, changes)
 			})
 		} else {
-			err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = d.state.DB.Cluster.Transaction(context.TODO(), func(_ context.Context, tx *db.ClusterTx) error {
 				return tx.UpdateInstanceConfig(d.id, changes)
 			})
 		}
@@ -1168,7 +1168,7 @@ func (d *common) recordLastState() error {
 	d.expandedConfig["volatile.last_state.power"] = instance.PowerStateRunning
 
 	// Database updates
-	return d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	return d.state.DB.Cluster.Transaction(context.TODO(), func(_ context.Context, tx *db.ClusterTx) error {
 		// Record power state.
 		err = tx.UpdateInstancePowerState(d.id, instance.PowerStateRunning)
 		if err != nil {
@@ -1745,14 +1745,14 @@ func (d *common) checkRootVolumeNotInUse() error {
 		return err
 	}
 
-	err = storagePools.VolumeUsedByProfileDevices(d.state, storagePool.Name(), d.Project().Name, &rootVolume.StorageVolume, func(profileID int64, profile api.Profile, p api.Project, usedByDevices []string) error {
+	err = storagePools.VolumeUsedByProfileDevices(d.state, storagePool.Name(), d.Project().Name, &rootVolume.StorageVolume, func(_ int64, _ api.Profile, _ api.Project, _ []string) error {
 		return fmt.Errorf(`"%s/%s" is attached to a profile`, rootVolume.Type, rootVolume.Name)
 	})
 	if err != nil {
 		return err
 	}
 
-	err = storagePools.VolumeUsedByInstanceDevices(d.state, storagePool.Name(), d.Project().Name, &rootVolume.StorageVolume, false, func(inst db.InstanceArgs, p api.Project, usedByDevices []string) error {
+	err = storagePools.VolumeUsedByInstanceDevices(d.state, storagePool.Name(), d.Project().Name, &rootVolume.StorageVolume, false, func(inst db.InstanceArgs, _ api.Project, _ []string) error {
 		if inst.Name == d.Name() && inst.Project == d.Project().Name {
 			return nil
 		}

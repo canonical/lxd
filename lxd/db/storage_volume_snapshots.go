@@ -18,7 +18,7 @@ import (
 
 // CreateStorageVolumeSnapshot creates a new storage volume snapshot attached to a given
 // storage pool.
-func (c *ClusterTx) CreateStorageVolumeSnapshot(ctx context.Context, projectName string, volumeName string, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, creationDate time.Time, expiryDate time.Time) (int64, error) {
+func (c *ClusterTx) CreateStorageVolumeSnapshot(ctx context.Context, projectName string, volumeName string, volumeDescription string, volumeType cluster.StoragePoolVolumeType, poolID int64, volumeConfig map[string]string, creationDate time.Time, expiryDate time.Time) (int64, error) {
 	var volumeID int64
 
 	volumeName, snapshotName, _ := strings.Cut(volumeName, shared.SnapshotDelimiter)
@@ -54,7 +54,7 @@ func (c *ClusterTx) CreateStorageVolumeSnapshot(ctx context.Context, projectName
 }
 
 // UpdateStorageVolumeSnapshot updates the storage volume snapshot attached to a given storage pool.
-func (c *ClusterTx) UpdateStorageVolumeSnapshot(ctx context.Context, projectName string, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string, expiryDate time.Time) error {
+func (c *ClusterTx) UpdateStorageVolumeSnapshot(ctx context.Context, projectName string, volumeName string, volumeType cluster.StoragePoolVolumeType, poolID int64, volumeDescription string, volumeConfig map[string]string, expiryDate time.Time) error {
 	var err error
 
 	if !strings.Contains(volumeName, shared.SnapshotDelimiter) {
@@ -92,6 +92,7 @@ func (c *ClusterTx) UpdateStorageVolumeSnapshot(ctx context.Context, projectName
 // GetStorageVolumeSnapshotWithID returns the volume snapshot with the given ID.
 func (c *ClusterTx) GetStorageVolumeSnapshotWithID(ctx context.Context, snapshotID int) (StorageVolumeArgs, error) {
 	args := StorageVolumeArgs{}
+	rawVolumeType := int(-1)
 	q := `
 SELECT
 	volumes.id,
@@ -106,7 +107,7 @@ JOIN storage_pools ON storage_pools.id=volumes.storage_pool_id
 WHERE volumes.id=?
 `
 	arg1 := []any{snapshotID}
-	outfmt := []any{&args.ID, &args.Name, &args.CreationDate, &args.PoolName, &args.Type, &args.ProjectName}
+	outfmt := []any{&args.ID, &args.Name, &args.CreationDate, &args.PoolName, &rawVolumeType, &args.ProjectName}
 
 	err := dbQueryRowScan(ctx, c, q, arg1, outfmt)
 	if err != nil {
@@ -121,7 +122,12 @@ WHERE volumes.id=?
 		return args, fmt.Errorf("Volume is not a snapshot")
 	}
 
-	args.TypeName = cluster.StoragePoolVolumeTypeNames[args.Type]
+	args.Type, err = cluster.StoragePoolVolumeTypeFromInt(rawVolumeType)
+	if err != nil {
+		return StorageVolumeArgs{}, err
+	}
+
+	args.TypeName = args.Type.String()
 
 	return args, nil
 }

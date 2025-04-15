@@ -330,6 +330,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	env.KernelFeatures = map[string]string{
+		"bpf_token":                 fmt.Sprint(s.OS.BPFToken),
 		"netnsid_getifaddrs":        fmt.Sprint(s.OS.NetnsGetifaddrs),
 		"uevent_injection":          fmt.Sprint(s.OS.UeventInjection),
 		"unpriv_binfmt":             fmt.Sprint(s.OS.UnprivBinfmt),
@@ -996,7 +997,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			return fmt.Errorf("Cannot convert BGP ASN to uint32: Upper bound exceeded")
 		}
 
-		err := s.BGP.Reconfigure(address, uint32(asn), net.ParseIP(routerid))
+		err := s.BGP.Configure(address, uint32(asn), net.ParseIP(routerid))
 		if err != nil {
 			return fmt.Errorf("Failed reconfiguring BGP: %w", err)
 		}

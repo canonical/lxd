@@ -1454,11 +1454,7 @@ func (n *ovn) uplinkAllocateIP(ipRanges []*shared.IPRange, allAllocated []net.IP
 		endBig.SetBytes(endIP)
 
 		// Iterate through IPs in range, return the first unallocated one found.
-		for {
-			if startBig.Cmp(endBig) > 0 {
-				break
-			}
-
+		for startBig.Cmp(endBig) <= 0 {
 			ip := net.IP(startBig.Bytes())
 
 			// Check IP is not already allocated.
@@ -2102,9 +2098,11 @@ func (n *ovn) validateUplinkNetwork(ctx context.Context, tx *db.ClusterTx, p *ap
 	}
 
 	allowedNetworkCount := len(allowedUplinkNetworks)
-	if allowedNetworkCount == 0 {
+
+	switch allowedNetworkCount {
+	case 0:
 		return "", fmt.Errorf(`No allowed uplink networks in project`)
-	} else if allowedNetworkCount == 1 {
+	case 1:
 		// If there is only one allowed uplink network then use it if not specified by user.
 		return allowedUplinkNetworks[0], nil
 	}
@@ -3021,7 +3019,7 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 		}
 	}
 
-	return n.common.delete()
+	return n.delete()
 }
 
 // Rename renames a network.
@@ -3029,7 +3027,7 @@ func (n *ovn) Rename(newName string) error {
 	n.logger.Debug("Rename", logger.Ctx{"newName": newName})
 
 	// Rename common steps.
-	err := n.common.rename(newName)
+	err := n.rename(newName)
 	if err != nil {
 		return err
 	}
@@ -3211,7 +3209,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		return fmt.Errorf("Failed generating auto config: %w", err)
 	}
 
-	dbUpdateNeeded, changedKeys, oldNetwork, err := n.common.configChanged(newNetwork)
+	dbUpdateNeeded, changedKeys, oldNetwork, err := n.configChanged(newNetwork)
 	if err != nil {
 		return err
 	}
@@ -3238,7 +3236,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 	// pending, then don't apply the new settings to the node, just to the database record (ready for the
 	// actual global create request to be initiated).
 	if n.Status() == api.NetworkStatusPending || n.LocalStatus() == api.NetworkStatusPending {
-		return n.common.update(newNetwork, targetNode, clientType)
+		return n.update(newNetwork, targetNode, clientType)
 	}
 
 	revert := revert.New()
@@ -3247,7 +3245,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 	// Define a function which reverts everything.
 	revert.Add(func() {
 		// Reset changes to all nodes and database.
-		_ = n.common.update(oldNetwork, targetNode, clientType)
+		_ = n.update(oldNetwork, targetNode, clientType)
 
 		// Reset any change that was made to logical network.
 		if clientType == request.ClientTypeNormal {
@@ -3270,7 +3268,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 	}
 
 	// Apply changes to all nodes and database.
-	err = n.common.update(newNetwork, targetNode, clientType)
+	err = n.update(newNetwork, targetNode, clientType)
 	if err != nil {
 		return err
 	}
@@ -3503,12 +3501,12 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		if err != nil {
 			return err
 		}
-	}
-
-	// Setup BGP.
-	err = n.bgpSetup(oldNetwork.Config)
-	if err != nil {
-		return err
+	} else {
+		// Setup BGP.
+		err = n.bgpSetup(oldNetwork.Config)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
@@ -3905,9 +3903,11 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 			// Select the correct destination IP from the DNS records.
 			var ip net.IP
-			if k == "ipv4.nat" {
+
+			switch k {
+			case "ipv4.nat":
 				ip = dnsIPv4
-			} else if k == "ipv6.nat" {
+			case "ipv6.nat":
 				ip = dnsIPv6
 			}
 

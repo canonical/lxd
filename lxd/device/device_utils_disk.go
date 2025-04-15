@@ -24,32 +24,6 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-// DevSourcePath is a path on the LXD host.
-// See `deviceConfig.DevSource`.
-type DevSourcePath struct {
-	Path string
-}
-
-// DevSourceFD is a file descriptor held by the LXD process.
-// See `deviceConfig.DevSource`.
-type DevSourceFD struct {
-	FD   uintptr
-	Path string
-}
-
-// DevSourceRBD describes an RBD image.
-// See `deviceConfig.DevSource`.
-//
-// This structure roughly corresponds to a qmp BlockdevOptionsRbd:
-// https://www.qemu.org/docs/master/interop/qemu-storage-daemon-qmp-ref.html#qapidoc-708
-type DevSourceRBD struct {
-	ClusterName string
-	UserName    string
-	PoolName    string
-	ImageName   string
-	Snapshot    string
-}
-
 // BlockFsDetect detects the type of block device.
 func BlockFsDetect(dev string) (string, error) {
 	out, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "TYPE", "-o", "value", dev)
