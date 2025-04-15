@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	dqlite "github.com/canonical/go-dqlite/v3/client"
+	dqlite "github.com/canonical/go-dqlite/v2/client"
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
