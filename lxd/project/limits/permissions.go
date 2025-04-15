@@ -99,14 +99,10 @@ func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Conf
 	instance.SetWritable(req.InstancePut)
 	info.Instances = append(info.Instances, instance)
 
+	// Allow stripping volatile keys if dealing with a copy or migration.
+	strip := shared.ValueInSlice(req.Source.Type, []string{api.SourceTypeCopy, api.SourceTypeMigration})
+
 	// Special case restriction checks on volatile.* keys.
-	strip := false
-
-	if shared.ValueInSlice(req.Source.Type, []string{api.SourceTypeCopy, api.SourceTypeMigration}) {
-		// Allow stripping volatile keys if dealing with a copy or migration.
-		strip = true
-	}
-
 	err = checkRestrictionsOnVolatileConfig(
 		info.Project, instanceType, req.Name, req.Config, map[string]string{}, strip)
 	if err != nil {
