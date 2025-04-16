@@ -289,7 +289,8 @@ func (c *Client) HandleEvent(event api.Event) {
 
 	context := make(map[string]string)
 
-	if event.Type == api.EventTypeLifecycle {
+	switch event.Type {
+	case api.EventTypeLifecycle:
 		lifecycleEvent := api.EventLifecycle{}
 
 		err := json.Unmarshal(event.Metadata, &lifecycleEvent)
@@ -340,7 +341,7 @@ func (c *Client) HandleEvent(event api.Event) {
 		}
 
 		entry.Line = messagePrefix + lifecycleEvent.Action
-	} else if event.Type == api.EventTypeLogging || event.Type == api.EventTypeOVN {
+	case api.EventTypeLogging, api.EventTypeOVN:
 		logEvent := api.EventLogging{}
 
 		err := json.Unmarshal(event.Metadata, &logEvent)
