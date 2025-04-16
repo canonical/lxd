@@ -809,7 +809,8 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 		}
 
 		if poolCreate {
-			if pool.Driver == "ceph" {
+			switch pool.Driver {
+			case "ceph":
 				// Ask for the name of the cluster
 				pool.Config["ceph.cluster_name"], err = c.global.asker.AskString("Name of the existing CEPH cluster [default=ceph]: ", "ceph", nil)
 				if err != nil {
@@ -827,7 +828,8 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 				if err != nil {
 					return err
 				}
-			} else if pool.Driver == "cephfs" {
+
+			case "cephfs":
 				// Ask for the name of the cluster
 				pool.Config["cephfs.cluster_name"], err = c.global.asker.AskString("Name of the existing CEPHfs cluster [default=ceph]: ", "ceph", nil)
 				if err != nil {
@@ -839,7 +841,8 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 				if err != nil {
 					return err
 				}
-			} else {
+
+			default:
 				useEmptyBlockDev, err := c.global.asker.AskBool("Would you like to use an existing empty block device (e.g. a disk or partition)? (yes/no) [default=no]: ", "no")
 				if err != nil {
 					return err
