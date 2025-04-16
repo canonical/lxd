@@ -961,7 +961,8 @@ func (d *pure) MountVolume(vol Volume, op *operations.Operation) error {
 
 	revert.Add(cleanup)
 
-	if vol.contentType == ContentTypeFS {
+	switch vol.contentType {
+	case ContentTypeFS:
 		mountPath := vol.MountPath()
 		if !filesystem.IsMountPoint(mountPath) {
 			err = vol.EnsureMountPath()
@@ -986,7 +987,8 @@ func (d *pure) MountVolume(vol Volume, op *operations.Operation) error {
 
 			d.logger.Debug("Mounted Pure Storage volume", logger.Ctx{"volName": vol.name, "dev": volDevPath, "path": mountPath, "options": mountOptions})
 		}
-	} else if vol.contentType == ContentTypeBlock {
+
+	case ContentTypeBlock:
 		// For VMs, mount the filesystem volume.
 		if vol.IsVMBlock() {
 			fsVol := vol.NewVMBlockFilesystemVolume()
