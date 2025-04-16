@@ -20,6 +20,12 @@ test_clustering_enable() {
 
     # Enable clustering.
     lxc cluster enable node1
+
+    # Test the non-recursive mode to list cluster members.
+    lxc query /1.0/cluster/members | jq '.[0]' | grep -q node1
+
+    # Test the recursive mode to list cluster members.
+    # The command implicitly sets the recursive=1 query paramter.
     lxc cluster list | grep -q node1
 
     # The container is still there and now shows up as
