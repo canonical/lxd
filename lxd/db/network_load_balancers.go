@@ -396,7 +396,7 @@ func (c *ClusterTx) GetNetworkLoadBalancers(ctx context.Context, networkID int64
 	}
 
 	if len(listenAddresses) > 0 {
-		q.WriteString(fmt.Sprintf("AND networks_load_balancers.listen_address IN %s ", query.Params(len(listenAddresses))))
+		fmt.Fprintf(q, "AND networks_load_balancers.listen_address IN %s ", query.Params(len(listenAddresses)))
 		for _, listenAddress := range listenAddresses {
 			args = append(args, listenAddress)
 		}
