@@ -136,7 +136,7 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 	// The instance state will show as Error since we can't determine the state of an instance on another node.
 	// If request is recursive, the additional information on instance state will be out of reach since
 	// we can't reach the node that is running the instance.
-	if err != nil && !(api.StatusErrorCheck(err, http.StatusServiceUnavailable) && !recursive) {
+	if err != nil && (!api.StatusErrorCheck(err, http.StatusServiceUnavailable) || recursive) {
 		return response.SmartError(err)
 	}
 
