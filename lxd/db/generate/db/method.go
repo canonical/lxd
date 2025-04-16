@@ -450,7 +450,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 
 	switch mapping.Type {
 	case AssociationTable:
-		ref := strings.Replace(mapping.Name, m.config["struct"], "", -1)
+		ref := strings.ReplaceAll(mapping.Name, m.config["struct"], "")
 		buf.L("result := make([]%s, len(objects))", ref)
 		buf.L("for i, object := range objects {")
 		buf.L("%s, err := Get%s(ctx, tx, %sFilter{ID: &object.%sID})", lex.Minuscule(ref), lex.Plural(ref), ref, ref)
@@ -982,7 +982,7 @@ func (m *Method) update(buf *file.Buffer) error {
 
 	switch mapping.Type {
 	case AssociationTable:
-		ref := strings.Replace(mapping.Name, m.config["struct"], "", -1)
+		ref := strings.ReplaceAll(mapping.Name, m.config["struct"], "")
 		refMapping, err := Parse(m.pkg, ref, "")
 		if err != nil {
 			return fmt.Errorf("Parse entity struct: %w", err)
@@ -1216,7 +1216,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 
 	switch mapping.Type {
 	case AssociationTable:
-		ref := strings.Replace(mapping.Name, m.config["struct"], "", -1)
+		ref := strings.ReplaceAll(mapping.Name, m.config["struct"], "")
 		refMapping, err := Parse(m.pkg, ref, "")
 		if err != nil {
 			return fmt.Errorf("Failed to parse struct %q", ref)
@@ -1427,7 +1427,7 @@ func (m *Method) begin(buf *file.Buffer, comment string, args string, rets strin
 
 	if mapping.Type == AssociationTable {
 		parent := m.config["struct"]
-		ref := strings.Replace(entity, parent, "", -1)
+		ref := strings.ReplaceAll(entity, parent, "")
 		switch operation(m.kind) {
 		case "GetMany":
 			name = "Get" + parent + lex.Plural(ref)
