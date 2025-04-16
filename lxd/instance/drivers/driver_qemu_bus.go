@@ -78,10 +78,11 @@ func (a *qemuBus) allocateInternal(multiFunctionGroup string, hotplug bool) (str
 			// Check if existing multi-function group is full.
 			if p.fn == 7 {
 				p.fn = 0
-				if a.name == "pci" {
+				switch a.name {
+				case "pci":
 					p.bridgeDev = a.devNum
 					a.devNum++
-				} else if a.name == "pcie" {
+				case "pcie":
 					r := a.allocateRoot()
 					p.bridgeDev = r.bridgeDev
 					p.bridgeFn = r.bridgeFn
@@ -93,10 +94,11 @@ func (a *qemuBus) allocateInternal(multiFunctionGroup string, hotplug bool) (str
 			// Create a new multi-function group.
 			p = &qemuBusEntry{}
 
-			if a.name == "pci" {
+			switch a.name {
+			case "pci":
 				p.bridgeDev = a.devNum
 				a.devNum++
-			} else if a.name == "pcie" {
+			case "pcie":
 				r := a.allocateRoot()
 				p.bridgeDev = r.bridgeDev
 				p.bridgeFn = r.bridgeFn
