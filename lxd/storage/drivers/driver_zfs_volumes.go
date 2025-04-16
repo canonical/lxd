@@ -454,12 +454,14 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 
 			prefix := "snapshots"
 			fileName := snapName + ".bin"
-			if v.volType == VolumeTypeVM {
+			switch v.volType {
+			case VolumeTypeVM:
 				prefix = "virtual-machine-snapshots"
 				if v.contentType == ContentTypeFS {
 					fileName = snapName + "-config.bin"
 				}
-			} else if v.volType == VolumeTypeCustom {
+
+			case VolumeTypeCustom:
 				prefix = "volume-snapshots"
 			}
 
@@ -473,13 +475,15 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 
 		// Extract main volume.
 		fileName := "container.bin"
-		if v.volType == VolumeTypeVM {
+		switch v.volType {
+		case VolumeTypeVM:
 			if v.contentType == ContentTypeFS {
 				fileName = "virtual-machine-config.bin"
 			} else {
 				fileName = "virtual-machine.bin"
 			}
-		} else if v.volType == VolumeTypeCustom {
+
+		case VolumeTypeCustom:
 			fileName = "volume.bin"
 		}
 
@@ -2881,12 +2885,14 @@ func (d *zfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTar
 			// Make a binary zfs backup.
 			prefix := "snapshots"
 			fileName := snapName + ".bin"
-			if vol.volType == VolumeTypeVM {
+			switch vol.volType {
+			case VolumeTypeVM:
 				prefix = "virtual-machine-snapshots"
 				if vol.contentType == ContentTypeFS {
 					fileName = snapName + "-config.bin"
 				}
-			} else if vol.volType == VolumeTypeCustom {
+
+			case VolumeTypeCustom:
 				prefix = "volume-snapshots"
 			}
 
@@ -2917,13 +2923,15 @@ func (d *zfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTar
 
 	// Dump the container to a file.
 	fileName := "container.bin"
-	if vol.volType == VolumeTypeVM {
+	switch vol.volType {
+	case VolumeTypeVM:
 		if vol.contentType == ContentTypeFS {
 			fileName = "virtual-machine-config.bin"
 		} else {
 			fileName = "virtual-machine.bin"
 		}
-	} else if vol.volType == VolumeTypeCustom {
+
+	case VolumeTypeCustom:
 		fileName = "volume.bin"
 	}
 
