@@ -8,6 +8,9 @@ import (
 // The metadata is used both for exporting backups and for migration.
 const DefaultMetadataVersion = api.BackupMetadataVersion1
 
+// MaxMetadataVersion represents the latest supported metadata version.
+const MaxMetadataVersion = api.BackupMetadataVersion2
+
 // Config represents the config of a backup that can be stored in a backup.yaml file (or embedded in index.yaml).
 type Config struct {
 	Container       *api.Instance                `yaml:"container,omitempty"` // Used by VM backups too.
