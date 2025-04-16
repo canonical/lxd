@@ -192,7 +192,7 @@ func (c *cmdList) shouldShow(filters []string, inst *api.Instance, state *api.In
 				if c.dotPrefixMatch(key, configKey) {
 					// Try to test filter value as a regexp.
 					regexpValue := value
-					if !(strings.Contains(value, "^") || strings.Contains(value, "$")) {
+					if !strings.Contains(value, "^") && !strings.Contains(value, "$") {
 						regexpValue = "^" + regexpValue + "$"
 					}
 
@@ -222,7 +222,7 @@ func (c *cmdList) shouldShow(filters []string, inst *api.Instance, state *api.In
 			}
 		} else {
 			regexpValue := filter
-			if !(strings.Contains(filter, "^") || strings.Contains(filter, "$")) {
+			if !strings.Contains(filter, "^") && !strings.Contains(filter, "$") {
 				regexpValue = "^" + regexpValue + "$"
 			}
 
