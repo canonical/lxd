@@ -137,9 +137,10 @@ func (c *cmdAction) Command(action string) *cobra.Command {
 
 	cmd.Flags().BoolVar(&c.flagAll, "all", false, i18n.G("Run against all instances"))
 
-	if action == "stop" {
+	switch action {
+	case "stop":
 		cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Store the instance state"))
-	} else if action == "start" {
+	case "start":
 		cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Ignore the instance state"))
 	}
 
