@@ -5,6 +5,7 @@ import subprocess
 import yaml
 from git import Repo
 import filecmp
+from redirects import redirects
 
 # Custom configuration for the Sphinx documentation builder.
 # All configuration specific to your project should be done in this file.
@@ -142,12 +143,8 @@ slug = "lxd"
 # (see https://docs.readthedocs.io/en/stable/guides/redirects.html).
 # NOTE: If this variable is not defined, set to None, or the dictionary is empty,
 # the sphinx_reredirects extension will be disabled.
-redirects = {
-    'howto/instances_snapshots/index': '../instances_backup/',
-    'reference/network_external/index': '../networks/',
-    'explanation/containers_and_vms/index': '../instances/',
-    'explanation/clustering/index': '../clusters/'
-}
+# redirects = {}
+# minae: Redirects is imported from redirects.py
 
 ############################################################
 ### Link checker
