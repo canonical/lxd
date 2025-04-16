@@ -164,6 +164,8 @@ linkcheck_ignore = [
     'https://www.dell.com/',
     'https://www.dell.com/en-us/shop/powerflex/sf/powerflex',
     'https://www.gnu.org/licenses/agpl-3.0.en.html',
+    # 403 from GH runners
+    'https://www.schlachter.tech/solutions/pongo2-template-engine/',
     ]
 
 # Pages on which to ignore anchors
