@@ -5710,6 +5710,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			"security.devlxd",
 			"security.devlxd.images",
 			"security.secureboot",
+			"placement.ruleset",
 		}
 
 		liveUpdateKeyPrefixes := []string{
@@ -5789,6 +5790,12 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 						return fmt.Errorf("Failed updating memory limit: %w", err)
 					}
 				}
+			case "placement.ruleset":
+				err = d.validatePlacementRuleset(value)
+				if err != nil {
+					return err
+				}
+
 			case "security.csm":
 				// Defer rebuilding nvram until next start.
 				d.localConfig["volatile.apply_nvram"] = "true"

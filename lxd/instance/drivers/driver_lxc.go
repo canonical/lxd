@@ -4524,6 +4524,11 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				if err != nil {
 					return err
 				}
+			} else if key == "placement.ruleset" {
+				err := d.validatePlacementRuleset(value)
+				if err != nil {
+					return err
+				}
 			} else if key == "security.devlxd" {
 				if shared.IsTrueOrEmpty(value) {
 					err = d.insertMount(shared.VarPath("devlxd"), "/dev/lxd", "none", unix.MS_BIND, idmap.IdmapStorageNone)
