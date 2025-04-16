@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-04-16 18:54+0200\n"
+"POT-Creation-Date: 2025-04-16 19:01+0200\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -7182,7 +7182,7 @@ msgstr "Erstellt: %s"
 #: lxc/export.go:48 lxc/storage_volume.go:2657
 msgid ""
 "Use a different metadata format version than the latest one supported by the "
-"server"
+"server (to support imports on older LXD versions)"
 msgstr ""
 
 #: lxc/export.go:45 lxc/storage_volume.go:2654

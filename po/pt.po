@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-04-16 18:54+0200\n"
+"POT-Creation-Date: 2025-04-16 19:01+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -6489,7 +6489,7 @@ msgstr ""
 #: lxc/export.go:48 lxc/storage_volume.go:2657
 msgid ""
 "Use a different metadata format version than the latest one supported by the "
-"server"
+"server (to support imports on older LXD versions)"
 msgstr ""
 
 #: lxc/export.go:45 lxc/storage_volume.go:2654
