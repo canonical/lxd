@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-
-	"gopkg.in/yaml.v2"
 )
 
 var (
