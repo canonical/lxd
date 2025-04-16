@@ -114,8 +114,8 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	var names []string
-	var instances []instance.Instance
+	names := make([]string, 0, len(c))
+	instances := make([]instance.Instance, 0, len(c))
 	for _, inst := range c {
 		if inst.Project().Name != projectName {
 			continue
