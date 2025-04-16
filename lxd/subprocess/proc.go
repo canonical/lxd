@@ -244,14 +244,15 @@ func (p *Process) Reload() error {
 	}
 
 	err = pr.Signal(syscall.Signal(0))
-	if err == nil {
+	switch err {
+	case nil:
 		err = pr.Signal(syscall.SIGHUP)
 		if err != nil {
 			return fmt.Errorf("Could not reload process: %w", err)
 		}
 
 		return nil
-	} else if err == os.ErrProcessDone {
+	case os.ErrProcessDone:
 		return ErrNotRunning
 	}
 
@@ -285,14 +286,15 @@ func (p *Process) Signal(signal int64) error {
 	}
 
 	err = pr.Signal(syscall.Signal(0))
-	if err == nil {
+	switch err {
+	case nil:
 		err = pr.Signal(syscall.Signal(signal))
 		if err != nil {
 			return fmt.Errorf("Could not signal process: %w", err)
 		}
 
 		return nil
-	} else if err == os.ErrProcessDone {
+	case os.ErrProcessDone:
 		return ErrNotRunning
 	}
 
