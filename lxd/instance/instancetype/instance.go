@@ -316,6 +316,14 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 		return nil
 	},
 
+	// lxdmeta:generate(entities=instance; group=placement; key=placement.ruleset)
+	// Configures the ruleset which determines where in the cluster to place the instance.
+	// ---
+	// type: string
+	// liveupdate: yes
+	// shortdesc: The ruleset to use when placing the instance
+	"placement.ruleset": validate.IsDeviceName,
+
 	// Caller is responsible for full validation of any raw.* value.
 
 	// lxdmeta:generate(entities=instance; group=raw; key=raw.apparmor)
