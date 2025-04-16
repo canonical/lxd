@@ -85,7 +85,7 @@ func DefaultParseBool(c Clause) (bool, error) {
 // DefaultParseRegexp converts the value of the clause to regexp.
 func DefaultParseRegexp(c Clause) (*regexp.Regexp, error) {
 	regexpValue := c.Value
-	if !(strings.Contains(regexpValue, "^") || strings.Contains(regexpValue, "$")) {
+	if !strings.Contains(regexpValue, "^") && !strings.Contains(regexpValue, "$") {
 		regexpValue = "^" + regexpValue + "$"
 	}
 
