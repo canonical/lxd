@@ -1234,9 +1234,10 @@ func (d *powerflex) getVolumeName(vol Volume) (string, error) {
 	volName := base64.StdEncoding.EncodeToString(binUUID)
 
 	var suffix string
-	if vol.contentType == ContentTypeBlock {
+	switch vol.contentType {
+	case ContentTypeBlock:
 		suffix = powerFlexBlockVolSuffix
-	} else if vol.contentType == ContentTypeISO {
+	case ContentTypeISO:
 		suffix = powerFlexISOVolSuffix
 	}
 
