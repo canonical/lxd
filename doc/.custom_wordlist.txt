@@ -233,6 +233,7 @@ RHEL
 rollout
 rootfs
 RSA
+rulesets
 runtime
 SATA
 scalable
