@@ -5,9 +5,10 @@ package cdi
 import (
 	"fmt"
 
+	"tags.cncf.io/container-device-interface/specs-go"
+
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/state"
-	"tags.cncf.io/container-device-interface/specs-go"
 )
 
 func defaultNvidiaTegraCSVFiles(rootPath string) []string {
