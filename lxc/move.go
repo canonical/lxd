@@ -70,12 +70,12 @@ lxc move <instance>/<old snapshot name> <instance>/<new snapshot name>
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			instances, directives := c.global.cmpInstances(toComplete)
+			instances, directives := c.global.cmpTopLevelResource("instance", toComplete)
 			return instances, directives | cobra.ShellCompDirectiveNoSpace
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp

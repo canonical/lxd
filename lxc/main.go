@@ -8,6 +8,7 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -100,7 +101,31 @@ For help with any of those, simply call them with --help.`))
 	app.PersistentFlags().BoolVar(&globalCmd.flagSubCmds, "sub-commands", false, i18n.G("Use with help or --help to view sub-commands"))
 
 	_ = app.RegisterFlagCompletionFunc("project", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		projects, directives := globalCmd.cmpProjects(toComplete)
+		// Default
+		remote := globalCmd.conf.DefaultRemote
+
+		// Iterate through arguments. The first argument *may* include a remote, but it might not be the remote the user
+		// is interested in. E.g. for `lxc init ubuntu:jammy c1` completions should be for projects in the default
+		// remote, but for `lxc init ubuntu:jammy lab:c1` completions should be for the `lab:` remote. So iterate over
+		// arguments and check if a remote is specified, then only set it as a remote if it is not public.
+		for _, arg := range args {
+			potentialRemote, _, ok := strings.Cut(arg, ":")
+			if !ok {
+				continue
+			}
+
+			remoteConf, ok := globalCmd.conf.Remotes[potentialRemote]
+			if !ok {
+				continue
+			}
+
+			if !remoteConf.Public {
+				remote = potentialRemote
+				break
+			}
+		}
+
+		projects, directives := globalCmd.cmpTopLevelResourceInRemote(remote, "project", toComplete)
 		if projects != nil {
 			return projects, directives
 		}
@@ -298,6 +323,10 @@ For help with any of those, simply call them with --help.`))
 			app.SetUsageTemplate(usageTemplateSubCmds())
 		}
 	}
+
+	// Prevent file completions by default.
+	// This is a workaround for https://github.com/spf13/cobra/issues/2209 and should be removed when resolved.
+	preventFileCompletions(app)
 
 	// Run the main command and handle errors
 	err = app.Execute()
@@ -520,4 +549,20 @@ func (c *cmdGlobal) CheckArgs(cmd *cobra.Command, args []string, minArgs int, ma
 	}
 
 	return false, nil
+}
+
+// preventFileCompletions recurses the Command tree and sets a ValidArgsFunction on each Command if not already set.
+// This prevents file completion when e.g. invalid commands are being completed, or when no completions are available yet.
+// This is used because the majority of lxc commands interact with remote resources, and not the local filesystem.
+// This should be removed when https://github.com/spf13/cobra/issues/2209 is resolved.
+func preventFileCompletions(c *cobra.Command) {
+	if c.ValidArgsFunction == nil {
+		c.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+	}
+
+	for _, cmd := range c.Commands() {
+		preventFileCompletions(cmd)
+	}
 }
