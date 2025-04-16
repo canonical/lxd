@@ -2207,6 +2207,18 @@
 					}
 				]
 			},
+			"placement": {
+				"keys": [
+					{
+						"placement.ruleset": {
+							"liveupdate": "yes",
+							"longdesc": "Configures the ruleset which determines where in the cluster to place the instance.",
+							"shortdesc": "The ruleset to use when placing the instance",
+							"type": "string"
+						}
+					}
+				]
+			},
 			"raw": {
 				"keys": [
 					{
@@ -7384,6 +7396,23 @@
 				}
 			]
 		},
+		"placement_ruleset": {
+			"project_specific": true,
+			"entitlements": [
+				{
+					"name": "can_edit",
+					"description": "Grants permission to edit the placement ruleset."
+				},
+				{
+					"name": "can_delete",
+					"description": "Grants permission to delete the placement ruleset."
+				},
+				{
+					"name": "can_view",
+					"description": "Grants permission to view the placement ruleset."
+				}
+			]
+		},
 		"profile": {
 			"project_specific": true,
 			"entitlements": [
@@ -7607,6 +7636,26 @@
 				{
 					"name": "can_delete_storage_buckets",
 					"description": "Grants permission to delete storage buckets."
+				},
+				{
+					"name": "placement_ruleset_manager",
+					"description": "Grants permission to create, view, edit, and delete all placement rulesets belonging to the project."
+				},
+				{
+					"name": "can_create_placement_rulesets",
+					"description": "Grants permission to create placement rulesets."
+				},
+				{
+					"name": "can_view_placement_rulesets",
+					"description": "Grants permission to view placement rulesets."
+				},
+				{
+					"name": "can_edit_placement_rulesets",
+					"description": "Grants permission to edit placement rulesets."
+				},
+				{
+					"name": "can_delete_placement_rulesets",
+					"description": "Grants permission to delete placement rulesets."
 				},
 				{
 					"name": "can_view_operations",
