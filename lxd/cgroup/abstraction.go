@@ -686,9 +686,10 @@ func (cg *CGroup) SetBlkioLimit(dev string, oType string, uType string, limit in
 		return cg.rw.Set(version, "blkio", "blkio.throttle."+oType+"_"+uType+"_device", dev+strconv.FormatInt(limit, 10))
 	case V2:
 		var op string
-		if oType == "read" {
+		switch oType {
+		case "read":
 			op = "r" + uType
-		} else if oType == "write" {
+		case "write":
 			op = "w" + uType
 		}
 
