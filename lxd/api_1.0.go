@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/oidc"
+	backupConfig "github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/config"
@@ -309,24 +310,25 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	env := api.ServerEnvironment{
-		Addresses:              addresses,
-		Architectures:          architectures,
-		Certificate:            certificate,
-		CertificateFingerprint: certificateFingerprint,
-		Kernel:                 s.OS.Uname.Sysname,
-		KernelArchitecture:     s.OS.Uname.Machine,
-		KernelVersion:          s.OS.Uname.Release,
-		OSName:                 s.OS.ReleaseInfo["NAME"],
-		OSVersion:              s.OS.ReleaseInfo["VERSION_ID"],
-		Project:                projectName,
-		Server:                 "lxd",
-		ServerPid:              os.Getpid(),
-		ServerVersion:          version.Version,
-		ServerLTS:              version.IsLTSVersion,
-		ServerClustered:        s.ServerClustered,
-		ServerEventMode:        string(cluster.ServerEventMode()),
-		ServerName:             serverName,
-		Firewall:               s.Firewall.String(),
+		Addresses:                  addresses,
+		Architectures:              architectures,
+		BackupMetadataVersionRange: []uint32{api.BackupMetadataVersion1, backupConfig.MaxMetadataVersion},
+		Certificate:                certificate,
+		CertificateFingerprint:     certificateFingerprint,
+		Kernel:                     s.OS.Uname.Sysname,
+		KernelArchitecture:         s.OS.Uname.Machine,
+		KernelVersion:              s.OS.Uname.Release,
+		OSName:                     s.OS.ReleaseInfo["NAME"],
+		OSVersion:                  s.OS.ReleaseInfo["VERSION_ID"],
+		Project:                    projectName,
+		Server:                     "lxd",
+		ServerPid:                  os.Getpid(),
+		ServerVersion:              version.Version,
+		ServerLTS:                  version.IsLTSVersion,
+		ServerClustered:            s.ServerClustered,
+		ServerEventMode:            string(cluster.ServerEventMode()),
+		ServerName:                 serverName,
+		Firewall:                   s.Firewall.String(),
 	}
 
 	env.KernelFeatures = map[string]string{
