@@ -60,7 +60,7 @@ func snakeToPascal(str string) string {
 
 	s := b.String()
 	for wrong, right := range knownAcronyms {
-		s = strings.Replace(s, wrong, right, -1)
+		s = strings.ReplaceAll(s, wrong, right)
 	}
 
 	return s
@@ -243,7 +243,7 @@ func writeOutput(w io.Writer, entityToEntitlements map[entity.Type][]entitlement
 	// "group" could have many meanings so we don't have an `entity.TypeGroup`, instead we have `entity.TypeAuthGroup`.
 	// The Pascal cased "group" type will have led to adding `entity.TypeGroup` to the generated file erroneously, so we
 	// need to replace it with `entity.TypeAuthGroup`.
-	s := strings.Replace(builder.String(), "entity.TypeGroup", "entity.TypeAuthGroup", -1)
+	s := strings.ReplaceAll(builder.String(), "entity.TypeGroup", "entity.TypeAuthGroup")
 
 	_, err := w.Write([]byte(s))
 	if err != nil {
