@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	dqlite "github.com/canonical/go-dqlite/v3/client"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
@@ -80,6 +82,25 @@ var clusterCmd = APIEndpoint{
 
 	Get: APIEndpointAction{Handler: clusterGet, AccessHandler: allowAuthenticated},
 	Put: APIEndpointAction{Handler: clusterPut, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+}
+
+var clusterLinksCmd = APIEndpoint{
+	Path:        "clusters",
+	MetricsType: entity.TypeClusterMember,
+
+	Get:  APIEndpointAction{Handler: clusterLinksGet, AccessHandler: allowAuthenticated},
+	Post: APIEndpointAction{Handler: clusterLinksPost, AllowUntrusted: true},
+}
+
+var clusterLinkCmd = APIEndpoint{
+	Path:        "clusters/{name}",
+	MetricsType: entity.TypeClusterMember,
+
+	Get:    APIEndpointAction{Handler: clusterLinkGet, AccessHandler: allowPermission(entity.TypeClusterLink, auth.EntitlementCanView, "name")},
+	Post:   APIEndpointAction{Handler: clusterLinkPost, AccessHandler: allowPermission(entity.TypeClusterLink, auth.EntitlementCanEdit, "name")},
+	Patch:  APIEndpointAction{Handler: clusterLinkPatch, AccessHandler: allowPermission(entity.TypeClusterLink, auth.EntitlementCanEdit, "name")},
+	Put:    APIEndpointAction{Handler: clusterLinkPut, AccessHandler: allowPermission(entity.TypeClusterLink, auth.EntitlementCanEdit, "name")},
+	Delete: APIEndpointAction{Handler: clusterLinkDelete, AccessHandler: allowPermission(entity.TypeClusterLink, auth.EntitlementCanDelete, "name")},
 }
 
 var clusterNodesCmd = APIEndpoint{
@@ -4603,4 +4624,965 @@ func autoHealCluster(_ context.Context, s *state.State, offlineMembers []db.Node
 	logger.Info("Done healing cluster instances")
 
 	return nil
+}
+
+// swagger:operation GET /1.0/clusters cluster-links cluster_links_get
+//
+//		Get cluster links
+//
+//		Returns a list of cluster links (URLs).
+//
+//		---
+//		produces:
+//		  - application/json
+//		responses:
+//		  "200":
+//		    description: API endpoints
+//		    schema:
+//		      type: object
+//		      description: Sync response
+//		      properties:
+//		        type:
+//		          type: string
+//		          description: Response type
+//		          example: sync
+//		        status:
+//		          type: string
+//		          description: Status description
+//		          example: Success
+//		        status_code:
+//		          type: integer
+//		          description: Status code
+//		          example: 200
+//		        metadata:
+//		          type: array
+//	           description: List of endpoints
+//	           items:
+//	             type: string
+//	           example: |-
+//	             [
+//	               "/1.0/clusters/primary",
+//	               "/1.0/clusters/backup"
+//	             ]
+//		  "403":
+//		    $ref: "#/responses/Forbidden"
+//		  "500":
+//		    $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/clusters?recursion=1 cluster-links cluster_links_get_recursion1
+//
+//	Get the cluster links
+//
+//	Returns a list of cluster links (structs).
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: Cluster links
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of cluster links
+//	          items:
+//	            $ref: "#/definitions/ClusterLink"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func clusterLinksGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	recursion := util.IsRecursionRequest(r)
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeProject, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeClusterLink)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	var apiClusterLinks []*api.ClusterLink
+	var clusterLinkURLs []string
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		allClusterLinks, err := dbCluster.GetClusterLinks(ctx, tx.Tx())
+		if err != nil {
+			return fmt.Errorf("Failed to fetch cluster links: %w", err)
+		}
+
+		clusterLinks := make([]dbCluster.ClusterLink, 0, len(allClusterLinks))
+		for _, clusterLink := range allClusterLinks {
+			if userHasPermission(entity.ClusterLinkURL(clusterLink.Name)) {
+				clusterLinks = append(clusterLinks, clusterLink)
+			}
+		}
+
+		if recursion {
+			apiClusterLinks = make([]*api.ClusterLink, 0, len(clusterLinks))
+			for _, clusterLink := range clusterLinks {
+				apiClusterLink, err := clusterLink.ToAPI(ctx, tx.Tx())
+				if err != nil {
+					return err
+				}
+
+				apiClusterLinks = append(apiClusterLinks, apiClusterLink)
+			}
+		} else {
+			clusterLinkURLs = make([]string, 0, len(clusterLinks))
+			for _, clusterLink := range clusterLinks {
+				clusterLinkURLs = append(clusterLinkURLs, entity.ClusterLinkURL(clusterLink.Name).String())
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !recursion {
+		return response.SyncResponse(true, clusterLinkURLs)
+	}
+
+	if len(withEntitlements) > 0 {
+		urlToClusterLink := make(map[*api.URL]auth.EntitlementReporter, len(apiClusterLinks))
+		for _, c := range apiClusterLinks {
+			u := entity.ClusterLinkURL(c.Name)
+			urlToClusterLink[u] = c
+		}
+
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeClusterLink, withEntitlements, urlToClusterLink)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	return response.SyncResponse(true, apiClusterLinks)
+}
+
+// swagger:operation GET /1.0/clusters/{name} cluster-links cluster_link_get
+//
+//	Get cluster link
+//
+//	Get information on a cluster link.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: Cluster link
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/ClusterLink"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func clusterLinkGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeClusterLink, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	var apiClusterLink *api.ClusterLink
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbClusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), name)
+		if err != nil {
+			return fmt.Errorf("Failed to fetch cluster link: %w", err)
+		}
+
+		apiClusterLink, err = dbClusterLink.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeClusterLink, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ClusterLinkURL(name): apiClusterLink})
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	return response.SyncResponseETag(true, apiClusterLink, apiClusterLink.Writable())
+}
+
+// swagger:operation PATCH /1.0/clusters/{name} cluster-links cluster_link_patch
+//
+//	Update cluster link
+//
+//	Update a cluster link.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: Update cluster link request
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/ClusterLinkPut"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func clusterLinkPatch(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// If a request tries to create/update/delete a delegated cluster link, the correct user agent must be set to prevent accidental edits of delegated cluster links.
+	if isDelegator(r) && r.Header.Get("User-Agent") != clusterRequest.UserAgentDelegator {
+		return response.Forbidden(fmt.Errorf("Cannot update delegated cluster link %q", name))
+	}
+
+	var dbClusterLink *dbCluster.ClusterLink
+	var apiClusterLink *api.ClusterLink
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get cluster link by name.
+		dbClusterLink, err = dbCluster.GetClusterLink(ctx, tx.Tx(), name)
+		if err != nil {
+			return fmt.Errorf("Failed to fetch cluster link: %w", err)
+		}
+
+		apiClusterLink, err = dbClusterLink.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Validate ETag.
+	err = util.EtagCheck(r, apiClusterLink.Writable())
+	if err != nil {
+		return response.PreconditionFailed(err)
+	}
+
+	// Parse the request.
+	req := api.ClusterLinkPut{}
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Update the fields from the request.
+		if req.Description != "" {
+			dbClusterLink.Description = req.Description
+		}
+
+		if len(req.Addresses) > 0 {
+			dbClusterLink.Addresses = req.Addresses
+		}
+
+		// Update DB entry.
+		err = dbCluster.UpdateClusterLink(ctx, tx.Tx(), name, *dbClusterLink)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Send cluster link lifecycle event.
+	requestor := request.CreateRequestor(r)
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkUpdated.Event(name, requestor, nil))
+
+	return response.SyncResponse(true, name)
+}
+
+// swagger:operation PUT /1.0/clusters/{name} cluster-links cluster_link_put
+//
+//	Update cluster link
+//
+//	Update a cluster link.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: Update cluster link request
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/ClusterLinkPut"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func clusterLinkPut(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// If a request tries to create/update/delete a delegated cluster link, the correct user agent must be set to prevent accidental edits of delegated cluster links.
+	if isDelegator(r) && r.Header.Get("User-Agent") != clusterRequest.UserAgentDelegator {
+		return response.Forbidden(fmt.Errorf("Cannot update delegated cluster link %q", name))
+	}
+
+	var dbClusterLink *dbCluster.ClusterLink
+	var apiClusterLink *api.ClusterLink
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get cluster link by name.
+		dbClusterLink, err = dbCluster.GetClusterLink(ctx, tx.Tx(), name)
+		if err != nil {
+			return fmt.Errorf("Failed to fetch cluster link: %w", err)
+		}
+
+		apiClusterLink, err = dbClusterLink.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Validate ETag.
+	err = util.EtagCheck(r, apiClusterLink.Writable())
+	if err != nil {
+		return response.PreconditionFailed(err)
+	}
+
+	// Parse the request.
+	req := api.ClusterLinkPut{}
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		obj := dbCluster.ClusterLink{
+			ID:          dbClusterLink.ID,
+			IdentityID:  dbClusterLink.ID,
+			Name:        dbClusterLink.Name,
+			Addresses:   req.Addresses,
+			Description: req.Description,
+			Type:        dbClusterLink.Type,
+		}
+
+		// Update DB entry.
+		err = dbCluster.UpdateClusterLink(ctx, tx.Tx(), name, obj)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Send cluster link lifecycle event.
+	requestor := request.CreateRequestor(r)
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkUpdated.Event(name, requestor, nil))
+
+	return response.SyncResponse(true, name)
+}
+
+// swagger:operation POST /1.0/clusters/{name} cluster-links cluster_link_POST
+//
+//	Rename cluster link
+//
+//	Rename a cluster link.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: Rename cluster link request
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/ClusterLinkPut"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func clusterLinkPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	req := api.ClusterLinkPost{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// If a request tries to create/update/delete a delegated cluster link, the correct user agent must be set to prevent accidental edits of delegated cluster links.
+	if isDelegator(r) && r.Header.Get("User-Agent") != clusterRequest.UserAgentDelegator {
+		return response.Forbidden(fmt.Errorf("Cannot update delegated cluster link %q", name))
+	}
+
+	// Get the existing cluster link.
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, err := dbCluster.GetClusterLink(ctx, tx.Tx(), name)
+		if err != nil {
+			return fmt.Errorf("Failed to fetch cluster link: %w", err)
+		}
+
+		err = dbCluster.RenameClusterLink(ctx, tx.Tx(), name, req.Name)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Send cluster link lifecycle event.
+	requestor := request.CreateRequestor(r)
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkUpdated.Event(name, requestor, nil))
+
+	return response.SyncResponse(true, name)
+}
+
+// swagger:operation DELETE /1.0/clusters/{name} cluster-links cluster_link_delete
+//
+//	Delete cluster link
+//
+//	Delete a cluster link.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: Delete cluster link request
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func clusterLinkDelete(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	networkCert := s.Endpoints.NetworkCert()
+	serverCert := s.ServerCert()
+	notify := newIdentityNotificationFunc(s, r, networkCert, serverCert)
+
+	// If a request tries to create/update/delete a delegated cluster link, the correct user agent must be set to prevent accidental edits of delegated cluster links.
+	if isDelegator(r) && r.Header.Get("User-Agent") != clusterRequest.UserAgentDelegator {
+		return response.Forbidden(fmt.Errorf("Cannot update delegated cluster link %q", name))
+	}
+
+	// Update DB entry.
+	var identity *dbCluster.Identity
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := dbCluster.DeleteClusterLink(ctx, tx.Tx(), name)
+		if err != nil {
+			return err
+		}
+
+		identity, err = dbCluster.GetIdentityByNameOrIdentifier(ctx, tx.Tx(), api.AuthenticationMethodTLS, name)
+		if err != nil {
+			return err
+		}
+
+		err = dbCluster.DeleteClusterLinkIdentity(ctx, tx.Tx(), name)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Error deleting %q from database: %w", name, err))
+	}
+
+	// Send cluster link lifecycle event.
+	requestor := request.CreateRequestor(r)
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkRemoved.Event(name, requestor, nil))
+
+	// Notify other members, update the cache, and send an identity lifecycle event.
+	_, err = notify(lifecycle.IdentityDeleted, api.AuthenticationMethodTLS, identity.Identifier, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
+}
+
+// swagger:operation POST /1.0/clusters cluster-links cluster_links_post
+//
+//	Post cluster link
+//
+//	Create a cluster link.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: Create cluster link request
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/ClusterLinkPost"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func clusterLinksPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	// Parse the request.
+	req := api.ClusterLinkPost{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	networkCert := s.Endpoints.NetworkCert()
+	serverCert := s.ServerCert()
+	notify := newIdentityNotificationFunc(s, r, networkCert, serverCert)
+	requestor := request.CreateRequestor(r)
+
+	isDelegatedClusterLink := isDelegator(r)
+	clusterLinkType := api.ClusterLinkTypeNonDelegated
+	if isDelegatedClusterLink {
+		clusterLinkType = api.ClusterLinkTypeDelegated
+	}
+
+	// If a request tries to create/update/delete a delegated cluster link, the correct user agent must be set to prevent accidental edits of delegated cluster links.
+	if isDelegatedClusterLink && r.Header.Get("User-Agent") != clusterRequest.UserAgentDelegator {
+		return response.Forbidden(fmt.Errorf("Cannot update delegated cluster link %q", req.Name))
+	}
+
+	if req.Name != "" && req.TrustToken == "" {
+		// This is a request to create a pending cluster link (when a trust token is not provided).
+		logger.Info("Creating pending cluster link", logger.Ctx{"name": req.Name})
+
+		// Check if the caller has permission to create identities.
+		err := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanCreateIdentities)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Check if the caller has permission to create cluster links.
+		err = s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanCreateClusterLinks)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Create certificate add token.
+		token, err := createCertificateAddToken(s, req.Name, api.IdentityTypeCertificateClusterLink)
+		if err != nil {
+			return response.InternalError(fmt.Errorf("Failed to generate trust token: %w", err))
+		}
+
+		// Generate an identifier for the identity and calculate its metadata.
+		identifier := uuid.New()
+		metadata := dbCluster.PendingTLSMetadata{
+			Secret: token.Secret,
+			Expiry: token.ExpiresAt,
+		}
+
+		metadataJSON, err := json.Marshal(metadata)
+		if err != nil {
+			return response.InternalError(fmt.Errorf("Failed to encode pending TLS identity metadata: %w", err))
+		}
+
+		// Create the pending identity and cluster link.
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			id, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
+				AuthMethod: api.AuthenticationMethodTLS,
+				Type:       api.IdentityTypeCertificateClusterLinkPending,
+				Identifier: identifier.String(),
+				Name:       req.Name,
+				Metadata:   string(metadataJSON),
+			})
+			if err != nil {
+				return err
+			}
+
+			if len(req.AuthGroups) > 0 {
+				return dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), int(id), req.AuthGroups)
+			}
+
+			_, err = dbCluster.CreateClusterLink(ctx, tx.Tx(), dbCluster.ClusterLink{
+				IdentityID:  int(id),
+				Name:        req.Name,
+				Description: req.Description,
+				Addresses:   []string{},
+				Type:        dbCluster.ClusterLinkType(clusterLinkType),
+			})
+			if err != nil {
+				return fmt.Errorf("Error inserting %q into database: %w", req.Name, err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return response.InternalError(fmt.Errorf("Failed to create pending TLS identity: %w", err))
+		}
+
+		// Send cluster link lifecycle event.
+		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkCreated.Event(req.Name, requestor, nil))
+
+		// Notify other members, update the cache, and send a lifecycle event.
+		lc, err := notify(lifecycle.IdentityCreated, api.AuthenticationMethodTLS, identifier.String(), false)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.SyncResponseLocation(true, token, lc.Source)
+	}
+
+	// This is a request to create an active cluster link and identity, or activate a pending cluster link using a token provided by another cluster.
+	if req.TrustToken == "" {
+		return response.Forbidden(fmt.Errorf("Trust token required"))
+	}
+
+	// Decode the token.
+	trustToken, err := shared.CertificateTokenDecode(req.TrustToken)
+	if err != nil {
+		return response.Forbidden(errors.New("Invalid trust token"))
+	}
+
+	if req.Name != "" {
+		// This is a request to create an active cluster link and identity.
+		logger.Info("Creating cluster link using trust token", logger.Ctx{"name": req.Name})
+
+		// Check if the caller has permission to create identities.
+		err := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanCreateIdentities)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Check if the caller has permission to create cluster links.
+		err = s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanCreateClusterLinks)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if len(trustToken.Addresses) == 0 {
+			return response.BadRequest(errors.New("No cluster addresses provided in trust token"))
+		}
+
+		// Validate that the addresses are reachable and return consistent certificates with fingerprints matching that of the token.
+		cert, _, err := cluster.GetClusterLinkCertificate(r.Context(), trustToken.Addresses, trustToken.Fingerprint, version.UserAgent)
+		if err != nil {
+			return response.BadRequest(fmt.Errorf("Failed to validate cluster certificate: %w", err))
+		}
+
+		clusterCert := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+
+		fingerprint, metadata, err := validateIdentityCert(networkCert, clusterCert)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Check if we already have the certificate.
+			_, err := dbCluster.GetIdentityID(ctx, tx.Tx(), api.AuthenticationMethodTLS, fingerprint)
+			if err == nil {
+				return api.StatusErrorf(http.StatusConflict, "Identity already exists")
+			}
+
+			// Create the identity.
+			id, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
+				AuthMethod: api.AuthenticationMethodTLS,
+				Type:       api.IdentityTypeCertificateClusterLink,
+				Identifier: fingerprint,
+				Name:       req.Name,
+				Metadata:   metadata,
+			})
+			if err != nil {
+				return err
+			}
+
+			// Create cluster link DB entry.
+			_, err = dbCluster.CreateClusterLink(ctx, tx.Tx(), dbCluster.ClusterLink{
+				IdentityID:  int(id),
+				Name:        req.Name,
+				Description: req.Description,
+				Addresses:   trustToken.Addresses,
+				Type:        dbCluster.ClusterLinkType(clusterLinkType),
+			})
+			if err != nil {
+				return fmt.Errorf("Error inserting %q into database: %w", req.Name, err)
+			}
+
+			if len(req.AuthGroups) > 0 {
+				return dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), int(id), req.AuthGroups)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Send cluster link lifecycle event.
+		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkAdded.Event(req.Name, requestor, nil))
+
+		// Notify other members, update the cache, and send an identity lifecycle event.
+		lc, err := notify(lifecycle.IdentityCreated, api.AuthenticationMethodTLS, fingerprint, true)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Send POST to remote /1.0/clusters to activate pending cluster link using token.
+		for _, address := range trustToken.Addresses {
+			localHTTPSAddress := s.LocalConfig.HTTPSAddress()
+
+			args := &lxd.ConnectionArgs{
+				InsecureSkipVerify: true,
+				UserAgent:          version.UserAgent,
+			}
+
+			clusterAddress := util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
+			client, err := lxd.ConnectLXD("https://"+clusterAddress, args)
+			if err != nil {
+				continue
+			}
+
+			listenAddresses, err := util.ListenAddresses(localHTTPSAddress)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			_, _, err = client.RawQuery("POST", "/1.0/clusters", api.ClusterLinkPost{TrustToken: trustToken.String(), Addresses: listenAddresses, ClusterCertificate: string(networkCert.PublicKey())}, "")
+			if err != nil {
+				return response.SmartError(fmt.Errorf("Failed to activate cluster link %q: %w", req.Name, err))
+			}
+
+			return response.SyncResponseLocation(true, nil, lc.Source)
+		}
+	}
+
+	if req.Name == "" && len(req.Addresses) > 0 {
+		// This is a request to activate a pending cluster link using a token provided by another cluster.
+		logger.Info("Activating cluster link using trust token")
+
+		// Check there is a matching pending cluster link identity.
+		identifier, err := tlsIdentityTokenValidate(r.Context(), s, *trustToken)
+		if err != nil {
+			return response.InternalError(fmt.Errorf("Failed during search for pending identity: %w", err))
+		}
+
+		if trustToken.Type != api.IdentityTypeCertificateClusterLink {
+			return response.Forbidden(fmt.Errorf("Invalid trust token"))
+		}
+
+		if req.ClusterCertificate == "" {
+			return response.BadRequest(fmt.Errorf("Cluster certificate required"))
+		}
+
+		block, _ := pem.Decode([]byte(req.ClusterCertificate))
+		if block == nil {
+			return response.BadRequest(fmt.Errorf("Failed to decode certificate"))
+		}
+
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			// This should not happen.
+			return response.InternalError(err)
+		}
+
+		// Calculate cluster certificate fingerprint.
+		fingerprint, err := shared.CertFingerprintStr(req.ClusterCertificate)
+		if err != nil {
+			return response.BadRequest(fmt.Errorf("Failed to calculate fingerprint: %w", err))
+		}
+
+		// Validate that the addresses are reachable and return consistent certificates with fingerprints matching that of the requestor's cluster certificate.
+		cert, _, err = cluster.GetClusterLinkCertificate(r.Context(), req.Addresses, fingerprint, version.UserAgent)
+		if err != nil {
+			return response.BadRequest(fmt.Errorf("Failed to validate cluster certificate: %w", err))
+		}
+
+		var clusterLinkName string
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Activate the pending identity with the certificate.
+			err = dbCluster.ActivateTLSIdentity(ctx, tx.Tx(), identifier, cert, dbCluster.IdentityType(api.IdentityTypeCertificateClusterLink))
+			if err != nil {
+				return fmt.Errorf("Failed to activate identity %q: %w", identifier.String(), err)
+			}
+
+			identity, err := dbCluster.GetIdentityByNameOrIdentifier(ctx, tx.Tx(), api.AuthenticationMethodTLS, fingerprint)
+			if err != nil {
+				return fmt.Errorf("Failed to fetch identity: %w", err)
+			}
+
+			// Get cluster link by name.
+			clusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), identity.Name)
+			if err != nil {
+				return fmt.Errorf("Failed to fetch cluster link: %w", err)
+			}
+
+			clusterLinkName = clusterLink.Name
+
+			// Activate the pending cluster link (update its addresses).
+			err = dbCluster.ActivateClusterLink(ctx, tx.Tx(), clusterLink.Name, dbCluster.Addresses(req.Addresses))
+			if err != nil {
+				return fmt.Errorf("Failed to activate cluster link %q: %w", clusterLink.Name, err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Send cluster link lifecycle event.
+		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkAdded.Event(clusterLinkName, requestor, nil))
+
+		// Notify other members, update the cache, and send an identity lifecycle event.
+		lc, err := notify(lifecycle.IdentityUpdated, api.AuthenticationMethodTLS, identifier.String(), true)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.SyncResponseLocation(true, nil, lc.Source)
+	}
+
+	return response.SyncResponse(false, nil)
 }

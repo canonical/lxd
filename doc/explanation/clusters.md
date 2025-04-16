@@ -133,6 +133,19 @@ By default, all cluster members belong to the `default` group.
 
 See {ref}`howto-cluster-groups` and {ref}`cluster-target-instance` for more information.
 
+(cluster-links)=
+## Cluster links
+
+Cluster links allow you to connect separate LXD clusters to enable scaling beyond the ~50 member limit of a single cluster. This provides various benefits such as extended capacity, failover capabilities, disaster recovery options, and geographically distributed backups.
+
+When you link clusters, they establish a trust relationship using their cluster certificates, allowing for secure communication between them. This communication is secured using mutual TLS.
+
+### Identity management for cluster links
+
+When you create a cluster link, LXD automatically creates an identity for the linked cluster. This identity is of type `Cluster link certificate` and is used for authentication when the linked cluster connects to your cluster. These identities are managed using {ref}`fine-grained-authorization`.
+
+See {ref}`howto-cluster-links` for instructions on how to set up and manage cluster links.
+
 (clustering-instance-placement)=
 ## Automatic placement of instances
 
