@@ -34,9 +34,10 @@ func CephGetRBDImageName(vol Volume, zombie bool) (imageName string, snapName st
 		parentName = parentName + "_" + vol.ConfigBlockFilesystem()
 	}
 
-	if vol.contentType == ContentTypeBlock {
+	switch vol.contentType {
+	case ContentTypeBlock:
 		parentName = parentName + cephBlockVolSuffix
-	} else if vol.contentType == ContentTypeISO {
+	case ContentTypeISO:
 		parentName = parentName + cephISOVolSuffix
 	}
 
