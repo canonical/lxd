@@ -447,7 +447,7 @@ func parseField(f *ast.Field, kind string) (*Field, error) {
 	omit := config.Get("omit")
 	if omit != "" {
 		omitFields := strings.Split(omit, ",")
-		stmtKind := strings.Replace(lex.Snake(kind), "_", "-", -1)
+		stmtKind := strings.ReplaceAll(lex.Snake(kind), "_", "-")
 		switch kind {
 		case "URIs":
 			stmtKind = "names"
