@@ -392,7 +392,8 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 			return fmt.Errorf("Destination port cannot be used with %q protocol", rule.Protocol)
 		}
 
-		if rule.Protocol == "icmp4" {
+		switch rule.Protocol {
+		case "icmp4":
 			if srcHasIPv6 {
 				return fmt.Errorf("Cannot use IPv6 source addresses with %q protocol", rule.Protocol)
 			}
@@ -400,7 +401,8 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 			if dstHasIPv6 {
 				return fmt.Errorf("Cannot use IPv6 destination addresses with %q protocol", rule.Protocol)
 			}
-		} else if rule.Protocol == "icmp6" {
+
+		case "icmp6":
 			if srcHasIPv4 {
 				return fmt.Errorf("Cannot use IPv4 source addresses with %q protocol", rule.Protocol)
 			}
