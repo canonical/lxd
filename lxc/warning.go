@@ -225,7 +225,7 @@ func (c *cmdWarningList) parseColumns(clustered bool) ([]warningColumn, error) {
 				return nil, errors.New(i18n.G("Can't specify column L when not clustered"))
 			}
 		}
-		c.flagColumns = strings.Replace(c.flagColumns, "L", "", -1)
+		c.flagColumns = strings.ReplaceAll(c.flagColumns, "L", "")
 	}
 
 	columnList := strings.Split(c.flagColumns, ",")
