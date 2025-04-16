@@ -4096,7 +4096,14 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 	}
 
 	if bus == "virtio-scsi" {
-		qemuDev["device_id"] = qemuDeviceNameOrID(qemuDeviceNamePrefix, driveConf.DevName, "", qemuDeviceNameMaxLength)
+		qemuDev["device_id"] = qemuDeviceSerial
+
+		// Maintain existing /dev/disk/by-id naming behaviour in guest.
+		// Related to https://gitlab.com/qemu-project/qemu/-/commit/75997e182b695f2e3f0a2d649734952af5caf3ee
+		if len(qemuDeviceSerial) > 20 {
+			qemuDev["device_id"] = qemuDeviceSerial[:20]
+		}
+
 		qemuDev["channel"] = 0
 		qemuDev["lun"] = 1
 		qemuDev["bus"] = "qemu_scsi.0"
