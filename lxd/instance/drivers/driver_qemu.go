@@ -4090,6 +4090,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 
 	// Trim the serial down to 36 characters if longer than that, since this is the max size of a serial in QEMU.
 	// Do not hash as to not break older guests that were relying on QEMU to reduce the size of the device serial.
+	// Related to https://gitlab.com/qemu-project/qemu/-/commit/75997e182b695f2e3f0a2d649734952af5caf3ee
 	if len(qemuDeviceSerial) > 36 {
 		qemuDev["serial"] = qemuDeviceSerial[:36]
 	}
