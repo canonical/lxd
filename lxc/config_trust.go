@@ -183,9 +183,10 @@ func (c *cmdConfigTrustAdd) run(cmd *cobra.Command, args []string) error {
 		cert.Name = name
 	}
 
-	if c.flagType == "client" {
+	switch c.flagType {
+	case "client":
 		cert.Type = api.CertificateTypeClient
-	} else if c.flagType == "metrics" {
+	case "metrics":
 		if cert.Token {
 			return errors.New(i18n.G("Cannot use metrics type certificate when using a token"))
 		}
