@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // tlsHTTPClient creates an HTTP client with a specified Transport Layer Security (TLS) configuration.
@@ -248,6 +249,32 @@ func urlsToResourceNames(matchPathPrefix string, urls ...string) ([]string, erro
 		}
 
 		resourceNames = append(resourceNames, after)
+	}
+
+	return resourceNames, nil
+}
+
+// urlsToResourceNamesAllProjects returns a map of project name to list of resource names, where the resource name is extracted from
+// the final element of each given URL.
+func urlsToResourceNamesAllProjects(matchPathPrefix string, urls ...string) (map[string][]string, error) {
+	resourceNames := make(map[string][]string)
+	for _, urlRaw := range urls {
+		u, err := url.Parse(urlRaw)
+		if err != nil {
+			return nil, fmt.Errorf("Failed parsing URL %q: %w", urlRaw, err)
+		}
+
+		_, after, found := strings.Cut(u.Path, matchPathPrefix+"/")
+		if !found {
+			return nil, fmt.Errorf("Unexpected URL path %q", u.Path)
+		}
+
+		project := u.Query().Get("project")
+		if project == "" {
+			project = api.ProjectDefaultName
+		}
+
+		resourceNames[project] = append(resourceNames[project], after)
 	}
 
 	return resourceNames, nil
