@@ -136,7 +136,8 @@ func (d *unixHotplug) Register() error {
 	f := func(e UnixHotplugEvent) (*deviceConfig.RunConfig, error) {
 		runConf := deviceConfig.RunConfig{}
 
-		if e.Action == "add" {
+		switch e.Action {
+		case "add":
 			if !unixHotplugDeviceMatch(devConfig, e.Vendor, e.Product, e.Subsystem, e.Major) {
 				return nil, nil
 			}
@@ -152,7 +153,7 @@ func (d *unixHotplug) Register() error {
 					return nil, err
 				}
 			}
-		} else if e.Action == "remove" {
+		case "remove":
 			relativeTargetPath := strings.TrimPrefix(e.Path, "/")
 			err := unixDeviceRemove(devicesPath, "unix", deviceName, relativeTargetPath, &runConf)
 			if err != nil {
