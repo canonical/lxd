@@ -1265,15 +1265,15 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed loading failure domains names: %w", err)
 		}
 
+		members, err = tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
 		if recursion {
 			memberFailureDomains, err := tx.GetNodesFailureDomains(ctx)
 			if err != nil {
 				return fmt.Errorf("Failed loading member failure domains: %w", err)
-			}
-
-			members, err = tx.GetNodes(ctx)
-			if err != nil {
-				return fmt.Errorf("Failed getting cluster members: %w", err)
 			}
 
 			args := db.NodeInfoArgs{
