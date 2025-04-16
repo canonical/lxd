@@ -979,11 +979,12 @@ func (c *cmdNetworkACLRule) runAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	// Add rule to the requested direction (if direction valid).
-	if args[1] == "ingress" {
+	switch args[1] {
+	case "ingress":
 		netACL.Ingress = append(netACL.Ingress, *rule)
-	} else if args[1] == "egress" {
+	case "egress":
 		netACL.Egress = append(netACL.Egress, *rule)
-	} else {
+	default:
 		return errors.New(i18n.G("The direction argument must be one of: ingress, egress"))
 	}
 
@@ -1107,21 +1108,22 @@ func (c *cmdNetworkACLRule) runRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	// Remove matching rule(s) from the requested direction (if direction valid).
-	if args[1] == "ingress" {
+	switch args[1] {
+	case "ingress":
 		rules, err := removeFromRules(netACL.Ingress, filters)
 		if err != nil {
 			return err
 		}
 
 		netACL.Ingress = rules
-	} else if args[1] == "egress" {
+	case "egress":
 		rules, err := removeFromRules(netACL.Egress, filters)
 		if err != nil {
 			return err
 		}
 
 		netACL.Egress = rules
-	} else {
+	default:
 		return errors.New(i18n.G("The direction argument must be one of: ingress, egress"))
 	}
 
