@@ -336,12 +336,14 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 			snapVol, _ := vol.NewSnapshot(snapName)
 			snapDir := "snapshots"
 			srcFilePrefix := snapName
-			if vol.volType == VolumeTypeVM {
+			switch vol.volType {
+			case VolumeTypeVM:
 				snapDir = "virtual-machine-snapshots"
 				if vol.contentType == ContentTypeFS {
 					srcFilePrefix = snapName + "-config"
 				}
-			} else if vol.volType == VolumeTypeCustom {
+
+			case VolumeTypeCustom:
 				snapDir = "volume-snapshots"
 			}
 
@@ -355,13 +357,15 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 
 	// Extract main volume.
 	srcFilePrefix := "container"
-	if vol.volType == VolumeTypeVM {
+	switch vol.volType {
+	case VolumeTypeVM:
 		if vol.contentType == ContentTypeFS {
 			srcFilePrefix = "virtual-machine-config"
 		} else {
 			srcFilePrefix = "virtual-machine"
 		}
-	} else if vol.volType == VolumeTypeCustom {
+
+	case VolumeTypeCustom:
 		srcFilePrefix = "volume"
 	}
 
@@ -1586,12 +1590,14 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 		// Make a binary btrfs backup.
 		snapDir := "snapshots"
 		fileName := snapName
-		if vol.volType == VolumeTypeVM {
+		switch vol.volType {
+		case VolumeTypeVM:
 			snapDir = "virtual-machine-snapshots"
 			if vol.contentType == ContentTypeFS {
 				fileName = snapName + "-config"
 			}
-		} else if vol.volType == VolumeTypeCustom {
+
+		case VolumeTypeCustom:
 			snapDir = "volume-snapshots"
 		}
 
@@ -1636,13 +1642,15 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 
 	// Dump the instance to a file.
 	fileNamePrefix := "container"
-	if vol.volType == VolumeTypeVM {
+	switch vol.volType {
+	case VolumeTypeVM:
 		if vol.contentType == ContentTypeFS {
 			fileNamePrefix = "virtual-machine-config"
 		} else {
 			fileNamePrefix = "virtual-machine"
 		}
-	} else if vol.volType == VolumeTypeCustom {
+
+	case VolumeTypeCustom:
 		fileNamePrefix = "volume"
 	}
 
