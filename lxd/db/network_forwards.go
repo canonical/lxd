@@ -381,7 +381,7 @@ func (c *ClusterTx) GetNetworkForwards(ctx context.Context, networkID int64, mem
 	}
 
 	if len(listenAddresses) > 0 {
-		q.WriteString(fmt.Sprintf("AND networks_forwards.listen_address IN %s ", query.Params(len(listenAddresses))))
+		fmt.Fprintf(q, "AND networks_forwards.listen_address IN %s ", query.Params(len(listenAddresses)))
 		for _, listenAddress := range listenAddresses {
 			args = append(args, listenAddress)
 		}
