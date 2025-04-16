@@ -45,7 +45,8 @@ type Event struct {
 
 // ToLogging creates log record for the event.
 func (event *Event) ToLogging() (EventLogRecord, error) {
-	if event.Type == EventTypeLogging || event.Type == EventTypeOVN {
+	switch event.Type {
+	case EventTypeLogging, EventTypeOVN:
 		e := &EventLogging{}
 		err := json.Unmarshal(event.Metadata, &e)
 		if err != nil {
@@ -66,7 +67,7 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 		}
 
 		return record, nil
-	} else if event.Type == EventTypeLifecycle {
+	case EventTypeLifecycle:
 		e := &EventLifecycle{}
 		err := json.Unmarshal(event.Metadata, &e)
 		if err != nil {
@@ -93,7 +94,7 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 		}
 
 		return record, nil
-	} else if event.Type == EventTypeOperation {
+	case EventTypeOperation:
 		e := &Operation{}
 		err := json.Unmarshal(event.Metadata, &e)
 		if err != nil {
