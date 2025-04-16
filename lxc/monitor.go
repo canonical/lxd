@@ -183,13 +183,15 @@ func (c *cmdMonitor) run(cmd *cobra.Command, args []string) error {
 
 		// And now print the result.
 		var render []byte
-		if c.flagFormat == "yaml" {
+		switch c.flagFormat {
+		case "yaml":
 			render, err = yaml.Marshal(&rawEvent)
 			if err != nil {
 				chError <- err
 				return
 			}
-		} else if c.flagFormat == "json" {
+
+		case "json":
 			render, err = json.Marshal(&rawEvent)
 			if err != nil {
 				chError <- err
