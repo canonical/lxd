@@ -188,7 +188,8 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 		"X-LXD-type":     fileType,
 	}
 
-	if fileType == "file" {
+	switch fileType {
+	case "file":
 		// Open the file.
 		file, err := client.Open(path)
 		if err != nil {
@@ -214,7 +215,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileRetrieved.Event(inst, logger.Ctx{"path": path}))
 		return response.FileResponse(files, headers)
-	} else if fileType == "symlink" {
+	case "symlink":
 		// Find symlink target.
 		target, err := client.ReadLink(path)
 		if err != nil {
@@ -245,7 +246,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileRetrieved.Event(inst, logger.Ctx{"path": path}))
 		return response.FileResponse(files, headers)
-	} else if fileType == "directory" {
+	case "directory":
 		dirEnts := []string{}
 
 		// List the directory.
@@ -502,7 +503,8 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 	_, err = client.Stat(path)
 	exists := err == nil
 
-	if headers.Type == "file" {
+	switch headers.Type {
+	case "file":
 		fileMode := os.O_RDWR
 
 		if headers.Write == "overwrite" {
@@ -560,7 +562,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFilePushed.Event(inst, logger.Ctx{"path": path}))
 		return response.EmptySyncResponse
-	} else if headers.Type == "symlink" {
+	case "symlink":
 		// Figure out target.
 		target, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -581,7 +583,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFilePushed.Event(inst, logger.Ctx{"path": path}))
 		return response.EmptySyncResponse
-	} else if headers.Type == "directory" {
+	case "directory":
 		// Check if it already exists.
 		if exists {
 			return response.EmptySyncResponse
