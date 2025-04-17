@@ -89,9 +89,8 @@ ifneq "$(LXD_OFFLINE)" ""
 	exit 1
 endif
 	go get -t -v -u ./...
-	go get github.com/mdlayher/socket@v0.4.1
-	go get github.com/digitalocean/go-libvirt@v0.0.0-20221205150000-2939327a8519
-	go get github.com/jaypipes/pcidb@v1.0.0
+
+	# Static pins
 	go get github.com/gorilla/websocket@v1.5.1 # Due to riscv64 crashes in LP
 	go mod tidy -go=$(GOMIN)
 	go get toolchain@none
