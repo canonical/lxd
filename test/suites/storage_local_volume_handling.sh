@@ -4,7 +4,6 @@ test_storage_local_volume_handling() {
   local LXD_STORAGE_DIR lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
-  chmod +x "${LXD_STORAGE_DIR}"
   spawn_lxd "${LXD_STORAGE_DIR}" false
 
   ensure_import_testimage

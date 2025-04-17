@@ -303,7 +303,6 @@ test_basic_usage() {
 
   # Test activateifneeded/shutdown
   LXD_ACTIVATION_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  chmod +x "${LXD_ACTIVATION_DIR}"
   spawn_lxd "${LXD_ACTIVATION_DIR}" true
   (
     set -e

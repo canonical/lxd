@@ -5,7 +5,6 @@ test_security() {
   # CVE-2016-1581
   if [ "$(storage_backend "$LXD_DIR")" = "zfs" ]; then
     LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-    chmod +x "${LXD_INIT_DIR}"
     spawn_lxd "${LXD_INIT_DIR}" false
 
     ZFS_POOL="lxdtest-$(basename "${LXD_DIR}")-init"
@@ -90,7 +89,6 @@ test_security() {
   local LXD_STORAGE_DIR
 
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
-  chmod +x "${LXD_STORAGE_DIR}"
   # Enforce that only unprivileged containers can be created
   LXD_UNPRIVILEGED_ONLY=true
   export LXD_UNPRIVILEGED_ONLY
