@@ -88,11 +88,16 @@ ifneq "$(LXD_OFFLINE)" ""
 	@echo "The update-gomod target cannot be run in offline mode."
 	exit 1
 endif
+	# Update gomod dependencies
 	go get -t -v -u ./...
 
 	# Static pins
 	go get github.com/gorilla/websocket@v1.5.1 # Due to riscv64 crashes in LP
+
+	# Enforce minimum go version
 	go mod tidy -go=$(GOMIN)
+
+	# Use the bundled toolchain that meets the minimum go version
 	go get toolchain@none
 
 	@echo "Dependencies updated"
