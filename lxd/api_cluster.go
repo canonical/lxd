@@ -36,6 +36,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/placement"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
@@ -4095,6 +4096,7 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	var membersWereRemoved bool
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		group, err := dbCluster.GetClusterGroup(ctx, tx.Tx(), name)
 		if err != nil {
@@ -4135,6 +4137,8 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 					if err != nil {
 						return err
 					}
+
+					membersWereRemoved = true
 				}
 			} else {
 				skipMembers = append(skipMembers, oldMember)
@@ -4158,6 +4162,10 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if membersWereRemoved {
+		defer clusterGroupValidateRulesetsOnMemberRemoval(s, name)
 	}
 
 	requestor := request.CreateRequestor(r)
@@ -4256,6 +4264,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 		req.Members = clusterGroup.Members
 	}
 
+	var membersWereRemoved bool
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		obj := dbCluster.ClusterGroup{
 			Name:        dbClusterGroup.Name,
@@ -4310,6 +4319,8 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 				if err != nil {
 					return err
 				}
+
+				membersWereRemoved = true
 			} else {
 				skipMembers = append(skipMembers, oldMember)
 			}
@@ -4332,6 +4343,10 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if membersWereRemoved {
+		defer clusterGroupValidateRulesetsOnMemberRemoval(s, name)
 	}
 
 	requestor := request.CreateRequestor(r)
@@ -4401,6 +4416,53 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 	s.Events.SendLifecycle(name, lifecycle.ClusterGroupDeleted.Event(name, requestor, nil))
 
 	return response.EmptySyncResponse
+}
+
+// clusterGroupValidateRulesetsOnMemberRemoval should be used as a defered function call when a member is removed from a
+// cluster group. This will re-validate any placement rulesets associated with the cluster group and create appropriate
+// warnings (e.g. if an instance with a ruleset containing an affinity rule for the cluster group is currently running
+// on the cluster member that was removed).
+func clusterGroupValidateRulesetsOnMemberRemoval(s *state.State, clusterGroupName string) {
+	_ = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		projectToRuleset, err := dbCluster.GetClusterGroupPlacementRulesetReferences(ctx, tx.Tx(), clusterGroupName)
+		if err != nil {
+			logger.Error("Failed to check placement ruleset references on cluster group member removal", logger.Ctx{"group_name": clusterGroupName, "err": err})
+			return nil
+		}
+
+		if len(projectToRuleset) == 0 {
+			return nil
+		}
+
+		for projectName, rulesetNames := range projectToRuleset {
+			for _, rulesetName := range rulesetNames {
+				ruleset, err := dbCluster.GetPlacementRuleset(ctx, tx.Tx(), projectName, rulesetName)
+				if err != nil {
+					logger.Error("Failed to get placement ruleset that is referenced by a cluster group on member removal", logger.Ctx{"group_name": clusterGroupName, "project": projectName, "ruleset": rulesetName, "err": err})
+					continue
+				}
+
+				_, candidates, allMembers, err := placement.ValidateRuleset(ctx, tx, projectName, ruleset.ToAPI())
+				if err != nil {
+					logger.Warn("Placement ruleset invalidated after cluster group member removal", logger.Ctx{"group_name": clusterGroupName, "project": projectName, "ruleset": rulesetName, "err": err})
+				}
+
+				nonConformantInstances, err := placement.GetNonConformantInstances(ctx, tx, rulesetName, projectName, candidates, allMembers)
+				if err != nil {
+					return err
+				}
+
+				for instanceID, member := range nonConformantInstances {
+					err = tx.UpsertWarning(ctx, member.Name, projectName, entity.TypeInstance, instanceID, warningtype.InstanceNotConformantWithPlacementRuleset, "Move the instance to a member that conforms to the ruleset, or remove the ruleset from the instance configuration")
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+
+		return nil
+	})
 }
 
 func clusterGroupValidateName(name string) error {
