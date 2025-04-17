@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"database/sql"
+	"strconv"
 
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared"
@@ -64,9 +65,9 @@ func (c *ClusterGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.ClusterGroup
 	return &result, nil
 }
 
-// GetClusterGroupUsedBy collates references to the cluster group with the given name.
-// This currently only returns the URLs of projects whose `restricted.cluster.groups` configuration
-// contains the cluster group.
+// GetClusterGroupUsedBy collates references to the cluster group with the given name. This returns the URLs of projects
+// whose `restricted.cluster.groups` configuration contains the cluster group, and URLs of placement rulesets containing
+// rules whose selectors reference the cluster group.
 func GetClusterGroupUsedBy(ctx context.Context, tx *sql.Tx, groupName string) ([]string, error) {
 	q := `
 SELECT projects.name, projects_config.value FROM projects 
@@ -92,5 +93,64 @@ WHERE projects_config.key = 'restricted.cluster.groups'`
 		return nil, err
 	}
 
-	return projectURLs, nil
+	projectToRulesets, err := GetClusterGroupPlacementRulesetReferences(ctx, tx, groupName)
+	if err != nil {
+		return nil, err
+	}
+
+	var placementRulesetURLs []string
+	for projectName, rulesets := range projectToRulesets {
+		for _, rulesetName := range rulesets {
+			u := api.NewURL().Project(projectName).Path("1.0", "placement-rulesets", rulesetName).String()
+			placementRulesetURLs = append(placementRulesetURLs, u)
+		}
+	}
+
+	return append(projectURLs, placementRulesetURLs...), nil
+}
+
+// GetClusterGroupPlacementRulesetReferences returns a map of project name to list of placement ruleset names where the
+// ruleset contains a rule with a selector that references the given cluster group by name.
+func GetClusterGroupPlacementRulesetReferences(ctx context.Context, tx *sql.Tx, groupName string) (map[string][]string, error) {
+	q := `
+SELECT placement_rulesets.name, projects.name, placement_rules_selectors.matchers FROM placement_rulesets
+JOIN projects ON placement_rulesets.project_id = projects.id
+JOIN placement_rules ON placement_rulesets.id = placement_rules.ruleset_id
+JOIN placement_rules_selectors ON placement_rules.id = placement_rules_selectors.placement_rule_id
+WHERE placement_rules_selectors.entity_type = ` + strconv.Itoa(int(entityTypeCodeClusterGroup)) + `
+`
+
+	placementRulesetReferences := make(map[string][]string)
+	err := query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
+		var rulesetName string
+		var projectName string
+		var matchers SelectorMatchers
+		err := scan(&rulesetName, &projectName, &matchers)
+		if err != nil {
+			return err
+		}
+
+		for _, matcher := range matchers {
+			if matcher.Property != "name" {
+				continue
+			}
+
+			if !shared.ValueInSlice(groupName, matcher.Values) {
+				continue
+			}
+
+			if shared.ValueInSlice(rulesetName, placementRulesetReferences[projectName]) {
+				continue
+			}
+
+			placementRulesetReferences[projectName] = append(placementRulesetReferences[projectName], rulesetName)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return placementRulesetReferences, nil
 }
