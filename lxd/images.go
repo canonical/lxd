@@ -4301,7 +4301,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// A devlxd query must be for a public or cached image.
-		if !(imgInfo.Public || imgInfo.Cached) {
+		if !imgInfo.Public && !imgInfo.Cached {
 			return response.NotFound(nil)
 		}
 
