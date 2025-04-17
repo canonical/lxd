@@ -303,7 +303,7 @@ func (d *pure) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 	// Finally, copy the source volume (or snapshot) into destination volume snapshots.
 	if srcVol.IsSnapshot() {
 		// Get snapshot parent volume name.
-		srcParentVol := srcVol.Volume.GetParent()
+		srcParentVol := srcVol.GetParent()
 		srcParentVolName, err := d.getVolumeName(srcParentVol)
 		if err != nil {
 			return err
@@ -533,7 +533,7 @@ func (d *pure) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots
 	// Finally, copy the source volume (or snapshot) into destination volume snapshots.
 	if srcVol.IsSnapshot() {
 		// Find snapshot parent volume.
-		srcParentVol := srcVol.Volume.GetParent()
+		srcParentVol := srcVol.GetParent()
 		srcParentVolName, err := d.getVolumeName(srcParentVol)
 		if err != nil {
 			return nil, err
