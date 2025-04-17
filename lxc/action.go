@@ -177,10 +177,7 @@ func (c *cmdAction) doActionAll(action string, resource remoteResource) error {
 	}
 
 	// Only store state if asked to.
-	state := false
-	if action == "stop" && c.flagStateful {
-		state = true
-	}
+	state := action == "stop" && c.flagStateful
 
 	req := api.InstancesPut{
 		State: &api.InstanceStatePut{
