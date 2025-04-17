@@ -163,11 +163,16 @@ func (s ClauseSet) match(c Clause, objValue any) (bool, error) {
 			return objValue == valueBool, nil
 		case []string:
 			match := func() bool {
-				if len(objValue.([]string)) != len(valueSlice) {
+				stringSlice, ok := objValue.([]string)
+				if !ok {
 					return false
 				}
 
-				for k, v := range objValue.([]string) {
+				if len(stringSlice) != len(valueSlice) {
+					return false
+				}
+
+				for k, v := range stringSlice {
 					if valueSlice[k] != v {
 						return false
 					}
@@ -196,11 +201,16 @@ func (s ClauseSet) match(c Clause, objValue any) (bool, error) {
 			return objValue != valueBool, nil
 		case []string:
 			match := func() bool {
-				if len(objValue.([]string)) != len(valueSlice) {
+				stringSlice, ok := objValue.([]string)
+				if !ok {
 					return false
 				}
 
-				for k, v := range objValue.([]string) {
+				if len(stringSlice) != len(valueSlice) {
+					return false
+				}
+
+				for k, v := range stringSlice {
 					if valueSlice[k] != v {
 						return false
 					}
