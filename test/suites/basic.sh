@@ -406,7 +406,7 @@ test_basic_usage() {
   lxc start foo
 
   # Test instance types
-  lxc launch testimage test-limits -t c0.5-m0.2
+  lxc init --empty test-limits -t c0.5-m0.2 -d "${SMALL_ROOT_DISK}"
   [ "$(lxc config get test-limits limits.cpu)" = "1" ]
   [ "$(lxc config get test-limits limits.cpu.allowance)" = "50%" ]
   [ "$(lxc config get test-limits limits.memory)" = "204MiB" ]
