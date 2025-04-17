@@ -503,9 +503,10 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 		for i := range resultFullList {
 			instancePath := "instances"
 			routeName := mux.CurrentRoute(r).GetName()
-			if routeName == "container" {
+			switch routeName {
+			case "container":
 				instancePath = "containers"
-			} else if routeName == "vm" {
+			case "vm":
 				instancePath = "virtual-machines"
 			}
 
