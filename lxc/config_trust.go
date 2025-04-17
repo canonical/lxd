@@ -140,10 +140,7 @@ func (c *cmdConfigTrustAdd) run(cmd *cobra.Command, args []string) error {
 
 	// Check if remote is the first argument
 	// to detect method of adding trusted client
-	useToken := false
-	if len(args) == 0 || (len(args) == 1 && resource.name == "") {
-		useToken = true
-	}
+	useToken := len(args) == 0 || (len(args) == 1 && resource.name == "")
 
 	if useToken {
 		// Use token
