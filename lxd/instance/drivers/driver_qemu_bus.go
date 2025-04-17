@@ -54,17 +54,17 @@ func (a *qemuBus) allocateRoot() *qemuBusEntry {
 //
 // The multiFunctionGroup parameter allows for grouping devices together as one or more multi-function devices.
 // It automatically keeps track of the number of functions already used and will allocate new ports as needed.
-func (a *qemuBus) allocate(multiFunctionGroup string) (string, string, bool) {
+func (a *qemuBus) allocate(multiFunctionGroup string) (busName string, busAddress string, multi bool) {
 	return a.allocateInternal(multiFunctionGroup, true)
 }
 
 // allocateDirect() works like allocate() but will directly attach the device to the root PCI bridge.
 // This prevents hotplug or hotremove of the device but is sometimes required for compatibility reasons.
-func (a *qemuBus) allocateDirect() (string, string, bool) {
+func (a *qemuBus) allocateDirect() (busName string, busAddress string, multi bool) {
 	return a.allocateInternal(busFunctionGroupNone, false)
 }
 
-func (a *qemuBus) allocateInternal(multiFunctionGroup string, hotplug bool) (string, string, bool) {
+func (a *qemuBus) allocateInternal(multiFunctionGroup string, hotplug bool) (busName string, busAddress string, multi bool) {
 	if a.name == "ccw" {
 		return "", "", false
 	}
@@ -121,7 +121,7 @@ func (a *qemuBus) allocateInternal(multiFunctionGroup string, hotplug bool) (str
 	}
 
 	// The first device added to a multi-function port needs to specify the multi-function feature.
-	multi := p.fn == 0 && multiFunctionGroup != ""
+	multi = p.fn == 0 && multiFunctionGroup != ""
 
 	if a.name == "pci" || !hotplug {
 		return fmt.Sprintf("%s.0", a.name), fmt.Sprintf("%x.%d", p.bridgeDev, p.fn), multi
