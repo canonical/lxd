@@ -1237,13 +1237,14 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			/* Processing image upload */
 			info, err = getImgPostInfo(s, r, builddir, projectName, post, imageMetadata)
 		} else {
-			if req.Source.Type == api.SourceTypeImage {
+			switch req.Source.Type {
+			case api.SourceTypeImage:
 				/* Processing image copy from remote */
 				info, err = imgPostRemoteInfo(s, r, req, op, projectName, budget)
-			} else if req.Source.Type == "url" {
+			case "url":
 				/* Processing image copy from URL */
 				info, err = imgPostURLInfo(s, r, req, op, projectName, budget)
-			} else {
+			default:
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
 				info, err = imgPostInstanceInfo(s, r, req, op, builddir, budget)
@@ -4301,7 +4302,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// A devlxd query must be for a public or cached image.
-		if !(imgInfo.Public || imgInfo.Cached) {
+		if !imgInfo.Public && !imgInfo.Cached {
 			return response.NotFound(nil)
 		}
 

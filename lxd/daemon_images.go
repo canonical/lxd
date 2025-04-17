@@ -356,7 +356,8 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		op.SetCanceler(canceler)
 	}
 
-	if protocol == "lxd" || protocol == "simplestreams" {
+	switch protocol {
+	case "lxd", "simplestreams":
 		// Create the target files
 		dest, err := os.Create(destName)
 		if err != nil {
@@ -457,7 +458,8 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		if err != nil {
 			return nil, err
 		}
-	} else if protocol == "direct" {
+
+	case "direct":
 		// Setup HTTP client
 		httpClient, err := util.HTTPClient(args.Certificate, s.Proxy)
 		if err != nil {
@@ -545,7 +547,8 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		if err != nil {
 			return nil, err
 		}
-	} else {
+
+	default:
 		return nil, fmt.Errorf("Unsupported protocol: %v", protocol)
 	}
 
