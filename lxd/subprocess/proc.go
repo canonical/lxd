@@ -17,12 +17,12 @@ import (
 
 // Process struct. Has ability to set runtime arguments.
 type Process struct {
-	exitCode int64 `yaml:"-"`
-	exitErr  error `yaml:"-"`
+	exitCode int64
+	exitErr  error
 
-	chExit     chan struct{} `yaml:"-"`
-	hasMonitor bool          `yaml:"-"`
-	closeFds   bool          `yaml:"-"`
+	chExit     chan struct{}
+	hasMonitor bool
+	closeFds   bool
 
 	Name     string         `yaml:"name"`
 	Args     []string       `yaml:"args,flow"`
