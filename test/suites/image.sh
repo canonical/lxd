@@ -81,11 +81,24 @@ test_image_list_all_aliases() {
     # shellcheck disable=2039,2034,2155,3043
     local sum="$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
     lxc image alias create zzz "$sum"
-    lxc image list | grep -vq zzz
     # both aliases are listed if the "aliases" column is included in output
-    lxc image list -c L | grep -q testimage
-    lxc image list -c L | grep -q zzz
+    lxc image list -c L | grep -qwF testimage
+    lxc image list -c L | grep -qwF zzz
+}
 
+test_image_list_remotes() {
+    # list images from the `images:` and `ubuntu-minimal:`  builtin remotes if they are reachable
+
+    lxc remote list -f csv | while IFS=, read -r name url _; do
+        if [ "${name}" != "images" ] && [ "${name}" != "ubuntu-minimal" ]; then
+            continue
+        fi
+
+        # Check if there is connectivity
+        curl --head --silent "${url}" > /dev/null || continue
+
+        lxc image list "${name}:" > /dev/null
+    done
 }
 
 test_image_import_dir() {

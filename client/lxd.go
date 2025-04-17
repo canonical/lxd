@@ -239,7 +239,7 @@ func lxdParseResponse(resp *http.Response) (*api.Response, string, error) {
 
 	// Handle errors
 	if response.Type == api.ErrorResponse {
-		return nil, "", api.StatusErrorf(resp.StatusCode, response.Error)
+		return nil, "", api.NewStatusError(resp.StatusCode, response.Error)
 	}
 
 	return &response, etag, nil
@@ -372,7 +372,7 @@ func (r *ProtocolLXD) queryStruct(method string, path string, data any, ETag str
 
 	// Log the data
 	logger.Debugf("Got response struct from LXD")
-	logger.Debugf(logger.Pretty(target))
+	logger.Debug(logger.Pretty(target))
 
 	return etag, nil
 }
@@ -419,7 +419,7 @@ func (r *ProtocolLXD) queryOperation(method string, path string, data any, ETag 
 
 	// Log the data
 	logger.Debugf("Got operation from LXD")
-	logger.Debugf(logger.Pretty(op.Operation))
+	logger.Debug(logger.Pretty(op.Operation))
 
 	return &op, etag, nil
 }

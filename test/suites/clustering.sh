@@ -3545,12 +3545,12 @@ test_clustering_groups() {
   lxc init testimage cluster:c1
   lxc info cluster:c1 | grep -q "Location: node1"
 
-  # c2 should go to node2
-  lxc init testimage cluster:c2 --target=@blah
+  # c2 should go to node2. Additionally it should be possible to specify the network.
+  lxc init testimage cluster:c2 --target=@blah --network "${bridge}"
   lxc info cluster:c2 | grep -q "Location: node2"
 
-  # c3 should go to node2 again
-  lxc init testimage cluster:c3 --target=@blah
+  # c3 should go to node2 again. Additionally it should be possible to specify the storage pool.
+  lxc init testimage cluster:c3 --target=@blah --storage data
   lxc info cluster:c3 | grep -q "Location: node2"
 
   # Direct targeting of node2 should work

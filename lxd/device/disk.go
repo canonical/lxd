@@ -764,12 +764,17 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			fields := strings.SplitN(d.config["source"], ":", 2)
 			fields = strings.SplitN(fields[1], "/", 2)
 			clusterName, userName := d.cephCreds()
-			runConf.Mounts = []deviceConfig.MountEntryItem{
-				{
-					DevPath: DiskGetRBDFormat(clusterName, userName, fields[0], fields[1]),
-					DevName: d.name,
-				},
+			mount := deviceConfig.MountEntryItem{
+				DevPath: DiskGetRBDFormat(clusterName, userName, fields[0], fields[1]),
+				DevName: d.name,
 			}
+
+			if shared.IsTrue(d.config["readonly"]) {
+				mount.Opts = append(mount.Opts, "ro")
+			}
+
+			// Add successfully setup mount config to runConf.
+			runConf.Mounts = []deviceConfig.MountEntryItem{mount}
 		} else {
 			var err error
 
@@ -833,6 +838,10 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 					if contentType == db.StoragePoolVolumeContentTypeISO {
 						mount.FSType = "iso9660"
+					}
+
+					if shared.IsTrue(d.config["readonly"]) {
+						mount.Opts = append(mount.Opts, "ro")
 					}
 
 					runConf.Mounts = []deviceConfig.MountEntryItem{mount}

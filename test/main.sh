@@ -67,6 +67,9 @@ echo "==> Using storage backend ${LXD_BACKEND}"
 import_storage_backends
 
 cleanup() {
+  # Before setting +e, run the panic checker for any running LXD daemons.
+  panic_checker "${TEST_DIR}"
+
   # Allow for failures and stop tracing everything
   set +ex
   DEBUG=
@@ -89,6 +92,12 @@ cleanup() {
   df -h
 
   if [ "${TEST_RESULT}" != "success" ]; then
+    if command -v ceph >/dev/null; then
+      echo "::group::ceph status"
+      ceph status || true
+      echo "::endgroup::"
+    fi
+
     # dmesg may contain oops, IO errors, crashes, etc
     # If there's a kernel stack trace, don't generate a collapsible group
 
@@ -165,6 +174,7 @@ run_test() {
   TEST_CURRENT=${1}
   TEST_CURRENT_DESCRIPTION=${2:-${1}}
   TEST_UNMET_REQUIREMENT=""
+  cwd="$(pwd)"
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
   START_TIME=$(date +%s)
@@ -205,6 +215,7 @@ run_test() {
   fi
 
   END_TIME=$(date +%s)
+  cd "${cwd}"
 
   echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} ($((END_TIME-START_TIME))s)"
 }
@@ -305,6 +316,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_security_protection "container protection"
     run_test test_image_expiry "image expiry"
     run_test test_image_list_all_aliases "image list all aliases"
+    run_test test_image_list_remotes "image list of simplestream remotes"
     run_test test_image_auto_update "image auto-update"
     run_test test_image_prefer_cached "image prefer cached"
     run_test test_image_import_dir "import image from directory"
