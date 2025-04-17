@@ -160,7 +160,7 @@ ogp_image = "https://documentation.ubuntu.com/lxd/en/stable-5.0/_static/tag.png"
 
 linkcheck_ignore = [
     'https://127.0.0.1:8443/1.0',
-    'https://web.libera.chat/#lxd'
+    'https://web.libera.chat/#lxd',
     'https://www.schlachter.tech/solutions/pongo2-template-engine/'
 ]
 
