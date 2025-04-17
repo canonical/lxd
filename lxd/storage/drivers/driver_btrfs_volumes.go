@@ -398,7 +398,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 
 		v := vol.Volume
 		if subVol.Snapshot != "" {
-			v, _ = vol.Volume.NewSnapshot(subVol.Snapshot)
+			v, _ = vol.NewSnapshot(subVol.Snapshot)
 		}
 
 		path := filepath.Join(v.MountPath(), subVol.Path)
