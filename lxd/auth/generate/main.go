@@ -216,7 +216,7 @@ func writeOutput(w io.Writer, entityToEntitlements map[entity.Type][]entitlement
 	builder.WriteString(")\n\n")
 
 	// To ensure the entity to entitlement map is always in the same order, get a list of entity types and sort it alphabetically.
-	var entityTypes []string
+	entityTypes := make([]string, 0, len(entityToEntitlements))
 	for entityType := range entityToEntitlements {
 		entityTypes = append(entityTypes, string(entityType))
 	}
