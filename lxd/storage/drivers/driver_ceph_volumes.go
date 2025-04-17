@@ -601,7 +601,7 @@ func (d *ceph) createVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 		}
 	}
 
-	err := vol.Volume.EnsureMountPath()
+	err := vol.EnsureMountPath()
 	if err != nil {
 		return nil, err
 	}
