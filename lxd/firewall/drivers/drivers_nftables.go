@@ -116,7 +116,7 @@ func (d Nftables) Compat() (bool, error) {
 	}
 
 	for _, item := range ruleset {
-		if item.ItemType == "rule" {
+		if item.itemType == "rule" {
 			return true, nil // At least one rule found indicates in use.
 		}
 	}
@@ -126,7 +126,7 @@ func (d Nftables) Compat() (bool, error) {
 
 // nftGenericItem represents some common fields amongst the different nftables types.
 type nftGenericItem struct {
-	ItemType string `json:"-"`      // Type of item (table, chain or rule). Populated by LXD.
+	itemType string // Type of item (table, chain or rule). Populated by LXD.
 	Family   string `json:"family"` // Family of item (ip, ip6, bridge etc).
 	Table    string `json:"table"`  // Table the item belongs to (for chains and rules).
 	Chain    string `json:"chain"`  // Chain the item belongs to (for rules).
@@ -165,13 +165,13 @@ func (d Nftables) nftParseRuleset() ([]nftGenericItem, error) {
 		chain, foundChain := item["chain"]
 		table, foundTable := item["table"]
 		if foundRule {
-			rule.ItemType = "rule"
+			rule.itemType = "rule"
 			items = append(items, rule)
 		} else if foundChain {
-			chain.ItemType = "chain"
+			chain.itemType = "chain"
 			items = append(items, chain)
 		} else if foundTable {
-			table.ItemType = "table"
+			table.itemType = "table"
 			items = append(items, table)
 		}
 	}
@@ -605,7 +605,7 @@ func (d Nftables) removeChains(families []string, chainSuffix string, chains ...
 	foundChains := make(map[string]nftGenericItem)
 	for _, family := range families {
 		for _, item := range ruleset {
-			if item.ItemType == "chain" && item.Family == family && item.Table == nftablesNamespace && shared.ValueInSlice(item.Name, fullChains) {
+			if item.itemType == "chain" && item.Family == family && item.Table == nftablesNamespace && shared.ValueInSlice(item.Name, fullChains) {
 				foundChains[item.Name] = item
 			}
 		}
