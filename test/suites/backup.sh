@@ -1,6 +1,5 @@
 test_storage_volume_recover() {
   LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  chmod +x "${LXD_IMPORT_DIR}"
   spawn_lxd "${LXD_IMPORT_DIR}" true
 
   poolName=$(lxc profile device get default root pool)
@@ -72,7 +71,6 @@ EOF
 
 test_container_recover() {
   LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  chmod +x "${LXD_IMPORT_DIR}"
   spawn_lxd "${LXD_IMPORT_DIR}" true
 
   (

@@ -807,7 +807,6 @@ test_projects_limits() {
     # Add a remote LXD to be used as image server.
     local LXD_REMOTE_DIR
     LXD_REMOTE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-    chmod +x "${LXD_REMOTE_DIR}"
 
     # Switch to default project to spawn new LXD server, and then switch back to p1.
     lxc project switch default
@@ -1165,7 +1164,6 @@ EOF
 # Test project operations with an uninitialized LXD.
 test_projects_before_init() {
   LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  chmod +x "${LXD_INIT_DIR}"
   spawn_lxd "${LXD_INIT_DIR}" false
 
   # Check if projects can be created and modified without any pre-existing storage pools.
