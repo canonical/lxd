@@ -24,13 +24,13 @@ type Process struct {
 	hasMonitor bool
 	closeFds   bool
 
-	Name     string         `yaml:"name"`
-	Args     []string       `yaml:"args,flow"`
-	Apparmor string         `yaml:"apparmor"`
-	PID      int64          `yaml:"pid"`
-	Stdin    io.ReadCloser  `yaml:"-"`
-	Stdout   io.WriteCloser `yaml:"-"`
-	Stderr   io.WriteCloser `yaml:"-"`
+	Name     string   `yaml:"name"`
+	Args     []string `yaml:"args,flow"`
+	Apparmor string   `yaml:"apparmor"`
+	PID      int64    `yaml:"pid"`
+	stdin    io.ReadCloser
+	stdout   io.WriteCloser
+	stderr   io.WriteCloser
 
 	UID       uint32 `yaml:"uid"`
 	GID       uint32 `yaml:"gid"`
@@ -149,9 +149,9 @@ func (p *Process) start(ctx context.Context, fds []*os.File) error {
 		cmd = exec.CommandContext(ctx, p.Name, p.Args...)
 	}
 
-	cmd.Stdout = p.Stdout
-	cmd.Stderr = p.Stderr
-	cmd.Stdin = p.Stdin
+	cmd.Stdout = p.stdout
+	cmd.Stderr = p.stderr
+	cmd.Stdin = p.stdin
 	cmd.SysProcAttr = p.SysProcAttr
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
@@ -169,12 +169,12 @@ func (p *Process) start(ctx context.Context, fds []*os.File) error {
 		cmd.ExtraFiles = fds
 	}
 
-	if p.Stdout != nil && p.closeFds {
-		defer func() { _ = p.Stdout.Close() }()
+	if p.stdout != nil && p.closeFds {
+		defer func() { _ = p.stdout.Close() }()
 	}
 
-	if p.Stderr != nil && p.Stderr != p.Stdout && p.closeFds {
-		defer func() { _ = p.Stderr.Close() }()
+	if p.stderr != nil && p.stderr != p.stdout && p.closeFds {
+		defer func() { _ = p.stderr.Close() }()
 	}
 
 	// Start the process.
