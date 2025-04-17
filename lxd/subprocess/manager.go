@@ -42,9 +42,9 @@ func NewProcessWithFds(name string, args []string, stdin io.ReadCloser, stdout i
 	proc := Process{
 		Name:   name,
 		Args:   args,
-		Stdin:  stdin,
-		Stdout: stdout,
-		Stderr: stderr,
+		stdin:  stdin,
+		stdout: stdout,
+		stderr: stderr,
 	}
 
 	return &proc
