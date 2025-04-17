@@ -51,7 +51,7 @@ func findAlias(aliases map[string]string, origArgs []string) ([]string, []string
 func expandAlias(conf *config.Config, args []string) ([]string, bool, error) {
 	var completion = false
 	var completionFragment string
-	var newArgs []string
+	var newArgs []string //nolint:prealloc
 	var origArgs []string
 
 	for _, arg := range args[1:] {
