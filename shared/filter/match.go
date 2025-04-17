@@ -131,11 +131,11 @@ func (s ClauseSet) match(c Clause, objValue any) (bool, error) {
 	case reflect.Bool:
 		valueBool, err = s.ParseBool(c)
 	case reflect.Slice:
-		if reflect.TypeOf(objValue).Elem().Kind() == reflect.String {
-			valueSlice, err = s.ParseStringSlice(c)
-		} else {
+		if reflect.TypeOf(objValue).Elem().Kind() != reflect.String {
 			return false, fmt.Errorf("Invalid slice type %q for field %q", reflect.TypeOf(objValue).Elem().Kind(), c.Field)
 		}
+
+		valueSlice, err = s.ParseStringSlice(c)
 
 	default:
 		return false, fmt.Errorf("Invalid type %q for field %q", kind.String(), c.Field)
