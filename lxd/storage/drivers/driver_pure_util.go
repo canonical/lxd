@@ -68,9 +68,9 @@ type pureError struct {
 		Message string `json:"message"`
 	} `json:"errors"`
 
-	// StatusCode is not part of the response body but is used
+	// statusCode is not part of the response body but is used
 	// to store the HTTP status code.
-	StatusCode int `json:"-"`
+	statusCode int
 }
 
 // Error returns the first error message from the Pure Storage API error.
@@ -92,7 +92,7 @@ func isPureErrorOf(err error, statusCode int, substrings ...string) bool {
 		return false
 	}
 
-	if perr.StatusCode != statusCode {
+	if perr.statusCode != statusCode {
 		return false
 	}
 
@@ -343,7 +343,7 @@ func (p *pureClient) request(method string, url url.URL, reqBody map[string]any,
 	// Return the formatted error from the body
 	pureErr, ok := respBody.(*pureError)
 	if ok {
-		pureErr.StatusCode = resp.StatusCode
+		pureErr.statusCode = resp.StatusCode
 		return pureErr
 	}
 
