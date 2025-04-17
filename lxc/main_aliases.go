@@ -24,10 +24,10 @@ var defaultAliases = map[string]string{
 	"shell": "exec @ARGS@ -- su -l",
 }
 
-func findAlias(aliases map[string]string, origArgs []string) ([]string, []string, bool) {
-	foundAlias := false
-	aliasKey := []string{}
-	aliasValue := []string{}
+func findAlias(aliases map[string]string, origArgs []string) (aliasKey []string, aliasValue []string, foundAlias bool) {
+	foundAlias = false
+	aliasKey = []string{}
+	aliasValue = []string{}
 
 	for k, v := range aliases {
 		foundAlias = true
