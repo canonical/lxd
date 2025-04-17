@@ -7,7 +7,9 @@ import (
 )
 
 // entityTypeIdentity implements entityTypeDBInfo for an Identity.
-type entityTypeIdentity struct{}
+type entityTypeIdentity struct {
+	entityTypeCommon
+}
 
 func (e entityTypeIdentity) code() int64 {
 	return entityTypeCodeIdentity
@@ -35,10 +37,6 @@ WHERE type IN (%d, %d, %d)
 		authMethodOIDC, api.AuthenticationMethodOIDC,
 		identityTypeOIDCClient, identityTypeCertificateClient, identityTypeCertificateClientPending,
 	)
-}
-
-func (e entityTypeIdentity) urlsByProjectQuery() string {
-	return ""
 }
 
 func (e entityTypeIdentity) urlByIDQuery() string {

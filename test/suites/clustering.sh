@@ -3749,6 +3749,88 @@ test_clustering_autotarget() {
   kill_lxd "${LXD_TWO_DIR}"
 }
 
+test_clustering_placement() {
+    local LXD_DIR
+
+    setup_clustering_bridge
+    prefix="lxd$$"
+    bridge="${prefix}"
+
+    setup_clustering_netns 1
+    LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+    chmod +x "${LXD_ONE_DIR}"
+    ns1="${prefix}1"
+    spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+    # Add a newline at the end of each line. YAML as weird rules..
+    cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+    # Spawn a second node
+    setup_clustering_netns 2
+    LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+    chmod +x "${LXD_TWO_DIR}"
+    ns2="${prefix}2"
+    spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+    # Spawn a third node
+    setup_clustering_netns 3
+    LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+    chmod +x "${LXD_THREE_DIR}"
+    ns3="${prefix}3"
+    spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}"
+
+    token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
+    lxc remote add cluster --token "${token}" "https://10.1.1.101:8443"
+
+    lxc cluster group create cluster:g1
+    lxc cluster group add cluster:node1 g1
+    lxc cluster group add cluster:node2 g1
+
+    LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
+
+    lxc placement-ruleset create cluster:test-ruleset
+    lxc placement-ruleset rule add cluster:test-ruleset in-g1 cluster_group member-affinity name=g1
+    lxc placement-ruleset rule add cluster:test-ruleset away-from-other-instances instance member-anti-affinity config.placement.ruleset=test-ruleset
+
+    lxc profile create cluster:p1
+    lxc profile set cluster:p1 placement.ruleset=test-ruleset
+
+    lxc init testimage cluster:dummy1 -p default --target node1
+    lxc init testimage cluster:dummy2 -p default --target node1
+    lxc init testimage cluster:dummy3 -p default --target node2
+
+    # First instance with profile should go to node2 because it is the member in the cluster group with the fewest instances.
+    lxc init testimage cluster:c1 -p default -p p1
+    [ "$(lxc query cluster:/1.0/instances/c1?recursion=1 | jq -r .location)" = "node2" ]
+
+    # Second instance with profile should go to node1 because of the required anti affinity rule with other instances that
+    # have `placement.ruleset=test-ruleset`.
+    lxc init testimage cluster:c2 -p default -p p1
+    [ "$(lxc query cluster:/1.0/instances/c2?recursion=1 | jq -r .location)" = "node1" ]
+
+    # Third instance should fail to be scheduled because there are no more cluster members in the cluster group to satisfy
+    # the required anti-affinity rule.
+    ! lxc init testimage cluster:c3 -p default -p p1 || false
+
+    # Clean up
+    LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+    LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+    LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+    sleep 0.5
+    rm -f "${LXD_THREE_DIR}/unix.socket"
+    rm -f "${LXD_TWO_DIR}/unix.socket"
+    rm -f "${LXD_ONE_DIR}/unix.socket"
+
+    teardown_clustering_netns
+    teardown_clustering_bridge
+
+    kill_lxd "${LXD_ONE_DIR}"
+    kill_lxd "${LXD_TWO_DIR}"
+    kill_lxd "${LXD_THREE_DIR}"
+
+    lxc remote rm cluster
+}
+
 test_clustering_groups() {
   local LXD_DIR
 

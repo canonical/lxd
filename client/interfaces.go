@@ -463,6 +463,17 @@ type InstanceServer interface {
 	GetPermissions(args GetPermissionsArgs) (permissions []api.Permission, err error)
 	GetPermissionsInfo(args GetPermissionsArgs) (permissions []api.PermissionInfo, err error)
 
+	// Placement rulesets
+	GetPlacementRulesetNames() (names []string, err error)
+	GetPlacementRulesetNamesAllProjects() (names map[string][]string, err error)
+	GetPlacementRulesets() (rulesets []api.PlacementRuleset, err error)
+	GetPlacementRulesetsAllProjects() (rulesets []api.PlacementRuleset, err error)
+	GetPlacementRuleset(rulesetName string) (ruleset *api.PlacementRuleset, ETag string, err error)
+	CreatePlacementRuleset(placementRulesetsPost api.PlacementRulesetsPost) error
+	UpdatePlacementRuleset(rulesetName string, placementRulesetPut api.PlacementRulesetPut, ETag string) error
+	DeletePlacementRuleset(rulesetName string) error
+	RenamePlacementRuleset(rulesetName string, placementRulesetPost api.PlacementRulesetPost) error
+
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data any, queryETag string) (resp *api.Response, ETag string, err error)
 	RawWebsocket(path string) (conn *websocket.Conn, err error)

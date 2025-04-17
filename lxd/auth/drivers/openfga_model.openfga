@@ -318,6 +318,21 @@ type project
     # Grants permission to delete storage buckets.
     define can_delete_storage_buckets: [identity, service_account, group#member] or operator or storage_bucket_manager or can_edit_projects from server
 
+    # Grants permission to create, view, edit, and delete all placement rulesets belonging to the project.
+    define placement_ruleset_manager: [identity, service_account, group#member]
+
+    # Grants permission to create placement rulesets.
+    define can_create_placement_rulesets: [identity, service_account, group#member] or operator or storage_bucket_manager or can_edit_projects from server
+
+    # Grants permission to view placement rulesets.
+    define can_view_placement_rulesets: [identity, service_account, group#member] or operator or viewer or storage_bucket_manager or can_view_projects from server
+
+    # Grants permission to edit placement rulesets.
+    define can_edit_placement_rulesets: [identity, service_account, group#member] or operator or storage_bucket_manager or can_edit_projects from server
+
+    # Grants permission to delete placement rulesets.
+    define can_delete_placement_rulesets: [identity, service_account, group#member] or operator or storage_bucket_manager or can_edit_projects from server
+
     # Grants permission to view operations relating to the project.
     define can_view_operations: [identity, service_account, group#member] or operator or viewer or can_view_projects from server
 
@@ -484,7 +499,7 @@ type storage_volume_backup
     define can_view: can_view from storage_volume
     define can_edit: can_manage_backups from storage_volume
     define can_delete: can_manage_backups from storage_volume
-        
+
 type storage_bucket
   relations
     define project: [project]
@@ -497,3 +512,16 @@ type storage_bucket
 
     # Grants permission to view the storage bucket.
     define can_view: [identity, service_account, group#member] or can_edit or can_delete or can_view_storage_buckets from project
+
+type placement_ruleset
+  relations
+    define project: [project]
+
+    # Grants permission to edit the placement ruleset.
+    define can_edit: [identity, service_account, group#member] or can_edit_placement_rulesets from project
+
+    # Grants permission to delete the placement ruleset.
+    define can_delete: [identity, service_account, group#member] or can_delete_placement_rulesets from project
+
+    # Grants permission to view the placement ruleset.
+    define can_view: [identity, service_account, group#member] or can_edit or can_delete or can_view_placement_rulesets from project

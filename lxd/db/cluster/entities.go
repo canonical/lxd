@@ -69,6 +69,9 @@ type entityTypeDBInfo interface {
 	// triggers are in place so that warnings and group permissions do not contain stale entries. The first return value
 	// must be the name of the trigger, the second return value must be the SQL for creating the trigger.
 	onDeleteTriggerSQL() (name string, sql string)
+
+	// runSelector must validate the given Selector for the entity type and return a slice of entity IDs that match.
+	runSelector(ctx context.Context, tx *sql.Tx, selector Selector) ([]int, error)
 }
 
 var entityTypes = map[entity.Type]entityTypeDBInfo{
@@ -97,6 +100,7 @@ var entityTypes = map[entity.Type]entityTypeDBInfo{
 	entity.TypeIdentity:              entityTypeIdentity{},
 	entity.TypeAuthGroup:             entityTypeAuthGroup{},
 	entity.TypeIdentityProviderGroup: entityTypeIdentityProviderGroup{},
+	entity.TypePlacementRuleset:      entityTypePlacementRuleset{},
 }
 
 const (
@@ -126,6 +130,7 @@ const (
 	entityTypeCodeAuthGroup             int64 = 22
 	entityTypeCodeIdentityProviderGroup int64 = 23
 	entityTypeCodeIdentity              int64 = 24
+	entityTypeCodePlacementRuleset      int64 = 25
 )
 
 var entityTypeByCode = map[int64]EntityType{
@@ -212,6 +217,17 @@ func (e *EntityRef) getURL() (*api.URL, error) {
 	}
 
 	return u, nil
+}
+
+// RunSelector returns the entity IDs for the given Selector.
+func RunSelector(ctx context.Context, tx *sql.Tx, selector Selector) ([]int, error) {
+	entityType := entity.Type(selector.EntityType)
+	info, ok := entityTypes[entityType]
+	if !ok {
+		return nil, fmt.Errorf("Failed to run entity selector: Unknown entity type %q", entityType)
+	}
+
+	return info.runSelector(ctx, tx, selector)
 }
 
 // GetEntityURL returns the *api.URL of a single entity by its type and ID.

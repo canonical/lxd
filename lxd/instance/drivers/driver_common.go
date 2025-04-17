@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/device"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/device/nictype"
@@ -28,6 +29,7 @@ import (
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/maas"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/placement"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
@@ -1825,6 +1827,61 @@ func (d *common) removeDiskDevices() error {
 		if err != nil {
 			d.logger.Error("Failed to remove disk device path", logger.Ctx{"err": err, "path": diskPath})
 		}
+	}
+
+	return nil
+}
+
+func (d *common) validatePlacementRuleset(rulesetName string) error {
+	if d.isSnapshot {
+		return api.StatusErrorf(http.StatusBadRequest, "Placement rulesets cannot be applied to snapshots")
+	}
+
+	if !d.state.ServerClustered {
+		return api.StatusErrorf(http.StatusBadRequest, "Placement rulesets are not valid when LXD is not clustered")
+	}
+
+	err := d.state.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+		ruleset, err := dbCluster.GetPlacementRuleset(ctx, tx.Tx(), d.Project().Name, rulesetName)
+		if err != nil {
+			return err
+		}
+
+		allMembers, err := tx.GetNodes(ctx)
+		if err != nil {
+			return err
+		}
+
+		var allowedClusterGroups []string
+		if shared.IsTrue(d.Project().Config["restricted"]) {
+			allowedClusterGroups = shared.SplitNTrimSpace(d.Project().Config["restricted.cluster.groups"], ",", -1, true)
+		}
+
+		candidates, err := tx.GetCandidateMembers(ctx, allMembers, []int{d.architecture}, "", allowedClusterGroups, d.state.GlobalConfig.OfflineThreshold())
+		if err != nil {
+			return err
+		}
+
+		candidates, err = placement.ApplyRuleset(ctx, tx.Tx(), candidates, d.ExpandedConfig(), &d.id, *ruleset)
+		if err != nil {
+			return err
+		}
+
+		for _, candidate := range candidates {
+			if d.node == candidate.Name {
+				return nil
+			}
+		}
+
+		err = tx.UpsertWarning(ctx, d.node, d.Project().Name, entity.TypeInstance, d.id, warningtype.InstanceNotConformantWithPlacementRuleset, "Move the instance to a member that conforms to the ruleset, or remove the ruleset from the instance configuration")
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	return nil

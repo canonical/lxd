@@ -434,6 +434,30 @@ CREATE TABLE "operations" (
     FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE,
     FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE
 );
+CREATE TABLE placement_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    kind INTEGER NOT NULL,
+    required BOOLEAN NOT NULL,
+    priority INTEGER NOT NULL,
+    ruleset_id INTEGER NOT NULL,
+    FOREIGN KEY (ruleset_id) REFERENCES placement_rulesets (id) ON DELETE CASCADE 
+);
+CREATE TABLE placement_rules_selectors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    entity_type INTEGER NOT NULL,
+    matchers TEXT NOT NULL,
+    placement_rule_id INTEGER NOT NULL,
+    FOREIGN KEY (placement_rule_id) REFERENCES placement_rules (id) ON DELETE CASCADE
+);
+CREATE TABLE placement_rulesets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    project_id INTEGER NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+    UNIQUE (project_id, name)
+);
 CREATE TABLE "profiles" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -662,5 +686,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (73, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (74, strftime("%s"))
 `

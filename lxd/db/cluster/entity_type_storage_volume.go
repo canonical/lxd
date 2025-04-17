@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeStorageVolume implements entityTypeDBInfo for a StorageVolume.
-type entityTypeStorageVolume struct{}
+type entityTypeStorageVolume struct {
+	entityTypeCommon
+}
 
 func (e entityTypeStorageVolume) code() int64 {
 	return entityTypeCodeStorageVolume

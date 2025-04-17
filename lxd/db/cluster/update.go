@@ -114,6 +114,37 @@ var updates = map[int]schema.Update{
 	71: updateFromV70,
 	72: updateFromV71,
 	73: updateFromV72,
+	74: updateFromV73,
+}
+
+func updateFromV73(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+CREATE TABLE placement_rulesets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    project_id INTEGER NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+    UNIQUE (project_id, name)
+);
+CREATE TABLE placement_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    kind INTEGER NOT NULL,
+    required BOOLEAN NOT NULL,
+    priority INTEGER NOT NULL,
+    ruleset_id INTEGER NOT NULL,
+    FOREIGN KEY (ruleset_id) REFERENCES placement_rulesets (id) ON DELETE CASCADE 
+);
+CREATE TABLE placement_rules_selectors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    entity_type INTEGER NOT NULL,
+    matchers TEXT NOT NULL,
+    placement_rule_id INTEGER NOT NULL,
+    FOREIGN KEY (placement_rule_id) REFERENCES placement_rules (id) ON DELETE CASCADE
+);
+`)
+	return err
 }
 
 func updateFromV72(ctx context.Context, tx *sql.Tx) error {

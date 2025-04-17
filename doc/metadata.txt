@@ -1931,6 +1931,15 @@ The specified version expression is used to set `libnvidia-container NVIDIA_REQU
 ```
 
 <!-- config group instance-nvidia end -->
+<!-- config group instance-placement start -->
+```{config:option} placement.ruleset instance-placement
+:liveupdate: "yes"
+:shortdesc: "The ruleset to use when placing the instance"
+:type: "string"
+Configures the ruleset which determines where in the cluster to place the instance.
+```
+
+<!-- config group instance-placement end -->
 <!-- config group instance-raw start -->
 ```{config:option} raw.apparmor instance-raw
 :liveupdate: "yes"
@@ -6641,6 +6650,18 @@ using the `zfs` command in the container.
 
 
 <!-- entity group network_zone end -->
+<!-- entity group placement_ruleset start -->
+`can_edit`
+: Grants permission to edit the placement ruleset.
+
+`can_delete`
+: Grants permission to delete the placement ruleset.
+
+`can_view`
+: Grants permission to view the placement ruleset.
+
+
+<!-- entity group placement_ruleset end -->
 <!-- entity group profile start -->
 `can_edit`
 : Grants permission to edit the profile.
@@ -6806,6 +6827,21 @@ using the `zfs` command in the container.
 
 `can_delete_storage_buckets`
 : Grants permission to delete storage buckets.
+
+`placement_ruleset_manager`
+: Grants permission to create, view, edit, and delete all placement rulesets belonging to the project.
+
+`can_create_placement_rulesets`
+: Grants permission to create placement rulesets.
+
+`can_view_placement_rulesets`
+: Grants permission to view placement rulesets.
+
+`can_edit_placement_rulesets`
+: Grants permission to edit placement rulesets.
+
+`can_delete_placement_rulesets`
+: Grants permission to delete placement rulesets.
 
 `can_view_operations`
 : Grants permission to view operations relating to the project.

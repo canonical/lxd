@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeProject implements entityTypeDBInfo for a Project.
-type entityTypeProject struct{}
+type entityTypeProject struct {
+	entityTypeCommon
+}
 
 func (e entityTypeProject) code() int64 {
 	return entityTypeCodeProject
@@ -13,10 +15,6 @@ func (e entityTypeProject) code() int64 {
 
 func (e entityTypeProject) allURLsQuery() string {
 	return fmt.Sprintf(`SELECT %d, projects.id, projects.name, '', json_array(projects.name) FROM projects`, e.code())
-}
-
-func (e entityTypeProject) urlsByProjectQuery() string {
-	return ""
 }
 
 func (e entityTypeProject) urlByIDQuery() string {

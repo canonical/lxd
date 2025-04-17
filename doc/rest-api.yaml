@@ -4365,6 +4365,125 @@ definitions:
         title: PermissionInfo expands a Permission to include any groups that may have the specified Permission.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    PlacementRule:
+        properties:
+            kind:
+                $ref: '#/definitions/PlacementRuleKind'
+            priority:
+                description: |-
+                    Priority indicates the apply order of the rule if it is not required.
+                    Non-required rules are applied in descending order of priority.
+                example: 1
+                format: int64
+                type: integer
+                x-go-name: Priority
+            required:
+                description: Required indicates that placement should fail if the rule cannot be satisfied.
+                example: true
+                type: boolean
+                x-go-name: Required
+            selector:
+                $ref: '#/definitions/Selector'
+        title: PlacementRule represents a scheduling rule for an instance.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    PlacementRuleKind:
+        description: 'API extension: instance_placement_rules.'
+        title: PlacementRuleKind denotes the placement strategy for a PlacementRule.
+        type: string
+        x-go-package: github.com/canonical/lxd/shared/api
+    PlacementRuleset:
+        description: |-
+            PlacementRuleset is a named collection of PlacementRule that may be applied to an instance or profile via
+            the `placement.ruleset` configuration key.
+        properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
+            description:
+                description: Description is a description of the ruleset.
+                example: Cluster member anti-affinity for instances with `user.ha=my-deployment`.
+                type: string
+                x-go-name: Description
+            name:
+                description: Name is the name of the ruleset.
+                example: my-ha-deployment
+                type: string
+                x-go-name: Name
+            placement_rules:
+                additionalProperties:
+                    $ref: '#/definitions/PlacementRule'
+                description: PlacementRules is a map of rule name to PlacementRule. These are applied when placing instances configured with this ruleset.
+                type: object
+                x-go-name: PlacementRules
+            project:
+                description: Project is the project containing the ruleset
+                type: string
+                x-go-name: Project
+            used_by:
+                description: UsedBy is a list of URLs of objects using this ruleset
+                example:
+                    - /1.0/instances/c1
+                    - /1.0/profiles/default
+                items:
+                    type: string
+                type: array
+                x-go-name: UsedBy
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    PlacementRulesetPost:
+        properties:
+            name:
+                description: Name is the new name of the ruleset.
+                example: my-ha-deployment
+                type: string
+                x-go-name: Name
+        title: PlacementRulesetPost contains a single Name field, for renaming a PlacementRuleset.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    PlacementRulesetPut:
+        properties:
+            description:
+                description: Description is a description of the ruleset.
+                example: Cluster member anti-affinity for instances with `user.ha=my-deployment`.
+                type: string
+                x-go-name: Description
+            placement_rules:
+                additionalProperties:
+                    $ref: '#/definitions/PlacementRule'
+                description: PlacementRules is a map of rule name to PlacementRule. These are applied when placing instances configured with this ruleset.
+                type: object
+                x-go-name: PlacementRules
+        title: PlacementRulesetPut contains the fields that may be specified on a PlacementRuleset after creation.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    PlacementRulesetsPost:
+        properties:
+            description:
+                description: Description is a description of the ruleset.
+                example: Cluster member anti-affinity for instances with `user.ha=my-deployment`.
+                type: string
+                x-go-name: Description
+            name:
+                description: Name is the name of the ruleset.
+                example: my-ha-deployment
+                type: string
+                x-go-name: Name
+            placement_rules:
+                additionalProperties:
+                    $ref: '#/definitions/PlacementRule'
+                description: PlacementRules is a map of rule name to PlacementRule. These are applied when placing instances configured with this ruleset.
+                type: object
+                x-go-name: PlacementRules
+        title: PlacementRulesetsPost contains the fields that may be specified on a PlacementRuleset on creation.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     Profile:
         description: Profile represents a LXD profile
         properties:
@@ -5911,6 +6030,36 @@ definitions:
                 format: uint64
                 type: integer
                 x-go-name: SubClassID
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    Selector:
+        properties:
+            entity_type:
+                description: EntityType is the type of entity to perform the selection against.
+                type: string
+                x-go-name: EntityType
+            matchers:
+                description: Matchers are a list of matchers to use when performing the selection.
+                items:
+                    $ref: '#/definitions/SelectorMatcher'
+                type: array
+                x-go-name: Matchers
+        title: Selector represents a method of selecting one or more entities of a particular type.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    SelectorMatcher:
+        properties:
+            property:
+                description: Property is the property of the entity to perform the match against.
+                type: string
+                x-go-name: Property
+            values:
+                description: Values are a list of values to find in the property.
+                items:
+                    type: string
+                type: array
+                x-go-name: Values
+        title: SelectorMatcher contains the properties and values that a Selector selects against.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     Server:
@@ -14479,6 +14628,290 @@ paths:
             summary: Get the operations
             tags:
                 - operations
+    /1.0/placement-rulesets:
+        get:
+            description: Returns a list of placement rulesets (URLs).
+            operationId: placement_rulesets_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Retrieve placement rulesets from all projects
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of endpoints
+                                example: |-
+                                    [
+                                      "/1.0/placement-rulesets/rule1",
+                                      "/1.0/placement-rulesets/rule2"
+                                    ]
+                                items:
+                                    type: string
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the placement rulesets
+            tags:
+                - placement-rulesets
+        post:
+            consumes:
+                - application/json
+            description: Creates a new placement ruleset.
+            operationId: placement_rulesets_post
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: The new placement ruleset
+                  in: body
+                  name: ruleset
+                  required: true
+                  schema:
+                    $ref: '#/definitions/PlacementRulesetsPost'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Add a placement ruleset
+            tags:
+                - placement-rulesets
+    /1.0/placement-rulesets/{name}:
+        delete:
+            description: Removes the placement ruleset.
+            operationId: placement_ruleset_delete
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Delete the placement ruleset
+            tags:
+                - placement-rulesets
+        get:
+            description: Gets a specific placement ruleset.
+            operationId: placement_ruleset_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: zone
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/PlacementRuleset'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the placement ruleset
+            tags:
+                - placement-rulesets
+        patch:
+            consumes:
+                - application/json
+            description: Updates a subset of the placement ruleset.
+            operationId: placement_ruleset_patch
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: placement ruleset
+                  in: body
+                  name: placement ruleset
+                  required: true
+                  schema:
+                    $ref: '#/definitions/PlacementRulesetPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Partially update the placement ruleset
+            tags:
+                - placement-rulesets
+        post:
+            description: Renames the placement ruleset.
+            operationId: placement_ruleset_post
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Rename a placement ruleset
+            tags:
+                - placement-rulesets
+        put:
+            consumes:
+                - application/json
+            description: Updates the entire placement ruleset.
+            operationId: placement_ruleset_put
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: placement ruleset
+                  in: body
+                  name: placement ruleset
+                  required: true
+                  schema:
+                    $ref: '#/definitions/PlacementRulesetPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Update the placement ruleset
+            tags:
+                - placement-rulesets
+    /1.0/placement-rulesets?recursion=1:
+        get:
+            description: Returns a list of placement rulesets (structs).
+            operationId: placement_rulesets_get_recursion1
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Retrieve placement rulesets from all projects
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of placement rulesets
+                                items:
+                                    $ref: '#/definitions/PlacementRuleset'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the placement rulesets
+            tags:
+                - placement-rulesets
     /1.0/profiles:
         get:
             description: Returns a list of profiles (URLs).

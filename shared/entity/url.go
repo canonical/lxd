@@ -266,3 +266,8 @@ func AuthGroupURL(groupName string) *api.URL {
 func IdentityProviderGroupURL(identityProviderGroupName string) *api.URL {
 	return TypeIdentityProviderGroup.urlMust("", "", identityProviderGroupName)
 }
+
+// PlacementRulesetURL returns an *api.URL to a placement ruleset.
+func PlacementRulesetURL(projectName string, rulesetName string) *api.URL {
+	return TypePlacementRuleset.urlMust(projectName, "", rulesetName)
+}
