@@ -14,6 +14,10 @@ test_basic_usage() {
   lxc image show "${sum}"
   lxc image alias create a/b/ "${sum}"
 
+  echo "Test using alias with slashes"
+  lxc init a/b/ c1 -d "${SMALL_ROOT_DISK}"
+  lxc delete c1
+
   # Ensure aliased image won't launch with vm flag set
   ! lxc launch a/b/ --vm || false
 
