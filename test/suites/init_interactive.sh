@@ -1,7 +1,6 @@
 test_init_interactive() {
   # - lxd init
   LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  chmod +x "${LXD_INIT_DIR}"
   spawn_lxd "${LXD_INIT_DIR}" false
 
   (
