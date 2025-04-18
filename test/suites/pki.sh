@@ -35,7 +35,6 @@ EOF
 
   # Setup the daemon.
   LXD5_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  chmod +x "${LXD5_DIR}"
   spawn_lxd "${LXD5_DIR}" true
   LXD5_ADDR=$(cat "${LXD5_DIR}/lxd.addr")
 

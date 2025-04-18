@@ -9,6 +9,7 @@ spawn_lxd() {
 
     lxddir=${1}
     shift
+    chmod +x "${lxddir}"
 
     storage=${1}
     shift
