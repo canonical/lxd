@@ -1503,15 +1503,17 @@ func (c *cmdPermissionList) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("Badly formatted supplementary argument %q", filter)
 		}
 
-		if k == "project" {
+		switch k {
+		case "project":
 			projectName = v
-		} else if k == "entity_type" {
+		case "entity_type":
 			entityType = entity.Type(v)
 			err = entityType.Validate()
 			if err != nil {
 				return fmt.Errorf("Invalid entity type in supplementary argument %q: %w", filter, err)
 			}
-		} else {
+
+		default:
 			return fmt.Errorf("Available filters are `entity_type` and `project`, got %q", filter)
 		}
 	}

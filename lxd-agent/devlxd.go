@@ -197,7 +197,8 @@ func devlxdAPIGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *dev
 
 	defer client.Disconnect()
 
-	if r.Method == "GET" {
+	switch r.Method {
+	case "GET":
 		resp, _, err := client.RawQuery(r.Method, "/1.0", nil, "")
 		if err != nil {
 			return smartResponse(err)
@@ -211,7 +212,7 @@ func devlxdAPIGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *dev
 		}
 
 		return okResponse(instanceData, "json")
-	} else if r.Method == "PATCH" {
+	case "PATCH":
 		_, _, err := client.RawQuery(r.Method, "/1.0", r.Body, "")
 		if err != nil {
 			return smartResponse(err)

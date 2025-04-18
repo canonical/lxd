@@ -1,6 +1,7 @@
 package ip
 
 import (
+	"context"
 	"strings"
 
 	"github.com/canonical/lxd/shared"
@@ -37,7 +38,7 @@ func (r *Route) Add() error {
 		cmd = append(cmd, "proto", r.Proto)
 	}
 
-	_, err := shared.RunCommand("ip", cmd...)
+	_, err := shared.RunCommandContext(context.TODO(), "ip", cmd...)
 	if err != nil {
 		return err
 	}
@@ -47,7 +48,7 @@ func (r *Route) Add() error {
 
 // Delete deletes routing table.
 func (r *Route) Delete() error {
-	_, err := shared.RunCommand("ip", r.Family, "route", "delete", "table", r.Table, r.Route, "dev", r.DevName)
+	_, err := shared.RunCommandContext(context.TODO(), "ip", r.Family, "route", "delete", "table", r.Table, r.Route, "dev", r.DevName)
 	if err != nil {
 		return err
 	}
@@ -76,7 +77,7 @@ func (r *Route) Flush() error {
 		cmd = append(cmd, "proto", r.Proto)
 	}
 
-	_, err := shared.RunCommand("ip", cmd...)
+	_, err := shared.RunCommandContext(context.TODO(), "ip", cmd...)
 	if err != nil {
 		return err
 	}
@@ -88,7 +89,7 @@ func (r *Route) Flush() error {
 func (r *Route) Replace(routes []string) error {
 	cmd := []string{r.Family, "route", "replace", "dev", r.DevName, "proto", r.Proto}
 	cmd = append(cmd, routes...)
-	_, err := shared.RunCommand("ip", cmd...)
+	_, err := shared.RunCommandContext(context.TODO(), "ip", cmd...)
 	if err != nil {
 		return err
 	}
@@ -99,7 +100,7 @@ func (r *Route) Replace(routes []string) error {
 // Show lists routes.
 func (r *Route) Show() ([]string, error) {
 	routes := []string{}
-	out, err := shared.RunCommand("ip", r.Family, "route", "show", "dev", r.DevName, "proto", r.Proto)
+	out, err := shared.RunCommandContext(context.TODO(), "ip", r.Family, "route", "show", "dev", r.DevName, "proto", r.Proto)
 	if err != nil {
 		return routes, err
 	}
@@ -110,7 +111,7 @@ func (r *Route) Show() ([]string, error) {
 			continue
 		}
 
-		route := strings.Replace(line, "linkdown", "", -1)
+		route := strings.ReplaceAll(line, "linkdown", "")
 		routes = append(routes, route)
 	}
 

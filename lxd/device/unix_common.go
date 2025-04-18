@@ -200,7 +200,8 @@ func (d *unixCommon) Register() error {
 
 		runConf := deviceConfig.RunConfig{}
 
-		if e.Action == fsmonitor.EventAdd {
+		switch e.Action {
+		case fsmonitor.EventAdd:
 			// Skip if host side instance device file already exists.
 			if shared.PathExists(devPath) {
 				return nil, nil
@@ -226,7 +227,8 @@ func (d *unixCommon) Register() error {
 			if err != nil {
 				return nil, err
 			}
-		} else if e.Action == fsmonitor.EventRemove {
+
+		case fsmonitor.EventRemove:
 			// Skip if host side instance device file doesn't exist.
 			if !shared.PathExists(devPath) {
 				return nil, nil

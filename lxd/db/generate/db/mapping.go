@@ -312,7 +312,7 @@ func (f *Field) SelectColumn(mapping *Mapping, primaryTable string) (string, err
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		table := primaryTable
 		column := table + "." + lex.Snake(f.Name)
-		column = strings.Replace(column, "reference", "%s", -1)
+		column = strings.ReplaceAll(column, "reference", "%s")
 
 		return column, nil
 	}
@@ -356,7 +356,7 @@ func (f *Field) OrderBy(mapping *Mapping, primaryTable string) (string, error) {
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		table := primaryTable
 		column := table + "." + lex.Snake(f.Name)
-		column = strings.Replace(column, "reference", "%s", -1)
+		column = strings.ReplaceAll(column, "reference", "%s")
 
 		return column, nil
 	}
@@ -399,7 +399,7 @@ func (f *Field) JoinClause(mapping *Mapping, table string) (string, error) {
 
 	join := f.JoinConfig()
 	if f.Config.Get("leftjoin") != "" {
-		joinTemplate = strings.Replace(joinTemplate, "JOIN", "LEFT JOIN", -1)
+		joinTemplate = strings.ReplaceAll(joinTemplate, "JOIN", "LEFT JOIN")
 	}
 
 	joinTable, _, ok := strings.Cut(join, ".")
@@ -476,8 +476,8 @@ func (f *Field) InsertColumn(pkg *packages.Package, dbPkg *packages.Package, map
 			return "", "", fmt.Errorf("Failed to find registered statement %q for field %q of struct %q: %w", varName, f.Name, mapping.Name, err)
 		}
 
-		value = "(" + strings.Replace(strings.Replace(joinStmt, "`", "", -1), "\n", "", -1) + ")"
-		value = strings.Replace(value, "  ", " ", -1)
+		value = "(" + strings.ReplaceAll(strings.ReplaceAll(joinStmt, "`", ""), "\n", "") + ")"
+		value = strings.ReplaceAll(value, "  ", " ")
 	} else {
 		column, err = f.SelectColumn(mapping, primaryTable)
 		if err != nil {
@@ -489,7 +489,7 @@ func (f *Field) InsertColumn(pkg *packages.Package, dbPkg *packages.Package, map
 		column, _, _ = strings.Cut(column, ",")
 
 		if mapping.Type == ReferenceTable || mapping.Type == MapTable {
-			column = strings.Replace(column, "reference", "%s", -1)
+			column = strings.ReplaceAll(column, "reference", "%s")
 		}
 
 		value = "?"

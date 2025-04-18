@@ -1289,7 +1289,7 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 				if list.dotPrefixMatch(key, configKey) {
 					// Try to test filter value as a regexp.
 					regexpValue := value
-					if !(strings.Contains(value, "^") || strings.Contains(value, "$")) {
+					if !strings.Contains(value, "^") && !strings.Contains(value, "$") {
 						regexpValue = "^" + regexpValue + "$"
 					}
 

@@ -43,12 +43,12 @@ func FirewallApplyACLRules(s *state.State, logger logger.Logger, aclProjectName 
 				firewallACLRule.LogName = fmt.Sprintf("%s-%s-%d", logPrefix, direction, ruleIndex)
 			}
 
-			switch {
-			case rule.Action == "drop":
+			switch rule.Action {
+			case "drop":
 				dropRules = append(dropRules, firewallACLRule)
-			case rule.Action == "reject":
+			case "reject":
 				rejectRules = append(rejectRules, firewallACLRule)
-			case rule.Action == "allow":
+			case "allow":
 				allowRules = append(allowRules, firewallACLRule)
 			default:
 				return fmt.Errorf("Unrecognised action %q", rule.Action)

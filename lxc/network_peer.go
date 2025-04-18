@@ -333,11 +333,12 @@ func (c *cmdNetworkPeerCreate) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("Failed getting peer's status: %w"), err)
 		}
 
-		if createdPeer.Status == api.NetworkStatusCreated {
+		switch createdPeer.Status {
+		case api.NetworkStatusCreated:
 			fmt.Printf(i18n.G("Network peer %s created")+"\n", peer.Name)
-		} else if createdPeer.Status == api.NetworkStatusPending {
+		case api.NetworkStatusPending:
 			fmt.Printf(i18n.G("Network peer %s pending (please complete mutual peering on peer network)")+"\n", peer.Name)
-		} else {
+		default:
 			fmt.Printf(i18n.G("Network peer %s is in unexpected state %q")+"\n", peer.Name, createdPeer.Status)
 		}
 	}
