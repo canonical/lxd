@@ -9,9 +9,36 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared/api"
 )
+
+func vSockServer(d *Daemon) *http.Server {
+	rawResponse := true
+
+	return &http.Server{
+		Handler: devLXDAPI(d, hoistReqVM, rawResponse),
+	}
+}
+
+// hoistReqVM authenticates a VM accessing /dev/lxd over vsock using its agent certificate,
+// identifies and retrieves the corresponding instance, and passes it to the handler if trusted.
+func hoistReqVM(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
+	trusted, inst, err := authenticateAgentCert(d.State(), r)
+	if err != nil {
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, err.Error()), true)
+	}
+
+	if !trusted {
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusUnauthorized), true)
+	}
+
+	request.SetCtxValue(r, request.CtxDevLXDInstance, inst)
+	return handler(d, r)
+}
 
 func authenticateAgentCert(s *state.State, r *http.Request) (bool, instance.Instance, error) {
 	var vsockID int

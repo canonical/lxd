@@ -9,6 +9,7 @@ github.com/canonical/lxd/shared/simplestreams
 github.com/canonical/lxd/shared/tcp
 github.com/canonical/lxd/shared/termios
 github.com/canonical/lxd/shared/units
+github.com/canonical/lxd/shared/version
 github.com/canonical/lxd/shared/ws
 github.com/flosch/pongo2
 github.com/go-jose/go-jose/v4
@@ -69,10 +70,14 @@ golang.org/x/oauth2
 golang.org/x/oauth2/clientcredentials
 golang.org/x/oauth2/internal
 golang.org/x/sys/unix
+golang.org/x/text/cases
+golang.org/x/text/internal
 golang.org/x/text/internal/language
 golang.org/x/text/internal/language/compact
 golang.org/x/text/internal/tag
 golang.org/x/text/language
+golang.org/x/text/transform
+golang.org/x/text/unicode/norm
 vendor/golang.org/x/crypto/chacha20
 vendor/golang.org/x/crypto/chacha20poly1305
 vendor/golang.org/x/crypto/cryptobyte
