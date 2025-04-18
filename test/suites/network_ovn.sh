@@ -64,8 +64,98 @@ test_network_ovn() {
     lxc config set network.ovn.ca_cert="$(< "${LXD_OVN_NB_CA_CRT_FILE}")"
   fi
 
-  # Create a bridge for use as an uplink.
   uplink_network="uplink$$"
+  ovn_network="ovn$$"
+
+  ########################################################################################################################
+
+  echo "Test OVN with an uplink network of type physical."
+
+  echo "Create a dummy physical network for use as an uplink."
+  ip link add dummy0 type dummy
+  lxc network create "${uplink_network}" --type=physical parent=dummy0
+
+  echo "Set OVN ranges."
+  lxc network set "${uplink_network}" ipv4.ovn.ranges=192.0.2.100-192.0.2.254
+  lxc network set "${uplink_network}" ipv6.ovn.ranges=2001:db8:1:2::100-2001:db8:1:2::254
+
+  echo "Set IP routes that include OVN ranges."
+  lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24
+  lxc network set "${uplink_network}" ipv6.routes=2001:db8:1:2::/64
+
+  echo "Create an OVN network."
+  lxc network create "${ovn_network}" --type ovn network="${uplink_network}"
+
+  echo "Check that no forward can be created with a listen address that is not in the uplink's routes."
+  ! lxc network forward create "${ovn_network}" 192.0.3.1 || false
+  ! lxc network forward create "${ovn_network}" 2001:db8:1:3::1 || false
+
+  echo "Check that no forward can be created on the uplink with a listen address that overlaps with OVN ranges."
+  ! lxc network forward create "${ovn_network}" 192.0.2.100 || false
+  ! lxc network forward create "${ovn_network}" 2001:db8:1:2::100 || false
+
+  echo "Create a couple of forwards outside of OVN ranges but on the same network."
+  lxc network forward create "${ovn_network}" 192.0.2.10
+  lxc network forward create "${ovn_network}" 2001:db8:1:2::10
+
+  echo "Check that removing IP routes on uplink for existing OVN forwards fails."
+  ! lxc network unset "${uplink_network}" ipv4.routes || false
+  ! lxc network unset "${uplink_network}" ipv6.routes || false
+
+  echo "Clean up forwards."
+  lxc network forward delete "${ovn_network}" 192.0.2.10
+  lxc network forward delete "${ovn_network}" 2001:db8:1:2::10
+
+  echo "Check that no load balancer can be created with a listen address that is not in the uplink's routes."
+  ! lxc network load-balancer create "${ovn_network}" 192.0.3.1 || false
+  ! lxc network load-balancer create "${ovn_network}" 2001:db8:1:3::1 || false
+
+  echo "Check that no load balancer can be created with a listen address that overlaps with the uplink's OVN ranges."
+  ! lxc network load-balancer create "${ovn_network}" 192.0.2.100 || false
+  ! lxc network load-balancer create "${ovn_network}" 2001:db8:1:2::100 || false
+
+  echo "Create a couple of load balancers outside of OVN ranges but on the same network."
+  lxc network load-balancer create "${ovn_network}" 192.0.2.10
+  lxc network load-balancer create "${ovn_network}" 2001:db8:1:2::10
+
+  echo "Check that removing IP routes on uplink for existing OVN load balancers fails."
+  ! lxc network unset "${uplink_network}" ipv4.routes || false
+  ! lxc network unset "${uplink_network}" ipv6.routes || false
+
+  echo "Clean up load balancers."
+  lxc network load-balancer delete "${ovn_network}" 192.0.2.10
+  lxc network load-balancer delete "${ovn_network}" 2001:db8:1:2::10
+
+  echo "Check that instance NIC passthrough with ipv4.routes.external does not allow using IPs from OVN range."
+  ! lxc launch images:alpine/edge c1 -n "${ovn_network}" -d eth0,ipv4.routes.external=192.0.2.100/32 || false
+
+  echo "Check that instance NIC passthrough with ipv6.routes.external does not allow using IPs from OVN range."
+  ! lxc launch images:alpine/edge c2 -n "${ovn_network}" -d eth0,ipv6.routes.external=2001:db8:1:2::100/128 || false
+
+  echo "Check that instance NIC passthrough with ipv4.routes.external allows using IPs outside of OVN ranges but on the same network."
+  lxc launch images:alpine/edge c1 -n "${ovn_network}" -d eth0,ipv4.routes.external=192.0.2.10/32
+
+  echo "Check that instance NIC passthrough with ipv6.routes.external allows using IPs outside of OVN ranges but on the same network."
+  lxc launch images:alpine/edge c2 -n "${ovn_network}" -d eth0,ipv6.routes.external=2001:db8:1:2::10/128
+
+  echo "Clean up instances."
+  lxc delete c1 --force
+  lxc delete c2 --force
+
+  echo "Check that removing IP routes on uplink works when there are no dependent OVN forwards."
+  lxc network unset "${uplink_network}" ipv4.routes
+  lxc network unset "${uplink_network}" ipv6.routes
+
+  echo "Clean up created networks."
+  lxc network delete "${ovn_network}"
+  lxc network delete "${uplink_network}"
+  ip link delete dummy0
+
+  ########################################################################################################################
+
+  echo "Test OVN with an uplink network of type bridge."
+
+  echo "Create a bridge for use as an uplink."
   lxc network create "${uplink_network}" \
       ipv4.address=10.10.10.1/24 ipv4.nat=true \
       ipv4.dhcp.ranges=10.10.10.2-10.10.10.199 \
@@ -74,8 +164,11 @@ test_network_ovn() {
       ipv6.ovn.ranges=fd42:4242:4242:1010::200-fd42:4242:4242:1010::254 \
       ipv4.routes=192.0.2.0/24 ipv6.routes=2001:db8:1:2::/64
 
-  # Create an OVN network.
-  ovn_network="ovn$$"
+  echo "Check that no forward can be created on the uplink bridge with a listen address that overlaps with OVN ranges."
+  ! lxc network forward create "${uplink_network}" 10.10.10.200 || false
+  ! lxc network forward create "${uplink_network}" fd42:4242:4242:1010::200 || false
+
+  echo "Create an OVN network."
   lxc network create "${ovn_network}" --type ovn network="${uplink_network}" \
       ipv4.address=10.24.140.1/24 ipv4.nat=true \
       ipv6.address=fd42:bd85:5f89:5293::1/64 ipv6.nat=true
@@ -258,9 +351,69 @@ test_network_ovn() {
   ! ovn-nbctl get ha_chassis "${chassis_id}" priority || false
   respawn_lxd "${LXD_DIR}" true
 
+  echo "Create a couple of forwards without a target address."
+  lxc network forward create "${ovn_network}" 192.0.2.1
+  lxc network forward create "${ovn_network}" 2001:db8:1:2::1
+  [ "$(ovn-nbctl list load_balancer | grep -cF name)" = 0 ]
+
+  volatile_ip4=$(lxc network get "${ovn_network}" volatile.network.ipv4.address | cut -d/ -f1)
+  volatile_ip6=$(lxc network get "${ovn_network}" volatile.network.ipv6.address | cut -d/ -f1)
+
+  echo "Add volatile.network.ipv4.address to the uplink's routes."
+  lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24,"${volatile_ip4}/32"
+
+  echo "Add volatile.network.ipv6.address to the uplink's routes."
+  lxc network set "${uplink_network}" ipv6.routes=2001:db8:1:2::/64,"${volatile_ip6}/128"
+
+  echo "Create a forward with a listener on volatile.network.ipv4.address."
+  lxc network forward create "${ovn_network}" "${volatile_ip4}"
+
+  echo "Create a forward with a listener on volatile.network.ipv6.address."
+  lxc network forward create "${ovn_network}" "${volatile_ip6}"
+
+  echo "Check that removing IP routes on uplink for existing OVN forwards fails."
+  ! lxc network unset "${uplink_network}" ipv4.routes || false
+  ! lxc network unset "${uplink_network}" ipv6.routes || false
+
+  echo "Clean up forwards."
+  lxc network forward delete "${ovn_network}" 192.0.2.1
+  lxc network forward delete "${ovn_network}" 2001:db8:1:2::1
+  lxc network forward delete "${ovn_network}" "${volatile_ip4}"
+  lxc network forward delete "${ovn_network}" "${volatile_ip6}"
+
+  echo "Create a couple of load balancers."
+  lxc network load-balancer create "${ovn_network}" 192.0.2.1
+  lxc network load-balancer create "${ovn_network}" 2001:db8:1:2::1
+  [ "$(ovn-nbctl list load_balancer | grep -cF name)" = 0 ]
+
+  echo "Create a load balancer with a listener on volatile.network.ipv4.address."
+  lxc network load-balancer create "${ovn_network}" "${volatile_ip4}"
+
+  echo "Create a load balancer with a listener on volatile.network.ipv6.address."
+  lxc network load-balancer create "${ovn_network}" "${volatile_ip6}"
+
+  echo "Check that removing IP routes on uplink for existing OVN load balancers fails."
+  ! lxc network unset "${uplink_network}" ipv4.routes || false
+  ! lxc network unset "${uplink_network}" ipv6.routes || false
+
+  echo "Clean up load balancers."
+  lxc network load-balancer delete "${ovn_network}" 192.0.2.1
+  lxc network load-balancer delete "${ovn_network}" 2001:db8:1:2::1
+  lxc network load-balancer delete "${ovn_network}" "${volatile_ip4}"
+  lxc network load-balancer delete "${ovn_network}" "${volatile_ip6}"
+
+  echo "Check that instance NIC passthrough with ipv4.routes.external does not allow using volatile.network.ipv4.address."
+  ! lxc launch images:alpine/edge c1 -n "${ovn_network}" -d eth0,ipv4.routes.external="${volatile_ip4}/32" || false
+
+  echo "Check that instance NIC passthrough with ipv6.routes.external does not allow using volatile.network.ipv6.address."
+  ! lxc launch images:alpine/edge c1 -n "${ovn_network}" -d eth0,ipv6.routes.external="${volatile_ip6}/128" || false
+
+  echo "Delete the OVN network in the default project."
   lxc network delete "${ovn_network}"
 
-  # Create project for following tests.
+  ########################################################################################################################
+
+  echo "Create project for following tests."
   lxc project create testovn \
     -c features.images=false \
     -c features.profiles=false \
@@ -341,17 +494,17 @@ test_network_ovn() {
   lxc project unset testovn limits.networks.uplink_ips.ipv6."${uplink_network}"
   lxc project set testovn features.profiles false
 
-  # Create an OVN network.
+  echo "Create an OVN network isolated in a project."
   project_ovn_network="project-ovn$$"
   lxc network create "${project_ovn_network}" --type ovn network="${uplink_network}" \
     ipv4.address=10.24.140.1/24 ipv4.nat=true \
     ipv6.address=fd42:bd85:5f89:5293::1/64 ipv6.nat=true
 
-  # No forward can be created with a listen address that is not in the uplink's routes
+  echo "Check that no forward can be created with a listen address that is not in the uplink's routes."
   ! lxc network forward create "${project_ovn_network}" 192.0.3.1 || false
   ! lxc network forward create "${project_ovn_network}" 2001:db8:1:3::1 || false
 
-  # Create a couple of forwards without a target address.
+  echo "Create a couple of forwards without a target address."
   lxc network forward create "${project_ovn_network}" 192.0.2.1
   lxc network forward create "${project_ovn_network}" 2001:db8:1:2::1
   [ "$(ovn-nbctl list load_balancer | grep -cF name)" = 0 ]
@@ -379,11 +532,11 @@ test_network_ovn() {
   lxc network forward delete "${project_ovn_network}" 192.0.2.1
   lxc network forward delete "${project_ovn_network}" 2001:db8:1:2::1
 
-  # No forward can be created with a listen address that is not in the uplink's routes
+  echo "Check that no load balancer can be created with a listen address that is not in the uplink's routes."
   ! lxc network load-balancer create "${project_ovn_network}" 192.0.3.1 || false
   ! lxc network load-balancer create "${project_ovn_network}" 2001:db8:1:3::1 || false
 
-  # Create a couple of load balancers.
+  echo "Create a couple of load balancers."
   lxc network load-balancer create "${project_ovn_network}" 192.0.2.1
   lxc network load-balancer create "${project_ovn_network}" 2001:db8:1:2::1
   [ "$(ovn-nbctl list load_balancer | grep -cF name)" = 0 ]
