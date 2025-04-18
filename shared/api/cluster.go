@@ -289,6 +289,11 @@ type ClusterMemberStatePost struct {
 	//
 	// API extension: clustering_evacuate_mode
 	Mode string `json:"mode" yaml:"mode"`
+
+	// Restore only the member status without affecting instances.
+	//
+	// API extension: clustering_restore_status_only
+	StatusOnly bool `json:"status_only" yaml:"status_only"`
 }
 
 // ClusterGroupsPost represents the fields available for a new cluster group.

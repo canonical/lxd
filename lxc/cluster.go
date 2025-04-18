@@ -1282,8 +1282,9 @@ func (c *cmdClusterUpdateCertificate) run(cmd *cobra.Command, args []string) err
 type cmdClusterEvacuateAction struct {
 	global *cmdGlobal
 
-	flagAction string
-	flagForce  bool
+	flagAction     string
+	flagForce      bool
+	flagStatusOnly bool
 }
 
 // Cluster member evacuation.
@@ -1334,6 +1335,7 @@ func (c *cmdClusterRestore) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Restore cluster member`))
 
 	cmd.Flags().BoolVar(&c.action.flagForce, "force", false, i18n.G(`Force restoration without user confirmation`)+"``")
+	cmd.Flags().BoolVar(&c.action.flagStatusOnly, "status-only", false, i18n.G(`Restore only the cluster member status without starting local instances or migrating back evacuated instances`)+"``")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -1384,8 +1386,9 @@ func (c *cmdClusterEvacuateAction) run(cmd *cobra.Command, args []string) error 
 	}
 
 	state := api.ClusterMemberStatePost{
-		Action: cmd.Name(),
-		Mode:   c.flagAction,
+		Action:     cmd.Name(),
+		Mode:       c.flagAction,
+		StatusOnly: c.flagStatusOnly,
 	}
 
 	op, err := resource.server.UpdateClusterMemberState(resource.name, state)

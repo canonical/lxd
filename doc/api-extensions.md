@@ -2642,3 +2642,7 @@ This adds a request option to set snapshot's target profile on instance copy to 
 ## `resources_device_fs_uuid`
 
 Adds the field `device_fs_uuid` including the respective UUID to each disk and partition indicating whether or not a filesystem is located on the device.
+
+## `clustering_restore_status_only`
+
+Adds a `--status-only` flag to the `lxc cluster restore` command. When this flag is set, LXD restores a cluster member's status to `ONLINE` without restarting any of its stopped local instances or migrating back instances that were evacuated to other cluster members.

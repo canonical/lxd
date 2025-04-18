@@ -606,6 +606,13 @@ definitions:
                 example: stop
                 type: string
                 x-go-name: Mode
+            status_only:
+                description: |-
+                    Restore only the member status without affecting instances.
+
+                    API extension: clustering_restore_status_only
+                type: boolean
+                x-go-name: StatusOnly
         title: ClusterMemberStatePost represents the fields required to evacuate a cluster member.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
