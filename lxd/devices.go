@@ -174,11 +174,6 @@ func deviceNetlinkListener() (chCPU chan []string, chNetwork chan []string, chUS
 					continue
 				}
 
-				serial, ok := props["SERIAL"]
-				if !ok {
-					continue
-				}
-
 				major, ok := props["MAJOR"]
 				if !ok {
 					continue
@@ -216,7 +211,7 @@ func deviceNetlinkListener() (chCPU chan []string, chNetwork chan []string, chUS
 					 */
 					zeroPad(vendorID, 4),
 					zeroPad(productID, 4),
-					serial,
+					props["SERIAL"],
 					major,
 					minor,
 					busnum,
