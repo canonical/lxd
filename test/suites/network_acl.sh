@@ -7,16 +7,26 @@ test_network_acl() {
   lxc network acl create testacl
   lxc project create testproj -c features.networks=true
   lxc project create testproj2 -c features.networks=false
+  lxc project create testproj3 -c features.networks=true
   lxc network acl create testacl --project testproj
-  lxc project show testproj | grep testacl # Check project sees testacl using it.
+  lxc network acl create testacl2 --project testproj3
+  [ "$(lxc project show testproj | grep -cF 'testacl')" = 1 ] # Check project sees testacl using it.
   ! lxc network acl create testacl --project testproj2 || false
-  lxc network acl ls | grep testacl
-  lxc network acl ls --project testproj | grep testacl
+  [ "$(lxc network acl ls -f csv | grep -cF 'testacl')" = 1 ]
+  [ "$(lxc network acl ls -f csv --project testproj | grep -cF 'testacl')" = 1 ]
+  [ "$(lxc network acl ls --project testproj3 -f csv | grep -cF 'testacl2')" = 1 ]
+  [ "$(lxc network acl ls --all-projects -f csv | grep -cF 'testacl2')" = 1 ]
+  [ "$(lxc network acl ls -f csv | grep -cF 'testacl2')" = 0 ]
   lxc network acl delete testacl
   lxc network acl delete testacl --project testproj
-  ! lxc network acl ls | grep testacl || false
-  ! lxc network acl ls --project testproj | grep testacl || false
+  lxc network acl delete testacl2 --project testproj3
+  [ "$(lxc network acl ls -f csv | wc -l)" = 0 ]
+  [ "$(lxc network acl ls -f csv | wc -l)" = 0 ]
+  [ "$(lxc network acl ls -f csv --project testproj | wc -l)" = 0 ]
+  [ "$(lxc network acl ls --project testproj3 -f csv | wc -l)" = 0 ]
+  [ "$(lxc network acl ls --all-projects -f csv | wc -l)" = 0 ]
   lxc project delete testproj
+  lxc project delete testproj3
 
   # ACL creation from stdin.
   cat <<EOF | lxc network acl create testacl
@@ -36,20 +46,22 @@ ingress:
 config:
   user.mykey: foo
 EOF
- lxc network acl show testacl | grep "description: Test ACL"
- lxc network acl show testacl | grep "action: allow"
- lxc network acl show testacl | grep "source: 192.168.1.1/32"
- lxc network acl show testacl | grep "destination: 192.168.1.2/32"
- lxc network acl show testacl | grep 'destination_port: "22"'
- lxc network acl show testacl | grep "user.mykey: foo"
+  acl_show_output=$(lxc network acl show testacl)
+  [ "$(echo "$acl_show_output" | grep -cF 'description: Test ACL')" = 1 ]
+  [ "$(echo "$acl_show_output" | grep -cF 'action: allow')" = 1 ]
+  [ "$(echo "$acl_show_output" | grep -cF 'source: 192.168.1.1/32')" = 1 ]
+  [ "$(echo "$acl_show_output" | grep -cF 'destination: 192.168.1.2/32')" = 1 ]
+  [ "$(echo "$acl_show_output" | grep -cF 'destination_port: "22"')" = 1 ]
+  [ "$(echo "$acl_show_output" | grep -cF 'user.mykey: foo')" = 1 ]
 
  # ACL Patch. Check for merged config and replaced description, ingress and egress fields.
  lxc query -X PATCH -d "{\\\"config\\\": {\\\"user.myotherkey\\\": \\\"bah\\\"}}" /1.0/network-acls/testacl
- lxc network acl show testacl | grep "user.mykey: foo"
- lxc network acl show testacl | grep "user.myotherkey: bah"
- lxc network acl show testacl | grep 'description: ""'
- lxc network acl show testacl | grep 'ingress: \[\]'
- lxc network acl show testacl | grep 'egress: \[\]'
+  acl_show_output=$(lxc network acl show testacl)
+  [ "$(echo "$acl_show_output" | grep -cF 'user.mykey: foo')" = 1 ]
+  [ "$(echo "$acl_show_output" | grep -cF 'user.myotherkey: bah')" = 1 ]
+  [ "$(echo "$acl_show_output" | grep -cF 'description: ""')" = 1 ]
+  [ "$(echo "$acl_show_output" | grep -cF 'ingress: []')" = 1 ]
+  [ "$(echo "$acl_show_output" | grep -cF 'egress: []')" = 1 ]
 
  # ACL edit from stdin.
  cat <<EOF | lxc network acl edit testacl
@@ -69,8 +81,9 @@ ingress:
 config:
   user.mykey: foo
 EOF
- lxc network acl show testacl | grep "description: Test ACL updated"
- lxc network acl show testacl | grep "description: a rule description"
+ acl_show_output=$(lxc network acl show testacl)
+ [ "$(echo "$acl_show_output" | grep -cF 'description: Test ACL updated')" = 1 ]
+ [ "$(echo "$acl_show_output" | grep -cF 'description: a rule description')" = 1 ]
 
  # ACL rule addition.
  ! lxc network acl rule add testacl outbound || false # Invalid direction
@@ -90,8 +103,9 @@ EOF
 
  lxc network acl rule add testacl ingress action=allow source=192.168.1.2/32 protocol=tcp destination=192.168.1.1-192.168.1.3 destination_port="22, 2222-2223"
  ! lxc network acl rule add testacl ingress action=allow source=192.168.1.2/32 protocol=tcp destination=192.168.1.1-192.168.1.3 destination_port=22,2222-2223 || false # Dupe rule detection
- lxc network acl show testacl | grep "destination: 192.168.1.1-192.168.1.3"
- lxc network acl show testacl | grep -c2 'state: enabled' # Default state enabled for new rules.
+ acl_show_output=$(lxc network acl show testacl)
+ [ "$(echo "$acl_show_output" | grep -cF 'destination: 192.168.1.1-192.168.1.3')" = 1 ]
+ [ "$(echo "$acl_show_output" | grep -c 'state: enabled')" -ge 2 ] # Default state enabled for new rules.
 
  # ACL rule removal.
  lxc network acl rule add testacl ingress action=allow source=192.168.1.3/32 protocol=tcp destination=192.168.1.1-192.168.1.3 destination_port=22,2222-2223 description="removal rule test"
@@ -100,7 +114,7 @@ EOF
  lxc network acl rule remove testacl ingress description="removal rule test" # Single matching rule removal.
  ! lxc network acl rule remove testacl ingress description="removal rule test" || false # No match for removal fails.
  lxc network acl rule remove testacl ingress --force # Remove all ingress rules.
- lxc network acl show testacl | grep 'ingress: \[\]' # Check all ingress rules removed.
+  [ "$(lxc network acl show testacl | grep -cF 'ingress: []')" = 1 ] # Check all ingress rules removed.
 
  # ACL rename.
  ! lxc network acl rename testacl 192.168.1.1 || false # Don't allow non-hostname compatible names.
@@ -109,10 +123,10 @@ EOF
 
  # ACL custom config.
  lxc network acl set testacl2 user.somekey foo
- lxc network acl get testacl2 user.somekey | grep foo
+ [ "$(lxc network acl get testacl2 user.somekey | grep -cF 'foo')" = 1 ]
  ! lxc network acl set testacl2 non.userkey || false
  lxc network acl unset testacl2 user.somekey
- ! lxc network acl get testacl2 user.somekey | grep foo || false
+ [ "$(lxc network acl get testacl2 user.somekey | wc -l)" = 0 ]
 
  lxc network acl delete testacl2
 }
