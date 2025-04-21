@@ -1,6 +1,7 @@
 module github.com/canonical/lxd
 
 go 1.23.7
+toolchain go1.24.1
 
 require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.17.5
@@ -16,7 +17,7 @@ require (
 	github.com/fvbommel/sortorder v1.1.0
 	github.com/go-acme/lego/v4 v4.23.1
 	github.com/go-chi/chi/v5 v5.2.1
-	github.com/go-jose/go-jose/v4 v4.0.5
+	github.com/go-jose/go-jose/v4 v4.1.0
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
