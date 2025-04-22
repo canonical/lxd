@@ -2234,6 +2234,26 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		return err
 	}
 
+	// Now that we got the source details, validate against the instance limits.
+	_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return err
+	}
+
+	if rootDiskConf["size"] != "" {
+		rootDiskConfBytes, err := units.ParseByteSizeString(rootDiskConf["size"])
+		if err != nil {
+			return err
+		}
+
+		if rootDiskConfBytes < args.VolumeSize {
+			// Convert to IEC format for nicer error.
+			rootDiskSize := units.GetByteSizeStringIEC(rootDiskConfBytes, 2)
+			migrationSourceSize := units.GetByteSizeStringIEC(args.VolumeSize, 2)
+			return fmt.Errorf("The configured target instance root disk size (%s) is less than the migration source size (%s)", rootDiskSize, migrationSourceSize)
+		}
+	}
+
 	var volumeDescription string
 	var volumeConfig map[string]string
 
