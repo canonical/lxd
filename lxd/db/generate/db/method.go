@@ -816,7 +816,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 			buf.L("// Update association table.")
 			buf.L("object.ID = int(id)")
 			buf.L("err = %sUpdate%s(ctx, tx, object)", m.db, lex.Plural(assocStruct))
-			m.ifErrNotNil(buf, true, "-1", fmt.Sprintf("fmt.Errorf(\"Could not update association table: %%w\", err)"))
+			m.ifErrNotNil(buf, true, "-1", "fmt.Errorf(\"Could not update association table: %%w\", err)")
 			continue
 		case ReferenceTable:
 			buf.L("for _, insert := range object.%s {", field.Name)
