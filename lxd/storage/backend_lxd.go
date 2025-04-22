@@ -7537,9 +7537,11 @@ func (b *lxdBackend) detectUnknownBuckets(vol *drivers.Volume, projectVols map[s
 	}
 
 	backupConf := &backupConfig.Config{
-		Bucket: &api.StorageBucket{
-			Name:   bucketName,
-			Config: vol.Config(),
+		Bucket: &backupConfig.Bucket{
+			StorageBucket: &api.StorageBucket{
+				Name:   bucketName,
+				Config: vol.Config(),
+			},
 		},
 	}
 
