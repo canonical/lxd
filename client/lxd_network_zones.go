@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 
 	"github.com/canonical/lxd/shared/api"
@@ -17,7 +18,7 @@ func (r *ProtocolLXD) GetNetworkZoneNames() ([]string, error) {
 	// Fetch the raw URL values.
 	urls := []string{}
 	baseURL := "/network-zones"
-	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err = r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +37,7 @@ func (r *ProtocolLXD) GetNetworkZones() ([]api.NetworkZone, error) {
 	zones := []api.NetworkZone{}
 
 	// Fetch the raw value.
-	_, err = r.queryStruct("GET", "/network-zones?recursion=1", nil, "", &zones)
+	_, err = r.queryStruct(http.MethodGet, "/network-zones?recursion=1", nil, "", &zones)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +55,7 @@ func (r *ProtocolLXD) GetNetworkZonesAllProjects() ([]api.NetworkZone, error) {
 	zones := []api.NetworkZone{}
 
 	u := api.NewURL().Path("network-zones").WithQuery("recursion", "1").WithQuery("all-projects", "true")
-	_, err = r.queryStruct("GET", u.String(), nil, "", &zones)
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &zones)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +73,7 @@ func (r *ProtocolLXD) GetNetworkZone(name string) (*api.NetworkZone, string, err
 	zone := api.NetworkZone{}
 
 	// Fetch the raw value.
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/network-zones/%s", url.PathEscape(name)), nil, "", &zone)
+	etag, err := r.queryStruct(http.MethodGet, fmt.Sprintf("/network-zones/%s", url.PathEscape(name)), nil, "", &zone)
 	if err != nil {
 		return nil, "", err
 	}
@@ -88,7 +89,7 @@ func (r *ProtocolLXD) CreateNetworkZone(zone api.NetworkZonesPost) error {
 	}
 
 	// Send the request.
-	_, _, err = r.query("POST", "/network-zones", zone, "")
+	_, _, err = r.query(http.MethodPost, "/network-zones", zone, "")
 	if err != nil {
 		return err
 	}
@@ -104,7 +105,7 @@ func (r *ProtocolLXD) UpdateNetworkZone(name string, zone api.NetworkZonePut, ET
 	}
 
 	// Send the request.
-	_, _, err = r.query("PUT", fmt.Sprintf("/network-zones/%s", url.PathEscape(name)), zone, ETag)
+	_, _, err = r.query(http.MethodPut, fmt.Sprintf("/network-zones/%s", url.PathEscape(name)), zone, ETag)
 	if err != nil {
 		return err
 	}
@@ -120,7 +121,7 @@ func (r *ProtocolLXD) DeleteNetworkZone(name string) error {
 	}
 
 	// Send the request.
-	_, _, err = r.query("DELETE", fmt.Sprintf("/network-zones/%s", url.PathEscape(name)), nil, "")
+	_, _, err = r.query(http.MethodDelete, fmt.Sprintf("/network-zones/%s", url.PathEscape(name)), nil, "")
 	if err != nil {
 		return err
 	}
@@ -138,7 +139,7 @@ func (r *ProtocolLXD) GetNetworkZoneRecordNames(zone string) ([]string, error) {
 	// Fetch the raw URL values.
 	urls := []string{}
 	baseURL := fmt.Sprintf("/network-zones/%s/records", url.PathEscape(zone))
-	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err = r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +158,7 @@ func (r *ProtocolLXD) GetNetworkZoneRecords(zone string) ([]api.NetworkZoneRecor
 	records := []api.NetworkZoneRecord{}
 
 	// Fetch the raw value.
-	_, err = r.queryStruct("GET", fmt.Sprintf("/network-zones/%s/records?recursion=1", url.PathEscape(zone)), nil, "", &records)
+	_, err = r.queryStruct(http.MethodGet, fmt.Sprintf("/network-zones/%s/records?recursion=1", url.PathEscape(zone)), nil, "", &records)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +176,7 @@ func (r *ProtocolLXD) GetNetworkZoneRecord(zone string, name string) (*api.Netwo
 	record := api.NetworkZoneRecord{}
 
 	// Fetch the raw value.
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/network-zones/%s/records/%s", url.PathEscape(zone), url.PathEscape(name)), nil, "", &record)
+	etag, err := r.queryStruct(http.MethodGet, fmt.Sprintf("/network-zones/%s/records/%s", url.PathEscape(zone), url.PathEscape(name)), nil, "", &record)
 	if err != nil {
 		return nil, "", err
 	}
@@ -191,7 +192,7 @@ func (r *ProtocolLXD) CreateNetworkZoneRecord(zone string, record api.NetworkZon
 	}
 
 	// Send the request.
-	_, _, err = r.query("POST", fmt.Sprintf("/network-zones/%s/records", url.PathEscape(zone)), record, "")
+	_, _, err = r.query(http.MethodPost, fmt.Sprintf("/network-zones/%s/records", url.PathEscape(zone)), record, "")
 	if err != nil {
 		return err
 	}
@@ -207,7 +208,7 @@ func (r *ProtocolLXD) UpdateNetworkZoneRecord(zone string, name string, record a
 	}
 
 	// Send the request.
-	_, _, err = r.query("PUT", fmt.Sprintf("/network-zones/%s/records/%s", url.PathEscape(zone), url.PathEscape(name)), record, ETag)
+	_, _, err = r.query(http.MethodPut, fmt.Sprintf("/network-zones/%s/records/%s", url.PathEscape(zone), url.PathEscape(name)), record, ETag)
 	if err != nil {
 		return err
 	}
@@ -223,7 +224,7 @@ func (r *ProtocolLXD) DeleteNetworkZoneRecord(zone string, name string) error {
 	}
 
 	// Send the request.
-	_, _, err = r.query("DELETE", fmt.Sprintf("/network-zones/%s/records/%s", url.PathEscape(zone), url.PathEscape(name)), nil, "")
+	_, _, err = r.query(http.MethodDelete, fmt.Sprintf("/network-zones/%s/records/%s", url.PathEscape(zone), url.PathEscape(name)), nil, "")
 	if err != nil {
 		return err
 	}
