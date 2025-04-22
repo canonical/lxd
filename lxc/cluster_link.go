@@ -54,6 +54,10 @@ func (c *cmdClusterLink) command() *cobra.Command {
 	clusterLinkShowCmd := cmdClusterLinkShow{global: c.global, cluster: c.cluster}
 	cmd.AddCommand(clusterLinkShowCmd.command())
 
+	// Info
+	clusterLinkInfoCmd := cmdClusterLinkInfo{global: c.global, cluster: c.cluster}
+	cmd.AddCommand(clusterLinkInfoCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -557,4 +561,93 @@ func (c *cmdClusterLinkShow) run(cmd *cobra.Command, args []string) error {
 	fmt.Printf("%s", data)
 
 	return nil
+}
+
+// Info.
+type cmdClusterLinkInfo struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+
+	flagTarget string
+}
+
+func (c *cmdClusterLinkInfo) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("info", "[<remote>:]<link>")
+	cmd.Short = "Get information on cluster links"
+	cmd.Long = cli.FormatSection("Description", `Get information on cluster links`)
+	cmd.Example = cli.FormatSection("", `lxc cluster link info backup-cluster
+    Will show information for a cluster link called "backup-cluster".`)
+
+	cmd.RunE = c.run
+	cmd.Flags().StringVar(&c.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("cluster_link", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdClusterLinkInfo) run(cmd *cobra.Command, args []string) error {
+	// Quick checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing cluster link name")
+	}
+
+	srcServer := resource.server
+	if c.flagTarget != "" {
+		srcServer = srcServer.UseTarget(c.flagTarget)
+	}
+
+	clusterLink, _, err := srcServer.GetClusterLink(resource.name)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Name: %s"+"\n", clusterLink.Name)
+	if clusterLink.Description != "" {
+		fmt.Printf("Description: %s"+"\n", clusterLink.Description)
+	}
+
+	clusterLinkState, _, err := srcServer.GetClusterLinkState(resource.name)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Cluster link members:")
+
+	// Render the table.
+	data := [][]string{}
+	for _, member := range clusterLinkState.ClusterLinkMembersState {
+		line := []string{member.Address, member.ServerName, strings.ToUpper(member.Status)}
+		data = append(data, line)
+	}
+
+	sort.Sort(cli.SortColumnsNaturally(data))
+
+	header := []string{
+		"ADDRESS",
+		"NAME",
+		"STATE",
+	}
+
+	return cli.RenderTable(cli.TableFormatTable, header, data, clusterLinkState.ClusterLinkMembersState)
 }
