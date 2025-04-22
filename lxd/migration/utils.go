@@ -5,7 +5,7 @@ import (
 )
 
 // IndexHeaderVersion version of the index header to be sent/recv.
-const IndexHeaderVersion uint32 = 1
+const IndexHeaderVersion uint32 = 2
 
 // BTRFSFeatureMigrationHeader indicates a migration header will be sent/recv in data channel after index header.
 const BTRFSFeatureMigrationHeader = "migration_header"
@@ -110,7 +110,12 @@ const (
 )
 
 var (
+	// ErrNoLiveMigrationSource indicates CRIU isn't installed on the source server.
 	ErrNoLiveMigrationSource = fmt.Errorf("%s CRIU isn't installed on the source server. %s on the source server", unableToLiveMigrate, toMigrateLive)
+
+	// ErrNoLiveMigrationTarget indicates CRIU isn't installed on the target server.
 	ErrNoLiveMigrationTarget = fmt.Errorf("%s CRIU isn't installed on the target server. %s on the target server", unableToLiveMigrate, toMigrateLive)
-	ErrNoLiveMigration       = fmt.Errorf("%s CRIU isn't installed. %s", unableToLiveMigrate, toMigrateLive)
+
+	// ErrNoLiveMigration indicates CRIU is not installed.
+	ErrNoLiveMigration = fmt.Errorf("%s CRIU isn't installed. %s", unableToLiveMigrate, toMigrateLive)
 )
