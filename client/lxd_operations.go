@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"net/http"
 	"net/url"
 	"strconv"
 
@@ -14,7 +15,7 @@ func (r *ProtocolLXD) GetOperationUUIDs() ([]string, error) {
 	// Fetch the raw URL values.
 	urls := []string{}
 	baseURL := "/operations"
-	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err := r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +29,7 @@ func (r *ProtocolLXD) GetOperations() ([]api.Operation, error) {
 	apiOperations := map[string][]api.Operation{}
 
 	// Fetch the raw value.
-	_, err := r.queryStruct("GET", "/operations?recursion=1", nil, "", &apiOperations)
+	_, err := r.queryStruct(http.MethodGet, "/operations?recursion=1", nil, "", &apiOperations)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +59,7 @@ func (r *ProtocolLXD) GetOperationsAllProjects() ([]api.Operation, error) {
 	v.Set("all-projects", "true")
 
 	// Fetch the raw value.
-	_, err = r.queryStruct("GET", path+"?"+v.Encode(), nil, "", &apiOperations)
+	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &apiOperations)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +78,7 @@ func (r *ProtocolLXD) GetOperation(uuid string) (*api.Operation, string, error) 
 	op := api.Operation{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", "/operations/"+url.PathEscape(uuid), nil, "", &op)
+	etag, err := r.queryStruct(http.MethodGet, "/operations/"+url.PathEscape(uuid), nil, "", &op)
 	if err != nil {
 		return nil, "", err
 	}
@@ -98,7 +99,7 @@ func (r *ProtocolLXD) GetOperationWait(uuid string, timeout int) (*api.Operation
 	transport.ResponseHeaderTimeout = 0
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", "/operations/"+url.PathEscape(uuid)+"/wait?timeout="+strconv.FormatInt(int64(timeout), 10), nil, "", &op)
+	etag, err := r.queryStruct(http.MethodGet, "/operations/"+url.PathEscape(uuid)+"/wait?timeout="+strconv.FormatInt(int64(timeout), 10), nil, "", &op)
 	if err != nil {
 		return nil, "", err
 	}
@@ -111,7 +112,7 @@ func (r *ProtocolLXD) GetOperationWaitSecret(uuid string, secret string, timeout
 	op := api.Operation{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", "/operations/"+url.PathEscape(uuid)+"/wait?secret="+url.PathEscape(secret)+"&timeout="+strconv.FormatInt(int64(timeout), 10), nil, "", &op)
+	etag, err := r.queryStruct(http.MethodGet, "/operations/"+url.PathEscape(uuid)+"/wait?secret="+url.PathEscape(secret)+"&timeout="+strconv.FormatInt(int64(timeout), 10), nil, "", &op)
 	if err != nil {
 		return nil, "", err
 	}
@@ -132,7 +133,7 @@ func (r *ProtocolLXD) GetOperationWebsocket(uuid string, secret string) (*websoc
 // DeleteOperation deletes (cancels) a running operation.
 func (r *ProtocolLXD) DeleteOperation(uuid string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", "/operations/"+url.PathEscape(uuid), nil, "")
+	_, _, err := r.query(http.MethodDelete, "/operations/"+url.PathEscape(uuid), nil, "")
 	if err != nil {
 		return err
 	}

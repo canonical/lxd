@@ -26,7 +26,7 @@ import (
 func (r *ProtocolLXD) GetImages() ([]api.Image, error) {
 	images := []api.Image{}
 
-	_, err := r.queryStruct("GET", "/images?recursion=1", nil, "", &images)
+	_, err := r.queryStruct(http.MethodGet, "/images?recursion=1", nil, "", &images)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (r *ProtocolLXD) GetImagesAllProjects() ([]api.Image, error) {
 	}
 
 	u := api.NewURL().Path("images").WithQuery("recursion", "1").WithQuery("all-projects", "true")
-	_, err = r.queryStruct("GET", u.String(), nil, "", &images)
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &images)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (r *ProtocolLXD) GetImagesAllProjectsWithFilter(filters []string) ([]api.Im
 	}
 
 	u := api.NewURL().Path("images").WithQuery("recursion", "1").WithQuery("all-projects", "true").WithQuery("filter", parseFilters(filters))
-	_, err = r.queryStruct("GET", u.String(), nil, "", &images)
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &images)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func (r *ProtocolLXD) GetImagesWithFilter(filters []string) ([]api.Image, error)
 	v.Set("recursion", "1")
 	v.Set("filter", parseFilters(filters))
 
-	_, err = r.queryStruct("GET", "/images?"+v.Encode(), nil, "", &images)
+	_, err = r.queryStruct(http.MethodGet, "/images?"+v.Encode(), nil, "", &images)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (r *ProtocolLXD) GetImageFingerprints() ([]string, error) {
 	// Fetch the raw URL values.
 	urls := []string{}
 	baseURL := "/images"
-	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err := r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func (r *ProtocolLXD) GetPrivateImage(fingerprint string, secret string) (*api.I
 	}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", path, nil, "", &image)
+	etag, err := r.queryStruct(http.MethodGet, path, nil, "", &image)
 	if err != nil {
 		return nil, "", err
 	}
@@ -218,7 +218,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, do func(
 	resp := ImageFileResponse{}
 
 	// Prepare the download request
-	request, err := http.NewRequest("GET", uri, nil)
+	request, err := http.NewRequest(http.MethodGet, uri, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -361,7 +361,7 @@ func (r *ProtocolLXD) GetImageAliases() ([]api.ImageAliasesEntry, error) {
 	aliases := []api.ImageAliasesEntry{}
 
 	// Fetch the raw value
-	_, err := r.queryStruct("GET", "/images/aliases?recursion=1", nil, "", &aliases)
+	_, err := r.queryStruct(http.MethodGet, "/images/aliases?recursion=1", nil, "", &aliases)
 	if err != nil {
 		return nil, err
 	}
@@ -374,7 +374,7 @@ func (r *ProtocolLXD) GetImageAliasNames() ([]string, error) {
 	// Fetch the raw URL values.
 	urls := []string{}
 	baseURL := "/images/aliases"
-	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err := r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -388,7 +388,7 @@ func (r *ProtocolLXD) GetImageAlias(name string) (*api.ImageAliasesEntry, string
 	alias := api.ImageAliasesEntry{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", "/images/aliases/"+url.PathEscape(name), nil, "", &alias)
+	etag, err := r.queryStruct(http.MethodGet, "/images/aliases/"+url.PathEscape(name), nil, "", &alias)
 	if err != nil {
 		return nil, "", err
 	}
@@ -442,7 +442,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 
 	// Send the JSON based request
 	if args == nil {
-		op, _, err := r.queryOperation("POST", "/images", image, "", true)
+		op, _, err := r.queryOperation(http.MethodPost, "/images", image, "", true)
 		if err != nil {
 			return nil, err
 		}
@@ -541,7 +541,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", reqURL, body)
+	req, err := http.NewRequest(http.MethodPost, reqURL, body)
 	if err != nil {
 		return nil, err
 	}
@@ -954,7 +954,7 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 // UpdateImage updates the image definition.
 func (r *ProtocolLXD) UpdateImage(fingerprint string, image api.ImagePut, ETag string) error {
 	// Send the request
-	_, _, err := r.query("PUT", "/images/"+url.PathEscape(fingerprint), image, ETag)
+	_, _, err := r.query(http.MethodPut, "/images/"+url.PathEscape(fingerprint), image, ETag)
 	if err != nil {
 		return err
 	}
@@ -965,7 +965,7 @@ func (r *ProtocolLXD) UpdateImage(fingerprint string, image api.ImagePut, ETag s
 // DeleteImage requests that LXD removes an image from the store.
 func (r *ProtocolLXD) DeleteImage(fingerprint string) (Operation, error) {
 	// Send the request
-	op, _, err := r.queryOperation("DELETE", "/images/"+url.PathEscape(fingerprint), nil, "", true)
+	op, _, err := r.queryOperation(http.MethodDelete, "/images/"+url.PathEscape(fingerprint), nil, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -981,7 +981,7 @@ func (r *ProtocolLXD) RefreshImage(fingerprint string) (Operation, error) {
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", "/images/"+url.PathEscape(fingerprint)+"/refresh", nil, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, "/images/"+url.PathEscape(fingerprint)+"/refresh", nil, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -992,7 +992,7 @@ func (r *ProtocolLXD) RefreshImage(fingerprint string) (Operation, error) {
 // CreateImageSecret requests that LXD issues a temporary image secret.
 func (r *ProtocolLXD) CreateImageSecret(fingerprint string) (Operation, error) {
 	// Send the request
-	op, _, err := r.queryOperation("POST", "/images/"+url.PathEscape(fingerprint)+"/secret", nil, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, "/images/"+url.PathEscape(fingerprint)+"/secret", nil, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1003,7 +1003,7 @@ func (r *ProtocolLXD) CreateImageSecret(fingerprint string) (Operation, error) {
 // CreateImageAlias sets up a new image alias.
 func (r *ProtocolLXD) CreateImageAlias(alias api.ImageAliasesPost) error {
 	// Send the request
-	_, _, err := r.query("POST", "/images/aliases", alias, "")
+	_, _, err := r.query(http.MethodPost, "/images/aliases", alias, "")
 	if err != nil {
 		return err
 	}
@@ -1014,7 +1014,7 @@ func (r *ProtocolLXD) CreateImageAlias(alias api.ImageAliasesPost) error {
 // UpdateImageAlias updates the image alias definition.
 func (r *ProtocolLXD) UpdateImageAlias(name string, alias api.ImageAliasesEntryPut, ETag string) error {
 	// Send the request
-	_, _, err := r.query("PUT", "/images/aliases/"+url.PathEscape(name), alias, ETag)
+	_, _, err := r.query(http.MethodPut, "/images/aliases/"+url.PathEscape(name), alias, ETag)
 	if err != nil {
 		return err
 	}
@@ -1025,7 +1025,7 @@ func (r *ProtocolLXD) UpdateImageAlias(name string, alias api.ImageAliasesEntryP
 // RenameImageAlias renames an existing image alias.
 func (r *ProtocolLXD) RenameImageAlias(name string, alias api.ImageAliasesEntryPost) error {
 	// Send the request
-	_, _, err := r.query("POST", "/images/aliases/"+url.PathEscape(name), alias, "")
+	_, _, err := r.query(http.MethodPost, "/images/aliases/"+url.PathEscape(name), alias, "")
 	if err != nil {
 		return err
 	}
@@ -1036,7 +1036,7 @@ func (r *ProtocolLXD) RenameImageAlias(name string, alias api.ImageAliasesEntryP
 // DeleteImageAlias removes an alias from the LXD image store.
 func (r *ProtocolLXD) DeleteImageAlias(name string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", "/images/aliases/"+url.PathEscape(name), nil, "")
+	_, _, err := r.query(http.MethodDelete, "/images/aliases/"+url.PathEscape(name), nil, "")
 	if err != nil {
 		return err
 	}
@@ -1052,7 +1052,7 @@ func (r *ProtocolLXD) ExportImage(fingerprint string, image api.ImageExportPost)
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", "/images/"+url.PathEscape(fingerprint)+"/export", &image, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, "/images/"+url.PathEscape(fingerprint)+"/export", &image, "", true)
 	if err != nil {
 		return nil, err
 	}

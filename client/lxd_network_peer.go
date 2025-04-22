@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"net/http"
 	"net/url"
 
 	"github.com/canonical/lxd/shared/api"
@@ -16,7 +17,7 @@ func (r *ProtocolLXD) GetNetworkPeerNames(networkName string) ([]string, error) 
 	// Fetch the raw URL values.
 	urls := []string{}
 	baseURL := "/networks/" + url.PathEscape(networkName) + "/peers"
-	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err = r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +36,7 @@ func (r *ProtocolLXD) GetNetworkPeers(networkName string) ([]api.NetworkPeer, er
 	peers := []api.NetworkPeer{}
 
 	// Fetch the raw value.
-	_, err = r.queryStruct("GET", "/networks/"+url.PathEscape(networkName)+"/peers?recursion=1", nil, "", &peers)
+	_, err = r.queryStruct(http.MethodGet, "/networks/"+url.PathEscape(networkName)+"/peers?recursion=1", nil, "", &peers)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +54,7 @@ func (r *ProtocolLXD) GetNetworkPeer(networkName string, peerName string) (*api.
 	peer := api.NetworkPeer{}
 
 	// Fetch the raw value.
-	etag, err := r.queryStruct("GET", "/networks/"+url.PathEscape(networkName)+"/peers/"+url.PathEscape(peerName), nil, "", &peer)
+	etag, err := r.queryStruct(http.MethodGet, "/networks/"+url.PathEscape(networkName)+"/peers/"+url.PathEscape(peerName), nil, "", &peer)
 	if err != nil {
 		return nil, "", err
 	}
@@ -70,7 +71,7 @@ func (r *ProtocolLXD) CreateNetworkPeer(networkName string, peer api.NetworkPeer
 	}
 
 	// Send the request.
-	_, _, err = r.query("POST", "/networks/"+url.PathEscape(networkName)+"/peers", peer, "")
+	_, _, err = r.query(http.MethodPost, "/networks/"+url.PathEscape(networkName)+"/peers", peer, "")
 	if err != nil {
 		return err
 	}
@@ -86,7 +87,7 @@ func (r *ProtocolLXD) UpdateNetworkPeer(networkName string, peerName string, pee
 	}
 
 	// Send the request.
-	_, _, err = r.query("PUT", "/networks/"+url.PathEscape(networkName)+"/peers/"+url.PathEscape(peerName), peer, ETag)
+	_, _, err = r.query(http.MethodPut, "/networks/"+url.PathEscape(networkName)+"/peers/"+url.PathEscape(peerName), peer, ETag)
 	if err != nil {
 		return err
 	}
@@ -102,7 +103,7 @@ func (r *ProtocolLXD) DeleteNetworkPeer(networkName string, peerName string) err
 	}
 
 	// Send the request.
-	_, _, err = r.query("DELETE", "/networks/"+url.PathEscape(networkName)+"/peers/"+url.PathEscape(peerName), nil, "")
+	_, _, err = r.query(http.MethodDelete, "/networks/"+url.PathEscape(networkName)+"/peers/"+url.PathEscape(peerName), nil, "")
 	if err != nil {
 		return err
 	}

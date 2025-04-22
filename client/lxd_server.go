@@ -16,7 +16,7 @@ func (r *ProtocolLXD) GetServer() (*api.Server, string, error) {
 	server := api.Server{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", "", nil, "", &server)
+	etag, err := r.queryStruct(http.MethodGet, "", nil, "", &server)
 	if err != nil {
 		return nil, "", err
 	}
@@ -44,7 +44,7 @@ func (r *ProtocolLXD) GetServer() (*api.Server, string, error) {
 // UpdateServer updates the server status to match the provided Server struct.
 func (r *ProtocolLXD) UpdateServer(server api.ServerPut, ETag string) error {
 	// Send the request
-	_, _, err := r.query("PUT", "", server, ETag)
+	_, _, err := r.query(http.MethodPut, "", server, ETag)
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
 	resources := api.Resources{}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", "/resources", nil, "", &resources)
+	_, err = r.queryStruct(http.MethodGet, "/resources", nil, "", &resources)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (r *ProtocolLXD) GetMetrics() (string, error) {
 		return "", err
 	}
 
-	req, err := http.NewRequest("GET", requestURL, nil)
+	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
 		return "", err
 	}
