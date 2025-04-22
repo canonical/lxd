@@ -2245,7 +2245,7 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 				Pool:  poolName,
 			}
 
-			_, _, err = client.RawQuery("POST", "/internal/image-optimize", req, "")
+			_, _, err = client.RawQuery(http.MethodPost, "/internal/image-optimize", req, "")
 			if err != nil {
 				logger.Error("Failed creating new image in storage pool", logger.Ctx{"err": err, "remote": nodeAddress, "pool": poolName, "fingerprint": newImage.Fingerprint})
 			}

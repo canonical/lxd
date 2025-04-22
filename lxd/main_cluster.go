@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -531,7 +532,7 @@ func (c *cmdClusterRemoveRaftNode) Run(cmd *cobra.Command, args []string) error 
 	}
 
 	endpoint := "/internal/cluster/raft-node/" + address
-	_, _, err = client.RawQuery("DELETE", endpoint, nil, "")
+	_, _, err = client.RawQuery(http.MethodDelete, endpoint, nil, "")
 	if err != nil {
 		return err
 	}

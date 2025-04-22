@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -67,7 +68,7 @@ func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 				logger.Debugf("Checking if LXD daemon is ready (attempt %d)", i)
 			}
 
-			_, _, err = d.RawQuery("GET", "/internal/ready", nil, "")
+			_, _, err = d.RawQuery(http.MethodGet, "/internal/ready", nil, "")
 			if err != nil {
 				errLast = err
 				if doLog {
