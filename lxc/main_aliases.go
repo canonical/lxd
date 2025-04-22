@@ -24,10 +24,10 @@ var defaultAliases = map[string]string{
 	"shell": "exec @ARGS@ -- su -l",
 }
 
-func findAlias(aliases map[string]string, origArgs []string) ([]string, []string, bool) {
-	foundAlias := false
-	aliasKey := []string{}
-	aliasValue := []string{}
+func findAlias(aliases map[string]string, origArgs []string) (aliasKey []string, aliasValue []string, foundAlias bool) {
+	foundAlias = false
+	aliasKey = []string{}
+	aliasValue = []string{}
 
 	for k, v := range aliases {
 		foundAlias = true
@@ -51,7 +51,7 @@ func findAlias(aliases map[string]string, origArgs []string) ([]string, []string
 func expandAlias(conf *config.Config, args []string) ([]string, bool, error) {
 	var completion = false
 	var completionFragment string
-	var newArgs []string
+	var newArgs []string //nolint:prealloc
 	var origArgs []string
 
 	for _, arg := range args[1:] {
@@ -148,7 +148,7 @@ func expandAlias(conf *config.Config, args []string) ([]string, bool, error) {
 				}
 
 				replacement := numberedArgsMap[argNo]
-				newArg = strings.Replace(newArg, match[0], replacement, -1)
+				newArg = strings.ReplaceAll(newArg, match[0], replacement)
 			}
 
 			newArgs = append(newArgs, newArg)

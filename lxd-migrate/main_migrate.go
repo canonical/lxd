@@ -309,7 +309,8 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 			authMethod = availableAuthMethods[authMethodInt-1]
 		}
 
-		if authMethod == authMethodTLSCertificate {
+		switch authMethod {
+		case authMethodTLSCertificate:
 			certPath, err = c.global.asker.AskString("Please provide the certificate path: ", "", func(path string) error {
 				if !shared.PathExists(path) {
 					return errors.New("File does not exist")
@@ -331,7 +332,8 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 			if err != nil {
 				return nil, "", err
 			}
-		} else if authMethod == authMethodTLSCertificateToken {
+
+		case authMethodTLSCertificateToken:
 			token, err = c.global.asker.AskString("Please provide the certificate token: ", "", func(token string) error {
 				_, err := shared.CertificateTokenDecode(token)
 				if err != nil {
@@ -537,9 +539,10 @@ func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceS
 			return err
 		}
 
-		if instanceType == 1 {
+		switch instanceType {
+		case 1:
 			config.InstanceArgs.Type = api.InstanceTypeContainer
-		} else if instanceType == 2 {
+		case 2:
 			config.InstanceArgs.Type = api.InstanceTypeVM
 		}
 	}

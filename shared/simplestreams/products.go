@@ -118,19 +118,21 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				// Figure out the fingerprint
 				fingerprint := ""
 				if root != nil {
-					if root.FileType == "root.tar.xz" {
+					switch root.FileType {
+					case "root.tar.xz":
 						if meta.LXDHashSha256RootXz != "" {
 							fingerprint = meta.LXDHashSha256RootXz
 						} else {
 							fingerprint = meta.LXDHashSha256
 						}
-					} else if root.FileType == "squashfs" {
+
+					case "squashfs":
 						fingerprint = meta.LXDHashSha256SquashFs
-					} else if root.FileType == "disk-kvm.img" {
+					case "disk-kvm.img":
 						fingerprint = meta.LXDHashSha256DiskKvmImg
-					} else if root.FileType == "disk1.img" {
+					case "disk1.img":
 						fingerprint = meta.LXDHashSha256DiskImg
-					} else if root.FileType == "uefi1.img" {
+					case "uefi1.img":
 						fingerprint = meta.LXDHashSha256DiskUefiImg
 					}
 				} else {
@@ -257,9 +259,10 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 
 						// Take correct source image fingerprint based on
 						// delta file type.
-						if delta.FileType == "disk-kvm.img.vcdiff" {
+						switch delta.FileType {
+						case "disk-kvm.img.vcdiff":
 							srcFingerprint = item.LXDHashSha256DiskKvmImg
-						} else if delta.FileType == "squashfs.vcdiff" {
+						case "squashfs.vcdiff":
 							srcFingerprint = item.LXDHashSha256SquashFs
 						}
 

@@ -127,7 +127,7 @@ func (d *qemu) getQemuMemoryMetrics() (metrics.MemoryMetrics, error) {
 
 		// Extract the before last (value) and last (unit) fields
 		fields := strings.Split(line, "\t")
-		value := strings.Replace(fields[len(fields)-1], " ", "", -1)
+		value := strings.ReplaceAll(fields[len(fields)-1], " ", "")
 
 		// Feed the result to units.ParseByteSizeString to get an int value
 		valueBytes, err := units.ParseByteSizeString(value)
