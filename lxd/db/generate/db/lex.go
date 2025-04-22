@@ -106,10 +106,10 @@ func destFunc(slice string, typ string, fields []*Field) string {
 	for i, field := range fields {
 		var arg string
 		if shared.IsTrue(field.Config.Get("marshal")) {
-			declVarName := fmt.Sprintf("%sStr", lex.Minuscule(field.Name))
+			declVarName := lex.Minuscule(field.Name) + "Str"
 			declVarNames = append(declVarNames, declVarName)
 			declVars[declVarName] = field
-			arg = fmt.Sprintf("&%s", declVarName)
+			arg = "&" + declVarName
 		} else {
 			arg = fmt.Sprintf("&%s.%s", varName, field.Name)
 		}
