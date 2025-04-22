@@ -4804,6 +4804,16 @@ func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
 	return listenIPAddress, nil
 }
 
+// forwardValidate validates the forward request.
+func (n *ovn) forwardValidate(listenAddress net.IP, forward api.NetworkForwardPut) ([]*forwardPortMap, error) {
+	err := n.checkAddressNotInOVNRange(listenAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	return n.common.forwardValidate(listenAddress, forward)
+}
+
 // ForwardCreate creates a network forward.
 func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) (net.IP, error) {
 	revert := revert.New()
@@ -5090,6 +5100,16 @@ func (n *ovn) loadBalancerFlattenVIPs(listenAddress net.IP, portMaps []*loadBala
 	}
 
 	return vips
+}
+
+// loadBalancerValidate validates the load balancer request.
+func (n *ovn) loadBalancerValidate(listenAddress net.IP, forward api.NetworkLoadBalancerPut) ([]*loadBalancerPortMap, error) {
+	err := n.checkAddressNotInOVNRange(listenAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	return n.common.loadBalancerValidate(listenAddress, forward)
 }
 
 // LoadBalancerCreate creates a network load balancer.
@@ -5886,4 +5906,76 @@ func (n *ovn) checkAddressNotInUse(netip *net.IPNet) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// checkAddressNotInOVNRange checks that a given IP address does not overlap
+// with OVN ranges set on the uplink network. However, it allows an IP address
+// that is the same as volatile network address of the current network.
+// Returns an error if the check could not be performed or the IP address
+// overlaps with OVN ranges.
+func (n *ovn) checkAddressNotInOVNRange(addr net.IP) error {
+	if addr == nil {
+		return fmt.Errorf("Invalid listen address")
+	}
+
+	uplinkName := n.config["network"]
+	if uplinkName == "" {
+		return fmt.Errorf(`OVN network %q is missing "network" config option`, n.name)
+	}
+
+	addrIsIP4 := addr.To4() != nil
+
+	ovnRangesKey := "ipv4.ovn.ranges"
+	volatileNetworkAddrKey := "volatile.network.ipv4.address"
+
+	if !addrIsIP4 {
+		ovnRangesKey = "ipv6.ovn.ranges"
+		volatileNetworkAddrKey = "volatile.network.ipv6.address"
+	}
+
+	// It is acceptable to set up a network forward or a load balancer using the same
+	// volatile network address as the associated OVN network.
+	if n.config[volatileNetworkAddrKey] != "" {
+		volatileAddr := net.ParseIP(n.config[volatileNetworkAddrKey])
+
+		if addr.Equal(volatileAddr) {
+			return nil
+		}
+	}
+
+	var uplink *api.Network
+	var err error
+
+	// Get uplink network config.
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Uplink has to be in the "default" project.
+		_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkName)
+
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to get config for network %q: %w", uplinkName, err)
+	}
+
+	if uplink == nil || uplink.Config == nil {
+		return fmt.Errorf("Failed to get config for network %q", uplinkName)
+	}
+
+	if uplink.Config[ovnRangesKey] == "" {
+		return fmt.Errorf("Uplink network %q property %q is not set", uplinkName, ovnRangesKey)
+	}
+
+	// Get OVN ranges from the uplink.
+	ovnRanges, err := shared.ParseIPRanges(uplink.Config[ovnRangesKey])
+	if err != nil {
+		return fmt.Errorf("Failed parsing %q: %w", ovnRangesKey, err)
+	}
+
+	for _, ovnRange := range ovnRanges {
+		if ovnRange.ContainsIP(addr) {
+			return fmt.Errorf("Listen address %q overlaps with %q (%q)", addr, ovnRangesKey, ovnRange)
+		}
+	}
+
+	return nil
 }
