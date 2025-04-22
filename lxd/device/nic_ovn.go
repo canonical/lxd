@@ -278,6 +278,95 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		}
 	}
 
+	// Validate that NIC passthrough does not allow IPs from OVN range.
+	err = d.validateExternalRoutes()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateExternalRoutes checks that external routes do not allow to passthrough IPs from OVN range.
+func (d *nicOVN) validateExternalRoutes() error {
+	var (
+		routesListIPv4 []*net.IPNet
+		routesListIPv6 []*net.IPNet
+
+		ovnRangesListIPv4 []*shared.IPRange
+		ovnRangesListIPv6 []*shared.IPRange
+
+		uplink *api.Network
+
+		err error
+	)
+
+	if d.network.Config() == nil {
+		return fmt.Errorf("Network config is missing for NIC device %q", d.name)
+	}
+
+	uplinkName := d.network.Config()["network"]
+	if uplinkName == "" {
+		return fmt.Errorf(`OVN network %q is missing "network" config option`, d.network.Name())
+	}
+
+	// Get uplink network config.
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Uplink has to be in the "default" project.
+		_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkName)
+
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to get config for network %q: %w", uplinkName, err)
+	}
+
+	if d.config["ipv4.routes.external"] != "" {
+		routesListIPv4, err = shared.ParseNetworks(d.config["ipv4.routes.external"])
+		if err != nil {
+			return fmt.Errorf("Failed parsing ipv4.routes: %w", err)
+		}
+
+		if uplink.Config["ipv4.ovn.ranges"] != "" {
+			ovnRangesListIPv4, err = shared.ParseIPRanges(uplink.Config["ipv4.ovn.ranges"])
+			if err != nil {
+				return fmt.Errorf("Failed parsing ipv4.ovn.ranges: %w", err)
+			}
+		}
+	}
+
+	if d.config["ipv6.routes.external"] != "" {
+		routesListIPv6, err = shared.ParseNetworks(d.config["ipv6.routes.external"])
+		if err != nil {
+			return fmt.Errorf("Failed parsing ipv6.routes: %w", err)
+		}
+
+		if uplink.Config["ipv6.ovn.ranges"] != "" {
+			ovnRangesListIPv6, err = shared.ParseIPRanges(uplink.Config["ipv6.ovn.ranges"])
+			if err != nil {
+				return fmt.Errorf("Failed parsing ipv6.ovn.ranges: %w", err)
+			}
+		}
+	}
+
+	// Validate "ipv4.routes.external".
+	for _, routes := range routesListIPv4 {
+		for _, ovnRange := range ovnRangesListIPv4 {
+			if ovnRange.ContainsIP(routes.IP.To16()) {
+				return fmt.Errorf(`Route %q overlaps with "ipv4.ovn.ranges" (%q)`, routes, ovnRange)
+			}
+		}
+	}
+
+	// Validate "ipv6.routes.external".
+	for _, routes := range routesListIPv6 {
+		for _, ovnRange := range ovnRangesListIPv6 {
+			if ovnRange.ContainsIP(routes.IP.To16()) {
+				return fmt.Errorf(`Route %q overlaps with "ipv6.ovn.ranges" (%q)`, routes, ovnRange)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -447,7 +536,8 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	if d.config["nested"] != "" {
 		delete(saveData, "host_name") // Nested NICs don't have a host side interface.
 	} else {
-		if d.config["acceleration"] == "sriov" {
+		switch d.config["acceleration"] {
+		case "sriov":
 			ovs := openvswitch.NewOVS()
 			if !ovs.HardwareOffloadingEnabled() {
 				return nil, fmt.Errorf("SR-IOV acceleration requires hardware offloading be enabled in OVS")
@@ -494,7 +584,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 			integrationBridgeNICName = vfRepresentor
 			peerName = vfDev
-		} else if d.config["acceleration"] == "vdpa" {
+		case "vdpa":
 			ovs := openvswitch.NewOVS()
 			if !ovs.HardwareOffloadingEnabled() {
 				return nil, fmt.Errorf("SR-IOV acceleration requires hardware offloading be enabled in OVS")
@@ -550,7 +640,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 			integrationBridgeNICName = vfRepresentor
 			peerName = vfDev
-		} else {
+		default:
 			// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
 			if d.inst.Type() == instancetype.Container {
 				if saveData["host_name"] == "" {
@@ -651,8 +741,11 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		}
 
 		instType := d.inst.Type()
-		if instType == instancetype.VM {
-			if d.config["acceleration"] == "sriov" {
+
+		switch instType {
+		case instancetype.VM:
+			switch d.config["acceleration"] {
+			case "sriov":
 				runConf.NetworkInterface = append(runConf.NetworkInterface,
 					[]deviceConfig.RunConfigItem{
 						{Key: "devName", Value: d.name},
@@ -660,7 +753,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 						{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
 						{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
 					}...)
-			} else if d.config["acceleration"] == "vdpa" {
+			case "vdpa":
 				if vDPADevice == nil {
 					return nil, fmt.Errorf("vDPA device is nil")
 				}
@@ -675,7 +768,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 						{Key: "vhostVDPAPath", Value: vDPADevice.VhostVDPA.Path},
 						{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
 					}...)
-			} else {
+			default:
 				runConf.NetworkInterface = append(runConf.NetworkInterface,
 					[]deviceConfig.RunConfigItem{
 						{Key: "devName", Value: d.name},
@@ -683,7 +776,8 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 						{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
 					}...)
 			}
-		} else if instType == instancetype.Container {
+
+		case instancetype.Container:
 			runConf.NetworkInterface = append(runConf.NetworkInterface,
 				deviceConfig.RunConfigItem{Key: "hwaddr", Value: d.config["hwaddr"]},
 			)
