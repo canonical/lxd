@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"net/http"
 	"net/url"
 
 	"github.com/canonical/lxd/shared/api"
@@ -18,7 +19,7 @@ func (r *ProtocolLXD) GetProjectNames() ([]string, error) {
 	// Fetch the raw URL values.
 	urls := []string{}
 	baseURL := "/projects"
-	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err = r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +38,7 @@ func (r *ProtocolLXD) GetProjects() ([]api.Project, error) {
 	projects := []api.Project{}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", "/projects?recursion=1", nil, "", &projects)
+	_, err = r.queryStruct(http.MethodGet, "/projects?recursion=1", nil, "", &projects)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +56,7 @@ func (r *ProtocolLXD) GetProject(name string) (*api.Project, string, error) {
 	project := api.Project{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", "/projects/"+url.PathEscape(name), nil, "", &project)
+	etag, err := r.queryStruct(http.MethodGet, "/projects/"+url.PathEscape(name), nil, "", &project)
 	if err != nil {
 		return nil, "", err
 	}
@@ -73,7 +74,7 @@ func (r *ProtocolLXD) GetProjectState(name string) (*api.ProjectState, error) {
 	projectState := api.ProjectState{}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", "/projects/"+url.PathEscape(name)+"/state", nil, "", &projectState)
+	_, err = r.queryStruct(http.MethodGet, "/projects/"+url.PathEscape(name)+"/state", nil, "", &projectState)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +90,7 @@ func (r *ProtocolLXD) CreateProject(project api.ProjectsPost) error {
 	}
 
 	// Send the request
-	_, _, err = r.query("POST", "/projects", project, "")
+	_, _, err = r.query(http.MethodPost, "/projects", project, "")
 	if err != nil {
 		return err
 	}
@@ -105,7 +106,7 @@ func (r *ProtocolLXD) UpdateProject(name string, project api.ProjectPut, ETag st
 	}
 
 	// Send the request
-	_, _, err = r.query("PUT", "/projects/"+url.PathEscape(name), project, ETag)
+	_, _, err = r.query(http.MethodPut, "/projects/"+url.PathEscape(name), project, ETag)
 	if err != nil {
 		return err
 	}
@@ -121,7 +122,7 @@ func (r *ProtocolLXD) RenameProject(name string, project api.ProjectPost) (Opera
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", "/projects/"+url.PathEscape(name), project, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, "/projects/"+url.PathEscape(name), project, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +138,7 @@ func (r *ProtocolLXD) DeleteProject(name string) error {
 	}
 
 	// Send the request
-	_, _, err = r.query("DELETE", "/projects/"+url.PathEscape(name), nil, "")
+	_, _, err = r.query(http.MethodDelete, "/projects/"+url.PathEscape(name), nil, "")
 	if err != nil {
 		return err
 	}
