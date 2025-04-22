@@ -1073,7 +1073,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 			return nil, err
 		}
 
-		req.ContainerPut.Stateful = snapshot.Stateful
+		req.Stateful = snapshot.Stateful
 		req.Source.Live = false // Snapshots are never running and so we don't need live migration.
 	}
 
