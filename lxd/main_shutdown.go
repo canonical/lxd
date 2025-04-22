@@ -19,6 +19,7 @@ type cmdShutdown struct {
 	flagTimeout int
 }
 
+// Command returns a cobra.Command object representing the "shutdown" command.
 func (c *cmdShutdown) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "shutdown"
@@ -39,6 +40,7 @@ func (c *cmdShutdown) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the "shutdown" command.
 func (c *cmdShutdown) Run(cmd *cobra.Command, args []string) error {
 	connArgs := &lxd.ConnectionArgs{
 		SkipGetServer: true,
