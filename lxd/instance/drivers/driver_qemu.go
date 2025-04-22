@@ -40,6 +40,7 @@ import (
 	"github.com/canonical/lxd/client"
 	agentAPI "github.com/canonical/lxd/lxd-agent/api"
 	"github.com/canonical/lxd/lxd/apparmor"
+	"github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/cgroup"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -6638,14 +6639,19 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 
 	// Only send the snapshots that the target requests when refreshing.
 	if respHeader.GetRefresh() {
+		rootVol, err := volSourceArgs.Info.Config.RootVolume()
+		if err != nil {
+			return fmt.Errorf("Failed getting the root volume: %w", err)
+		}
+
 		volSourceArgs.Snapshots = respHeader.GetSnapshotNames()
-		allSnapshots := volSourceArgs.Info.Config.VolumeSnapshots
+		allSnapshots := rootVol.Snapshots
 
 		// Ensure that only the requested snapshots are included in the migration index header.
-		volSourceArgs.Info.Config.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(volSourceArgs.Snapshots))
+		rootVol.Snapshots = make([]*api.StorageVolumeSnapshot, 0, len(volSourceArgs.Snapshots))
 		for i := range allSnapshots {
 			if shared.ValueInSlice(allSnapshots[i].Name, volSourceArgs.Snapshots) {
-				volSourceArgs.Info.Config.VolumeSnapshots = append(volSourceArgs.Info.Config.VolumeSnapshots, allSnapshots[i])
+				rootVol.Snapshots = append(rootVol.Snapshots, allSnapshots[i])
 			}
 		}
 	}
@@ -8472,7 +8478,8 @@ func (d *qemu) UpdateBackupFile() error {
 		return err
 	}
 
-	return pool.UpdateInstanceBackupFile(d, true, nil)
+	// Use the global metadata version.
+	return pool.UpdateInstanceBackupFile(d, true, config.DefaultMetadataVersion, nil)
 }
 
 type cpuTopology struct {

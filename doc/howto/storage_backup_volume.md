@@ -139,6 +139,11 @@ You can add any of the following flags to the command:
 
   Exporting a volume in optimized mode is usually quicker than exporting the individual files.
   Snapshots are exported as differences from the main volume, which decreases their size (quota) and makes them easily accessible.
+
+`--export-version`
+: If you intend to import the backup to an older version of LXD, set the version to `1` which will use the original (old) backup metadata format.
+Backups using the old format can always be imported on newer versions of LXD.
+If the flag is not specified and the server has support for the `backup_metadata_version` API extension, version `2` is used by default.
 <!-- Include end export info -->
 
 `--volume-only`

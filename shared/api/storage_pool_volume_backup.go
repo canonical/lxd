@@ -56,6 +56,12 @@ type StoragePoolVolumeBackupsPost struct {
 	// What compression algorithm to use
 	// Example: gzip
 	CompressionAlgorithm string `json:"compression_algorithm" yaml:"compression_algorithm"`
+
+	// What backup format version to use
+	// Example: 1
+	//
+	// API extension: backup_metadata_version
+	Version uint32
 }
 
 // StoragePoolVolumeBackupPost represents the fields available for the renaming of a volume backup
