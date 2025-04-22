@@ -392,7 +392,8 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 			return fmt.Errorf("Destination port cannot be used with %q protocol", rule.Protocol)
 		}
 
-		if rule.Protocol == "icmp4" {
+		switch rule.Protocol {
+		case "icmp4":
 			if srcHasIPv6 {
 				return fmt.Errorf("Cannot use IPv6 source addresses with %q protocol", rule.Protocol)
 			}
@@ -400,7 +401,8 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 			if dstHasIPv6 {
 				return fmt.Errorf("Cannot use IPv6 destination addresses with %q protocol", rule.Protocol)
 			}
-		} else if rule.Protocol == "icmp6" {
+
+		case "icmp6":
 			if srcHasIPv4 {
 				return fmt.Errorf("Cannot use IPv4 source addresses with %q protocol", rule.Protocol)
 			}
@@ -451,10 +453,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 // Returns whether the subjects include names, IPv4 and IPv6 addresses respectively.
 func (d *common) validateRuleSubjects(fieldName string, direction ruleDirection, subjects []string, validSubjectNames []string) (hasName bool, hasIPv4 bool, hasIPv6 bool, err error) {
 	// Check if named subjects are allowed in field/direction combination.
-	allowSubjectNames := false
-	if (fieldName == "Source" && direction == ruleDirectionIngress) || (fieldName == "Destination" && direction == ruleDirectionEgress) {
-		allowSubjectNames = true
-	}
+	allowSubjectNames := (fieldName == "Source" && direction == ruleDirectionIngress) || (fieldName == "Destination" && direction == ruleDirectionEgress)
 
 	isNetworkAddress := func(value string) (uint, error) {
 		ip := net.ParseIP(value)
