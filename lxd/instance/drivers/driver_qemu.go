@@ -1967,7 +1967,7 @@ func (d *qemu) advertiseVsockAddress() error {
 		return nil
 	}
 
-	_, _, err = agent.RawQuery("PUT", "/1.0", connInfo, "")
+	_, _, err = agent.RawQuery(http.MethodPut, "/1.0", connInfo, "")
 	if err != nil {
 		return fmt.Errorf("Failed sending VM sock address to lxd-agent: %w", err)
 	}
@@ -8696,7 +8696,7 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) er
 
 	defer agent.Disconnect()
 
-	_, _, err = agent.RawQuery("POST", "/1.0/events", &event, "")
+	_, _, err = agent.RawQuery(http.MethodPost, "/1.0/events", &event, "")
 	if err != nil {
 		return err
 	}
@@ -9010,7 +9010,7 @@ func (d *qemu) getAgentMetrics() (*metrics.MetricSet, error) {
 
 	defer agent.Disconnect()
 
-	resp, _, err := agent.RawQuery("GET", "/1.0/metrics", nil, "")
+	resp, _, err := agent.RawQuery(http.MethodGet, "/1.0/metrics", nil, "")
 	if err != nil {
 		return nil, err
 	}
