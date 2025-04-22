@@ -89,7 +89,6 @@ func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 	if c.flagTimeout > 0 {
 		select {
 		case <-finger:
-			break
 		case <-time.After(time.Second * time.Duration(c.flagTimeout)):
 			return fmt.Errorf("LXD still not running after %ds timeout (%v)", c.flagTimeout, errLast)
 		}
