@@ -1219,7 +1219,7 @@ func DownloadFileHash(ctx context.Context, httpClient *http.Client, useragent st
 	if ctx != nil {
 		req, err = http.NewRequestWithContext(ctx, "GET", url, nil)
 	} else {
-		req, err = http.NewRequest("GET", url, nil)
+		req, err = http.NewRequest(http.MethodGet, url, nil)
 	}
 
 	if err != nil {
