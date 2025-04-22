@@ -9,7 +9,6 @@ import (
 	"net/http"
 	neturl "net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -27,15 +26,8 @@ type ProtocolLXD struct {
 	ctxConnected       context.Context
 	ctxConnectedCancel context.CancelFunc
 
-	// eventConns contains event listener connections associated to a project name (or empty for all projects).
-	eventConns map[string]*websocket.Conn
-
-	// eventConnsLock controls write access to the eventConns.
-	eventConnsLock sync.Mutex
-
-	// eventListeners is a slice of event listeners associated to a project name (or empty for all projects).
-	eventListeners     map[string][]*EventListener
-	eventListenersLock sync.Mutex
+	// eventListenersLock is used to synchronize access to the event listeners.
+	eventListenerManager *eventListenerManager
 
 	http            *http.Client
 	httpCertificate string
