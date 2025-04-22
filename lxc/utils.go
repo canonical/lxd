@@ -1,12 +1,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/canonical/lxd/client"
@@ -416,6 +418,44 @@ func getImgInfo(d lxd.InstanceServer, conf *config.Config, imgRemote string, ins
 	}
 
 	return imgRemoteServer, imgInfo, nil
+}
+
+// getExportVersion returns the version sent to the server when exporting instances and custom storage volumes.
+func getExportVersion(d lxd.InstanceServer, flag string) (uint32, error) {
+	backupVersionSupported := d.HasExtension("backup_metadata_version")
+
+	// Don't allow explicitly setting 0 as it will implicitly create a backup using version 1.
+	if flag == "0" {
+		return 0, fmt.Errorf(i18n.G("Invalid export version %q"), "0")
+	}
+
+	// In case no version is set, default to 0 so we can convert it to an uint32.
+	if flag == "" {
+		flag = "0"
+	}
+
+	versionUint, err := strconv.ParseUint(flag, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf(i18n.G("Invalid export version %q: %w"), flag, err)
+	}
+
+	versionUint32 := uint32(versionUint)
+
+	// If the server supports setting the backup version, set the selected version.
+	// If supported but the version is not set, the server picks its default version.
+	// If unsupported but the version is set to 1, the field isn't set so its up to the server to pick the old version.
+	if backupVersionSupported {
+		if versionUint32 != 0 {
+			return versionUint32, nil
+		}
+	} else if !backupVersionSupported && versionUint32 > api.BackupMetadataVersion1 {
+		// Any version beyond 1 isn't supported by an older server without the backup_metadata_version extension.
+		return 0, errors.New(i18n.G("The server doesn't support setting the metadata format version"))
+	}
+
+	// No export version was provided.
+	// Return 0 as it indicates the version is unset and it's up to the server to decide the version.
+	return 0, nil
 }
 
 // newLocationHeaderTransportWrapper returns a new transport wrapper that can be used to inspect the `Location` header
