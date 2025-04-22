@@ -995,7 +995,7 @@ func attemptGetLeaderAddressFromNodeAddress(ctx context.Context, transport http.
 	}
 
 	url := "https://" + nodeAddress + databaseEndpoint
-	request, err := http.NewRequest("GET", url, nil)
+	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
 	}
