@@ -17,6 +17,7 @@ type cmdWaitready struct {
 	flagTimeout int
 }
 
+// Command returns a cobra.Command object representing the "waitready" command.
 func (c *cmdWaitready) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "waitready"
@@ -34,6 +35,7 @@ func (c *cmdWaitready) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the "waitready" command.
 func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 	finger := make(chan error, 1)
 	var errLast error
