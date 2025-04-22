@@ -995,10 +995,9 @@ func (d *disk) vmVirtfsProxyHelperPaths() string {
 
 // vmVirtiofsdPaths returns the path for the socket and PID file to use with virtiofsd process.
 func (d *disk) vmVirtiofsdPaths() (sockPath string, pidPath string) {
-	sockPath = filepath.Join(d.inst.DevicesPath(), "virtio-fs."+filesystem.PathNameEncode(d.name)+".sock")
-	pidPath = filepath.Join(d.inst.DevicesPath(), "virtio-fs."+filesystem.PathNameEncode(d.name)+".pid")
+	prefix := filepath.Join(d.inst.DevicesPath(), "virtio-fs."+filesystem.PathNameEncode(d.name))
 
-	return sockPath, pidPath
+	return prefix + ".sock", prefix + ".pid"
 }
 
 func (d *disk) detectVMPoolMountOpts() []string {
