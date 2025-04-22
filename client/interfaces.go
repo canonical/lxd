@@ -469,6 +469,38 @@ type InstanceServer interface {
 	RawOperation(method string, path string, data any, queryETag string) (op Operation, ETag string, err error)
 }
 
+// The DevLXDServer type represents a devLXD server.
+type DevLXDServer interface {
+	Server
+
+	// DevLXD info/state.
+	GetState() (state *api.DevLXDGet, err error)
+	UpdateState(state api.DevLXDPut) error
+
+	// DevLXD config.
+	GetConfig() (map[string]string, error)
+	GetConfigByKey(key string) (string, error)
+
+	// DevLXD metadata.
+	GetMetadata() (metadata string, err error)
+
+	// DevLXD devices.
+	GetDevices() (devices map[string]map[string]string, err error)
+
+	// DevLXD events.
+	GetEvents() (*EventListener, error)
+
+	// DevLXD images.
+	GetImageFile(fingerprint string, req ImageFileRequest) (resp *ImageFileResponse, err error)
+
+	// DevLXD Ubuntu Pro.
+	GetUbuntuPro() (*api.UbuntuProSettings, error)
+	CreateUbuntuProToken() (*api.UbuntuProGuestTokenResponse, error)
+
+	// Internal functions (for internal use)
+	RawQuery(method string, path string, data any, queryETag string) (resp *api.DevLXDResponse, ETag string, err error)
+}
+
 // The ConnectionInfo struct represents general information for a connection.
 type ConnectionInfo struct {
 	Addresses   []string
