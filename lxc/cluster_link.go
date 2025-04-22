@@ -56,6 +56,10 @@ func (c *cmdClusterLink) command() *cobra.Command {
 	clusterLinkShowCmd := cmdClusterLinkShow{global: c.global, cluster: c.cluster}
 	cmd.AddCommand(clusterLinkShowCmd.command())
 
+	// Info
+	clusterLinkInfoCmd := cmdClusterLinkInfo{global: c.global, cluster: c.cluster}
+	cmd.AddCommand(clusterLinkInfoCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -537,6 +541,106 @@ func (c *cmdClusterLinkShow) run(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("%s", data)
+
+	return nil
+}
+
+// Info.
+type cmdClusterLinkInfo struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+}
+
+func (c *cmdClusterLinkInfo) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("info", i18n.G("[<remote>:]<name>"))
+	cmd.Short = i18n.G("Get information on cluster links")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Get information on cluster links`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc cluster link info backup-cluster
+    Will show information for a cluster link called "backup-cluster".`))
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("cluster_link", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdClusterLinkInfo) run(cmd *cobra.Command, args []string) error {
+	// Quick checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New(i18n.G("Missing cluster link name"))
+	}
+
+	clusterLink, _, err := resource.server.GetClusterLink(resource.name)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Name: %s")+"\n", clusterLink.Name)
+	if clusterLink.Description != "" {
+		fmt.Printf(i18n.G("Description: %s")+"\n", clusterLink.Description)
+	}
+
+	fmt.Printf(i18n.G("Addresses: %s")+"\n", strings.Join(clusterLink.Addresses, ", "))
+	fmt.Printf(i18n.G("Type: %s")+"\n", clusterLink.Type)
+
+	for _, address := range clusterLink.Addresses {
+		fmt.Printf(i18n.G("Address: %s")+"\n", address)
+
+		resp, err := resource.server.CheckClusterLinkAddress(clusterLink.Name, address)
+		if err != nil {
+			fmt.Printf("  %s: %s\n", i18n.G("Status"), i18n.G("Error"))
+			fmt.Printf("    %s: %v\n", i18n.G("Message"), err)
+			continue
+		}
+
+		var respData map[string]any
+		err = json.Unmarshal(resp.Metadata, &respData)
+		if err != nil {
+			fmt.Printf("  %s: %s\n", i18n.G("Status"), i18n.G("Error"))
+			fmt.Printf("    %s: %v\n", i18n.G("Message"), fmt.Errorf(i18n.G("Failed to parse server info: %w"), err))
+			continue
+		}
+
+		// Determine trust status based on the 'auth' field.
+		authStatus := i18n.G("Untrusted")
+		authVal, ok := respData["auth"].(string)
+		if ok && authVal == "trusted" {
+			authStatus = i18n.G("Trusted")
+		}
+
+		fmt.Printf("  %s: %s (%s)\n", i18n.G("Status"), i18n.G("Online"), authStatus)
+
+		prettyData, err := json.MarshalIndent(respData, "  ", "  ")
+		if err != nil {
+			fmt.Printf("    %s: %v\n", i18n.G("Error"), fmt.Errorf(i18n.G("Failed to format server info: %w"), err))
+			continue
+		}
+
+		fmt.Printf("  %s:\n%s\n", i18n.G("Server Info"), string(prettyData))
+	}
 
 	return nil
 }
