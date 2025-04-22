@@ -717,7 +717,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		}
 
 		for i, field := range columnFields {
-			createParams += fmt.Sprintf("object.%s", field.Name)
+			createParams += "object." + field.Name
 			if i < len(columnFields) {
 				createParams += ", "
 			}
@@ -737,7 +737,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		nk := mapping.NaturalKey()
 		nkParams := make([]string, len(nk))
 		for i, field := range nk {
-			nkParams[i] = fmt.Sprintf("object.%s", field.Name)
+			nkParams[i] = "object." + field.Name
 		}
 
 		kind := "create"
@@ -1054,9 +1054,9 @@ func (m *Method) update(buf *file.Buffer) error {
 			if shared.IsTrue(field.Config.Get("marshal")) {
 				buf.L("marshaled%s, err := query.Marshal(object.%s)", field.Name, field.Name)
 				m.ifErrNotNil(buf, true, "err")
-				params[i] = fmt.Sprintf("marshaled%s", field.Name)
+				params[i] = "marshaled" + field.Name
 			} else {
-				params[i] = fmt.Sprintf("object.%s", field.Name)
+				params[i] = "object." + field.Name
 			}
 		}
 
