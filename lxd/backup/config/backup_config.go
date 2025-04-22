@@ -22,6 +22,12 @@ type Volume struct {
 	Snapshots []*api.StorageVolumeSnapshot `yaml:"snapshots,omitempty"`
 }
 
+// Bucket represents the config of a bucket including its snapshots.
+type Bucket struct {
+	// Make sure to have the embedded structs fields inline to avoid nesting.
+	*api.StorageBucket `yaml:",inline"`
+}
+
 // Config represents the config of a backup that can be stored in a backup.yaml file (or embedded in index.yaml).
 type Config struct {
 	Version   uint32                  `yaml:"version,omitempty"`
@@ -30,7 +36,7 @@ type Config struct {
 	Pools     []*api.StoragePool      `yaml:"pools,omitempty"`
 	Profiles  []*api.Profile          `yaml:"profiles,omitempty"`
 	Volumes   []*Volume               `yaml:"volumes,omitempty"`
-	Bucket    *api.StorageBucket      `yaml:"bucket,omitempty"`
+	Bucket    *Bucket                 `yaml:"bucket,omitempty"`
 	// Deprecated: Use Instance instead.
 	Container *api.Instance `yaml:"container,omitempty"`
 	// Deprecated: Use Pools instead.
