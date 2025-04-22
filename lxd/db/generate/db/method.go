@@ -176,9 +176,9 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		stmtVar := stmtCodeVar(m.entity, "objects")
 		stmtLocal := stmtVar + "Local"
-		buf.L("%s := strings.Replace(%s, \"%%s_id\", parent+\"_id\", -1)", stmtLocal, stmtVar)
+		buf.L("%s := strings.ReplaceAll(%s, \"%%s_id\", parent+\"_id\")", stmtLocal, stmtVar)
 		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
-		buf.L("mangledParent := strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
+		buf.L("mangledParent := strings.ReplaceAll(parent, \"_\", \"s_\") + \"s\"")
 		buf.L("for i := range fillParent {")
 		buf.L("fillParent[i] = mangledParent")
 		buf.L("}")
@@ -703,10 +703,10 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		stmtVar := stmtCodeVar(m.entity, "create")
 		stmtLocal := stmtVar + "Local"
-		buf.L("%s := strings.Replace(%s, \"%%s_id\", parent+\"_id\", -1)", stmtLocal, stmtVar)
+		buf.L("%s := strings.ReplaceAll(%s, \"%%s_id\", parent+\"_id\")", stmtLocal, stmtVar)
 		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
 		buf.L("for i := range fillParent {")
-		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
+		buf.L("fillParent[i] = strings.ReplaceAll(parent, \"_\", \"s_\") + \"s\"")
 		buf.L("}")
 		buf.N()
 		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)
@@ -1154,10 +1154,10 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 	case ReferenceTable, MapTable:
 		stmtVar := stmtCodeVar(m.entity, "delete")
 		stmtLocal := stmtVar + "Local"
-		buf.L("%s := strings.Replace(%s, \"%%s_id\", parent+\"_id\", -1)", stmtLocal, stmtVar)
+		buf.L("%s := strings.ReplaceAll(%s, \"%%s_id\", parent+\"_id\")", stmtLocal, stmtVar)
 		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
 		buf.L("for i := range fillParent {")
-		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
+		buf.L("fillParent[i] = strings.ReplaceAll(parent, \"_\", \"s_\") + \"s\"")
 		buf.L("}")
 		buf.N()
 		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)
