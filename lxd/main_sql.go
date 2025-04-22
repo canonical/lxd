@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -104,7 +105,7 @@ func (c *cmdSQL) run(cmd *cobra.Command, args []string) error {
 			url += "&schema=1"
 		}
 
-		response, _, err := d.RawQuery("GET", url, nil, "")
+		response, _, err := d.RawQuery(http.MethodGet, url, nil, "")
 		if err != nil {
 			return fmt.Errorf("failed to request dump: %w", err)
 		}
@@ -124,7 +125,7 @@ func (c *cmdSQL) run(cmd *cobra.Command, args []string) error {
 		Query:    query,
 	}
 
-	response, _, err := d.RawQuery("POST", "/internal/sql", data, "")
+	response, _, err := d.RawQuery(http.MethodPost, "/internal/sql", data, "")
 	if err != nil {
 		return err
 	}

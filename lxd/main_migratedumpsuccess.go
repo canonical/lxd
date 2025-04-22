@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
@@ -65,7 +66,7 @@ func (c *cmdMigratedumpsuccess) Run(cmd *cobra.Command, args []string) error {
 
 	_ = conn.Close()
 
-	resp, _, err := d.RawQuery("GET", fmt.Sprintf("%s/wait", args[0]), nil, "")
+	resp, _, err := d.RawQuery(http.MethodGet, fmt.Sprintf("%s/wait", args[0]), nil, "")
 	if err != nil {
 		return err
 	}
