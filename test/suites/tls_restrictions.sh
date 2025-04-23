@@ -175,6 +175,42 @@ test_tls_restrictions() {
   # The restricted client can delete the network.
   lxc_remote network delete localhost:blah-network --project blah
 
+  # Create a network ACL in the default project.
+  networkACLName="netacl$$"
+  lxc network acl create "${networkACLName}" --project default
+
+  # The network ACL we created in the default project is visible in project blah.
+  lxc_remote network acl show "localhost:${networkACLName}" --project blah
+  [ "$(lxc_remote network acl list localhost: --project blah | grep -cF "${networkACLName}")" = "1" ]
+
+  # The reported project is blah when listing network ACLs with request project set to blah.
+  [ "$(lxc_remote query -X GET "/1.0/network-acls?project=blah&recursion=1" | jq -r '.[] | select(.name == "'${networkACLName}'") | .project' | grep -cF "blah")" = "1" ]
+
+  # The restricted client can't view it via project default.
+  ! lxc_remote network acl show "localhost:${networkACLName}" --project default || false
+  ! lxc_remote network acl list localhost: --project default | grep -F "${networkACLName}" || false
+
+  # The restricted client can edit the network ACL.
+  lxc_remote network acl set "localhost:${networkACLName}" user.foo=bar --project blah
+
+  # The restricted client can delete the network ACL.
+  lxc_remote network acl delete "localhost:${networkACLName}" --project blah
+
+  # Create a network ACL in the blah project.
+  lxc_remote network acl create localhost:blah-network-acl --project blah
+
+  # Network ACL is visible to restricted client in project blah.
+  lxc_remote network acl show localhost:blah-network-acl --project blah
+  [ "$(lxc_remote network acl list localhost: --project blah | grep -cF blah-network-acl)" = "1" ]
+
+  # The network ACL is actually in the default project.
+  lxc network acl show blah-network-acl --project default
+
+  # The restricted client can't view it via the default project.
+  ! lxc_remote network acl show localhost:blah-network-acl --project default || false
+
+  # The restricted client can delete the network ACL.
+  lxc_remote network acl delete localhost:blah-network-acl --project blah
 
   ### NETWORK ZONES (initial value is false in new projects).
 
