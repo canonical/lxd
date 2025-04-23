@@ -200,7 +200,7 @@ func networkState() map[string]api.InstanceStateNetwork {
 			}
 
 			scope := "global"
-			if strings.HasPrefix(address, "127") {
+			if strings.HasPrefix(address, "127.") {
 				scope = "local"
 			}
 
