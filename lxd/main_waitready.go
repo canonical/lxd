@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -16,6 +17,7 @@ type cmdWaitready struct {
 	flagTimeout int
 }
 
+// Command returns a cobra.Command object representing the "waitready" command.
 func (c *cmdWaitready) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "waitready"
@@ -33,6 +35,7 @@ func (c *cmdWaitready) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the "waitready" command.
 func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 	finger := make(chan error, 1)
 	var errLast error
@@ -67,7 +70,7 @@ func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 				logger.Debugf("Checking if LXD daemon is ready (attempt %d)", i)
 			}
 
-			_, _, err = d.RawQuery("GET", "/internal/ready", nil, "")
+			_, _, err = d.RawQuery(http.MethodGet, "/internal/ready", nil, "")
 			if err != nil {
 				errLast = err
 				if doLog {
@@ -86,7 +89,6 @@ func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 	if c.flagTimeout > 0 {
 		select {
 		case <-finger:
-			break
 		case <-time.After(time.Second * time.Duration(c.flagTimeout)):
 			return fmt.Errorf("LXD still not running after %ds timeout (%v)", c.flagTimeout, errLast)
 		}

@@ -161,7 +161,7 @@ func (c *Client) run() {
 }
 
 func (c *Client) checkLoki(ctx context.Context) error {
-	req, err := http.NewRequest("GET", c.cfg.url.String()+"/ready", nil)
+	req, err := http.NewRequest(http.MethodGet, c.cfg.url.String()+"/ready", nil)
 	if err != nil {
 		return err
 	}
@@ -226,7 +226,7 @@ func (c *Client) sendBatch(batch *batch) {
 }
 
 func (c *Client) send(ctx context.Context, buf []byte) (int, error) {
-	req, err := http.NewRequest("POST", c.cfg.url.String()+"/loki/api/v1/push", bytes.NewReader(buf))
+	req, err := http.NewRequest(http.MethodPost, c.cfg.url.String()+"/loki/api/v1/push", bytes.NewReader(buf))
 	if err != nil {
 		return -1, err
 	}

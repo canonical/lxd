@@ -490,7 +490,7 @@ func GetRemoteCertificate(address string, useragent string) (*x509.Certificate, 
 	}
 
 	// Connect
-	req, err := http.NewRequest("GET", address, nil)
+	req, err := http.NewRequest(http.MethodGet, address, nil)
 	if err != nil {
 		return nil, err
 	}

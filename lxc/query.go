@@ -160,7 +160,7 @@ func (c *cmdQuery) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		resp, _, err = d.RawQuery("GET", uri.Path+"/wait?"+uri.RawQuery, "", "")
+		resp, _, err = d.RawQuery(http.MethodGet, uri.Path+"/wait?"+uri.RawQuery, "", "")
 		if err != nil {
 			return err
 		}

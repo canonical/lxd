@@ -536,7 +536,7 @@ func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.
 		return err
 	}
 
-	request, err := http.NewRequest("PUT", url, bytes.NewReader(buffer.Bytes()))
+	request, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(buffer.Bytes()))
 	if err != nil {
 		return err
 	}

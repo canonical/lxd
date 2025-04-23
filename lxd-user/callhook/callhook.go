@@ -3,6 +3,7 @@ package callhook
 import (
 	"context"
 	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -85,7 +86,7 @@ func HandleContainerHook(lxdPath string, projectName string, instanceRef string,
 		u.WithQuery("netns", os.Getenv("LXC_NET_NS"))
 	}
 
-	_, _, err = d.RawQuery("GET", u.String(), nil, "")
+	_, _, err = d.RawQuery(http.MethodGet, u.String(), nil, "")
 	if err != nil {
 		return err
 	}
