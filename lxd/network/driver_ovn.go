@@ -2193,7 +2193,7 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		// Save to config so the value can be read by instances connecting to network.
-		updatedConfig["bridge.mtu"] = fmt.Sprint(bridgeMTU)
+		updatedConfig["bridge.mtu"] = strconv.FormatUint(uint64(bridgeMTU), 10)
 	}
 
 	// Get a list of all NICs connected to this network that have static DHCP IPv4 reservations.
