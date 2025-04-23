@@ -1120,7 +1120,10 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		defer func() { _ = src.Unfreeze() }()
 
 		// Attempt to sync the filesystem.
-		_ = filesystem.SyncFS(src.RootfsPath())
+		err = filesystem.SyncFS(src.Path())
+		if err != nil {
+			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
+		}
 	}
 
 	revert.Add(func() { _ = b.DeleteInstance(inst, op) })
@@ -1686,7 +1689,10 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		defer func() { _ = src.Unfreeze() }()
 
 		// Attempt to sync the filesystem.
-		_ = filesystem.SyncFS(src.RootfsPath())
+		err = filesystem.SyncFS(src.Path())
+		if err != nil {
+			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
+		}
 	}
 
 	if b.Name() == srcPool.Name() {
@@ -3145,7 +3151,10 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 		defer func() { _ = inst.Unfreeze() }()
 
 		// Attempt to sync the filesystem.
-		_ = filesystem.SyncFS(inst.RootfsPath())
+		err = filesystem.SyncFS(inst.Path())
+		if err != nil {
+			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
+		}
 	}
 
 	// Set the parent volume UUID.
@@ -3658,7 +3667,10 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 		defer func() { _ = src.Unfreeze() }()
 
 		// Attempt to sync the filesystem.
-		_ = filesystem.SyncFS(src.RootfsPath())
+		err = filesystem.SyncFS(src.Path())
+		if err != nil {
+			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
+		}
 	}
 
 	err = b.driver.CreateVolumeSnapshot(vol, op)
@@ -6612,6 +6624,18 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 
 	if contentType != drivers.ContentTypeFS && contentType != drivers.ContentTypeBlock {
 		return fmt.Errorf("Volume of content type %q does not support snapshots", contentType)
+	}
+
+	mountPath := drivers.GetVolumeMountPath(parentVol.Pool, drivers.VolumeType(parentVol.Type), project.StorageVolume(projectName, volName))
+
+	// If the volume is a filesystem and is mounted, attempt to sync the filesystem before taking the snapshot.
+	// If RunningCopyFreeze is false for the driver in use, it means the driver syncs the volume on snapshot,
+	// so we don't have to do it here.
+	if parentVol.ContentType == cluster.StoragePoolVolumeContentTypeNameFS && b.driver.Info().RunningCopyFreeze && filesystem.IsMountPoint(mountPath) {
+		err = filesystem.SyncFS(mountPath)
+		if err != nil {
+			l.Warn("Failed to flush writes to custom volume", logger.Ctx{"err": err})
+		}
 	}
 
 	parentUUID := parentVol.Config["volatile.uuid"]
