@@ -95,7 +95,7 @@ var devLXD10Endpoint = devLXDAPIEndpoint{
 }
 
 func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
-	inst, err := getInstanceFromContextAndCheckSecurityFlags(r.Context(), devLXDSecurityKey)
+	inst, err := getInstanceFromContextAndCheckSecurityFlags(r.Context())
 	if err != nil {
 		return response.DevLXDErrorResponse(err, inst != nil && inst.Type() == instancetype.VM)
 	}
