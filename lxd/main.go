@@ -84,7 +84,7 @@ func (c *cmdGlobal) rawArgs(cmd *cobra.Command) []string {
 func main() {
 	// daemon command (main)
 	daemonCmd := cmdDaemon{}
-	app := daemonCmd.Command()
+	app := daemonCmd.command()
 	app.SilenceUsage = true
 	app.CompletionOptions = cobra.CompletionOptions{DisableDefaultCmd: true}
 
