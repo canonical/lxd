@@ -7,12 +7,7 @@ import (
 
 // GetParentAndSnapshotName returns the parent name, snapshot name, and whether it actually was a snapshot name.
 func GetParentAndSnapshotName(name string) (parentName string, snapshotName string, isSnapshot bool) {
-	parentName, snapshotName, isSnapshot = strings.Cut(name, "/")
-	if !isSnapshot {
-		return name, "", isSnapshot
-	}
-
-	return parentName, snapshotName, isSnapshot
+	return strings.Cut(name, "/")
 }
 
 // InstanceType represents the type if instance being returned or requested via the API.
