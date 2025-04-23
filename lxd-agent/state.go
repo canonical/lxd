@@ -197,26 +197,14 @@ func networkState() map[string]api.InstanceStateNetwork {
 			networkAddress := api.InstanceStateNetworkAddress{
 				Address: address,
 				Netmask: netmask,
+				Scope:   "global",
 			}
 
-			scope := "global"
-			if strings.HasPrefix(address, "127.") {
-				scope = "local"
+			if strings.HasPrefix(address, "127.") || address == "::1" {
+				networkAddress.Scope = "local"
+			} else if strings.HasPrefix(address, "169.254") || strings.HasPrefix(address, "fe80:") {
+				networkAddress.Scope = "link"
 			}
-
-			if address == "::1" {
-				scope = "local"
-			}
-
-			if strings.HasPrefix(address, "169.254") {
-				scope = "link"
-			}
-
-			if strings.HasPrefix(address, "fe80:") {
-				scope = "link"
-			}
-
-			networkAddress.Scope = scope
 
 			if strings.Contains(address, ":") {
 				networkAddress.Family = "inet6"
