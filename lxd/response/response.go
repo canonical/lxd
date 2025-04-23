@@ -45,7 +45,7 @@ type Response interface {
 	String() string
 }
 
-// Devlxd response.
+// devLXDResponse represents a devLXD API response.
 type devLXDResponse struct {
 	content     any
 	code        int
@@ -82,7 +82,7 @@ func (r *devLXDResponse) String() string {
 	return "failure"
 }
 
-// DevLXDErrorResponse returns an error response. If rawResponse is true, a api.ResponseRaw will be sent instead of a minimal devLxdResponse.
+// DevLXDErrorResponse returns an error response. If rawResponse is true, a api.ResponseRaw will be sent instead of a minimal devLXDResponse.
 func DevLXDErrorResponse(err error, rawResponse bool) Response {
 	if rawResponse {
 		return SmartError(err)
@@ -96,7 +96,7 @@ func DevLXDErrorResponse(err error, rawResponse bool) Response {
 	return &devLXDResponse{content: err.Error(), code: http.StatusInternalServerError, contentType: "raw"}
 }
 
-// DevLXDResponse represents a devLxdResponse. If rawResponse is true, a api.ResponseRaw will be sent instead of a minimal devLxdResponse.
+// DevLXDResponse represents a devLXDResponse. If rawResponse is true, a api.ResponseRaw will be sent instead of a minimal devLXDResponse.
 func DevLXDResponse(code int, content any, contentType string, rawResponse bool) Response {
 	if rawResponse {
 		return SyncResponse(true, content)
