@@ -2185,12 +2185,11 @@ func (o *OVN) LogicalRouterRoutes(routerName OVNRouter) ([]OVNRouterRoute, error
 		// ovn-nbctl doesn't output single-host route prefixes in CIDR format, so do the conversion here.
 		ip := net.ParseIP(fields[0])
 		if ip != nil {
-			subnetSize := 32
 			if ip.To4() == nil {
-				subnetSize = 128
+				fields[0] = ip.String() + "/128"
+			} else {
+				fields[0] = ip.String() + "/32"
 			}
-
-			fields[0] = ip.String() + "/" + fmt.Sprint(subnetSize)
 		}
 
 		_, prefix, err := net.ParseCIDR(fields[0])
