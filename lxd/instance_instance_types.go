@@ -110,7 +110,7 @@ func instanceRefreshTypes(ctx context.Context, s *state.State) error {
 			return err
 		}
 
-		httpReq, err := http.NewRequest("GET", url, nil)
+		httpReq, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return err
 		}

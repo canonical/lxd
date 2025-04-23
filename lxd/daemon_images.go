@@ -474,7 +474,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 
 		httpTransport.ResponseHeaderTimeout = 30 * time.Second
 
-		req, err := http.NewRequest("GET", args.Server, nil)
+		req, err := http.NewRequest(http.MethodGet, args.Server, nil)
 		if err != nil {
 			return nil, err
 		}

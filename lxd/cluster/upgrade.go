@@ -34,7 +34,7 @@ func NotifyUpgradeCompleted(state *state.State, networkCert *shared.CertInfo, se
 		}
 
 		url := info.Addresses[0] + databaseEndpoint
-		request, err := http.NewRequest("PATCH", url, nil)
+		request, err := http.NewRequest(http.MethodPatch, url, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create database notify upgrade request: %w", err)
 		}

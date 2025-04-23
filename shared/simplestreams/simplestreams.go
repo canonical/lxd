@@ -103,7 +103,7 @@ func (s *SimpleStreams) cachedDownload(path string) ([]byte, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("GET", uri, nil)
+	req, err := http.NewRequest(http.MethodGet, uri, nil)
 	if err != nil {
 		return nil, err
 	}

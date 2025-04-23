@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -181,7 +182,7 @@ func (c *cmdRecover) run(cmd *cobra.Command, args []string) error {
 	reqValidate.Pools = append(reqValidate.Pools, unknownPools...)
 
 	for {
-		resp, _, err := d.RawQuery("POST", "/internal/recover/validate", reqValidate, "")
+		resp, _, err := d.RawQuery(http.MethodPost, "/internal/recover/validate", reqValidate, "")
 		if err != nil {
 			return fmt.Errorf("Failed validation request: %w", err)
 		}
@@ -243,7 +244,7 @@ func (c *cmdRecover) run(cmd *cobra.Command, args []string) error {
 		Pools: reqValidate.Pools,
 	}
 
-	_, _, err = d.RawQuery("POST", "/internal/recover/import", reqImport, "")
+	_, _, err = d.RawQuery(http.MethodPost, "/internal/recover/import", reqImport, "")
 	if err != nil {
 		return fmt.Errorf("Failed import request: %w", err)
 	}

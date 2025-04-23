@@ -870,7 +870,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		// Notify the leader of successful join, possibly triggering
 		// role changes.
-		_, _, err = client.RawQuery("POST", "/internal/cluster/rebalance", nil, "")
+		_, _, err = client.RawQuery(http.MethodPost, "/internal/cluster/rebalance", nil, "")
 		if err != nil {
 			logger.Warnf("Failed to trigger cluster rebalance: %v", err)
 		}
@@ -1138,7 +1138,7 @@ func clusterAcceptMember(client lxd.InstanceServer, name string, address string,
 	}
 
 	info := &internalClusterPostAcceptResponse{}
-	resp, _, err := client.RawQuery("POST", "/internal/cluster/accept", req, "")
+	resp, _, err := client.RawQuery(http.MethodPost, "/internal/cluster/accept", req, "")
 	if err != nil {
 		return nil, err
 	}
@@ -2667,7 +2667,7 @@ func changeMemberRole(s *state.State, r *http.Request, address string, nodes []d
 		return err
 	}
 
-	_, _, err = client.RawQuery("POST", "/internal/cluster/assign", post, "")
+	_, _, err = client.RawQuery(http.MethodPost, "/internal/cluster/assign", post, "")
 	if err != nil {
 		return err
 	}
@@ -2714,7 +2714,7 @@ findLeader:
 		return fmt.Errorf("Failed handing over cluster member role: %w", err)
 	}
 
-	_, _, err = client.RawQuery("POST", "/internal/cluster/handover", post, "")
+	_, _, err = client.RawQuery(http.MethodPost, "/internal/cluster/handover", post, "")
 	if err != nil {
 		return err
 	}
@@ -4594,7 +4594,7 @@ func autoHealCluster(_ context.Context, s *state.State, offlineMembers []db.Node
 
 	for _, member := range offlineMembers {
 		logger.Info("Healing cluster member instances", logger.Ctx{"member": member.Name})
-		_, _, err = dest.RawQuery("POST", "/internal/cluster/heal/"+member.Name, nil, "")
+		_, _, err = dest.RawQuery(http.MethodPost, "/internal/cluster/heal/"+member.Name, nil, "")
 		if err != nil {
 			return fmt.Errorf("Failed evacuating cluster member %q: %w", member.Name, err)
 		}

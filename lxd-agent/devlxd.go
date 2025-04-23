@@ -144,7 +144,7 @@ func devLXDConfigGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 
 	defer client.Disconnect()
 
-	resp, _, err := client.RawQuery("GET", "/1.0/config", nil, "")
+	resp, _, err := client.RawQuery(http.MethodGet, "/1.0/config", nil, "")
 	if err != nil {
 		return smartResponse(err)
 	}
@@ -181,7 +181,7 @@ func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 
 	defer client.Disconnect()
 
-	resp, _, err := client.RawQuery("GET", "/1.0/config/"+key, nil, "")
+	resp, _, err := client.RawQuery(http.MethodGet, "/1.0/config/"+key, nil, "")
 	if err != nil {
 		return smartResponse(err)
 	}
@@ -220,7 +220,7 @@ func devLXDMetadataGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 
 	defer client.Disconnect()
 
-	resp, _, err := client.RawQuery("GET", "/1.0/meta-data", nil, "")
+	resp, _, err := client.RawQuery(http.MethodGet, "/1.0/meta-data", nil, "")
 	if err != nil {
 		return smartResponse(err)
 	}
@@ -264,7 +264,7 @@ func devLXDDevicesGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 
 	defer client.Disconnect()
 
-	resp, _, err := client.RawQuery("GET", "/1.0/devices", nil, "")
+	resp, _, err := client.RawQuery(http.MethodGet, "/1.0/devices", nil, "")
 	if err != nil {
 		return smartResponse(err)
 	}
