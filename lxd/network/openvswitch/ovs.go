@@ -140,7 +140,7 @@ func (o *OVS) BridgePortSet(portName string, options ...string) error {
 // and then associates the specified interfaceName to the OVN switch port.
 func (o *OVS) InterfaceAssociateOVNSwitchPort(interfaceName string, ovnSwitchPortName OVNSwitchPort) error {
 	// Clear existing ports that were formerly associated to ovnSwitchPortName.
-	existingPorts, err := shared.RunCommandContext(context.TODO(), "ovs-vsctl", "--format=csv", "--no-headings", "--data=bare", "--colum=name", "find", "interface", fmt.Sprintf("external-ids:iface-id=%s", string(ovnSwitchPortName)))
+	existingPorts, err := shared.RunCommandContext(context.TODO(), "ovs-vsctl", "--format=csv", "--no-headings", "--data=bare", "--colum=name", "find", "interface", "external-ids:iface-id="+string(ovnSwitchPortName))
 	if err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func (o *OVS) InterfaceAssociateOVNSwitchPort(interfaceName string, ovnSwitchPor
 		}
 	}
 
-	_, err = shared.RunCommandContext(context.TODO(), "ovs-vsctl", "set", "interface", interfaceName, fmt.Sprintf("external_ids:iface-id=%s", string(ovnSwitchPortName)))
+	_, err = shared.RunCommandContext(context.TODO(), "ovs-vsctl", "set", "interface", interfaceName, "external_ids:iface-id="+string(ovnSwitchPortName))
 	if err != nil {
 		return err
 	}
@@ -268,7 +268,7 @@ func (o *OVS) OVNBridgeMappingAdd(bridgeName string, providerName string) error 
 	mappings = append(mappings, newMapping)
 
 	// Set new mapping string back into OVS database.
-	_, err = shared.RunCommandContext(context.TODO(), "ovs-vsctl", "set", "open_vswitch", ".", fmt.Sprintf("external-ids:ovn-bridge-mappings=%s", strings.Join(mappings, ",")))
+	_, err = shared.RunCommandContext(context.TODO(), "ovs-vsctl", "set", "open_vswitch", ".", "external-ids:ovn-bridge-mappings="+strings.Join(mappings, ","))
 	if err != nil {
 		return err
 	}
@@ -306,7 +306,7 @@ func (o *OVS) OVNBridgeMappingDelete(bridgeName string, providerName string) err
 			}
 		} else {
 			// Set updated mapping string back into OVS database.
-			_, err = shared.RunCommandContext(context.TODO(), "ovs-vsctl", "set", "open_vswitch", ".", fmt.Sprintf("external-ids:ovn-bridge-mappings=%s", strings.Join(newMappings, ",")))
+			_, err = shared.RunCommandContext(context.TODO(), "ovs-vsctl", "set", "open_vswitch", ".", "external-ids:ovn-bridge-mappings="+strings.Join(newMappings, ","))
 			if err != nil {
 				return err
 			}
