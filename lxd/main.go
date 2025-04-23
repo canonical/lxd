@@ -132,7 +132,7 @@ func main() {
 
 	// forkfile sub-command
 	forkfileCmd := cmdForkfile{global: &globalCmd}
-	app.AddCommand(forkfileCmd.Command())
+	app.AddCommand(forkfileCmd.command())
 
 	// forklimits sub-command
 	forklimitsCmd := cmdForklimits{global: &globalCmd}
