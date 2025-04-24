@@ -410,22 +410,31 @@ func (d *qemu) getClusterCPUFlags() ([]string, error) {
 	coreCount := 0
 
 	for _, node := range nodes {
-		// Attempt to load the cached resources.
-		resourcesPath := shared.CachePath("resources", fmt.Sprintf("%s.yaml", node.Name))
+		var res *api.Resources
+		if node.Name == d.state.ServerName {
+			// Get our own local data.
+			res, err = resources.GetResources()
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// Attempt to load the cached resources.
+			resourcesPath := shared.CachePath("resources", fmt.Sprintf("%s.yaml", node.Name))
 
-		data, err := os.ReadFile(resourcesPath)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
+			data, err := os.ReadFile(resourcesPath)
+			if err != nil {
+				if errors.Is(err, fs.ErrNotExist) {
+					continue
+				}
+
+				return nil, err
 			}
 
-			return nil, err
-		}
-
-		res := api.Resources{}
-		err = json.Unmarshal(data, &res)
-		if err != nil {
-			return nil, err
+			res = &api.Resources{}
+			err = yaml.Unmarshal(data, res)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// Skip if not the correct architecture.
