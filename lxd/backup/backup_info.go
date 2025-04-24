@@ -14,15 +14,15 @@ import (
 const backupIndexPath = "backup/index.yaml"
 
 // InstanceTypeToBackupType converts instance type to backup type.
-func InstanceTypeToBackupType(instanceType api.InstanceType) Type {
+func InstanceTypeToBackupType(instanceType api.InstanceType) config.Type {
 	switch instanceType {
 	case api.InstanceTypeContainer:
-		return TypeContainer
+		return config.TypeContainer
 	case api.InstanceTypeVM:
-		return TypeVM
+		return config.TypeVM
 	}
 
-	return TypeUnknown
+	return config.TypeUnknown
 }
 
 // Info represents exported backup information.
@@ -34,7 +34,7 @@ type Info struct {
 	Snapshots        []string       `json:"snapshots,omitempty" yaml:"snapshots,omitempty"`
 	OptimizedStorage *bool          `json:"optimized,omitempty" yaml:"optimized,omitempty"`               // Optional field to handle older optimized backups that don't have this field.
 	OptimizedHeader  *bool          `json:"optimized_header,omitempty" yaml:"optimized_header,omitempty"` // Optional field to handle older optimized backups that don't have this field.
-	Type             Type           `json:"type,omitempty" yaml:"type,omitempty"`                         // Type of backup.
+	Type             config.Type    `json:"type,omitempty" yaml:"type,omitempty"`                         // Type of backup.
 	Config           *config.Config `json:"config,omitempty" yaml:"config,omitempty"`                     // Equivalent of backup.yaml but embedded in index for quick retrieval.
 }
 
@@ -74,8 +74,8 @@ func GetInfo(s *state.State, r io.ReadSeeker, outputPath string) (*Info, error) 
 			hasIndexFile = true
 
 			// Default to container if index doesn't specify instance type.
-			if result.Type == TypeUnknown {
-				result.Type = TypeContainer
+			if result.Type == config.TypeUnknown {
+				result.Type = config.TypeContainer
 			}
 
 			// Default to no optimized header if not specified.
