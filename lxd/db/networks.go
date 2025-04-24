@@ -520,20 +520,24 @@ func (c *ClusterTx) networks(ctx context.Context, project string, where string, 
 		inargs = append(inargs, args...)
 	}
 
-	var name string
-	outfmt := []any{name}
+	networkNames := []string{}
+	err := query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
+		var networkName string
 
-	result, err := queryScan(ctx, c, q, inargs, outfmt)
+		err := scan(&networkName)
+		if err != nil {
+			return err
+		}
+
+		networkNames = append(networkNames, networkName)
+
+		return nil
+	}, inargs...)
 	if err != nil {
-		return []string{}, err
+		return nil, err
 	}
 
-	response := []string{}
-	for _, r := range result {
-		response = append(response, r[0].(string))
-	}
-
-	return response, nil
+	return networkNames, nil
 }
 
 // NetworkState indicates the state of the network or network node.
@@ -690,37 +694,35 @@ func networkFillType(network *api.Network, netType NetworkType) {
 
 // GetNetworkWithInterface returns the network associated with the interface with the given name.
 func (c *ClusterTx) GetNetworkWithInterface(ctx context.Context, devName string) (int64, *api.Network, error) {
-	id := int64(-1)
-	name := ""
-	value := ""
+	var id int64 = -1
+	var name string
 
 	q := "SELECT networks.id, networks.name, networks_config.value FROM networks LEFT JOIN networks_config ON networks.id=networks_config.network_id WHERE networks_config.key=\"bridge.external_interfaces\" AND networks_config.node_id=?"
-	arg1 := []any{c.nodeID}
-	arg2 := []any{id, name, value}
 
-	result, err := queryScan(ctx, c, q, arg1, arg2)
-	if err != nil {
-		return -1, nil, err
-	}
+	err := query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
+		var networkID int64
+		var networkName string
+		var value string
 
-	for _, r := range result {
-		for _, entry := range strings.Split(r[2].(string), ",") {
+		err := scan(&networkID, &networkName, &value)
+		if err != nil {
+			return err
+		}
+
+		for _, entry := range strings.Split(value, ",") {
 			entry = strings.TrimSpace(entry)
 			if entry == devName {
-				entryID, ok := r[0].(int64)
-				if !ok {
-					continue
-				}
+				id = networkID
+				name = networkName
 
-				entryName, ok := r[1].(string)
-				if !ok {
-					continue
-				}
-
-				id = entryID
-				name = entryName
+				return nil
 			}
 		}
+
+		return nil
+	}, c.nodeID)
+	if err != nil {
+		return -1, nil, err
 	}
 
 	if id == -1 {
