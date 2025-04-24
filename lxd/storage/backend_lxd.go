@@ -6979,7 +6979,7 @@ func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volNam
 }
 
 // GenerateInstanceBackupConfig returns the backup config entry for this instance.
-// The Container field is only populated for non-snapshot instances.
+// The Instance field is only populated for non-snapshot instances.
 func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, _ *operations.Operation) (*backupConfig.Config, error) {
 	// Generate the YAML.
 	ci, _, err := inst.Render()
