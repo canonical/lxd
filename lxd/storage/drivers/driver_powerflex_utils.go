@@ -426,7 +426,7 @@ func (p *powerFlexClient) getVolumeID(name string) (string, error) {
 // getVolume returns the volume behind volumeID.
 func (p *powerFlexClient) getVolume(volumeID string) (*powerFlexVolume, error) {
 	var actualResponse powerFlexVolume
-	err := p.requestAuthenticated(http.MethodGet, fmt.Sprintf("/api/instances/Volume::%s", volumeID), nil, &actualResponse)
+	err := p.requestAuthenticated(http.MethodGet, "/api/instances/Volume::"+volumeID, nil, &actualResponse)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get volume: %q: %w", volumeID, err)
 	}
@@ -477,7 +477,7 @@ func (p *powerFlexClient) setVolumeSize(volumeID string, sizeGiB int64) error {
 		"sizeInGB": stringSize,
 	}
 
-	err := p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/setVolumeSize", volumeID), body, nil)
+	err := p.requestAuthenticated(http.MethodPost, "/api/instances/Volume::"+volumeID+"/action/setVolumeSize", body, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to set volume size: %q: %w", volumeID, err)
 	}
@@ -491,7 +491,7 @@ func (p *powerFlexClient) overwriteVolume(volumeID string, snapshotID string) er
 		"srcVolumeId": snapshotID,
 	}
 
-	err := p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/overwriteVolumeContent", volumeID), body, nil)
+	err := p.requestAuthenticated(http.MethodPost, "/api/instances/Volume::"+volumeID+"/action/overwriteVolumeContent", body, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to overwrite volume: %q: %w", volumeID, err)
 	}
@@ -517,7 +517,7 @@ func (p *powerFlexClient) createVolumeSnapshot(systemID string, volumeID string,
 		VolumeIDs []string `json:"volumeIdList"`
 	}
 
-	err := p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/System::%s/action/snapshotVolumes", systemID), body, &actualResponse)
+	err := p.requestAuthenticated(http.MethodPost, "/api/instances/System::"+systemID+"/action/snapshotVolumes", body, &actualResponse)
 	if err != nil {
 		powerFlexError, ok := err.(*powerFlexError)
 		if ok {
@@ -546,7 +546,7 @@ func (p *powerFlexClient) getVolumeSnapshots(volumeID string) ([]powerFlexVolume
 	}
 
 	var actualResponse []powerFlexVolume
-	err = p.requestAuthenticated(http.MethodGet, fmt.Sprintf("/api/instances/VTree::%s/relationships/Volume", volume.VTreeID), nil, &actualResponse)
+	err = p.requestAuthenticated(http.MethodGet, "/api/instances/VTree::"+volume.VTreeID+"/relationships/Volume", nil, &actualResponse)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get volume snapshots: %q: %w", volumeID, err)
 	}
@@ -570,7 +570,7 @@ func (p *powerFlexClient) deleteVolume(volumeID string, deleteMode string) error
 		"removeMode": deleteMode,
 	}
 
-	err := p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/removeVolume", volumeID), body, nil)
+	err := p.requestAuthenticated(http.MethodPost, "/api/instances/Volume::"+volumeID+"/action/removeVolume", body, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to delete volume: %q: %w", volumeID, err)
 	}
@@ -676,7 +676,7 @@ func (p *powerFlexClient) createHost(hostName string, nqn string) (string, error
 
 // deleteHost deletes the host behind hostID.
 func (p *powerFlexClient) deleteHost(hostID string) error {
-	err := p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Sdc::%s/action/removeSdc", hostID), nil, nil)
+	err := p.requestAuthenticated(http.MethodPost, "/api/instances/Sdc::"+hostID+"/action/removeSdc", nil, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to delete host: %w", err)
 	}
@@ -692,7 +692,7 @@ func (p *powerFlexClient) createHostVolumeMapping(hostID string, volumeID string
 		"allowMultipleMappings": "true",
 	}
 
-	err := p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/addMappedHost", volumeID), body, nil)
+	err := p.requestAuthenticated(http.MethodPost, "/api/instances/Volume::"+volumeID+"/action/addMappedHost", body, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to create host volume mapping between %q and %q: %w", hostID, volumeID, err)
 	}
@@ -707,7 +707,7 @@ func (p *powerFlexClient) deleteHostVolumeMapping(hostID string, volumeID string
 		"hostId": hostID,
 	}
 
-	err := p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/removeMappedHost", volumeID), body, nil)
+	err := p.requestAuthenticated(http.MethodPost, "/api/instances/Volume::"+volumeID+"/action/removeMappedHost", body, nil)
 	if err != nil {
 		powerFlexError, ok := err.(*powerFlexError)
 		if ok {
@@ -726,7 +726,7 @@ func (p *powerFlexClient) deleteHostVolumeMapping(hostID string, volumeID string
 // getHostVolumeMappings returns the volume mappings for the host behind hostID.
 func (p *powerFlexClient) getHostVolumeMappings(hostID string) ([]powerFlexVolume, error) {
 	var actualResponse []powerFlexVolume
-	err := p.requestAuthenticated(http.MethodGet, fmt.Sprintf("/api/instances/Sdc::%s/relationships/Volume", hostID), nil, &actualResponse)
+	err := p.requestAuthenticated(http.MethodGet, "/api/instances/Sdc::"+hostID+"/relationships/Volume", nil, &actualResponse)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get host volume mappings: %w", err)
 	}

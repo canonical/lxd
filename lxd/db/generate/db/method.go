@@ -176,9 +176,9 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		stmtVar := stmtCodeVar(m.entity, "objects")
 		stmtLocal := stmtVar + "Local"
-		buf.L("%s := strings.Replace(%s, \"%%s_id\", parent+\"_id\", -1)", stmtLocal, stmtVar)
+		buf.L("%s := strings.ReplaceAll(%s, \"%%s_id\", parent+\"_id\")", stmtLocal, stmtVar)
 		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
-		buf.L("mangledParent := strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
+		buf.L("mangledParent := strings.ReplaceAll(parent, \"_\", \"s_\") + \"s\"")
 		buf.L("for i := range fillParent {")
 		buf.L("fillParent[i] = mangledParent")
 		buf.L("}")
@@ -703,10 +703,10 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		stmtVar := stmtCodeVar(m.entity, "create")
 		stmtLocal := stmtVar + "Local"
-		buf.L("%s := strings.Replace(%s, \"%%s_id\", parent+\"_id\", -1)", stmtLocal, stmtVar)
+		buf.L("%s := strings.ReplaceAll(%s, \"%%s_id\", parent+\"_id\")", stmtLocal, stmtVar)
 		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
 		buf.L("for i := range fillParent {")
-		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
+		buf.L("fillParent[i] = strings.ReplaceAll(parent, \"_\", \"s_\") + \"s\"")
 		buf.L("}")
 		buf.N()
 		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)
@@ -717,7 +717,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		}
 
 		for i, field := range columnFields {
-			createParams += fmt.Sprintf("object.%s", field.Name)
+			createParams += "object." + field.Name
 			if i < len(columnFields) {
 				createParams += ", "
 			}
@@ -737,7 +737,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		nk := mapping.NaturalKey()
 		nkParams := make([]string, len(nk))
 		for i, field := range nk {
-			nkParams[i] = fmt.Sprintf("object.%s", field.Name)
+			nkParams[i] = "object." + field.Name
 		}
 
 		kind := "create"
@@ -816,7 +816,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 			buf.L("// Update association table.")
 			buf.L("object.ID = int(id)")
 			buf.L("err = %sUpdate%s(ctx, tx, object)", m.db, lex.Plural(assocStruct))
-			m.ifErrNotNil(buf, true, "-1", fmt.Sprintf("fmt.Errorf(\"Could not update association table: %%w\", err)"))
+			m.ifErrNotNil(buf, true, "-1", "fmt.Errorf(\"Could not update association table: %%w\", err)")
 			continue
 		case ReferenceTable:
 			buf.L("for _, insert := range object.%s {", field.Name)
@@ -1054,9 +1054,9 @@ func (m *Method) update(buf *file.Buffer) error {
 			if shared.IsTrue(field.Config.Get("marshal")) {
 				buf.L("marshaled%s, err := query.Marshal(object.%s)", field.Name, field.Name)
 				m.ifErrNotNil(buf, true, "err")
-				params[i] = fmt.Sprintf("marshaled%s", field.Name)
+				params[i] = "marshaled" + field.Name
 			} else {
-				params[i] = fmt.Sprintf("object.%s", field.Name)
+				params[i] = "object." + field.Name
 			}
 		}
 
@@ -1154,10 +1154,10 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 	case ReferenceTable, MapTable:
 		stmtVar := stmtCodeVar(m.entity, "delete")
 		stmtLocal := stmtVar + "Local"
-		buf.L("%s := strings.Replace(%s, \"%%s_id\", parent+\"_id\", -1)", stmtLocal, stmtVar)
+		buf.L("%s := strings.ReplaceAll(%s, \"%%s_id\", parent+\"_id\")", stmtLocal, stmtVar)
 		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
 		buf.L("for i := range fillParent {")
-		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
+		buf.L("fillParent[i] = strings.ReplaceAll(parent, \"_\", \"s_\") + \"s\"")
 		buf.L("}")
 		buf.N()
 		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)

@@ -571,7 +571,7 @@ func (o *OVN) LogicalRouterPortDelete(portName OVNRouterPort) error {
 // LogicalRouterPortSetIPv6Advertisements sets the IPv6 router advertisement options on a router port.
 func (o *OVN) LogicalRouterPortSetIPv6Advertisements(portName OVNRouterPort, opts *OVNIPv6RAOpts) error {
 	args := []string{"set", "logical_router_port", string(portName),
-		"ipv6_ra_configs:send_periodic=" + fmt.Sprint(opts.SendPeriodic),
+		"ipv6_ra_configs:send_periodic=" + strconv.FormatBool(opts.SendPeriodic),
 	}
 
 	var removeRAConfigKeys []string //nolint:prealloc
@@ -595,7 +595,7 @@ func (o *OVN) LogicalRouterPortSetIPv6Advertisements(portName OVNRouterPort, opt
 	}
 
 	if opts.MTU > 0 {
-		args = append(args, "ipv6_ra_configs:mtu="+fmt.Sprint(opts.MTU))
+		args = append(args, "ipv6_ra_configs:mtu="+strconv.FormatUint(uint64(opts.MTU), 10))
 	} else {
 		removeRAConfigKeys = append(removeRAConfigKeys, "mtu")
 	}
@@ -868,7 +868,7 @@ func (o *OVN) LogicalSwitchDHCPv4OptionsSet(switchName OVNSwitch, uuid OVNDHCPOp
 	}
 
 	if opts.MTU > 0 {
-		args = append(args, "mtu="+fmt.Sprint(opts.MTU))
+		args = append(args, "mtu="+strconv.FormatUint(uint64(opts.MTU), 10))
 	}
 
 	if opts.Netmask != "" {
@@ -1150,7 +1150,7 @@ func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort,
 	if opts != nil {
 		// Created nested VLAN port if requested.
 		if opts.Parent != "" {
-			args = append(args, string(opts.Parent), fmt.Sprint(opts.VLAN))
+			args = append(args, string(opts.Parent), strconv.FormatUint(uint64(opts.VLAN), 10))
 		}
 
 		var addresses []string
@@ -1536,7 +1536,7 @@ func (o *OVN) ChassisGroupDelete(haChassisGroupName OVNChassisGroup) error {
 
 // ChassisGroupChassisAdd adds a chassis ID to an HA chassis group with the specified priority.
 func (o *OVN) ChassisGroupChassisAdd(haChassisGroupName OVNChassisGroup, chassisID string, priority uint) error {
-	_, err := o.nbctl("ha-chassis-group-add-chassis", string(haChassisGroupName), chassisID, fmt.Sprint(priority))
+	_, err := o.nbctl("ha-chassis-group-add-chassis", string(haChassisGroupName), chassisID, strconv.FormatUint(uint64(priority), 10))
 	if err != nil {
 		return err
 	}
