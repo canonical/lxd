@@ -21,6 +21,8 @@ import (
 // and will run once every 24h.
 func expireLogsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
+		state := d.State()
+
 		opRun := func(op *operations.Operation) error {
 			return expireLogs(ctx, state)
 		}
