@@ -16,6 +16,21 @@ const DefaultMetadataVersion = api.BackupMetadataVersion2
 // MaxMetadataVersion represents the latest supported metadata version.
 const MaxMetadataVersion = api.BackupMetadataVersion2
 
+// Type indicates the type of backup.
+type Type string
+
+// TypeUnknown defines the backup type value for unknown backups.
+const TypeUnknown = Type("")
+
+// TypeContainer defines the backup type value for a container.
+const TypeContainer = Type("container")
+
+// TypeVM defines the backup type value for a virtual-machine.
+const TypeVM = Type("virtual-machine")
+
+// TypeCustom defines the backup type value for a custom volume.
+const TypeCustom = Type("custom")
+
 // Volume represents the config of a volume including its snapshots.
 type Volume struct {
 	// Make sure to have the embedded structs fields inline to avoid nesting.
