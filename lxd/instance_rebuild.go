@@ -78,7 +78,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(s, r, targetProjectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, targetProjectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}

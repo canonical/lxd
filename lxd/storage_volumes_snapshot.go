@@ -131,12 +131,13 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -356,7 +357,8 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -493,12 +495,13 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -609,12 +612,13 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -712,12 +716,13 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -820,12 +825,13 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -965,12 +971,13 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}

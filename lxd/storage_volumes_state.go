@@ -127,7 +127,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 			return response.SmartError(err)
 		}
 	} else {
-		resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, volumeName, instancetype.Any)
+		resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, volumeName, instancetype.Any)
 		if err != nil {
 			return response.SmartError(err)
 		}

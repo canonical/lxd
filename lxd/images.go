@@ -1213,7 +1213,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			r.Body = post
-			resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
+			resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
 			if err != nil {
 				cleanup(builddir, post)
 				return response.SmartError(err)
