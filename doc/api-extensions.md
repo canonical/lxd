@@ -2664,3 +2664,15 @@ This adds support for listing storage buckets across all projects using the `all
 ## `network_acls_all_projects`
 
 This adds support for listing network ACLs across all projects using the `all-projects` parameter in `GET /1.0/network-acls` requests.
+
+## `cluster_links`
+
+This introduces the cluster links API and identity type.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/clusters/<name>` - returns information about a specific cluster link.
+* `GET /1.0/clusters` - returns a combined view of cluster links (if any).
+* `PUT /1.0/clusters/<name>` - allows for modification of a specific cluster link.
+* `POST /1.0/clusters` - adds a cluster link.
+* `DELETE /1.0/clusters/<name>` - deletes a specific cluster link.
