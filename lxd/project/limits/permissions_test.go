@@ -203,7 +203,7 @@ func TestCheckClusterTargetRestriction_RestrictedTrue(t *testing.T) {
 	authorizer, err := drivers.LoadAuthorizer(context.Background(), drivers.DriverTLS, logger.Log, identityCache)
 	require.NoError(t, err)
 
-	err = limits.CheckClusterTargetRestriction(authorizer, req, p, "n1")
+	err = limits.CheckClusterTargetRestriction(req.Context(), authorizer, p, "n1")
 	assert.EqualError(t, err, "This project doesn't allow cluster member targeting")
 }
 
@@ -249,7 +249,7 @@ func TestCheckClusterTargetRestriction_RestrictedTrueWithOverride(t *testing.T) 
 	authorizer, err := drivers.LoadAuthorizer(context.Background(), drivers.DriverTLS, logger.Log, identityCache)
 	require.NoError(t, err)
 
-	err = limits.CheckClusterTargetRestriction(authorizer, req, p, "n1")
+	err = limits.CheckClusterTargetRestriction(req.Context(), authorizer, p, "n1")
 	assert.NoError(t, err)
 }
 
@@ -275,6 +275,6 @@ func TestCheckClusterTargetRestriction_RestrictedFalse(t *testing.T) {
 	authorizer, err := drivers.LoadAuthorizer(context.Background(), drivers.DriverTLS, logger.Log, &identity.Cache{})
 	require.NoError(t, err)
 
-	err = limits.CheckClusterTargetRestriction(authorizer, req, p, "n1")
+	err = limits.CheckClusterTargetRestriction(req.Context(), authorizer, p, "n1")
 	assert.NoError(t, err)
 }
