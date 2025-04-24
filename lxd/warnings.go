@@ -433,9 +433,9 @@ func warningDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
+func pruneResolvedWarningsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
 
 		opRun := func(op *operations.Operation) error {
 			return pruneResolvedWarnings(ctx, s)

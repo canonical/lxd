@@ -1128,9 +1128,9 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	return operations.ForwardedOperationWebSocket(id, source)
 }
 
-func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
+func autoRemoveOrphanedOperationsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
 
 		leaderInfo, err := s.LeaderInfo()
 		if err != nil {
