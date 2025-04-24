@@ -171,7 +171,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	// and we'll either forward the request or load the instance.
 	if target == "" || !sourceNodeOffline {
 		// Handle requests targeted to an instance on a different node.
-		resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
+		resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -181,7 +181,8 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 	} else if sourceNodeOffline {
 		// If a target was specified, forward the request to the relevant node.
-		resp := forwardedResponseIfTargetIsRemote(s, r)
+		target := request.QueryParam(r, "target")
+		resp := forwardedResponseToNode(r.Context(), s, target)
 		if resp != nil {
 			return resp
 		}

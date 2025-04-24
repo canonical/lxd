@@ -250,7 +250,8 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -939,7 +940,8 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -1363,7 +1365,8 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -1993,7 +1996,8 @@ func networkStateGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}

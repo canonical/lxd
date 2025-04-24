@@ -239,7 +239,8 @@ func networkLoadBalancersGet(d *Daemon, r *http.Request) response.Response {
 func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -317,7 +318,8 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -406,7 +408,8 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 func networkLoadBalancerGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -529,7 +532,8 @@ func networkLoadBalancerGet(d *Daemon, r *http.Request) response.Response {
 func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}

@@ -239,7 +239,8 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -313,7 +314,8 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -400,7 +402,8 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -523,7 +526,8 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 func networkPeerPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}

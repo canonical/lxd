@@ -76,7 +76,8 @@ var storagePoolVolumeTypeStateCmd = APIEndpoint{
 func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -132,7 +133,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 			return response.SmartError(err)
 		}
 	} else {
-		resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, volumeName, instancetype.Any)
+		resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, volumeName, instancetype.Any)
 		if err != nil {
 			return response.SmartError(err)
 		}
