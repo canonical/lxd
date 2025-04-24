@@ -222,6 +222,9 @@ frontend sni-dispatcher
 # LXD nodes
 backend lxd-nodes
   mode tcp
+  
+  timeout client 24h
+  timeout server 24h
 
   option tcp-check
 
