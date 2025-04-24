@@ -140,7 +140,7 @@ func (o *OVS) BridgePortSet(portName string, options ...string) error {
 // and then associates the specified interfaceName to the OVN switch port.
 func (o *OVS) InterfaceAssociateOVNSwitchPort(interfaceName string, ovnSwitchPortName OVNSwitchPort) error {
 	// Clear existing ports that were formerly associated to ovnSwitchPortName.
-	existingPorts, err := shared.RunCommandContext(context.TODO(), "ovs-vsctl", "--format=csv", "--no-headings", "--data=bare", "--colum=name", "find", "interface", "external-ids:iface-id="+string(ovnSwitchPortName))
+	existingPorts, err := shared.RunCommandContext(context.TODO(), "ovs-vsctl", "--format=csv", "--no-headings", "--data=bare", "--columns=name", "find", "interface", "external-ids:iface-id="+string(ovnSwitchPortName))
 	if err != nil {
 		return err
 	}
