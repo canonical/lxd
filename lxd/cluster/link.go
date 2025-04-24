@@ -6,12 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 
 	"golang.org/x/sync/errgroup"
 
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // GetClusterLinkCertificate retrieves a valid cluster certificate by contacting all specified addresses in parallel.
@@ -83,6 +86,38 @@ func GetClusterLinkCertificate(ctx context.Context, addresses []string, fingerpr
 	}
 
 	return firstCert, firstAddress, nil
+}
+
+// ConnectClusterLink is a convenience function around [lxd.ConnectLXD] that configures the client with the correct parameters for cluster-to-cluster communication.
+// The provided addresses are polled linearly and the first to respond is the address used for connection.
+func ConnectClusterLink(ctx context.Context, addresses []string, clusterCert *shared.CertInfo, r *http.Request) (lxd.InstanceServer, error) {
+	var lastErr error
+	for _, address := range addresses {
+		client, err := lxd.ConnectLXD("https://"+address, &lxd.ConnectionArgs{
+			TLSClientCert: string(clusterCert.PublicKey()),
+			TLSClientKey:  string(clusterCert.PrivateKey()),
+			UserAgent:     version.UserAgent,
+		})
+		if err == nil {
+			return client, nil
+		}
+
+		lastErr = fmt.Errorf("failed connecting to %q: %w", address, err)
+
+		// Check if the context has been cancelled.
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("context cancelled while trying addresses: %w", ctx.Err())
+		default:
+			// Continue to the next address.
+		}
+	}
+
+	if lastErr == nil {
+		return nil, errors.New("no addresses provided or all failed without error")
+	}
+
+	return nil, fmt.Errorf("failed to connect to any of the provided addresses: %w", lastErr)
 }
 
 func validateAddress(addr string) (string, error) {
