@@ -4503,9 +4503,10 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, gateway *c
 	return targetMemberInfo, nil
 }
 
-func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
+func autoHealClusterTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
+
 		healingThreshold := s.GlobalConfig.ClusterHealingThreshold()
 		if healingThreshold == 0 {
 			return // Skip healing if it's disabled.
