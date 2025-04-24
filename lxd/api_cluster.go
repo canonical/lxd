@@ -2711,12 +2711,12 @@ findLeader:
 	logger.Info("Handing over cluster member role", logCtx)
 	client, err := cluster.Connect(leaderInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), nil, true)
 	if err != nil {
-		return fmt.Errorf("Failed handing over cluster member role: %w", err)
+		return fmt.Errorf("Failed connecting to leader to hand over cluster member role: %w", err)
 	}
 
 	_, _, err = client.RawQuery(http.MethodPost, "/internal/cluster/handover", post, "")
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed requesting cluster member role handover: %w", err)
 	}
 
 	return nil
@@ -2776,7 +2776,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 
 	// Quick checks.
 	if req.Address == "" {
-		return response.BadRequest(fmt.Errorf("No id provided"))
+		return response.BadRequest(fmt.Errorf("No ID provided"))
 	}
 
 	// Redirect all requests to the leader, which is the one with
@@ -2808,9 +2808,9 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// If there's no other member we can promote, there's nothing we can
-	// do, just return.
+	// If there's no other member we can promote, there's nothing we can do, just return.
 	if target == "" {
+		logger.Warn("No other cluster member to handover to", logger.Ctx{"losingAddress": req.Address})
 		goto out
 	}
 

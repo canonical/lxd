@@ -101,7 +101,7 @@ type cmdForkfile struct {
 	global *cmdGlobal
 }
 
-func (c *cmdForkfile) Command() *cobra.Command {
+func (c *cmdForkfile) command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
 	cmd.Use = "forkfile <listen fd> <rootfs fd> <PIDFd> <PID>"
@@ -118,12 +118,12 @@ func (c *cmdForkfile) Command() *cobra.Command {
 `
 	cmd.Hidden = true
 	cmd.Args = cobra.ExactArgs(4)
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdForkfile) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdForkfile) run(cmd *cobra.Command, args []string) error {
 	var mu sync.RWMutex
 	var connections uint64
 	var transactions uint64
@@ -172,7 +172,7 @@ func (c *cmdForkfile) Run(cmd *cobra.Command, args []string) error {
 				mu.RUnlock()
 
 				// Daemon has been inactive for 10s, exit.
-				os.Exit(0)
+				os.Exit(0) //nolint:revive
 			}
 
 			mu.RUnlock()
@@ -202,7 +202,7 @@ func (c *cmdForkfile) Run(cmd *cobra.Command, args []string) error {
 			time.Sleep(time.Second)
 		}
 
-		os.Exit(0)
+		os.Exit(0) //nolint:revive
 	}()
 
 	// Connection handler.

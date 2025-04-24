@@ -84,7 +84,7 @@ func (c *cmdGlobal) rawArgs(cmd *cobra.Command) []string {
 func main() {
 	// daemon command (main)
 	daemonCmd := cmdDaemon{}
-	app := daemonCmd.Command()
+	app := daemonCmd.command()
 	app.SilenceUsage = true
 	app.CompletionOptions = cobra.CompletionOptions{DisableDefaultCmd: true}
 
@@ -132,7 +132,7 @@ func main() {
 
 	// forkfile sub-command
 	forkfileCmd := cmdForkfile{global: &globalCmd}
-	app.AddCommand(forkfileCmd.Command())
+	app.AddCommand(forkfileCmd.command())
 
 	// forklimits sub-command
 	forklimitsCmd := cmdForklimits{global: &globalCmd}
