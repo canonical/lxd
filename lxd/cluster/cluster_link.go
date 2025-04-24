@@ -3,6 +3,8 @@ package cluster
 import (
 	"context"
 	"crypto/x509"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/url"
 	"sync"
@@ -10,8 +12,13 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	lxd "github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // CheckClusterLinkCertificate checks the cluster certificate at each address and ensures they all match the provided fingerprint.
@@ -70,4 +77,42 @@ func CheckClusterLinkCertificate(ctx context.Context, addresses []string, finger
 	}
 
 	return firstResult.cert, firstResult.address, nil
+}
+
+// ConnectClusterLink is a convenience function around [lxd.ConnectLXD] that configures the client with the correct parameters for cluster-to-cluster communication.
+// It attempts to connect to all addresses and returns the first successful client.
+func ConnectClusterLink(ctx context.Context, s *state.State, clusterLink api.ClusterLink) (lxd.InstanceServer, error) {
+	clusterCert, err := util.LoadClusterCert(s.OS.VarDir)
+	if err != nil {
+		return nil, err
+	}
+
+	addresses := shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, false)
+	for _, address := range addresses {
+		// Try to retrieve the remote certificate.
+		targetCert, err := shared.GetRemoteCertificate(ctx, "https://"+address, version.UserAgent)
+		if err != nil {
+			logger.Warn("Failed to get remote certificate cluster link address", logger.Ctx{"address": address, "err": err})
+			continue
+		}
+
+		targetCertStr := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: targetCert.Raw}))
+
+		// Connect to cluster link.
+		client, err := lxd.ConnectLXD("https://"+address, &lxd.ConnectionArgs{
+			TLSClientCert: string(clusterCert.PublicKey()),
+			TLSClientKey:  string(clusterCert.PrivateKey()),
+			TLSServerCert: targetCertStr,
+			UserAgent:     version.UserAgent,
+		})
+		if err != nil {
+			logger.Warn("Failed to connect to cluster link address", logger.Ctx{"address": address, "err": err})
+			continue
+		}
+
+		return client, nil
+	}
+
+	logger.Error("Failed to connect to any cluster link address", logger.Ctx{"clusterLink": clusterLink.Name})
+	return nil, errors.New("Failed to connect to any cluster link address")
 }
