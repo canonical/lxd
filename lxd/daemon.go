@@ -2041,6 +2041,8 @@ func cancelCancelableOps() error {
 func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	logger.Info("Starting shutdown sequence", logger.Ctx{"signal": sig})
 
+	s := d.State()
+
 	// Cancelling the context will make everyone aware that we're shutting down.
 	d.shutdownCancel()
 
@@ -2053,8 +2055,6 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			d.gateway.Kill()
 		}
 	}
-
-	s := d.State()
 
 	// Stop any running minio processes cleanly before unmount storage pools.
 	miniod.StopAll()
