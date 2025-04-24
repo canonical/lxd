@@ -196,6 +196,7 @@ func networkState() map[string]api.InstanceStateNetwork {
 
 			networkAddress := api.InstanceStateNetworkAddress{
 				Address: address,
+				Family:  "inet",
 				Netmask: netmask,
 				Scope:   "global",
 			}
@@ -208,8 +209,6 @@ func networkState() map[string]api.InstanceStateNetwork {
 
 			if strings.Contains(address, ":") {
 				networkAddress.Family = "inet6"
-			} else {
-				networkAddress.Family = "inet"
 			}
 
 			network.Addresses = append(network.Addresses, networkAddress)
