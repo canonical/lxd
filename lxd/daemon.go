@@ -1376,6 +1376,11 @@ func (d *Daemon) init() error {
 	localClusterAddress := d.localConfig.ClusterAddress()
 	debugAddress := d.localConfig.DebugAddress()
 
+	// Sense check for clustering mode.
+	if localClusterAddress == "" && d.serverClustered {
+		return fmt.Errorf("Server is clustered (has local raft addresses) but cluster.https_address is not set")
+	}
+
 	/* Setup dqlite */
 	clusterLogLevel := "ERROR"
 	if shared.ValueInSlice("dqlite", trace) {
