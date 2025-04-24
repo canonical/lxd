@@ -997,7 +997,7 @@ func (c *ClusterTx) UpdateInstanceSnapshotCreationDate(ctx context.Context, inst
 // in the given project with the given name.
 // Returns snapshots slice ordered by when they were created, oldest first.
 func (c *ClusterTx) GetInstanceSnapshotsNames(ctx context.Context, project, name string) ([]string, error) {
-	result := []string{}
+	instanceSnapshotNames := []string{}
 
 	q := `
 SELECT instances_snapshots.name
@@ -1007,19 +1007,23 @@ SELECT instances_snapshots.name
 WHERE projects.name=? AND instances.name=?
 ORDER BY instances_snapshots.creation_date, instances_snapshots.id
 `
-	inargs := []any{project, name}
-	outfmt := []any{name}
+	err := query.Scan(ctx, c.Tx(), q, func(scan func(dest ...any) error) error {
+		var instanceSnapshotName string
 
-	dbResults, err := queryScan(ctx, c, q, inargs, outfmt)
+		err := scan(&instanceSnapshotName)
+		if err != nil {
+			return err
+		}
+
+		instanceSnapshotNames = append(instanceSnapshotNames, name+shared.SnapshotDelimiter+instanceSnapshotName)
+
+		return nil
+	}, project, name)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 
-	for _, r := range dbResults {
-		result = append(result, name+shared.SnapshotDelimiter+r[0].(string))
-	}
-
-	return result, nil
+	return instanceSnapshotNames, nil
 }
 
 // GetNextInstanceSnapshotIndex returns the index that the next snapshot of the
@@ -1033,35 +1037,34 @@ SELECT instances_snapshots.name
 WHERE projects.name=? AND instances.name=?
 ORDER BY instances_snapshots.creation_date, instances_snapshots.id
 `
-	var numstr string
-	inargs := []any{project, name}
-	outfmt := []any{numstr}
-
 	// Check if pattern is valid.
 	if !strings.Contains(pattern, "%d") {
 		return 0
 	}
 
-	results, err := queryScan(ctx, c, q, inargs, outfmt)
-	if err != nil {
-		return 0
-	}
+	err := query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
+		var snapOnlyName string
 
-	for _, r := range results {
-		snapOnlyName, ok := r[0].(string)
-		if !ok {
-			continue
+		err := scan(&snapOnlyName)
+		if err != nil {
+			return err
 		}
 
 		var num int
 		count, err := fmt.Sscanf(snapOnlyName, pattern, &num)
 		if err != nil || count != 1 {
-			continue
+			return nil
 		}
 
 		if num >= nextIndex {
 			nextIndex = num + 1
 		}
+
+		return nil
+	}, project, name)
+
+	if err != nil {
+		return 0
 	}
 
 	return nextIndex
