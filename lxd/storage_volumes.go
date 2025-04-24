@@ -611,7 +611,8 @@ func storagePoolVolumeTypeAccessHandler(entityType entity.Type, entitlement auth
 func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -999,7 +1000,8 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -1079,8 +1081,6 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	} else if dbVolume != nil && !req.Source.Refresh {
 		return response.Conflict(errors.New("Volume by that name already exists"))
 	}
-
-	target := request.QueryParam(r, "target")
 
 	// Check if we need to switch to migration
 	serverName := s.ServerName
@@ -1499,7 +1499,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		var targetMemberInfo *db.NodeInfo
 
 		if sourceNodeOffline {
-			resp := forwardedResponseIfTargetIsRemote(s, r)
+			resp := forwardedResponseToNode(r.Context(), s, target)
 			if resp != nil {
 				return resp
 			}
@@ -1536,7 +1536,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 				return storagePoolVolumeTypePostRename(s, r, details.pool.Name(), effectiveProjectName, &dbVolume.StorageVolume, req)
 			}
 		} else {
-			resp := forwardedResponseToNode(s, r, req.Source.Location)
+			resp := forwardedResponseToNode(r.Context(), s, req.Source.Location)
 			if resp != nil {
 				return resp
 			}
@@ -1592,14 +1592,14 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		return operations.OperationResponse(op)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
 	// If source is set, we know the source and the target, and therefore don't need this function to figure out where to forward the request to.
 	if req.Source.Location == "" {
-		resp := forwardedResponseIfVolumeIsRemote(s, r)
+		resp := forwardedResponseIfVolumeIsRemote(r.Context(), s)
 		if resp != nil {
 			return resp
 		}
@@ -2037,12 +2037,13 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -2134,12 +2135,13 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -2288,12 +2290,13 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -2392,12 +2395,13 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
