@@ -1362,6 +1362,20 @@ func (d *Daemon) init() error {
 		}
 	}
 
+	// Load local config (must come after processing incoming recovery tarball as it can update local config).
+	logger.Info("Loading daemon configuration")
+	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		d.localConfig, err = node.ConfigLoad(ctx, tx)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	localHTTPAddress := d.localConfig.HTTPSAddress()
+	localClusterAddress := d.localConfig.ClusterAddress()
+	debugAddress := d.localConfig.DebugAddress()
+
 	/* Setup dqlite */
 	clusterLogLevel := "ERROR"
 	if shared.ValueInSlice("dqlite", trace) {
@@ -1398,19 +1412,6 @@ func (d *Daemon) init() error {
 			}
 		}
 	}
-
-	logger.Info("Loading daemon configuration")
-	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		d.localConfig, err = node.ConfigLoad(ctx, tx)
-		return err
-	})
-	if err != nil {
-		return err
-	}
-
-	localHTTPAddress := d.localConfig.HTTPSAddress()
-	localClusterAddress := d.localConfig.ClusterAddress()
-	debugAddress := d.localConfig.DebugAddress()
 
 	if os.Getenv("LISTEN_PID") != "" {
 		d.systemdSocketActivated = true
