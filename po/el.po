@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-04-22 08:28-0600\n"
+"POT-Creation-Date: 2025-04-23 10:42-0600\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://hosted.weblate.org/projects/linux-containers/"
@@ -98,7 +98,7 @@ msgid ""
 "###"
 msgstr ""
 
-#: lxc/config_trust.go:245
+#: lxc/config_trust.go:243
 msgid ""
 "### This is a YAML representation of the certificate.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -178,7 +178,7 @@ msgid ""
 "### - operations\n"
 msgstr ""
 
-#: lxc/auth.go:1793
+#: lxc/auth.go:1795
 msgid ""
 "### This is a YAML representation of the identity provider group.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -226,7 +226,7 @@ msgid ""
 "###     properties: {}"
 msgstr ""
 
-#: lxc/network_acl.go:608
+#: lxc/network_acl.go:626
 msgid ""
 "### This is a YAML representation of the network ACL.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -302,7 +302,7 @@ msgid ""
 "### Note that the listen_address and location cannot be changed."
 msgstr ""
 
-#: lxc/network_peer.go:613
+#: lxc/network_peer.go:614
 msgid ""
 "### This is a YAML representation of the network peer.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -459,15 +459,15 @@ msgstr ""
 msgid "- Port %d (%s)"
 msgstr ""
 
-#: lxc/action.go:236
+#: lxc/action.go:234
 msgid "--console can't be used while forcing instance shutdown"
 msgstr ""
 
-#: lxc/action.go:385
+#: lxc/action.go:383
 msgid "--console can't be used with --all"
 msgstr ""
 
-#: lxc/action.go:389
+#: lxc/action.go:387
 msgid "--console only works with a single instance"
 msgstr ""
 
@@ -605,7 +605,7 @@ msgstr "  Χρήση δικτύου:"
 msgid "Add a group to an identity"
 msgstr ""
 
-#: lxc/auth.go:2082 lxc/auth.go:2083
+#: lxc/auth.go:2084 lxc/auth.go:2085
 msgid "Add a group to an identity provider group"
 msgstr ""
 
@@ -700,7 +700,7 @@ msgstr ""
 msgid "Add roles to a cluster member"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_acl.go:859 lxc/network_acl.go:860
+#: lxc/network_acl.go:877 lxc/network_acl.go:878
 msgid "Add rules to an ACL"
 msgstr ""
 
@@ -890,7 +890,7 @@ msgstr ""
 msgid "Bad device override syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 
-#: lxc/network.go:366 lxc/network_acl.go:431 lxc/network_forward.go:326
+#: lxc/network.go:366 lxc/network_acl.go:449 lxc/network_forward.go:326
 #: lxc/network_load_balancer.go:321 lxc/network_peer.go:309
 #: lxc/network_zone.go:384 lxc/network_zone.go:1071 lxc/storage_bucket.go:142
 #, c-format
@@ -916,7 +916,7 @@ msgstr ""
 msgid "Bond:"
 msgstr ""
 
-#: lxc/action.go:164 lxc/action.go:341
+#: lxc/action.go:165 lxc/action.go:339
 msgid "Both --all and instance name given"
 msgstr ""
 
@@ -941,7 +941,7 @@ msgstr ""
 msgid "CANCELABLE"
 msgstr ""
 
-#: lxc/config_trust.go:410
+#: lxc/config_trust.go:408
 msgid "COMMON NAME"
 msgstr ""
 
@@ -1057,12 +1057,12 @@ msgstr ""
 msgid "Cannot set --target when source server is not clustered"
 msgstr ""
 
-#: lxc/network_acl.go:929
+#: lxc/network_acl.go:947
 #, c-format
 msgid "Cannot set key: %s"
 msgstr ""
 
-#: lxc/config_trust.go:190
+#: lxc/config_trust.go:188
 msgid "Cannot use metrics type certificate when using a token"
 msgstr ""
 
@@ -1076,7 +1076,7 @@ msgstr ""
 msgid "Card: %s (%s)"
 msgstr ""
 
-#: lxc/config_trust.go:630
+#: lxc/config_trust.go:628
 #, fuzzy, c-format
 msgid "Certificate add token for %s deleted"
 msgstr "  Χρήση δικτύου:"
@@ -1095,7 +1095,7 @@ msgstr ""
 msgid "Chassis"
 msgstr ""
 
-#: lxc/config_trust.go:214
+#: lxc/config_trust.go:212
 #, fuzzy, c-format
 msgid "Client %s certificate add token:"
 msgstr "  Χρήση δικτύου:"
@@ -1235,9 +1235,9 @@ msgstr ""
 
 #: lxc/cluster.go:864 lxc/cluster_group.go:397 lxc/config.go:281
 #: lxc/config.go:356 lxc/config.go:1342 lxc/config_metadata.go:156
-#: lxc/config_trust.go:314 lxc/image.go:492 lxc/network.go:759
-#: lxc/network_acl.go:698 lxc/network_forward.go:775
-#: lxc/network_load_balancer.go:738 lxc/network_peer.go:698
+#: lxc/config_trust.go:312 lxc/image.go:492 lxc/network.go:759
+#: lxc/network_acl.go:716 lxc/network_forward.go:775
+#: lxc/network_load_balancer.go:738 lxc/network_peer.go:699
 #: lxc/network_zone.go:639 lxc/network_zone.go:1334 lxc/profile.go:600
 #: lxc/project.go:370 lxc/storage.go:359 lxc/storage_bucket.go:349
 #: lxc/storage_bucket.go:1145 lxc/storage_volume.go:1165
@@ -1371,7 +1371,7 @@ msgstr ""
 msgid "Could not find certificate key file path: %s"
 msgstr ""
 
-#: lxc/auth.go:304 lxc/auth.go:1868
+#: lxc/auth.go:304 lxc/auth.go:1870
 #, c-format
 msgid "Could not parse group: %s"
 msgstr ""
@@ -1445,7 +1445,7 @@ msgstr ""
 msgid "Create groups"
 msgstr ""
 
-#: lxc/auth.go:1679 lxc/auth.go:1680
+#: lxc/auth.go:1681 lxc/auth.go:1682
 msgid "Create identity provider groups"
 msgstr ""
 
@@ -1482,7 +1482,7 @@ msgstr ""
 msgid "Create new instance file templates"
 msgstr ""
 
-#: lxc/network_acl.go:363 lxc/network_acl.go:364
+#: lxc/network_acl.go:381 lxc/network_acl.go:382
 msgid "Create new network ACLs"
 msgstr ""
 
@@ -1558,7 +1558,7 @@ msgstr ""
 
 #: lxc/auth.go:380 lxc/cluster.go:197 lxc/cluster_group.go:504
 #: lxc/image.go:1140 lxc/image_alias.go:270 lxc/list.go:565 lxc/network.go:1095
-#: lxc/network_acl.go:157 lxc/network_forward.go:157
+#: lxc/network_acl.go:171 lxc/network_forward.go:157
 #: lxc/network_load_balancer.go:160 lxc/network_peer.go:149
 #: lxc/network_zone.go:162 lxc/network_zone.go:846 lxc/operation.go:173
 #: lxc/profile.go:750 lxc/project.go:580 lxc/storage.go:723
@@ -1612,7 +1612,7 @@ msgstr ""
 msgid "Delete groups"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/auth.go:1731 lxc/auth.go:1732
+#: lxc/auth.go:1733 lxc/auth.go:1734
 msgid "Delete identity provider groups"
 msgstr ""
 
@@ -1636,7 +1636,7 @@ msgstr ""
 msgid "Delete key from a storage bucket"
 msgstr ""
 
-#: lxc/network_acl.go:787 lxc/network_acl.go:788
+#: lxc/network_acl.go:805 lxc/network_acl.go:806
 msgid "Delete network ACLs"
 msgstr ""
 
@@ -1649,7 +1649,7 @@ msgstr ""
 msgid "Delete network load balancers"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_peer.go:730 lxc/network_peer.go:731
+#: lxc/network_peer.go:731 lxc/network_peer.go:732
 msgid "Delete network peerings"
 msgstr ""
 
@@ -1700,9 +1700,9 @@ msgstr ""
 #: lxc/auth.go:735 lxc/auth.go:774 lxc/auth.go:916 lxc/auth.go:983
 #: lxc/auth.go:1046 lxc/auth.go:1107 lxc/auth.go:1236 lxc/auth.go:1290
 #: lxc/auth.go:1313 lxc/auth.go:1371 lxc/auth.go:1440 lxc/auth.go:1462
-#: lxc/auth.go:1642 lxc/auth.go:1680 lxc/auth.go:1732 lxc/auth.go:1781
-#: lxc/auth.go:1900 lxc/auth.go:1960 lxc/auth.go:2009 lxc/auth.go:2060
-#: lxc/auth.go:2083 lxc/auth.go:2136 lxc/cluster.go:30 lxc/cluster.go:123
+#: lxc/auth.go:1644 lxc/auth.go:1682 lxc/auth.go:1734 lxc/auth.go:1783
+#: lxc/auth.go:1902 lxc/auth.go:1962 lxc/auth.go:2011 lxc/auth.go:2062
+#: lxc/auth.go:2085 lxc/auth.go:2138 lxc/cluster.go:30 lxc/cluster.go:123
 #: lxc/cluster.go:215 lxc/cluster.go:272 lxc/cluster.go:331 lxc/cluster.go:404
 #: lxc/cluster.go:488 lxc/cluster.go:532 lxc/cluster.go:590 lxc/cluster.go:681
 #: lxc/cluster.go:775 lxc/cluster.go:898 lxc/cluster.go:982 lxc/cluster.go:1092
@@ -1722,9 +1722,9 @@ msgstr ""
 #: lxc/config_template.go:28 lxc/config_template.go:68
 #: lxc/config_template.go:119 lxc/config_template.go:173
 #: lxc/config_template.go:273 lxc/config_template.go:341 lxc/config_trust.go:34
-#: lxc/config_trust.go:87 lxc/config_trust.go:236 lxc/config_trust.go:350
-#: lxc/config_trust.go:432 lxc/config_trust.go:534 lxc/config_trust.go:580
-#: lxc/config_trust.go:651 lxc/console.go:40 lxc/copy.go:42 lxc/delete.go:32
+#: lxc/config_trust.go:87 lxc/config_trust.go:234 lxc/config_trust.go:348
+#: lxc/config_trust.go:430 lxc/config_trust.go:532 lxc/config_trust.go:578
+#: lxc/config_trust.go:649 lxc/console.go:40 lxc/copy.go:42 lxc/delete.go:32
 #: lxc/exec.go:41 lxc/export.go:33 lxc/file.go:88 lxc/file.go:135
 #: lxc/file.go:323 lxc/file.go:384 lxc/file.go:470 lxc/file.go:703
 #: lxc/file.go:1230 lxc/image.go:39 lxc/image.go:160 lxc/image.go:338
@@ -1739,11 +1739,11 @@ msgstr ""
 #: lxc/network.go:560 lxc/network.go:657 lxc/network.go:793 lxc/network.go:874
 #: lxc/network.go:1006 lxc/network.go:1115 lxc/network.go:1194
 #: lxc/network.go:1254 lxc/network.go:1350 lxc/network.go:1422
-#: lxc/network_acl.go:30 lxc/network_acl.go:95 lxc/network_acl.go:174
-#: lxc/network_acl.go:235 lxc/network_acl.go:291 lxc/network_acl.go:364
-#: lxc/network_acl.go:461 lxc/network_acl.go:549 lxc/network_acl.go:592
-#: lxc/network_acl.go:731 lxc/network_acl.go:788 lxc/network_acl.go:845
-#: lxc/network_acl.go:860 lxc/network_acl.go:997 lxc/network_allocations.go:53
+#: lxc/network_acl.go:30 lxc/network_acl.go:96 lxc/network_acl.go:192
+#: lxc/network_acl.go:253 lxc/network_acl.go:309 lxc/network_acl.go:382
+#: lxc/network_acl.go:479 lxc/network_acl.go:567 lxc/network_acl.go:610
+#: lxc/network_acl.go:749 lxc/network_acl.go:806 lxc/network_acl.go:863
+#: lxc/network_acl.go:878 lxc/network_acl.go:1016 lxc/network_allocations.go:53
 #: lxc/network_forward.go:33 lxc/network_forward.go:90
 #: lxc/network_forward.go:179 lxc/network_forward.go:256
 #: lxc/network_forward.go:412 lxc/network_forward.go:497
@@ -1759,8 +1759,8 @@ msgstr ""
 #: lxc/network_load_balancer.go:1033 lxc/network_load_balancer.go:1048
 #: lxc/network_load_balancer.go:1121 lxc/network_peer.go:29
 #: lxc/network_peer.go:82 lxc/network_peer.go:167 lxc/network_peer.go:236
-#: lxc/network_peer.go:360 lxc/network_peer.go:445 lxc/network_peer.go:547
-#: lxc/network_peer.go:594 lxc/network_peer.go:731 lxc/network_zone.go:29
+#: lxc/network_peer.go:361 lxc/network_peer.go:446 lxc/network_peer.go:548
+#: lxc/network_peer.go:595 lxc/network_peer.go:732 lxc/network_zone.go:29
 #: lxc/network_zone.go:87 lxc/network_zone.go:183 lxc/network_zone.go:246
 #: lxc/network_zone.go:319 lxc/network_zone.go:414 lxc/network_zone.go:502
 #: lxc/network_zone.go:545 lxc/network_zone.go:672 lxc/network_zone.go:728
@@ -1933,6 +1933,10 @@ msgstr ""
 msgid "Display instances from all projects"
 msgstr ""
 
+#: lxc/network_acl.go:100
+msgid "Display network ACLs from all projects"
+msgstr ""
+
 #: lxc/network_zone.go:91
 msgid "Display network zones from all projects"
 msgstr ""
@@ -1970,11 +1974,11 @@ msgstr ""
 msgid "EPHEMERAL"
 msgstr ""
 
-#: lxc/cluster.go:1076 lxc/config_trust.go:516
+#: lxc/cluster.go:1076 lxc/config_trust.go:514
 msgid "EXPIRES AT"
 msgstr ""
 
-#: lxc/config_trust.go:413
+#: lxc/config_trust.go:411
 msgid "EXPIRY DATE"
 msgstr ""
 
@@ -2004,7 +2008,7 @@ msgstr ""
 msgid "Edit groups as YAML"
 msgstr ""
 
-#: lxc/auth.go:1780 lxc/auth.go:1781
+#: lxc/auth.go:1782 lxc/auth.go:1783
 #, fuzzy
 msgid "Edit identity provider groups as YAML"
 msgstr "  Χρήση δικτύου:"
@@ -2029,7 +2033,7 @@ msgstr ""
 msgid "Edit instance or server configurations as YAML"
 msgstr ""
 
-#: lxc/network_acl.go:591 lxc/network_acl.go:592
+#: lxc/network_acl.go:609 lxc/network_acl.go:610
 msgid "Edit network ACL configurations as YAML"
 msgstr ""
 
@@ -2046,7 +2050,7 @@ msgstr ""
 msgid "Edit network load balancer configurations as YAML"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_peer.go:593 lxc/network_peer.go:594
+#: lxc/network_peer.go:594 lxc/network_peer.go:595
 #, fuzzy
 msgid "Edit network peer configurations as YAML"
 msgstr "  Χρήση δικτύου:"
@@ -2086,7 +2090,7 @@ msgstr ""
 msgid "Edit storage volume configurations as YAML"
 msgstr ""
 
-#: lxc/config_trust.go:235 lxc/config_trust.go:236
+#: lxc/config_trust.go:233 lxc/config_trust.go:234
 msgid "Edit trust configurations as YAML"
 msgstr ""
 
@@ -2144,8 +2148,8 @@ msgid "Error retrieving aliases: %w"
 msgstr ""
 
 #: lxc/cluster.go:463 lxc/config.go:663 lxc/config.go:695 lxc/network.go:1328
-#: lxc/network_acl.go:524 lxc/network_forward.go:580
-#: lxc/network_load_balancer.go:559 lxc/network_peer.go:522
+#: lxc/network_acl.go:542 lxc/network_forward.go:580
+#: lxc/network_load_balancer.go:559 lxc/network_peer.go:523
 #: lxc/network_zone.go:477 lxc/network_zone.go:1165 lxc/profile.go:1082
 #: lxc/project.go:726 lxc/storage.go:812 lxc/storage_bucket.go:622
 #: lxc/storage_volume.go:2179 lxc/storage_volume.go:2217
@@ -2158,9 +2162,9 @@ msgstr ""
 msgid "Error unsetting properties: %v"
 msgstr ""
 
-#: lxc/cluster.go:457 lxc/network.go:1322 lxc/network_acl.go:518
+#: lxc/cluster.go:457 lxc/network.go:1322 lxc/network_acl.go:536
 #: lxc/network_forward.go:574 lxc/network_load_balancer.go:553
-#: lxc/network_peer.go:516 lxc/network_zone.go:471 lxc/network_zone.go:1159
+#: lxc/network_peer.go:517 lxc/network_zone.go:471 lxc/network_zone.go:1159
 #: lxc/profile.go:1076 lxc/project.go:720 lxc/storage.go:806
 #: lxc/storage_bucket.go:616 lxc/storage_volume.go:2173
 #: lxc/storage_volume.go:2211
@@ -2264,7 +2268,7 @@ msgstr ""
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:411 lxc/image.go:1142 lxc/image.go:1143
+#: lxc/config_trust.go:409 lxc/image.go:1142 lxc/image.go:1143
 #: lxc/image_alias.go:268
 msgid "FINGERPRINT"
 msgstr ""
@@ -2303,7 +2307,7 @@ msgstr ""
 msgid "Failed connecting to instance SFTP: %w"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/config_trust.go:210
+#: lxc/config_trust.go:208
 #, c-format
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
@@ -2431,7 +2435,7 @@ msgstr ""
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr ""
 
-#: lxc/network.go:1046 lxc/network_acl.go:133 lxc/network_zone.go:126
+#: lxc/network.go:1046 lxc/network_acl.go:135 lxc/network_zone.go:126
 #: lxc/operation.go:137
 msgid "Filtering isn't supported yet"
 msgstr ""
@@ -2465,7 +2469,7 @@ msgstr ""
 msgid "Force restoration without user confirmation"
 msgstr ""
 
-#: lxc/action.go:152
+#: lxc/action.go:153
 msgid "Force the instance to stop"
 msgstr ""
 
@@ -2501,11 +2505,11 @@ msgid ""
 "Are you really sure you want to force removing %s? (yes/no): "
 msgstr ""
 
-#: lxc/alias.go:112 lxc/auth.go:340 lxc/auth.go:920 lxc/auth.go:1904
+#: lxc/alias.go:112 lxc/auth.go:340 lxc/auth.go:920 lxc/auth.go:1906
 #: lxc/cluster.go:125 lxc/cluster.go:983 lxc/cluster_group.go:442
-#: lxc/config_template.go:275 lxc/config_trust.go:352 lxc/config_trust.go:434
+#: lxc/config_template.go:275 lxc/config_trust.go:350 lxc/config_trust.go:432
 #: lxc/image.go:1119 lxc/image_alias.go:182 lxc/list.go:133 lxc/network.go:1010
-#: lxc/network.go:1117 lxc/network_acl.go:98 lxc/network_allocations.go:59
+#: lxc/network.go:1117 lxc/network_acl.go:99 lxc/network_allocations.go:59
 #: lxc/network_forward.go:93 lxc/network_load_balancer.go:97
 #: lxc/network_peer.go:85 lxc/network_zone.go:90 lxc/network_zone.go:788
 #: lxc/operation.go:109 lxc/profile.go:727 lxc/project.go:480
@@ -2559,7 +2563,7 @@ msgstr ""
 msgid "GPUs:"
 msgstr ""
 
-#: lxc/auth.go:968 lxc/auth.go:1944
+#: lxc/auth.go:968 lxc/auth.go:1946
 msgid "GROUPS"
 msgstr ""
 
@@ -2591,7 +2595,7 @@ msgstr ""
 msgid "Get the key as a cluster property"
 msgstr ""
 
-#: lxc/network_acl.go:293
+#: lxc/network_acl.go:311
 msgid "Get the key as a network ACL property"
 msgstr ""
 
@@ -2605,7 +2609,7 @@ msgstr "  Χρήση δικτύου:"
 msgid "Get the key as a network load balancer property"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_peer.go:363
+#: lxc/network_peer.go:364
 #, fuzzy
 msgid "Get the key as a network peer property"
 msgstr "  Χρήση δικτύου:"
@@ -2662,7 +2666,7 @@ msgstr ""
 msgid "Get values for instance or server configuration keys"
 msgstr ""
 
-#: lxc/network_acl.go:290 lxc/network_acl.go:291
+#: lxc/network_acl.go:308 lxc/network_acl.go:309
 msgid "Get values for network ACL configuration keys"
 msgstr ""
 
@@ -2680,7 +2684,7 @@ msgstr "  Χρήση δικτύου:"
 msgid "Get values for network load balancer configuration keys"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_peer.go:359 lxc/network_peer.go:360
+#: lxc/network_peer.go:360 lxc/network_peer.go:361
 #, fuzzy
 msgid "Get values for network peer configuration keys"
 msgstr "  Χρήση δικτύου:"
@@ -2731,7 +2735,7 @@ msgstr "  Χρήση δικτύου:"
 msgid "Group %s deleted"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/auth.go:430 lxc/auth.go:1994
+#: lxc/auth.go:430 lxc/auth.go:1996
 #, c-format
 msgid "Group %s renamed to %s"
 msgstr ""
@@ -2818,7 +2822,7 @@ msgstr ""
 msgid "IPV6"
 msgstr ""
 
-#: lxc/config_trust.go:412
+#: lxc/config_trust.go:410
 msgid "ISSUE DATE"
 msgstr ""
 
@@ -2826,12 +2830,12 @@ msgstr ""
 msgid "Identity creation only supported for TLS identities"
 msgstr ""
 
-#: lxc/auth.go:1716
+#: lxc/auth.go:1718
 #, fuzzy, c-format
 msgid "Identity provider group %s created"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/auth.go:1766
+#: lxc/auth.go:1768
 #, fuzzy, c-format
 msgid "Identity provider group %s deleted"
 msgstr "  Χρήση δικτύου:"
@@ -2866,7 +2870,7 @@ msgstr ""
 msgid "Ignore copy errors for volatile files"
 msgstr ""
 
-#: lxc/action.go:143
+#: lxc/action.go:144
 msgid "Ignore the instance state"
 msgstr ""
 
@@ -2904,7 +2908,7 @@ msgstr ""
 msgid "Image refreshed successfully!"
 msgstr ""
 
-#: lxc/action.go:147 lxc/launch.go:45
+#: lxc/action.go:148 lxc/launch.go:45
 msgid "Immediately attach to the console"
 msgstr ""
 
@@ -3018,7 +3022,7 @@ msgstr ""
 msgid "Invalid argument %q"
 msgstr ""
 
-#: lxc/config_trust.go:391
+#: lxc/config_trust.go:389
 msgid "Invalid certificate"
 msgstr ""
 
@@ -3210,7 +3214,7 @@ msgstr ""
 msgid "List aliases"
 msgstr ""
 
-#: lxc/config_trust.go:431 lxc/config_trust.go:432
+#: lxc/config_trust.go:429 lxc/config_trust.go:430
 msgid "List all active certificate add tokens"
 msgstr ""
 
@@ -3230,11 +3234,11 @@ msgstr ""
 msgid "List all warnings"
 msgstr ""
 
-#: lxc/network_acl.go:95
+#: lxc/network_acl.go:96
 msgid "List available network ACL"
 msgstr ""
 
-#: lxc/network_acl.go:94
+#: lxc/network_acl.go:95
 msgid "List available network ACLS"
 msgstr ""
 
@@ -3284,7 +3288,7 @@ msgstr ""
 msgid "List identities"
 msgstr ""
 
-#: lxc/auth.go:1899 lxc/auth.go:1900
+#: lxc/auth.go:1901 lxc/auth.go:1902
 msgid "List identity provider groups"
 msgstr ""
 
@@ -3503,7 +3507,7 @@ msgstr ""
 msgid "List the available remotes"
 msgstr ""
 
-#: lxc/config_trust.go:349 lxc/config_trust.go:350
+#: lxc/config_trust.go:347 lxc/config_trust.go:348
 msgid "List trusted clients"
 msgstr ""
 
@@ -3547,7 +3551,7 @@ msgstr ""
 msgid "Log level filtering can only be used with pretty formatting"
 msgstr ""
 
-#: lxc/info.go:732
+#: lxc/info.go:735
 msgid "Log:"
 msgstr ""
 
@@ -3658,7 +3662,7 @@ msgstr ""
 msgid "Manage files in instances"
 msgstr ""
 
-#: lxc/auth.go:64 lxc/auth.go:65 lxc/auth.go:1641 lxc/auth.go:1642
+#: lxc/auth.go:64 lxc/auth.go:65 lxc/auth.go:1643 lxc/auth.go:1644
 #, fuzzy
 msgid "Manage groups"
 msgstr "  Χρήση δικτύου:"
@@ -3671,7 +3675,7 @@ msgstr ""
 msgid "Manage identities"
 msgstr ""
 
-#: lxc/auth.go:2059 lxc/auth.go:2060
+#: lxc/auth.go:2061 lxc/auth.go:2062
 msgid "Manage identity provider group mappings"
 msgstr ""
 
@@ -3719,7 +3723,7 @@ msgstr ""
 msgid "Manage instance metadata files"
 msgstr ""
 
-#: lxc/network_acl.go:844 lxc/network_acl.go:845
+#: lxc/network_acl.go:862 lxc/network_acl.go:863
 msgid "Manage network ACL rules"
 msgstr ""
 
@@ -3911,7 +3915,7 @@ msgstr ""
 msgid "Missing bucket name"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/config_trust.go:268 lxc/config_trust.go:676
+#: lxc/config_trust.go:266 lxc/config_trust.go:674
 msgid "Missing certificate fingerprint"
 msgstr ""
 
@@ -3928,7 +3932,7 @@ msgid "Missing cluster member name"
 msgstr ""
 
 #: lxc/auth.go:128 lxc/auth.go:182 lxc/auth.go:258 lxc/auth.go:420
-#: lxc/auth.go:469 lxc/auth.go:544 lxc/auth.go:603 lxc/auth.go:2033
+#: lxc/auth.go:469 lxc/auth.go:544 lxc/auth.go:603 lxc/auth.go:2035
 #, fuzzy
 msgid "Missing group name"
 msgstr "  Χρήση δικτύου:"
@@ -3939,12 +3943,12 @@ msgstr "  Χρήση δικτύου:"
 msgid "Missing identity argument"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/auth.go:1703 lxc/auth.go:1756 lxc/auth.go:1822 lxc/auth.go:1984
+#: lxc/auth.go:1705 lxc/auth.go:1758 lxc/auth.go:1824 lxc/auth.go:1986
 #, fuzzy
 msgid "Missing identity provider group name"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/auth.go:2107 lxc/auth.go:2160
+#: lxc/auth.go:2109 lxc/auth.go:2162
 #, fuzzy
 msgid "Missing identity provider group name argument"
 msgstr "  Χρήση δικτύου:"
@@ -3980,10 +3984,10 @@ msgstr ""
 msgid "Missing name"
 msgstr ""
 
-#: lxc/network_acl.go:204 lxc/network_acl.go:264 lxc/network_acl.go:327
-#: lxc/network_acl.go:399 lxc/network_acl.go:497 lxc/network_acl.go:650
-#: lxc/network_acl.go:761 lxc/network_acl.go:818 lxc/network_acl.go:954
-#: lxc/network_acl.go:1037
+#: lxc/network_acl.go:222 lxc/network_acl.go:282 lxc/network_acl.go:345
+#: lxc/network_acl.go:417 lxc/network_acl.go:515 lxc/network_acl.go:668
+#: lxc/network_acl.go:779 lxc/network_acl.go:836 lxc/network_acl.go:972
+#: lxc/network_acl.go:1056
 msgid "Missing network ACL name"
 msgstr ""
 
@@ -4001,8 +4005,8 @@ msgstr ""
 #: lxc/network_load_balancer.go:895 lxc/network_load_balancer.go:971
 #: lxc/network_load_balancer.go:1084 lxc/network_load_balancer.go:1158
 #: lxc/network_peer.go:119 lxc/network_peer.go:201 lxc/network_peer.go:266
-#: lxc/network_peer.go:401 lxc/network_peer.go:485 lxc/network_peer.go:644
-#: lxc/network_peer.go:765
+#: lxc/network_peer.go:402 lxc/network_peer.go:486 lxc/network_peer.go:645
+#: lxc/network_peer.go:766
 msgid "Missing network name"
 msgstr ""
 
@@ -4019,8 +4023,8 @@ msgstr ""
 msgid "Missing network zone record name"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_peer.go:205 lxc/network_peer.go:270 lxc/network_peer.go:405
-#: lxc/network_peer.go:489 lxc/network_peer.go:648 lxc/network_peer.go:769
+#: lxc/network_peer.go:205 lxc/network_peer.go:270 lxc/network_peer.go:406
+#: lxc/network_peer.go:490 lxc/network_peer.go:649 lxc/network_peer.go:770
 msgid "Missing peer name"
 msgstr ""
 
@@ -4157,7 +4161,7 @@ msgstr ""
 msgid "Multiple ports match. Use --force to remove them all"
 msgstr ""
 
-#: lxc/network_acl.go:1092
+#: lxc/network_acl.go:1111
 msgid "Multiple rules match. Use --force to remove them all"
 msgstr ""
 
@@ -4165,14 +4169,14 @@ msgstr ""
 msgid "Must run as root to import from directory"
 msgstr ""
 
-#: lxc/action.go:250
+#: lxc/action.go:248
 msgid "Must supply instance name for: "
 msgstr ""
 
-#: lxc/auth.go:379 lxc/auth.go:966 lxc/auth.go:1943 lxc/cluster.go:192
-#: lxc/cluster.go:1074 lxc/cluster_group.go:503 lxc/config_trust.go:409
-#: lxc/config_trust.go:514 lxc/list.go:573 lxc/network.go:1090
-#: lxc/network_acl.go:156 lxc/network_peer.go:148 lxc/network_zone.go:161
+#: lxc/auth.go:379 lxc/auth.go:966 lxc/auth.go:1945 lxc/cluster.go:192
+#: lxc/cluster.go:1074 lxc/cluster_group.go:503 lxc/config_trust.go:407
+#: lxc/config_trust.go:512 lxc/list.go:573 lxc/network.go:1090
+#: lxc/network_acl.go:170 lxc/network_peer.go:148 lxc/network_zone.go:161
 #: lxc/network_zone.go:845 lxc/profile.go:748 lxc/project.go:573
 #: lxc/remote.go:849 lxc/storage.go:715 lxc/storage_bucket.go:527
 #: lxc/storage_bucket.go:851 lxc/storage_volume.go:1749
@@ -4266,17 +4270,17 @@ msgstr ""
 msgid "Network %s renamed to %s"
 msgstr ""
 
-#: lxc/network_acl.go:443
+#: lxc/network_acl.go:461
 #, fuzzy, c-format
 msgid "Network ACL %s created"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_acl.go:828
+#: lxc/network_acl.go:846
 #, c-format
 msgid "Network ACL %s deleted"
 msgstr ""
 
-#: lxc/network_acl.go:771
+#: lxc/network_acl.go:789
 #, c-format
 msgid "Network ACL %s renamed to %s"
 msgstr ""
@@ -4315,22 +4319,22 @@ msgstr "  Χρήση δικτύου:"
 msgid "Network name"
 msgstr ""
 
-#: lxc/network_peer.go:337
+#: lxc/network_peer.go:338
 #, fuzzy, c-format
 msgid "Network peer %s created"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_peer.go:781
+#: lxc/network_peer.go:782
 #, fuzzy, c-format
 msgid "Network peer %s deleted"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_peer.go:341
+#: lxc/network_peer.go:342
 #, c-format
 msgid "Network peer %s is in unexpected state %q"
 msgstr ""
 
-#: lxc/network_peer.go:339
+#: lxc/network_peer.go:340
 #, c-format
 msgid ""
 "Network peer %s pending (please complete mutual peering on peer network)"
@@ -4368,7 +4372,7 @@ msgstr ""
 msgid "New key/value to apply to a specific device"
 msgstr ""
 
-#: lxc/config_trust.go:637
+#: lxc/config_trust.go:635
 #, c-format
 msgid "No certificate add token for member %s on remote: %s"
 msgstr ""
@@ -4394,7 +4398,7 @@ msgstr ""
 msgid "No matching port(s) found"
 msgstr ""
 
-#: lxc/network_acl.go:1103
+#: lxc/network_acl.go:1122
 msgid "No matching rule(s) found"
 msgstr ""
 
@@ -4508,8 +4512,9 @@ msgstr ""
 msgid "PROFILES"
 msgstr ""
 
-#: lxc/image.go:1141 lxc/list.go:567 lxc/network_zone.go:167 lxc/profile.go:749
-#: lxc/storage_bucket.go:536 lxc/storage_volume.go:1774 lxc/warning.go:213
+#: lxc/image.go:1141 lxc/list.go:567 lxc/network_acl.go:176
+#: lxc/network_zone.go:167 lxc/profile.go:749 lxc/storage_bucket.go:536
+#: lxc/storage_volume.go:1774 lxc/warning.go:213
 msgid "PROJECT"
 msgstr ""
 
@@ -4550,7 +4555,7 @@ msgstr ""
 msgid "Please provide an alternate server address (empty to abort):"
 msgstr ""
 
-#: lxc/config_trust.go:155
+#: lxc/config_trust.go:152
 msgid "Please provide client name: "
 msgstr ""
 
@@ -4576,12 +4581,12 @@ msgstr ""
 msgid "Press ctrl+c to finish"
 msgstr ""
 
-#: lxc/auth.go:305 lxc/auth.go:1206 lxc/auth.go:1869 lxc/cluster.go:865
+#: lxc/auth.go:305 lxc/auth.go:1206 lxc/auth.go:1871 lxc/cluster.go:865
 #: lxc/cluster_group.go:398 lxc/config.go:282 lxc/config.go:357
 #: lxc/config.go:1343 lxc/config_metadata.go:157 lxc/config_template.go:239
-#: lxc/config_trust.go:315 lxc/image.go:493 lxc/network.go:760
-#: lxc/network_acl.go:699 lxc/network_forward.go:776
-#: lxc/network_load_balancer.go:739 lxc/network_peer.go:699
+#: lxc/config_trust.go:313 lxc/image.go:493 lxc/network.go:760
+#: lxc/network_acl.go:717 lxc/network_forward.go:776
+#: lxc/network_load_balancer.go:739 lxc/network_peer.go:700
 #: lxc/network_zone.go:640 lxc/network_zone.go:1335 lxc/profile.go:601
 #: lxc/project.go:371 lxc/storage.go:360 lxc/storage_bucket.go:350
 #: lxc/storage_bucket.go:1146 lxc/storage_volume.go:1166
@@ -4956,7 +4961,7 @@ msgstr ""
 msgid "Remove all ports that match"
 msgstr ""
 
-#: lxc/network_acl.go:998
+#: lxc/network_acl.go:1017
 msgid "Remove all rules that match"
 msgstr ""
 
@@ -4974,7 +4979,7 @@ msgstr "  Χρήση δικτύου:"
 msgid "Remove entries from a network zone record"
 msgstr ""
 
-#: lxc/auth.go:2135 lxc/auth.go:2136
+#: lxc/auth.go:2137 lxc/auth.go:2138
 msgid "Remove identities from groups"
 msgstr ""
 
@@ -5012,11 +5017,11 @@ msgstr ""
 msgid "Remove roles from a cluster member"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_acl.go:996 lxc/network_acl.go:997
+#: lxc/network_acl.go:1015 lxc/network_acl.go:1016
 msgid "Remove rules from an ACL"
 msgstr ""
 
-#: lxc/config_trust.go:533 lxc/config_trust.go:534
+#: lxc/config_trust.go:531 lxc/config_trust.go:532
 msgid "Remove trusted client"
 msgstr ""
 
@@ -5037,7 +5042,7 @@ msgstr ""
 msgid "Rename groups"
 msgstr ""
 
-#: lxc/auth.go:1959 lxc/auth.go:1960
+#: lxc/auth.go:1961 lxc/auth.go:1962
 msgid "Rename identity provider groups"
 msgstr ""
 
@@ -5045,7 +5050,7 @@ msgstr ""
 msgid "Rename instances and snapshots"
 msgstr ""
 
-#: lxc/network_acl.go:730 lxc/network_acl.go:731
+#: lxc/network_acl.go:748 lxc/network_acl.go:749
 msgid "Rename network ACLs"
 msgstr ""
 
@@ -5147,7 +5152,7 @@ msgstr ""
 msgid "Retrieving image: %s"
 msgstr ""
 
-#: lxc/config_trust.go:579 lxc/config_trust.go:580
+#: lxc/config_trust.go:577 lxc/config_trust.go:578
 #, fuzzy
 msgid "Revoke certificate add token"
 msgstr "  Χρήση δικτύου:"
@@ -5317,11 +5322,11 @@ msgid ""
 "    lxc config set [<remote>:][<instance>] <key> <value>"
 msgstr ""
 
-#: lxc/network_acl.go:460
+#: lxc/network_acl.go:478
 msgid "Set network ACL configuration keys"
 msgstr ""
 
-#: lxc/network_acl.go:461
+#: lxc/network_acl.go:479
 msgid ""
 "Set network ACL configuration keys\n"
 "\n"
@@ -5371,12 +5376,12 @@ msgid ""
 "    lxc network set [<remote>:]<network> <listen_address> <key> <value>"
 msgstr ""
 
-#: lxc/network_peer.go:444
+#: lxc/network_peer.go:445
 #, fuzzy
 msgid "Set network peer keys"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_peer.go:445
+#: lxc/network_peer.go:446
 msgid ""
 "Set network peer keys\n"
 "\n"
@@ -5502,7 +5507,7 @@ msgstr ""
 msgid "Set the key as a cluster property"
 msgstr ""
 
-#: lxc/network_acl.go:467
+#: lxc/network_acl.go:485
 msgid "Set the key as a network ACL property"
 msgstr ""
 
@@ -5516,7 +5521,7 @@ msgstr "  Χρήση δικτύου:"
 msgid "Set the key as a network load balancer property"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_peer.go:452
+#: lxc/network_peer.go:453
 #, fuzzy
 msgid "Set the key as a network peer property"
 msgstr "  Χρήση δικτύου:"
@@ -5572,7 +5577,7 @@ msgstr ""
 msgid "Show all information messages"
 msgstr ""
 
-#: lxc/auth.go:2008 lxc/auth.go:2009
+#: lxc/auth.go:2010 lxc/auth.go:2011
 msgid "Show an identity provider group"
 msgstr ""
 
@@ -5647,11 +5652,11 @@ msgstr ""
 msgid "Show local and remote versions"
 msgstr ""
 
-#: lxc/network_acl.go:173 lxc/network_acl.go:174
+#: lxc/network_acl.go:191 lxc/network_acl.go:192
 msgid "Show network ACL configurations"
 msgstr ""
 
-#: lxc/network_acl.go:234 lxc/network_acl.go:235
+#: lxc/network_acl.go:252 lxc/network_acl.go:253
 #, fuzzy
 msgid "Show network ACL log"
 msgstr "  Χρήση δικτύου:"
@@ -5753,7 +5758,7 @@ msgstr ""
 msgid "Show the used and free space in bytes"
 msgstr ""
 
-#: lxc/config_trust.go:650 lxc/config_trust.go:651
+#: lxc/config_trust.go:648 lxc/config_trust.go:649
 msgid "Show trust configurations"
 msgstr ""
 
@@ -5801,7 +5806,7 @@ msgstr ""
 msgid "Socket %d:"
 msgstr ""
 
-#: lxc/action.go:418
+#: lxc/action.go:416
 #, c-format
 msgid "Some instances failed to %s"
 msgstr ""
@@ -5915,7 +5920,7 @@ msgstr ""
 msgid "Storage volume moved successfully!"
 msgstr ""
 
-#: lxc/action.go:141
+#: lxc/action.go:142
 msgid "Store the instance state"
 msgstr ""
 
@@ -5968,11 +5973,11 @@ msgstr ""
 msgid "TLS identity %q created with fingerprint %q"
 msgstr ""
 
-#: lxc/cluster.go:1075 lxc/config_trust.go:515
+#: lxc/cluster.go:1075 lxc/config_trust.go:513
 msgid "TOKEN"
 msgstr ""
 
-#: lxc/auth.go:965 lxc/config_trust.go:408 lxc/image.go:1148
+#: lxc/auth.go:965 lxc/config_trust.go:406 lxc/image.go:1148
 #: lxc/image_alias.go:269 lxc/list.go:579 lxc/network.go:1091
 #: lxc/network.go:1173 lxc/network_allocations.go:27 lxc/operation.go:172
 #: lxc/storage_volume.go:1748 lxc/warning.go:216
@@ -6029,7 +6034,7 @@ msgstr ""
 msgid "The device already exists"
 msgstr ""
 
-#: lxc/network_acl.go:987 lxc/network_acl.go:1125
+#: lxc/network_acl.go:1006 lxc/network_acl.go:1145
 msgid "The direction argument must be one of: ingress, egress"
 msgstr ""
 
@@ -6091,7 +6096,7 @@ msgstr "  Χρήση δικτύου:"
 msgid "The property %q does not exist on the network %q: %v"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_acl.go:339
+#: lxc/network_acl.go:357
 #, fuzzy, c-format
 msgid "The property %q does not exist on the network ACL %q: %v"
 msgstr "  Χρήση δικτύου:"
@@ -6101,7 +6106,7 @@ msgstr "  Χρήση δικτύου:"
 msgid "The property %q does not exist on the network forward %q: %v"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_peer.go:418
+#: lxc/network_peer.go:419
 #, fuzzy, c-format
 msgid "The property %q does not exist on the network peer %q: %v"
 msgstr "  Χρήση δικτύου:"
@@ -6210,7 +6215,7 @@ msgstr ""
 msgid "Threads:"
 msgstr ""
 
-#: lxc/action.go:153
+#: lxc/action.go:154
 msgid "Time to wait for the instance to shutdown cleanly"
 msgstr ""
 
@@ -6303,7 +6308,7 @@ msgstr ""
 msgid "Trust token for %s: "
 msgstr ""
 
-#: lxc/action.go:304 lxc/launch.go:124
+#: lxc/action.go:302 lxc/launch.go:124
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -6349,7 +6354,7 @@ msgstr ""
 msgid "USAGE"
 msgstr ""
 
-#: lxc/network.go:1096 lxc/network_acl.go:158 lxc/network_allocations.go:24
+#: lxc/network.go:1096 lxc/network_acl.go:172 lxc/network_allocations.go:24
 #: lxc/network_zone.go:163 lxc/profile.go:751 lxc/project.go:581
 #: lxc/storage.go:724 lxc/storage_volume.go:1752
 msgid "USED BY"
@@ -6399,7 +6404,7 @@ msgstr ""
 msgid "Unknown file type '%s'"
 msgstr ""
 
-#: lxc/network_acl.go:924 lxc/network_acl.go:1059
+#: lxc/network_acl.go:942 lxc/network_acl.go:1078
 #, c-format
 msgid "Unknown key: %s"
 msgstr ""
@@ -6434,7 +6439,7 @@ msgstr ""
 msgid "Unset instance or server configuration keys"
 msgstr ""
 
-#: lxc/network_acl.go:548 lxc/network_acl.go:549
+#: lxc/network_acl.go:566 lxc/network_acl.go:567
 msgid "Unset network ACL configuration keys"
 msgstr ""
 
@@ -6462,12 +6467,12 @@ msgstr "  Χρήση δικτύου:"
 msgid "Unset network load balancer keys"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_peer.go:546
+#: lxc/network_peer.go:547
 #, fuzzy
 msgid "Unset network peer configuration keys"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_peer.go:547
+#: lxc/network_peer.go:548
 #, fuzzy
 msgid "Unset network peer keys"
 msgstr "  Χρήση δικτύου:"
@@ -6507,7 +6512,7 @@ msgstr ""
 msgid "Unset the key as a cluster property"
 msgstr ""
 
-#: lxc/network_acl.go:552
+#: lxc/network_acl.go:570
 msgid "Unset the key as a network ACL property"
 msgstr ""
 
@@ -6521,7 +6526,7 @@ msgstr "  Χρήση δικτύου:"
 msgid "Unset the key as a network load balancer property"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/network_peer.go:550
+#: lxc/network_peer.go:551
 #, fuzzy
 msgid "Unset the key as a network peer property"
 msgstr "  Χρήση δικτύου:"
@@ -6570,7 +6575,7 @@ msgstr ""
 msgid "Unsupported content type for attaching to instances"
 msgstr ""
 
-#: lxc/info.go:724
+#: lxc/info.go:727
 #, c-format
 msgid "Unsupported instance type: %s"
 msgstr ""
@@ -6750,10 +6755,10 @@ msgid ""
 "[<path>]"
 msgstr ""
 
-#: lxc/auth.go:333 lxc/auth.go:913 lxc/auth.go:1044 lxc/auth.go:1897
+#: lxc/auth.go:333 lxc/auth.go:913 lxc/auth.go:1044 lxc/auth.go:1899
 #: lxc/cluster.go:120 lxc/cluster.go:980 lxc/cluster_group.go:437
-#: lxc/config_trust.go:347 lxc/config_trust.go:430 lxc/monitor.go:32
-#: lxc/network.go:1003 lxc/network_acl.go:92 lxc/network_zone.go:84
+#: lxc/config_trust.go:345 lxc/config_trust.go:428 lxc/monitor.go:32
+#: lxc/network.go:1003 lxc/network_acl.go:93 lxc/network_zone.go:84
 #: lxc/operation.go:104 lxc/profile.go:707 lxc/project.go:475
 #: lxc/storage.go:652 lxc/version.go:20 lxc/warning.go:69
 msgid "[<remote>:]"
@@ -6767,7 +6772,7 @@ msgstr ""
 msgid "[<remote>:] <cert.crt> <cert.key>"
 msgstr ""
 
-#: lxc/cluster.go:679 lxc/config_trust.go:578
+#: lxc/cluster.go:679 lxc/config_trust.go:576
 msgid "[<remote>:] <name>"
 msgstr ""
 
@@ -6787,28 +6792,28 @@ msgstr ""
 msgid "[<remote>:] [project=<project_name>] [entity_type=<entity_type>]"
 msgstr ""
 
-#: lxc/network_acl.go:172 lxc/network_acl.go:233 lxc/network_acl.go:590
-#: lxc/network_acl.go:785
+#: lxc/network_acl.go:190 lxc/network_acl.go:251 lxc/network_acl.go:608
+#: lxc/network_acl.go:803
 msgid "[<remote>:]<ACL>"
 msgstr ""
 
-#: lxc/network_acl.go:858 lxc/network_acl.go:995
+#: lxc/network_acl.go:876 lxc/network_acl.go:1014
 msgid "[<remote>:]<ACL> <direction> <key>=<value>..."
 msgstr ""
 
-#: lxc/network_acl.go:289 lxc/network_acl.go:547
+#: lxc/network_acl.go:307 lxc/network_acl.go:565
 msgid "[<remote>:]<ACL> <key>"
 msgstr ""
 
-#: lxc/network_acl.go:459
+#: lxc/network_acl.go:477
 msgid "[<remote>:]<ACL> <key>=<value>..."
 msgstr ""
 
-#: lxc/network_acl.go:728
+#: lxc/network_acl.go:746
 msgid "[<remote>:]<ACL> <new-name>"
 msgstr ""
 
-#: lxc/network_acl.go:362
+#: lxc/network_acl.go:380
 msgid "[<remote>:]<ACL> [key=value...]"
 msgstr ""
 
@@ -6854,16 +6859,16 @@ msgstr ""
 msgid "[<remote>:]<authentication_method>/<name_or_identifier>"
 msgstr ""
 
-#: lxc/auth.go:1311 lxc/auth.go:1369 lxc/auth.go:2134
+#: lxc/auth.go:1311 lxc/auth.go:1369 lxc/auth.go:2136
 msgid "[<remote>:]<authentication_method>/<name_or_identifier> <group>"
 msgstr ""
 
-#: lxc/config_trust.go:234 lxc/config_trust.go:531 lxc/config_trust.go:649
+#: lxc/config_trust.go:232 lxc/config_trust.go:529 lxc/config_trust.go:647
 msgid "[<remote>:]<fingerprint>"
 msgstr ""
 
 #: lxc/auth.go:102 lxc/auth.go:155 lxc/auth.go:205 lxc/auth.go:443
-#: lxc/auth.go:1105 lxc/auth.go:1678 lxc/cluster_group.go:168
+#: lxc/auth.go:1105 lxc/auth.go:1680 lxc/cluster_group.go:168
 #: lxc/cluster_group.go:253 lxc/cluster_group.go:314 lxc/cluster_group.go:661
 msgid "[<remote>:]<group>"
 msgstr ""
@@ -6882,15 +6887,15 @@ msgstr ""
 msgid "[<remote>:]<group> <new_name>"
 msgstr ""
 
-#: lxc/auth.go:1729 lxc/auth.go:1779 lxc/auth.go:2007
+#: lxc/auth.go:1731 lxc/auth.go:1781 lxc/auth.go:2009
 msgid "[<remote>:]<identity_provider_group>"
 msgstr ""
 
-#: lxc/auth.go:2081
+#: lxc/auth.go:2083
 msgid "[<remote>:]<identity_provider_group> <group>"
 msgstr ""
 
-#: lxc/auth.go:1957
+#: lxc/auth.go:1959
 msgid "[<remote>:]<identity_provider_group> <new_name>"
 msgstr ""
 
@@ -7127,7 +7132,7 @@ msgstr ""
 msgid "[<remote>:]<network> <peer name>"
 msgstr ""
 
-#: lxc/network_peer.go:592 lxc/network_peer.go:728
+#: lxc/network_peer.go:593 lxc/network_peer.go:729
 msgid "[<remote>:]<network> <peer_name>"
 msgstr ""
 
@@ -7137,11 +7142,11 @@ msgid ""
 "[key=value...]"
 msgstr ""
 
-#: lxc/network_peer.go:358 lxc/network_peer.go:545
+#: lxc/network_peer.go:359 lxc/network_peer.go:546
 msgid "[<remote>:]<network> <peer_name> <key>"
 msgstr ""
 
-#: lxc/network_peer.go:443
+#: lxc/network_peer.go:444
 msgid "[<remote>:]<network> <peer_name> <key>=<value>..."
 msgstr ""
 
@@ -7408,7 +7413,7 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/action.go:410
+#: lxc/action.go:408
 #, c-format
 msgid "error: %v"
 msgstr ""
@@ -7448,7 +7453,7 @@ msgid ""
 "   Update an identity using the content of identity.yaml"
 msgstr ""
 
-#: lxc/auth.go:1783
+#: lxc/auth.go:1785
 msgid ""
 "lxc auth identity-provider-group edit <identity_provider_group> < identity-"
 "provider-group.yaml\n"
@@ -7655,7 +7660,7 @@ msgid ""
 "    Rename a snapshot."
 msgstr ""
 
-#: lxc/network_acl.go:365
+#: lxc/network_acl.go:383
 msgid ""
 "lxc network acl create a1\n"
 "\n"
