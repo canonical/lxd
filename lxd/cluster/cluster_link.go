@@ -3,15 +3,22 @@ package cluster
 import (
 	"context"
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"net/url"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 
+	lxd "github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // GetClusterLinkCertificate retrieves a valid cluster certificate by contacting all specified addresses in parallel.
@@ -83,6 +90,59 @@ func GetClusterLinkCertificate(ctx context.Context, addresses []string, fingerpr
 	}
 
 	return firstCert, firstAddress, nil
+}
+
+// ConnectClusterLink is a convenience function around [lxd.ConnectLXD] that configures the client with the correct parameters for cluster-to-cluster communication.
+func ConnectClusterLink(ctx context.Context, s *state.State, clusterLink api.ClusterLink) (lxd.InstanceServer, error) {
+	var lastErr error
+
+	clusterCert, err := util.LoadClusterCert(s.OS.VarDir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Randomly shuffle the addresses to avoid always trying the same address first.
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	addresses := clusterLink.Addresses
+	r.Shuffle(len(clusterLink.Addresses), func(i, j int) {
+		addresses[i], addresses[j] = addresses[j], addresses[i]
+	})
+
+	for _, address := range addresses {
+		targetCert, err := shared.GetRemoteCertificate("https://"+address, version.UserAgent)
+		if err != nil {
+			return nil, err
+		}
+
+		targetCertStr := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: targetCert.Raw}))
+
+		// Connect to cluster link.
+		client, err := lxd.ConnectLXD("https://"+address, &lxd.ConnectionArgs{
+			TLSClientCert: string(clusterCert.PublicKey()),
+			TLSClientKey:  string(clusterCert.PrivateKey()),
+			TLSServerCert: targetCertStr,
+			UserAgent:     version.UserAgent,
+		})
+		if err == nil {
+			return client, nil
+		}
+
+		lastErr = fmt.Errorf("failed connecting to %q: %w", address, err)
+
+		// Check if the context has been cancelled.
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("context cancelled while trying addresses: %w", ctx.Err())
+		default:
+			// Continue to the next address.
+		}
+	}
+
+	if lastErr == nil {
+		return nil, errors.New("no addresses provided or all failed without error")
+	}
+
+	return nil, fmt.Errorf("failed to connect to any of the provided addresses: %w", lastErr)
 }
 
 func validateAddress(addr string) (string, error) {
