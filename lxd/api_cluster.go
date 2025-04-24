@@ -1667,7 +1667,7 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseToNode(s, r, name)
+	resp := forwardedResponseToNode(r.Context(), s, name)
 	if resp != nil {
 		return resp
 	}
@@ -1950,7 +1950,7 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Forward request.
-	resp := forwardedResponseToNode(s, r, memberName)
+	resp := forwardedResponseToNode(r.Context(), s, memberName)
 	if resp != nil {
 		return resp
 	}
@@ -3014,7 +3014,7 @@ func clusterNodeStateGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// Forward request.
-	resp := forwardedResponseToNode(s, r, memberName)
+	resp := forwardedResponseToNode(r.Context(), s, memberName)
 	if resp != nil {
 		return resp
 	}
@@ -3063,7 +3063,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// Forward request
-	resp := forwardedResponseToNode(s, r, name)
+	resp := forwardedResponseToNode(r.Context(), s, name)
 	if resp != nil {
 		return resp
 	}

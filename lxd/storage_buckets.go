@@ -369,7 +369,8 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -455,7 +456,8 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -596,7 +598,8 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -690,7 +693,8 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -812,7 +816,8 @@ func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -907,7 +912,8 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -972,7 +978,8 @@ func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
 func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -1045,7 +1052,8 @@ func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -1135,7 +1143,8 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 func storagePoolBucketKeyPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}

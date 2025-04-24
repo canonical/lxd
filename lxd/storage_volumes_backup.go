@@ -182,13 +182,14 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
 	// Handle requests targeted to a volume on a different node
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -302,12 +303,13 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -513,12 +515,13 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -595,12 +598,13 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -705,12 +709,13 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -796,12 +801,13 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
