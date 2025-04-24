@@ -1362,6 +1362,25 @@ func (d *Daemon) init() error {
 		}
 	}
 
+	// Load local config (must come after processing incoming recovery tarball as it can update local config).
+	logger.Info("Loading daemon configuration")
+	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		d.localConfig, err = node.ConfigLoad(ctx, tx)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	localHTTPAddress := d.localConfig.HTTPSAddress()
+	localClusterAddress := d.localConfig.ClusterAddress()
+	debugAddress := d.localConfig.DebugAddress()
+
+	// Sense check for clustering mode.
+	if localClusterAddress == "" && d.serverClustered {
+		return fmt.Errorf("Server is clustered (has local raft addresses) but cluster.https_address is not set")
+	}
+
 	/* Setup dqlite */
 	clusterLogLevel := "ERROR"
 	if shared.ValueInSlice("dqlite", trace) {
@@ -1398,19 +1417,6 @@ func (d *Daemon) init() error {
 			}
 		}
 	}
-
-	logger.Info("Loading daemon configuration")
-	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		d.localConfig, err = node.ConfigLoad(ctx, tx)
-		return err
-	})
-	if err != nil {
-		return err
-	}
-
-	localHTTPAddress := d.localConfig.HTTPSAddress()
-	localClusterAddress := d.localConfig.ClusterAddress()
-	debugAddress := d.localConfig.DebugAddress()
 
 	if os.Getenv("LISTEN_PID") != "" {
 		d.systemdSocketActivated = true
@@ -2041,6 +2047,8 @@ func cancelCancelableOps() error {
 func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	logger.Info("Starting shutdown sequence", logger.Ctx{"signal": sig})
 
+	s := d.State()
+
 	// Cancelling the context will make everyone aware that we're shutting down.
 	d.shutdownCancel()
 
@@ -2053,8 +2061,6 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			d.gateway.Kill()
 		}
 	}
-
-	s := d.State()
 
 	// Stop any running minio processes cleanly before unmount storage pools.
 	miniod.StopAll()
@@ -2087,12 +2093,20 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	if sig == unix.SIGPWR || sig == unix.SIGTERM {
 		// Full shutdown requested.
 		if sig == unix.SIGPWR {
-			logger.Debug("Shutting down instances")
+			{
+				logger.Debug("Shutting down instances")
+				var instOperationWaitCtx context.Context
+				var cancel context.CancelFunc
+				if s.GlobalConfig != nil {
+					instOperationWaitCtx, cancel = context.WithTimeout(ctx, s.GlobalConfig.ShutdownTimeout())
+					defer cancel()
+				} else {
+					instOperationWaitCtx, cancel = context.WithCancel(ctx)
+					cancel() // Don't wait for operations to finish.
+				}
 
-			shutdownCtx, cancel := context.WithTimeout(ctx, s.GlobalConfig.ShutdownTimeout())
-			defer cancel()
-
-			instancesShutdown(shutdownCtx, instances)
+				instancesShutdown(instOperationWaitCtx, instances)
+			}
 
 			if d.db.Cluster != nil {
 				// Try to cancel any cancelable operations.

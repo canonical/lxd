@@ -16,7 +16,7 @@ type cmdGlobal struct {
 func main() {
 	// daemon command (main)
 	daemonCmd := cmdDaemon{}
-	app := daemonCmd.Command()
+	app := daemonCmd.command()
 	app.Use = "lxd-user"
 	app.Short = "LXD user project daemon"
 	app.Long = `Description:

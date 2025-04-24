@@ -520,32 +520,38 @@ func (g *Gateway) Shutdown() error {
 	logger.Info("Stop database gateway")
 
 	var err error
-	if g.server != nil {
-		if g.info.Role == db.RaftVoter {
-			g.Sync()
-		}
-
-		err = g.server.Close()
-		close(g.stopCh)
-
-		// Unset the memory dial, since Shutdown() is also called for
-		// switching between in-memory and network mode.
-		g.lock.Lock()
-		g.memoryDial = nil
-		g.lock.Unlock()
-
-		// Record the raft term and index in the logs on every shutdown. This
-		// allows an administrator to determine the furthest-ahead cluster member
-		// in case recovery is needed.
-		lastEntryInfo, err := dqlite.ReadLastEntryInfo(g.db.Dir())
-		if err != nil {
-			return err
-		}
-
-		// This isn't really a warning, but it's important that this break through
-		// the snap's default log level of 'Warn'.
-		logger.Warn("Dqlite last entry", logger.Ctx{"term": lastEntryInfo.Term, "index": lastEntryInfo.Index})
+	if g.server == nil {
+		return nil
 	}
+
+	if g.info.Role == db.RaftVoter {
+		g.Sync()
+	}
+
+	err = g.server.Close()
+	if err != nil {
+		logger.Error("Failed stopping dqlite", logger.Ctx{"err": err})
+	}
+
+	close(g.stopCh)
+
+	// Unset the memory dial, since Shutdown() is also called for
+	// switching between in-memory and network mode.
+	g.lock.Lock()
+	g.memoryDial = nil
+	g.lock.Unlock()
+
+	// Record the raft term and index in the logs on every shutdown. This
+	// allows an administrator to determine the furthest-ahead cluster member
+	// in case recovery is needed.
+	lastEntryInfo, err := dqlite.ReadLastEntryInfo(g.db.Dir())
+	if err != nil {
+		return err
+	}
+
+	// This isn't really a warning, but it's important that this break through
+	// the snap's default log level of 'Warn'.
+	logger.Warn("Dqlite last entry", logger.Ctx{"term": lastEntryInfo.Term, "index": lastEntryInfo.Index})
 
 	return err
 }
