@@ -67,9 +67,9 @@ func instanceLoadCache() error {
 	return nil
 }
 
-func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
+func instanceRefreshTypesTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
 
 		opRun := func(op *operations.Operation) error {
 			return instanceRefreshTypes(ctx, s)
