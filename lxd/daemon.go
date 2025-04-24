@@ -2087,12 +2087,20 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	if sig == unix.SIGPWR || sig == unix.SIGTERM {
 		// Full shutdown requested.
 		if sig == unix.SIGPWR {
-			logger.Debug("Shutting down instances")
+			{
+				logger.Debug("Shutting down instances")
+				var instOperationWaitCtx context.Context
+				var cancel context.CancelFunc
+				if s.GlobalConfig != nil {
+					instOperationWaitCtx, cancel = context.WithTimeout(ctx, s.GlobalConfig.ShutdownTimeout())
+					defer cancel()
+				} else {
+					instOperationWaitCtx, cancel = context.WithCancel(ctx)
+					cancel() // Don't wait for operations to finish.
+				}
 
-			shutdownCtx, cancel := context.WithTimeout(ctx, s.GlobalConfig.ShutdownTimeout())
-			defer cancel()
-
-			instancesShutdown(shutdownCtx, instances)
+				instancesShutdown(instOperationWaitCtx, instances)
+			}
 
 			if d.db.Cluster != nil {
 				// Try to cancel any cancelable operations.
