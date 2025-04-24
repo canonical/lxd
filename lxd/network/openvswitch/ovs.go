@@ -245,7 +245,7 @@ func (o *OVS) OVNBridgeMappings(bridgeName string) ([]string, error) {
 		return nil, fmt.Errorf("Failed unquoting: %w", err)
 	}
 
-	return strings.SplitN(mappings, ",", -1), nil
+	return strings.Split(mappings, ","), nil
 }
 
 // OVNBridgeMappingAdd appends an OVN bridge mapping between an OVS bridge and the logical provider name.
