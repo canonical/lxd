@@ -235,7 +235,7 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			if !recursion {
-				resultString = append(resultString, fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, aclName))
+				resultString = append(resultString, api.NewURL().Path(version.APIVersion, "network-acls", aclName).String())
 			} else {
 				var netACL acl.NetworkACL
 				if !allProjects {
