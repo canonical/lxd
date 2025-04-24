@@ -3,6 +3,8 @@ package cluster
 import (
 	"context"
 	"crypto/x509"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/url"
 	"sync"
@@ -10,8 +12,14 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/db"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // CheckClusterLinkCertificate checks the cluster certificate at each address and ensures every reachable address matches the provided fingerprint.
@@ -90,4 +98,33 @@ func CheckClusterLinkCertificate(ctx context.Context, addresses []string, finger
 	}
 
 	return nil, "", fmt.Errorf("Failed retrieving cluster certificate from any address: %w", errors.Join(errs...))
+}
+
+// GetClusterLinkConnectionArgs builds connection args for cluster-to-cluster communication.
+func GetClusterLinkConnectionArgs(clusterCert *shared.CertInfo, targetCert *x509.Certificate) *lxd.ConnectionArgs {
+	targetCertStr := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: targetCert.Raw}))
+
+	return &lxd.ConnectionArgs{
+		TLSClientCert: string(clusterCert.PublicKey()),
+		TLSClientKey:  string(clusterCert.PrivateKey()),
+		TLSServerCert: targetCertStr,
+		UserAgent:     version.UserAgent,
+	}
+}
+
+// ConnectCluster connects to a linked cluster using the provided connection args, trying each address until one succeeds.
+func ConnectCluster(ctx context.Context, clusterLink api.ClusterLink, args *lxd.ConnectionArgs) (lxd.InstanceServer, error) {
+	addresses := shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, false)
+	var errs []error
+	for _, address := range addresses {
+		client, err := lxd.ConnectLXD("https://"+address, args)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("Failed connecting to %q: %w", address, err))
+			continue
+		}
+
+		return client, nil
+	}
+
+	return nil, fmt.Errorf("Failed connecting to any address of cluster link %q: %w", clusterLink.Name, errors.Join(errs...))
 }
