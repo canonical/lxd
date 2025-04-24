@@ -8,7 +8,46 @@ runs:
       shell: bash
       run: |
         set -eux
-        sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
+        # XXX: emulate `add-apt-repository ppa:ubuntu-lxc/daily -y --no-update`
+        #      but avoid relying on GPG key servers by hardcoding the expected key (never rotated)
+        . /etc/os-release
+        sudo tee "/etc/apt/sources.list.d/ubuntu-lxc-ubuntu-daily-${VERSION_CODENAME}.sources" << EOF
+        Types: deb
+        URIs: https://ppa.launchpadcontent.net/ubuntu-lxc/daily/ubuntu/
+        Suites: ${VERSION_CODENAME}
+        Components: main
+        Signed-By:
+         -----BEGIN PGP PUBLIC KEY BLOCK-----
+         .
+         mQINBGY0WDEBEAChc6Xsbrq6oDRUsbpwUcwXDTpMC/KNsLTlYt86aQg8NkiAlX1k
+         qDrgNcxt1iVw+2RnyzJpv4ADx18+maKMh1TlowrEn1mDClFANsDFGGamd5fhmE+n
+         i+Gs4u4l9vOjV8DQxx+vIVCQT3rOfZOKKsdxXb2P8nOiym/ebw4lqoR0xZ7RJBqh
+         1GGm+TzfdkNPs9BhO8p1nao9EQlg2tWzOYlnkpAoVGJKwq3Zw4GUG0k/IQwqQekB
+         a21/uYTpff6b+XsiXa5cV3nQFXqP68iB5ncG/y2I5Ed6OjuYSNYwxfXRwg2uOHTz
+         ueX2ocnmKF9CuCAVrkfZ3I+cHAyzj/WEveE/7Ong4s6OqPS0quc4QXgtAZy/x0on
+         PaPdtP8MrytkoxLa5flD45+asMTi+pIycla+R43ejMrVFJA4B3xq2fK1oZoZ724x
+         lre+VJ3jLoOmL9bfsQG15hRkJ6WO8un4wwdbjhjjz4L9Y+Q+mx6y4XSXXCx665VR
+         BV00qGniF6IYqc8dWbrGy3FkxzzKzjoAA56qO7Uqg3KJ1o+kN/mAIB82RBcn/2Ct
+         n6+gLfI+hAkiZsfjCAQqCeaPCuurFe/RURdK1C+ywbAgkm8HrEcJgzTdBabz/dcq
+         BQPf5ZPaZVLujbaZbyMc9HKr/HJM9mi+AbgMIarMJ0jALfHUCti0bXG45QARAQAB
+         tCFMYXVuY2hwYWQgUFBBIGZvciBVYnVudHUgTFhDIHRlYW2JAk4EEwEKADgWIQTp
+         wAwbG1mobCz+5pkM4nuMQSK0twUCZjRYMQIbAwULCQgHAgYVCgkICwIEFgIDAQIe
+         AQIXgAAKCRAM4nuMQSK0t8W8D/44x+G0l7ZmziP+A+i6L3EKmgFjo/8y8wU5a8WH
+         3f6XP5B4rIsF87e1dGPRulFkpb/4KR2Kiyr2+JQ+U8yHSI/RSL6Y8hJhrmPIfj1c
+         h2dNctOCZTviZb347lS/j1TkWjX5USWbUs2DQW0gfree85jeN8rA2ERzaZcuPjGg
+         MeCOKyFEPNsbs+FTKk1nDghRw+QxY3QeK+X4u02+CPz7Qt6ogamMa8hRwOCqphvP
+         Ndz/OuZRAmbIjWXWcHaXpR7d6mHLqGq6sQIaHKM3DiWTu9YiqLFC7lq75Rt4DRs7
+         1L0sc/f4rIQVG1Kh3HtF+Q2sOlE/lXo33CKW+e9JWawk1xz7tRrUUHqtqbse8VvZ
+         BvOwHMONzHDt1/vv0jmEdCTbGOK4cFxY8v2O+INs6VmzAH4V1NCfaSTbC93/F/p7
+         WYMxmq1938Hiw6dxLgCedflv1KQ9Zs+lPxS4E6nfgyzRPmRLwipEp6K1pChqIKQR
+         gEzOMfxAHOxWGWZjf7YDmd2MTqlVeA2yWrdo6tRueS0K+l1DJ7IINhQMwWU33m+2
+         W0rIKbllwX9fGBum/dg4pR0sZecciVYFo2hzVlzK3+T/TfVwaUKw4fCu2Nz9cbFn
+         fybhIDhrUboUhVjBDu+/Ag8DPqewiLFd7LofIkZKeWIBYufH2IVDUg6BFr0FnTL3
+         VrzxwA==
+         =mW6u
+         -----END PGP PUBLIC KEY BLOCK-----
+        EOF
+
         sudo apt-get update
 
         # mask services from lxc-utils (`lxc-*` tools are used in test/suites/lxc-to-lxd.sh)
