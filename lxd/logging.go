@@ -19,8 +19,10 @@ import (
 
 // This task function expires logs when executed. It's started by the Daemon
 // and will run once every 24h.
-func expireLogsTask(state *state.State) (task.Func, task.Schedule) {
+func expireLogsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
+		state := d.State()
+
 		opRun := func(op *operations.Operation) error {
 			return expireLogs(ctx, state)
 		}

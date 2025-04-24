@@ -1932,7 +1932,7 @@ func (d *Daemon) init() error {
 	//        but has not been fully completed.
 	if !d.os.MockMode {
 		// Log expiry (daily)
-		d.tasks.Add(expireLogsTask(d.State()))
+		d.tasks.Add(expireLogsTask(d))
 
 		// Remove expired images (daily)
 		d.taskPruneImages = d.tasks.Add(pruneExpiredImagesTask(d))
