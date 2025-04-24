@@ -162,7 +162,10 @@ func (c *Config) RootVolume() (*Volume, error) {
 			continue
 		}
 
-		if volume.Name == c.Instance.Name {
+		// An instance's root volume uses the same name as its parent instance.
+		// In the list of volumes there might be a custom storage volume with an identical name.
+		// Only return the volume if its type is either virtual-machine or container.
+		if volume.Name == c.Instance.Name && Type(volume.Type) != TypeCustom {
 			return volume, nil
 		}
 	}
