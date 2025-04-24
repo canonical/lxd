@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-04-22 08:28-0600\n"
+"POT-Creation-Date: 2025-04-23 10:42-0600\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -135,7 +135,7 @@ msgid ""
 "###"
 msgstr ""
 
-#: lxc/config_trust.go:245
+#: lxc/config_trust.go:243
 msgid ""
 "### This is a YAML representation of the certificate.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -245,7 +245,7 @@ msgid ""
 "### - operations\n"
 msgstr ""
 
-#: lxc/auth.go:1793
+#: lxc/auth.go:1795
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the identity provider group.\n"
@@ -325,7 +325,7 @@ msgstr ""
 "###     template: template.tpl\n"
 "###     properties: {}"
 
-#: lxc/network_acl.go:608
+#: lxc/network_acl.go:626
 msgid ""
 "### This is a YAML representation of the network ACL.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -463,7 +463,7 @@ msgstr ""
 "###\n"
 "### Notez que seule la configuration peut être modifiée."
 
-#: lxc/network_peer.go:613
+#: lxc/network_peer.go:614
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the network peer.\n"
@@ -705,16 +705,16 @@ msgstr "- Partition %d"
 msgid "- Port %d (%s)"
 msgstr "- Port %d (%s)"
 
-#: lxc/action.go:236
+#: lxc/action.go:234
 msgid "--console can't be used while forcing instance shutdown"
 msgstr ""
 "--console ne peut être pas utilisée tant que l'arrêt de l'instance est forcé"
 
-#: lxc/action.go:385
+#: lxc/action.go:383
 msgid "--console can't be used with --all"
 msgstr "--console ne peut être utilisé avec --all"
 
-#: lxc/action.go:389
+#: lxc/action.go:387
 msgid "--console only works with a single instance"
 msgstr "--console fonctionne seulement avec une instance seule"
 
@@ -868,7 +868,7 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 msgid "Add a group to an identity"
 msgstr ""
 
-#: lxc/auth.go:2082 lxc/auth.go:2083
+#: lxc/auth.go:2084 lxc/auth.go:2085
 msgid "Add a group to an identity provider group"
 msgstr ""
 
@@ -975,7 +975,7 @@ msgstr "Création du conteneur"
 msgid "Add roles to a cluster member"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/network_acl.go:859 lxc/network_acl.go:860
+#: lxc/network_acl.go:877 lxc/network_acl.go:878
 #, fuzzy
 msgid "Add rules to an ACL"
 msgstr "Création du conteneur"
@@ -1175,7 +1175,7 @@ msgstr ""
 msgid "Bad device override syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 
-#: lxc/network.go:366 lxc/network_acl.go:431 lxc/network_forward.go:326
+#: lxc/network.go:366 lxc/network_acl.go:449 lxc/network_forward.go:326
 #: lxc/network_load_balancer.go:321 lxc/network_peer.go:309
 #: lxc/network_zone.go:384 lxc/network_zone.go:1071 lxc/storage_bucket.go:142
 #, c-format
@@ -1201,7 +1201,7 @@ msgstr "Mauvaise propriété : %s"
 msgid "Bond:"
 msgstr ""
 
-#: lxc/action.go:164 lxc/action.go:341
+#: lxc/action.go:165 lxc/action.go:339
 msgid "Both --all and instance name given"
 msgstr ""
 
@@ -1226,7 +1226,7 @@ msgstr "Octets émis"
 msgid "CANCELABLE"
 msgstr ""
 
-#: lxc/config_trust.go:410
+#: lxc/config_trust.go:408
 msgid "COMMON NAME"
 msgstr "COMMON NAME"
 
@@ -1347,12 +1347,12 @@ msgstr ""
 msgid "Cannot set --target when source server is not clustered"
 msgstr ""
 
-#: lxc/network_acl.go:929
+#: lxc/network_acl.go:947
 #, c-format
 msgid "Cannot set key: %s"
 msgstr ""
 
-#: lxc/config_trust.go:190
+#: lxc/config_trust.go:188
 msgid "Cannot use metrics type certificate when using a token"
 msgstr ""
 
@@ -1366,7 +1366,7 @@ msgstr ""
 msgid "Card: %s (%s)"
 msgstr "Créé : %s"
 
-#: lxc/config_trust.go:630
+#: lxc/config_trust.go:628
 #, fuzzy, c-format
 msgid "Certificate add token for %s deleted"
 msgstr "Le réseau %s a été supprimé"
@@ -1386,7 +1386,7 @@ msgstr ""
 msgid "Chassis"
 msgstr ""
 
-#: lxc/config_trust.go:214
+#: lxc/config_trust.go:212
 #, fuzzy, c-format
 msgid "Client %s certificate add token:"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -1538,9 +1538,9 @@ msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
 #: lxc/cluster.go:864 lxc/cluster_group.go:397 lxc/config.go:281
 #: lxc/config.go:356 lxc/config.go:1342 lxc/config_metadata.go:156
-#: lxc/config_trust.go:314 lxc/image.go:492 lxc/network.go:759
-#: lxc/network_acl.go:698 lxc/network_forward.go:775
-#: lxc/network_load_balancer.go:738 lxc/network_peer.go:698
+#: lxc/config_trust.go:312 lxc/image.go:492 lxc/network.go:759
+#: lxc/network_acl.go:716 lxc/network_forward.go:775
+#: lxc/network_load_balancer.go:738 lxc/network_peer.go:699
 #: lxc/network_zone.go:639 lxc/network_zone.go:1334 lxc/profile.go:600
 #: lxc/project.go:370 lxc/storage.go:359 lxc/storage_bucket.go:349
 #: lxc/storage_bucket.go:1145 lxc/storage_volume.go:1165
@@ -1681,7 +1681,7 @@ msgstr "Impossible d'assainir le chemin %s"
 msgid "Could not find certificate key file path: %s"
 msgstr "Impossible d'assainir le chemin %s"
 
-#: lxc/auth.go:304 lxc/auth.go:1868
+#: lxc/auth.go:304 lxc/auth.go:1870
 #, fuzzy, c-format
 msgid "Could not parse group: %s"
 msgstr "Erreur lors de la lecture de la configuration : %s"
@@ -1762,7 +1762,7 @@ msgstr "Créer tous répertoires nécessaires"
 msgid "Create groups"
 msgstr "Créé : %s"
 
-#: lxc/auth.go:1679 lxc/auth.go:1680
+#: lxc/auth.go:1681 lxc/auth.go:1682
 #, fuzzy
 msgid "Create identity provider groups"
 msgstr "Copie de l'image : %s"
@@ -1821,7 +1821,7 @@ msgstr "Copie de l'image : %s"
 msgid "Create new instance file templates"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/network_acl.go:363 lxc/network_acl.go:364
+#: lxc/network_acl.go:381 lxc/network_acl.go:382
 msgid "Create new network ACLs"
 msgstr ""
 
@@ -1905,7 +1905,7 @@ msgstr ""
 
 #: lxc/auth.go:380 lxc/cluster.go:197 lxc/cluster_group.go:504
 #: lxc/image.go:1140 lxc/image_alias.go:270 lxc/list.go:565 lxc/network.go:1095
-#: lxc/network_acl.go:157 lxc/network_forward.go:157
+#: lxc/network_acl.go:171 lxc/network_forward.go:157
 #: lxc/network_load_balancer.go:160 lxc/network_peer.go:149
 #: lxc/network_zone.go:162 lxc/network_zone.go:846 lxc/operation.go:173
 #: lxc/profile.go:750 lxc/project.go:580 lxc/storage.go:723
@@ -1963,7 +1963,7 @@ msgstr "Création du conteneur"
 msgid "Delete groups"
 msgstr "Récupération de l'image : %s"
 
-#: lxc/auth.go:1731 lxc/auth.go:1732
+#: lxc/auth.go:1733 lxc/auth.go:1734
 msgid "Delete identity provider groups"
 msgstr ""
 
@@ -1991,7 +1991,7 @@ msgstr "Forcer le conteneur à s'arrêter"
 msgid "Delete key from a storage bucket"
 msgstr "Copie de l'image : %s"
 
-#: lxc/network_acl.go:787 lxc/network_acl.go:788
+#: lxc/network_acl.go:805 lxc/network_acl.go:806
 msgid "Delete network ACLs"
 msgstr ""
 
@@ -2004,7 +2004,7 @@ msgstr ""
 msgid "Delete network load balancers"
 msgstr "Récupération de l'image : %s"
 
-#: lxc/network_peer.go:730 lxc/network_peer.go:731
+#: lxc/network_peer.go:731 lxc/network_peer.go:732
 #, fuzzy
 msgid "Delete network peerings"
 msgstr "Récupération de l'image : %s"
@@ -2059,9 +2059,9 @@ msgstr "Récupération de l'image : %s"
 #: lxc/auth.go:735 lxc/auth.go:774 lxc/auth.go:916 lxc/auth.go:983
 #: lxc/auth.go:1046 lxc/auth.go:1107 lxc/auth.go:1236 lxc/auth.go:1290
 #: lxc/auth.go:1313 lxc/auth.go:1371 lxc/auth.go:1440 lxc/auth.go:1462
-#: lxc/auth.go:1642 lxc/auth.go:1680 lxc/auth.go:1732 lxc/auth.go:1781
-#: lxc/auth.go:1900 lxc/auth.go:1960 lxc/auth.go:2009 lxc/auth.go:2060
-#: lxc/auth.go:2083 lxc/auth.go:2136 lxc/cluster.go:30 lxc/cluster.go:123
+#: lxc/auth.go:1644 lxc/auth.go:1682 lxc/auth.go:1734 lxc/auth.go:1783
+#: lxc/auth.go:1902 lxc/auth.go:1962 lxc/auth.go:2011 lxc/auth.go:2062
+#: lxc/auth.go:2085 lxc/auth.go:2138 lxc/cluster.go:30 lxc/cluster.go:123
 #: lxc/cluster.go:215 lxc/cluster.go:272 lxc/cluster.go:331 lxc/cluster.go:404
 #: lxc/cluster.go:488 lxc/cluster.go:532 lxc/cluster.go:590 lxc/cluster.go:681
 #: lxc/cluster.go:775 lxc/cluster.go:898 lxc/cluster.go:982 lxc/cluster.go:1092
@@ -2081,9 +2081,9 @@ msgstr "Récupération de l'image : %s"
 #: lxc/config_template.go:28 lxc/config_template.go:68
 #: lxc/config_template.go:119 lxc/config_template.go:173
 #: lxc/config_template.go:273 lxc/config_template.go:341 lxc/config_trust.go:34
-#: lxc/config_trust.go:87 lxc/config_trust.go:236 lxc/config_trust.go:350
-#: lxc/config_trust.go:432 lxc/config_trust.go:534 lxc/config_trust.go:580
-#: lxc/config_trust.go:651 lxc/console.go:40 lxc/copy.go:42 lxc/delete.go:32
+#: lxc/config_trust.go:87 lxc/config_trust.go:234 lxc/config_trust.go:348
+#: lxc/config_trust.go:430 lxc/config_trust.go:532 lxc/config_trust.go:578
+#: lxc/config_trust.go:649 lxc/console.go:40 lxc/copy.go:42 lxc/delete.go:32
 #: lxc/exec.go:41 lxc/export.go:33 lxc/file.go:88 lxc/file.go:135
 #: lxc/file.go:323 lxc/file.go:384 lxc/file.go:470 lxc/file.go:703
 #: lxc/file.go:1230 lxc/image.go:39 lxc/image.go:160 lxc/image.go:338
@@ -2098,11 +2098,11 @@ msgstr "Récupération de l'image : %s"
 #: lxc/network.go:560 lxc/network.go:657 lxc/network.go:793 lxc/network.go:874
 #: lxc/network.go:1006 lxc/network.go:1115 lxc/network.go:1194
 #: lxc/network.go:1254 lxc/network.go:1350 lxc/network.go:1422
-#: lxc/network_acl.go:30 lxc/network_acl.go:95 lxc/network_acl.go:174
-#: lxc/network_acl.go:235 lxc/network_acl.go:291 lxc/network_acl.go:364
-#: lxc/network_acl.go:461 lxc/network_acl.go:549 lxc/network_acl.go:592
-#: lxc/network_acl.go:731 lxc/network_acl.go:788 lxc/network_acl.go:845
-#: lxc/network_acl.go:860 lxc/network_acl.go:997 lxc/network_allocations.go:53
+#: lxc/network_acl.go:30 lxc/network_acl.go:96 lxc/network_acl.go:192
+#: lxc/network_acl.go:253 lxc/network_acl.go:309 lxc/network_acl.go:382
+#: lxc/network_acl.go:479 lxc/network_acl.go:567 lxc/network_acl.go:610
+#: lxc/network_acl.go:749 lxc/network_acl.go:806 lxc/network_acl.go:863
+#: lxc/network_acl.go:878 lxc/network_acl.go:1016 lxc/network_allocations.go:53
 #: lxc/network_forward.go:33 lxc/network_forward.go:90
 #: lxc/network_forward.go:179 lxc/network_forward.go:256
 #: lxc/network_forward.go:412 lxc/network_forward.go:497
@@ -2118,8 +2118,8 @@ msgstr "Récupération de l'image : %s"
 #: lxc/network_load_balancer.go:1033 lxc/network_load_balancer.go:1048
 #: lxc/network_load_balancer.go:1121 lxc/network_peer.go:29
 #: lxc/network_peer.go:82 lxc/network_peer.go:167 lxc/network_peer.go:236
-#: lxc/network_peer.go:360 lxc/network_peer.go:445 lxc/network_peer.go:547
-#: lxc/network_peer.go:594 lxc/network_peer.go:731 lxc/network_zone.go:29
+#: lxc/network_peer.go:361 lxc/network_peer.go:446 lxc/network_peer.go:548
+#: lxc/network_peer.go:595 lxc/network_peer.go:732 lxc/network_zone.go:29
 #: lxc/network_zone.go:87 lxc/network_zone.go:183 lxc/network_zone.go:246
 #: lxc/network_zone.go:319 lxc/network_zone.go:414 lxc/network_zone.go:502
 #: lxc/network_zone.go:545 lxc/network_zone.go:672 lxc/network_zone.go:728
@@ -2297,6 +2297,11 @@ msgstr "Forcer le conteneur à s'arrêter"
 msgid "Display instances from all projects"
 msgstr "Forcer le conteneur à s'arrêter"
 
+#: lxc/network_acl.go:100
+#, fuzzy
+msgid "Display network ACLs from all projects"
+msgstr "Forcer le conteneur à s'arrêter"
+
 #: lxc/network_zone.go:91
 #, fuzzy
 msgid "Display network zones from all projects"
@@ -2338,12 +2343,12 @@ msgstr ""
 msgid "EPHEMERAL"
 msgstr "ÉPHÉMÈRE"
 
-#: lxc/cluster.go:1076 lxc/config_trust.go:516
+#: lxc/cluster.go:1076 lxc/config_trust.go:514
 #, fuzzy
 msgid "EXPIRES AT"
 msgstr "DATE D'EXPIRATION"
 
-#: lxc/config_trust.go:413
+#: lxc/config_trust.go:411
 msgid "EXPIRY DATE"
 msgstr "DATE D'EXPIRATION"
 
@@ -2376,7 +2381,7 @@ msgstr "Création du conteneur"
 msgid "Edit groups as YAML"
 msgstr "Clé de configuration invalide"
 
-#: lxc/auth.go:1780 lxc/auth.go:1781
+#: lxc/auth.go:1782 lxc/auth.go:1783
 #, fuzzy
 msgid "Edit identity provider groups as YAML"
 msgstr "Clé de configuration invalide"
@@ -2405,7 +2410,7 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Edit instance or server configurations as YAML"
 msgstr "Clé de configuration invalide"
 
-#: lxc/network_acl.go:591 lxc/network_acl.go:592
+#: lxc/network_acl.go:609 lxc/network_acl.go:610
 #, fuzzy
 msgid "Edit network ACL configurations as YAML"
 msgstr "Clé de configuration invalide"
@@ -2424,7 +2429,7 @@ msgstr "Clé de configuration invalide"
 msgid "Edit network load balancer configurations as YAML"
 msgstr "Clé de configuration invalide"
 
-#: lxc/network_peer.go:593 lxc/network_peer.go:594
+#: lxc/network_peer.go:594 lxc/network_peer.go:595
 #, fuzzy
 msgid "Edit network peer configurations as YAML"
 msgstr "Clé de configuration invalide"
@@ -2465,7 +2470,7 @@ msgstr ""
 msgid "Edit storage volume configurations as YAML"
 msgstr ""
 
-#: lxc/config_trust.go:235 lxc/config_trust.go:236
+#: lxc/config_trust.go:233 lxc/config_trust.go:234
 #, fuzzy
 msgid "Edit trust configurations as YAML"
 msgstr "Clé de configuration invalide"
@@ -2525,8 +2530,8 @@ msgid "Error retrieving aliases: %w"
 msgstr "Récupération de l'image : %s"
 
 #: lxc/cluster.go:463 lxc/config.go:663 lxc/config.go:695 lxc/network.go:1328
-#: lxc/network_acl.go:524 lxc/network_forward.go:580
-#: lxc/network_load_balancer.go:559 lxc/network_peer.go:522
+#: lxc/network_acl.go:542 lxc/network_forward.go:580
+#: lxc/network_load_balancer.go:559 lxc/network_peer.go:523
 #: lxc/network_zone.go:477 lxc/network_zone.go:1165 lxc/profile.go:1082
 #: lxc/project.go:726 lxc/storage.go:812 lxc/storage_bucket.go:622
 #: lxc/storage_volume.go:2179 lxc/storage_volume.go:2217
@@ -2539,9 +2544,9 @@ msgstr "Récupération de l'image : %s"
 msgid "Error unsetting properties: %v"
 msgstr "Récupération de l'image : %s"
 
-#: lxc/cluster.go:457 lxc/network.go:1322 lxc/network_acl.go:518
+#: lxc/cluster.go:457 lxc/network.go:1322 lxc/network_acl.go:536
 #: lxc/network_forward.go:574 lxc/network_load_balancer.go:553
-#: lxc/network_peer.go:516 lxc/network_zone.go:471 lxc/network_zone.go:1159
+#: lxc/network_peer.go:517 lxc/network_zone.go:471 lxc/network_zone.go:1159
 #: lxc/profile.go:1076 lxc/project.go:720 lxc/storage.go:806
 #: lxc/storage_bucket.go:616 lxc/storage_volume.go:2173
 #: lxc/storage_volume.go:2211
@@ -2669,7 +2674,7 @@ msgstr ""
 msgid "FILENAME"
 msgstr "NOM"
 
-#: lxc/config_trust.go:411 lxc/image.go:1142 lxc/image.go:1143
+#: lxc/config_trust.go:409 lxc/image.go:1142 lxc/image.go:1143
 #: lxc/image_alias.go:268
 msgid "FINGERPRINT"
 msgstr "EMPREINTE"
@@ -2708,7 +2713,7 @@ msgstr ""
 msgid "Failed connecting to instance SFTP: %w"
 msgstr "Profil à appliquer au nouveau conteneur"
 
-#: lxc/config_trust.go:210
+#: lxc/config_trust.go:208
 #, c-format
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
@@ -2838,7 +2843,7 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr "Mode rapide (identique à --columns=nsacPt"
 
-#: lxc/network.go:1046 lxc/network_acl.go:133 lxc/network_zone.go:126
+#: lxc/network.go:1046 lxc/network_acl.go:135 lxc/network_zone.go:126
 #: lxc/operation.go:137
 msgid "Filtering isn't supported yet"
 msgstr ""
@@ -2874,7 +2879,7 @@ msgstr ""
 msgid "Force restoration without user confirmation"
 msgstr "Requérir une confirmation de l'utilisateur"
 
-#: lxc/action.go:152
+#: lxc/action.go:153
 #, fuzzy
 msgid "Force the instance to stop"
 msgstr "Forcer le conteneur à s'arrêter"
@@ -2912,11 +2917,11 @@ msgid ""
 "Are you really sure you want to force removing %s? (yes/no): "
 msgstr ""
 
-#: lxc/alias.go:112 lxc/auth.go:340 lxc/auth.go:920 lxc/auth.go:1904
+#: lxc/alias.go:112 lxc/auth.go:340 lxc/auth.go:920 lxc/auth.go:1906
 #: lxc/cluster.go:125 lxc/cluster.go:983 lxc/cluster_group.go:442
-#: lxc/config_template.go:275 lxc/config_trust.go:352 lxc/config_trust.go:434
+#: lxc/config_template.go:275 lxc/config_trust.go:350 lxc/config_trust.go:432
 #: lxc/image.go:1119 lxc/image_alias.go:182 lxc/list.go:133 lxc/network.go:1010
-#: lxc/network.go:1117 lxc/network_acl.go:98 lxc/network_allocations.go:59
+#: lxc/network.go:1117 lxc/network_acl.go:99 lxc/network_allocations.go:59
 #: lxc/network_forward.go:93 lxc/network_load_balancer.go:97
 #: lxc/network_peer.go:85 lxc/network_zone.go:90 lxc/network_zone.go:788
 #: lxc/operation.go:109 lxc/profile.go:727 lxc/project.go:480
@@ -2970,7 +2975,7 @@ msgstr ""
 msgid "GPUs:"
 msgstr ""
 
-#: lxc/auth.go:968 lxc/auth.go:1944
+#: lxc/auth.go:968 lxc/auth.go:1946
 msgid "GROUPS"
 msgstr ""
 
@@ -3003,7 +3008,7 @@ msgstr ""
 msgid "Get the key as a cluster property"
 msgstr ""
 
-#: lxc/network_acl.go:293
+#: lxc/network_acl.go:311
 msgid "Get the key as a network ACL property"
 msgstr ""
 
@@ -3017,7 +3022,7 @@ msgstr "Copie de l'image : %s"
 msgid "Get the key as a network load balancer property"
 msgstr "Copie de l'image : %s"
 
-#: lxc/network_peer.go:363
+#: lxc/network_peer.go:364
 #, fuzzy
 msgid "Get the key as a network peer property"
 msgstr "Nom du réseau"
@@ -3078,7 +3083,7 @@ msgstr "Clé de configuration invalide"
 msgid "Get values for instance or server configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/network_acl.go:290 lxc/network_acl.go:291
+#: lxc/network_acl.go:308 lxc/network_acl.go:309
 #, fuzzy
 msgid "Get values for network ACL configuration keys"
 msgstr "Clé de configuration invalide"
@@ -3098,7 +3103,7 @@ msgstr "Clé de configuration invalide"
 msgid "Get values for network load balancer configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/network_peer.go:359 lxc/network_peer.go:360
+#: lxc/network_peer.go:360 lxc/network_peer.go:361
 #, fuzzy
 msgid "Get values for network peer configuration keys"
 msgstr "Clé de configuration invalide"
@@ -3151,7 +3156,7 @@ msgstr "Profil %s créé"
 msgid "Group %s deleted"
 msgstr "Profil %s supprimé"
 
-#: lxc/auth.go:430 lxc/auth.go:1994
+#: lxc/auth.go:430 lxc/auth.go:1996
 #, fuzzy, c-format
 msgid "Group %s renamed to %s"
 msgstr "Profil %s ajouté à %s"
@@ -3243,7 +3248,7 @@ msgstr "IPv4"
 msgid "IPV6"
 msgstr "IPv6"
 
-#: lxc/config_trust.go:412
+#: lxc/config_trust.go:410
 msgid "ISSUE DATE"
 msgstr "DATE D'ÉMISSION"
 
@@ -3251,12 +3256,12 @@ msgstr "DATE D'ÉMISSION"
 msgid "Identity creation only supported for TLS identities"
 msgstr ""
 
-#: lxc/auth.go:1716
+#: lxc/auth.go:1718
 #, fuzzy, c-format
 msgid "Identity provider group %s created"
 msgstr "Profil %s créé"
 
-#: lxc/auth.go:1766
+#: lxc/auth.go:1768
 #, fuzzy, c-format
 msgid "Identity provider group %s deleted"
 msgstr "Profil %s créé"
@@ -3294,7 +3299,7 @@ msgstr ""
 msgid "Ignore copy errors for volatile files"
 msgstr ""
 
-#: lxc/action.go:143
+#: lxc/action.go:144
 #, fuzzy
 msgid "Ignore the instance state"
 msgstr "Ignorer l'état du conteneur (seulement pour start)"
@@ -3335,7 +3340,7 @@ msgstr "Image importée avec l'empreinte : %s"
 msgid "Image refreshed successfully!"
 msgstr "Image copiée avec succès !"
 
-#: lxc/action.go:147 lxc/launch.go:45
+#: lxc/action.go:148 lxc/launch.go:45
 #, fuzzy
 msgid "Immediately attach to the console"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
@@ -3457,7 +3462,7 @@ msgstr "Schème d'URL invalide \"%s\" in \"%s\""
 msgid "Invalid argument %q"
 msgstr "Cible invalide %s"
 
-#: lxc/config_trust.go:391
+#: lxc/config_trust.go:389
 msgid "Invalid certificate"
 msgstr "Certificat invalide"
 
@@ -3655,7 +3660,7 @@ msgstr ""
 msgid "List aliases"
 msgstr "Alias :"
 
-#: lxc/config_trust.go:431 lxc/config_trust.go:432
+#: lxc/config_trust.go:429 lxc/config_trust.go:430
 #, fuzzy
 msgid "List all active certificate add tokens"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -3679,11 +3684,11 @@ msgstr ""
 msgid "List all warnings"
 msgstr "Alias :"
 
-#: lxc/network_acl.go:95
+#: lxc/network_acl.go:96
 msgid "List available network ACL"
 msgstr ""
 
-#: lxc/network_acl.go:94
+#: lxc/network_acl.go:95
 msgid "List available network ACLS"
 msgstr ""
 
@@ -3734,7 +3739,7 @@ msgstr ""
 msgid "List identities"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/auth.go:1899 lxc/auth.go:1900
+#: lxc/auth.go:1901 lxc/auth.go:1902
 msgid "List identity provider groups"
 msgstr ""
 
@@ -4021,7 +4026,7 @@ msgstr ""
 msgid "List the available remotes"
 msgstr ""
 
-#: lxc/config_trust.go:349 lxc/config_trust.go:350
+#: lxc/config_trust.go:347 lxc/config_trust.go:348
 msgid "List trusted clients"
 msgstr ""
 
@@ -4066,7 +4071,7 @@ msgstr ""
 msgid "Log level filtering can only be used with pretty formatting"
 msgstr ""
 
-#: lxc/info.go:732
+#: lxc/info.go:735
 msgid "Log:"
 msgstr "Journal : "
 
@@ -4183,7 +4188,7 @@ msgstr "Création du conteneur"
 msgid "Manage files in instances"
 msgstr "Transfert de l'image : %s"
 
-#: lxc/auth.go:64 lxc/auth.go:65 lxc/auth.go:1641 lxc/auth.go:1642
+#: lxc/auth.go:64 lxc/auth.go:65 lxc/auth.go:1643 lxc/auth.go:1644
 #, fuzzy
 msgid "Manage groups"
 msgstr "Copie de l'image : %s"
@@ -4197,7 +4202,7 @@ msgstr ""
 msgid "Manage identities"
 msgstr "Création du conteneur"
 
-#: lxc/auth.go:2059 lxc/auth.go:2060
+#: lxc/auth.go:2061 lxc/auth.go:2062
 msgid "Manage identity provider group mappings"
 msgstr ""
 
@@ -4250,7 +4255,7 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Manage instance metadata files"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/network_acl.go:844 lxc/network_acl.go:845
+#: lxc/network_acl.go:862 lxc/network_acl.go:863
 #, fuzzy
 msgid "Manage network ACL rules"
 msgstr "Copie de l'image : %s"
@@ -4453,7 +4458,7 @@ msgstr ""
 msgid "Missing bucket name"
 msgstr "Résumé manquant."
 
-#: lxc/config_trust.go:268 lxc/config_trust.go:676
+#: lxc/config_trust.go:266 lxc/config_trust.go:674
 #, fuzzy
 msgid "Missing certificate fingerprint"
 msgstr "Empreinte du certificat : %s"
@@ -4472,7 +4477,7 @@ msgid "Missing cluster member name"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
 #: lxc/auth.go:128 lxc/auth.go:182 lxc/auth.go:258 lxc/auth.go:420
-#: lxc/auth.go:469 lxc/auth.go:544 lxc/auth.go:603 lxc/auth.go:2033
+#: lxc/auth.go:469 lxc/auth.go:544 lxc/auth.go:603 lxc/auth.go:2035
 #, fuzzy
 msgid "Missing group name"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -4483,12 +4488,12 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 msgid "Missing identity argument"
 msgstr "Résumé manquant."
 
-#: lxc/auth.go:1703 lxc/auth.go:1756 lxc/auth.go:1822 lxc/auth.go:1984
+#: lxc/auth.go:1705 lxc/auth.go:1758 lxc/auth.go:1824 lxc/auth.go:1986
 #, fuzzy
 msgid "Missing identity provider group name"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/auth.go:2107 lxc/auth.go:2160
+#: lxc/auth.go:2109 lxc/auth.go:2162
 #, fuzzy
 msgid "Missing identity provider group name argument"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -4527,10 +4532,10 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 msgid "Missing name"
 msgstr "Résumé manquant."
 
-#: lxc/network_acl.go:204 lxc/network_acl.go:264 lxc/network_acl.go:327
-#: lxc/network_acl.go:399 lxc/network_acl.go:497 lxc/network_acl.go:650
-#: lxc/network_acl.go:761 lxc/network_acl.go:818 lxc/network_acl.go:954
-#: lxc/network_acl.go:1037
+#: lxc/network_acl.go:222 lxc/network_acl.go:282 lxc/network_acl.go:345
+#: lxc/network_acl.go:417 lxc/network_acl.go:515 lxc/network_acl.go:668
+#: lxc/network_acl.go:779 lxc/network_acl.go:836 lxc/network_acl.go:972
+#: lxc/network_acl.go:1056
 #, fuzzy
 msgid "Missing network ACL name"
 msgstr "Nom du réseau"
@@ -4549,8 +4554,8 @@ msgstr "Nom du réseau"
 #: lxc/network_load_balancer.go:895 lxc/network_load_balancer.go:971
 #: lxc/network_load_balancer.go:1084 lxc/network_load_balancer.go:1158
 #: lxc/network_peer.go:119 lxc/network_peer.go:201 lxc/network_peer.go:266
-#: lxc/network_peer.go:401 lxc/network_peer.go:485 lxc/network_peer.go:644
-#: lxc/network_peer.go:765
+#: lxc/network_peer.go:402 lxc/network_peer.go:486 lxc/network_peer.go:645
+#: lxc/network_peer.go:766
 #, fuzzy
 msgid "Missing network name"
 msgstr "Nom du réseau"
@@ -4569,8 +4574,8 @@ msgstr "Nom du réseau"
 msgid "Missing network zone record name"
 msgstr "Nom du réseau"
 
-#: lxc/network_peer.go:205 lxc/network_peer.go:270 lxc/network_peer.go:405
-#: lxc/network_peer.go:489 lxc/network_peer.go:648 lxc/network_peer.go:769
+#: lxc/network_peer.go:205 lxc/network_peer.go:270 lxc/network_peer.go:406
+#: lxc/network_peer.go:490 lxc/network_peer.go:649 lxc/network_peer.go:770
 #, fuzzy
 msgid "Missing peer name"
 msgstr "Résumé manquant."
@@ -4720,7 +4725,7 @@ msgstr "Copie de l'image : %s"
 msgid "Multiple ports match. Use --force to remove them all"
 msgstr ""
 
-#: lxc/network_acl.go:1092
+#: lxc/network_acl.go:1111
 msgid "Multiple rules match. Use --force to remove them all"
 msgstr ""
 
@@ -4728,15 +4733,15 @@ msgstr ""
 msgid "Must run as root to import from directory"
 msgstr ""
 
-#: lxc/action.go:250
+#: lxc/action.go:248
 #, fuzzy
 msgid "Must supply instance name for: "
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/auth.go:379 lxc/auth.go:966 lxc/auth.go:1943 lxc/cluster.go:192
-#: lxc/cluster.go:1074 lxc/cluster_group.go:503 lxc/config_trust.go:409
-#: lxc/config_trust.go:514 lxc/list.go:573 lxc/network.go:1090
-#: lxc/network_acl.go:156 lxc/network_peer.go:148 lxc/network_zone.go:161
+#: lxc/auth.go:379 lxc/auth.go:966 lxc/auth.go:1945 lxc/cluster.go:192
+#: lxc/cluster.go:1074 lxc/cluster_group.go:503 lxc/config_trust.go:407
+#: lxc/config_trust.go:512 lxc/list.go:573 lxc/network.go:1090
+#: lxc/network_acl.go:170 lxc/network_peer.go:148 lxc/network_zone.go:161
 #: lxc/network_zone.go:845 lxc/profile.go:748 lxc/project.go:573
 #: lxc/remote.go:849 lxc/storage.go:715 lxc/storage_bucket.go:527
 #: lxc/storage_bucket.go:851 lxc/storage_volume.go:1749
@@ -4831,17 +4836,17 @@ msgstr "Le réseau %s a été créé"
 msgid "Network %s renamed to %s"
 msgstr "Le réseau %s a été créé"
 
-#: lxc/network_acl.go:443
+#: lxc/network_acl.go:461
 #, fuzzy, c-format
 msgid "Network ACL %s created"
 msgstr "Le réseau %s a été créé"
 
-#: lxc/network_acl.go:828
+#: lxc/network_acl.go:846
 #, fuzzy, c-format
 msgid "Network ACL %s deleted"
 msgstr "Le réseau %s a été supprimé"
 
-#: lxc/network_acl.go:771
+#: lxc/network_acl.go:789
 #, fuzzy, c-format
 msgid "Network ACL %s renamed to %s"
 msgstr "Le réseau %s a été créé"
@@ -4880,22 +4885,22 @@ msgstr "Le réseau %s a été supprimé"
 msgid "Network name"
 msgstr "Nom du réseau"
 
-#: lxc/network_peer.go:337
+#: lxc/network_peer.go:338
 #, fuzzy, c-format
 msgid "Network peer %s created"
 msgstr "Le réseau %s a été créé"
 
-#: lxc/network_peer.go:781
+#: lxc/network_peer.go:782
 #, fuzzy, c-format
 msgid "Network peer %s deleted"
 msgstr "Le réseau %s a été supprimé"
 
-#: lxc/network_peer.go:341
+#: lxc/network_peer.go:342
 #, c-format
 msgid "Network peer %s is in unexpected state %q"
 msgstr ""
 
-#: lxc/network_peer.go:339
+#: lxc/network_peer.go:340
 #, c-format
 msgid ""
 "Network peer %s pending (please complete mutual peering on peer network)"
@@ -4935,7 +4940,7 @@ msgstr "Nouvel alias à définir sur la cible"
 msgid "New key/value to apply to a specific device"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
-#: lxc/config_trust.go:637
+#: lxc/config_trust.go:635
 #, c-format
 msgid "No certificate add token for member %s on remote: %s"
 msgstr ""
@@ -4962,7 +4967,7 @@ msgstr ""
 msgid "No matching port(s) found"
 msgstr ""
 
-#: lxc/network_acl.go:1103
+#: lxc/network_acl.go:1122
 msgid "No matching rule(s) found"
 msgstr ""
 
@@ -5089,8 +5094,9 @@ msgstr ""
 msgid "PROFILES"
 msgstr "PROFILS"
 
-#: lxc/image.go:1141 lxc/list.go:567 lxc/network_zone.go:167 lxc/profile.go:749
-#: lxc/storage_bucket.go:536 lxc/storage_volume.go:1774 lxc/warning.go:213
+#: lxc/image.go:1141 lxc/list.go:567 lxc/network_acl.go:176
+#: lxc/network_zone.go:167 lxc/profile.go:749 lxc/storage_bucket.go:536
+#: lxc/storage_volume.go:1774 lxc/warning.go:213
 msgid "PROJECT"
 msgstr ""
 
@@ -5134,7 +5140,7 @@ msgstr ""
 msgid "Please provide an alternate server address (empty to abort):"
 msgstr "Chemin vers un dossier de configuration serveur alternatif"
 
-#: lxc/config_trust.go:155
+#: lxc/config_trust.go:152
 msgid "Please provide client name: "
 msgstr ""
 
@@ -5161,12 +5167,12 @@ msgstr ""
 msgid "Press ctrl+c to finish"
 msgstr ""
 
-#: lxc/auth.go:305 lxc/auth.go:1206 lxc/auth.go:1869 lxc/cluster.go:865
+#: lxc/auth.go:305 lxc/auth.go:1206 lxc/auth.go:1871 lxc/cluster.go:865
 #: lxc/cluster_group.go:398 lxc/config.go:282 lxc/config.go:357
 #: lxc/config.go:1343 lxc/config_metadata.go:157 lxc/config_template.go:239
-#: lxc/config_trust.go:315 lxc/image.go:493 lxc/network.go:760
-#: lxc/network_acl.go:699 lxc/network_forward.go:776
-#: lxc/network_load_balancer.go:739 lxc/network_peer.go:699
+#: lxc/config_trust.go:313 lxc/image.go:493 lxc/network.go:760
+#: lxc/network_acl.go:717 lxc/network_forward.go:776
+#: lxc/network_load_balancer.go:739 lxc/network_peer.go:700
 #: lxc/network_zone.go:640 lxc/network_zone.go:1335 lxc/profile.go:601
 #: lxc/project.go:371 lxc/storage.go:360 lxc/storage_bucket.go:350
 #: lxc/storage_bucket.go:1146 lxc/storage_volume.go:1166
@@ -5560,7 +5566,7 @@ msgstr "Mot de passe de l'administrateur distant"
 msgid "Remove all ports that match"
 msgstr ""
 
-#: lxc/network_acl.go:998
+#: lxc/network_acl.go:1017
 msgid "Remove all rules that match"
 msgstr ""
 
@@ -5579,7 +5585,7 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 msgid "Remove entries from a network zone record"
 msgstr "Création du conteneur"
 
-#: lxc/auth.go:2135 lxc/auth.go:2136
+#: lxc/auth.go:2137 lxc/auth.go:2138
 #, fuzzy
 msgid "Remove identities from groups"
 msgstr "Création du conteneur"
@@ -5622,12 +5628,12 @@ msgstr ""
 msgid "Remove roles from a cluster member"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/network_acl.go:996 lxc/network_acl.go:997
+#: lxc/network_acl.go:1015 lxc/network_acl.go:1016
 #, fuzzy
 msgid "Remove rules from an ACL"
 msgstr "Création du conteneur"
 
-#: lxc/config_trust.go:533 lxc/config_trust.go:534
+#: lxc/config_trust.go:531 lxc/config_trust.go:532
 #, fuzzy
 msgid "Remove trusted client"
 msgstr "Ajouter de nouveaux clients de confiance"
@@ -5650,7 +5656,7 @@ msgstr ""
 msgid "Rename groups"
 msgstr "Copie de l'image : %s"
 
-#: lxc/auth.go:1959 lxc/auth.go:1960
+#: lxc/auth.go:1961 lxc/auth.go:1962
 #, fuzzy
 msgid "Rename identity provider groups"
 msgstr "Copie de l'image : %s"
@@ -5660,7 +5666,7 @@ msgstr "Copie de l'image : %s"
 msgid "Rename instances and snapshots"
 msgstr "Forcer le conteneur à s'arrêter"
 
-#: lxc/network_acl.go:730 lxc/network_acl.go:731
+#: lxc/network_acl.go:748 lxc/network_acl.go:749
 msgid "Rename network ACLs"
 msgstr ""
 
@@ -5787,7 +5793,7 @@ msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 msgid "Retrieving image: %s"
 msgstr "Récupération de l'image : %s"
 
-#: lxc/config_trust.go:579 lxc/config_trust.go:580
+#: lxc/config_trust.go:577 lxc/config_trust.go:578
 #, fuzzy
 msgid "Revoke certificate add token"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -5967,12 +5973,12 @@ msgid ""
 "    lxc config set [<remote>:][<instance>] <key> <value>"
 msgstr ""
 
-#: lxc/network_acl.go:460
+#: lxc/network_acl.go:478
 #, fuzzy
 msgid "Set network ACL configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/network_acl.go:461
+#: lxc/network_acl.go:479
 msgid ""
 "Set network ACL configuration keys\n"
 "\n"
@@ -6023,12 +6029,12 @@ msgid ""
 "    lxc network set [<remote>:]<network> <listen_address> <key> <value>"
 msgstr ""
 
-#: lxc/network_peer.go:444
+#: lxc/network_peer.go:445
 #, fuzzy
 msgid "Set network peer keys"
 msgstr "Nom du réseau"
 
-#: lxc/network_peer.go:445
+#: lxc/network_peer.go:446
 msgid ""
 "Set network peer keys\n"
 "\n"
@@ -6161,7 +6167,7 @@ msgstr "Définir l'uid du fichier lors de l'envoi"
 msgid "Set the key as a cluster property"
 msgstr ""
 
-#: lxc/network_acl.go:467
+#: lxc/network_acl.go:485
 msgid "Set the key as a network ACL property"
 msgstr ""
 
@@ -6175,7 +6181,7 @@ msgstr "Nom du réseau"
 msgid "Set the key as a network load balancer property"
 msgstr "Nom du réseau"
 
-#: lxc/network_peer.go:452
+#: lxc/network_peer.go:453
 #, fuzzy
 msgid "Set the key as a network peer property"
 msgstr "Nom du réseau"
@@ -6233,7 +6239,7 @@ msgstr ""
 msgid "Show all information messages"
 msgstr ""
 
-#: lxc/auth.go:2008 lxc/auth.go:2009
+#: lxc/auth.go:2010 lxc/auth.go:2011
 msgid "Show an identity provider group"
 msgstr ""
 
@@ -6316,12 +6322,12 @@ msgstr "Afficher les commandes moins communes"
 msgid "Show local and remote versions"
 msgstr "Afficher la version du client"
 
-#: lxc/network_acl.go:173 lxc/network_acl.go:174
+#: lxc/network_acl.go:191 lxc/network_acl.go:192
 #, fuzzy
 msgid "Show network ACL configurations"
 msgstr "Afficher la configuration étendue"
 
-#: lxc/network_acl.go:234 lxc/network_acl.go:235
+#: lxc/network_acl.go:252 lxc/network_acl.go:253
 #, fuzzy
 msgid "Show network ACL log"
 msgstr "Afficher la configuration étendue"
@@ -6431,7 +6437,7 @@ msgstr ""
 msgid "Show the used and free space in bytes"
 msgstr ""
 
-#: lxc/config_trust.go:650 lxc/config_trust.go:651
+#: lxc/config_trust.go:648 lxc/config_trust.go:649
 #, fuzzy
 msgid "Show trust configurations"
 msgstr "Afficher la configuration étendue"
@@ -6481,7 +6487,7 @@ msgstr "Instantanés :"
 msgid "Socket %d:"
 msgstr ""
 
-#: lxc/action.go:418
+#: lxc/action.go:416
 #, fuzzy, c-format
 msgid "Some instances failed to %s"
 msgstr "L'arrêt du conteneur a échoué !"
@@ -6603,7 +6609,7 @@ msgstr "Image copiée avec succès !"
 msgid "Storage volume moved successfully!"
 msgstr "Image copiée avec succès !"
 
-#: lxc/action.go:141
+#: lxc/action.go:142
 #, fuzzy
 msgid "Store the instance state"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
@@ -6659,11 +6665,11 @@ msgstr ""
 msgid "TLS identity %q created with fingerprint %q"
 msgstr "Image importée avec l'empreinte : %s"
 
-#: lxc/cluster.go:1075 lxc/config_trust.go:515
+#: lxc/cluster.go:1075 lxc/config_trust.go:513
 msgid "TOKEN"
 msgstr ""
 
-#: lxc/auth.go:965 lxc/config_trust.go:408 lxc/image.go:1148
+#: lxc/auth.go:965 lxc/config_trust.go:406 lxc/image.go:1148
 #: lxc/image_alias.go:269 lxc/list.go:579 lxc/network.go:1091
 #: lxc/network.go:1173 lxc/network_allocations.go:27 lxc/operation.go:172
 #: lxc/storage_volume.go:1748 lxc/warning.go:216
@@ -6722,7 +6728,7 @@ msgstr ""
 msgid "The device already exists"
 msgstr "Le périphérique n'existe pas"
 
-#: lxc/network_acl.go:987 lxc/network_acl.go:1125
+#: lxc/network_acl.go:1006 lxc/network_acl.go:1145
 msgid "The direction argument must be one of: ingress, egress"
 msgstr ""
 
@@ -6792,7 +6798,7 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 msgid "The property %q does not exist on the network %q: %v"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/network_acl.go:339
+#: lxc/network_acl.go:357
 #, fuzzy, c-format
 msgid "The property %q does not exist on the network ACL %q: %v"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -6802,7 +6808,7 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 msgid "The property %q does not exist on the network forward %q: %v"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/network_peer.go:418
+#: lxc/network_peer.go:419
 #, fuzzy, c-format
 msgid "The property %q does not exist on the network peer %q: %v"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -6912,7 +6918,7 @@ msgstr ""
 msgid "Threads:"
 msgstr ""
 
-#: lxc/action.go:153
+#: lxc/action.go:154
 #, fuzzy
 msgid "Time to wait for the instance to shutdown cleanly"
 msgstr "Temps d'attente du conteneur avant de le tuer"
@@ -7010,7 +7016,7 @@ msgstr "--project ne peut pas être utilisé avec la commande query"
 msgid "Trust token for %s: "
 msgstr ""
 
-#: lxc/action.go:304 lxc/launch.go:124
+#: lxc/action.go:302 lxc/launch.go:124
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "Essayer `lxc info --show-log %s` pour plus d'informations"
@@ -7058,7 +7064,7 @@ msgstr "URL"
 msgid "USAGE"
 msgstr ""
 
-#: lxc/network.go:1096 lxc/network_acl.go:158 lxc/network_allocations.go:24
+#: lxc/network.go:1096 lxc/network_acl.go:172 lxc/network_allocations.go:24
 #: lxc/network_zone.go:163 lxc/profile.go:751 lxc/project.go:581
 #: lxc/storage.go:724 lxc/storage_volume.go:1752
 msgid "USED BY"
@@ -7109,7 +7115,7 @@ msgstr ""
 msgid "Unknown file type '%s'"
 msgstr ""
 
-#: lxc/network_acl.go:924 lxc/network_acl.go:1059
+#: lxc/network_acl.go:942 lxc/network_acl.go:1078
 #, c-format
 msgid "Unknown key: %s"
 msgstr ""
@@ -7148,7 +7154,7 @@ msgstr ""
 msgid "Unset instance or server configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/network_acl.go:548 lxc/network_acl.go:549
+#: lxc/network_acl.go:566 lxc/network_acl.go:567
 #, fuzzy
 msgid "Unset network ACL configuration keys"
 msgstr "Clé de configuration invalide"
@@ -7178,12 +7184,12 @@ msgstr "Clé de configuration invalide"
 msgid "Unset network load balancer keys"
 msgstr "Nom du réseau"
 
-#: lxc/network_peer.go:546
+#: lxc/network_peer.go:547
 #, fuzzy
 msgid "Unset network peer configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/network_peer.go:547
+#: lxc/network_peer.go:548
 #, fuzzy
 msgid "Unset network peer keys"
 msgstr "Nom du réseau"
@@ -7227,7 +7233,7 @@ msgstr "Clé de configuration invalide"
 msgid "Unset the key as a cluster property"
 msgstr ""
 
-#: lxc/network_acl.go:552
+#: lxc/network_acl.go:570
 msgid "Unset the key as a network ACL property"
 msgstr ""
 
@@ -7241,7 +7247,7 @@ msgstr "Nom du réseau"
 msgid "Unset the key as a network load balancer property"
 msgstr "Nom du réseau"
 
-#: lxc/network_peer.go:550
+#: lxc/network_peer.go:551
 #, fuzzy
 msgid "Unset the key as a network peer property"
 msgstr "Nom du réseau"
@@ -7292,7 +7298,7 @@ msgstr ""
 msgid "Unsupported content type for attaching to instances"
 msgstr ""
 
-#: lxc/info.go:724
+#: lxc/info.go:727
 #, c-format
 msgid "Unsupported instance type: %s"
 msgstr ""
@@ -7493,10 +7499,10 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/auth.go:333 lxc/auth.go:913 lxc/auth.go:1044 lxc/auth.go:1897
+#: lxc/auth.go:333 lxc/auth.go:913 lxc/auth.go:1044 lxc/auth.go:1899
 #: lxc/cluster.go:120 lxc/cluster.go:980 lxc/cluster_group.go:437
-#: lxc/config_trust.go:347 lxc/config_trust.go:430 lxc/monitor.go:32
-#: lxc/network.go:1003 lxc/network_acl.go:92 lxc/network_zone.go:84
+#: lxc/config_trust.go:345 lxc/config_trust.go:428 lxc/monitor.go:32
+#: lxc/network.go:1003 lxc/network_acl.go:93 lxc/network_zone.go:84
 #: lxc/operation.go:104 lxc/profile.go:707 lxc/project.go:475
 #: lxc/storage.go:652 lxc/version.go:20 lxc/warning.go:69
 #, fuzzy
@@ -7519,7 +7525,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/cluster.go:679 lxc/config_trust.go:578
+#: lxc/cluster.go:679 lxc/config_trust.go:576
 #, fuzzy
 msgid "[<remote>:] <name>"
 msgstr ""
@@ -7567,13 +7573,13 @@ msgstr ""
 msgid "[<remote>:] [project=<project_name>] [entity_type=<entity_type>]"
 msgstr ""
 
-#: lxc/network_acl.go:172 lxc/network_acl.go:233 lxc/network_acl.go:590
-#: lxc/network_acl.go:785
+#: lxc/network_acl.go:190 lxc/network_acl.go:251 lxc/network_acl.go:608
+#: lxc/network_acl.go:803
 #, fuzzy
 msgid "[<remote>:]<ACL>"
 msgstr "Serveur distant : %s"
 
-#: lxc/network_acl.go:858 lxc/network_acl.go:995
+#: lxc/network_acl.go:876 lxc/network_acl.go:1014
 #, fuzzy
 msgid "[<remote>:]<ACL> <direction> <key>=<value>..."
 msgstr ""
@@ -7581,7 +7587,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network_acl.go:289 lxc/network_acl.go:547
+#: lxc/network_acl.go:307 lxc/network_acl.go:565
 #, fuzzy
 msgid "[<remote>:]<ACL> <key>"
 msgstr ""
@@ -7589,7 +7595,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network_acl.go:459
+#: lxc/network_acl.go:477
 #, fuzzy
 msgid "[<remote>:]<ACL> <key>=<value>..."
 msgstr ""
@@ -7597,7 +7603,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network_acl.go:728
+#: lxc/network_acl.go:746
 #, fuzzy
 msgid "[<remote>:]<ACL> <new-name>"
 msgstr ""
@@ -7605,7 +7611,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network_acl.go:362
+#: lxc/network_acl.go:380
 #, fuzzy
 msgid "[<remote>:]<ACL> [key=value...]"
 msgstr ""
@@ -7699,11 +7705,11 @@ msgstr ""
 msgid "[<remote>:]<authentication_method>/<name_or_identifier>"
 msgstr ""
 
-#: lxc/auth.go:1311 lxc/auth.go:1369 lxc/auth.go:2134
+#: lxc/auth.go:1311 lxc/auth.go:1369 lxc/auth.go:2136
 msgid "[<remote>:]<authentication_method>/<name_or_identifier> <group>"
 msgstr ""
 
-#: lxc/config_trust.go:234 lxc/config_trust.go:531 lxc/config_trust.go:649
+#: lxc/config_trust.go:232 lxc/config_trust.go:529 lxc/config_trust.go:647
 #, fuzzy
 msgid "[<remote>:]<fingerprint>"
 msgstr ""
@@ -7716,7 +7722,7 @@ msgstr ""
 "(configuration, instantanés, …)."
 
 #: lxc/auth.go:102 lxc/auth.go:155 lxc/auth.go:205 lxc/auth.go:443
-#: lxc/auth.go:1105 lxc/auth.go:1678 lxc/cluster_group.go:168
+#: lxc/auth.go:1105 lxc/auth.go:1680 lxc/cluster_group.go:168
 #: lxc/cluster_group.go:253 lxc/cluster_group.go:314 lxc/cluster_group.go:661
 #, fuzzy
 msgid "[<remote>:]<group>"
@@ -7751,7 +7757,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/auth.go:1729 lxc/auth.go:1779 lxc/auth.go:2007
+#: lxc/auth.go:1731 lxc/auth.go:1781 lxc/auth.go:2009
 #, fuzzy
 msgid "[<remote>:]<identity_provider_group>"
 msgstr ""
@@ -7759,7 +7765,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/auth.go:2081
+#: lxc/auth.go:2083
 #, fuzzy
 msgid "[<remote>:]<identity_provider_group> <group>"
 msgstr ""
@@ -7771,7 +7777,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/auth.go:1957
+#: lxc/auth.go:1959
 #, fuzzy
 msgid "[<remote>:]<identity_provider_group> <new_name>"
 msgstr ""
@@ -8305,7 +8311,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network_peer.go:592 lxc/network_peer.go:728
+#: lxc/network_peer.go:593 lxc/network_peer.go:729
 #, fuzzy
 msgid "[<remote>:]<network> <peer_name>"
 msgstr ""
@@ -8323,7 +8329,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network_peer.go:358 lxc/network_peer.go:545
+#: lxc/network_peer.go:359 lxc/network_peer.go:546
 #, fuzzy
 msgid "[<remote>:]<network> <peer_name> <key>"
 msgstr ""
@@ -8331,7 +8337,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network_peer.go:443
+#: lxc/network_peer.go:444
 #, fuzzy
 msgid "[<remote>:]<network> <peer_name> <key>=<value>..."
 msgstr ""
@@ -8887,7 +8893,7 @@ msgstr ""
 msgid "enabled"
 msgstr "activé"
 
-#: lxc/action.go:410
+#: lxc/action.go:408
 #, c-format
 msgid "error: %v"
 msgstr "erreur : %v"
@@ -8927,7 +8933,7 @@ msgid ""
 "   Update an identity using the content of identity.yaml"
 msgstr ""
 
-#: lxc/auth.go:1783
+#: lxc/auth.go:1785
 msgid ""
 "lxc auth identity-provider-group edit <identity_provider_group> < identity-"
 "provider-group.yaml\n"
@@ -9156,7 +9162,7 @@ msgstr ""
 "lxc move <container>/<old snapshot name> <container>/<new snapshot name>\n"
 "    Renomme un instantané."
 
-#: lxc/network_acl.go:365
+#: lxc/network_acl.go:383
 msgid ""
 "lxc network acl create a1\n"
 "\n"
