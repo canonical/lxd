@@ -1557,7 +1557,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Failed getting cluster members: %w", err)
 			}
 
-			targetMemberInfo, _, err = limits.CheckTarget(ctx, s.Authorizer, r, tx, targetProject, target, allMembers)
+			targetMemberInfo, _, err = limits.CheckTarget(ctx, r.Context(), s.Authorizer, tx, targetProject, target, allMembers)
 			if err != nil {
 				return err
 			}
