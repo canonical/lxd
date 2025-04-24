@@ -3,6 +3,8 @@ package cluster
 import (
 	"context"
 	"crypto/x509"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/url"
 	"sync"
@@ -10,8 +12,13 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	lxd "github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // CheckClusterLinkCertificate checks the cluster certificate at each address and ensures they all match the provided fingerprint.
@@ -70,4 +77,82 @@ func CheckClusterLinkCertificate(ctx context.Context, addresses []string, finger
 	}
 
 	return firstResult.cert, firstResult.address, nil
+}
+
+// ConnectClusterLinkResult contains the result of trying to connect to a single cluster link address.
+type ConnectClusterLinkResult struct {
+	Address string
+	Client  lxd.InstanceServer
+	Error   error
+}
+
+// ConnectClusterLink is a convenience function around [lxd.ConnectLXD] that configures the client with the correct parameters for cluster-to-cluster communication.
+// It attempts to connect to all addresses and returns the results, along with a client from a successful connection.
+func ConnectClusterLink(ctx context.Context, s *state.State, clusterLink api.ClusterLink) (lxd.InstanceServer, []ConnectClusterLinkResult, error) {
+	clusterCert, err := util.LoadClusterCert(s.OS.VarDir)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	addresses := shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, false)
+	resultsCh := make(chan ConnectClusterLinkResult, len(addresses))
+
+	var wg sync.WaitGroup
+	for _, address := range addresses {
+		wg.Add(1)
+		go func(addr string) {
+			defer wg.Done()
+
+			result := ConnectClusterLinkResult{Address: addr}
+
+			// Try to retrieve the remote certificate.
+			targetCert, err := shared.GetRemoteCertificate(ctx, "https://"+addr, version.UserAgent)
+			if err != nil {
+				result.Error = fmt.Errorf("Failed to get remote certificate from %q: %w", addr, err)
+				resultsCh <- result
+				return
+			}
+
+			targetCertStr := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: targetCert.Raw}))
+
+			// Connect to cluster link.
+			client, err := lxd.ConnectLXD("https://"+addr, &lxd.ConnectionArgs{
+				TLSClientCert: string(clusterCert.PublicKey()),
+				TLSClientKey:  string(clusterCert.PrivateKey()),
+				TLSServerCert: targetCertStr,
+				UserAgent:     version.UserAgent,
+			})
+			if err != nil {
+				result.Error = fmt.Errorf("Failed to connect to %q: %w", addr, err)
+				resultsCh <- result
+				return
+			}
+
+			result.Client = client
+			resultsCh <- result
+		}(address)
+	}
+
+	wg.Wait()
+	close(resultsCh)
+
+	connectResults := make([]ConnectClusterLinkResult, 0, len(addresses))
+	var targetClient lxd.InstanceServer
+	for result := range resultsCh {
+		connectResults = append(connectResults, result)
+		if result.Error == nil {
+			if targetClient == nil {
+				targetClient = result.Client
+			}
+		} else {
+			logger.Warn("Failed to connect to cluster link address", logger.Ctx{"address": result.Address, "err": result.Error})
+		}
+	}
+
+	if targetClient == nil {
+		logger.Error("Failed to connect to any of the provided addresses")
+		return nil, connectResults, errors.New("Failed to connect to any of the provided addresses")
+	}
+
+	return targetClient, connectResults, nil
 }
