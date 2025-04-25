@@ -2180,7 +2180,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		logger.Info("Closing the database")
 		err := d.db.Cluster.Close()
 		if err != nil {
-			logger.Debug("Could not close global database cleanly", logger.Ctx{"err": err})
+			logger.Warn("Could not close global database cleanly", logger.Ctx{"err": err})
 		}
 	}
 
