@@ -2114,7 +2114,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			if nodes[i].Address != leaderInfo.Address && nodes[i].Role != db.RaftVoter {
 				// Promote the remaining node.
 				nodes[i].Role = db.RaftVoter
-				err := changeMemberRole(s, r, nodes[i].Address, nodes)
+				err := changeMemberRole(r.Context(), s, nodes[i].Address, nodes)
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Unable to promote remaining cluster member to leader: %w", err))
 				}
@@ -2208,7 +2208,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed to remove member from database: %w", err))
 	}
 
-	err = rebalanceMemberRoles(s, d.gateway, r, nil)
+	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil)
 	if err != nil {
 		logger.Warnf("Failed to rebalance dqlite nodes: %v", err)
 	}
@@ -2570,7 +2570,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 	d.clusterMembershipMutex.Lock()
 	defer d.clusterMembershipMutex.Unlock()
 
-	err = rebalanceMemberRoles(s, d.gateway, r, nil)
+	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2580,7 +2580,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 
 // Check if there's a dqlite node whose role should be changed, and post a
 // change role request if so.
-func rebalanceMemberRoles(s *state.State, gateway *cluster.Gateway, r *http.Request, unavailableMembers []string) error {
+func rebalanceMemberRoles(reqContext context.Context, s *state.State, gateway *cluster.Gateway, unavailableMembers []string) error {
 	if s.ShutdownCtx.Err() != nil {
 		return nil
 	}
@@ -2617,7 +2617,7 @@ again:
 
 	// Tell the node to promote itself.
 	logger.Info("Promoting member during rebalance", logger.Ctx{"candidateAddress": address})
-	err = changeMemberRole(s, r, address, nodes)
+	err = changeMemberRole(reqContext, s, address, nodes)
 	if err != nil {
 		return err
 	}
@@ -2651,7 +2651,7 @@ func upgradeNodesWithoutRaftRole(s *state.State, gateway *cluster.Gateway) error
 
 // Post a change role request to the member with the given address. The nodes
 // slice contains details about all members, including the one being changed.
-func changeMemberRole(s *state.State, r *http.Request, address string, nodes []db.RaftNode) error {
+func changeMemberRole(reqContext context.Context, s *state.State, address string, nodes []db.RaftNode) error {
 	post := &internalClusterPostAssignRequest{}
 	for _, node := range nodes {
 		post.RaftNodes = append(post.RaftNodes, internalRaftNode{
@@ -2662,7 +2662,7 @@ func changeMemberRole(s *state.State, r *http.Request, address string, nodes []d
 		})
 	}
 
-	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+	client, err := cluster.Connect(reqContext, address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 	if err != nil {
 		return err
 	}
@@ -2815,7 +2815,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 	}
 
 	logger.Info("Promoting member during handover", logger.Ctx{"address": localClusterAddress, "losingAddress": req.Address, "candidateAddress": target})
-	err = changeMemberRole(s, r, target, nodes)
+	err = changeMemberRole(r.Context(), s, target, nodes)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2828,7 +2828,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 	}
 
 	logger.Info("Demoting member during handover", logger.Ctx{"address": localClusterAddress, "losingAddress": req.Address})
-	err = changeMemberRole(s, r, req.Address, nodes)
+	err = changeMemberRole(r.Context(), s, req.Address, nodes)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2955,7 +2955,7 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 		return response.SmartError(err)
 	}
 
-	err = rebalanceMemberRoles(s, d.gateway, r, nil)
+	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil)
 	if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 		logger.Warn("Could not rebalance cluster member roles after raft member removal", logger.Ctx{"err": err})
 	}
