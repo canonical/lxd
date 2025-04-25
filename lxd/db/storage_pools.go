@@ -586,28 +586,33 @@ func (c *ClusterTx) GetCreatedStoragePoolNames(ctx context.Context) ([]string, e
 
 // Get all storage pools matching the given WHERE filter (if given).
 func (c *ClusterTx) storagePools(ctx context.Context, where string, args ...any) ([]string, error) {
-	var name string
 	stmt := "SELECT name FROM storage_pools"
 	inargs := []any{}
-	outargs := []any{name}
 
 	if where != "" {
 		stmt += fmt.Sprintf(" WHERE %s", where)
 		inargs = append(inargs, args...)
 	}
 
-	result, err := queryScan(ctx, c, stmt, inargs, outargs)
-	if err != nil {
-		return []string{}, err
-	}
-
-	if len(result) == 0 {
-		return []string{}, api.StatusErrorf(http.StatusNotFound, "Storage pool(s) not found")
-	}
-
 	pools := []string{}
-	for _, r := range result {
-		pools = append(pools, r[0].(string))
+	err := query.Scan(ctx, c.tx, stmt, func(scan func(dest ...any) error) error {
+		var poolName string
+
+		err := scan(&poolName)
+		if err != nil {
+			return err
+		}
+
+		pools = append(pools, poolName)
+
+		return nil
+	}, inargs...)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(pools) == 0 {
+		return []string{}, api.StatusErrorf(http.StatusNotFound, "Storage pool(s) not found")
 	}
 
 	return pools, nil
@@ -616,23 +621,27 @@ func (c *ClusterTx) storagePools(ctx context.Context, where string, args ...any)
 // GetStorageDrivers returns the names of all storage drivers currently
 // being used by at least one storage pool.
 func (c *ClusterTx) GetStorageDrivers(ctx context.Context) ([]string, error) {
-	var poolDriver string
-	query := "SELECT DISTINCT driver FROM storage_pools"
-	inargs := []any{}
-	outargs := []any{poolDriver}
-
-	result, err := queryScan(ctx, c, query, inargs, outargs)
-	if err != nil {
-		return []string{}, err
-	}
-
-	if len(result) == 0 {
-		return []string{}, api.StatusErrorf(http.StatusNotFound, "Storage pool(s) not found")
-	}
+	stmt := "SELECT DISTINCT driver FROM storage_pools"
 
 	drivers := []string{}
-	for _, driver := range result {
-		drivers = append(drivers, driver[0].(string))
+	err := query.Scan(ctx, c.tx, stmt, func(scan func(dest ...any) error) error {
+		var poolDriver string
+
+		err := scan(&poolDriver)
+		if err != nil {
+			return err
+		}
+
+		drivers = append(drivers, poolDriver)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(drivers) == 0 {
+		return []string{}, api.StatusErrorf(http.StatusNotFound, "Storage pool(s) not found")
 	}
 
 	return drivers, nil

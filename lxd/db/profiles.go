@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -18,8 +19,6 @@ SELECT profiles.name
  JOIN projects ON projects.id = profiles.project_id
 WHERE projects.name = ?
 `
-	var result [][]any
-
 	enabled, err := cluster.ProjectHasProfiles(context.Background(), c.tx, project)
 	if err != nil {
 		return nil, fmt.Errorf("Check if project has profiles: %w", err)
@@ -29,21 +28,24 @@ WHERE projects.name = ?
 		project = "default"
 	}
 
-	inargs := []any{project}
-	var name string
-	outfmt := []any{name}
+	profileNames := []string{}
+	err = query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
+		var profileName string
 
-	result, err = queryScan(ctx, c, q, inargs, outfmt)
+		err := scan(&profileName)
+		if err != nil {
+			return err
+		}
+
+		profileNames = append(profileNames, profileName)
+
+		return nil
+	}, project)
 	if err != nil {
 		return nil, err
 	}
 
-	response := []string{}
-	for _, r := range result {
-		response = append(response, r[0].(string))
-	}
-
-	return response, nil
+	return profileNames, nil
 }
 
 // GetProfile returns the profile with the given name.
@@ -113,7 +115,6 @@ func (c *ClusterTx) GetInstancesWithProfile(ctx context.Context, project, profil
 		   WHERE profiles.name=? AND projects.name=?)`
 
 	results := map[string][]string{}
-	var output [][]any
 
 	enabled, err := cluster.ProjectHasProfiles(context.Background(), c.tx, project)
 	if err != nil {
@@ -124,21 +125,25 @@ func (c *ClusterTx) GetInstancesWithProfile(ctx context.Context, project, profil
 		project = "default"
 	}
 
-	inargs := []any{profile, project}
-	var name string
-	outfmt := []any{name, name}
+	err = query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
+		var instanceName string
+		var projectName string
 
-	output, err = queryScan(ctx, c, q, inargs, outfmt)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, r := range output {
-		if results[r[1].(string)] == nil {
-			results[r[1].(string)] = []string{}
+		err := scan(&instanceName, &projectName)
+		if err != nil {
+			return err
 		}
 
-		results[r[1].(string)] = append(results[r[1].(string)], r[0].(string))
+		if results[projectName] == nil {
+			results[projectName] = []string{}
+		}
+
+		results[projectName] = append(results[projectName], instanceName)
+
+		return nil
+	}, profile, project)
+	if err != nil {
+		return nil, err
 	}
 
 	return results, nil

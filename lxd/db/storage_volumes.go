@@ -690,10 +690,7 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
    AND storage_pools.name=?
    AND (storage_volumes.node_id=? OR storage_volumes.node_id IS NULL AND storage_pools.driver IN ` + query.Params(len(remoteDrivers)) + `)`
 
-	var numstr string
 	inargs := []any{typ, name, pool, c.nodeID}
-	outfmt := []any{numstr}
-
 	for _, driver := range remoteDrivers {
 		inargs = append(inargs, driver)
 	}
@@ -702,26 +699,27 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 		return 0
 	}
 
-	results, err := queryScan(ctx, c, q, inargs, outfmt)
-	if err != nil {
-		return 0
-	}
-
-	for _, r := range results {
-		substr, ok := r[0].(string)
-		if !ok {
-			continue
+	err := query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
+		var substr string
+		err := scan(&substr)
+		if err != nil {
+			return err
 		}
 
 		var num int
 		count, err := fmt.Sscanf(substr, pattern, &num)
 		if err != nil || count != 1 {
-			continue
+			return nil
 		}
 
 		if num >= nextIndex {
 			nextIndex = num + 1
 		}
+
+		return nil
+	}, inargs...)
+	if err != nil {
+		return 0
 	}
 
 	return nextIndex
