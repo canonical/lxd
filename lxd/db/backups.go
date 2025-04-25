@@ -136,25 +136,29 @@ SELECT instances_backups.name, instances_backups.instance_id,
 // GetInstanceBackups returns the names of all backups of the instance with the
 // given name.
 func (c *ClusterTx) GetInstanceBackups(ctx context.Context, projectName string, name string) ([]string, error) {
-	var result []string
+	var instanceBackupNames []string
 
 	q := `SELECT instances_backups.name FROM instances_backups
 JOIN instances ON instances_backups.instance_id=instances.id
 JOIN projects ON projects.id=instances.project_id
 WHERE projects.name=? AND instances.name=?`
-	inargs := []any{projectName, name}
-	outfmt := []any{name}
 
-	dbResults, err := queryScan(ctx, c, q, inargs, outfmt)
+	err := query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
+		var backupName string
+		err := scan(&backupName)
+		if err != nil {
+			return err
+		}
+
+		instanceBackupNames = append(instanceBackupNames, backupName)
+
+		return nil
+	}, projectName, name)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, r := range dbResults {
-		result = append(result, r[0].(string))
-	}
-
-	return result, nil
+	return instanceBackupNames, nil
 }
 
 // CreateInstanceBackup creates a new backup.
@@ -238,46 +242,49 @@ func (c *ClusterTx) RenameInstanceBackup(ctx context.Context, oldName, newName s
 
 // GetExpiredInstanceBackups returns a list of expired instance backups.
 func (c *ClusterTx) GetExpiredInstanceBackups(ctx context.Context) ([]InstanceBackup, error) {
-	var result []InstanceBackup
-	var name string
-	var expiryDate string
-	var instanceID int
+	var expiredInstanceBackups []InstanceBackup
 
 	q := `SELECT instances_backups.name, instances_backups.expiry_date, instances_backups.instance_id FROM instances_backups`
-	outfmt := []any{name, expiryDate, instanceID}
 
-	dbResults, err := queryScan(ctx, c, q, nil, outfmt)
-	if err != nil {
-		return nil, err
-	}
+	err := query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
+		var name string
+		var expiryDate string
+		var instanceID int
 
-	for _, r := range dbResults {
-		timestamp := r[1]
+		err := scan(&name, &expiryDate, &instanceID)
+		if err != nil {
+			return err
+		}
 
 		var backupExpiry time.Time
-		err = backupExpiry.UnmarshalText([]byte(timestamp.(string)))
+		err = backupExpiry.UnmarshalText([]byte(expiryDate))
 		if err != nil {
-			return []InstanceBackup{}, err
+			return err
 		}
 
 		// Since zero time causes some issues due to timezones, we check the
 		// unix timestamp instead of IsZero().
 		if backupExpiry.Unix() <= 0 {
 			// Backup doesn't expire
-			continue
+			return nil
 		}
 
 		// Backup has expired
 		if time.Now().Unix()-backupExpiry.Unix() >= 0 {
-			result = append(result, InstanceBackup{
-				Name:       r[0].(string),
-				InstanceID: r[2].(int),
+			expiredInstanceBackups = append(expiredInstanceBackups, InstanceBackup{
+				Name:       name,
+				InstanceID: instanceID,
 				ExpiryDate: backupExpiry,
 			})
 		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	return result, nil
+	return expiredInstanceBackups, nil
 }
 
 // GetExpiredStorageVolumeBackups returns a list of expired storage volume backups.
@@ -362,26 +369,30 @@ func (c *ClusterTx) GetStoragePoolVolumeBackups(ctx context.Context, projectName
 
 // GetStoragePoolVolumeBackupsNames returns the names of all backups of the storage volume with the given name.
 func (c *ClusterTx) GetStoragePoolVolumeBackupsNames(ctx context.Context, projectName string, volumeName string, poolID int64) ([]string, error) {
-	var result []string
+	var storagePoolVolumeBackupsNames []string
 
 	q := `SELECT storage_volumes_backups.name FROM storage_volumes_backups
 JOIN storage_volumes ON storage_volumes_backups.storage_volume_id=storage_volumes.id
 JOIN projects ON projects.id=storage_volumes.project_id
 WHERE projects.name=? AND storage_volumes.name=?
 ORDER BY storage_volumes_backups.id`
-	inargs := []any{projectName, volumeName}
-	outfmt := []any{volumeName}
 
-	dbResults, err := queryScan(ctx, c, q, inargs, outfmt)
+	err := query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
+		var backupName string
+		err := scan(&backupName)
+		if err != nil {
+			return err
+		}
+
+		storagePoolVolumeBackupsNames = append(storagePoolVolumeBackupsNames, backupName)
+
+		return nil
+	}, projectName, volumeName)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, r := range dbResults {
-		result = append(result, r[0].(string))
-	}
-
-	return result, nil
+	return storagePoolVolumeBackupsNames, nil
 }
 
 // CreateStoragePoolVolumeBackup creates a new storage volume backup.
