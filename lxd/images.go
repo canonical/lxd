@@ -305,10 +305,10 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
  * This function takes a container or snapshot from the local image server and
  * exports it as an image.
  */
-func imgPostInstanceInfo(s *state.State, r *http.Request, req api.ImagesPost, op *operations.Operation, builddir string, budget int64) (*api.Image, error) {
+func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Operation, projectName string, builddir string, budget int64) (*api.Image, error) {
 	info := api.Image{}
 	info.Properties = map[string]string{}
-	projectName := request.ProjectParam(r)
+
 	name := req.Source.Name
 	ctype := req.Source.Type
 	if ctype == "" || name == "" {
@@ -521,7 +521,7 @@ func imgPostInstanceInfo(s *state.State, r *http.Request, req api.ImagesPost, op
 	return &info, nil
 }
 
-func imgPostRemoteInfo(s *state.State, r *http.Request, req api.ImagesPost, op *operations.Operation, project string, budget int64) (*api.Image, error) {
+func imgPostRemoteInfo(reqContext context.Context, s *state.State, req api.ImagesPost, op *operations.Operation, project string, budget int64) (*api.Image, error) {
 	var err error
 	var hash string
 
@@ -533,7 +533,7 @@ func imgPostRemoteInfo(s *state.State, r *http.Request, req api.ImagesPost, op *
 		return nil, errors.New("must specify one of alias or fingerprint for init from image")
 	}
 
-	info, err := ImageDownload(r, s, op, &ImageDownloadArgs{
+	info, err := ImageDownload(reqContext, s, op, &ImageDownloadArgs{
 		Server:            req.Source.Server,
 		Protocol:          req.Source.Protocol,
 		Certificate:       req.Source.Certificate,
@@ -599,7 +599,7 @@ func imgPostRemoteInfo(s *state.State, r *http.Request, req api.ImagesPost, op *
 	return info, nil
 }
 
-func imgPostURLInfo(s *state.State, r *http.Request, req api.ImagesPost, op *operations.Operation, project string, budget int64) (*api.Image, error) {
+func imgPostURLInfo(reqContext context.Context, s *state.State, req api.ImagesPost, op *operations.Operation, project string, budget int64) (*api.Image, error) {
 	var err error
 
 	if req.Source.URL == "" {
@@ -647,7 +647,7 @@ func imgPostURLInfo(s *state.State, r *http.Request, req api.ImagesPost, op *ope
 	}
 
 	// Import the image
-	info, err := ImageDownload(r, s, op, &ImageDownloadArgs{
+	info, err := ImageDownload(reqContext, s, op, &ImageDownloadArgs{
 		Server:        url,
 		Protocol:      "direct",
 		Alias:         hash,
@@ -1241,14 +1241,14 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			switch req.Source.Type {
 			case api.SourceTypeImage:
 				/* Processing image copy from remote */
-				info, err = imgPostRemoteInfo(s, r, req, op, projectName, budget)
+				info, err = imgPostRemoteInfo(r.Context(), s, req, op, projectName, budget)
 			case "url":
 				/* Processing image copy from URL */
-				info, err = imgPostURLInfo(s, r, req, op, projectName, budget)
+				info, err = imgPostURLInfo(r.Context(), s, req, op, projectName, budget)
 			default:
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
-				info, err = imgPostInstanceInfo(s, r, req, op, builddir, budget)
+				info, err = imgPostInstanceInfo(s, req, op, projectName, builddir, budget)
 				imagePublishLock.Unlock()
 			}
 		}
@@ -2383,7 +2383,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 		default:
 		}
 
-		newInfo, err = ImageDownload(nil, s, op, &ImageDownloadArgs{
+		newInfo, err = ImageDownload(context.TODO(), s, op, &ImageDownloadArgs{
 			Server:      source.Server,
 			Protocol:    source.Protocol,
 			Certificate: source.Certificate,
