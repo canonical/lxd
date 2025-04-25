@@ -448,6 +448,7 @@ var APIExtensions = []string{
 	"backup_metadata_version",
 	"storage_buckets_all_projects",
 	"network_acls_all_projects",
+	"networks_all_projects",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

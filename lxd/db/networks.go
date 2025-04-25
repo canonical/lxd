@@ -480,6 +480,36 @@ func (c *ClusterTx) GetNetworks(ctx context.Context, project string) ([]string, 
 	return c.networks(ctx, project, "")
 }
 
+// GetNetworksAllProjects returns the names of all networks across all projects.
+func (c *ClusterTx) GetNetworksAllProjects(ctx context.Context) (map[string][]string, error) {
+	q := "SELECT projects.name, networks.name FROM networks JOIN projects ON networks.project_id=projects.id"
+
+	networkNames := map[string][]string{}
+	err := query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
+		var projectName string
+		var networkName string
+
+		err := scan(&projectName, &networkName)
+		if err != nil {
+			return err
+		}
+
+		_, ok := networkNames[projectName]
+		if !ok {
+			networkNames[projectName] = []string{}
+		}
+
+		networkNames[projectName] = append(networkNames[projectName], networkName)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return networkNames, nil
+}
+
 // Get all networks matching the given WHERE filter (if given).
 func (c *ClusterTx) networks(ctx context.Context, project string, where string, args ...any) ([]string, error) {
 	q := "SELECT name FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?)"
