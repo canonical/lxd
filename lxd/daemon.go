@@ -1006,18 +1006,7 @@ func setupSharedMounts() error {
 func (d *Daemon) Init() error {
 	d.startTime = time.Now()
 
-	err := d.init()
-
-	// If an error occurred synchronously while starting up, let's try to
-	// cleanup any state we produced so far. Errors happening here will be
-	// ignored.
-	if err != nil {
-		logger.Error("Failed to start the daemon", logger.Ctx{"err": err})
-		_ = d.Stop(context.Background(), unix.SIGINT)
-		return err
-	}
-
-	return nil
+	return d.init()
 }
 
 func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, instanceName string, logLevel string, labels []string, types []string) error {
