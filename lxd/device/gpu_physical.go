@@ -153,7 +153,7 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 		}
 
 		// Remove the CDI device files (both unix-char and disk devices as long as JSON CDI metadata files).
-		if strings.HasPrefix(e.Name(), cdi.CDIUnixPrefix) || strings.HasPrefix(e.Name(), cdi.CDIDiskPrefix) || path == hooksFilePath || path == deviceConfigFilePath {
+		if strings.HasPrefix(e.Name(), cdi.CDIUnixPrefix+"."+d.name+".") || strings.HasPrefix(e.Name(), cdi.CDIDiskPrefix+"."+d.name+".") || path == hooksFilePath || path == deviceConfigFilePath {
 			err := os.Remove(path)
 			if err != nil {
 				return err
