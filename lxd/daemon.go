@@ -65,7 +65,6 @@ import (
 	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
 	"github.com/canonical/lxd/lxd/seccomp"
 	"github.com/canonical/lxd/lxd/state"
-	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/storage/s3/miniod"
@@ -2132,34 +2131,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			logger.Debug("Daemon storage volumes unmounted")
 
 			// Unmount storage pools after instances stopped and images/backup volumes unmounted.
-			logger.Info("Stopping storage pools")
-
-			var pools []string
-
-			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				var err error
-
-				pools, err = tx.GetStoragePoolNames(ctx)
-
-				return err
-			})
-			if err != nil && !response.IsNotFoundError(err) {
-				logger.Error("Failed to get storage pools", logger.Ctx{"err": err})
-			}
-
-			for _, poolName := range pools {
-				pool, err := storagePools.LoadByName(s, poolName)
-				if err != nil {
-					logger.Error("Failed to get storage pool", logger.Ctx{"pool": poolName, "err": err})
-					continue
-				}
-
-				_, err = pool.Unmount()
-				if err != nil {
-					logger.Error("Unable to unmount storage pool", logger.Ctx{"pool": poolName, "err": err})
-					continue
-				}
-			}
+			storageStop(s)
 		}
 
 		if d.db.Cluster != nil {
