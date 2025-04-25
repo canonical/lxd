@@ -44,7 +44,7 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *operations.Operation, p api.Project, imgAlias string, source api.InstanceSource, imgType string) (*api.Image, error) {
+func ensureDownloadedImageFitWithinBudget(reqContext context.Context, s *state.State, op *operations.Operation, p api.Project, imgAlias string, source api.InstanceSource, imgType string) (*api.Image, error) {
 	var autoUpdate bool
 	var err error
 	if p.Config["images.auto_update_cached"] != "" {
@@ -62,7 +62,7 @@ func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *o
 		return nil, err
 	}
 
-	imgDownloaded, err := ImageDownload(r, s, op, &ImageDownloadArgs{
+	imgDownloaded, err := ImageDownload(reqContext, s, op, &ImageDownloadArgs{
 		Server:       source.Server,
 		Protocol:     source.Protocol,
 		Certificate:  source.Certificate,
@@ -83,7 +83,7 @@ func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *o
 	return imgDownloaded, nil
 }
 
-func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []api.Profile, img *api.Image, imgAlias string, req *api.InstancesPost) response.Response {
+func createFromImage(reqContext context.Context, s *state.State, p api.Project, profiles []api.Profile, img *api.Image, imgAlias string, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(errors.New("Cluster member is evacuated"))
 	}
@@ -108,12 +108,12 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 		}
 
 		if req.Source.Server != "" {
-			img, err = ensureDownloadedImageFitWithinBudget(s, r, op, p, imgAlias, req.Source, string(req.Type))
+			img, err = ensureDownloadedImageFitWithinBudget(reqContext, s, op, p, imgAlias, req.Source, string(req.Type))
 			if err != nil {
 				return err
 			}
 		} else if img != nil {
-			err := ensureImageIsLocallyAvailable(s, r, img, args.Project)
+			err := ensureImageIsLocallyAvailable(reqContext, s, img, args.Project)
 			if err != nil {
 				return err
 			}
@@ -142,7 +142,7 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, p.Name, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(reqContext, s, p.Name, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -150,7 +150,7 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 	return operations.OperationResponse(op)
 }
 
-func createFromNone(s *state.State, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
+func createFromNone(reqContext context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(errors.New("Cluster member is evacuated"))
 	}
@@ -199,7 +199,7 @@ func createFromNone(s *state.State, r *http.Request, projectName string, profile
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(reqContext, s, projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -207,11 +207,11 @@ func createFromNone(s *state.State, r *http.Request, projectName string, profile
 	return operations.OperationResponse(op)
 }
 
-func createFromMigration(s *state.State, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
+func createFromMigration(reqContext context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost, isClusterNotification bool) response.Response {
 	// The request can be nil (see `clusterCopyContainerInternal`).
-	if r != nil {
+	if request.IsRequestContext(reqContext) {
 		// If it isn't nil, get the protocol.
-		protocol, err := request.GetCtxValue[string](r.Context(), request.CtxProtocol)
+		protocol, err := request.GetCtxValue[string](reqContext, request.CtxProtocol)
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed to check request origin: %w", err))
 		}
@@ -248,7 +248,7 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 
 	// Decide if this is an internal cluster move request.
 	var clusterMoveSourceName string
-	if r != nil && isClusterNotification(r) {
+	if isClusterNotification {
 		if req.Source.Source == "" {
 			return response.BadRequest(errors.New("Source instance name must be provided for cluster member move"))
 		}
@@ -364,12 +364,12 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 
 	var op *operations.Operation
 	if push {
-		op, err = operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect)
+		op, err = operations.OperationCreate(reqContext, s, projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
 	} else {
-		op, err = operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
+		op, err = operations.OperationCreate(reqContext, s, projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -381,7 +381,7 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 
 // createFromConversion receives the root disk (container FS or VM block volume) from the client and creates an
 // instance from it. Conversion options also allow the uploaded image to be converted into a raw format.
-func createFromConversion(s *state.State, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
+func createFromConversion(reqContext context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(errors.New("Cluster member is evacuated"))
 	}
@@ -476,7 +476,7 @@ func createFromConversion(s *state.State, r *http.Request, projectName string, p
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect)
+	op, err := operations.OperationCreate(reqContext, s, projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1357,13 +1357,13 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Source.Type {
 	case api.SourceTypeImage:
-		return createFromImage(s, r, *targetProject, profiles, sourceImage, sourceImageRef, &req)
+		return createFromImage(r.Context(), s, *targetProject, profiles, sourceImage, sourceImageRef, &req)
 	case api.SourceTypeNone:
-		return createFromNone(s, r, targetProjectName, profiles, &req)
+		return createFromNone(r.Context(), s, targetProjectName, profiles, &req)
 	case api.SourceTypeMigration:
-		return createFromMigration(s, r, targetProjectName, profiles, &req)
+		return createFromMigration(r.Context(), s, targetProjectName, profiles, &req, isClusterNotification(r))
 	case api.SourceTypeConversion:
-		return createFromConversion(s, r, targetProjectName, profiles, &req)
+		return createFromConversion(r.Context(), s, targetProjectName, profiles, &req)
 	case api.SourceTypeCopy:
 		return createFromCopy(s, r, targetProjectName, profiles, &req)
 	default:
@@ -1534,7 +1534,7 @@ func clusterCopyContainerInternal(s *state.State, r *http.Request, source instan
 	req.Source.Project = ""
 
 	// Run the migration
-	return createFromMigration(s, nil, projectName, profiles, req)
+	return createFromMigration(context.TODO(), s, projectName, profiles, req, false)
 }
 
 // instanceCreateFinish finalizes the creation process of an instance by starting it based on
