@@ -302,9 +302,9 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 	return nil
 }
 
-func pruneExpiredBackupsTask(d *Daemon) (task.Func, task.Schedule) {
+func pruneExpiredBackupsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
 
 		opRun := func(op *operations.Operation) error {
 			err := pruneExpiredInstanceBackups(ctx, s)

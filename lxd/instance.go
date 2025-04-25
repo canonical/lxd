@@ -553,10 +553,10 @@ func pruneExpiredInstanceSnapshots(ctx context.Context, snapshots []instance.Ins
 	return nil
 }
 
-func pruneExpiredAndAutoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
+func pruneExpiredAndAutoCreateInstanceSnapshotsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	// `f` creates new scheduled instance snapshots and then, prune the expired ones
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
 		var instances, expiredSnapshotInstances []instance.Instance
 
 		// Get list of expired instance snapshots for this local member.

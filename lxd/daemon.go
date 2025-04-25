@@ -1932,34 +1932,34 @@ func (d *Daemon) init() error {
 	//        but has not been fully completed.
 	if !d.os.MockMode {
 		// Log expiry (daily)
-		d.tasks.Add(expireLogsTask(d))
+		d.tasks.Add(expireLogsTask(d.State))
 
 		// Remove expired images (daily)
-		d.taskPruneImages = d.tasks.Add(pruneExpiredImagesTask(d))
+		d.taskPruneImages = d.tasks.Add(pruneExpiredImagesTask(d.State))
 
 		// Auto-update images (every 6 hours, configurable)
-		d.tasks.Add(autoUpdateImagesTask(d))
+		d.tasks.Add(autoUpdateImagesTask(d.State))
 
 		// Auto-update instance types (daily)
-		d.tasks.Add(instanceRefreshTypesTask(d))
+		d.tasks.Add(instanceRefreshTypesTask(d.State))
 
 		// Remove expired backups (hourly)
-		d.tasks.Add(pruneExpiredBackupsTask(d))
+		d.tasks.Add(pruneExpiredBackupsTask(d.State))
 
 		// Prune expired instance snapshots and take snapshot of instances (minutely check of configurable cron expression)
-		d.tasks.Add(pruneExpiredAndAutoCreateInstanceSnapshotsTask(d))
+		d.tasks.Add(pruneExpiredAndAutoCreateInstanceSnapshotsTask(d.State))
 
 		// Prune expired custom volume snapshots and take snapshots of custom volumes (minutely check of configurable cron expression)
-		d.tasks.Add(pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(d))
+		d.tasks.Add(pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(d.State))
 
 		// Remove resolved warnings (daily)
-		d.tasks.Add(pruneResolvedWarningsTask(d))
+		d.tasks.Add(pruneResolvedWarningsTask(d.State))
 
 		// Auto-renew server certificate (daily)
 		d.tasks.Add(autoRenewCertificateTask(d))
 
 		// Remove expired tokens (hourly)
-		d.tasks.Add(autoRemoveExpiredTokensTask(d))
+		d.tasks.Add(autoRemoveExpiredTokensTask(d.State))
 	}
 
 	// Start all background tasks
@@ -1993,13 +1993,13 @@ func (d *Daemon) startClusterTasks() {
 	d.taskClusterHeartbeat = d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
 
 	// Auto-sync images across the cluster (hourly)
-	d.clusterTasks.Add(autoSyncImagesTask(d))
+	d.clusterTasks.Add(autoSyncImagesTask(d.State))
 
 	// Remove orphaned operations
-	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d))
+	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d.State))
 
 	// Perform automatic evacuation for offline cluster members
-	d.clusterTasks.Add(autoHealClusterTask(d))
+	d.clusterTasks.Add(autoHealClusterTask(d.State))
 
 	// Start all background tasks
 	d.clusterTasks.Start(d.shutdownCtx)
