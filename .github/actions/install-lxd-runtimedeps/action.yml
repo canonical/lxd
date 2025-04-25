@@ -85,7 +85,16 @@ runs:
           zfsutils-linux \
           openvswitch-switch
 
-        sudo snap install yq
+        if ! command -v yq >/dev/null; then
+          # Releases before 24.04 don't have a yq deb so use the snap instead.
+          # shellcheck disable=SC1091
+          . /etc/os-release
+          if dpkg --compare-versions "${VERSION_ID}" ge 24.04; then
+              sudo apt-get install --no-install-recommends -y yq
+          else
+              sudo snap install yq
+          fi
+        fi
 
         # reclaim some space
         sudo apt-get clean
