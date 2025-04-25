@@ -279,10 +279,9 @@ func internalShutdown(d *Daemon, r *http.Request) response.Response {
 
 		f.Flush()
 
-		// Send result of d.Stop() to cmdDaemon so that process stops with correct exit code from Stop().
 		go func() {
-			<-r.Context().Done() // Wait until request is finished.
-			d.shutdownDoneCh <- stopErr
+			<-r.Context().Done()    // Wait until request is finished.
+			d.shutdownDoneCh <- nil // Send nil error to cmdDaemon to ensure LXD isn't restarted by systemd.
 		}()
 
 		return nil

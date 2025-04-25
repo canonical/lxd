@@ -87,7 +87,8 @@ func (c *cmdDaemon) run(cmd *cobra.Command, args []string) error {
 				logger.Warn("Ignoring signal, shutdown already in progress", logger.Ctx{"signal": sig})
 			} else {
 				go func() {
-					d.shutdownDoneCh <- d.Stop(context.Background(), sig)
+					_ = d.Stop(context.Background(), sig)
+					d.shutdownDoneCh <- nil // Send nil error to cmdDaemon to ensure LXD isn't restarted by systemd.
 				}()
 			}
 
