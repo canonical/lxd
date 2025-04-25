@@ -164,6 +164,41 @@ func storageStartup(s *state.State) error {
 	return nil
 }
 
+func storageStop(s *state.State) {
+	if s.DB.Cluster == nil {
+		logger.Warn("Skipping storage stop due to global database not being available")
+		return
+	}
+
+	logger.Info("Stopping storage pools")
+
+	var err error
+	var pools []string
+
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		pools, err = tx.GetStoragePoolNames(ctx)
+
+		return err
+	})
+	if err != nil && !response.IsNotFoundError(err) {
+		logger.Error("Failed to get storage pools", logger.Ctx{"err": err})
+	}
+
+	for _, poolName := range pools {
+		pool, err := storagePools.LoadByName(s, poolName)
+		if err != nil {
+			logger.Error("Failed to get storage pool", logger.Ctx{"pool": poolName, "err": err})
+			continue
+		}
+
+		_, err = pool.Unmount()
+		if err != nil {
+			logger.Error("Unable to unmount storage pool", logger.Ctx{"pool": poolName, "err": err})
+			continue
+		}
+	}
+}
+
 func storagePoolDriversCacheUpdate(s *state.State) {
 	// Get a list of all storage drivers currently in use
 	// on this LXD instance. Only do this when we do not already have done
