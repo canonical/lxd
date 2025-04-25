@@ -1835,15 +1835,18 @@ func networkStartup(stateFunc func() *state.State) error {
 	return nil
 }
 
-func networkShutdown(s *state.State) {
+func networkingStop(s *state.State) {
+	if s.DB.Cluster == nil {
+		logger.Warn("Skipping networks stop due to global database not being available")
+		return
+	}
+
+	logger.Info("Stopping networks")
+
 	var err error
 
 	// Get a list of projects.
 	var projectNames []string
-
-	if s.DB.Cluster == nil {
-		return
-	}
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		projectNames, err = dbCluster.GetProjectNames(ctx, tx.Tx())
