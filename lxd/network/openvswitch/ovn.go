@@ -643,7 +643,7 @@ func (o *OVN) LogicalRouterPortDeleteIPv6Advertisements(portName OVNRouterPort) 
 
 // LogicalRouterPortLinkChassisGroup links a logical router port to a HA chassis group.
 func (o *OVN) LogicalRouterPortLinkChassisGroup(portName OVNRouterPort, haChassisGroupName OVNChassisGroup) error {
-	chassisGroupID, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "ha_chassis_group", "name="+string(haChassisGroupName))
+	chassisGroupID, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid", "find", "ha_chassis_group", "name="+string(haChassisGroupName))
 	if err != nil {
 		return err
 	}
@@ -726,7 +726,7 @@ func (o *OVN) LogicalSwitchDelete(switchName OVNSwitch) error {
 
 // logicalSwitchFindAssociatedPortGroups finds the port groups that are associated to the switch specified.
 func (o *OVN) logicalSwitchFindAssociatedPortGroups(switchName OVNSwitch) ([]OVNPortGroup, error) {
-	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=name", "find", "port_group",
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=name", "find", "port_group",
 		"external_ids:"+string(ovnExtIDLXDSwitch)+"="+string(switchName),
 	)
 	if err != nil {
@@ -943,7 +943,7 @@ func (o *OVN) LogicalSwitchDHCPv6OptionsSet(switchName OVNSwitch, uuid OVNDHCPOp
 
 // LogicalSwitchDHCPOptionsGet retrieves the existing DHCP options defined for a logical switch.
 func (o *OVN) LogicalSwitchDHCPOptionsGet(switchName OVNSwitch) ([]OVNDHCPOptsSet, error) {
-	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,cidr", "find", "dhcp_options",
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid,cidr", "find", "dhcp_options",
 		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitch, switchName),
 	)
 	if err != nil {
@@ -997,7 +997,7 @@ func (o *OVN) LogicalSwitchDHCPOptionsDelete(switchName OVNSwitch, uuids ...OVND
 
 // logicalSwitchDNSRecordsDelete deletes any DNS records defined for a switch.
 func (o *OVN) logicalSwitchDNSRecordsDelete(switchName OVNSwitch) error {
-	uuids, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "dns",
+	uuids, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid", "find", "dns",
 		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitch, switchName),
 	)
 	if err != nil {
@@ -1047,7 +1047,7 @@ func (o *OVN) LogicalSwitchSetACLRules(switchName OVNSwitch, aclRules ...OVNACLR
 // logicalSwitchPortACLRules returns the ACL rule UUIDs belonging to a logical switch port.
 func (o *OVN) logicalSwitchPortACLRules(portName OVNSwitchPort) ([]string, error) {
 	// Remove any existing rules assigned to the entity.
-	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "acl", "external_ids:"+string(ovnExtIDLXDSwitchPort)+"="+string(portName))
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid", "find", "acl", "external_ids:"+string(ovnExtIDLXDSwitchPort)+"="+string(portName))
 	if err != nil {
 		return nil, err
 	}
@@ -1086,7 +1086,7 @@ func (o *OVN) LogicalSwitchPorts(switchName OVNSwitch) (map[OVNSwitchPort]OVNSwi
 
 // LogicalSwitchIPs returns a list of IPs associated to each port connected to switch.
 func (o *OVN) LogicalSwitchIPs(switchName OVNSwitch) (map[OVNSwitchPort][]net.IP, error) {
-	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=name,addresses,dynamic_addresses", "find", "logical_switch_port",
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=name,addresses,dynamic_addresses", "find", "logical_switch_port",
 		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitch, switchName),
 	)
 	if err != nil {
@@ -1119,7 +1119,7 @@ func (o *OVN) LogicalSwitchIPs(switchName OVNSwitch) (map[OVNSwitchPort][]net.IP
 
 // LogicalSwitchPortUUID returns the logical switch port UUID or empty string if port doesn't exist.
 func (o *OVN) LogicalSwitchPortUUID(portName OVNSwitchPort) (OVNSwitchPortUUID, error) {
-	portInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name", "find", "logical_switch_port", "name="+string(portName))
+	portInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid,name", "find", "logical_switch_port", "name="+string(portName))
 	if err != nil {
 		return "", err
 	}
@@ -1200,7 +1200,7 @@ func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort,
 
 // LogicalSwitchPortIPs returns a list of IPs for a switch port.
 func (o *OVN) LogicalSwitchPortIPs(portName OVNSwitchPort) ([]net.IP, error) {
-	addressesRaw, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--column=addresses,dynamic_addresses", "find", "logical_switch_port", "name="+string(portName))
+	addressesRaw, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=addresses,dynamic_addresses", "find", "logical_switch_port", "name="+string(portName))
 	if err != nil {
 		return nil, err
 	}
@@ -1280,7 +1280,7 @@ func (o *OVN) LogicalSwitchPortOptionsSet(portName OVNSwitchPort, options map[st
 // Returns the DNS record UUID, IPv4 and IPv6 addresses used for DNS records.
 func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPort, dnsName string, dnsIPs []net.IP) (OVNDNSUUID, error) {
 	// Check if existing DNS record exists for switch port.
-	dnsUUID, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "dns",
+	dnsUUID, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid", "find", "dns",
 		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitchPort, portName),
 	)
 	if err != nil {
@@ -1354,7 +1354,7 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 // LogicalSwitchPortGetDNS returns the logical switch port DNS info (UUID and IPs).
 func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (OVNDNSUUID, []net.IP, error) {
 	// Get UUID and DNS IPs for a switch port in the format: "<DNS UUID>,<DNS NAME>=<IP> <IP>"
-	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,records", "find", "dns",
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid,records", "find", "dns",
 		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitchPort, portName),
 	)
 	if err != nil {
@@ -1518,7 +1518,7 @@ func (o *OVN) ChassisGroupAdd(haChassisGroupName OVNChassisGroup, mayExist bool)
 // ChassisGroupDelete deletes an HA chassis group.
 func (o *OVN) ChassisGroupDelete(haChassisGroupName OVNChassisGroup) error {
 	// ovn-nbctl doesn't provide an "--if-exists" option for removing chassis groups.
-	existing, err := o.nbctl("--no-headings", "--data=bare", "--colum=name", "find", "ha_chassis_group", "name="+string(haChassisGroupName))
+	existing, err := o.nbctl("--no-headings", "--data=bare", "--columns=name", "find", "ha_chassis_group", "name="+string(haChassisGroupName))
 	if err != nil {
 		return err
 	}
@@ -1547,7 +1547,7 @@ func (o *OVN) ChassisGroupChassisAdd(haChassisGroupName OVNChassisGroup, chassis
 // ChassisGroupChassisDelete deletes a chassis ID from an HA chassis group.
 func (o *OVN) ChassisGroupChassisDelete(haChassisGroupName OVNChassisGroup, chassisID string) error {
 	// Map UUIDs with chassis_names.
-	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--column=_uuid,chassis_name", "find", "ha_chassis")
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid,chassis_name", "find", "ha_chassis")
 	if err != nil {
 		return err
 	}
@@ -1565,7 +1565,7 @@ func (o *OVN) ChassisGroupChassisDelete(haChassisGroupName OVNChassisGroup, chas
 	}
 
 	// Check if chassis group exists. ovn-nbctl doesn't provide an "--if-exists" option for this.
-	output, err = o.nbctl("--no-headings", "--data=bare", "--colum=name,ha_chassis", "find", "ha_chassis_group", "name="+string(haChassisGroupName))
+	output, err = o.nbctl("--no-headings", "--data=bare", "--columns=name,ha_chassis", "find", "ha_chassis_group", "name="+string(haChassisGroupName))
 	if err != nil {
 		return err
 	}
@@ -1598,7 +1598,7 @@ func (o *OVN) ChassisGroupChassisDelete(haChassisGroupName OVNChassisGroup, chas
 // PortGroupInfo returns the port group UUID or empty string if port doesn't exist, and whether the port group has
 // any ACL rules defined on it.
 func (o *OVN) PortGroupInfo(portGroupName OVNPortGroup) (OVNPortGroupUUID, bool, error) {
-	groupInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name,acl", "find", "port_group",
+	groupInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid,name,acl", "find", "port_group",
 		"name="+string(portGroupName),
 	)
 	if err != nil {
@@ -1668,7 +1668,7 @@ func (o *OVN) PortGroupDelete(portGroupNames ...OVNPortGroup) error {
 
 // PortGroupListByProject finds the port groups that are associated to the project ID.
 func (o *OVN) PortGroupListByProject(projectID int64) ([]OVNPortGroup, error) {
-	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=name", "find", "port_group",
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=name", "find", "port_group",
 		fmt.Sprintf("external_ids:%s=%d", ovnExtIDLXDProjectID, projectID),
 	)
 	if err != nil {
@@ -1847,7 +1847,7 @@ func (o *OVN) loadBalancerUUIDs(loadBalancerName OVNLoadBalancer) ([]string, err
 
 	// Use find command in order to workaround OVN bug where duplicate records of same name can exist.
 	for _, lbName := range []string{lbTCPName, lbUDPName} {
-		output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "load_balancer", `name="`+lbName+`"`)
+		output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid", "find", "load_balancer", `name="`+lbName+`"`)
 		if err != nil {
 			return nil, err
 		}
@@ -2185,12 +2185,11 @@ func (o *OVN) LogicalRouterRoutes(routerName OVNRouter) ([]OVNRouterRoute, error
 		// ovn-nbctl doesn't output single-host route prefixes in CIDR format, so do the conversion here.
 		ip := net.ParseIP(fields[0])
 		if ip != nil {
-			subnetSize := 32
 			if ip.To4() == nil {
-				subnetSize = 128
+				fields[0] = ip.String() + "/128"
+			} else {
+				fields[0] = ip.String() + "/32"
 			}
-
-			fields[0] = ip.String() + "/" + fmt.Sprint(subnetSize)
 		}
 
 		_, prefix, err := net.ParseCIDR(fields[0])
