@@ -376,7 +376,7 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 	unpackVolume := func(v Volume, r io.ReadSeeker, unpacker []string, srcFile string, target string) error {
 		d.Logger().Debug("Unpacking optimized volume", logger.Ctx{"source": srcFile, "target": target})
 
-		targetPath := shared.VarPath("") + "/storage-pools/" + target
+		targetPath := shared.VarPath("storage-pools", target)
 		tr, cancelFunc, err := archive.CompressedTarReader(context.Background(), r, unpacker, d.state.OS, targetPath)
 		if err != nil {
 			return err
