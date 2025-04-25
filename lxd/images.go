@@ -1850,9 +1850,9 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, result)
 }
 
-func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
+func autoUpdateImagesTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
 
 		opRun := func(op *operations.Operation) error {
 			return autoUpdateImages(ctx, s)
@@ -2499,9 +2499,9 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 	return newInfo, nil
 }
 
-func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
+func pruneExpiredImagesTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
 
 		opRun := func(op *operations.Operation) error {
 			return pruneExpiredImages(ctx, s, op)
@@ -4734,9 +4734,9 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
+func autoSyncImagesTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
 
 		leaderInfo, err := s.LeaderInfo()
 		if err != nil {

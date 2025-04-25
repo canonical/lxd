@@ -144,9 +144,11 @@ func getExpiredPendingIdentities(ctx context.Context, s *state.State) ([]cluster
 	return expiredPendingTLSIdentities, nil
 }
 
-func autoRemoveExpiredTokensTask(d *Daemon) (task.Func, task.Schedule) {
+func autoRemoveExpiredTokensTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		autoRemoveExpiredTokens(ctx, d.State())
+		s := stateFunc()
+
+		autoRemoveExpiredTokens(ctx, s)
 	}
 
 	return f, task.Every(time.Hour)
