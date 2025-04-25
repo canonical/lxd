@@ -2216,7 +2216,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed to remove member from database: %w", err))
 	}
 
-	err = rebalanceMemberRoles(s, d.gateway, r, nil)
+	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil)
 	if err != nil {
 		logger.Warnf("Failed to rebalance dqlite nodes: %v", err)
 	}
@@ -2578,7 +2578,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 	d.clusterMembershipMutex.Lock()
 	defer d.clusterMembershipMutex.Unlock()
 
-	err = rebalanceMemberRoles(s, d.gateway, r, nil)
+	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2963,7 +2963,7 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 		return response.SmartError(err)
 	}
 
-	err = rebalanceMemberRoles(s, d.gateway, r, nil)
+	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil)
 	if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 		logger.Warn("Could not rebalance cluster member roles after raft member removal", logger.Ctx{"err": err})
 	}
