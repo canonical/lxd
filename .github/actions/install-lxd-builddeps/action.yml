@@ -65,7 +65,7 @@ runs:
           liblxc-dev \
           lxc-utils \
           libseccomp-dev \
-          libselinux-dev \
+          libselinux1-dev \
           libsqlite3-dev \
           libtool \
           libudev-dev \
