@@ -363,7 +363,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			run := func(op *operations.Operation) error {
-				return migrateInstance(s, r, inst, targetMemberInfo.Name, req, op)
+				return migrateInstance(r.Context(), s, inst, targetMemberInfo.Name, req, op)
 			}
 
 			resources := map[string][]api.URL{}
@@ -654,7 +654,7 @@ func instancePostMigration(s *state.State, inst instance.Instance, req api.Insta
 }
 
 // Move a non-ceph instance to another cluster node. Source and target members must be online.
-func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, srcMember db.NodeInfo, newMember db.NodeInfo, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
+func instancePostClusteringMigrate(reqContext context.Context, s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, srcMember db.NodeInfo, newMember db.NodeInfo, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
 	srcMemberOffline := srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
 
 	// Make sure that the source member is online if we end up being called from another member after a
@@ -691,7 +691,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 		// Connect to the destination member, i.e. the member to migrate the instance to.
 		// Use the notify argument to indicate to the destination that we are moving an instance between
 		// cluster members.
-		dest, err := cluster.Connect(r.Context(), newMember.Address, networkCert, s.ServerCert(), true)
+		dest, err := cluster.Connect(reqContext, newMember.Address, networkCert, s.ServerCert(), true)
 		if err != nil {
 			return fmt.Errorf("Failed to connect to destination server %q: %w", newMember.Address, err)
 		}
@@ -760,7 +760,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 			return nil
 		}
 
-		srcOp, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, srcMigration.Metadata(), run, cancel, srcMigration.Connect)
+		srcOp, err := operations.OperationCreate(reqContext, s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, srcMigration.Metadata(), run, cancel, srcMigration.Connect)
 		if err != nil {
 			return err
 		}
@@ -899,7 +899,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 
 // instancePostClusteringMigrateWithRemoteStorage handles moving a remote shared storage instance from a source member that is offline.
 // This function must be run on the target cluster member to move the instance to.
-func instancePostClusteringMigrateWithRemoteStorage(s *state.State, r *http.Request, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, newMember db.NodeInfo, stateful bool) (func(op *operations.Operation) error, error) {
+func instancePostClusteringMigrateWithRemoteStorage(reqContext context.Context, s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, newMember db.NodeInfo, stateful bool) (func(op *operations.Operation) error, error) {
 	// Sense checks to avoid unexpected behaviour.
 	if !srcPool.Driver().Info().Remote {
 		return nil, errors.New("Source instance's storage pool is not remote shared storage")
@@ -963,7 +963,7 @@ func instancePostClusteringMigrateWithRemoteStorage(s *state.State, r *http.Requ
 	return run, nil
 }
 
-func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, targetNode string, req api.InstancePost, op *operations.Operation) error {
+func migrateInstance(reqContext context.Context, s *state.State, inst instance.Instance, targetNode string, req api.InstancePost, op *operations.Operation) error {
 	// If target isn't the same as the instance's location.
 	if targetNode == inst.Location() {
 		return errors.New("Target must be different than instance's current location")
@@ -999,7 +999,7 @@ func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, ta
 
 	// Only use instancePostClusteringMigrateWithRemoteStorage when source member is offline and storage location is remote.
 	if srcMember.IsOffline(s.GlobalConfig.OfflineThreshold()) && srcPool.Driver().Info().Remote {
-		f, err := instancePostClusteringMigrateWithRemoteStorage(s, r, srcPool, inst, req.Name, newMember, req.Live)
+		f, err := instancePostClusteringMigrateWithRemoteStorage(reqContext, s, srcPool, inst, req.Name, newMember, req.Live)
 		if err != nil {
 			return err
 		}
@@ -1007,7 +1007,7 @@ func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, ta
 		return f(op)
 	}
 
-	f, err := instancePostClusteringMigrate(s, r, srcPool, inst, req.Name, srcMember, newMember, req.Live, req.AllowInconsistent)
+	f, err := instancePostClusteringMigrate(reqContext, s, srcPool, inst, req.Name, srcMember, newMember, req.Live, req.AllowInconsistent)
 	if err != nil {
 		return err
 	}
