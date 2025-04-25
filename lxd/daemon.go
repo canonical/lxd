@@ -1483,9 +1483,11 @@ func (d *Daemon) init() error {
 			options = append(options, driver.WithTracing(dqliteClient.LogDebug))
 		}
 
-		d.db.Cluster, err = db.OpenCluster(d.shutdownCtx, "db.bin", store, localClusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
+		dbCluster, err := db.OpenCluster(d.shutdownCtx, "db.bin", store, localClusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
 		if err == nil {
 			logger.Info("Initialized global database")
+			d.db.Cluster = dbCluster
+			d.gateway.Cluster = d.db.Cluster
 			break
 		} else if api.StatusErrorCheck(err, http.StatusPreconditionFailed) {
 			// If some other nodes have schema or API versions less recent
@@ -1497,7 +1499,7 @@ func (d *Daemon) init() error {
 			// The only thing we want to still do on this node is
 			// to run the heartbeat task, in case we are the raft
 			// leader.
-			d.gateway.Cluster = d.db.Cluster
+			d.gateway.Cluster = dbCluster
 			taskFunc, taskSchedule := cluster.HeartbeatTask(d.gateway)
 			hbGroup := task.NewGroup()
 			d.taskClusterHeartbeat = hbGroup.Add(taskFunc, taskSchedule)
@@ -1506,7 +1508,7 @@ func (d *Daemon) init() error {
 			_ = hbGroup.Stop(time.Second)
 			d.gateway.Cluster = nil
 
-			_ = d.db.Cluster.Close()
+			_ = dbCluster.Close()
 
 			continue
 		}
@@ -1531,8 +1533,6 @@ func (d *Daemon) init() error {
 		// offline.
 		logger.Warn("Could not notify all nodes of database upgrade", logger.Ctx{"err": err})
 	}
-
-	d.gateway.Cluster = d.db.Cluster
 
 	// Setup the user-agent.
 	if d.serverClustered {
