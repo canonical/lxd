@@ -2564,7 +2564,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		if isDegraded || onlineVoters < maxVoters || onlineStandbys < maxStandBy {
 			d.clusterMembershipMutex.Lock()
 			logger.Debug("Rebalancing member roles in heartbeat", logger.Ctx{"local": localClusterAddress})
-			err := rebalanceMemberRoles(d.State(), d.gateway, nil, unavailableMembers)
+			err := rebalanceMemberRoles(context.Background(), d.State(), d.gateway, unavailableMembers)
 			if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 				logger.Warn("Could not rebalance cluster member roles", logger.Ctx{"err": err, "local": localClusterAddress})
 			}
