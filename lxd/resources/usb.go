@@ -214,7 +214,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 					return nil, fmt.Errorf("Failed to read %q: %w", interfaceSubClassPath, err)
 				}
 
-				iface.SubClassID, err = strconv.ParseUint(strings.TrimSpace(string(content)), 16, 64)
+				iface.SubClassID, err = strconv.ParseUint(strings.TrimSpace(string(content)), 16, 8)
 				if err != nil {
 					return nil, fmt.Errorf("Failed to parse subclass ID %q: %w", content, err)
 				}
