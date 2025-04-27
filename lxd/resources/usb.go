@@ -104,7 +104,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 
 			device.ProductID = strings.TrimPrefix(strings.TrimSpace(string(content)), "0x")
 
-			productID, err = strconv.ParseUint(device.ProductID, 16, 64)
+			productID, err = strconv.ParseUint(device.ProductID, 16, 16)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to parse product ID %q: %w", device.ProductID, err)
 			}
