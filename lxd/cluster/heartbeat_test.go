@@ -86,6 +86,7 @@ type heartbeatFixture struct {
 func (f *heartbeatFixture) Bootstrap() *cluster.Gateway {
 	f.t.Logf("create bootstrap node for test cluster")
 	state, gateway, _ := f.node()
+	state.ServerClustered = true
 
 	err := cluster.Bootstrap(state, gateway, "buzz")
 	require.NoError(f.t, err)
