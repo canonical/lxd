@@ -809,7 +809,7 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	transporter, wrapper := newLocationHeaderTransportWrapper()
-	client, err := c.global.conf.GetInstanceServerWithTransportWrapper(remoteName, wrapper)
+	client, err := c.global.conf.GetInstanceServerWithConnectionArgs(remoteName, &lxd.ConnectionArgs{TransportWrapper: wrapper})
 	if err != nil {
 		return err
 	}
