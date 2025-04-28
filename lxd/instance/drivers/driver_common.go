@@ -535,6 +535,90 @@ func (d *common) getAttachedVolumeSnapshots(sourceSnapshot instance.Instance, di
 	return slices.Collect[*api.StorageVolume](maps.Values(targetSnapshots)), nil
 }
 
+// restoreCommon contains the common logic of restoring different instance types.
+// This includes loading the storage pool, deriving which volumes should be restored, stopping the instance
+// and updating instance config.
+func (d *common) restoreCommon(inst instance.Instance, source instance.Instance) (storagePools.Pool, bool, *operationlock.InstanceOperation, error) {
+	// Load the storage driver.
+	pool, err := storagePools.LoadByInstance(d.state, inst)
+	if err != nil {
+		return nil, false, nil, err
+	}
+
+	op, err := operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
+	if err != nil {
+		return nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
+	}
+
+	// Stop the instance.
+	wasRunning := inst.IsRunning()
+	if wasRunning {
+		ephemeral := d.IsEphemeral()
+		if ephemeral {
+			// Unset ephemeral flag.
+			args := db.InstanceArgs{
+				Architecture: d.Architecture(),
+				Config:       d.LocalConfig(),
+				Description:  d.Description(),
+				Devices:      d.LocalDevices(),
+				Ephemeral:    false,
+				Profiles:     d.Profiles(),
+				Project:      d.Project().Name,
+				Type:         d.Type(),
+				Snapshot:     d.IsSnapshot(),
+			}
+
+			err := inst.Update(args, false)
+			if err != nil {
+				op.Done(err)
+				return nil, false, nil, err
+			}
+
+			// On function return, set the flag back on.
+			defer func() {
+				args.Ephemeral = ephemeral
+				_ = inst.Update(args, false)
+			}()
+		}
+
+		// This will unmount the instance storage.
+		err := inst.Stop(false)
+		if err != nil {
+			op.Done(err)
+			return nil, false, nil, err
+		}
+
+		// Refresh the operation as that one is now complete.
+		op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
+		if err != nil {
+			return nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
+		}
+	}
+
+	// Restore the configuration.
+	args := db.InstanceArgs{
+		Architecture: source.Architecture(),
+		Config:       source.LocalConfig(),
+		Description:  source.Description(),
+		Devices:      source.LocalDevices(),
+		Ephemeral:    source.IsEphemeral(),
+		Profiles:     source.Profiles(),
+		Project:      source.Project().Name,
+		Type:         source.Type(),
+		Snapshot:     source.IsSnapshot(),
+	}
+
+	// Don't pass as user-requested as there's no way to fix a bad config.
+	// This will call d.UpdateBackupFile() to ensure snapshot list is up to date.
+	err = inst.Update(args, false)
+	if err != nil {
+		op.Done(err)
+		return nil, false, nil, err
+	}
+
+	return pool, wasRunning, op, nil
+}
+
 // VolatileSet sets one or more volatile config keys.
 func (d *common) VolatileSet(changes map[string]string) error {
 	// Quick check.
