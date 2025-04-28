@@ -321,29 +321,6 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 	return results, cmpDirectives
 }
 
-// cmpImageFingerprintsFromRemote provides shell completion for image fingerprints.
-// It takes a partial input string and a remote and returns image fingerprints for that remote along with a shell completion directive.
-func (g *cmdGlobal) cmpImageFingerprintsFromRemote(toComplete string, remote string) ([]string, cobra.ShellCompDirective) {
-	if remote == "" {
-		remote = g.conf.DefaultRemote
-	}
-
-	remoteServer, _ := g.conf.GetImageServer(remote)
-
-	images, _ := remoteServer.GetImages()
-
-	results := make([]string, 0, len(images))
-	for _, image := range images {
-		if !strings.HasPrefix(image.Fingerprint, toComplete) {
-			continue
-		}
-
-		results = append(results, image.Fingerprint)
-	}
-
-	return results, cobra.ShellCompDirectiveNoFileComp
-}
-
 // cmpInstanceKeys provides shell completion for all instance configuration keys.
 // It takes an instance name to determine instance type and returns a list of all instance configuration keys along with a shell completion directive.
 func (g *cmdGlobal) cmpInstanceKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
