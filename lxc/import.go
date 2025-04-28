@@ -36,6 +36,20 @@ func (c *cmdImport) command() *cobra.Command {
 	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
 	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, i18n.G("New key/value to apply to a specific device")+"``")
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+		if len(args) > 1 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		files, directive := c.global.cmpLocalFiles(toComplete, []string{".tar.gz", ".tar.xz"})
+		if len(args) == 0 {
+			remotes, _ := c.global.cmpRemotes(toComplete, ":", false, instanceServerRemoteCompletionFilters(*c.global.conf)...)
+			return append(files, remotes...), directive
+		}
+
+		return files, directive
+	}
+
 	return cmd
 }
 
