@@ -538,16 +538,22 @@ func (d *common) getAttachedVolumeSnapshots(sourceSnapshot instance.Instance, di
 // restoreCommon contains the common logic of restoring different instance types.
 // This includes loading the storage pool, deriving which volumes should be restored, stopping the instance
 // and updating instance config.
-func (d *common) restoreCommon(inst instance.Instance, source instance.Instance) (storagePools.Pool, bool, *operationlock.InstanceOperation, error) {
+func (d *common) restoreCommon(inst instance.Instance, source instance.Instance, disks deviceConfig.Devices) ([]*api.StorageVolume, storagePools.Pool, bool, *operationlock.InstanceOperation, error) {
 	// Load the storage driver.
 	pool, err := storagePools.LoadByInstance(d.state, inst)
 	if err != nil {
-		return nil, false, nil, err
+		return nil, nil, false, nil, err
+	}
+
+	// If performing a multi volume restore, get the snapshots used to restore attached volumes.
+	targetSnapshots, err := d.getAttachedVolumeSnapshots(source, disks)
+	if err != nil {
+		return nil, nil, false, nil, fmt.Errorf("Failed to restore snapshot rootfs: %w", err)
 	}
 
 	op, err := operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
 	if err != nil {
-		return nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
+		return nil, nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
 	}
 
 	// Stop the instance.
@@ -571,7 +577,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 			err := inst.Update(args, false)
 			if err != nil {
 				op.Done(err)
-				return nil, false, nil, err
+				return nil, nil, false, nil, err
 			}
 
 			// On function return, set the flag back on.
@@ -585,15 +591,18 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 		err := inst.Stop(false)
 		if err != nil {
 			op.Done(err)
-			return nil, false, nil, err
+			return nil, nil, false, nil, err
 		}
 
 		// Refresh the operation as that one is now complete.
 		op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
 		if err != nil {
-			return nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
+			return nil, nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
 		}
 	}
+
+	// "volatile.attached_volumes" should not be included in the instance config.
+	delete(source.LocalConfig(), "volatile.attached_volumes")
 
 	// Restore the configuration.
 	args := db.InstanceArgs{
@@ -613,10 +622,10 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 	err = inst.Update(args, false)
 	if err != nil {
 		op.Done(err)
-		return nil, false, nil, err
+		return nil, nil, false, nil, err
 	}
 
-	return pool, wasRunning, op, nil
+	return targetSnapshots, pool, wasRunning, op, nil
 }
 
 // VolatileSet sets one or more volatile config keys.
