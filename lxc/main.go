@@ -324,6 +324,10 @@ For help with any of those, simply call them with --help.`))
 		}
 	}
 
+	// Prevent file completions by default.
+	// This is a workaround for https://github.com/spf13/cobra/issues/2209 and should be removed when resolved.
+	preventFileCompletions(app)
+
 	// Run the main command and handle errors
 	err = app.Execute()
 	if err != nil {
@@ -545,4 +549,20 @@ func (c *cmdGlobal) CheckArgs(cmd *cobra.Command, args []string, minArgs int, ma
 	}
 
 	return false, nil
+}
+
+// preventFileCompletions recurses the Command tree and sets a ValidArgsFunction on each Command if not already set.
+// This prevents file completion when e.g. invalid commands are being completed, or when no completions are available yet.
+// This is used because the majority of lxc commands interact with remote resources, and not the local filesystem.
+// This should be removed when https://github.com/spf13/cobra/issues/2209 is resolved.
+func preventFileCompletions(c *cobra.Command) {
+	if c.ValidArgsFunction == nil {
+		c.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+	}
+
+	for _, cmd := range c.Commands() {
+		preventFileCompletions(cmd)
+	}
 }
