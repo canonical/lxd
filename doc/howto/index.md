@@ -48,3 +48,15 @@ You should also monitor your server or servers and configure them for the expect
 /clustering
 /production-setup
 ```
+
+(howtos-contribute)=
+## Contribute to LXD
+
+Learn how to contribute to the code or documentation for LXD.
+
+```{toctree}
+:titlesonly:
+:maxdepth: 1
+
+Contribute to LXD </contributing>
+```
