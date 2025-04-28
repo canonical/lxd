@@ -2256,7 +2256,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	}
 
 	if snapName != "" && expiry != nil {
-		err := d.snapshot(snapName, *expiry, false)
+		err := d.snapshot(snapName, *expiry, false, deviceConfig.Devices{})
 		if err != nil {
 			return "", nil, fmt.Errorf("Failed taking startup snapshot: %w", err)
 		}
@@ -3452,7 +3452,7 @@ func (d *lxc) RenderState(hostInterfaces []net.Interface) (*api.InstanceState, e
 }
 
 // snapshot creates a snapshot of the instance.
-func (d *lxc) snapshot(name string, expiry time.Time, stateful bool) error {
+func (d *lxc) snapshot(name string, expiry time.Time, stateful bool, disks deviceConfig.Devices) error {
 	// Deal with state.
 	if stateful {
 		// Quick checks.
@@ -3529,11 +3529,11 @@ func (d *lxc) snapshot(name string, expiry time.Time, stateful bool) error {
 	// Wait for any file operations to complete to have a more consistent snapshot.
 	d.stopForkfile(false)
 
-	return d.snapshotCommon(d, name, expiry, stateful)
+	return d.snapshotCommon(d, name, expiry, stateful, disks)
 }
 
 // Snapshot takes a new snapshot.
-func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
+func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool, disks deviceConfig.Devices) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
@@ -3541,7 +3541,7 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 
 	defer unlock()
 
-	return d.snapshot(name, expiry, stateful)
+	return d.snapshot(name, expiry, stateful, disks)
 }
 
 // Restore restores a snapshot.
