@@ -2608,6 +2608,15 @@ The original VLAN used when moving a VF into an instance.
 The template with the given name is triggered upon next startup.
 ```
 
+```{config:option} volatile.attached_volumes instance-volatile
+:condition: "snapshot"
+:shortdesc: "JSON map of attached volumes to their respective snapshots."
+:type: "string"
+JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding
+snapshots, created as part of a multi-volume snapshot.
+
+```
+
 ```{config:option} volatile.base_image instance-volatile
 :shortdesc: "Hash of the base image"
 :type: "string"
