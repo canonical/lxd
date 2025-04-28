@@ -86,7 +86,7 @@ func (c *cmdNetworkPeerList) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -169,7 +169,7 @@ func (c *cmdNetworkPeerShow) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -238,7 +238,7 @@ func (c *cmdNetworkPeerCreate) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -365,7 +365,7 @@ func (c *cmdNetworkPeerGet) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -454,7 +454,7 @@ For backward compatibility, a single configuration key may still be set with:
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -552,7 +552,7 @@ func (c *cmdNetworkPeerUnset) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -597,7 +597,7 @@ func (c *cmdNetworkPeerEdit) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -734,7 +734,7 @@ func (c *cmdNetworkPeerDelete) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {
