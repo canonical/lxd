@@ -339,10 +339,10 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, identityCache 
 // WaitUpgradeNotification waits for a notification from another node that all
 // nodes in the cluster should now have been upgraded and have matching schema
 // and API versions.
-func (g *Gateway) WaitUpgradeNotification() {
+func (g *Gateway) WaitUpgradeNotification(ctx context.Context) {
 	select {
 	case <-g.upgradeCh:
-	case <-time.After(time.Minute):
+	case <-ctx.Done():
 	}
 }
 

@@ -65,7 +65,6 @@ import (
 	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
 	"github.com/canonical/lxd/lxd/seccomp"
 	"github.com/canonical/lxd/lxd/state"
-	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/storage/s3/miniod"
@@ -133,6 +132,7 @@ type Daemon struct {
 	serverCertInt *shared.CertInfo // Do not use this directly, use servertCert func.
 
 	// Status control.
+	startStopLock  sync.Mutex         // Prevent concurrent starts and stops.
 	setupChan      chan struct{}      // Closed when basic Daemon setup is completed
 	waitReady      *cancel.Canceller  // Cancelled when LXD is fully ready
 	shutdownCtx    context.Context    // Cancelled when shutdown starts.
@@ -1006,18 +1006,7 @@ func setupSharedMounts() error {
 func (d *Daemon) Init() error {
 	d.startTime = time.Now()
 
-	err := d.init()
-
-	// If an error occurred synchronously while starting up, let's try to
-	// cleanup any state we produced so far. Errors happening here will be
-	// ignored.
-	if err != nil {
-		logger.Error("Failed to start the daemon", logger.Ctx{"err": err})
-		_ = d.Stop(context.Background(), unix.SIGINT)
-		return err
-	}
-
-	return nil
+	return d.init()
 }
 
 func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, instanceName string, logLevel string, labels []string, types []string) error {
@@ -1066,6 +1055,9 @@ func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, i
 }
 
 func (d *Daemon) init() error {
+	d.startStopLock.Lock()
+	defer d.startStopLock.Unlock()
+
 	var err error
 
 	var dbWarnings []dbCluster.Warning
@@ -1480,9 +1472,11 @@ func (d *Daemon) init() error {
 			options = append(options, driver.WithTracing(dqliteClient.LogDebug))
 		}
 
-		d.db.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, localClusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
+		dbCluster, err := db.OpenCluster(d.shutdownCtx, "db.bin", store, localClusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
 		if err == nil {
 			logger.Info("Initialized global database")
+			d.db.Cluster = dbCluster
+			d.gateway.Cluster = d.db.Cluster
 			break
 		} else if api.StatusErrorCheck(err, http.StatusPreconditionFailed) {
 			// If some other nodes have schema or API versions less recent
@@ -1494,16 +1488,23 @@ func (d *Daemon) init() error {
 			// The only thing we want to still do on this node is
 			// to run the heartbeat task, in case we are the raft
 			// leader.
-			d.gateway.Cluster = d.db.Cluster
+			d.gateway.Cluster = dbCluster
 			taskFunc, taskSchedule := cluster.HeartbeatTask(d.gateway)
 			hbGroup := task.NewGroup()
 			d.taskClusterHeartbeat = hbGroup.Add(taskFunc, taskSchedule)
 			hbGroup.Start(d.shutdownCtx)
-			d.gateway.WaitUpgradeNotification()
+
+			{
+				// Wait for refresh notification from other members.
+				waitNotificationCtx, cancel := context.WithTimeout(d.shutdownCtx, time.Minute)
+				d.gateway.WaitUpgradeNotification(waitNotificationCtx)
+				cancel()
+			}
+
 			_ = hbGroup.Stop(time.Second)
 			d.gateway.Cluster = nil
 
-			_ = d.db.Cluster.Close()
+			_ = dbCluster.Close()
 
 			continue
 		}
@@ -1528,8 +1529,6 @@ func (d *Daemon) init() error {
 		// offline.
 		logger.Warn("Could not notify all nodes of database upgrade", logger.Ctx{"err": err})
 	}
-
-	d.gateway.Cluster = d.db.Cluster
 
 	// Setup the user-agent.
 	if d.serverClustered {
@@ -2045,12 +2044,15 @@ func cancelCancelableOps() error {
 
 // Stop stops the shared daemon.
 func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
+	// Cancelling the context will make everyone aware that we're shutting down.
+	d.shutdownCancel()
+
+	d.startStopLock.Lock()
+	defer d.startStopLock.Unlock()
+
 	logger.Info("Starting shutdown sequence", logger.Ctx{"signal": sig})
 
 	s := d.State()
-
-	// Cancelling the context will make everyone aware that we're shutting down.
-	d.shutdownCancel()
 
 	if d.gateway != nil {
 		d.stopClusterTasks()
@@ -2116,8 +2118,8 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 				}
 			}
 
-			logger.Info("Stopping networks")
-			networkShutdown(s)
+			// Stop networks.
+			networkingStop(s)
 
 			// Unmount daemon image and backup volumes if set.
 			logger.Info("Stopping daemon storage volumes")
@@ -2132,34 +2134,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			logger.Debug("Daemon storage volumes unmounted")
 
 			// Unmount storage pools after instances stopped and images/backup volumes unmounted.
-			logger.Info("Stopping storage pools")
-
-			var pools []string
-
-			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				var err error
-
-				pools, err = tx.GetStoragePoolNames(ctx)
-
-				return err
-			})
-			if err != nil && !response.IsNotFoundError(err) {
-				logger.Error("Failed to get storage pools", logger.Ctx{"err": err})
-			}
-
-			for _, poolName := range pools {
-				pool, err := storagePools.LoadByName(s, poolName)
-				if err != nil {
-					logger.Error("Failed to get storage pool", logger.Ctx{"pool": poolName, "err": err})
-					continue
-				}
-
-				_, err = pool.Unmount()
-				if err != nil {
-					logger.Error("Unable to unmount storage pool", logger.Ctx{"pool": poolName, "err": err})
-					continue
-				}
-			}
+			storageStop(s)
 		}
 
 		if d.db.Cluster != nil {
@@ -2201,7 +2176,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		logger.Info("Closing the database")
 		err := d.db.Cluster.Close()
 		if err != nil {
-			logger.Debug("Could not close global database cleanly", logger.Ctx{"err": err})
+			logger.Warn("Could not close global database cleanly", logger.Ctx{"err": err})
 		}
 	}
 

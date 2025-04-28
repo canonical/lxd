@@ -74,14 +74,9 @@ func (c *cmdDaemon) run(cmd *cobra.Command, args []string) error {
 	chIgnore := make(chan os.Signal, 1)
 	signal.Notify(chIgnore, unix.SIGHUP)
 
-	err := d.Init()
-	if err != nil {
-		return err
-	}
-
-	for {
-		select {
-		case sig := <-sigCh:
+	go func() {
+		for {
+			sig := <-sigCh
 			logger.Info("Received signal", logger.Ctx{"signal": sig})
 			if d.shutdownCtx.Err() != nil {
 				logger.Warn("Ignoring signal, shutdown already in progress", logger.Ctx{"signal": sig})
@@ -91,9 +86,23 @@ func (c *cmdDaemon) run(cmd *cobra.Command, args []string) error {
 					d.shutdownDoneCh <- nil // Send nil error to cmdDaemon to ensure LXD isn't restarted by systemd.
 				}()
 			}
+		}
+	}()
 
-		case err = <-d.shutdownDoneCh:
+	err := d.Init()
+	if err != nil {
+		logger.Error("Failed starting daemon", logger.Ctx{"err": err})
+
+		// Only trigger d.Stop() and return start up error if manual shutdown hasn't been requested.
+		// This avoids calling d.Stop() twice and ensures start up errors don't trigger systemd restart.
+		if d.shutdownCtx.Err() == nil {
+			// If an error occurred while starting up, try to cleanup any setup done so far.
+			// Return the error from the failed d.Init() call so the original start up error can be
+			// translated into an exit status and considered by systemd (which may restart).
+			_ = d.Stop(context.Background(), unix.SIGINT)
 			return err
 		}
 	}
+
+	return <-d.shutdownDoneCh
 }

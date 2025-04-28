@@ -185,12 +185,12 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 			logger.Error("Failed connecting to global database", logCtx)
 		}
 
-		select {
-		case <-connectCtx.Done():
-			return nil, connectCtx.Err()
-		default:
-			time.Sleep(2 * time.Second)
+		err = connectCtx.Err()
+		if err != nil {
+			return nil, err
 		}
+
+		time.Sleep(2 * time.Second)
 	}
 
 	// FIXME: https://github.com/canonical/dqlite/issues/163
@@ -201,7 +201,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 
 	if dump != nil {
 		logger.Infof("Migrating data from local to global database")
-		err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
+		err := query.Transaction(closingCtx, db, func(ctx context.Context, tx *sql.Tx) error {
 			return importPreClusteringData(tx, dump)
 		})
 		if err != nil {
@@ -250,7 +250,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 		closingCtx: closingCtx,
 	}
 
-	err = clusterDB.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+	err = clusterDB.Transaction(closingCtx, func(ctx context.Context, tx *ClusterTx) error {
 		// Figure out the ID of this node.
 		members, err := tx.GetNodes(ctx)
 		if err != nil {
@@ -289,7 +289,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 		return nil, err
 	}
 
-	return clusterDB, err
+	return clusterDB, nil
 }
 
 // ForLocalInspection is a aid for the hack in initializeDbObject, which
