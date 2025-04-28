@@ -326,6 +326,59 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 	return snapshots, nil
 }
 
+// volumeKey identifies a storage volume by pool and name for use as a map key
+// in [getSharedVolumes]. If the referenced volume is a snapshot, volumeName must
+// be the parent volume's name so that sharing can be detected via the parent.
+type volumeKey struct {
+	pool       string
+	volumeName string
+}
+
+// getSharedVolumes returns the subset of volumes that are also attached to at
+// least one other instance (i.e. shared) within the same effective project.
+//
+// The volumes map is expected to contain volumes currently attached to inst,
+// keyed by [volumeKey]. For snapshot volumes, volumeName in the key should be
+// the parent volume's name so that sharing via the parent is detected.
+//
+// Returns:
+// - shared: slice of volumes that are shared.
+// - err: error, if any.
+func (d *common) getSharedVolumes(ctx context.Context, tx *db.ClusterTx, volumes map[volumeKey]*api.StorageVolume, inst instance.Instance) (shared []*api.StorageVolume, err error) {
+	if len(volumes) == 0 {
+		return shared, nil
+	}
+
+	instanceProject := inst.Project()
+	effectiveProject := project.StorageVolumeProjectFromRecord(&instanceProject, dbCluster.StoragePoolVolumeTypeCustom)
+
+	// If the provided instance is a snapshot, its parent instance name is used.
+	instanceName, _, _ := api.GetParentAndSnapshotName(inst.Name())
+
+	// We only need to check instances in the same effective project.
+	filter := dbCluster.InstanceFilter{
+		Project: &effectiveProject,
+	}
+
+	err = tx.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
+		// Ignore the provided instance.
+		if instanceProject.Name == dbInst.Project && instanceName == dbInst.Name {
+			return nil
+		}
+
+		for _, dev := range instancetype.ExpandInstanceDevices(dbInst.Devices, dbInst.Profiles) {
+			volume, ok := volumes[volumeKey{dev["pool"], dev["source"]}]
+			if ok {
+				shared = append(shared, volume)
+			}
+		}
+
+		return nil
+	}, filter)
+
+	return shared, err
+}
+
 // VolatileSet sets one or more volatile config keys.
 func (d *common) VolatileSet(changes map[string]string) error {
 	// Quick check.
