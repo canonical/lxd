@@ -1744,9 +1744,9 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			return err
 		}
 
-		addr := strings.Split(fanAddress, "/")
+		address, _, _ := strings.Cut(fanAddress, "/")
 		if n.config["fan.type"] == "ipip" {
-			fanAddress = fmt.Sprintf("%s/24", addr[0])
+			fanAddress = fmt.Sprintf("%s/24", address)
 		}
 
 		// Update the MTU based on overlay device (if available).
@@ -1778,7 +1778,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Parse the host subnet.
-		_, hostSubnet, err := net.ParseCIDR(fmt.Sprintf("%s/24", addr[0]))
+		_, hostSubnet, err := net.ParseCIDR(fmt.Sprintf("%s/24", address))
 		if err != nil {
 			return fmt.Errorf("Failed parsing fan address: %w", err)
 		}
@@ -1802,7 +1802,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		dnsmasqCmd = append(dnsmasqCmd, []string{
-			fmt.Sprintf("--listen-address=%s", addr[0]),
+			fmt.Sprintf("--listen-address=%s", address),
 			"--dhcp-no-override", "--dhcp-authoritative",
 			fmt.Sprintf("--dhcp-option-force=26,%d", fanMTU),
 			fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")),
@@ -1810,7 +1810,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			"--dhcp-range", fmt.Sprintf("%s,%s,%s", dhcpalloc.GetIP(hostSubnet, 2).String(), dhcpalloc.GetIP(hostSubnet, -2).String(), expiry)}...)
 
 		// Save the dnsmasq listen address so that firewall rules can be added later
-		ipv4Address = net.ParseIP(addr[0])
+		ipv4Address = net.ParseIP(address)
 
 		// Setup the tunnel.
 		if n.config["fan.type"] == "ipip" {
@@ -1836,7 +1836,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			r = &ip.Route{
 				DevName: "tunl0",
 				Route:   overlay,
-				Src:     addr[0],
+				Src:     address,
 				Proto:   "static",
 			}
 
