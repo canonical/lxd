@@ -376,6 +376,51 @@ func (d *common) getSharedVolumes(ctx context.Context, tx *db.ClusterTx, origina
 	return shared, err
 }
 
+// attachedCustomVolumes returns a map of custom volumes attached to the provided instance.
+func (d *common) attachedCustomVolumes(ctx context.Context, tx *db.ClusterTx, inst instance.Instance, devices deviceConfig.Devices) (map[volumeKey]*api.StorageVolume, error) {
+	instanceProject := inst.Project()
+
+	// Get the instance's effective project for volumes.
+	// Create variables so we can point to them.
+	customType := dbCluster.StoragePoolVolumeTypeCustom
+	effectiveProject := project.StorageVolumeProjectFromRecord(&instanceProject, dbCluster.StoragePoolVolumeTypeCustom)
+	filter := db.StorageVolumeFilter{
+		Type:    &customType,
+		Project: &effectiveProject,
+	}
+
+	targetVolumes := make(map[volumeKey]*api.StorageVolume)
+
+	accessibleVolumes, err := tx.GetStorageVolumes(ctx, true, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add all volumes attached to inst to targetVolumes.
+	for _, device := range devices {
+		// Find StorageVolume object for the volume used as source for this disk, if any.
+		for _, dbVol := range accessibleVolumes {
+			// Snapshotting ISO volumes is not possible, so skip those.
+			if dbVol.ContentType == dbCluster.StoragePoolVolumeContentTypeNameISO {
+				continue
+			}
+
+			volumeIsUsed, err := storagePools.VolumeIsUsedByDevice(dbVol.StorageVolume, inst.Type(), inst.Name(), device)
+			if err != nil {
+				return nil, err
+			}
+
+			// Check if the volume shares the name with disk source and is in the appropriate project.
+			if volumeIsUsed {
+				targetVolumes[volumeKey{dbVol.Pool, dbVol.Name}] = &dbVol.StorageVolume
+				break
+			}
+		}
+	}
+
+	return targetVolumes, nil
+}
+
 // VolatileSet sets one or more volatile config keys.
 func (d *common) VolatileSet(changes map[string]string) error {
 	// Quick check.
