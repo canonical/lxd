@@ -324,6 +324,58 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 	return snapshots, nil
 }
 
+// The volumeKey type is used to identify a volume on a map for getSharedVolumes to efficiently check if
+// each volume on a list is being shared.
+// If the volume under the key is a snapshot, volumeName should be its parent's name so getSharedVolumes
+// can check if the parent is being shared.
+type volumeKey struct {
+	pool       string
+	volumeName string
+}
+
+// getSharedVolumes filters shared volumes from a map of volumes, each volume can be only attached to inst.
+// Useful when checking for many volumes at once, since using VolumeUsedByInstanceDevices would result in a lot of redundancy.
+func (d *common) getSharedVolumes(ctx context.Context, tx *db.ClusterTx, original map[volumeKey]*api.StorageVolume, inst instance.Instance) (shared []*api.StorageVolume, err error) {
+	// Return early if an empty map was provided.
+	if len(original) == 0 {
+		return shared, nil
+	}
+
+	instanceProject := inst.Project()
+	instanceName, _, _ := api.GetParentAndSnapshotName(inst.Name()) // Use the parent name to check for sharing if inst is a snapshot.
+	effectiveProject := project.StorageVolumeProjectFromRecord(&instanceProject, dbCluster.StoragePoolVolumeTypeCustom)
+
+	err = tx.InstanceList(ctx, func(listedInstance db.InstanceArgs, p api.Project) error {
+		// Ignore the provided instance.
+		if instanceProject.Name == listedInstance.Project && instanceName == listedInstance.Name {
+			return nil
+		}
+
+		// Ignore instances with a different effective project for volumes.
+		if effectiveProject != project.StorageVolumeProjectFromRecord(&p, dbCluster.StoragePoolVolumeTypeCustom) {
+			return nil
+		}
+
+		expandedDevices := instancetype.ExpandInstanceDevices(listedInstance.Devices, listedInstance.Profiles)
+
+		// Iterate through each of the instance's devices, looking for disks sourced by volumes attached to inst.
+		for _, dev := range expandedDevices {
+			volume, usesVol := original[volumeKey{dev["pool"], dev["source"]}]
+
+			if !usesVol {
+				continue
+			}
+
+			// Delete the shared volume from the map and move on.
+			shared = append(shared, volume)
+		}
+
+		return nil
+	})
+
+	return shared, err
+}
+
 // VolatileSet sets one or more volatile config keys.
 func (d *common) VolatileSet(changes map[string]string) error {
 	// Quick check.
