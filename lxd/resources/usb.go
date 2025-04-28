@@ -104,7 +104,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 
 			device.ProductID = strings.TrimPrefix(strings.TrimSpace(string(content)), "0x")
 
-			productID, err = strconv.ParseUint(device.ProductID, 16, 64)
+			productID, err = strconv.ParseUint(device.ProductID, 16, 16)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to parse product ID %q: %w", device.ProductID, err)
 			}
@@ -122,7 +122,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 
 			device.VendorID = strings.TrimPrefix(strings.TrimSpace(string(content)), "0x")
 
-			vendorID, err = strconv.ParseUint(device.VendorID, 16, 64)
+			vendorID, err = strconv.ParseUint(device.VendorID, 16, 16)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to parse vendor ID %q: %w", device.VendorID, err)
 			}
@@ -193,7 +193,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 					return nil, fmt.Errorf("Failed to read %q: %w", interfaceClassPath, err)
 				}
 
-				iface.ClassID, err = strconv.ParseUint(strings.TrimSpace(string(content)), 16, 64)
+				iface.ClassID, err = strconv.ParseUint(strings.TrimSpace(string(content)), 16, 8)
 				if err != nil {
 					return nil, fmt.Errorf("Failed to parse class ID %q: %w", content, err)
 				}
@@ -214,7 +214,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 					return nil, fmt.Errorf("Failed to read %q: %w", interfaceSubClassPath, err)
 				}
 
-				iface.SubClassID, err = strconv.ParseUint(strings.TrimSpace(string(content)), 16, 64)
+				iface.SubClassID, err = strconv.ParseUint(strings.TrimSpace(string(content)), 16, 8)
 				if err != nil {
 					return nil, fmt.Errorf("Failed to parse subclass ID %q: %w", content, err)
 				}
