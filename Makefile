@@ -210,7 +210,7 @@ endif
 check: default check-unit
 	cd test && ./main.sh
 
-.PHONY: unit
+.PHONY: check-unit
 check-unit:
 ifeq "$(GOCOVERDIR)" ""
 	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
@@ -289,7 +289,7 @@ ifeq ($(shell command -v go-licenses),)
 	(cd / ; go install github.com/google/go-licenses@latest)
 endif
 ifeq ($(shell command -v golangci-lint),)
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.1.2
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.1.5
 endif
 ifneq ($(shell command -v yamllint),)
 	yamllint .github/workflows/*.yml
