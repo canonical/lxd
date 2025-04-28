@@ -424,6 +424,117 @@ func (d *common) attachedCustomVolumes(ctx context.Context, tx *db.ClusterTx, in
 	return targetVolumes, nil
 }
 
+// getAttachedVolumeSnapshots Gets snapshots that were taken together with sourceSnapshot by
+// looking at the value of `volatile.attached_volumes`.
+// The returned snapshots are limited for volumes that are used as source for one of the provided devices.
+// Fails if a relevant volume is being used by another instance or if a snapshot is missing.
+func (d *common) getAttachedVolumeSnapshots(sourceSnapshot instance.Instance, disks deviceConfig.Devices) ([]*api.StorageVolume, error) {
+	// Return early if no disks were provided.
+	if len(disks) == 0 {
+		return nil, nil
+	}
+
+	// Snapshots for attached volumes should be referenced by their UUIDs in volatile.attached_volumes.
+	rawAttachedVolumes, hasAttachedVolumes := sourceSnapshot.LocalConfig()["volatile.attached_volumes"]
+	if !hasAttachedVolumes {
+		return nil, errors.New(`Cannot get attached volumes as "volatile.attached_volumes" is unset`)
+	}
+
+	var attachedVolumeSnapshotUUIDs map[string]string
+	err := json.Unmarshal([]byte(rawAttachedVolumes), &attachedVolumeSnapshotUUIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	instanceProject := sourceSnapshot.Project()
+
+	// Get the instance's effective project for volumes.
+	// Create variables so we can point to them.
+	customType := dbCluster.StoragePoolVolumeTypeCustom
+	effectiveProject := project.StorageVolumeProjectFromRecord(&instanceProject, dbCluster.StoragePoolVolumeTypeCustom)
+	filter := db.StorageVolumeFilter{
+		Type:    &customType,
+		Project: &effectiveProject,
+	}
+
+	targetSnapshots := make(map[volumeKey]*api.StorageVolume)
+	var sharedVolumeSnapshots []*api.StorageVolume
+
+	// Create slice to store volumes whose attached volume snapshots have been deleted.
+	var missingSnapshot []*api.StorageVolume
+
+	err = d.state.DB.Cluster.Transaction(d.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		projectCustomVolumes, err := tx.GetStorageVolumes(ctx, true, filter)
+		if err != nil {
+			return err
+		}
+
+		// Get all target attached custom volumes to keep track of the ones missing.
+		attachedVolumes, err := d.attachedCustomVolumes(ctx, tx, sourceSnapshot, disks)
+		if err != nil {
+			return err
+		}
+
+		for _, attachedVolume := range attachedVolumes {
+			snapshotUUID, hasSnapshot := attachedVolumeSnapshotUUIDs[attachedVolume.Config["volatile.uuid"]]
+			if !hasSnapshot {
+				continue // Skip volume that were not included in the snapshot.
+			}
+
+			found := false
+			for _, vol := range projectCustomVolumes {
+				if vol.Config["volatile.uuid"] == snapshotUUID {
+					found = true
+					parentName, _, isSnapshot := api.GetParentAndSnapshotName(vol.Name)
+					if !isSnapshot {
+						return fmt.Errorf("Volume with uuid %s is not a snapshot", vol.Config["volatile.uuid"])
+					}
+
+					// Key the snapshot volume using its parent's name so getSharedVolumes can check if the parent
+					// is being shared.
+					targetSnapshots[volumeKey{vol.Pool, parentName}] = &vol.StorageVolume
+					break
+				}
+			}
+
+			if !found {
+				missingSnapshot = append(missingSnapshot, attachedVolume)
+			}
+		}
+
+		// Check if attached volumes are being used by any instance other than inst.
+		sharedVolumeSnapshots, err = d.getSharedVolumes(ctx, tx, targetSnapshots, sourceSnapshot)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the names for the devices sources by attached volumes that are shared or missing the target snapshot.
+	if len(missingSnapshot) > 0 || len(sharedVolumeSnapshots) > 0 {
+		var errorMessageBuilder strings.Builder
+		volumeToDevice := make(map[volumeKey]string)
+		for name, device := range disks {
+			volumeToDevice[volumeKey{device["pool"], device["source"]}] = name
+		}
+
+		errorMessageBuilder.WriteString("Cannot restore source volumes for the following devices:\n")
+		for _, volume := range missingSnapshot {
+			errorMessageBuilder.WriteString(volumeToDevice[volumeKey{volume.Pool, volume.Name}] + " (snapshot missing)")
+		}
+
+		for _, volume := range sharedVolumeSnapshots {
+			parentName, _, _ := api.GetParentAndSnapshotName(volume.Name)
+			errorMessageBuilder.WriteString(volumeToDevice[volumeKey{volume.Pool, parentName}] + " (shared volume)")
+		}
+
+		return nil, errors.New(errorMessageBuilder.String())
+	}
+
+	// Turn the map into a slice before returning.
+	return slices.Collect[*api.StorageVolume](maps.Values(targetSnapshots)), nil
+}
+
 // VolatileSet sets one or more volatile config keys.
 func (d *common) VolatileSet(changes map[string]string) error {
 	// Quick check.
