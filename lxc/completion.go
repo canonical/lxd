@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxc/config"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -126,12 +127,22 @@ func (g *cmdGlobal) cmpTopLevelResource(entityType string, toComplete string) ([
 		results = append(results, completion)
 	}
 
+	directive := cobra.ShellCompDirectiveNoFileComp
 	if !strings.Contains(toComplete, ":") {
-		remotes, _ := g.cmpRemotes(toComplete, shared.ValueInSlice(entityType, []string{"image", "image_alias"}))
-		results = append(results, remotes...)
+		filters := instanceServerRemoteCompletionFilters(*g.conf)
+		if shared.ValueInSlice(entityType, []string{"image", "image_alias"}) {
+			filters = imageServerRemoteCompletionFilters(*g.conf)
+		}
+
+		remotes, directives := g.cmpRemotes(toComplete, ":", true, filters...)
+		if len(remotes) > 0 {
+			// Only append the no space directive if we're returning any remotes.
+			results = append(results, remotes...)
+			directive |= directives
+		}
 	}
 
-	return results, cobra.ShellCompDirectiveNoFileComp
+	return results, directive
 }
 
 // cmpTopLevelResourceInRemote returns completions for a given entity type in a given remote, based on the partial `toComplete` argument.
@@ -302,7 +313,7 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, true)
+		remotes, directives := g.cmpRemotes(toComplete, "", true, imageServerRemoteCompletionFilters(*g.conf)...)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
@@ -741,7 +752,7 @@ func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagFor
 		}
 
 		if !strings.Contains(toComplete, ":") {
-			remotes, directives := g.cmpRemotes(toComplete, false)
+			remotes, directives := g.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*g.conf)...)
 			results = append(results, remotes...)
 			cmpDirectives |= directives
 		}
@@ -784,7 +795,7 @@ func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
+		remotes, directives := g.cmpRemotes(toComplete, "", true, instanceServerRemoteCompletionFilters(*g.conf)...)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
@@ -1215,40 +1226,73 @@ func (g *cmdGlobal) cmpProjectConfigs(projectName string) ([]string, cobra.Shell
 	return configs, cobra.ShellCompDirectiveNoFileComp
 }
 
+// remoteCompletionFilter is passed into cmpRemotes to determine which remotes to include in the result.
+// Filter functions must match positively. E.g. Return true to filter the remote from the result.
+type remoteCompletionFilter func(name string, remote config.Remote) bool
+
+// filterDefault returns a function that returns true if the given remote name equals the default remote.
+func filterDefaultRemote(conf config.Config) remoteCompletionFilter {
+	return func(name string, remote config.Remote) bool {
+		return name == conf.DefaultRemote
+	}
+}
+
+// filterPublicRemotes returns true if the remote is public (e.g. cannot create instances).
+func filterPublicRemotes(name string, remote config.Remote) bool {
+	return remote.Public
+}
+
+// filterStaticRemotes returns true if the remote is static (cannot be modified).
+func filterStaticRemotes(name string, remote config.Remote) bool {
+	return remote.Static
+}
+
+// filterGlobalRemotes returns true if the remote is global (cannot be removed).
+func filterGlobalRemotes(name string, remote config.Remote) bool {
+	return remote.Global
+}
+
+// instanceServerRemoteCompletionFilters returns a slice of remoteCompletionFilter for use when a command requires an
+// instance server only.
+func instanceServerRemoteCompletionFilters(conf config.Config) []remoteCompletionFilter {
+	return []remoteCompletionFilter{
+		filterPublicRemotes,
+		filterDefaultRemote(conf),
+	}
+}
+
+// imageServerRemoteCompletionFilters returns a slice of remoteCompletionFilter for use when a command requires an image
+// server (including instance servers).
+func imageServerRemoteCompletionFilters(conf config.Config) []remoteCompletionFilter {
+	return []remoteCompletionFilter{
+		filterDefaultRemote(conf),
+	}
+}
+
 // cmpRemotes provides shell completion for remotes.
-// It takes a boolean specifying whether to include all remotes or not and returns a list of remotes along with a shell completion directive.
-func (g *cmdGlobal) cmpRemotes(toComplete string, includeAll bool) ([]string, cobra.ShellCompDirective) {
+// It accepts a completion string, a suffix (usually a ":"), a boolean to indicate whether the cobra.ShellCompDirectiveNoSpace should be included
+// and a list of filters. The filters are used to return only applicable remotes dependant on usage. For example, if listing images we should
+// complete for all remotes (image servers and instance servers). If listing instances we should return only instance servers.
+func (g *cmdGlobal) cmpRemotes(toComplete string, suffix string, noSpace bool, filters ...remoteCompletionFilter) ([]string, cobra.ShellCompDirective) {
 	results := []string{}
 
+remoteLoop:
 	for remoteName, rc := range g.conf.Remotes {
-		if remoteName == "local" && g.conf.DefaultRemote == "local" || remoteName == g.conf.DefaultRemote || (!includeAll && rc.Protocol != "lxd" && rc.Protocol != "") {
-			continue
-		}
-
 		if !strings.HasPrefix(remoteName, toComplete) {
 			continue
 		}
 
-		results = append(results, remoteName+":")
-	}
-
-	if len(results) > 0 {
-		return results, cobra.ShellCompDirectiveNoSpace
-	}
-
-	return results, cobra.ShellCompDirectiveNoFileComp
-}
-
-// cmpRemoteNames provides shell completion for remote names.
-// It returns a list of remote names provided by `g.conf.Remotes` along with a shell completion directive.
-func (g *cmdGlobal) cmpRemoteNames(includeDefaultRemote bool) ([]string, cobra.ShellCompDirective) {
-	results := make([]string, 0, len(g.conf.Remotes))
-	for remoteName := range g.conf.Remotes {
-		if !includeDefaultRemote && remoteName == g.conf.DefaultRemote {
-			continue
+		for _, f := range filters {
+			if f(remoteName, rc) {
+				continue remoteLoop
+			}
 		}
 
-		results = append(results, remoteName)
+		results = append(results, remoteName+suffix)
+	}
+
+	if noSpace {
+		return results, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 	}
 
 	return results, cobra.ShellCompDirectiveNoFileComp
