@@ -389,12 +389,6 @@ func (g *cmdGlobal) cmpImages(toComplete string, instanceServerOnly bool) ([]str
 func (g *cmdGlobal) cmpInstanceKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
-	// Early return when completing server keys.
-	_, instanceNameOnly, found := strings.Cut(instanceName, ":")
-	if instanceNameOnly == "" && found {
-		return g.cmpServerAllKeys(instanceName)
-	}
-
 	resources, err := g.ParseServers(instanceName)
 	if err != nil || len(resources) == 0 {
 		return nil, cobra.ShellCompDirectiveError
@@ -513,12 +507,6 @@ func (g *cmdGlobal) cmpInstanceAllKeys(profileName string) ([]string, cobra.Shel
 // It takes an instance name to determine instance type and returns a list of instance configuration keys along with a shell completion directive.
 func (g *cmdGlobal) cmpInstanceSetKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	// Early return when completing server keys.
-	_, instanceNameOnly, found := strings.Cut(instanceName, ":")
-	if instanceNameOnly == "" && found {
-		return g.cmpServerSetKeys(instanceName)
-	}
 
 	resources, err := g.ParseServers(instanceName)
 	if err != nil || len(resources) == 0 {
