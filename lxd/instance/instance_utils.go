@@ -1209,3 +1209,37 @@ func SnapshotProtobufToInstanceArgs(s *state.State, inst Instance, snap *migrati
 
 	return &args, nil
 }
+
+// ParseSnapshotDisks interprets the disks selection used for snapshot restore.
+func ParseSnapshotDisks(inst Instance, disks []string) (devices deviceConfig.Devices, err error) {
+	if len(disks) == 0 {
+		// Root disk only.
+		return nil, nil
+	}
+
+	wantExclusive := false
+	for _, t := range disks {
+		switch t {
+		case "", "root":
+		// Root disk only.
+		case "exclusive-volumes":
+			wantExclusive = true
+		default:
+			return nil, errors.New("Invalid disk type")
+		}
+	}
+
+	if !wantExclusive {
+		return nil, nil
+	}
+
+	devices = inst.ExpandedDevices().Clone()
+	for name, dev := range devices {
+		if dev["pool"] == "" || dev["source"] == "" || dev["type"] != "disk" {
+			// Remove devices that are not disks sourced by volumes.
+			delete(devices, name)
+		}
+	}
+
+	return devices, nil
+}
