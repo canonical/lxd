@@ -36,7 +36,7 @@ func TestNotifyUpgradeCompleted(t *testing.T) {
 	wg.Add(1)
 
 	go func() {
-		gateway1.WaitUpgradeNotification()
+		gateway1.WaitUpgradeNotification(context.Background())
 		wg.Done()
 	}()
 
