@@ -270,7 +270,7 @@ jobs:
         uses: ./.github/actions/install-lxd-runtimedeps
 
       - name: Download system test dependencies
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: system-test-deps
           merge-multiple: true
@@ -367,14 +367,14 @@ jobs:
         if: env.GOCOVERAGE == 'true'
 
       - name: Download coverage data
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: coverage-*
           path: ${{env.GOCOVERDIR}}
           merge-multiple: true
 
       - name: Download system test dependencies
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: system-test-deps
           merge-multiple: true
@@ -565,7 +565,7 @@ jobs:
         uses: ./.github/actions/install-lxd-runtimedeps
 
       - name: Download system test dependencies
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: system-test-deps
           merge-multiple: true
@@ -578,7 +578,7 @@ jobs:
           chmod uog+x /home/runner/go/bin/*
 
       - name: Download docs (for the objects.inv.txt file to be available for the e2e tests)
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: documentation
           merge-multiple: true
@@ -738,7 +738,7 @@ jobs:
         run: make client
 
       - name: Download built docs
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: documentation
           merge-multiple: true
