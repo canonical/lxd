@@ -1,12 +1,16 @@
 package resources
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -425,4 +429,103 @@ func systemGetMotherboard() (*api.ResourcesSystemMotherboard, error) {
 	}
 
 	return &motherboard, nil
+}
+
+// ExtendSystemdTimeout extends the systemd stop timeout (but can also be used to extend the startup and runtime systemd timeout) by the specified duration.
+func ExtendSystemdTimeout(ctx context.Context, duration time.Duration) error {
+	if os.Getenv("NOTIFY_SOCKET") == "" {
+		return fmt.Errorf("NOTIFY_SOCKET not set while trying to extend systemd stop timeout for LXD daemon")
+	}
+
+	message := fmt.Sprintf("EXTEND_TIMEOUT_USEC=%d", int64(duration/time.Microsecond))
+	_, err := shared.RunCommandContext(ctx, "systemd-notify", message)
+	if err != nil {
+		return fmt.Errorf("Failed to extend systemd timeout: %w", err)
+	}
+
+	return nil
+}
+
+// parseSystemdDuration parses a systemd duration string and returns the equivalent time.Duration.
+func parseSystemdDuration(value string) (time.Duration, error) {
+	if value == "" {
+		return 0, fmt.Errorf("Empty duration string")
+	}
+
+	// Validate the string doesn't have invalid number formats like "1.2.3".
+	invalidNumPattern, err := regexp.Compile(`\d+\.\d+\.\d+`)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to compile regular expression: %w", err)
+	}
+
+	if invalidNumPattern.MatchString(value) {
+		return 0, fmt.Errorf("Invalid number format in duration: %s", value)
+	}
+
+	// Try to parse it as plain microseconds (integer with no units).
+	intVal, err := strconv.ParseInt(value, 10, 64)
+	if err == nil {
+		return time.Duration(intVal) * time.Microsecond, nil
+	}
+
+	unitMap := map[string]time.Duration{
+		"us":  time.Microsecond,
+		"µs":  time.Microsecond,
+		"ms":  time.Millisecond,
+		"s":   time.Second,
+		"min": time.Minute,
+		"h":   time.Hour,
+		"d":   24 * time.Hour,
+		"w":   7 * 24 * time.Hour,
+		"m":   30 * 24 * time.Hour,
+		"y":   365 * 24 * time.Hour,
+	}
+
+	// Regular expression to match number+unit combinations.
+	// This matches decimal numbers followed by alphabetic units.
+	re, err := regexp.Compile(`(\d+\.?\d*)([a-zA-Z]+)`)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to compile regular expression: %w", err)
+	}
+
+	matches := re.FindAllStringSubmatch(value, -1)
+
+	if len(matches) == 0 {
+		return 0, fmt.Errorf("Invalid duration format: %s", value)
+	}
+
+	total := time.Duration(0)
+	for _, match := range matches {
+		if len(match) != 3 {
+			continue
+		}
+
+		numStr := match[1]
+		unit := match[2]
+
+		num, err := strconv.ParseFloat(numStr, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Invalid number in duration: %s", numStr)
+		}
+
+		multiplier, ok := unitMap[unit]
+		if !ok {
+			return 0, fmt.Errorf("Unknown time unit: %s", unit)
+		}
+
+		total += time.Duration(num * float64(multiplier))
+	}
+
+	return total, nil
+}
+
+// GetSystemdStopTimeout returns the systemd stop timeout for the LXD daemon.
+func GetSystemdStopTimeout(ctx context.Context) (time.Duration, error) {
+	output, err := shared.RunCommandContext(ctx, "systemctl", "show", "snap.lxd.daemon.service", "--value", "--property=TimeoutStopUSec")
+	if err != nil {
+		return 0, err
+	}
+
+	valueStr := strings.TrimSpace(output)
+	return parseSystemdDuration(valueStr)
 }
