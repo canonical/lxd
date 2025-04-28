@@ -813,6 +813,100 @@ func (d *common) updateProgress(progress string) {
 	}
 }
 
+// restoreCommon handles the common part of a restore.
+// It loads the instance's storage pool and creates a restore operation lock.
+// If the instance is running, it temporarily clears the ephemeral flag (if set),
+// stops the instance (which unmounts its storage), and then refreshes the restore
+// operation lock. The original ephemeral flag is restored on return.
+// It then applies the configuration from the source instance or snapshot to the
+// target instance and updates snapshot metadata.
+//
+// Returns:
+// - pool: the instance's storage pool.
+// - wasRunning: whether the instance was running before restore.
+// - op: the restore operation lock.
+// - err: error, if any.
+func (d *common) restoreCommon(inst instance.Instance, source instance.Instance) (pool storagePools.Pool, wasRunning bool, op *operationlock.InstanceOperation, err error) {
+	// Load the storage driver.
+	pool, err = storagePools.LoadByInstance(d.state, inst)
+	if err != nil {
+		return nil, false, nil, err
+	}
+
+	op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
+	if err != nil {
+		return nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
+	}
+
+	// Stop the instance.
+	wasRunning = inst.IsRunning()
+	if wasRunning {
+		ephemeral := d.IsEphemeral()
+		if ephemeral {
+			// Unset ephemeral flag.
+			args := db.InstanceArgs{
+				Architecture: d.Architecture(),
+				Config:       d.LocalConfig(),
+				Description:  d.Description(),
+				Devices:      d.LocalDevices(),
+				Ephemeral:    false,
+				Profiles:     d.Profiles(),
+				Project:      d.Project().Name,
+				Type:         d.Type(),
+				Snapshot:     d.IsSnapshot(),
+			}
+
+			err := inst.Update(args, false)
+			if err != nil {
+				op.Done(err)
+				return nil, false, nil, err
+			}
+
+			// On function return, set the flag back on.
+			defer func() {
+				args.Ephemeral = ephemeral
+				_ = inst.Update(args, false)
+			}()
+		}
+
+		// This will unmount the instance storage.
+		err := inst.Stop(false)
+		if err != nil {
+			op.Done(err)
+			return nil, false, nil, err
+		}
+
+		// Refresh the operation as that one is now complete.
+		op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
+		if err != nil {
+			return nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
+		}
+	}
+
+	// Restore the configuration.
+	args := db.InstanceArgs{
+		Architecture: source.Architecture(),
+		Config:       source.LocalConfig(),
+		Description:  source.Description(),
+		Devices:      source.LocalDevices(),
+		Ephemeral:    source.IsEphemeral(),
+		Profiles:     source.Profiles(),
+		Project:      source.Project().Name,
+		Type:         source.Type(),
+		Snapshot:     source.IsSnapshot(),
+	}
+
+	// Don't pass as user-requested as there's no way to fix a bad config.
+	// This will call d.UpdateBackupFile() to ensure snapshot list is up to date.
+	err = inst.Update(args, false)
+	if err != nil {
+		op.Done(err)
+		return nil, false, nil, err
+	}
+
+	return pool, wasRunning, op, nil
+}
+
 // insertConfigkey function attempts to insert the instance config key into the database. If the insert fails
 // then the database is queried to check whether another query inserted the same key. If the key is still
 // unpopulated then the insert querty is retried until it succeeds or a retry limit is reached.
