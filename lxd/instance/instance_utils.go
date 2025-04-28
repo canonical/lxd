@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -17,7 +18,7 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/google/uuid"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -1222,4 +1223,41 @@ func SnapshotProtobufToInstanceArgs(s *state.State, inst Instance, snap *migrati
 	}
 
 	return &args, nil
+}
+
+// ParseSnapshotDisks returns a map of an instance's disks sourced from custom volume
+// according to the provided "disks" argument.
+// The "excludedDevices" field indicates the names of devices that should be excluded from the return value.
+func ParseSnapshotDisks(inst Instance, disks string, excludedDisks []string) (deviceConfig.Devices, error) {
+	switch disks {
+	case "root", "":
+		if len(excludedDisks) > 0 {
+			return nil, errors.New(`Cannot specify excluded disks when restoring only the root instance disk`)
+		}
+
+		// If we only care about the root disk, return a nil map.
+		return nil, nil
+	case "volumes":
+		volumeDevices := inst.ExpandedDevices().Clone()
+		// Remove devices that are not disks sourced by volumes
+		for name, device := range volumeDevices {
+			if device["pool"] == "" || device["source"] == "" || device["type"] != "disk" {
+				delete(volumeDevices, name)
+			}
+		}
+
+		// Remove excluded devices.
+		for _, name := range excludedDisks {
+			_, hasDevice := volumeDevices[name]
+			if !hasDevice {
+				return nil, fmt.Errorf("Instance %s does not have a disk device named %s that is sourced by a volume", inst.Name(), name)
+			}
+
+			delete(volumeDevices, name)
+		}
+
+		return volumeDevices, nil
+	default:
+		return nil, fmt.Errorf(`Value %s is not a valid disks mode`, disks)
+	}
 }
