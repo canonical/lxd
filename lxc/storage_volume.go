@@ -244,19 +244,24 @@ func (c *cmdStorageVolumeAttach) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 2 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {
 			return c.global.cmpStoragePoolVolumes(args[0], "custom")
 		}
 
-		if len(args) == 2 {
-			return c.global.cmpInstanceNamesFromRemote(args[0])
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
 		}
 
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		return c.global.cmpTopLevelResourceInRemote(remote, "instance", toComplete)
 	}
 
 	return cmd
@@ -314,19 +319,24 @@ func (c *cmdStorageVolumeAttachProfile) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 2 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {
 			return c.global.cmpStoragePoolVolumes(args[0], "custom")
 		}
 
-		if len(args) == 2 {
-			return c.global.cmpProfileNamesFromRemote(args[0])
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
 		}
 
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		return c.global.cmpTopLevelResourceInRemote(remote, "profile", toComplete)
 	}
 
 	return cmd
@@ -394,21 +404,25 @@ func (c *cmdStorageVolumeCopy) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 1 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
 		if len(args) == 0 {
 			return c.global.cmpStoragePoolWithVolume(toComplete)
 		}
 
-		if len(args) == 1 {
-			completions, directive := c.global.cmpStoragePools(toComplete, true)
-			for i, completion := range completions {
-				if !strings.Contains(completion, ":") {
-					completions[i] = completion + "/"
-				}
-			}
-			return completions, directive
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
 		}
 
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		completions, directive := c.global.cmpTopLevelResourceInRemote(remote, "storage_pool", toComplete)
+		for i, completion := range completions {
+			completions[i] = completion + "/"
+		}
+
+		return completions, directive | cobra.ShellCompDirectiveNoSpace
 	}
 
 	return cmd
@@ -616,7 +630,7 @@ lxc storage volume create p1 v1 < config.yaml
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -720,7 +734,7 @@ func (c *cmdStorageVolumeDelete) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -806,7 +820,7 @@ func (c *cmdStorageVolumeDetach) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -911,7 +925,7 @@ func (c *cmdStorageVolumeDetachProfile) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -1022,7 +1036,7 @@ lxc storage volume edit [<remote>:]<pool> [<type>/]<volume> < volume.yaml
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -1249,7 +1263,7 @@ lxc storage volume get default virtual-machine/data snapshots.expiry
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -1377,7 +1391,7 @@ lxc storage volume info default virtual-machine/data
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -1629,7 +1643,7 @@ Column shorthand chars:
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1869,21 +1883,25 @@ func (c *cmdStorageVolumeMove) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 1 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
 		if len(args) == 0 {
 			return c.global.cmpStoragePoolWithVolume(toComplete)
 		}
 
-		if len(args) == 1 {
-			completions, directive := c.global.cmpStoragePools(toComplete, true)
-			for i, completion := range completions {
-				if !strings.Contains(completion, ":") {
-					completions[i] = completion + "/"
-				}
-			}
-			return completions, directive
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
 		}
 
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		completions, directive := c.global.cmpTopLevelResourceInRemote(remote, "storage_pool", toComplete)
+		for i, completion := range completions {
+			completions[i] = completion + "/"
+		}
+
+		return completions, directive | cobra.ShellCompDirectiveNoSpace
 	}
 
 	return cmd
@@ -1966,7 +1984,7 @@ func (c *cmdStorageVolumeRename) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -2106,7 +2124,7 @@ lxc storage volume set default virtual-machine/data snapshots.expiry=7d
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -2265,7 +2283,7 @@ lxc storage volume show default virtual-machine/data/snap0
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -2382,7 +2400,7 @@ lxc storage volume unset default virtual-machine/data snapshots.expiry
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -2442,7 +2460,7 @@ lxc storage volume snapshot default v1 snap0 < config.yaml
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -2570,7 +2588,7 @@ func (c *cmdStorageVolumeRestore) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -2660,7 +2678,7 @@ func (c *cmdStorageVolumeExport) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -2830,7 +2848,7 @@ func (c *cmdStorageVolumeImport) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveDefault
