@@ -1209,3 +1209,31 @@ func SnapshotProtobufToInstanceArgs(s *state.State, inst Instance, snap *migrati
 
 	return &args, nil
 }
+
+// ParseSnapshotDisks interprets the disks selection used for snapshot restore.
+func ParseSnapshotDisks(inst Instance, includeAttached bool, disks []string) (deviceConfig.Devices, error) {
+	if !includeAttached && len(disks) == 0 {
+		// Root disk only.
+		return nil, nil
+	}
+
+	wantsDisks := len(disks) > 0
+	if includeAttached && wantsDisks {
+		return nil, errors.New("Cannot include all attached volumes while specifying individual disks")
+	}
+
+	devices := inst.ExpandedDevices().Clone()
+	for name, dev := range devices {
+		if dev["pool"] == "" || dev["source"] == "" || dev["type"] != "disk" {
+			// Remove devices that are not disks sourced by volumes.
+			delete(devices, name)
+		}
+
+		if wantsDisks && !slices.Contains(disks, name) {
+			// Remove disks that were not requested.
+			delete(devices, name)
+		}
+	}
+
+	return devices, nil
+}
