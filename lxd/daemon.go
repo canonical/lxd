@@ -1493,7 +1493,14 @@ func (d *Daemon) init() error {
 			hbGroup := task.NewGroup()
 			d.taskClusterHeartbeat = hbGroup.Add(taskFunc, taskSchedule)
 			hbGroup.Start(d.shutdownCtx)
-			d.gateway.WaitUpgradeNotification()
+
+			{
+				// Wait for refresh notification from other members.
+				waitNotificationCtx, cancel := context.WithTimeout(d.shutdownCtx, time.Minute)
+				d.gateway.WaitUpgradeNotification(waitNotificationCtx)
+				cancel()
+			}
+
 			_ = hbGroup.Stop(time.Second)
 			d.gateway.Cluster = nil
 
