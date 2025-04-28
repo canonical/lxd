@@ -179,7 +179,7 @@ It requires the source to be an alias and for it to be public.`))
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -712,7 +712,7 @@ Descriptive properties can be set by providing key=value pairs. Example: os=Ubun
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1125,7 +1125,7 @@ Column shorthand chars:
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpImages(toComplete)
+		return c.global.cmpRemotes(toComplete, ":", false, imageServerRemoteCompletionFilters(*c.global.conf)...)
 	}
 
 	return cmd
