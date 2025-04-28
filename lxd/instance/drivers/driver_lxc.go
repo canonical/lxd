@@ -3545,81 +3545,25 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool, disks devic
 }
 
 // Restore restores a snapshot.
-func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
-	var ctxMap logger.Ctx
-
-	op, err := operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
-	if err != nil {
-		return fmt.Errorf("Failed to create instance restore operation: %w", err)
-	}
-
-	defer op.Done(nil)
-
-	// Stop the container.
-	wasRunning := d.IsRunning()
-	if wasRunning {
-		ephemeral := d.IsEphemeral()
-		if ephemeral {
-			// Unset ephemeral flag.
-			args := db.InstanceArgs{
-				Architecture: d.Architecture(),
-				Config:       d.LocalConfig(),
-				Description:  d.Description(),
-				Devices:      d.LocalDevices(),
-				Ephemeral:    false,
-				Profiles:     d.Profiles(),
-				Project:      d.Project().Name,
-				Type:         d.Type(),
-				Snapshot:     d.IsSnapshot(),
-			}
-
-			err := d.Update(args, false)
-			if err != nil {
-				op.Done(err)
-				return err
-			}
-
-			// On function return, set the flag back on.
-			defer func() {
-				args.Ephemeral = ephemeral
-				_ = d.Update(args, false)
-			}()
-		}
-
-		// This will unmount the container storage.
-		err := d.Stop(false)
-		if err != nil {
-			op.Done(err)
-			return err
-		}
-
-		// Refresh the operation as that one is now complete.
-		op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
-		if err != nil {
-			return fmt.Errorf("Failed to create instance restore operation: %w", err)
-		}
-
-		defer op.Done(nil)
-	}
-
-	ctxMap = logger.Ctx{
+func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool, disks deviceConfig.Devices) error {
+	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate,
 		"source":    sourceContainer.Name()}
+
+	// Execute common restore logic.
+	targetSnapshots, pool, wasRunning, op, err := d.restoreCommon(d, sourceContainer, disks)
+	if err != nil {
+		op.Done(err)
+		return err
+	}
 
 	d.logger.Info("Restoring instance", ctxMap)
 
 	// Wait for any file operations to complete.
 	// This is required so we can actually unmount the container and restore its rootfs.
 	d.stopForkfile(false)
-
-	// Initialize storage interface for the container and mount the rootfs for criu state check.
-	pool, err := storagePools.LoadByInstance(d.state, d)
-	if err != nil {
-		op.Done(err)
-		return err
-	}
 
 	d.logger.Debug("Mounting instance to check for CRIU state path existence")
 
@@ -3654,32 +3598,10 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 
 	revert.Success()
 
-	// Restore the rootfs.
-	err = pool.RestoreInstanceSnapshot(d, sourceContainer, nil)
+	// Restore the relevant volumes.
+	err = pool.RestoreInstanceSnapshot(d, sourceContainer, targetSnapshots, nil)
 	if err != nil {
-		op.Done(err)
-		return fmt.Errorf("Failed to restore snapshot rootfs: %w", err)
-	}
-
-	// Restore the configuration.
-	args := db.InstanceArgs{
-		Architecture: sourceContainer.Architecture(),
-		Config:       sourceContainer.LocalConfig(),
-		Description:  sourceContainer.Description(),
-		Devices:      sourceContainer.LocalDevices(),
-		Ephemeral:    sourceContainer.IsEphemeral(),
-		Profiles:     sourceContainer.Profiles(),
-		Project:      sourceContainer.Project().Name,
-		Type:         sourceContainer.Type(),
-		Snapshot:     sourceContainer.IsSnapshot(),
-	}
-
-	// Don't pass as user-requested as there's no way to fix a bad config.
-	// This will call d.UpdateBackupFile() to ensure snapshot list is up to date.
-	err = d.Update(args, false)
-	if err != nil {
-		op.Done(err)
-		return err
+		return fmt.Errorf("Failed to restore snapshot: %w", err)
 	}
 
 	// If the container wasn't running but was stateful, should we restore it as running?
