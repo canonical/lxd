@@ -2103,9 +2103,9 @@ test_clustering_metrics() {
 
   # Create one running container in each node and a stopped one on the leader.
   LXD_DIR="${LXD_ONE_DIR}" deps/import-busybox --project default --alias testimage
-  LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 testimage c1
-  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 testimage stopped
-  LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 testimage c2
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 -d "${SMALL_ROOT_DISK}" testimage c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 --empty -d "${SMALL_ROOT_DISK}" stopped
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 -d "${SMALL_ROOT_DISK}" testimage c2
 
   # Check that scraping metrics on each node only includes started instances on that node.
   LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/metrics" | grep 'name="c1"'
