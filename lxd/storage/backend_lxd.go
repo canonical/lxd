@@ -6005,6 +6005,12 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	l.Debug("RenameCustomVolume started")
 	defer l.Debug("RenameCustomVolume finished")
 
+	// Silence the static analysis tool
+	err := ValidVolumeName(newVolName)
+	if err != nil {
+		return err
+	}
+
 	if shared.IsSnapshot(volName) {
 		return errors.New("Volume name cannot be a snapshot")
 	}
