@@ -127,7 +127,7 @@ cleanup() {
     echo "==> Cleaning up"
 
     kill_oidc
-    umount -l "${TEST_DIR}/dev"
+    mountpoint -q "${TEST_DIR}/dev" && umount -l "${TEST_DIR}/dev"
     cleanup_lxds "$TEST_DIR"
   fi
 
