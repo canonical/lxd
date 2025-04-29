@@ -93,7 +93,13 @@ EOF
 
   lxc storage volume set "${storage_pool}" "${storage_volume}" snapshots.expiry '1d'
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
-  ! lxc storage volume show "${storage_pool}" "${storage_volume}/snap1" | grep -q 'expires_at: 0001-01-01T00:00:00Z' || false
+
+  # Get snapshot created_at and expires_at properties without microseconds.
+  created_at="$(lxc storage volume get "${storage_pool}" "${storage_volume}/snap1" --property created_at | awk -F. '{print $1}')"
+  expires_at="$(lxc storage volume get "${storage_pool}" "${storage_volume}/snap1" --property expires_at | awk -F. '{print $1}')"
+
+  # Check if the expires_at propery is exactly 1d ahead.
+  [ "$(date -d "${created_at} today + 1days")" = "$(date -d "${expires_at}")" ]
 
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}" --no-expiry
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap2" | grep -q 'expires_at: 0001-01-01T00:00:00Z'
