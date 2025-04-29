@@ -267,7 +267,10 @@ func internalShutdown(d *Daemon, r *http.Request) response.Response {
 	return response.ManualResponse(func(w http.ResponseWriter) error {
 		defer forceCtxCancel()
 
-		<-d.setupChan // Wait for daemon to start.
+		select {
+		case <-d.setupChan: // Wait for daemon to start.
+		case <-r.Context().Done(): // Don't leave this go routine around if client disconnects.
+		}
 
 		// Run shutdown sequence synchronously.
 		stopErr := d.Stop(forceCtx, unix.SIGPWR)
