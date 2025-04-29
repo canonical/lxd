@@ -1472,11 +1472,15 @@ func (d *Daemon) init() error {
 			options = append(options, driver.WithTracing(dqliteClient.LogDebug))
 		}
 
-		dbCluster, err := db.OpenCluster(d.shutdownCtx, "db.bin", store, localClusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
+		// Assign cluster DB handle to d.gateway.Cluster so its immediately usable by gateway even if DB
+		// returns StatusPreconditionFailed. This way its usable for heartbeats whilst it waits for the
+		// other members to become aligned.
+		d.gateway.Cluster, err = db.OpenCluster(d.shutdownCtx, "db.bin", store, localClusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
 		if err == nil {
 			logger.Info("Initialized global database")
-			d.db.Cluster = dbCluster
-			d.gateway.Cluster = d.db.Cluster
+
+			// If cluster DB handle is established without issue, make available to the rest of LXD.
+			d.db.Cluster = d.gateway.Cluster
 			break
 		} else if api.StatusErrorCheck(err, http.StatusPreconditionFailed) {
 			// If some other nodes have schema or API versions less recent
@@ -1488,7 +1492,6 @@ func (d *Daemon) init() error {
 			// The only thing we want to still do on this node is
 			// to run the heartbeat task, in case we are the raft
 			// leader.
-			d.gateway.Cluster = dbCluster
 			taskFunc, taskSchedule := cluster.HeartbeatTask(d.gateway)
 			hbGroup := task.NewGroup()
 			d.taskClusterHeartbeat = hbGroup.Add(taskFunc, taskSchedule)
@@ -1502,9 +1505,8 @@ func (d *Daemon) init() error {
 			}
 
 			_ = hbGroup.Stop(time.Second)
+			_ = d.gateway.Cluster.Close()
 			d.gateway.Cluster = nil
-
-			_ = dbCluster.Close()
 
 			continue
 		}
