@@ -6956,9 +6956,8 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 	l.Debug("DeleteCustomVolumeSnapshot started")
 	defer l.Debug("DeleteCustomVolumeSnapshot finished")
 
-	isSnap := shared.IsSnapshot(volName)
-
-	if !isSnap {
+	parentVolName, _, isSnapshot := api.GetParentAndSnapshotName(volName)
+	if !isSnapshot {
 		return errors.New("Volume name must be a snapshot")
 	}
 
@@ -6991,6 +6990,28 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 		vol.SetParentUUID(parentUUID)
 	}
 
+	// Get the parent volume.
+	parentVol, err := VolumeDBGet(b, projectName, parentVolName, drivers.VolumeTypeCustom)
+	if err != nil {
+		return err
+	}
+
+	var instances []instance.Instance
+
+	// Fetch all instances which are currently using the custom volume in one of their devices.
+	err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &parentVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
+		inst, err := instance.Load(b.state, dbInst, project)
+		if err != nil {
+			return err
+		}
+
+		instances = append(instances, inst)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	// Delete the snapshot from the storage device.
 	// Must come before DB VolumeDBDelete so that the volume ID is still available.
 	volExists, err := b.driver.HasVolume(vol)
@@ -7007,6 +7028,12 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 
 	// Remove the snapshot volume record from the database.
 	err = VolumeDBDelete(b, projectName, volName, vol.Type())
+	if err != nil {
+		return err
+	}
+
+	// Update the backup config file of the corresponding instances.
+	err = b.UpdateCustomVolumeBackupFiles(projectName, parentVolName, true, instances, op)
 	if err != nil {
 		return err
 	}
