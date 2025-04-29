@@ -6722,6 +6722,8 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 		return err
 	}
 
+	revert.Add(func() { _ = b.driver.DeleteVolumeSnapshot(vol, op) })
+
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotCreated.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"type": vol.Type()}))
 
 	revert.Success()
