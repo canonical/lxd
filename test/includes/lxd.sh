@@ -334,9 +334,11 @@ cleanup_lxds() {
     test_dir="$1"
 
     # Kill all LXD instances
-    while read -r daemon_dir; do
-        kill_lxd "${daemon_dir}"
-    done < "${test_dir}/daemons"
+    if [ -s "${test_dir}/daemons" ]; then
+      while read -r daemon_dir; do
+          kill_lxd "${daemon_dir}"
+      done < "${test_dir}/daemons"
+    fi
 
     # Cleanup leftover networks
     # shellcheck disable=SC2009
