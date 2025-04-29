@@ -345,7 +345,7 @@ func (g *cmdGlobal) cmpImages(toComplete string, instanceServerOnly bool) ([]str
 		}
 
 		var name string
-		if remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
+		if remote == g.conf.DefaultRemote && !strings.HasPrefix(toComplete, g.conf.DefaultRemote) {
 			name = result
 		} else {
 			name = remote + ":" + result
