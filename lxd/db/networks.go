@@ -41,6 +41,59 @@ func (c *ClusterTx) GetNetworksLocalConfig(ctx context.Context) (map[string]map[
 	return networks, nil
 }
 
+// GetNetworksNodeParent returns a map associating each node ID in a cluster to networks and their
+// node-specific parent value. If network has no parent, it is omitted.
+func (c *ClusterTx) GetNetworksNodeParent(ctx context.Context) (map[int64]map[string]string, error) {
+	query := `
+   SELECT networks_config.node_id, networks.name, networks_config.value
+   FROM networks_config
+   JOIN networks ON networks.id=networks_config.network_id
+   WHERE (
+      networks_config.key="parent" AND
+      networks_config.node_id IS NOT NULL
+   )`
+
+	rows, err := c.tx.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	nodesNetworksParent := make(map[int64]map[string]string)
+
+	for rows.Next() {
+		var (
+			nodeID      int64
+			networkName string
+			value       string
+		)
+
+		err = rows.Scan(&nodeID, &networkName, &value)
+		if err != nil {
+			return nil, err
+		}
+
+		if nodeID == 0 || networkName == "" || value == "" {
+			continue
+		}
+
+		_, nodeInMap := nodesNetworksParent[nodeID]
+		if !nodeInMap {
+			nodesNetworksParent[nodeID] = map[string]string{}
+		}
+
+		nodesNetworksParent[nodeID][networkName] = value
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return nodesNetworksParent, nil
+}
+
 // GetNonPendingNetworkIDs returns a map associating each network name to its ID.
 //
 // Pending networks are skipped.
