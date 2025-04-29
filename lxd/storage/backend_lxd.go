@@ -6864,9 +6864,8 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 	l.Debug("DeleteCustomVolumeSnapshot started")
 	defer l.Debug("DeleteCustomVolumeSnapshot finished")
 
-	isSnap := shared.IsSnapshot(volName)
-
-	if !isSnap {
+	parentVolName, _, isSnapshot := api.GetParentAndSnapshotName(volName)
+	if !isSnapshot {
 		return errors.New("Volume name must be a snapshot")
 	}
 
@@ -6915,6 +6914,12 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 
 	// Remove the snapshot volume record from the database.
 	err = VolumeDBDelete(b, projectName, volName, vol.Type())
+	if err != nil {
+		return err
+	}
+
+	// Update the backup config file of the corresponding instances.
+	err = b.UpdateCustomVolumeBackupFile(projectName, parentVolName, true, nil, op)
 	if err != nil {
 		return err
 	}
