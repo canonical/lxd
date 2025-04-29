@@ -2244,6 +2244,17 @@ func (n *bridge) Stop() error {
 		return err
 	}
 
+	// Kill any existing dnsmasq and forkdns daemon for this network
+	err = dnsmasq.Kill(n.name, false)
+	if err != nil {
+		return err
+	}
+
+	err = n.killForkDNS()
+	if err != nil {
+		return err
+	}
+
 	// Destroy the bridge interface
 	if n.config["bridge.driver"] == "openvswitch" {
 		ovs := openvswitch.NewOVS()
@@ -2276,17 +2287,6 @@ func (n *bridge) Stop() error {
 		if err != nil {
 			return fmt.Errorf("Failed deleting firewall: %w", err)
 		}
-	}
-
-	// Kill any existing dnsmasq and forkdns daemon for this network
-	err = dnsmasq.Kill(n.name, false)
-	if err != nil {
-		return err
-	}
-
-	err = n.killForkDNS()
-	if err != nil {
-		return err
 	}
 
 	// Get a list of interfaces
