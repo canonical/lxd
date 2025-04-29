@@ -302,9 +302,10 @@ func (d *common) moveGPTAltHeader(devPath string) error {
 	if ok {
 		exitError, ok := runErr.Unwrap().(*exec.ExitError)
 		if ok {
-			// sgdisk manpage says exit status 3 means:
-			// "Non-GPT disk detected and no -g option, but operation requires a write action".
-			if exitError.ExitCode() == 3 {
+			// sgdisk exit code 3 = “Non-GPT  disk  detected and no -g option, but operation requires a write action”
+			// exit code 2 = “an error occurred while reading the partition table" (e.g. no GPT present or header CRC mismatch)
+			// Treat both as non-error for raw/MBR images, since we only relocate a GPT alternative header if one exists.
+			if exitError.ExitCode() == 2 || exitError.ExitCode() == 3 {
 				return nil // Non-error as non-GPT disk specified.
 			}
 		}
