@@ -91,6 +91,9 @@ EOF
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed '/^expires_at:/d' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -q '^expires_at: 0001-01-01T00:00:00Z'
 
+  # Check the API returns the zero time representation when listing all snapshots in recursive mode.
+  [ "$(lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom/${storage_volume}/snapshots?recursion=2" | jq -r '.[] | select(.name == "'"${storage_volume}/snap0"'") | .expires_at')" = "0001-01-01T00:00:00Z" ]
+
   lxc storage volume set "${storage_pool}" "${storage_volume}" snapshots.expiry '1d'
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
 
