@@ -6823,6 +6823,7 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 		return errors.New("Invalid new snapshot name")
 	}
 
+	// Fetch the snapshot vol.
 	volume, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
 		return err
@@ -6854,6 +6855,34 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 		_ = b.driver.RenameVolumeSnapshot(newVol, oldSnapshotName, op)
 	})
 
+	// Fetch the parent vol.
+	parentVol, err := VolumeDBGet(b, projectName, parentName, drivers.VolumeTypeCustom)
+	if err != nil {
+		return err
+	}
+
+	var instances []instance.Instance
+
+	// Fetch all instances which are currently using the custom volume in one of their devices.
+	err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &parentVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
+		inst, err := instance.Load(b.state, dbInst, project)
+		if err != nil {
+			return err
+		}
+
+		instances = append(instances, inst)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Add the instance's backup file revert before adding the DB record reverter.
+	// This ensures the renamed DB entry is reverted before trying to reset the file.
+	revert.Add(func() {
+		_ = b.UpdateCustomVolumeBackupFile(projectName, parentName, true, instances, op)
+	})
+
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.RenameStoragePoolVolume(ctx, projectName, volName, newVolName, cluster.StoragePoolVolumeTypeCustom, b.ID())
 	})
@@ -6866,6 +6895,12 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 			return tx.RenameStoragePoolVolume(ctx, projectName, newVolName, volName, cluster.StoragePoolVolumeTypeCustom, b.ID())
 		})
 	})
+
+	// Update the backup config file of the corresponding instances.
+	err = b.UpdateCustomVolumeBackupFile(projectName, parentName, true, instances, op)
+	if err != nil {
+		return err
+	}
 
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotRenamed.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"old_name": oldSnapshotName}))
 
