@@ -760,7 +760,7 @@ func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagFor
 			var name string
 
 			if shared.ValueInSlice(instance.Status, filteredInstanceStatuses) {
-				if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
+				if resource.remote == g.conf.DefaultRemote && !strings.HasPrefix(toComplete, g.conf.DefaultRemote) {
 					name = instance.Name
 				} else {
 					name = resource.remote + ":" + instance.Name
@@ -812,7 +812,7 @@ func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra
 	completions, _ := g.cmpSnapshotNames(remote, instanceName, partialSnapshotName)
 	for _, snapshot := range completions {
 		name := instanceName + shared.SnapshotDelimiter + snapshot
-		if remote != g.conf.DefaultRemote || strings.Contains(toComplete, g.conf.DefaultRemote) {
+		if remote != g.conf.DefaultRemote || strings.HasPrefix(toComplete, g.conf.DefaultRemote) {
 			name = remote + ":" + name
 		}
 
