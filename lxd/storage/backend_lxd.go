@@ -6764,6 +6764,28 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 		newExpiryDate = &expiry
 	}
 
+	var instances []instance.Instance
+
+	// Fetch all instances which are currently using the custom volume in one of their devices.
+	err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &parentVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
+		inst, err := instance.Load(b.state, dbInst, project)
+		if err != nil {
+			return err
+		}
+
+		instances = append(instances, inst)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Add the instance's backup file revert before adding the DB record reverter.
+	// This ensures the added DB entry is reverted before trying to reset the file.
+	revert.Add(func() {
+		_ = b.UpdateCustomVolumeBackupFiles(projectName, volName, true, instances, op)
+	})
+
 	// Validate config and create database entry for new storage volume.
 	// Copy volume config from parent.
 	err = VolumeDBCreate(b, projectName, fullSnapshotName, description, drivers.VolumeTypeCustom, true, vol.Config(), snapshotCreationDate, *newExpiryDate, drivers.ContentType(parentVol.ContentType), false, true)
@@ -6780,6 +6802,12 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	}
 
 	revert.Add(func() { _ = b.driver.DeleteVolumeSnapshot(vol, op) })
+
+	// Update the backup config file of the corresponding instances.
+	err = b.UpdateCustomVolumeBackupFiles(projectName, volName, true, instances, op)
+	if err != nil {
+		return err
+	}
 
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotCreated.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"type": vol.Type()}))
 
