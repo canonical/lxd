@@ -14,6 +14,8 @@ When copying or moving a volume between storage pools that use different drivers
 (storage-copy-volume)=
 ## Copy custom storage volumes
 
+`````{tabs}
+````{group-tab} CLI
 Use the following command to copy a custom storage volume:
 
     lxc storage volume copy <source_pool_name>/<source_volume_name> <target_pool_name>/<target_volume_name>
@@ -26,8 +28,32 @@ You must specify different volume names for source and target in this case.
 
 When copying from one storage pool to another, you can either use the same name for both volumes or rename the new volume.
 
+````
+````{group-tab} UI
+To copy a custom storage volume, navigate to the overview page of the storage volume you wish to copy, and click the {guilabel}`Copy` button in the top right.
+
+```{figure} /images/storage/storage_volumes_overview.png
+:width: 80%
+:alt: LXD Custom Storage Volume overview page
+```
+
+In the {guilabel}`Copy volume` modal, you can define a new name for the copied volume as well as a number of other attributes.
+
+```{figure} /images/storage/storage_volumes_copy_modal.png
+:width: 60%
+:alt: LXD Custom Storage Volume copy volume modal
+```
+
+When you have finished configuring the new storage volume, click {guilabel}`Copy` to finalize the operation.
+
+````
+`````
+
 (storage-move-volume)=
 ## Move or rename custom storage volumes
+
+`````{tabs}
+````{group-tab} CLI
 
 Before you can move or rename a custom storage volume, all instances that use it must be {ref}`stopped <instances-manage-stop>`.
 
@@ -40,19 +66,61 @@ You must specify different volume names for source and target in this case.
 
 When moving from one storage pool to another, you can either use the same name for both volumes or rename the new volume.
 
+````
+````{group-tab} UI
+
+To rename a custom storage volume, navigate to the overview page of the volume and select its name in the header row to edit it.
+
+```{figure} /images/storage/storage_volumes_rename.png
+:width: 60%
+:alt: LXD Rename Custom Storage Volume
+```
+
+````
+`````
+
 ## Copy or move between cluster members
+
+`````{tabs}
+````{group-tab} CLI
 
 For most storage drivers (except for `ceph` and `ceph-fs`), storage volumes exist only on the cluster member for which they were created.
 
 To copy or move a custom storage volume from one cluster member to another, add the `--target` and `--destination-target` flags to specify the source cluster member and the target cluster member, respectively.
 
+````
+````{group-tab} UI
+
+To copy or move a storage volume between cluster members, open the {guilabel}`Copy volume` modal by navigating to the overview page of the storage volume you wish to copy, and clicking the {guilabel}`Copy` button in the top right.
+
+In the {guilabel}`Copy volume` modal, select an alternative cluster member from the {guilabel}`Cluster member` dropdown.
+
+When you have finished configuring the new storage volume, click {guilabel}`Copy` to finalize the operation.
+
+````
+`````
+
 ## Copy or move between projects
+
+`````{tabs}
+````{group-tab} CLI
 
 Add the `--target-project` to copy or move a custom storage volume to a different project.
 
-## Copy or move between LXD servers
+````
+````{group-tab} UI
 
-You can copy or move custom storage volumes between different LXD servers by specifying the remote for each pool:
+To copy or move a storage volume between projects, open the {guilabel}`Copy volume` modal by navigating to the overview page of the storage volume you wish to copy, and clicking the {guilabel}`Copy` button in the top right.
+
+In the {guilabel}`Copy volume` modal, select an alternative project from the {guilabel}`Target project` dropdown.
+
+When you have finished configuring the new storage volume, click {guilabel}`Copy` to finalize the operation.
+````
+`````
+
+## Copy or migrate between LXD servers
+
+You can copy a custom volume from one LXD server to another, or migrate it (move it between servers), by specifying the remote for each pool:
 
     lxc storage volume copy <source_remote>:<source_pool_name>/<source_volume_name> <target_remote>:<target_pool_name>/<target_volume_name>
     lxc storage volume move <source_remote>:<source_pool_name>/<source_volume_name> <target_remote>:<target_pool_name>/<target_volume_name>
