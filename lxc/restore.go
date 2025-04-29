@@ -33,6 +33,23 @@ lxc restore u1 snap0
 	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Whether or not to restore the instance's running state from snapshot (if available)"))
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+		if len(args) > 1 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("instance", toComplete)
+		}
+
+		remote, instanceName, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
+		}
+
+		return c.global.cmpSnapshotNames(remote, instanceName, toComplete)
+	}
+
 	return cmd
 }
 
