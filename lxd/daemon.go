@@ -2209,6 +2209,8 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		trackError(d.seccomp.Stop(), "Stop seccomp")
 	}
 
+	trackError(filesystem.SyncFS(filepath.Join(d.os.VarDir, "database")), "Sync database directory")
+
 	n = len(errs)
 	if n > 0 {
 		format := "%v"
