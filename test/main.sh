@@ -129,6 +129,9 @@ cleanup() {
     kill_oidc
     mountpoint -q "${TEST_DIR}/dev" && umount -l "${TEST_DIR}/dev"
     cleanup_lxds "$TEST_DIR"
+
+    mountpoint -q "${TEST_DIR}" && umount -l "${TEST_DIR}"
+    rm -rf "${TEST_DIR}"
   fi
 
   echo ""
