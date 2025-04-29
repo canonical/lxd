@@ -345,7 +345,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	if req.ExpiresAt != nil {
 		expiry = *req.ExpiresAt
 	} else {
-		expiry, err = shared.GetExpiry(time.Now(), inst.ExpandedConfig()["snapshots.expiry"])
+		expiry, err = shared.GetExpiry(time.Now().UTC(), inst.ExpandedConfig()["snapshots.expiry"])
 		if err != nil {
 			return response.BadRequest(err)
 		}
