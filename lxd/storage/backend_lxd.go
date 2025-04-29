@@ -6351,7 +6351,8 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 	l.Debug("UpdateCustomVolumeSnapshot started")
 	defer l.Debug("UpdateCustomVolumeSnapshot finished")
 
-	if !shared.IsSnapshot(volName) {
+	parentName, _, isSnap := api.GetParentAndSnapshotName(volName)
+	if !isSnap {
 		return errors.New("Volume must be a snapshot")
 	}
 
@@ -6384,8 +6385,36 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 		return nil
 	}
 
+	// Fetch parent vol.
+	parentVol, err := VolumeDBGet(b, projectName, parentName, drivers.VolumeTypeCustom)
+	if err != nil {
+		return err
+	}
+
+	var instances []instance.Instance
+
+	// Fetch all instances which are currently using the custom volume in one of their devices.
+	err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &parentVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
+		inst, err := instance.Load(b.state, dbInst, project)
+		if err != nil {
+			return err
+		}
+
+		instances = append(instances, inst)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
+
+	// Add the instance's backup file revert before adding the DB record reverter.
+	// This ensures the renamed DB entry is reverted before trying to reset the file.
+	revert.Add(func() {
+		_ = b.UpdateCustomVolumeBackupFiles(projectName, parentName, true, instances, op)
+	})
 
 	// Update the database. Use current config.
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -6400,6 +6429,12 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 			return tx.UpdateStorageVolumeSnapshot(ctx, projectName, volName, cluster.StoragePoolVolumeTypeCustom, b.ID(), curVol.Description, curVol.Config, curExpiryDate)
 		})
 	})
+
+	// Update the instance's backup files.
+	err = b.UpdateCustomVolumeBackupFiles(projectName, parentName, true, instances, op)
+	if err != nil {
+		return err
+	}
 
 	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(curVol.ContentType), curVol.Name, curVol.Config)
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotUpdated.Event(vol, string(vol.Type()), projectName, op, nil))
