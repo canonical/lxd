@@ -6350,7 +6350,8 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 	l.Debug("UpdateCustomVolumeSnapshot started")
 	defer l.Debug("UpdateCustomVolumeSnapshot finished")
 
-	if !shared.IsSnapshot(volName) {
+	parentName, _, isSnap := api.GetParentAndSnapshotName(volName)
+	if !isSnap {
 		return errors.New("Volume must be a snapshot")
 	}
 
@@ -6386,6 +6387,12 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 		if err != nil {
 			return err
 		}
+	}
+
+	// Update the instance's backup files.
+	err = b.UpdateCustomVolumeBackupFile(projectName, parentName, true, nil, op)
+	if err != nil {
+		return err
 	}
 
 	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(curVol.ContentType), curVol.Name, curVol.Config)
