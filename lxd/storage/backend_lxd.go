@@ -6741,6 +6741,12 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 		newExpiryDate = &expiry
 	}
 
+	// Add the instance's backup file revert before adding the DB record reverter.
+	// This ensures the added DB entry is reverted before trying to reset the file.
+	revert.Add(func() {
+		_ = b.UpdateCustomVolumeBackupFile(projectName, volName, true, nil, op)
+	})
+
 	// Validate config and create database entry for new storage volume.
 	// Copy volume config from parent.
 	err = VolumeDBCreate(b, projectName, fullSnapshotName, description, drivers.VolumeTypeCustom, true, vol.Config(), snapshotCreationDate, *newExpiryDate, drivers.ContentType(parentVol.ContentType), false, true)
@@ -6757,6 +6763,12 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	}
 
 	revert.Add(func() { _ = b.driver.DeleteVolumeSnapshot(vol, op) })
+
+	// Update the backup config file of the corresponding instances.
+	err = b.UpdateCustomVolumeBackupFile(projectName, volName, true, nil, op)
+	if err != nil {
+		return err
+	}
 
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotCreated.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"type": vol.Type()}))
 
