@@ -6799,16 +6799,17 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 
 	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	err = b.driver.RenameVolumeSnapshot(vol, newSnapshotName, op)
 	if err != nil {
 		return err
 	}
 
 	newVolName := drivers.GetSnapshotVolumeName(parentName, newSnapshotName)
-	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.RenameStoragePoolVolume(ctx, projectName, volName, newVolName, cluster.StoragePoolVolumeTypeCustom, b.ID())
-	})
-	if err != nil {
+
+	revert.Add(func() {
 		// Get the volume name on storage.
 		newVolStorageName := project.StorageVolume(projectName, newVolName)
 
@@ -6817,11 +6818,36 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 		// Pass the same configuration as for the initial rename operation.
 		newVol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), newVolStorageName, volume.Config)
 		_ = b.driver.RenameVolumeSnapshot(newVol, oldSnapshotName, op)
+	})
+
+	// Add the instance's backup file revert before adding the DB record reverter.
+	// This ensures the renamed DB entry is reverted before trying to reset the file.
+	revert.Add(func() {
+		_ = b.UpdateCustomVolumeBackupFile(projectName, parentName, true, nil, op)
+	})
+
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.RenameStoragePoolVolume(ctx, projectName, volName, newVolName, cluster.StoragePoolVolumeTypeCustom, b.ID())
+	})
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() {
+		_ = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.RenameStoragePoolVolume(ctx, projectName, newVolName, volName, cluster.StoragePoolVolumeTypeCustom, b.ID())
+		})
+	})
+
+	// Update the backup config file of the corresponding instances.
+	err = b.UpdateCustomVolumeBackupFile(projectName, parentName, true, nil, op)
+	if err != nil {
 		return err
 	}
 
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotRenamed.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"old_name": oldSnapshotName}))
 
+	revert.Success()
 	return nil
 }
 
