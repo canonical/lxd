@@ -1301,10 +1301,17 @@ func (c *cmdClusterEvacuate) command() *cobra.Command {
 	cmd.Aliases = []string{"evac"}
 	cmd.Use = usage("evacuate", i18n.G("[<remote>:]<member>"))
 	cmd.Short = i18n.G("Evacuate cluster member")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Evacuate cluster member`))
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Evacuate cluster member
+
+Evacuation actions:
+ - stop: stop all instances on the member
+ - migrate: migrate all instances on the member to other members
+ - live-migrate: live migrate all instances on the member to other members
+`))
 
 	cmd.Flags().BoolVar(&c.action.flagForce, "force", false, i18n.G(`Force evacuation without user confirmation`)+"``")
-	cmd.Flags().StringVar(&c.action.flagAction, "action", "", i18n.G(`Force a particular evacuation action`)+"``")
+	cmd.Flags().StringVar(&c.action.flagAction, "action", "", i18n.G(`Force a particular instance evacuation action. One of stop, migrate or live-migrate`)+"``")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -1334,6 +1341,7 @@ func (c *cmdClusterRestore) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Restore cluster member`))
 
 	cmd.Flags().BoolVar(&c.action.flagForce, "force", false, i18n.G(`Force restoration without user confirmation`)+"``")
+	cmd.Flags().StringVar(&c.action.flagAction, "action", "", i18n.G(`Force a particular instance restore action. Use "skip" to restore only the cluster member status without starting local instances or migrating back evacuated instances`)+"``")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {

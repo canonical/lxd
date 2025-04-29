@@ -223,6 +223,13 @@ func (r *ProtocolLXD) UpdateClusterMemberState(name string, state api.ClusterMem
 		return nil, err
 	}
 
+	if state.Action != "" {
+		err = r.CheckExtension("clustering_restore_skip_mode")
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	u := api.NewURL().Path("cluster", "members", name, "state")
 	op, _, err := r.queryOperation(http.MethodPost, u.String(), state, "", true)
 	if err != nil {
