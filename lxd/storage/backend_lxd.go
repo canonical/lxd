@@ -6249,26 +6249,6 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 			return errors.New(`Custom volume "volatile.uuid" property cannot be changed`)
 		}
 
-		// Check for config changing that is not allowed when running instances are using it.
-		if changedConfig["security.shifted"] != "" {
-			err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &curVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
-				inst, err := instance.Load(b.state, dbInst, project)
-				if err != nil {
-					return err
-				}
-
-				// Confirm that no running instances are using it when changing shifted state.
-				if inst.IsRunning() && changedConfig["security.shifted"] != "" {
-					return errors.New("Cannot modify shifting with running instances using the volume")
-				}
-
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-		}
-
 		sharedVolume, ok := changedConfig["security.shared"]
 		if ok && shared.IsFalseOrEmpty(sharedVolume) && curVol.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock {
 			err = allowRemoveSecurityShared(b.state, projectName, &curVol.StorageVolume)
@@ -6292,6 +6272,37 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 		delete(newConfig, "volatile.idmap.next")
 	}
 
+	var instances []instance.Instance
+	err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &curVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
+		inst, err := instance.Load(b.state, dbInst, project)
+		if err != nil {
+			return err
+		}
+
+		if changedConfig["security.shifted"] != "" {
+			// Confirm that no running instances are using it when changing shifted state.
+			if inst.IsRunning() && changedConfig["security.shifted"] != "" {
+				return errors.New("Cannot modify shifting with running instances using the volume")
+			}
+		}
+
+		instances = append(instances, inst)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Add the backup file revert before changing the DB record.
+	// This ensures the updated DB entry is reverted before trying to reset the file.
+	revert.Add(func() {
+		// Reset the instance backup file if the custom volume update didn't succeed.
+		_ = b.UpdateCustomVolumeBackupFile(projectName, volName, true, instances, op)
+	})
+
 	// Update the database if something changed.
 	if len(changedConfig) != 0 || newDesc != curVol.Description {
 		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -6300,10 +6311,24 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 		if err != nil {
 			return err
 		}
+
+		revert.Add(func() {
+			// Update the custom volume with its old config.
+			_ = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.UpdateStoragePoolVolume(ctx, projectName, volName, cluster.StoragePoolVolumeTypeCustom, b.ID(), curVol.Description, curVol.Config)
+			})
+		})
+	}
+
+	// Update the instance's backup files.
+	err = b.UpdateCustomVolumeBackupFile(projectName, volName, true, instances, op)
+	if err != nil {
+		return err
 	}
 
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeUpdated.Event(newVol, string(newVol.Type()), projectName, op, nil))
 
+	revert.Success()
 	return nil
 }
 
