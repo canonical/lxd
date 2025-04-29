@@ -510,7 +510,7 @@ func autoCreateInstanceSnapshots(ctx context.Context, s *state.State, instances 
 			return err
 		}
 
-		expiry, err := shared.GetExpiry(time.Now(), inst.ExpandedConfig()["snapshots.expiry"])
+		expiry, err := shared.GetExpiry(time.Now().UTC(), inst.ExpandedConfig()["snapshots.expiry"])
 		if err != nil {
 			l.Error("Error getting snapshots.expiry date")
 			return err

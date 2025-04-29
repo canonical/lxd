@@ -215,7 +215,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	if req.ExpiresAt != nil {
 		expiry = *req.ExpiresAt
 	} else {
-		expiry, err = shared.GetExpiry(time.Now(), parentDBVolume.Config["snapshots.expiry"])
+		expiry, err = shared.GetExpiry(time.Now().UTC(), parentDBVolume.Config["snapshots.expiry"])
 		if err != nil {
 			return response.BadRequest(err)
 		}
@@ -1272,7 +1272,7 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, s *state.State, volume
 			return fmt.Errorf("Error retrieving next snapshot name for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
 
-		expiry, err := shared.GetExpiry(time.Now(), v.Config["snapshots.expiry"])
+		expiry, err := shared.GetExpiry(time.Now().UTC(), v.Config["snapshots.expiry"])
 		if err != nil {
 			return fmt.Errorf("Error getting snapshot expiry for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
