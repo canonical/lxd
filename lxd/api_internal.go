@@ -231,14 +231,19 @@ func internalRefreshImage(d *Daemon, _ *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func internalWaitReady(d *Daemon, _ *http.Request) response.Response {
+func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 	// Check that we're not shutting down.
 	isClosing := d.State().ShutdownCtx.Err() != nil
 	if isClosing {
 		return response.Unavailable(fmt.Errorf("LXD daemon is shutting down"))
 	}
 
-	if d.waitReady.Err() == nil {
+	if shared.IsTrue(request.QueryParam(r, "wait")) {
+		select {
+		case <-d.waitReady.Done():
+		case <-r.Context().Done(): // Don't leave this go routine around if client disconnects.
+		}
+	} else if d.waitReady.Err() == nil {
 		return response.Unavailable(fmt.Errorf("LXD daemon not ready yet"))
 	}
 
