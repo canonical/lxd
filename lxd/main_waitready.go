@@ -64,7 +64,7 @@ func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 					logger.Debugf("Failed connecting to LXD daemon (attempt %d): %v", i, err)
 				}
 
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(time.Second)
 				continue
 			}
 
@@ -79,7 +79,7 @@ func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 					logger.Debugf("Failed to check if LXD daemon is ready (attempt %d): %v", i, err)
 				}
 
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(time.Second)
 				continue
 			}
 
