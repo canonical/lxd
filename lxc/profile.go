@@ -1037,15 +1037,15 @@ For backward compatibility, a single configuration key may still be set with:
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a profile property"))
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 1 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
 		if len(args) == 0 {
 			return c.global.cmpTopLevelResource("profile", toComplete)
 		}
 
-		if len(args) == 1 {
-			return c.global.cmpInstanceAllKeys(args[0])
-		}
-
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		return c.global.cmpInstanceKeysByType(api.InstanceTypeAny, "=", toComplete)
 	}
 
 	return cmd
