@@ -90,7 +90,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Flag indicating whether the node running the instance is offline.
@@ -102,7 +102,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 	target := request.QueryParam(r, "target")
 	if !s.ServerClustered && target != "" {
-		return response.BadRequest(fmt.Errorf("Target only allowed when clustered"))
+		return response.BadRequest(errors.New("Target only allowed when clustered"))
 	}
 
 	// A POST to /instances/<name>?target=<member> is meant to be used to
@@ -278,7 +278,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if targetMemberInfo.IsOffline(s.GlobalConfig.OfflineThreshold()) {
-			return response.BadRequest(fmt.Errorf("Target cluster member is offline"))
+			return response.BadRequest(errors.New("Target cluster member is offline"))
 		}
 	}
 
@@ -359,7 +359,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			if len(backups) > 0 {
-				return response.BadRequest(fmt.Errorf("Instance has backups"))
+				return response.BadRequest(errors.New("Instance has backups"))
 			}
 
 			run := func(op *operations.Operation) error {
@@ -457,7 +457,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 // Move an instance.
 func instancePostMigration(s *state.State, inst instance.Instance, req api.InstancePost, op *operations.Operation) error {
 	if inst.IsSnapshot() {
-		return fmt.Errorf("Instance snapshots cannot be moved between pools")
+		return errors.New("Instance snapshots cannot be moved between pools")
 	}
 
 	if req.Project == "" {
@@ -649,7 +649,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 	// Make sure that the source member is online if we end up being called from another member after a
 	// redirection due to the source member being offline.
 	if srcMemberOffline {
-		return nil, fmt.Errorf("The cluster member hosting the instance is offline")
+		return nil, errors.New("The cluster member hosting the instance is offline")
 	}
 
 	// Save the original value of the "volatile.apply_template" config key,
@@ -891,12 +891,12 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 func instancePostClusteringMigrateWithRemoteStorage(s *state.State, r *http.Request, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, newMember db.NodeInfo, stateful bool) (func(op *operations.Operation) error, error) {
 	// Sense checks to avoid unexpected behaviour.
 	if !srcPool.Driver().Info().Remote {
-		return nil, fmt.Errorf("Source instance's storage pool is not remote shared storage")
+		return nil, errors.New("Source instance's storage pool is not remote shared storage")
 	}
 
 	// Check this function is only run on the target member.
 	if s.ServerName != newMember.Name {
-		return nil, fmt.Errorf("Remote shared storage instance move when source member is offline must be run on target member")
+		return nil, errors.New("Remote shared storage instance move when source member is offline must be run on target member")
 	}
 
 	// Check we can convert the instance to the volume types needed.
@@ -955,7 +955,7 @@ func instancePostClusteringMigrateWithRemoteStorage(s *state.State, r *http.Requ
 func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, targetNode string, req api.InstancePost, op *operations.Operation) error {
 	// If target isn't the same as the instance's location.
 	if targetNode == inst.Location() {
-		return fmt.Errorf("Target must be different than instance's current location")
+		return errors.New("Target must be different than instance's current location")
 	}
 
 	var err error
