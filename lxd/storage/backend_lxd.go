@@ -7018,7 +7018,7 @@ func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volNam
 
 // GenerateInstanceBackupConfig returns the backup config entry for this instance.
 // The Instance field is only populated for non-snapshot instances.
-func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, _ *operations.Operation) (*backupConfig.Config, error) {
+func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, volBackupConf *backupConfig.Config, _ *operations.Operation) (*backupConfig.Config, error) {
 	// Generate the YAML.
 	ci, _, err := inst.Render()
 	if err != nil {
@@ -7111,13 +7111,33 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 				})
 			}
 		}
+
+		if volBackupConf != nil {
+			// Append all custom volumes to the list containing the instance's root volume.
+			config.Volumes = append(config.Volumes, volBackupConf.Volumes...)
+
+			for _, volPool := range volBackupConf.Pools {
+				existing := false
+				for _, existingPool := range config.Pools {
+					// Skip already existing pools in case the custom volume shares the same
+					// pool with the instance volume or any other custom volume.
+					if volPool.Name == existingPool.Name {
+						existing = true
+					}
+				}
+
+				if !existing {
+					config.Pools = append(config.Pools, volPool)
+				}
+			}
+		}
 	}
 
 	return config, nil
 }
 
 // UpdateInstanceBackupFile writes the instance's config to the backup.yaml file on the storage device.
-func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots bool, version uint32, op *operations.Operation) error {
+func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots bool, volBackupConf *backupConfig.Config, version uint32, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 	l.Debug("UpdateInstanceBackupFile started")
 	defer l.Debug("UpdateInstanceBackupFile finished")
@@ -7127,9 +7147,9 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 		return nil
 	}
 
-	config, err := b.GenerateInstanceBackupConfig(inst, snapshots, op)
+	config, err := b.GenerateInstanceBackupConfig(inst, snapshots, volBackupConf, op)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed generating instance config: %w", err)
 	}
 
 	// Get the volume name on storage.
