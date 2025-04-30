@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -74,7 +75,7 @@ func (s *conversionSink) Do(state *state.State, instOp *operationlock.InstanceOp
 
 	filesystemConnFunc := func(ctx context.Context) (io.ReadWriteCloser, error) {
 		if s.fsConn == nil {
-			return nil, fmt.Errorf("Conversion target filesystem connection not initialized")
+			return nil, errors.New("Conversion target filesystem connection not initialized")
 		}
 
 		wsConn, err := s.fsConn.WebsocketIO(ctx)
