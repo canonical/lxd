@@ -114,7 +114,7 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 			return
 		}
 
-		err := e.WriteControl(websocket.PingMessage, []byte("keepalive"), time.Now().Add(5*time.Second))
+		err := e.WriteControl(websocket.PingMessage, nil, time.Now().Add(5*time.Second))
 		if err != nil {
 			e.lock.Unlock()
 			return
