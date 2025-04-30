@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -171,7 +172,7 @@ func (c *Client) checkLoki(ctx context.Context) error {
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to connect to Loki")
+		return errors.New("failed to connect to Loki")
 	}
 
 	defer resp.Body.Close()
