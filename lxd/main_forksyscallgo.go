@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"debug/elf"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -77,7 +78,7 @@ func (c *cmdFinitModuleParse) Run(cmd *cobra.Command, args []string) error {
 
 	sec := elfFile.Section(".modinfo")
 	if sec == nil {
-		return fmt.Errorf("module's ELF file has no .modinfo section")
+		return errors.New("module's ELF file has no .modinfo section")
 	}
 
 	secData, err := sec.Data()
@@ -87,22 +88,22 @@ func (c *cmdFinitModuleParse) Run(cmd *cobra.Command, args []string) error {
 
 	secNameDataIdx := bytes.Index(secData, []byte("name="))
 	if secNameDataIdx == -1 {
-		return fmt.Errorf(`.modinfo section data looks wrong: can't find "name="`)
+		return errors.New(`.modinfo section data looks wrong: can't find "name="`)
 	}
 
 	secNameStart := secData[secNameDataIdx+5:]
 	if len(secNameStart) == 0 {
-		return fmt.Errorf(`.modinfo section data looks wrong: no data after "name="`)
+		return errors.New(`.modinfo section data looks wrong: no data after "name="`)
 	}
 
 	secNameIdxEnd := bytes.Index(secNameStart, []byte("\x00"))
 	if secNameIdxEnd == -1 {
-		return fmt.Errorf(".modinfo section data looks wrong: can't find terminating NULL-byte")
+		return errors.New(".modinfo section data looks wrong: can't find terminating NULL-byte")
 	}
 
 	secName := secNameStart[:secNameIdxEnd]
 	if len(secName) == 0 {
-		return fmt.Errorf(".modinfo section data looks wrong: module name is empty")
+		return errors.New(".modinfo section data looks wrong: module name is empty")
 	}
 
 	// print extracted module name so we can use it in the seccomp.go
