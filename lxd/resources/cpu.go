@@ -2,6 +2,7 @@ package resources
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -203,7 +204,7 @@ func getCPUdmi() (vendor string, model string, err error) {
 		}
 	}
 
-	return "", "", fmt.Errorf("No DMI table found")
+	return "", "", errors.New("No DMI table found")
 }
 
 type cpuInfo struct {
@@ -245,7 +246,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		// Extract cpu index
 		_, value, found := strings.Cut(line, ":")
 		if !found {
-			return nil, fmt.Errorf("Failed to parse /proc/cpuinfo: Missing separator")
+			return nil, errors.New("Failed to parse /proc/cpuinfo: Missing separator")
 		}
 
 		value = strings.TrimSpace(value)
@@ -256,7 +257,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 
 		_, ok := cpuInfoMap[cpuSocket]
 		if ok {
-			return nil, fmt.Errorf("Failed to parse /proc/cpuinfo: duplicate CPU block in cpuinfo?")
+			return nil, errors.New("Failed to parse /proc/cpuinfo: duplicate CPU block in cpuinfo?")
 		}
 
 		cpuInfo := &cpuInfo{}
@@ -278,7 +279,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			// Get key/value
 			key, value, found := strings.Cut(line, ":")
 			if !found {
-				return nil, fmt.Errorf("Failed to parse /proc/cpuinfo: Missing separator")
+				return nil, errors.New("Failed to parse /proc/cpuinfo: Missing separator")
 			}
 
 			key = strings.TrimSpace(key)
