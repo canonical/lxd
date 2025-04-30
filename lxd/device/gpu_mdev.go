@@ -1,6 +1,7 @@
 package device
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -72,7 +73,7 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 		}
 
 		if pciAddress != "" {
-			return nil, fmt.Errorf("VMs cannot match multiple GPUs per device")
+			return nil, errors.New("VMs cannot match multiple GPUs per device")
 		}
 
 		pciAddress = gpu.PCIAddress
@@ -149,7 +150,7 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 	}
 
 	if pciAddress == "" {
-		return nil, fmt.Errorf("Failed to detect requested GPU device")
+		return nil, errors.New("Failed to detect requested GPU device")
 	}
 
 	// Get PCI information about the GPU device.
@@ -254,7 +255,7 @@ func (d *gpuMdev) validateConfig(instConf instance.ConfigReader) error {
 // validateEnvironment checks the runtime environment for correctness.
 func (d *gpuMdev) validateEnvironment() error {
 	if d.inst.Type() == instancetype.VM && shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) {
-		return fmt.Errorf("GPU devices cannot be used when migration.stateful is enabled")
+		return errors.New("GPU devices cannot be used when migration.stateful is enabled")
 	}
 
 	return validatePCIDevice(d.config["pci"])
