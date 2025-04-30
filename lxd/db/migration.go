@@ -194,7 +194,12 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 						break
 					}
 				}
-				key := row[index].(string)
+
+				key, ok := row[index].(string)
+				if !ok {
+					return fmt.Errorf("Failed to convert key to string for row %d in networks_config", i)
+				}
+
 				if !shared.ValueInSlice(key, NodeSpecificNetworkConfig) {
 					nullNodeID = true
 					break
@@ -213,7 +218,12 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 						break
 					}
 				}
-				key := row[index].(string)
+
+				key, ok := row[index].(string)
+				if !ok {
+					return fmt.Errorf("Failed to convert key to string for row %d in storage_pools_config", i)
+				}
+
 				if !shared.ValueInSlice(key, NodeSpecificStorageConfig) {
 					nullNodeID = true
 					break
@@ -271,9 +281,14 @@ func importNodeAssociation(entity string, columns []string, row []any, tx *sql.T
 	stmt := fmt.Sprintf(
 		"INSERT INTO %ss_nodes(%s_id, node_id) VALUES(?, 1)", entity, entity)
 	var id int64
+	var ok bool
 	for i, column := range columns {
 		if column == "id" {
-			id = row[i].(int64)
+			id, ok = row[i].(int64)
+			if !ok {
+				return fmt.Errorf("Failed to convert %s ID to int64", entity)
+			}
+
 			break
 		}
 	}
