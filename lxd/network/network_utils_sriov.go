@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -412,5 +413,5 @@ func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (po
 		}
 	}
 
-	return "", "", "", -1, fmt.Errorf("No free virtual function and representor port found")
+	return "", "", "", -1, errors.New("No free virtual function and representor port found")
 }
