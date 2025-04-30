@@ -6,6 +6,7 @@ import (
 	"context"
 	cryptorand "crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -360,7 +361,7 @@ func DefaultGatewaySubnetV4() (*net.IPNet, string, error) {
 	}
 
 	if ifaceName == "" {
-		return nil, "", fmt.Errorf("No default gateway for IPv4")
+		return nil, "", errors.New("No default gateway for IPv4")
 	}
 
 	iface, err := net.InterfaceByName(ifaceName)
@@ -386,14 +387,14 @@ func DefaultGatewaySubnetV4() (*net.IPNet, string, error) {
 		}
 
 		if subnet != nil {
-			return nil, "", fmt.Errorf("More than one IPv4 subnet on default interface")
+			return nil, "", errors.New("More than one IPv4 subnet on default interface")
 		}
 
 		subnet = addrNet
 	}
 
 	if subnet == nil {
-		return nil, "", fmt.Errorf("No IPv4 subnet on default interface")
+		return nil, "", errors.New("No IPv4 subnet on default interface")
 	}
 
 	return subnet, ifaceName, nil
@@ -621,7 +622,7 @@ func randomSubnetV4() (string, error) {
 		return cidr, nil
 	}
 
-	return "", fmt.Errorf("Failed to automatically find an unused IPv4 subnet, manual configuration required")
+	return "", errors.New("Failed to automatically find an unused IPv4 subnet, manual configuration required")
 }
 
 func randomSubnetV6() (string, error) {
@@ -643,7 +644,7 @@ func randomSubnetV6() (string, error) {
 		return cidr, nil
 	}
 
-	return "", fmt.Errorf("Failed to automatically find an unused IPv6 subnet, manual configuration required")
+	return "", errors.New("Failed to automatically find an unused IPv6 subnet, manual configuration required")
 }
 
 // noAvailableAddressErr is used by randomAddressInSubnet to indicate that the subnet was exhausted while searching for
@@ -1308,7 +1309,7 @@ func ParsePortRange(r string) (base int64, size int64, err error) {
 		}
 
 		if size <= base {
-			return -1, -1, fmt.Errorf("End port should be higher than start port")
+			return -1, -1, errors.New("End port should be higher than start port")
 		}
 
 		size -= base
@@ -1384,7 +1385,7 @@ func BridgeNetfilterEnabled(ipVersion uint) error {
 	sysctlPath := fmt.Sprintf("net/bridge/bridge-nf-call-%s", sysctlName)
 	sysctlVal, err := util.SysctlGet(sysctlPath)
 	if err != nil {
-		return fmt.Errorf("br_netfilter kernel module not loaded")
+		return errors.New("br_netfilter kernel module not loaded")
 	}
 
 	sysctlVal = strings.TrimSpace(sysctlVal)
@@ -1405,7 +1406,7 @@ func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 	}
 
 	if len(fields) < 2 || fields[1] == "" {
-		return nil, fmt.Errorf("Missing address")
+		return nil, errors.New("Missing address")
 	}
 
 	newProxyAddr := &deviceConfig.ProxyAddress{
@@ -1453,7 +1454,7 @@ func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 	}
 
 	if len(newProxyAddr.Ports) <= 0 {
-		return nil, fmt.Errorf("At least one port is required")
+		return nil, errors.New("At least one port is required")
 	}
 
 	return newProxyAddr, nil
