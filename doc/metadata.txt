@@ -4576,7 +4576,7 @@ The identifier must be formatted as an IPv4 address.
 
 ```{config:option} core.debug_address server-core
 :scope: "local"
-:shortdesc: "Address to bind the `pprof` debug server to (HTTP)"
+:shortdesc: "Address to bind the [`pprof`](https://pkg.go.dev/net/http/pprof) debug server to (HTTP)"
 :type: "string"
 
 ```
