@@ -4,6 +4,7 @@ package cdi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -74,7 +75,7 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 
 		// Let's ensure that user has mesa-2404 snap connected.
 		if !shared.PathExists(gpuInterfaceProviderWrapper) {
-			return nil, fmt.Errorf("Failed to find gpu-2404-provider-wrapper. Please ensure that mesa-2404 snap is connected to lxd.")
+			return nil, errors.New("Failed to find gpu-2404-provider-wrapper. Please ensure that mesa-2404 snap is connected to lxd.")
 		}
 
 		//
@@ -133,7 +134,7 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 
 	spec := specIface.Raw()
 	if spec == nil {
-		return nil, fmt.Errorf("CDI spec is nil")
+		return nil, errors.New("CDI spec is nil")
 	}
 
 	// The spec definition can be quite large so we log it to a file.
