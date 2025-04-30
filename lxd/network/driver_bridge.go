@@ -85,13 +85,13 @@ func (n *bridge) Info() Info {
 func (n *bridge) checkClusterWideMACSafe(config map[string]string) error {
 	// Fan mode breaks if using the same MAC address on each node.
 	if config["bridge.mode"] == "fan" {
-		return fmt.Errorf(`Cannot use static "bridge.hwaddr" MAC address in fan mode`)
+		return errors.New(`Cannot use static "bridge.hwaddr" MAC address in fan mode`)
 	}
 
 	// We can't be sure that multiple clustered nodes aren't connected to the same network segment so don't
 	// use a static MAC address for the bridge interface to avoid introducing a MAC conflict.
 	if config["bridge.external_interfaces"] != "" && config["ipv4.address"] == "none" && config["ipv6.address"] == "none" {
-		return fmt.Errorf(`Cannot use static "bridge.hwaddr" MAC address when bridge has no IP addresses and has external interfaces set`)
+		return errors.New(`Cannot use static "bridge.hwaddr" MAC address when bridge has no IP addresses and has external interfaces set`)
 	}
 
 	return nil
@@ -808,22 +808,22 @@ func (n *bridge) Validate(config map[string]string) error {
 	// Validate network name when used in fan mode.
 	bridgeMode := config["bridge.mode"]
 	if bridgeMode == "fan" && len(n.name) > 11 {
-		return fmt.Errorf("Network name too long to use with the FAN (must be 11 characters or less)")
+		return errors.New("Network name too long to use with the FAN (must be 11 characters or less)")
 	}
 
 	for k, v := range config {
 		key := k
 		// Bridge mode checks
 		if bridgeMode == "fan" && strings.HasPrefix(key, "ipv4.") && !shared.ValueInSlice(key, []string{"ipv4.dhcp.expiry", "ipv4.firewall", "ipv4.nat", "ipv4.nat.order"}) && v != "" {
-			return fmt.Errorf("IPv4 configuration may not be set when in 'fan' mode")
+			return errors.New("IPv4 configuration may not be set when in 'fan' mode")
 		}
 
 		if bridgeMode == "fan" && strings.HasPrefix(key, "ipv6.") && v != "" {
-			return fmt.Errorf("IPv6 configuration may not be set when in 'fan' mode")
+			return errors.New("IPv6 configuration may not be set when in 'fan' mode")
 		}
 
 		if bridgeMode != "fan" && strings.HasPrefix(key, "fan.") && v != "" {
-			return fmt.Errorf("FAN configuration may only be set when in 'fan' mode")
+			return errors.New("FAN configuration may only be set when in 'fan' mode")
 		}
 
 		// MTU checks
@@ -835,22 +835,22 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			ipv6 := config["ipv6.address"]
 			if ipv6 != "" && ipv6 != "none" && mtu < 1280 {
-				return fmt.Errorf("The minimum MTU for an IPv6 network is 1280")
+				return errors.New("The minimum MTU for an IPv6 network is 1280")
 			}
 
 			ipv4 := config["ipv4.address"]
 			if ipv4 != "" && ipv4 != "none" && mtu < 68 {
-				return fmt.Errorf("The minimum MTU for an IPv4 network is 68")
+				return errors.New("The minimum MTU for an IPv4 network is 68")
 			}
 
 			if config["bridge.mode"] == "fan" {
 				if config["fan.type"] == "ipip" {
 					if mtu > 1480 {
-						return fmt.Errorf("Maximum MTU for an IPIP FAN bridge is 1480")
+						return errors.New("Maximum MTU for an IPIP FAN bridge is 1480")
 					}
 				} else {
 					if mtu > 1450 {
-						return fmt.Errorf("Maximum MTU for a VXLAN FAN bridge is 1450")
+						return errors.New("Maximum MTU for a VXLAN FAN bridge is 1450")
 					}
 				}
 			}
@@ -872,7 +872,7 @@ func (n *bridge) Validate(config map[string]string) error {
 
 		if dhcpSubnet != nil {
 			if config["ipv4.dhcp.ranges"] == "" {
-				return fmt.Errorf(`"ipv4.ovn.ranges" must be used in conjunction with non-overlapping "ipv4.dhcp.ranges" when DHCPv4 is enabled`)
+				return errors.New(`"ipv4.ovn.ranges" must be used in conjunction with non-overlapping "ipv4.dhcp.ranges" when DHCPv4 is enabled`)
 			}
 
 			allowedNets = append(allowedNets, dhcpSubnet)
@@ -904,7 +904,7 @@ func (n *bridge) Validate(config map[string]string) error {
 
 		if dhcpSubnet != nil {
 			if config["ipv6.dhcp.ranges"] == "" && shared.IsTrue(config["ipv6.dhcp.stateful"]) {
-				return fmt.Errorf(`"ipv6.ovn.ranges" must be used in conjunction with non-overlapping "ipv6.dhcp.ranges" when stateful DHCPv6 is enabled`)
+				return errors.New(`"ipv6.ovn.ranges" must be used in conjunction with non-overlapping "ipv6.dhcp.ranges" when stateful DHCPv6 is enabled`)
 			}
 
 			allowedNets = append(allowedNets, dhcpSubnet)
@@ -1149,7 +1149,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if n.config["bridge.driver"] == "openvswitch" {
 			ovs := openvswitch.NewOVS()
 			if !ovs.Installed() {
-				return fmt.Errorf("Open vSwitch isn't installed on this system")
+				return errors.New("Open vSwitch isn't installed on this system")
 			}
 
 			// Add and configure the interface in one operation to reduce the number of executions and
@@ -1192,7 +1192,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// IPv6 bridge configuration.
 	if !shared.ValueInSlice(n.config["ipv6.address"], []string{"", "none"}) {
 		if !shared.PathExists("/proc/sys/net/ipv6") {
-			return fmt.Errorf("Network has ipv6.address but kernel IPv6 support is missing")
+			return errors.New("Network has ipv6.address but kernel IPv6 support is missing")
 		}
 
 		err := util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", n.name), "0")
@@ -1295,7 +1295,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			}
 
 			if !unused {
-				return fmt.Errorf("Only unconfigured network interfaces can be bridged")
+				return errors.New("Only unconfigured network interfaces can be bridged")
 			}
 
 			err = AttachInterface(n.name, entry)
@@ -2085,7 +2085,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Check for dnsmasq.
 		_, err := exec.LookPath("dnsmasq")
 		if err != nil {
-			return fmt.Errorf("dnsmasq is required for LXD managed bridges")
+			return errors.New("dnsmasq is required for LXD managed bridges")
 		}
 
 		// Update the static leases.
@@ -2610,16 +2610,16 @@ func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (cidr strin
 	// Quick checks.
 	underlaySize, _ := underlay.Mask.Size()
 	if underlaySize != 16 && underlaySize != 24 {
-		return "", "", "", fmt.Errorf("Only /16 or /24 underlays are supported at this time")
+		return "", "", "", errors.New("Only /16 or /24 underlays are supported at this time")
 	}
 
 	overlaySize, _ := overlay.Mask.Size()
 	if overlaySize != 8 && overlaySize != 16 {
-		return "", "", "", fmt.Errorf("Only /8 or /16 overlays are supported at this time")
+		return "", "", "", errors.New("Only /8 or /16 overlays are supported at this time")
 	}
 
 	if overlaySize+(32-underlaySize)+8 > 32 {
-		return "", "", "", fmt.Errorf("Underlay or overlay networks too large to accommodate the FAN")
+		return "", "", "", errors.New("Underlay or overlay networks too large to accommodate the FAN")
 	}
 
 	// Get the IP
@@ -2684,7 +2684,7 @@ func (n *bridge) addressForSubnet(subnet *net.IPNet) (net.IP, string, error) {
 		}
 	}
 
-	return net.IP{}, "", fmt.Errorf("No address found in subnet")
+	return net.IP{}, "", errors.New("No address found in subnet")
 }
 
 func (n *bridge) killForkDNS() error {
@@ -3763,7 +3763,7 @@ func (n *bridge) UsesDNSMasq() bool {
 // overlaps with OVN ranges.
 func (n *bridge) checkAddressNotInOVNRange(addr net.IP) error {
 	if addr == nil {
-		return fmt.Errorf("Invalid listen address")
+		return errors.New("Invalid listen address")
 	}
 
 	addrIsIP4 := addr.To4() != nil
