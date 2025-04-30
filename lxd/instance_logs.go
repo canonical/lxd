@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -143,7 +144,7 @@ func instanceLogsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	s := d.State()
@@ -229,7 +230,7 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -308,7 +309,7 @@ func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -337,7 +338,7 @@ func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !strings.HasSuffix(file, ".log") || file == "lxc.log" || file == "qemu.log" {
-		return response.BadRequest(fmt.Errorf("Only log files excluding qemu.log and lxc.log may be deleted"))
+		return response.BadRequest(errors.New("Only log files excluding qemu.log and lxc.log may be deleted"))
 	}
 
 	err = os.Remove(filepath.Join(inst.LogPath(), file))
@@ -415,7 +416,7 @@ func instanceExecOutputsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -515,7 +516,7 @@ func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -610,7 +611,7 @@ func instanceExecOutputDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
