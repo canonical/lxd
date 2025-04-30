@@ -6559,7 +6559,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	d.logger.Debug("Set migration offer volume size", logger.Ctx{"blockSize": blockSize})
 	offerHeader.VolumeSize = &blockSize
 
-	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, d.op)
+	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, nil, d.op)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance migration config: %w", err)
 	}
@@ -8460,7 +8460,7 @@ func (d *qemu) UpdateBackupFile() error {
 	}
 
 	// Use the global metadata version.
-	return pool.UpdateInstanceBackupFile(d, true, config.DefaultMetadataVersion, nil)
+	return pool.UpdateInstanceBackupFile(d, true, nil, config.DefaultMetadataVersion, nil)
 }
 
 type cpuTopology struct {
