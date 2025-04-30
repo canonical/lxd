@@ -1376,7 +1376,7 @@ func (c *cmdImageList) run(cmd *cobra.Command, args []string) error {
 	if c.flagAllProjects {
 		instanceServer, ok := remoteServer.(lxd.InstanceServer)
 		if !ok {
-			return fmt.Errorf("--all-projects flag is not supported for this server")
+			return errors.New("--all-projects flag is not supported for this server")
 		}
 
 		allImages, err = instanceServer.GetImagesAllProjectsWithFilter(serverFilters)
