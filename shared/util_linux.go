@@ -99,7 +99,7 @@ func GetAllXattr(path string) (map[string]string, error) {
 }
 
 // ErrObjectFound indicates that the requested object was found.
-var ErrObjectFound = fmt.Errorf("Found requested object")
+var ErrObjectFound = errors.New("Found requested object")
 
 // LookupUUIDByBlockDevPath finds and returns the UUID of a block device by its path.
 func LookupUUIDByBlockDevPath(diskDevice string) (string, error) {
@@ -135,7 +135,7 @@ func LookupUUIDByBlockDevPath(diskDevice string) (string, error) {
 	}
 
 	if uuid == "" {
-		return "", fmt.Errorf("Failed to detect UUID")
+		return "", errors.New("Failed to detect UUID")
 	}
 
 	lastSlash := strings.LastIndex(uuid, "/")
@@ -314,7 +314,7 @@ func OpenPtyInDevpts(devptsFD int, uid, gid int64) (ptx *os.File, pty *os.File, 
 		pty = os.NewFile(ptyFd, fmt.Sprintf("/dev/pts/%d", id))
 	} else {
 		if devptsFD >= 0 {
-			return nil, nil, fmt.Errorf("TIOCGPTPEER required but not available")
+			return nil, nil, errors.New("TIOCGPTPEER required but not available")
 		}
 
 		// Get the pty side.
@@ -475,9 +475,9 @@ func (w *execWrapper) Read(p []byte) (int, error) {
 			case err != nil:
 				opErr = err
 			case revents&unix.POLLERR > 0:
-				opErr = fmt.Errorf("Got POLLERR event")
+				opErr = errors.New("Got POLLERR event")
 			case revents&unix.POLLNVAL > 0:
-				opErr = fmt.Errorf("Got POLLNVAL event")
+				opErr = errors.New("Got POLLNVAL event")
 			case revents&(unix.POLLIN|unix.POLLPRI) > 0:
 				// If there is something to read then read it.
 				n, opErr = unix.Read(int(fd), p)
