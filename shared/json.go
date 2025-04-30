@@ -13,11 +13,14 @@ func (m Jmap) GetString(key string) (string, error) {
 	val, ok := m[key]
 	if !ok {
 		return "", fmt.Errorf("Response was missing %q", key)
-	} else if val, ok := val.(string); !ok {
-		return "", fmt.Errorf("%q was not a string", key)
-	} else {
-		return val, nil
 	}
+
+	valString, ok := val.(string)
+	if !ok {
+		return "", fmt.Errorf("%q was not a string", key)
+	}
+
+	return valString, nil
 }
 
 // GetMap returns a Jmap for the given key or an error.
