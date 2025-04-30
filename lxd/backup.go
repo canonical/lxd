@@ -252,7 +252,13 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 		return os.ErrNotExist
 	}
 
-	config, err := pool.GenerateInstanceBackupConfig(sourceInst, snapshots, nil)
+	// Provide an empty list (non-nil) to not include any custom storage volumes in the backup config.
+	volConfig := &backupConfig.Config{
+		Volumes: []*backupConfig.Volume{},
+		Pools:   []*api.StoragePool{},
+	}
+
+	config, err := pool.GenerateInstanceBackupConfig(sourceInst, snapshots, volConfig, nil)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance backup config: %w", err)
 	}
