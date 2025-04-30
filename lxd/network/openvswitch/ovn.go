@@ -2,6 +2,7 @@ package openvswitch
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -201,7 +202,7 @@ func NewOVN(nbConnection string, sslSettings func() (sslCACert string, sslClient
 			content, err := os.ReadFile("/etc/ovn/ovn-central.crt")
 			if err != nil {
 				if os.IsNotExist(err) {
-					return nil, fmt.Errorf("OVN configured to use SSL but no SSL CA certificate defined")
+					return nil, errors.New("OVN configured to use SSL but no SSL CA certificate defined")
 				}
 
 				return nil, err
@@ -214,7 +215,7 @@ func NewOVN(nbConnection string, sslSettings func() (sslCACert string, sslClient
 			content, err := os.ReadFile("/etc/ovn/cert_host")
 			if err != nil {
 				if os.IsNotExist(err) {
-					return nil, fmt.Errorf("OVN configured to use SSL but no SSL client certificate defined")
+					return nil, errors.New("OVN configured to use SSL but no SSL client certificate defined")
 				}
 
 				return nil, err
@@ -227,7 +228,7 @@ func NewOVN(nbConnection string, sslSettings func() (sslCACert string, sslClient
 			content, err := os.ReadFile("/etc/ovn/key_host")
 			if err != nil {
 				if os.IsNotExist(err) {
-					return nil, fmt.Errorf("OVN configured to use SSL but no SSL client key defined")
+					return nil, errors.New("OVN configured to use SSL but no SSL client key defined")
 				}
 
 				return nil, err
@@ -651,7 +652,7 @@ func (o *OVN) LogicalRouterPortLinkChassisGroup(portName OVNRouterPort, haChassi
 	chassisGroupID = strings.TrimSpace(chassisGroupID)
 
 	if chassisGroupID == "" {
-		return fmt.Errorf("Chassis group not found")
+		return errors.New("Chassis group not found")
 	}
 
 	_, err = o.nbctl("set", "logical_router_port", string(portName), "ha_chassis_group="+chassisGroupID)
@@ -748,12 +749,12 @@ func (o *OVN) logicalSwitchParseExcludeIPs(ips []shared.IPRange) ([]string, erro
 	excludeIPs := make([]string, 0, len(ips))
 	for _, v := range ips {
 		if v.Start == nil || v.Start.To4() == nil {
-			return nil, fmt.Errorf("Invalid exclude IPv4 range start address")
+			return nil, errors.New("Invalid exclude IPv4 range start address")
 		} else if v.End == nil {
 			excludeIPs = append(excludeIPs, v.Start.String())
 		} else {
 			if v.End != nil && v.End.To4() == nil {
-				return nil, fmt.Errorf("Invalid exclude IPv4 range end address")
+				return nil, errors.New("Invalid exclude IPv4 range end address")
 			}
 
 			excludeIPs = append(excludeIPs, v.Start.String()+".."+v.End.String())
@@ -957,7 +958,7 @@ func (o *OVN) LogicalSwitchDHCPOptionsGet(switchName OVNSwitch) ([]OVNDHCPOptsSe
 		for _, row := range strings.Split(output, "\n") {
 			rowParts := strings.SplitN(row, ",", colCount)
 			if len(rowParts) < colCount {
-				return nil, fmt.Errorf("Too few columns in output")
+				return nil, errors.New("Too few columns in output")
 			}
 
 			_, cidr, err := net.ParseCIDR(rowParts[1])
@@ -1165,7 +1166,7 @@ func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort,
 
 		if opts.DynamicIPs {
 			if len(opts.IPs) > 0 {
-				return fmt.Errorf("Cannot specify static IPs and dynamic IPs at the same time")
+				return errors.New("Cannot specify static IPs and dynamic IPs at the same time")
 			}
 
 			addresses = append(addresses, "dynamic")
@@ -1892,11 +1893,11 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 	// Build up the commands to add VIPs to the load balancer.
 	for _, r := range vips {
 		if r.ListenAddress == nil {
-			return fmt.Errorf("Missing VIP listen address")
+			return errors.New("Missing VIP listen address")
 		}
 
 		if len(r.Targets) == 0 {
-			return fmt.Errorf("Missing VIP target(s)")
+			return errors.New("Missing VIP target(s)")
 		}
 
 		if len(args) > 0 {
@@ -1913,7 +1914,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 
 		for _, target := range r.Targets {
 			if (r.ListenPort > 0 && target.Port <= 0) || (target.Port > 0 && r.ListenPort <= 0) {
-				return fmt.Errorf("The listen and target ports must be specified together")
+				return errors.New("The listen and target ports must be specified together")
 			}
 
 			if r.ListenPort > 0 {
@@ -2213,7 +2214,7 @@ func (o *OVN) LogicalRouterRoutes(routerName OVNRouter) ([]OVNRouterRoute, error
 // LogicalRouterPeeringApply applies a peering relationship between two logical routers.
 func (o *OVN) LogicalRouterPeeringApply(opts OVNRouterPeering) error {
 	if len(opts.LocalRouterPortIPs) <= 0 || len(opts.TargetRouterPortIPs) <= 0 {
-		return fmt.Errorf("IPs not populated for both router ports")
+		return errors.New("IPs not populated for both router ports")
 	}
 
 	// Remove peering router ports and static routes using ports from both routers.
@@ -2310,7 +2311,7 @@ func (o *OVN) LogicalRouterPeeringApply(opts OVNRouterPeering) error {
 func (o *OVN) LogicalRouterPeeringDelete(opts OVNRouterPeering) error {
 	// Remove peering router ports and static routes using ports from both routers.
 	if opts.LocalRouter == "" || opts.TargetRouter == "" {
-		return fmt.Errorf("Router names not populated for both routers")
+		return errors.New("Router names not populated for both routers")
 	}
 
 	args := []string{
