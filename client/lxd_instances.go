@@ -2714,13 +2714,12 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 		}
 	}
 
-	var controlConn *websocket.Conn
 	// Call the control handler with a connection to the control socket
 	if fds[api.SecretNameControl] == "" {
 		return nil, fmt.Errorf("Did not receive a file descriptor for the control channel")
 	}
 
-	controlConn, err = r.GetOperationWebsocket(opAPI.ID, fds[api.SecretNameControl])
+	controlConn, err := r.GetOperationWebsocket(opAPI.ID, fds[api.SecretNameControl])
 	if err != nil {
 		return nil, err
 	}
