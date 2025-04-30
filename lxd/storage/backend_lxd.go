@@ -6999,7 +6999,7 @@ func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volNam
 
 // GenerateInstanceBackupConfig returns the backup config entry for this instance.
 // The Instance field is only populated for non-snapshot instances.
-func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
+func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, volBackupConf *backupConfig.Config, op *operations.Operation) (*backupConfig.Config, error) {
 	// Generate the YAML.
 	ci, _, err := inst.Render()
 	if err != nil {
@@ -7093,28 +7093,70 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 			}
 		}
 
-		for _, device := range inst.ExpandedDevices() {
-			if device["type"] != "disk" || instancetype.IsRootDiskDevice(device) {
-				continue
+		var customVols []*backupConfig.Volume
+		var customVolPools []*api.StoragePool
+
+		if volBackupConf != nil {
+			customVols = volBackupConf.Volumes
+			customVolPools = volBackupConf.Pools
+		} else {
+			for _, device := range inst.ExpandedDevices() {
+				// Skip non-disk devices, directory shares without a pool and the instance's root disk itself.
+				if device["type"] != "disk" || device["pool"] == "" || instancetype.IsRootDiskDevice(device) {
+					continue
+				}
+
+				// Custom volume might be in a different pool, so load the pool.
+				pool, err := LoadByName(b.state, device["pool"])
+				if err != nil {
+					return nil, err
+				}
+
+				storagePool := pool.ToAPI()
+				customVolPools = append(customVolPools, &storagePool)
+
+				// Get the right project name for the device.
+				instanceProject := inst.Project()
+				projectName := project.StorageVolumeProjectFromRecord(&instanceProject, cluster.StoragePoolVolumeTypeCustom)
+
+				volConfig, err := pool.GenerateCustomVolumeBackupConfig(projectName, device["source"], true, op)
+				if err != nil {
+					// When restoring an instance from snapshot, some of the custom vols which were attached
+					// whilst taking the snapshot might not exist anymore.
+					// To not cause failures during restore, skip those volumes.
+					// These volumes are still listed in the list of instance devices and will cause an error when
+					// trying to start the instance.
+					if api.StatusErrorCheck(err, http.StatusNotFound) {
+						continue
+					}
+
+					return nil, fmt.Errorf("Failed generating volume backup config: %w", err)
+				}
+
+				volume, err := volConfig.CustomVolume()
+				if err != nil {
+					return nil, fmt.Errorf("Failed getting the custom volume: %w", err)
+				}
+
+				customVols = append(customVols, volume)
+			}
+		}
+
+		config.Volumes = append(config.Volumes, customVols...)
+
+		for _, customVolPool := range customVolPools {
+			existing := false
+			for _, existingPool := range config.Pools {
+				// Skip already existing pools in case the custom volume shares the same
+				// pool with the instance volume or any other custom volume.
+				if customVolPool.Name == existingPool.Name {
+					existing = true
+				}
 			}
 
-			// Custom storage volume might be in a different pool, so load the pool.
-			pool, err := LoadByName(b.state, device["pool"])
-			if err != nil {
-				return nil, err
+			if !existing {
+				config.Pools = append(config.Pools, customVolPool)
 			}
-
-			volConfig, err := pool.GenerateCustomVolumeBackupConfig(inst.Project().Name, device["source"], true, op)
-			if err != nil {
-				return nil, fmt.Errorf("Failed generating volume backup config: %w", err)
-			}
-
-			volume, err := volConfig.CustomVolume()
-			if err != nil {
-				return nil, fmt.Errorf("Failed getting the custom volume: %w", err)
-			}
-
-			config.Volumes = append(config.Volumes, volume)
 		}
 	}
 
@@ -7122,7 +7164,7 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 }
 
 // UpdateInstanceBackupFile writes the instance's config to the backup.yaml file on the storage device.
-func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots bool, version uint32, op *operations.Operation) error {
+func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots bool, volBackupConf *backupConfig.Config, version uint32, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 	l.Debug("UpdateInstanceBackupFile started")
 	defer l.Debug("UpdateInstanceBackupFile finished")
@@ -7132,7 +7174,7 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 		return nil
 	}
 
-	config, err := b.GenerateInstanceBackupConfig(inst, snapshots, op)
+	config, err := b.GenerateInstanceBackupConfig(inst, snapshots, volBackupConf, op)
 	if err != nil {
 		return err
 	}
