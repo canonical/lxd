@@ -91,7 +91,7 @@ func (a *Asker) AskInt(question string, minimum int64, maximum int64, defaultAns
 			continue
 		}
 
-		if !((minimum == -1 || result >= minimum) && (maximum == -1 || result <= maximum)) {
+		if !((minimum == -1 || result >= minimum) && (maximum == -1 || result <= maximum)) { //nolint:staticcheck
 			if a.logger != nil {
 				a.logger.Error("Invalid input (out of range) for the question", logger.Ctx{"answer": answer, "question": question})
 			}
