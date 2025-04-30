@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -154,7 +155,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	if used {
-		return response.BadRequest(fmt.Errorf("Volumes used by LXD itself cannot have snapshots"))
+		return response.BadRequest(errors.New("Volumes used by LXD itself cannot have snapshots"))
 	}
 
 	var parentDBVolume *db.StorageVolume
