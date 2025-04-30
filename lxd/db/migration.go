@@ -5,6 +5,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -266,7 +267,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 				entity := table[:len(table)-1]
 				err := importNodeAssociation(entity, columns, row, tx)
 				if err != nil {
-					return fmt.Errorf("Failed to import node associations")
+					return errors.New("Failed to import node associations")
 				}
 			}
 		}
