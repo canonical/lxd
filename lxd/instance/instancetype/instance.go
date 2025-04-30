@@ -61,7 +61,7 @@ func ValidName(instanceName string, isSnapshot bool) error {
 // ValidSnapName validates a snnapshot instance name which must not include the instance prefix.
 func ValidSnapName(snapshotName string) error {
 	if snapshotName == "" {
-		return fmt.Errorf("Invalid instance snapshot name, cannot be empty")
+		return errors.New("Invalid instance snapshot name, cannot be empty")
 	}
 
 	if snapshotName == ".." {
@@ -90,7 +90,7 @@ func IsRootDiskDevice(device map[string]string) bool {
 }
 
 // ErrNoRootDisk means there is no root disk device found.
-var ErrNoRootDisk = fmt.Errorf("No root device could be found")
+var ErrNoRootDisk = errors.New("No root device could be found")
 
 // GetRootDiskDevice returns the instance device that is configured as root disk.
 // Returns the device name and device config map.
@@ -101,7 +101,7 @@ func GetRootDiskDevice(devices map[string]map[string]string) (string, map[string
 	for n, d := range devices {
 		if IsRootDiskDevice(d) {
 			if devName != "" {
-				return "", nil, fmt.Errorf("More than one root device found")
+				return "", nil, errors.New("More than one root device found")
 			}
 
 			devName = n
@@ -310,7 +310,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 		}
 
 		if num == 0 {
-			return fmt.Errorf("Memory limit can't be 0")
+			return errors.New("Memory limit can't be 0")
 		}
 
 		return nil
