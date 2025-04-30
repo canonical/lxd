@@ -7004,6 +7004,45 @@ func (b *lxdBackend) createStorageStructure(path string) error {
 	return nil
 }
 
+// UpdateCustomVolumeBackupFiles writes the custom volume's config to the backup.yaml file of the corresponding instances.
+func (b *lxdBackend) UpdateCustomVolumeBackupFiles(projectName string, volName string, snapshots bool, instances []instance.Instance, op *operations.Operation) error {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volume": volName, "snapshots": snapshots})
+	l.Debug("UpdateCustomVolumeBackupFiles started")
+	defer l.Debug("UpdateCustomVolumeBackupFiles finished")
+
+	backupVolConfCache := newBackupConfigCache(b)
+
+	// Update the backup config file of all instances.
+	for _, inst := range instances {
+		instanceVolBackupConf, err := b.GenerateInstanceCustomVolumeBackupConfig(inst, backupVolConfCache, snapshots, op)
+		if err != nil {
+			return err
+		}
+
+		poolName, err := inst.StoragePool()
+		if err != nil {
+			return err
+		}
+
+		pool, err := backupVolConfCache.getPool(poolName)
+		if err != nil {
+			return err
+		}
+
+		// Try updating all of the instance's backup files using a best effort strategy.
+		// In case a custom volume is used by many instances, it might happen that an instance gets deleted
+		// whilst this function tries to propagate an update of a custom volume.
+		// A lock isn't acquired in this case for all the instances as this might cause too much interruption
+		// as every update of an instance's backup file requires mounting the corresponding volume.
+		err = pool.UpdateInstanceBackupFile(inst, snapshots, instanceVolBackupConf, backupConfig.DefaultMetadataVersion, op)
+		if err != nil {
+			logger.Error("Failed updating backup file", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
+		}
+	}
+
+	return nil
+}
+
 // GenerateCustomVolumeBackupConfig returns the backup config entry for this volume.
 func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, _ *operations.Operation) (*backupConfig.Config, error) {
 	vol, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
