@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -72,7 +73,7 @@ func localRaftNode(database *db.Node) (*db.RaftNode, error) {
 
 	// If we're not a database node, return an error.
 	if info == nil {
-		return nil, fmt.Errorf("This cluster member has no raft role")
+		return nil, errors.New("This cluster member has no raft role")
 	}
 
 	return info, nil
@@ -95,7 +96,7 @@ func Recover(database *db.Node) error {
 	// If this is a standalone node not exposed to the network, return an
 	// error.
 	if info.Address == "" {
-		return fmt.Errorf("This LXD instance is not clustered")
+		return errors.New("This LXD instance is not clustered")
 	}
 
 	dir := database.DqliteDir()
