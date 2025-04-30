@@ -337,7 +337,7 @@ func (c *cmdNetworkLoadBalancerCreate) run(cmd *cobra.Command, args []string) er
 
 	if listenAddress == "" {
 		if c.flagAllocate == "" {
-			return fmt.Errorf("Must provide a listen address or --allocate=ipv{4,6}")
+			return errors.New("Must provide a listen address or --allocate=ipv{4,6}")
 		}
 
 		if c.flagAllocate != "ipv4" && c.flagAllocate != "ipv6" {
