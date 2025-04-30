@@ -64,7 +64,7 @@ func (c *cmdDaemon) run(cmd *cobra.Command, args []string) error {
 	// Setup the unix socket.
 	listeners := util.GetListeners(util.SystemdListenFDsStart)
 	if len(listeners) > 1 {
-		return fmt.Errorf("More than one socket-activation FD received")
+		return errors.New("More than one socket-activation FD received")
 	}
 
 	var listener *net.UnixListener
@@ -72,7 +72,7 @@ func (c *cmdDaemon) run(cmd *cobra.Command, args []string) error {
 		// Handle socket activation.
 		unixListener, ok := listeners[0].(*net.UnixListener)
 		if !ok {
-			return fmt.Errorf("Socket-activation FD isn't a unix socket")
+			return errors.New("Socket-activation FD isn't a unix socket")
 		}
 
 		listener = unixListener
