@@ -172,7 +172,7 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 			// If the pool DB record doesn't exist, and we are clustered, then don't proceed
 			// any further as we do not support pool DB record recovery when clustered.
 			if s.ServerClustered {
-				return response.BadRequest(fmt.Errorf("Storage pool recovery not supported when clustered"))
+				return response.BadRequest(errors.New("Storage pool recovery not supported when clustered"))
 			}
 
 			// If pool doesn't exist in DB, initialise a temporary pool with the supplied info.
@@ -440,7 +440,7 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 				if poolVol.Instance != nil || poolVol.Bucket != nil {
 					continue // Skip instance volumes and buckets.
 				} else if poolVol.Instance == nil && len(poolVol.Volumes) == 0 {
-					return response.SmartError(fmt.Errorf("Volume is neither instance nor custom volume"))
+					return response.SmartError(errors.New("Volume is neither instance nor custom volume"))
 				}
 
 				rootVol, err := poolVol.RootVolume()
@@ -544,7 +544,7 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 // Returns a revert fail function that can be used to undo this function if a subsequent step fails.
 func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, projectName string, poolVol *backupConfig.Config, profiles []api.Profile) (instance.Instance, revert.Hook, error) {
 	if poolVol.Instance == nil {
-		return nil, nil, fmt.Errorf("Pool volume is not an instance volume")
+		return nil, nil, errors.New("Pool volume is not an instance volume")
 	}
 
 	// Add root device if needed.
@@ -564,7 +564,7 @@ func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, proje
 	}
 
 	if dbInst.Type < 0 {
-		return nil, nil, fmt.Errorf("Invalid instance type")
+		return nil, nil, errors.New("Invalid instance type")
 	}
 
 	inst, instOp, cleanup, err := instance.CreateInternal(s, *dbInst, false)
@@ -580,7 +580,7 @@ func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, proje
 // internalRecoverImportInstance recreates the database records for an instance snapshot.
 func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Pool, projectName string, poolVol *backupConfig.Config, snap *api.InstanceSnapshot, profiles []api.Profile) (revert.Hook, error) {
 	if poolVol.Instance == nil || snap == nil {
-		return nil, fmt.Errorf("Pool volume is not an instance volume")
+		return nil, errors.New("Pool volume is not an instance volume")
 	}
 
 	// Add root device if needed.
