@@ -28,17 +28,6 @@ func (m Jmap) GetMap(key string) (Jmap, error) {
 	}
 }
 
-func (m Jmap) GetInt(key string) (int, error) {
-	val, ok := m[key]
-	if !ok {
-		return -1, fmt.Errorf("Response was missing `%s`", key)
-	} else if val, ok := val.(float64); !ok {
-		return -1, fmt.Errorf("`%s` was not an int", key)
-	} else {
-		return int(val), nil
-	}
-}
-
 func (m Jmap) GetBool(key string) (bool, error) {
 	val, ok := m[key]
 	if !ok {
