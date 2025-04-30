@@ -232,13 +232,41 @@ func (n *physical) Validate(config map[string]string) error {
 
 // checkParentUse checks if parent is already in use by another network or instance device.
 func (n *physical) checkParentUse(ourConfig map[string]string) (bool, error) {
-	// Get all managed networks across all projects.
 	var err error
-	var projectNetworks map[string]map[int64]api.Network
+	var projectNetworks map[string]map[int64]api.Network // All managed networks across all projects.
+	var nodesNetworksParent map[int64]map[string]string  // Node IDs mapped to networks and their node-specific parent.
+
+	otherNodeIDs := []int64{}
+	if n.state.ServerClustered && len(n.nodes) > 1 {
+		otherNodeIDs = make([]int64, 0, len(n.nodes))
+
+		currNodeID := n.state.DB.Cluster.GetNodeID()
+		for id := range n.nodes {
+			if id == currNodeID {
+				continue // Skip the current node, it will be checked separately.
+			}
+
+			otherNodeIDs = append(otherNodeIDs, id)
+		}
+	}
 
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get all managed networks across all projects.
+		// If in cluster mode, returned network configs are for the current node.
 		projectNetworks, err = tx.GetCreatedNetworks(ctx)
-		return err
+		if err != nil {
+			return err
+		}
+
+		// Get parent interfaces for all networks on other nodes.
+		if n.state.ServerClustered && len(otherNodeIDs) > 0 {
+			nodesNetworksParent, err = tx.GetNetworksNodeParent(ctx, otherNodeIDs[0], otherNodeIDs[1:]...)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	})
 	if err != nil {
 		return false, fmt.Errorf("Failed to load all networks: %w", err)
@@ -261,6 +289,22 @@ func (n *physical) checkParentUse(ourConfig map[string]string) (bool, error) {
 				if (network.Config["vlan"] == "" || ourConfig["vlan"] == "") || network.Config["vlan"] == ourConfig["vlan"] {
 					return true, nil
 				}
+			}
+		}
+	}
+
+	// Check that parent interfaces on other nodes are not already in use.
+	if n.state.ServerClustered {
+		for _, networksParent := range nodesNetworksParent {
+			parentsInUse := make(map[string]struct{})
+
+			for _, parent := range networksParent {
+				_, alreadyInUse := parentsInUse[parent]
+				if alreadyInUse {
+					return true, nil
+				}
+
+				parentsInUse[parent] = struct{}{}
 			}
 		}
 	}
