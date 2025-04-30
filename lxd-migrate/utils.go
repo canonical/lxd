@@ -254,7 +254,7 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 			// In non-interactive mode stop at this point, as we know that the server
 			// does not trust us, but we should not make any further interaction with the caller.
 			if certPath != "" || keyPath != "" {
-				return nil, "", fmt.Errorf("Provided certificate is not trusted by the server")
+				return nil, "", errors.New("Provided certificate is not trusted by the server")
 			}
 
 			return nil, "", errors.New("Failed to authenticate with the server: Please, either provide a trust token or an already trusted certificate")
