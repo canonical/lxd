@@ -153,7 +153,7 @@ func (c *Config) getPrivateRemoteByName(name string) (*Remote, error) {
 
 	// Check the remote is private.
 	if remote.Public || remote.Protocol == "simplestreams" {
-		return nil, fmt.Errorf("The remote isn't a private LXD server")
+		return nil, errors.New("The remote isn't a private LXD server")
 	}
 
 	return remote, nil
@@ -211,7 +211,7 @@ func (c *Config) connectRemote(remote Remote, args *lxd.ConnectionArgs) (lxd.Ins
 
 	// HTTPS
 	if !shared.ValueInSlice(remote.AuthType, []string{api.AuthenticationMethodOIDC}) && (args.TLSClientCert == "" || args.TLSClientKey == "") {
-		return nil, fmt.Errorf("Missing TLS client certificate and key")
+		return nil, errors.New("Missing TLS client certificate and key")
 	}
 
 	d, err := lxd.ConnectLXD(remote.Addr, args)
@@ -392,7 +392,7 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 		// key file (client.key is only readable to the user in any case), so we'll ignore deprecation.
 		if x509.IsEncryptedPEMBlock(pemKey) { //nolint:staticcheck
 			if c.PromptPassword == nil {
-				return nil, fmt.Errorf("Private key is password protected and no helper was configured")
+				return nil, errors.New("Private key is password protected and no helper was configured")
 			}
 
 			password, err := c.PromptPassword("client.crt")
