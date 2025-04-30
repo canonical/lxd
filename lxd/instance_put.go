@@ -229,7 +229,7 @@ func instanceSnapRestore(s *state.State, projectName string, name string, snap s
 	if err != nil {
 		switch {
 		case response.IsNotFoundError(err):
-			return fmt.Errorf("Snapshot %s does not exist", snap)
+			return api.NewStatusError(http.StatusBadRequest, "Snapshot "+snap+" does not exist")
 		default:
 			return err
 		}
