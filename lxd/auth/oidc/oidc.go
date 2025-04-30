@@ -116,7 +116,7 @@ func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		//    Authorization Bearer <access_token>
 		parts := strings.Split(authorizationHeader, "Bearer ")
 		if len(parts) != 2 {
-			return nil, AuthError{fmt.Errorf("Bad authorization token, expected a Bearer token")}
+			return nil, AuthError{errors.New("Bad authorization token, expected a Bearer token")}
 		}
 
 		// Bearer tokens should always be access tokens.
@@ -147,7 +147,7 @@ func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken stri
 	// Check that the token includes the configured audience.
 	audience := claims.GetAudience()
 	if o.audience != "" && !shared.ValueInSlice(o.audience, audience) {
-		return nil, AuthError{Err: fmt.Errorf("Provided OIDC token doesn't allow the configured audience")}
+		return nil, AuthError{Err: errors.New("Provided OIDC token doesn't allow the configured audience")}
 	}
 
 	id, err := o.identityCache.GetByOIDCSubject(claims.Subject)
@@ -231,7 +231,7 @@ func (o *Verifier) getResultFromClaims(sg rp.SubjectGetter, claims map[string]an
 
 	subject := sg.GetSubject()
 	if subject == "" {
-		return nil, fmt.Errorf("Token does not contain a subject")
+		return nil, errors.New("Token does not contain a subject")
 	}
 
 	var name string
@@ -256,7 +256,7 @@ func (o *Verifier) getResultFromClaims(sg rp.SubjectGetter, claims map[string]an
 func (o *Verifier) getEmailFromClaims(claims map[string]any) (string, error) {
 	emailAny, ok := claims[oidc.ScopeEmail]
 	if !ok {
-		return "", fmt.Errorf("Token does not contain an email address")
+		return "", errors.New("Token does not contain an email address")
 	}
 
 	email, ok := emailAny.(string)
