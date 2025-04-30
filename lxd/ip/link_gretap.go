@@ -14,5 +14,5 @@ func (g *Gretap) additionalArgs() []string {
 
 // Add adds new virtual link.
 func (g *Gretap) Add() error {
-	return g.Link.add("gretap", g.additionalArgs())
+	return g.add("gretap", g.additionalArgs())
 }

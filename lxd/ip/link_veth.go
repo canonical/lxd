@@ -8,5 +8,5 @@ type Veth struct {
 
 // Add adds new virtual link.
 func (veth *Veth) Add() error {
-	return veth.Link.add("veth", append([]string{"peer"}, veth.Peer.args()...))
+	return veth.add("veth", append([]string{"peer"}, veth.Peer.args()...))
 }
