@@ -27,7 +27,7 @@ func InstancePlacementCompile(src string) (*starlark.Program, error) {
 	}
 
 	// Parse, resolve, and compile a Starlark source file.
-	_, mod, err := starlark.SourceProgram(nameInstancePlacement, src, isPreDeclared)
+	_, mod, err := starlark.SourceProgram(nameInstancePlacement, src, isPreDeclared) //nolint:staticcheck
 	if err != nil {
 		return nil, err
 	}
