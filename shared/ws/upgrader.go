@@ -37,7 +37,7 @@ func StartKeepAlive(conn *websocket.Conn) {
 		defer t.Stop()
 
 		for {
-			err := conn.WriteControl(websocket.PingMessage, []byte("keepalive"), time.Now().Add(5*time.Second))
+			err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(5*time.Second))
 			if err != nil {
 				return
 			}
