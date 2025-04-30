@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -264,10 +265,10 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 		// Check if we're running out of space
 		if int64(fs.Bfree) < 10 {
 			if blockBackend {
-				return fmt.Errorf("Unable to unpack image, run out of disk space (consider increasing your pool's volume.size)")
+				return errors.New("Unable to unpack image, run out of disk space (consider increasing your pool's volume.size)")
 			}
 
-			return fmt.Errorf("Unable to unpack image, run out of disk space")
+			return errors.New("Unable to unpack image, run out of disk space")
 		}
 
 		logger.Warn("Unpack failed", logger.Ctx{"file": file, "allowedCmds": allowedCmds, "extension": extension, "path": path, "err": err})
