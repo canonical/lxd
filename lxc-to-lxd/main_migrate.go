@@ -106,7 +106,7 @@ func validateConfig(conf []string, container *liblxc.Container) error {
 	// Checking whether container has already been migrated
 	fmt.Println("Checking whether container has already been migrated")
 	if len(getConfig(conf, "lxd.migrated")) > 0 {
-		return fmt.Errorf("Container has already been migrated")
+		return errors.New("Container has already been migrated")
 	}
 
 	// Validate lxc.utsname / lxc.uts.name
@@ -116,7 +116,7 @@ func validateConfig(conf []string, container *liblxc.Container) error {
 	}
 
 	if value == nil || value[0] != container.Name() {
-		return fmt.Errorf("Container name doesn't match lxc.uts.name / lxc.utsname")
+		return errors.New("Container name doesn't match lxc.uts.name / lxc.utsname")
 	}
 
 	// Validate lxc.aa_allow_incomplete: must be set to 0 or unset.
@@ -133,7 +133,7 @@ func validateConfig(conf []string, container *liblxc.Container) error {
 		}
 
 		if v != 0 {
-			return fmt.Errorf("Container allows incomplete AppArmor support")
+			return errors.New("Container allows incomplete AppArmor support")
 		}
 	}
 
@@ -147,7 +147,7 @@ func validateConfig(conf []string, container *liblxc.Container) error {
 		}
 
 		if v != 1 {
-			return fmt.Errorf("Container doesn't mount a minimal /dev filesystem")
+			return errors.New("Container doesn't mount a minimal /dev filesystem")
 		}
 	}
 
@@ -169,7 +169,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 	dryRun bool, rsyncArgs string, debug bool) error {
 	// Don't migrate running containers
 	if container.Running() {
-		return fmt.Errorf("Only stopped containers can be migrated")
+		return errors.New("Only stopped containers can be migrated")
 	}
 
 	fmt.Println("Parsing LXC configuration")
@@ -208,7 +208,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 		}
 	}
 	if found {
-		return fmt.Errorf("Container already exists")
+		return errors.New("Container already exists")
 	}
 
 	// Validate config
@@ -317,7 +317,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 	}
 
 	if value != nil && value[0] != "/usr/share/lxc/config/common.seccomp" {
-		return fmt.Errorf("Custom seccomp profiles aren't supported")
+		return errors.New("Custom seccomp profiles aren't supported")
 	}
 
 	// Convert SELinux
@@ -328,7 +328,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 	}
 
 	if value != nil {
-		return fmt.Errorf("Custom SELinux policies aren't supported")
+		return errors.New("Custom SELinux policies aren't supported")
 	}
 
 	// Convert capabilities
@@ -342,13 +342,13 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 				continue
 			}
 
-			return fmt.Errorf("Custom capabilities aren't supported")
+			return errors.New("Custom capabilities aren't supported")
 		}
 	}
 
 	value = getConfig(conf, "lxc.cap.keep")
 	if value != nil {
-		return fmt.Errorf("Custom capabilities aren't supported")
+		return errors.New("Custom capabilities aren't supported")
 	}
 
 	// Add rest of the keys to lxc.raw
@@ -624,7 +624,7 @@ func getRootfs(conf []string) (string, error) {
 	if value == nil {
 		value = getConfig(conf, "lxc.rootfs")
 		if value == nil {
-			return "", fmt.Errorf("Invalid container, missing lxc.rootfs key")
+			return "", errors.New("Invalid container, missing lxc.rootfs key")
 		}
 	}
 
