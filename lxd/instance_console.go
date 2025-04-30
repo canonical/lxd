@@ -102,6 +102,8 @@ func (s *consoleWs) connectConsole(op *operations.Operation, r *http.Request, w 
 				return err
 			}
 
+			ws.StartKeepAlive(conn)
+
 			s.connsLock.Lock()
 			s.conns[fd] = conn
 			s.connsLock.Unlock()
@@ -145,6 +147,8 @@ func (s *consoleWs) connectVGA(op *operations.Operation, r *http.Request, w http
 		if err != nil {
 			return err
 		}
+
+		ws.StartKeepAlive(conn)
 
 		if fd == -1 {
 			logger.Debug("VGA control websocket connected")
