@@ -4,8 +4,11 @@ import (
 	"fmt"
 )
 
+// Jmap is a simple wrapper around a map[string]any to provide some
+// convenience methods for extracting values from the map.
 type Jmap map[string]any
 
+// GetString returns a string for the given key or an error.
 func (m Jmap) GetString(key string) (string, error) {
 	val, ok := m[key]
 	if !ok {
@@ -17,6 +20,7 @@ func (m Jmap) GetString(key string) (string, error) {
 	}
 }
 
+// GetMap returns a Jmap for the given key or an error.
 func (m Jmap) GetMap(key string) (Jmap, error) {
 	val, ok := m[key]
 	if !ok {
@@ -28,6 +32,7 @@ func (m Jmap) GetMap(key string) (Jmap, error) {
 	}
 }
 
+// GetBool returns a bool for the given key or an error.
 func (m Jmap) GetBool(key string) (bool, error) {
 	val, ok := m[key]
 	if !ok {
