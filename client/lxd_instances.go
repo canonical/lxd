@@ -2724,6 +2724,10 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 		return nil, err
 	}
 
+	go func() {
+		_, _, _ = controlConn.ReadMessage() // Consume pings from server.
+	}()
+
 	go args.Control(controlConn)
 
 	// Connect to the websocket
@@ -2821,6 +2825,10 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 	if err != nil {
 		return nil, nil, err
 	}
+
+	go func() {
+		_, _, _ = controlConn.ReadMessage() // Consume pings from server.
+	}()
 
 	go args.Control(controlConn)
 
