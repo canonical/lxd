@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -433,7 +434,7 @@ func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, networkAddres
 		}
 
 	default:
-		return fmt.Errorf("Invalid IP version")
+		return errors.New("Invalid IP version")
 	}
 
 	comment := d.networkIPTablesComment(networkName)
@@ -678,7 +679,7 @@ func (d Xtables) aclRuleCriteriaToArgs(networkName string, ipVersion uint, rule 
 		}
 
 		if rule.ICMPCode != "" && rule.ICMPType == "" {
-			return nil, nil, fmt.Errorf("Invalid use of ICMP code without ICMP type")
+			return nil, nil, errors.New("Invalid use of ICMP code without ICMP type")
 		}
 
 		args = append(args, "-p", protoName)
@@ -922,22 +923,22 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 // InstanceSetupProxyNAT creates DNAT rules for proxy devices.
 func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, forward *AddressForward) error {
 	if forward.ListenAddress == nil {
-		return fmt.Errorf("Listen address is required")
+		return errors.New("Listen address is required")
 	}
 
 	if forward.TargetAddress == nil {
-		return fmt.Errorf("Target address is required")
+		return errors.New("Target address is required")
 	}
 
 	listenPortsLen := len(forward.ListenPorts)
 	if listenPortsLen <= 0 {
-		return fmt.Errorf("At least 1 listen port must be supplied")
+		return errors.New("At least 1 listen port must be supplied")
 	}
 
 	// If multiple target ports supplied, check they match the listen port(s) count.
 	targetPortsLen := len(forward.TargetPorts)
 	if targetPortsLen != 1 && targetPortsLen != listenPortsLen {
-		return fmt.Errorf("Mismatch between listen port(s) and target port(s) count")
+		return errors.New("Mismatch between listen port(s) and target port(s) count")
 	}
 
 	ipVersion := uint(4)
@@ -1236,7 +1237,7 @@ func (d Xtables) iptablesAdd(ipVersion uint, comment string, table string, metho
 	case 6:
 		cmd = "ip6tables"
 	default:
-		return fmt.Errorf("Invalid IP version")
+		return errors.New("Invalid IP version")
 	}
 
 	_, err := exec.LookPath(cmd)
@@ -1278,7 +1279,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 		cmd = "ip6tables"
 		tablesFile = "/proc/self/net/ip6_tables_names"
 	default:
-		return fmt.Errorf("Invalid IP version")
+		return errors.New("Invalid IP version")
 	}
 
 	// Detect kernels that lack IPv6 support.
@@ -1452,7 +1453,7 @@ func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string)
 	case 6:
 		cmd = "ip6tables"
 	default:
-		return false, false, fmt.Errorf("Invalid IP version")
+		return false, false, errors.New("Invalid IP version")
 	}
 
 	_, err = exec.LookPath(cmd)
@@ -1484,7 +1485,7 @@ func (d Xtables) iptablesChainCreate(ipVersion uint, table string, chain string)
 	case 6:
 		cmd = "ip6tables"
 	default:
-		return fmt.Errorf("Invalid IP version")
+		return errors.New("Invalid IP version")
 	}
 
 	// Attempt to create chain in table.
@@ -1505,7 +1506,7 @@ func (d Xtables) iptablesChainDelete(ipVersion uint, table string, chain string,
 	case 6:
 		cmd = "ip6tables"
 	default:
-		return fmt.Errorf("Invalid IP version")
+		return errors.New("Invalid IP version")
 	}
 
 	// Attempt to flush rules from chain in table.
