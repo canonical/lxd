@@ -1,11 +1,11 @@
 package qmp
 
 import (
-	"fmt"
+	"errors"
 )
 
 // ErrMonitorDisconnect is returned when interacting with a disconnected Monitor.
-var ErrMonitorDisconnect = fmt.Errorf("Monitor is disconnected")
+var ErrMonitorDisconnect = errors.New("Monitor is disconnected")
 
 // ErrMonitorBadConsole is retuned when the requested console doesn't exist.
-var ErrMonitorBadConsole = fmt.Errorf("Requested console couldn't be found")
+var ErrMonitorBadConsole = errors.New("Requested console couldn't be found")
