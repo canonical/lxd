@@ -65,7 +65,7 @@ func (o *oidcTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	return http.DefaultTransport.RoundTrip(r)
 }
 
-var errRefreshAccessToken = fmt.Errorf("Failed refreshing access token")
+var errRefreshAccessToken = errors.New("Failed refreshing access token")
 
 type oidcClient struct {
 	httpClient    *http.Client
@@ -122,7 +122,7 @@ func (o *oidcClient) do(req *http.Request, oidcScopesExtensionPresent bool) (*ht
 		// If we have the `oidc_scopes` extension, get the scopes from the header and ignore the groups claim header.
 		scopesJSON := resp.Header.Get("X-LXD-OIDC-scopes")
 		if scopesJSON == "" {
-			return nil, fmt.Errorf("LXD server did not return OIDC scopes")
+			return nil, errors.New("LXD server did not return OIDC scopes")
 		}
 
 		err = json.Unmarshal([]byte(scopesJSON), &scopes)
