@@ -337,14 +337,14 @@ func devLXDUbuntuProTokenPostHandler(d *Daemon, r *http.Request) *devLXDResponse
 }
 
 func devLXDAPI(d *Daemon) http.Handler {
-	m := mux.NewRouter()
-	m.UseEncodedPath() // Allow encoded values in path segments.
+	router := mux.NewRouter()
+	router.UseEncodedPath() // Allow encoded values in path segments.
 
 	for _, ep := range devLXDEndpoints {
-		registerDevLXDEndpoint(d, m, "1.0", ep)
+		registerDevLXDEndpoint(d, router, "1.0", ep)
 	}
 
-	return m
+	return router
 }
 
 func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string, ep devLXDAPIEndpoint) {
