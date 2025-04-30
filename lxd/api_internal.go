@@ -13,6 +13,7 @@ import (
 	runtimeDebug "runtime/debug"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"golang.org/x/sys/unix"
@@ -238,16 +239,33 @@ func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 		return response.Unavailable(fmt.Errorf("LXD daemon is shutting down"))
 	}
 
-	if shared.IsTrue(request.QueryParam(r, "wait")) {
+	timeoutSeconds := request.QueryParam(r, "timeout")
+	notReadyErr := fmt.Errorf("LXD daemon not ready yet")
+
+	if timeoutSeconds != "" {
+		timeoutSecondsUint, err := strconv.ParseUint(timeoutSeconds, 10, 32)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Invalid timeout: %w", err))
+		}
+
+		// If timeout is 0 then block indefinitely but if >0 use that as max wait seconds.
+		ctx := r.Context()
+		if timeoutSecondsUint > 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, time.Duration(timeoutSecondsUint)*time.Second)
+			defer cancel()
+		}
+
 		select {
-		case <-d.waitReady.Done():
-		case <-r.Context().Done(): // Don't leave this go routine around if client disconnects.
+		case <-d.waitReady.Done(): // Block until LXD is ready and then return EmptySyncResponse.
+		case <-ctx.Done(): // Don't leave this go routine around if client disconnects or timeout reached.
+			return response.Unavailable(notReadyErr)
 		}
 	} else if d.waitReady.Err() == nil {
-		return response.Unavailable(fmt.Errorf("LXD daemon not ready yet"))
+		return response.Unavailable(notReadyErr)
 	}
 
-	return response.EmptySyncResponse
+	return response.EmptySyncResponse // LXD is ready.
 }
 
 func internalShutdown(d *Daemon, r *http.Request) response.Response {
