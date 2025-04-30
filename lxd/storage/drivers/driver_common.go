@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -204,7 +205,7 @@ func (d *common) validateVolume(vol Volume, driverRules map[string]func(value st
 
 	// Check that security.unmapped and security.shifted are not set together.
 	if shared.IsTrue(vol.config["security.unmapped"]) && shared.IsTrue(vol.config["security.shifted"]) {
-		return fmt.Errorf("security.unmapped and security.shifted are mutually exclusive")
+		return errors.New("security.unmapped and security.shifted are mutually exclusive")
 	}
 
 	return nil
@@ -503,7 +504,7 @@ func (d *common) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op
 func (d *common) ValidateBucket(bucket Volume) error {
 	projectName, bucketName := project.StorageVolumeParts(bucket.name)
 	if projectName == "" {
-		return fmt.Errorf("Project prefix missing in bucket volume name")
+		return errors.New("Project prefix missing in bucket volume name")
 	}
 
 	match, err := regexp.MatchString(`^[a-z0-9][\-\.a-z0-9]{2,62}$`, bucketName)
@@ -512,7 +513,7 @@ func (d *common) ValidateBucket(bucket Volume) error {
 	}
 
 	if !match {
-		return fmt.Errorf("Bucket name must be between 3 and 63 lowercase letters, numbers, periods or hyphens and must start with a letter or number")
+		return errors.New("Bucket name must be between 3 and 63 lowercase letters, numbers, periods or hyphens and must start with a letter or number")
 	}
 
 	return nil
@@ -541,12 +542,12 @@ func (d *common) UpdateBucket(bucket Volume, changedConfig map[string]string) er
 // ValidateBucketKey validates the supplied bucket key config.
 func (d *common) ValidateBucketKey(keyName string, creds S3Credentials, roleName string) error {
 	if keyName == "" {
-		return fmt.Errorf("Key name is required")
+		return errors.New("Key name is required")
 	}
 
 	validRoles := []string{"admin", "read-only"}
 	if !shared.ValueInSlice(roleName, validRoles) {
-		return fmt.Errorf("Invalid key role")
+		return errors.New("Invalid key role")
 	}
 
 	return nil
