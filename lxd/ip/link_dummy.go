@@ -7,5 +7,5 @@ type Dummy struct {
 
 // Add adds new virtual link.
 func (d *Dummy) Add() error {
-	return d.Link.add("dummy", nil)
+	return d.add("dummy", nil)
 }
