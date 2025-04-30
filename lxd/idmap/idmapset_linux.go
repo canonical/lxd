@@ -1087,23 +1087,23 @@ func GetIdmapSet() *IdmapSet {
 	idmapSet, err := DefaultIdmapSet("", "")
 	if err != nil {
 		logger.Warn("Error reading default uid/gid map", map[string]any{"err": err.Error()})
-		logger.Warnf("Only privileged containers will be able to run")
+		logger.Warn("Only privileged containers will be able to run")
 		idmapSet = nil
 	} else {
 		kernelIdmapSet, err := CurrentIdmapSet()
 		if err == nil {
-			logger.Infof("Kernel uid/gid map:")
+			logger.Info("Kernel uid/gid map:")
 			for _, lxcmap := range kernelIdmapSet.ToLxcString() {
-				logger.Infof(fmt.Sprintf(" - %s", lxcmap))
+				logger.Info(" - " + lxcmap)
 			}
 		}
 
 		if len(idmapSet.Idmap) == 0 {
-			logger.Warnf("No available uid/gid map could be found")
-			logger.Warnf("Only privileged containers will be able to run")
+			logger.Warn("No available uid/gid map could be found")
+			logger.Warn("Only privileged containers will be able to run")
 			idmapSet = nil
 		} else {
-			logger.Infof("Configured LXD uid/gid map:")
+			logger.Info("Configured LXD uid/gid map:")
 			for _, lxcmap := range idmapSet.Idmap {
 				suffix := ""
 
@@ -1112,14 +1112,14 @@ func GetIdmapSet() *IdmapSet {
 				}
 
 				for _, lxcEntry := range lxcmap.ToLxcString() {
-					logger.Infof(" - %s%s", lxcEntry, suffix)
+					logger.Info(" - " + lxcEntry + suffix)
 				}
 			}
 
 			err = idmapSet.Usable()
 			if err != nil {
-				logger.Warnf("One or more uid/gid map entry isn't usable (typically due to nesting)")
-				logger.Warnf("Only privileged containers will be able to run")
+				logger.Warn("One or more uid/gid map entry isn't usable (typically due to nesting)")
+				logger.Warn("Only privileged containers will be able to run")
 				idmapSet = nil
 			}
 		}
