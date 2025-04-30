@@ -124,7 +124,6 @@ endif
 	# Static pins
 	go get github.com/gorilla/websocket@v1.5.1 # Due to riscv64 crashes in LP
 	go get tags.cncf.io/container-device-interface@v0.8.1 # Due to incompat with nvidia-container-toolkit
-	go get github.com/go-jose/go-jose/v4@v4.0.5 # Due to requirement for go 1.24 which needs a fix for with nvidia-container-toolkit
 
 	# Enforce minimum go version
 	go mod tidy -go=$(GOMIN)
