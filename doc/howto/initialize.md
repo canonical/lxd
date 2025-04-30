@@ -2,8 +2,9 @@
 # How to initialize LXD
 
 ````{only} integrated
-```{note}
-MicroCloud users can disregard the instructions on this page, because the MicroCloud setup process handles the initialization of LXD.
+```{admonition} For MicroCloud users
+:class: note
+The MicroCloud setup process initializes LXD on cluster members. Thus, you do not need to follow the steps on this page.
 ```
 ````
 
