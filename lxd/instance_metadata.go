@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -79,7 +80,7 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -191,7 +192,7 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to an instance on a different node.
@@ -311,7 +312,7 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to an instance on a different node.
@@ -435,7 +436,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -587,7 +588,7 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -622,7 +623,7 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	// Look at the request
 	templateName := r.FormValue("path")
 	if templateName == "" {
-		return response.BadRequest(fmt.Errorf("missing path argument"))
+		return response.BadRequest(errors.New("missing path argument"))
 	}
 
 	templatesPath := c.TemplatesPath()
@@ -707,7 +708,7 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -742,7 +743,7 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 	// Look at the request
 	templateName := r.FormValue("path")
 	if templateName == "" {
-		return response.BadRequest(fmt.Errorf("missing path argument"))
+		return response.BadRequest(errors.New("missing path argument"))
 	}
 
 	templatePath, err := getContainerTemplatePath(c, templateName)
