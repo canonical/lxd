@@ -163,7 +163,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 
 	// Ensure trust token is not used along trust certificate and/or its corresponding key.
 	if c.flagToken != "" && (c.flagCertPath != "" || c.flagKeyPath != "") {
-		return nil, "", fmt.Errorf("Authentication token is mutually exclusive with certificate path and key")
+		return nil, "", errors.New("Authentication token is mutually exclusive with certificate path and key")
 	}
 
 	if c.flagNonInteractive || c.flagServer != "" {
