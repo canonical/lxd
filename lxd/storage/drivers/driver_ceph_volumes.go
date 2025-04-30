@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -1235,7 +1236,7 @@ func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
 	// Running rbd du can be resource intensive, so users may want to miss disk usage
 	// data for stopped instances instead of dealing with the performance hit
 	if shared.IsFalse(d.config["ceph.rbd.du"]) {
-		return -1, fmt.Errorf("Cannot get disk usage of unmounted volume when ceph.rbd.du is false")
+		return -1, errors.New("Cannot get disk usage of unmounted volume when ceph.rbd.du is false")
 	}
 
 	// If not mounted (or not mountable), query the usage from ceph directly.
@@ -1726,7 +1727,7 @@ func (d *ceph) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs
 	// Handle rbd export-diff/import-diff migration.
 	if volSrcArgs.MultiSync || volSrcArgs.FinalSync {
 		// This is not needed if the migration is performed using rbd export-diff/import-diff.
-		return fmt.Errorf("MultiSync should not be used with optimized migration")
+		return errors.New("MultiSync should not be used with optimized migration")
 	}
 
 	// Migrate (send) the VMs filesystem volume too.
