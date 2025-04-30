@@ -345,12 +345,12 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 
 	// all-projects requests are not allowed
 	if shared.IsTrue(request.QueryParam(r, "all-projects")) {
-		return response.Forbidden(fmt.Errorf("Certificate is restricted"))
+		return response.Forbidden(errors.New("Certificate is restricted"))
 	}
 
 	// Disallow listing resources in projects the caller does not have access to.
 	if !shared.ValueInSlice(request.ProjectParam(r), id.Projects) {
-		return response.Forbidden(fmt.Errorf("Certificate is restricted"))
+		return response.Forbidden(errors.New("Certificate is restricted"))
 	}
 
 	return response.EmptySyncResponse
@@ -370,7 +370,7 @@ func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, identit
 	}
 
 	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
-		return fmt.Errorf("Not fine grained")
+		return errors.New("Not fine grained")
 	}
 
 	// In the case where we have only one entity URL, we'll use the authorizer's CheckPermission method
@@ -443,7 +443,7 @@ func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allow
 	// Entitlements can only be requested when recursion is enabled for a request returning multiple entities (this function call uses `allowRecursion=true`).
 	// If the request is meant to return a single entity, the entitlements can be requested regardless of the recursion setting (in this case, the function is called with `allowRecursion=false`).
 	if len(validEntitlements) > 0 && (!util.IsRecursionRequest(r) && allowRecursion) {
-		return nil, fmt.Errorf("Entitlements can only be requested when recursion is enabled")
+		return nil, errors.New("Entitlements can only be requested when recursion is enabled")
 	}
 
 	return validEntitlements, nil
@@ -489,12 +489,12 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 
 	// Cluster notification with wrong certificate.
 	if isClusterNotification(r) {
-		return false, "", "", nil, fmt.Errorf("Cluster notification isn't using trusted server certificate")
+		return false, "", "", nil, errors.New("Cluster notification isn't using trusted server certificate")
 	}
 
 	// Bad query, no TLS found.
 	if r.TLS == nil {
-		return false, "", "", nil, fmt.Errorf("Bad/missing TLS on network query")
+		return false, "", "", nil, errors.New("Bad/missing TLS on network query")
 	}
 
 	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
@@ -767,7 +767,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			select {
 			case <-d.setupChan:
 			default:
-				response := response.Unavailable(fmt.Errorf("LXD daemon setup in progress"))
+				response := response.Unavailable(errors.New("LXD daemon setup in progress"))
 				_ = response.Render(w, r)
 				return
 			}
@@ -900,7 +900,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		if d.shutdownCtx.Err() == context.Canceled && !allowedDuringShutdown() {
-			_ = response.Unavailable(fmt.Errorf("LXD is shutting down")).Render(w, r)
+			_ = response.Unavailable(errors.New("LXD is shutting down")).Render(w, r)
 			return
 		}
 
@@ -1370,7 +1370,7 @@ func (d *Daemon) init() error {
 
 	// Sense check for clustering mode.
 	if localClusterAddress == "" && d.serverClustered {
-		return fmt.Errorf("Server is clustered (has local raft addresses) but cluster.https_address is not set")
+		return errors.New("Server is clustered (has local raft addresses) but cluster.https_address is not set")
 	}
 
 	/* Setup dqlite */
@@ -1754,7 +1754,7 @@ func (d *Daemon) init() error {
 	// Setup tertiary listeners that may use managed network addresses and must be started after networks.
 	if bgpAddress != "" && bgpASN != 0 && bgpRouterID != "" {
 		if bgpASN > math.MaxUint32 {
-			return fmt.Errorf("Cannot convert BGP ASN to uint32: Upper bound exceeded")
+			return errors.New("Cannot convert BGP ASN to uint32: Upper bound exceeded")
 		}
 
 		err := d.bgp.Configure(bgpAddress, uint32(bgpASN), net.ParseIP(bgpRouterID))
