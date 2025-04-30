@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -148,7 +149,7 @@ func (d *ceph) Create() error {
 
 	// Quick check.
 	if d.config["source"] != "" && d.config["ceph.osd.pool_name"] != "" && d.config["source"] != d.config["ceph.osd.pool_name"] {
-		return fmt.Errorf(`The "source" and "ceph.osd.pool_name" property must not differ for Ceph OSD storage pools`)
+		return errors.New(`The "source" and "ceph.osd.pool_name" property must not differ for Ceph OSD storage pools`)
 	}
 
 	// Use an existing OSD pool.
@@ -474,7 +475,7 @@ func (d *ceph) Mount() (bool, error) {
 	}
 
 	if !volExists {
-		return false, fmt.Errorf("Placeholder volume does not exist")
+		return false, errors.New("Placeholder volume does not exist")
 	}
 
 	return true, nil
@@ -531,7 +532,7 @@ func (d *ceph) GetResources() (*api.ResourcesStoragePool, error) {
 	}
 
 	if pool == nil {
-		return nil, fmt.Errorf("OSD pool missing in df output")
+		return nil, errors.New("OSD pool missing in df output")
 	}
 
 	spaceUsed := uint64(pool.Stats.BytesUsed)
