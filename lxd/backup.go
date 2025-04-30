@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -128,7 +129,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	if sourceInst.Type() == instancetype.Container {
 		c, ok := sourceInst.(instance.Container)
 		if !ok {
-			return fmt.Errorf("Invalid instance type")
+			return errors.New("Invalid instance type")
 		}
 
 		idmap, err = c.DiskIdmap()
@@ -237,12 +238,12 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 
 	backupType := backup.InstanceTypeToBackupType(api.InstanceType(sourceInst.Type().String()))
 	if backupType == backup.TypeUnknown {
-		return fmt.Errorf("Unrecognised instance type for backup type conversion")
+		return errors.New("Unrecognised instance type for backup type conversion")
 	}
 
 	// We only write backup files out for actual instances.
 	if sourceInst.IsSnapshot() {
-		return fmt.Errorf("Cannot generate backup config for snapshots")
+		return errors.New("Cannot generate backup config for snapshots")
 	}
 
 	// Immediately return if the instance directory doesn't exist yet.
