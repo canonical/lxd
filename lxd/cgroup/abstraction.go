@@ -3,6 +3,7 @@ package cgroup
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -900,7 +901,7 @@ func (cg *CGroup) GetOOMKills() (uint64, error) {
 		return out, nil
 	}
 
-	return 0, fmt.Errorf("Failed getting oom_kill")
+	return 0, errors.New("Failed getting oom_kill")
 }
 
 // GetIOStats returns disk stats.
