@@ -350,7 +350,7 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 	}
 
 	if volExists {
-		return nil, nil, fmt.Errorf("Cannot restore volume, already exists on target")
+		return nil, nil, errors.New("Cannot restore volume, already exists on target")
 	}
 
 	revert := revert.New()
@@ -2481,7 +2481,7 @@ func (d *zfs) DelegateVolume(vol Volume, pid int) error {
 
 	// Check that the current ZFS version supports it.
 	if !zfsDelegate {
-		return fmt.Errorf("Local ZFS version doesn't support delegation")
+		return errors.New("Local ZFS version doesn't support delegation")
 	}
 
 	// Set the property.
@@ -2537,7 +2537,7 @@ func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs 
 	// Handle zfs send/receive migration.
 	if volSrcArgs.MultiSync || volSrcArgs.FinalSync {
 		// This is not needed if the migration is performed using zfs send/receive.
-		return fmt.Errorf("MultiSync should not be used with optimized migration")
+		return errors.New("MultiSync should not be used with optimized migration")
 	}
 
 	var srcMigrationHeader *ZFSMetaDataHeader
@@ -2574,7 +2574,7 @@ func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs 
 
 	// If we haven't negotiated zvol support, ensure volume is not a zvol.
 	if !shared.ValueInSlice(migration.ZFSFeatureZvolFilesystems, volSrcArgs.MigrationType.Features) && d.isBlockBacked(vol.Volume) {
-		return fmt.Errorf("Filesystem zvol detected in source but target does not support receiving zvols")
+		return errors.New("Filesystem zvol detected in source but target does not support receiving zvols")
 	}
 
 	incrementalStream := true
@@ -3098,7 +3098,7 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 		// Order is important here, the parent volmode=dev must be set before snapdev=visible otherwise
 		// it won't take effect.
 		if parentVolMode != "dev" {
-			return nil, fmt.Errorf("Parent block volume needs to be mounted first")
+			return nil, errors.New("Parent block volume needs to be mounted first")
 		}
 
 		// Check if snapdev already set visible.
