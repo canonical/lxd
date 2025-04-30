@@ -3,7 +3,7 @@
 package drivers
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -15,7 +15,7 @@ type commonAuthorizer struct {
 
 func (c *commonAuthorizer) init(driverName string, l logger.Logger) error {
 	if l == nil {
-		return fmt.Errorf("Cannot initialise authorizer: nil logger provided")
+		return errors.New("Cannot initialise authorizer: nil logger provided")
 	}
 
 	l = l.AddContext(logger.Ctx{"driver": driverName})
