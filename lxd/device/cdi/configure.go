@@ -2,6 +2,7 @@ package cdi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -45,7 +46,7 @@ func specDevToNativeDev(configDevices *ConfigDevices, d specs.DeviceNode) error 
 // specMountToNativeDev builds a list of disk mounts to be created from a CDI spec.
 func specMountToNativeDev(configDevices *ConfigDevices, cdiID ID, mounts []*specs.Mount) ([]SymlinkEntry, error) {
 	if len(mounts) == 0 {
-		return nil, fmt.Errorf("CDI mounts are empty")
+		return nil, errors.New("CDI mounts are empty")
 	}
 
 	indirectSymlinks := make([]SymlinkEntry, 0)
@@ -110,7 +111,7 @@ func specMountToNativeDev(configDevices *ConfigDevices, cdiID ID, mounts []*spec
 		}
 
 		if len(tegraCSVFiles) == 0 {
-			return nil, fmt.Errorf("No CSV files detected for Tegra iGPU")
+			return nil, errors.New("No CSV files detected for Tegra iGPU")
 		}
 
 		for _, tegraFile := range tegraCSVFiles {
