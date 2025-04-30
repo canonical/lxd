@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -131,7 +132,7 @@ func (r *ProtocolLXD) GetImageSecret(fingerprint string) (string, error) {
 
 	secret, ok := opAPI.Metadata["secret"].(string)
 	if !ok {
-		return "", fmt.Errorf("Failed to extract image secret from operation metadata")
+		return "", errors.New("Failed to extract image secret from operation metadata")
 	}
 
 	return secret, nil
@@ -169,7 +170,7 @@ func (r *ProtocolLXD) GetPrivateImage(fingerprint string, secret string) (*api.I
 func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req ImageFileRequest) (*ImageFileResponse, error) {
 	// Quick checks.
 	if req.MetaFile == nil && req.RootfsFile == nil {
-		return nil, fmt.Errorf("No file requested")
+		return nil, errors.New("No file requested")
 	}
 
 	uri := "/1.0/images/" + url.PathEscape(fingerprint) + "/export"
@@ -277,7 +278,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, do func(
 	// Deal with split images
 	if ctype == "multipart/form-data" {
 		if req.MetaFile == nil || req.RootfsFile == nil {
-			return nil, fmt.Errorf("Multi-part image but only one target file provided")
+			return nil, errors.New("Multi-part image but only one target file provided")
 		}
 
 		// Parse the POST data
@@ -290,7 +291,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, do func(
 		}
 
 		if part.FormName() != "metadata" {
-			return nil, fmt.Errorf("Invalid multipart image")
+			return nil, errors.New("Invalid multipart image")
 		}
 
 		size, err := io.Copy(io.MultiWriter(req.MetaFile, sha256), part)
@@ -308,7 +309,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, do func(
 		}
 
 		if !shared.ValueInSlice(part.FormName(), []string{"rootfs", "rootfs.img"}) {
-			return nil, fmt.Errorf("Invalid multipart image")
+			return nil, errors.New("Invalid multipart image")
 		}
 
 		size, err = io.Copy(io.MultiWriter(req.RootfsFile, sha256), part)
@@ -336,7 +337,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, do func(
 
 	filename, ok := cdParams["filename"]
 	if !ok {
-		return nil, fmt.Errorf("No filename in Content-Disposition header")
+		return nil, errors.New("No filename in Content-Disposition header")
 	}
 
 	size, err := io.Copy(io.MultiWriter(req.MetaFile, sha256), body)
@@ -409,7 +410,7 @@ func (r *ProtocolLXD) GetImageAliasType(imageType string, name string) (*api.Ima
 		}
 
 		if alias.Type != imageType {
-			return nil, "", fmt.Errorf("Alias doesn't exist for the specified type")
+			return nil, "", errors.New("Alias doesn't exist for the specified type")
 		}
 	}
 
@@ -452,7 +453,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 
 	// Prepare an image upload
 	if args.MetaFile == nil {
-		return nil, fmt.Errorf("Metadata file is required")
+		return nil, errors.New("Metadata file is required")
 	}
 
 	// Prepare the body
@@ -618,7 +619,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 // tryCopyImage iterates through the source server URLs until one lets it download the image.
 func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("The source server isn't listening on the network")
+		return nil, errors.New("The source server isn't listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -721,7 +722,7 @@ func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (RemoteOpe
 func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *ImageCopyArgs) (RemoteOperation, error) {
 	// Quick checks.
 	if r.isSameServer(source) {
-		return nil, fmt.Errorf("The source and target servers must be different")
+		return nil, errors.New("The source and target servers must be different")
 	}
 
 	// Handle profile list overrides.
@@ -778,7 +779,7 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 
 		secret, ok := opAPI.Metadata["secret"]
 		if !ok {
-			return nil, fmt.Errorf("No token provided")
+			return nil, errors.New("No token provided")
 		}
 
 		req := api.ImageExportPost{
