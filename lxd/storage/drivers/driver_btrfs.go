@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -63,7 +64,7 @@ func (d *btrfs) load() error {
 
 		count, err := fmt.Sscanf(strings.SplitN(out, " ", 2)[1], "v%s\n", &btrfsVersion)
 		if err != nil || count != 1 {
-			return fmt.Errorf("The 'btrfs' tool isn't working properly")
+			return errors.New("The 'btrfs' tool isn't working properly")
 		}
 	}
 
@@ -230,7 +231,7 @@ func (d *btrfs) Create() error {
 
 			// Check that the provided subvolume is empty.
 			if hasSubvolumes {
-				return fmt.Errorf("Requested btrfs subvolume exists but is not empty")
+				return errors.New("Requested btrfs subvolume exists but is not empty")
 			}
 		} else {
 			// New btrfs subvolume on existing btrfs filesystem.
@@ -268,7 +269,7 @@ func (d *btrfs) Create() error {
 			}
 		}
 	} else {
-		return fmt.Errorf(`Invalid "source" property`)
+		return errors.New(`Invalid "source" property`)
 	}
 
 	revert.Success()
@@ -382,7 +383,7 @@ func (d *btrfs) Update(changedConfig map[string]string) error {
 		loopPath := loopFilePath(d.name)
 
 		if d.config["source"] != loopPath {
-			return fmt.Errorf("Cannot resize non-loopback pools")
+			return errors.New("Cannot resize non-loopback pools")
 		}
 
 		// Resize loop file
