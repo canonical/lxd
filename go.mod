@@ -1,6 +1,6 @@
 module github.com/canonical/lxd
 
-go 1.23.7
+go 1.24.2
 
 require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.17.6
@@ -15,7 +15,7 @@ require (
 	github.com/fvbommel/sortorder v1.1.0
 	github.com/go-acme/lego/v4 v4.23.1
 	github.com/go-chi/chi/v5 v5.2.1
-	github.com/go-jose/go-jose/v4 v4.0.5
+	github.com/go-jose/go-jose/v4 v4.1.0
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
@@ -41,7 +41,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/openfga/api/proto v0.0.0-20250127102726-f9709139a369
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20250220223040-ed0cfba54336
-	github.com/openfga/openfga v1.8.9
+	github.com/openfga/openfga v1.8.11
 	github.com/osrg/gobgp/v3 v3.36.0
 	github.com/pkg/sftp v1.13.9
 	github.com/pkg/xattr v0.4.10
@@ -50,7 +50,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 	github.com/vishvananda/netlink v1.3.0
-	github.com/zitadel/oidc/v3 v3.37.0
+	github.com/zitadel/oidc/v3 v3.38.1
 	go.starlark.net v0.0.0-20250417143717-f57e51f710eb
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.37.0
@@ -157,7 +157,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
-	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
+	go.opentelemetry.io/proto/otlp v1.6.0 // indirect
 	go.uber.org/mock v0.5.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/mod v0.24.0 // indirect
