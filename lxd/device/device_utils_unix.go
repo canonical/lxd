@@ -1,6 +1,7 @@
 package device
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -36,7 +37,7 @@ func unixDeviceAttributes(path string) (dType string, major uint32, minor uint32
 	case unix.S_IFCHR:
 		dType = "c"
 	default:
-		return "", 0, 0, fmt.Errorf("Not a device")
+		return "", 0, 0, errors.New("Not a device")
 	}
 
 	// Return the device information
@@ -236,7 +237,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 	// Create the new entry.
 	if !s.OS.RunningInUserNS {
 		if s.OS.Nodev {
-			return nil, fmt.Errorf("Can't create device as devices path is mounted nodev")
+			return nil, errors.New("Can't create device as devices path is mounted nodev")
 		}
 
 		devNum := int(unix.Mkdev(d.Major, d.Minor))
@@ -554,7 +555,7 @@ func unixValidDeviceNum(value string) error {
 
 	_, err := strconv.ParseUint(value, 10, 32)
 	if err != nil {
-		return fmt.Errorf("Invalid value for a UNIX device number")
+		return errors.New("Invalid value for a UNIX device number")
 	}
 
 	return nil
@@ -568,7 +569,7 @@ func unixValidUserID(value string) error {
 
 	_, err := strconv.ParseUint(value, 10, 32)
 	if err != nil {
-		return fmt.Errorf("Invalid value for a UNIX ID")
+		return errors.New("Invalid value for a UNIX ID")
 	}
 
 	return nil
@@ -582,7 +583,7 @@ func unixValidOctalFileMode(value string) error {
 
 	_, err := strconv.ParseUint(value, 8, 32)
 	if err != nil {
-		return fmt.Errorf("Invalid value for an octal file mode")
+		return errors.New("Invalid value for an octal file mode")
 	}
 
 	return nil
