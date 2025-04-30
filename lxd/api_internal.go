@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -236,11 +237,11 @@ func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 	// Check that we're not shutting down.
 	isClosing := d.State().ShutdownCtx.Err() != nil
 	if isClosing {
-		return response.Unavailable(fmt.Errorf("LXD daemon is shutting down"))
+		return response.Unavailable(errors.New("LXD daemon is shutting down"))
 	}
 
 	timeoutSeconds := request.QueryParam(r, "timeout")
-	notReadyErr := fmt.Errorf("LXD daemon not ready yet")
+	notReadyErr := errors.New("LXD daemon not ready yet")
 
 	if timeoutSeconds != "" {
 		timeoutSecondsUint, err := strconv.ParseUint(timeoutSeconds, 10, 32)
@@ -300,7 +301,7 @@ func internalShutdown(d *Daemon, r *http.Request) response.Response {
 		// Send the response before the LXD daemon process ends.
 		f, ok := w.(http.Flusher)
 		if !ok {
-			return fmt.Errorf("http.ResponseWriter is not type http.Flusher")
+			return errors.New("http.ResponseWriter is not type http.Flusher")
 		}
 
 		f.Flush()
@@ -356,7 +357,7 @@ func internalContainerHookLoadFromReference(s *state.State, r *http.Request) (in
 	}
 
 	if inst.Type() != instancetype.Container {
-		return nil, fmt.Errorf("Instance is not container type")
+		return nil, errors.New("Instance is not container type")
 	}
 
 	return inst, nil
@@ -395,7 +396,7 @@ func internalContainerOnStartHost(d *Daemon, r *http.Request) response.Response 
 
 	lxcPID := request.QueryParam(r, "lxc_pid")
 	if lxcPID == "" {
-		err := fmt.Errorf("No lxc_pid GET parameter was provided")
+		err := errors.New("No lxc_pid GET parameter was provided")
 		l.Error("The start-host hook failed", logger.Ctx{"err": err})
 		return response.BadRequest(err)
 	}
@@ -501,7 +502,7 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 	database := r.FormValue("database")
 
 	if !shared.ValueInSlice(database, []string{"local", "global"}) {
-		return response.BadRequest(fmt.Errorf("Invalid database"))
+		return response.BadRequest(errors.New("Invalid database"))
 	}
 
 	schemaFormValue := r.FormValue("schema")
@@ -544,11 +545,11 @@ func internalSQLPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !shared.ValueInSlice(req.Database, []string{"local", "global"}) {
-		return response.BadRequest(fmt.Errorf("Invalid database"))
+		return response.BadRequest(errors.New("Invalid database"))
 	}
 
 	if req.Query == "" {
-		return response.BadRequest(fmt.Errorf("No query provided"))
+		return response.BadRequest(errors.New("No query provided"))
 	}
 
 	var db *sql.DB
@@ -667,7 +668,7 @@ func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error 
 // Also accepts an optional map of device overrides.
 func internalImportFromBackup(s *state.State, projectName string, instName string, allowNameOverride bool, deviceOverrides map[string]map[string]string) error {
 	if instName == "" {
-		return fmt.Errorf("The name of the instance is required")
+		return errors.New("The name of the instance is required")
 	}
 
 	storagePoolsPath := shared.VarPath("storage-pools")
@@ -739,7 +740,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	}
 
 	if backupConf.Instance == nil {
-		return fmt.Errorf("Instance definition in backup config is missing")
+		return errors.New("Instance definition in backup config is missing")
 	}
 
 	if allowNameOverride && instName != "" {
@@ -752,7 +753,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 
 	if len(backupConf.Pools) == 0 {
 		// We don't know what kind of storage type the pool is.
-		return fmt.Errorf("No storage pool struct in the backup file found. The storage pool needs to be recovered manually")
+		return errors.New("No storage pool struct in the backup file found. The storage pool needs to be recovered manually")
 	}
 
 	rootVolPool, err := backupConf.RootVolumePool()
@@ -824,7 +825,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	}
 
 	if len(backupConf.Volumes) == 0 {
-		return fmt.Errorf(`No storage volume struct in the backup file found. The storage volume needs to be recovered manually`)
+		return errors.New(`No storage volume struct in the backup file found. The storage volume needs to be recovered manually`)
 	}
 
 	if dbVolume != nil {
@@ -887,7 +888,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	defer revert.Fail()
 
 	if backupConf.Instance == nil {
-		return fmt.Errorf("No instance config in backup config")
+		return errors.New("No instance config in backup config")
 	}
 
 	instDBArgs, err := backup.ConfigToInstanceDBArgs(s, backupConf, projectName, true)
@@ -1126,7 +1127,7 @@ func internalGC(_ *Daemon, _ *http.Request) response.Response {
 func internalRAFTSnapshot(_ *Daemon, _ *http.Request) response.Response {
 	logger.Warn("Forced RAFT snapshot not supported")
 
-	return response.InternalError(fmt.Errorf("Not supported"))
+	return response.InternalError(errors.New("Not supported"))
 }
 
 func internalBGPState(d *Daemon, _ *http.Request) response.Response {
