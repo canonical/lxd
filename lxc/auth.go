@@ -648,7 +648,7 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 
 	if entityType == entity.TypeServer {
 		if len(args) != 3 {
-			return nil, fmt.Errorf("Expected three arguments: `lxc auth group grant [<remote>:]<group> server <entitlement>`")
+			return nil, errors.New("Expected three arguments: `lxc auth group grant [<remote>:]<group> server <entitlement>`")
 		}
 
 		return &api.Permission{
@@ -659,7 +659,7 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 	}
 
 	if len(args) < 4 {
-		return nil, fmt.Errorf("Expected at least four arguments: `lxc auth group grant [<remote>:]<group> <object_type> <object_name> <entitlement> [<key>=<value>...]`")
+		return nil, errors.New("Expected at least four arguments: `lxc auth group grant [<remote>:]<group> <object_type> <object_name> <entitlement> [<key>=<value>...]`")
 	}
 
 	entityName := args[2]
@@ -670,7 +670,7 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 		for _, arg := range args[4:] {
 			k, v, ok := strings.Cut(arg, "=")
 			if !ok {
-				return nil, fmt.Errorf("Supplementary arguments must be of the form <key>=<value>")
+				return nil, errors.New("Supplementary arguments must be of the form <key>=<value>")
 			}
 
 			kv[k] = v
