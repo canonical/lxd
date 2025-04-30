@@ -1,7 +1,7 @@
 package lxd
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"net/url"
 
@@ -96,7 +96,7 @@ func (r *ProtocolLXD) CreateCertificateToken(certificate api.CertificatesPost) (
 	}
 
 	if !certificate.Token {
-		return nil, fmt.Errorf("Token needs to be true if requesting a token")
+		return nil, errors.New("Token needs to be true if requesting a token")
 	}
 
 	// Send the request
