@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -151,7 +152,7 @@ func lxdSetupUser(uid uint32) error {
 
 	pw := strings.Split(out, ":")
 	if len(pw) != 7 {
-		return fmt.Errorf("Invalid user entry")
+		return errors.New("Invalid user entry")
 	}
 
 	// Setup reverter.
