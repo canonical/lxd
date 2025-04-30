@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -51,7 +52,7 @@ type Config struct {
 // The name is derived from the instance's expanded devices.
 func (c *Config) rootVolPoolName() (string, error) {
 	if c.Instance == nil {
-		return "", fmt.Errorf("Instance config is missing")
+		return "", errors.New("Instance config is missing")
 	}
 
 	_, deviceConfig, err := instancetype.GetRootDiskDevice(c.Instance.ExpandedDevices)
@@ -64,22 +65,22 @@ func (c *Config) rootVolPoolName() (string, error) {
 		return poolName, nil
 	}
 
-	return "", fmt.Errorf("Root volume pool does not exist")
+	return "", errors.New("Root volume pool does not exist")
 }
 
 // primaryVolume can be used to retrieve both custom storage volumes and the volume of instance snapshots.
 // In both cases the backup config contains only a single volume.
 func (c *Config) primaryVolume() (*Volume, error) {
 	if len(c.Volumes) == 0 {
-		return nil, fmt.Errorf("No primary volume is defined in backup config")
+		return nil, errors.New("No primary volume is defined in backup config")
 	}
 
 	if len(c.Volumes) > 1 {
-		return nil, fmt.Errorf("More than one primary volume is defined in backup config")
+		return nil, errors.New("More than one primary volume is defined in backup config")
 	}
 
 	if c.Volumes[0] == nil {
-		return nil, fmt.Errorf("Primary volume config does not exist")
+		return nil, errors.New("Primary volume config does not exist")
 	}
 
 	return c.Volumes[0], nil
@@ -102,7 +103,7 @@ func (c *Config) RootVolumePool() (*api.StoragePool, error) {
 	}
 
 	if rootVolPool == nil {
-		return nil, fmt.Errorf("Pool config of the root volume does not exist")
+		return nil, errors.New("Pool config of the root volume does not exist")
 	}
 
 	return rootVolPool, nil
@@ -129,7 +130,7 @@ func (c *Config) UpdateRootVolumePool(pool *api.StoragePool) error {
 	}
 
 	// There already exists a root volume pool and it's name doesn't match the given pool.
-	return fmt.Errorf("Cannot apply invalid root volume pool")
+	return errors.New("Cannot apply invalid root volume pool")
 }
 
 // RootVolume returns an instance's root volume from the list of volumes.
@@ -163,7 +164,7 @@ func (c *Config) RootVolume() (*Volume, error) {
 // Unlike RootVolume, CustomVolume always returns the first and only volume in the list.
 func (c *Config) CustomVolume() (*Volume, error) {
 	if c.Instance != nil {
-		return nil, fmt.Errorf("Instance config cannot be set for custom volumes")
+		return nil, errors.New("Instance config cannot be set for custom volumes")
 	}
 
 	volume, err := c.primaryVolume()
