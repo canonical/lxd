@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/openfga/openfga/pkg/storage"
@@ -14,7 +15,7 @@ import (
 var authorizers = map[string]func() authorizer{}
 
 // ErrUnknownDriver is the "Unknown driver" error.
-var ErrUnknownDriver = fmt.Errorf("Unknown driver")
+var ErrUnknownDriver = errors.New("Unknown driver")
 
 type authorizer interface {
 	auth.Authorizer
