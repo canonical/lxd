@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -83,7 +84,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) error {
 
 		if n > 1 {
 			// This should never happen, since we only add cluster members with valid addresses.
-			return fmt.Errorf("Found more than one cluster member with a standalone address (0.0.0.0)")
+			return errors.New("Found more than one cluster member with a standalone address (0.0.0.0)")
 		} else if n == 1 {
 			clustered = false
 		}
@@ -129,7 +130,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) error {
 
 		if n > 1 {
 			// This should never happen, since we only add nodes with valid addresses.
-			return fmt.Errorf("Found more than one cluster member with a standalone address (0.0.0.0)")
+			return errors.New("Found more than one cluster member with a standalone address (0.0.0.0)")
 		} else if n == 1 {
 			address = "0.0.0.0" // We're not clustered
 		}
