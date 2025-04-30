@@ -473,7 +473,7 @@ func (c *cmdStorageVolumeCopy) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if srcIsSnapshot && c.flagVolumeOnly {
-		return fmt.Errorf("Cannot set --volume-only when copying a snapshot")
+		return errors.New("Cannot set --volume-only when copying a snapshot")
 	}
 
 	// If the volume is in local storage, set the target to its location (or provide a helpful error
@@ -2909,12 +2909,12 @@ func (c *cmdStorageVolumeImport) run(cmd *cobra.Command, args []string) error {
 	} else {
 		// Validate type flag
 		if !shared.ValueInSlice(c.flagType, []string{"backup", "iso"}) {
-			return fmt.Errorf("Import type needs to be \"backup\" or \"iso\"")
+			return errors.New("Import type needs to be \"backup\" or \"iso\"")
 		}
 	}
 
 	if c.flagType == "iso" && volName == "" {
-		return fmt.Errorf("Importing ISO images requires a volume name to be set")
+		return errors.New("Importing ISO images requires a volume name to be set")
 	}
 
 	progress := cli.ProgressRenderer{
