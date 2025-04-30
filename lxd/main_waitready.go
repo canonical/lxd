@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -38,67 +40,64 @@ func (c *cmdWaitready) Command() *cobra.Command {
 
 // Run executes the "waitready" command.
 func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
-	finger := make(chan error, 1)
-	var errLast error
-	go func() {
-		for i := 0; ; i++ {
-			// Start logging only after the 10'th attempt (about 5
-			// seconds). Then after the 30'th attempt (about 15
-			// seconds), log only only one attempt every 10
-			// attempts (about 5 seconds), to avoid being too
-			// verbose.
-			doLog := false
-			if i > 10 {
-				doLog = i < 30 || ((i % 10) == 0)
-			}
-
-			if doLog {
-				logger.Debugf("Connecting to LXD daemon (attempt %d)", i)
-			}
-
-			d, err := lxd.ConnectLXDUnix("", &lxd.ConnectionArgs{
-				SkipGetServer: true,
-			})
-			if err != nil {
-				errLast = err
-				if doLog {
-					logger.Debugf("Failed connecting to LXD daemon (attempt %d): %v", i, err)
-				}
-
-				time.Sleep(time.Second)
-				continue
-			}
-
-			if doLog {
-				logger.Debugf("Checking if LXD daemon is ready (attempt %d)", i)
-			}
-
-			u := api.NewURL().Path("internal", "ready").WithQuery("wait", "1")
-			_, _, err = d.RawQuery(http.MethodGet, u.String(), nil, "")
-			if err != nil {
-				errLast = err
-				if doLog {
-					logger.Debugf("Failed to check if LXD daemon is ready (attempt %d): %v", i, err)
-				}
-
-				time.Sleep(time.Second)
-				continue
-			}
-
-			finger <- nil
-			return
-		}
-	}()
-
+	ctx := context.Background() // Default to no timeout.
 	if c.flagTimeout > 0 {
-		select {
-		case <-finger:
-		case <-time.After(time.Second * time.Duration(c.flagTimeout)):
-			return fmt.Errorf("LXD still not running after %ds timeout (%v)", c.flagTimeout, errLast)
-		}
-	} else {
-		<-finger
+		var cancel context.CancelFunc
+
+		// Add 100ms longer than timeout to allow receipt of response message from server so we can
+		// differentiate between the server being unreachable or just not ready yet.
+		ctx, cancel = context.WithTimeout(ctx, (time.Duration(c.flagTimeout)*time.Second)+(time.Millisecond*100))
+		defer cancel()
 	}
 
-	return nil
+	log := func(i int, format string, args ...any) {
+		// Start logging only after the 10'th attempt (about 5seconds).
+		// Then after the 30'th attempt (about 15 seconds), log only only one attempt every 10 attempts
+		// (about 5 seconds), to avoid being too verbose.
+		doLog := false
+		if i > 10 {
+			doLog = i < 30 || ((i % 10) == 0)
+		}
+
+		if doLog {
+			logger.Debugf(format, args...)
+		}
+	}
+
+	for i := 0; ; i++ {
+		if ctx.Err() != nil {
+			return fmt.Errorf("LXD daemon not reachable after %ds timeout", c.flagTimeout)
+		}
+
+		if i > 0 {
+			time.Sleep(time.Second)
+		}
+
+		log(i, "Connecting to LXD daemon (attempt %d)", i)
+
+		var d lxd.InstanceServer
+		d, err := lxd.ConnectLXDUnixWithContext(ctx, "", &lxd.ConnectionArgs{
+			SkipGetServer: true,
+		})
+		if err != nil {
+			log(i, "Failed connecting to LXD daemon (attempt %d): %v", i, err)
+			continue
+		}
+
+		log(i, "Checking if LXD daemon is ready (attempt %d)", i)
+
+		u := api.NewURL().Path("internal", "ready").WithQuery("timeout", strconv.Itoa(c.flagTimeout))
+		_, _, err = d.RawQuery(http.MethodGet, u.String(), nil, "")
+		if err != nil {
+			// LXD is reachable but is internally reporting as not ready after the specified timeout.
+			if api.StatusErrorCheck(err, http.StatusServiceUnavailable) {
+				return fmt.Errorf("LXD daemon not ready after %ds timeout", c.flagTimeout)
+			}
+
+			log(i, "Failed to check if LXD daemon is ready (attempt %d): %v", i, err)
+			continue
+		}
+
+		return nil // LXD is ready.
+	}
 }
