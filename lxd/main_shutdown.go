@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -67,7 +68,7 @@ func (c *cmdShutdown) Run(cmd *cobra.Command, args []string) error {
 		// Request shutdown, this shouldn't return until daemon has stopped so use a large request timeout.
 		httpTransport, ok := httpClient.Transport.(*http.Transport)
 		if !ok {
-			chResult <- fmt.Errorf("httpClient.Transport is not *http.Transport")
+			chResult <- errors.New("httpClient.Transport is not *http.Transport")
 			return
 		}
 
