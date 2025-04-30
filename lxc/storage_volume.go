@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -387,7 +388,7 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if srcIsSnapshot && c.flagVolumeOnly {
-		return fmt.Errorf("Cannot set --volume-only when copying a snapshot")
+		return errors.New("Cannot set --volume-only when copying a snapshot")
 	}
 
 	// If the volume is in local storage, set the target to its location (or provide a helpful error
