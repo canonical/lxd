@@ -43,9 +43,12 @@ func (m Jmap) GetBool(key string) (bool, error) {
 	val, ok := m[key]
 	if !ok {
 		return false, fmt.Errorf("Response was missing %q", key)
-	} else if val, ok := val.(bool); !ok {
-		return false, fmt.Errorf("%q was not a bool", key)
-	} else {
-		return val, nil
 	}
+
+	valBool, ok := val.(bool)
+	if !ok {
+		return false, fmt.Errorf("%q was not a bool", key)
+	}
+
+	return valBool, nil
 }
