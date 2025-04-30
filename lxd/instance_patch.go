@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -75,7 +75,7 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -128,7 +128,7 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if req.Restore != "" {
-		return response.BadRequest(fmt.Errorf("Can't call PATCH in restore mode"))
+		return response.BadRequest(errors.New("Can't call PATCH in restore mode"))
 	}
 
 	// Check if architecture was passed
