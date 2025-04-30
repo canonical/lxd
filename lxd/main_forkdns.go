@@ -319,7 +319,7 @@ func (h *dnsHandler) getLeaseHostByDNSName(dnsName string) (string, error) {
 	return "", nil
 }
 
-func (c *cmdForkDNS) Command() *cobra.Command {
+func (c *cmdForkDNS) command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
 	cmd.Use = "forkdns <listen address> <domain> <network name>"
@@ -335,13 +335,13 @@ func (c *cmdForkDNS) Command() *cobra.Command {
   When "recursion desired" flag is set to no, this indicates the request has been sent from another
   forkdns process, and the local dnsmasq lease file only is parsed to try and answer the query.
 `
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Hidden = true
 
 	return cmd
 }
 
-func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdForkDNS) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) < 3 {
 		_ = cmd.Help()
