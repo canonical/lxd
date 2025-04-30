@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -216,7 +217,7 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 		_, backupName, ok := strings.Cut(backup.Name(), "/")
 		if !ok {
 			// Not adding the name to the error response here because we were unable to check if the caller is allowed to view it.
-			return response.InternalError(fmt.Errorf("Storage volume backup has invalid name"))
+			return response.InternalError(errors.New("Storage volume backup has invalid name"))
 		}
 
 		if !canView(entity.StorageVolumeBackupURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, backupName)) {
