@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"errors"
-	"fmt"
 	"math/big"
 	"strings"
 	"sync"
@@ -138,7 +137,7 @@ func (s *Storage) CheckUsernamePassword(username, password, id string) error {
 	defer s.lock.Unlock()
 	request, ok := s.authRequests[id]
 	if !ok {
-		return fmt.Errorf("request not found")
+		return errors.New("request not found")
 	}
 
 	// for demonstration purposes we'll check we'll have a simple user store and
@@ -156,7 +155,7 @@ func (s *Storage) CheckUsernamePassword(username, password, id string) error {
 		request.done = true
 		return nil
 	}
-	return fmt.Errorf("username or password wrong")
+	return errors.New("username or password wrong")
 }
 
 // CheckUsernamePasswordSimple checks username and password.
@@ -168,7 +167,7 @@ func (s *Storage) CheckUsernamePasswordSimple(username, password string) error {
 	if user != nil && user.Password == password {
 		return nil
 	}
-	return fmt.Errorf("username or password wrong")
+	return errors.New("username or password wrong")
 }
 
 // CreateAuthRequest implements the op.Storage interface
@@ -203,7 +202,7 @@ func (s *Storage) AuthRequestByID(ctx context.Context, id string) (op.AuthReques
 	defer s.lock.Unlock()
 	request, ok := s.authRequests[id]
 	if !ok {
-		return nil, fmt.Errorf("request not found")
+		return nil, errors.New("request not found")
 	}
 	return request, nil
 }
@@ -219,7 +218,7 @@ func (s *Storage) AuthRequestByCode(ctx context.Context, code string) (op.AuthRe
 		return requestID, ok
 	}()
 	if !ok {
-		return nil, fmt.Errorf("code invalid or expired")
+		return nil, errors.New("code invalid or expired")
 	}
 	return s.AuthRequestByID(ctx, requestID)
 }
@@ -335,7 +334,7 @@ func (s *Storage) TokenRequestByRefreshToken(ctx context.Context, refreshToken s
 	defer s.lock.Unlock()
 	token, ok := s.refreshTokens[refreshToken]
 	if !ok {
-		return nil, fmt.Errorf("invalid refresh_token")
+		return nil, errors.New("invalid refresh_token")
 	}
 	return RefreshTokenRequestFromBusiness(token), nil
 }
@@ -432,7 +431,7 @@ func (s *Storage) GetClientByClientID(ctx context.Context, clientID string) (op.
 	defer s.lock.Unlock()
 	client, ok := s.clients[clientID]
 	if !ok {
-		return nil, fmt.Errorf("client not found")
+		return nil, errors.New("client not found")
 	}
 	return RedirectGlobsClient(client), nil
 }
@@ -444,12 +443,12 @@ func (s *Storage) AuthorizeClientIDSecret(ctx context.Context, clientID, clientS
 	defer s.lock.Unlock()
 	client, ok := s.clients[clientID]
 	if !ok {
-		return fmt.Errorf("client not found")
+		return errors.New("client not found")
 	}
 	// for this example we directly check the secret
 	// obviously you would not have the secret in plain text, but rather hashed and salted (e.g. using bcrypt)
 	if client.secret != clientSecret {
-		return fmt.Errorf("invalid secret")
+		return errors.New("invalid secret")
 	}
 	return nil
 }
@@ -477,7 +476,7 @@ func (s *Storage) SetUserinfoFromToken(ctx context.Context, userinfo *oidc.UserI
 		return token, ok
 	}()
 	if !ok {
-		return fmt.Errorf("token is invalid or has expired")
+		return errors.New("token is invalid or has expired")
 	}
 	// the userinfo endpoint should support CORS. If it's not possible to specify a specific origin in the CORS handler,
 	// and you have to specify a wildcard (*) origin, then you could also check here if the origin which called the userinfo endpoint here directly
@@ -505,7 +504,7 @@ func (s *Storage) SetIntrospectionFromToken(ctx context.Context, introspection *
 		return token, ok
 	}()
 	if !ok {
-		return fmt.Errorf("token is invalid or has expired")
+		return errors.New("token is invalid or has expired")
 	}
 	// check if the client is part of the requested audience
 	for _, aud := range token.Audience {
@@ -528,7 +527,7 @@ func (s *Storage) SetIntrospectionFromToken(ctx context.Context, introspection *
 			return nil
 		}
 	}
-	return fmt.Errorf("token is not valid for this client")
+	return errors.New("token is not valid for this client")
 }
 
 // GetPrivateClaimsFromScopes implements the op.Storage interface
@@ -554,11 +553,11 @@ func (s *Storage) GetKeyByIDAndClientID(ctx context.Context, keyID, clientID str
 	defer s.lock.Unlock()
 	service, ok := s.services[clientID]
 	if !ok {
-		return nil, fmt.Errorf("clientID not found")
+		return nil, errors.New("clientID not found")
 	}
 	key, ok := service.keys[keyID]
 	if !ok {
-		return nil, fmt.Errorf("key not found")
+		return nil, errors.New("key not found")
 	}
 	return &jose.JSONWebKey{
 		KeyID: keyID,
@@ -609,7 +608,7 @@ func (s *Storage) renewRefreshToken(currentRefreshToken string) (token string, r
 	defer s.lock.Unlock()
 	refreshToken, ok := s.refreshTokens[currentRefreshToken]
 	if !ok {
-		return "", "", fmt.Errorf("invalid refresh token")
+		return "", "", errors.New("invalid refresh token")
 	}
 	// deletes the refresh token and all access tokens which were issued based on this refresh token
 	delete(s.refreshTokens, currentRefreshToken)
@@ -650,7 +649,7 @@ func (s *Storage) setUserinfo(ctx context.Context, userInfo *oidc.UserInfo, user
 	defer s.lock.Unlock()
 	user := s.userStore.GetUserByID(userID)
 	if user == nil {
-		return fmt.Errorf("user not found")
+		return errors.New("user not found")
 	}
 	for _, scope := range scopes {
 		switch scope {
