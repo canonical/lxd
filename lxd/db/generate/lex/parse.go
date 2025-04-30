@@ -1,6 +1,7 @@
 package lex
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -46,7 +47,7 @@ func Parse(dir string) (*packages.Package, error) {
 	}
 
 	if len(pkgs) != 1 {
-		return nil, fmt.Errorf("More than one package parsed")
+		return nil, errors.New("More than one package parsed")
 	}
 
 	// Using the Mode flags on packages.Config to populate the fields
