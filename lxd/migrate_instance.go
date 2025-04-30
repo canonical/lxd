@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -105,7 +106,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	stateConnFunc := func(ctx context.Context) (io.ReadWriteCloser, error) {
 		conn := s.conns[api.SecretNameState]
 		if conn == nil {
-			return nil, fmt.Errorf("Migration source control connection not initialized")
+			return nil, errors.New("Migration source control connection not initialized")
 		}
 
 		wsConn, err := conn.WebsocketIO(ctx)
@@ -119,7 +120,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	filesystemConnFunc := func(ctx context.Context) (io.ReadWriteCloser, error) {
 		conn := s.conns[api.SecretNameFilesystem]
 		if conn == nil {
-			return nil, fmt.Errorf("Migration source filesystem connection not initialized")
+			return nil, errors.New("Migration source filesystem connection not initialized")
 		}
 
 		wsConn, err := conn.WebsocketIO(ctx)
@@ -236,7 +237,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 	stateConnFunc := func(ctx context.Context) (io.ReadWriteCloser, error) {
 		conn := c.conns[api.SecretNameState]
 		if conn == nil {
-			return nil, fmt.Errorf("Migration target control connection not initialized")
+			return nil, errors.New("Migration target control connection not initialized")
 		}
 
 		wsConn, err := conn.WebsocketIO(ctx)
@@ -250,7 +251,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 	filesystemConnFunc := func(ctx context.Context) (io.ReadWriteCloser, error) {
 		conn := c.conns[api.SecretNameFilesystem]
 		if conn == nil {
-			return nil, fmt.Errorf("Migration target filesystem connection not initialized")
+			return nil, errors.New("Migration target filesystem connection not initialized")
 		}
 
 		wsConn, err := conn.WebsocketIO(ctx)
