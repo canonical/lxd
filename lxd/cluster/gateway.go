@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -488,7 +489,7 @@ func (g *Gateway) TransferLeadership() error {
 	}
 
 	if id == 0 {
-		return fmt.Errorf("No online voter found")
+		return errors.New("No online voter found")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -624,7 +625,7 @@ func (g *Gateway) Reset(networkCert *shared.CertInfo) error {
 }
 
 // ErrNodeIsNotClustered indicates the node is not clustered.
-var ErrNodeIsNotClustered = fmt.Errorf("Server is not clustered")
+var ErrNodeIsNotClustered = errors.New("Server is not clustered")
 
 // LeaderAddress returns the address of the current raft leader.
 func (g *Gateway) LeaderAddress() (string, error) {
@@ -701,7 +702,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 		// This should never happen because the raft_nodes table should
 		// be never empty for a clustered node, but check it for good
 		// measure.
-		return "", fmt.Errorf("No raft node known")
+		return "", errors.New("No raft node known")
 	}
 
 	transport, cleanup := tlsTransport(config)
@@ -718,7 +719,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 		return leader, nil
 	}
 
-	return "", fmt.Errorf("RAFT cluster is unavailable")
+	return "", errors.New("RAFT cluster is unavailable")
 }
 
 // NetworkUpdateCert sets a new network certificate for the gateway
@@ -745,7 +746,7 @@ func (g *Gateway) init(bootstrap bool) error {
 
 	dir := g.db.DqliteDir()
 	if shared.PathExists(filepath.Join(dir, "logs.db")) {
-		return fmt.Errorf("Unsupported upgrade path, please first upgrade to LXD 4.0")
+		return errors.New("Unsupported upgrade path, please first upgrade to LXD 4.0")
 	}
 
 	// If the resulting raft instance is not nil, it means that this node
@@ -881,7 +882,7 @@ func (g *Gateway) isLeader() (bool, error) {
 }
 
 // ErrNotLeader signals that a node not the leader.
-var ErrNotLeader = fmt.Errorf("Not leader")
+var ErrNotLeader = errors.New("Not leader")
 
 // Return information about the LXD nodes that a currently part of the raft
 // cluster, as configured in the raft log. It returns an error if this node is
@@ -1114,7 +1115,7 @@ func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway
 				g.upgradeTriggered = true
 			}
 		}
-		return nil, fmt.Errorf("Upgrade needed")
+		return nil, errors.New("Upgrade needed")
 	}
 
 	if response.StatusCode != http.StatusSwitchingProtocols {
@@ -1122,7 +1123,7 @@ func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway
 	}
 
 	if response.Header.Get("Upgrade") != "dqlite" {
-		return nil, fmt.Errorf("Missing or unexpected Upgrade header in response")
+		return nil, errors.New("Missing or unexpected Upgrade header in response")
 	}
 
 	revert.Success()
