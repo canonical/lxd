@@ -3,6 +3,7 @@ package device
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -114,11 +115,11 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if n.Status() != api.NetworkStatusCreated {
-		return fmt.Errorf("Specified network is not fully created")
+		return errors.New("Specified network is not fully created")
 	}
 
 	if n.Type() != "ovn" {
-		return fmt.Errorf("Specified network must be of type ovn")
+		return errors.New("Specified network must be of type ovn")
 	}
 
 	bannedKeys := []string{"mtu"}
@@ -130,7 +131,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 
 	ovnNet, ok := n.(ovnNet)
 	if !ok {
-		return fmt.Errorf("Network is not ovnNet interface type")
+		return errors.New("Network is not ovnNet interface type")
 	}
 
 	d.network = ovnNet // Stored loaded network for use by other functions.
@@ -208,7 +209,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		// may come from a combination of profile and instance configs.
 		if d.config["nested"] != "" {
 			if d.config["vlan"] == "" {
-				return fmt.Errorf("VLAN must be specified with a nested NIC")
+				return errors.New("VLAN must be specified with a nested NIC")
 			}
 
 			// Check the NIC that this NIC is neted under exists on this instance and shares same
@@ -220,7 +221,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 				}
 
 				if devConfig["network"] != d.config["network"] {
-					return fmt.Errorf("The nested parent NIC must be connected to same network as this NIC")
+					return errors.New("The nested parent NIC must be connected to same network as this NIC")
 				}
 
 				nestedParentNIC = devName
@@ -231,7 +232,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 				return fmt.Errorf("Instance does not have a NIC called %q for nesting under", d.config["nested"])
 			}
 		} else if d.config["vlan"] != "" {
-			return fmt.Errorf("Specifying a VLAN requires that this NIC be nested")
+			return errors.New("Specifying a VLAN requires that this NIC be nested")
 		}
 
 		// Check there isn't another NIC with any of the same addresses specified on the same network.
@@ -487,7 +488,7 @@ func (d *nicOVN) PreStartCheck() error {
 // validateEnvironment checks the runtime environment for correctness.
 func (d *nicOVN) validateEnvironment() error {
 	if d.inst.Type() == instancetype.Container && d.config["name"] == "" {
-		return fmt.Errorf("Requires name property to start")
+		return errors.New("Requires name property to start")
 	}
 
 	integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
@@ -540,7 +541,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		case "sriov":
 			ovs := openvswitch.NewOVS()
 			if !ovs.HardwareOffloadingEnabled() {
-				return nil, fmt.Errorf("SR-IOV acceleration requires hardware offloading be enabled in OVS")
+				return nil, errors.New("SR-IOV acceleration requires hardware offloading be enabled in OVS")
 			}
 
 			// If VM, then try and load the vfio-pci module first.
@@ -587,7 +588,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		case "vdpa":
 			ovs := openvswitch.NewOVS()
 			if !ovs.HardwareOffloadingEnabled() {
-				return nil, fmt.Errorf("SR-IOV acceleration requires hardware offloading be enabled in OVS")
+				return nil, errors.New("SR-IOV acceleration requires hardware offloading be enabled in OVS")
 			}
 
 			err := util.LoadModule("vdpa")
@@ -635,7 +636,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 			// Setup the guest network interface.
 			if d.inst.Type() == instancetype.Container {
-				return nil, fmt.Errorf("VDPA acceleration is not supported for containers")
+				return nil, errors.New("VDPA acceleration is not supported for containers")
 			}
 
 			integrationBridgeNICName = vfRepresentor
@@ -755,7 +756,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 					}...)
 			case "vdpa":
 				if vDPADevice == nil {
-					return nil, fmt.Errorf("vDPA device is nil")
+					return nil, errors.New("vDPA device is nil")
 				}
 
 				runConf.NetworkInterface = append(runConf.NetworkInterface,
@@ -911,7 +912,7 @@ func (d *nicOVN) findRepresentorPort(volatile map[string]string) (string, error)
 	// Track down the representor port to remove it from the integration bridge.
 	representorPort := network.SRIOVFindRepresentorPort(nics, string(physSwitchID), pfID, vfID)
 	if representorPort == "" {
-		return "", fmt.Errorf("Failed finding representor")
+		return "", errors.New("Failed finding representor")
 	}
 
 	return representorPort, nil
@@ -1006,7 +1007,7 @@ func (d *nicOVN) postStop() error {
 		vDPADevName, ok := v["last_state.vdpa.name"]
 		if !ok {
 			network.SRIOVVirtualFunctionMutex.Unlock()
-			return fmt.Errorf("Failed to find PCI slot name for vDPA device")
+			return errors.New("Failed to find PCI slot name for vDPA device")
 		}
 
 		// Delete the vDPA management device.
