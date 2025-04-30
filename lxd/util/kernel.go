@@ -3,7 +3,7 @@ package util
 import (
 	"bufio"
 	"context"
-	"fmt"
+	"errors"
 	"os"
 	"strings"
 
@@ -70,7 +70,7 @@ func HugepagesPath() (string, error) {
 	}
 
 	if len(matches) == 0 {
-		return "", fmt.Errorf("No hugetlbfs mount found, can't use hugepages")
+		return "", errors.New("No hugetlbfs mount found, can't use hugepages")
 	}
 
 	if len(matches) > 1 {
@@ -78,7 +78,7 @@ func HugepagesPath() (string, error) {
 			return "/dev/hugepages", nil
 		}
 
-		return "", fmt.Errorf("More than one hugetlbfs instance found and none at standard /dev/hugepages")
+		return "", errors.New("More than one hugetlbfs instance found and none at standard /dev/hugepages")
 	}
 
 	return matches[0], nil
