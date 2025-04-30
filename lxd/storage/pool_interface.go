@@ -73,8 +73,8 @@ type Pool interface {
 	RenameInstance(inst instance.Instance, newName string, op *operations.Operation) error
 	DeleteInstance(inst instance.Instance, op *operations.Operation) error
 	UpdateInstance(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
-	UpdateInstanceBackupFile(inst instance.Instance, snapshots bool, version uint32, op *operations.Operation) error
-	GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, op *operations.Operation) (*backupConfig.Config, error)
+	UpdateInstanceBackupFile(inst instance.Instance, snapshots bool, volBackupConf *backupConfig.Config, version uint32, op *operations.Operation) error
+	GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, volBackupConf *backupConfig.Config, op *operations.Operation) (*backupConfig.Config, error)
 	CheckInstanceBackupFileSnapshots(backupConf *backupConfig.Config, projectName string, op *operations.Operation) ([]*api.InstanceSnapshot, error)
 	ImportInstance(inst instance.Instance, poolVol *backupConfig.Config, op *operations.Operation) (revert.Hook, error)
 	CleanupInstancePaths(inst instance.Instance, op *operations.Operation) error
