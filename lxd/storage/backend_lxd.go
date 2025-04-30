@@ -985,7 +985,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 
 		// Save any changes that have occurred to the instance's config to the on-disk backup.yaml file.
 		// Use the global metadata version.
-		err = b.UpdateInstanceBackupFile(inst, false, backupConfig.DefaultMetadataVersion, op)
+		err = b.UpdateInstanceBackupFile(inst, false, nil, backupConfig.DefaultMetadataVersion, op)
 		if err != nil {
 			return fmt.Errorf("Failed updating backup file: %w", err)
 		}
@@ -1103,7 +1103,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	}
 
 	// Check source volume exists, and get its config including all of the snapshots.
-	srcConfig, err := srcPool.GenerateInstanceBackupConfig(src, true, op)
+	srcConfig, err := srcPool.GenerateInstanceBackupConfig(src, true, nil, op)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance copy config: %w", err)
 	}
@@ -1667,7 +1667,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 	}
 
 	// Check source volume exists, and get its config including all of the snapshots.
-	srcConfig, err := srcPool.GenerateInstanceBackupConfig(src, true, op)
+	srcConfig, err := srcPool.GenerateInstanceBackupConfig(src, true, nil, op)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance refresh config: %w", err)
 	}
@@ -3330,7 +3330,7 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 
 	// Ensure the backup file reflects current config.
 	// Use the version requested by the caller to write the correct backup file format.
-	err = b.UpdateInstanceBackupFile(inst, snapshots, version, op)
+	err = b.UpdateInstanceBackupFile(inst, snapshots, nil, version, op)
 	if err != nil {
 		return err
 	}
@@ -3814,7 +3814,7 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 
 	// Ensure the backup file reflects current config.
 	// Use the global metadata version.
-	err = b.UpdateInstanceBackupFile(inst, true, backupConfig.DefaultMetadataVersion, op)
+	err = b.UpdateInstanceBackupFile(inst, true, nil, backupConfig.DefaultMetadataVersion, op)
 	if err != nil {
 		return err
 	}
