@@ -79,7 +79,7 @@ func main() {
 
 	// netcat sub-command
 	netcatCmd := cmdNetcat{global: &globalCmd}
-	app.AddCommand(netcatCmd.Command())
+	app.AddCommand(netcatCmd.command())
 
 	// Run the main command and handle errors
 	err := app.Execute()
