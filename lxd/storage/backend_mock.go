@@ -172,6 +172,11 @@ func (b *mockBackend) UpdateInstance(inst instance.Instance, newDesc string, new
 	return nil
 }
 
+// UpdateCustomVolumeBackupFile ...
+func (b *mockBackend) UpdateCustomVolumeBackupFile(projectName string, volName string, snapshots bool, instances []instance.Instance, op *operations.Operation) error {
+	return nil
+}
+
 // GenerateCustomVolumeBackupConfig ...
 func (b *mockBackend) GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
 	return nil, nil
