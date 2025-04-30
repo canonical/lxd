@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -87,8 +88,10 @@ func (c *cmdQuery) run(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.G("Query path must start with /"))
 	}
 
-	// Attempt to connect
-	d, err := conf.GetInstanceServer(remote)
+	// Setup client
+	d, err := conf.GetInstanceServerWithConnectionArgs(remote, &lxd.ConnectionArgs{
+		SkipGetServer: true,
+	})
 	if err != nil {
 		return err
 	}
