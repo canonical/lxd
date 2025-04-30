@@ -2,7 +2,7 @@ package shared
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"io"
 	"os"
 )
@@ -55,6 +55,6 @@ func DetectCompressionFile(f io.Reader) ([]string, string, []string, error) {
 	case bytes.Equal(header[0:4], []byte{0x28, 0xb5, 0x2f, 0xfd}):
 		return []string{"--zstd", "-xf"}, ".tar.zst", []string{"zstd", "-d"}, nil
 	default:
-		return nil, "", nil, fmt.Errorf("Unsupported compression")
+		return nil, "", nil, errors.New("Unsupported compression")
 	}
 }
