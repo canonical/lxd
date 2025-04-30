@@ -33,7 +33,6 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/logger"
-	"github.com/canonical/lxd/shared/tcp"
 	"github.com/canonical/lxd/shared/version"
 	"github.com/canonical/lxd/shared/ws"
 )
@@ -94,30 +93,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 			if found && val == nil {
 				s.conns[fd] = conn
 
-				// Set TCP timeout options.
-				remoteTCP, _ := tcp.ExtractConn(conn.UnderlyingConn())
-				if remoteTCP != nil {
-					err = tcp.SetTimeouts(remoteTCP, 0)
-					if err != nil {
-						logger.Warn("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
-					}
-
-					// Start channel keep alive to run until channel is closed.
-					go func() {
-						pingInterval := time.Second * 10
-						t := time.NewTicker(pingInterval)
-						defer t.Stop()
-
-						for {
-							err := conn.WriteControl(websocket.PingMessage, []byte("keepalive"), time.Now().Add(5*time.Second))
-							if err != nil {
-								return
-							}
-
-							<-t.C
-						}
-					}()
-				}
+				ws.StartKeepAlive(conn)
 
 				if fd == execWSControl {
 					s.waitControlConnected.Cancel() // Control connection connected.
@@ -464,7 +440,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 					// detect when the client disconnects to avoid leaving the command running
 					// in the background.
 					go func() {
-						_, _, err := conn.ReadMessage()
+						_, _, err := conn.ReadMessage() // Consume pings from server.
 
 						// If there is a control connection, then leave it to that handler
 						// to clean the command up. If there's no control connection, the
@@ -484,7 +460,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 					// avoid a situation where we hit an inactivity timeout on
 					// stderr during long exec sessions
 					go func() {
-						_, _, _ = conn.ReadMessage()
+						_, _, _ = conn.ReadMessage() // Consume pings from server.
 					}()
 				}
 
