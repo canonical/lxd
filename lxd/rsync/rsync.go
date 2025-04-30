@@ -2,6 +2,7 @@ package rsync
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -433,7 +434,7 @@ func rsyncFeatureArgs(features []string) []string {
 // AtLeast compares the local version to a minimum version.
 func AtLeast(min string) bool {
 	// Parse the current version.
-	out, err := shared.RunCommand("rsync", "--version")
+	out, err := shared.RunCommandContext(context.TODO(), "rsync", "--version")
 	if err != nil {
 		return false
 	}
