@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -19,7 +20,7 @@ func main() {
 // UpdateSchema updates the schema.go file of the cluster and node databases.
 func freshSchema(args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf(`Schema kind must be provided (must be "node", or "cluster")`)
+		return errors.New(`Schema kind must be provided (must be "node", or "cluster")`)
 	}
 
 	kind := args[0]
