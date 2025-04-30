@@ -3,8 +3,9 @@
 
 ````{only} integrated
 
-```{note}
-MicroCloud users can skip the first Install and initialize LXD section and begin at the {ref}`Access the UI <tutorial-ui-access>` section. The MicroCloud setup process handles LXD installation and initialization.
+```{admonition} For MicroCloud users
+:class: note
+The MicroCloud setup process installs and initializes LXD. Thus, you can skip the first Install and initialize LXD section and begin at the {ref}`Access the UI <tutorial-ui-access>` section.
 ```
 
 ````

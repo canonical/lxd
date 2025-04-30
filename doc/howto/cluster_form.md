@@ -6,9 +6,10 @@ relatedlinks: '[MicroCloud](https://canonical.com/microcloud)'
 # How to form a cluster
 
 ````{only} integrated
-```{note}
-MicroCloud users can disregard the instructions on this page, because the MicroCloud setup process handles forming a LXD cluster. Following MicroCloud setup, LXD cluster commands can be used on the MicroCloud.
-```
+```{admonition} For MicroCloud users
+:class: note
+The MicroCloud setup process forms a LXD cluster. Thus, you do not need to follow the steps on this page. After MicroCloud setup, LXD cluster commands can be used with the MicroCloud cluster.
+``
 ````
 
 When forming a LXD cluster, you start with a bootstrap server.
