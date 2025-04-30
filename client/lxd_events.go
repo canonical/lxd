@@ -1,7 +1,7 @@
 package lxd
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/gorilla/websocket"
 
@@ -13,7 +13,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 	// Resolve the project name.
 	connInfo, _ := r.GetConnectionInfo()
 	if connInfo.Project == "" {
-		return nil, fmt.Errorf("Unexpected empty project in connection info")
+		return nil, errors.New("Unexpected empty project in connection info")
 	}
 
 	project := ""
