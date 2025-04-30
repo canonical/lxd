@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -138,7 +139,7 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(cname) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -174,7 +175,7 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 		_, backupName, ok := strings.Cut(backup.Name(), "/")
 		if !ok {
 			// Not adding the name to the error response here because we were unable to check if the caller is allowed to view it.
-			return response.InternalError(fmt.Errorf("Instance backup has invalid name"))
+			return response.InternalError(errors.New("Instance backup has invalid name"))
 		}
 
 		if !canView(entity.InstanceBackupURL(projectName, c.Name(), backupName)) {
@@ -245,7 +246,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -440,7 +441,7 @@ func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
@@ -514,7 +515,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
@@ -620,7 +621,7 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
@@ -705,7 +706,7 @@ func instanceBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
