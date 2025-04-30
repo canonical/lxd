@@ -6952,6 +6952,53 @@ func (b *lxdBackend) createStorageStructure(path string) error {
 	return nil
 }
 
+// UpdateCustomVolumeBackupFile writes the custom volume's config to the backup.yaml file of the corresponding instances.
+// A list of instances can be provided to not require looking them up.
+func (b *lxdBackend) UpdateCustomVolumeBackupFile(projectName string, volName string, snapshots bool, instances []instance.Instance, op *operations.Operation) error {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volume": volName, "snapshots": snapshots})
+	l.Debug("UpdateCustomVolumeBackupFile started")
+	defer l.Debug("UpdateCustomVolumeBackupFile finished")
+
+	vol, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
+	if err != nil {
+		return err
+	}
+
+	// Fetch all instances which are currently using the custom volume in one of their devices if not provided already.
+	if instances == nil {
+		err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &vol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
+			inst, err := instance.Load(b.state, dbInst, project)
+			if err != nil {
+				return err
+			}
+
+			instances = append(instances, inst)
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	// Fetch the latest custom volume backup config once for all instances.
+	volConfig, err := b.GenerateCustomVolumeBackupConfig(projectName, volName, true, op)
+	if err != nil {
+		return fmt.Errorf("Failed generating volume backup config: %w", err)
+	}
+
+	// Update the backup config file of all instances.
+	for _, inst := range instances {
+		// Don't invoke the the update of the instance's backup file directly on *lxdBackend.
+		// The instance's root vol might be located on a different storage pool which gets loaded when calling the instance's UpdateBackupFile.
+		err = inst.UpdateBackupFile(volConfig)
+		if err != nil {
+			return fmt.Errorf("Failed updating backup file of %q: %w", inst.Name(), err)
+		}
+	}
+
+	return nil
+}
+
 // GenerateCustomVolumeBackupConfig returns the backup config entry for this volume.
 func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, _ *operations.Operation) (*backupConfig.Config, error) {
 	vol, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
