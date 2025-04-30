@@ -297,7 +297,7 @@ func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertifi
 
 	// If not trusted get the certificate from the request TLS config.
 	if len(peerCertificates) < 1 {
-		return response.BadRequest(fmt.Errorf("No client certificate provided"))
+		return response.BadRequest(errors.New("No client certificate provided"))
 	}
 
 	cert := peerCertificates[len(peerCertificates)-1]
@@ -347,17 +347,17 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 
 	// A name is required whether getting a token or directly creating the identity with a certificate.
 	if req.Name == "" {
-		return response.BadRequest(fmt.Errorf("Identity name must be provided"))
+		return response.BadRequest(errors.New("Identity name must be provided"))
 	}
 
 	// If the caller is trusted, they should not be providing a trust token
 	if req.TrustToken != "" {
-		return response.Conflict(fmt.Errorf("Client already trusted"))
+		return response.Conflict(errors.New("Client already trusted"))
 	}
 
 	// Can't request a token if a certificate is provided.
 	if req.Token && req.Certificate != "" {
-		return response.BadRequest(fmt.Errorf("Can't use certificate if token is requested"))
+		return response.BadRequest(errors.New("Can't use certificate if token is requested"))
 	}
 
 	// If a token is requested, create a pending TLS identity and return an api.CertificateAddToken.
@@ -413,7 +413,7 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 
 	// Tokens are useless if the server isn't listening (how will the untrusted client contact the server?)
 	if localHTTPSAddress == "" {
-		return response.BadRequest(fmt.Errorf("Can't issue token when server isn't listening on network"))
+		return response.BadRequest(errors.New("Can't issue token when server isn't listening on network"))
 	}
 
 	// Get all addresses the server is listening on. This is encoded in the certificate token,
@@ -1097,7 +1097,7 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 	// Must be a remote API request.
 	err = identity.ValidateAuthenticationMethod(protocol)
 	if err != nil {
-		return response.BadRequest(fmt.Errorf("Current identity information must be requested via the HTTPS API"))
+		return response.BadRequest(errors.New("Current identity information must be requested via the HTTPS API"))
 	}
 
 	// Identity provider groups may not be present.
