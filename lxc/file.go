@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -391,7 +392,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 
 				i++
 				if i > 255 {
-					return fmt.Errorf("Too many links")
+					return errors.New("Too many links")
 				}
 
 				// Update link target for next iteration.
