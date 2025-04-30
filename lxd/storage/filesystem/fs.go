@@ -2,6 +2,7 @@ package filesystem
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -252,5 +253,5 @@ func GetMountinfo(path string) ([]string, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("No mountinfo entry found")
+	return nil, errors.New("No mountinfo entry found")
 }
