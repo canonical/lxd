@@ -402,7 +402,7 @@ func (p *pureClient) getAPIVersions() ([]string, error) {
 	}
 
 	if len(resp.APIVersions) == 0 {
-		return nil, fmt.Errorf("Pure Storage does not support any API versions")
+		return nil, errors.New("Pure Storage does not support any API versions")
 	}
 
 	return resp.APIVersions, nil
