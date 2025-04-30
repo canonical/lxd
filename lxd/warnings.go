@@ -215,11 +215,9 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponse(true, resultList)
 	}
 
-	if filters == nil {
-		filters, err = filterWarnings(warnings, clauses)
-		if err != nil {
-			return response.SmartError(err)
-		}
+	filters, err = filterWarnings(warnings, clauses)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// Return detailed list of warning
