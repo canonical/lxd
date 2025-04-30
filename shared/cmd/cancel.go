@@ -23,7 +23,7 @@ func CancelableWait(rawOp any, progress *ProgressRenderer) error {
 	case lxd.RemoteOperation:
 		rop = v
 	default:
-		return fmt.Errorf("Invalid operation type for CancelableWait")
+		return errors.New("Invalid operation type for CancelableWait")
 	}
 
 	// Signal handling
