@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -34,7 +34,7 @@ func (c *cmdCallhook) Command() *cobra.Command {
 func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 	// Only root should run this.
 	if os.Geteuid() != 0 {
-		return fmt.Errorf("This must be run as root")
+		return errors.New("This must be run as root")
 	}
 
 	// Parse request.
