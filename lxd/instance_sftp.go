@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -53,7 +54,7 @@ func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(instName) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	if r.Header.Get("Upgrade") != "sftp" {
