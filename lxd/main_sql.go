@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -67,7 +68,7 @@ func (c *cmdSQL) run(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		return fmt.Errorf("Missing required arguments")
+		return errors.New("Missing required arguments")
 	}
 
 	database := args[0]
@@ -76,7 +77,7 @@ func (c *cmdSQL) run(cmd *cobra.Command, args []string) error {
 	if !shared.ValueInSlice(database, []string{"local", "global"}) {
 		_ = cmd.Help()
 
-		return fmt.Errorf("Invalid database type")
+		return errors.New("Invalid database type")
 	}
 
 	if query == "-" {
