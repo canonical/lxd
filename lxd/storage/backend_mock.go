@@ -178,12 +178,12 @@ func (b *mockBackend) GenerateCustomVolumeBackupConfig(projectName string, volNa
 }
 
 // GenerateInstanceBackupConfig ...
-func (b *mockBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
+func (b *mockBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, volBackupConf *backupConfig.Config, op *operations.Operation) (*backupConfig.Config, error) {
 	return nil, nil
 }
 
 // UpdateInstanceBackupFile ...
-func (b *mockBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshot bool, version uint32, op *operations.Operation) error {
+func (b *mockBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshot bool, volBackupConf *backupConfig.Config, version uint32, op *operations.Operation) error {
 	return nil
 }
 
