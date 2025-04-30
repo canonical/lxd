@@ -39,8 +39,8 @@ _server_config_storage() {
   lxc query --wait /1.0/containers/foo/backups -X POST -d '{\"expires_at\": \"2100-01-01T10:00:00-05:00\"}'
 
   # Record before
-  BACKUPS_BEFORE=$(find "${LXD_DIR}/backups/" | sort)
-  IMAGES_BEFORE=$(find "${LXD_DIR}/images/" | sort)
+  BACKUPS_BEFORE=$(cd "${LXD_DIR}/backups/" && find . | sort)
+  IMAGES_BEFORE=$(cd "${LXD_DIR}/images/" && find . | sort)
 
   lxc storage volume create "${pool}" backups
   lxc storage volume create "${pool}" images
@@ -64,8 +64,8 @@ _server_config_storage() {
   lxc config set storage.images_volume "${pool}/images"
 
   # Record after
-  BACKUPS_AFTER=$(find "${LXD_DIR}/backups/" | sort)
-  IMAGES_AFTER=$(find "${LXD_DIR}/images/" | sort)
+  BACKUPS_AFTER=$(cd "${LXD_DIR}/storage-pools/${pool}/custom/default_backups/" && find . | sort)
+  IMAGES_AFTER=$(cd "${LXD_DIR}/storage-pools/${pool}/custom/default_images/" && find . | sort)
 
   # Validate content
   if [ "${BACKUPS_BEFORE}" != "${BACKUPS_AFTER}" ]; then
