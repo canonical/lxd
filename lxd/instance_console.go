@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -92,7 +93,7 @@ func (s *consoleWs) Connect(op *operations.Operation, r *http.Request, w http.Re
 func (s *consoleWs) connectConsole(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
-		return fmt.Errorf("missing secret")
+		return errors.New("missing secret")
 	}
 
 	for fd, fdSecret := range s.fds {
@@ -135,7 +136,7 @@ func (s *consoleWs) connectConsole(op *operations.Operation, r *http.Request, w 
 func (s *consoleWs) connectVGA(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
-		return fmt.Errorf("missing secret")
+		return errors.New("missing secret")
 	}
 
 	for fd, fdSecret := range s.fds {
@@ -436,7 +437,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	post := api.InstanceConsolePost{}
@@ -486,15 +487,15 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if post.Type == instance.ConsoleTypeVGA && inst.Type() != instancetype.VM {
-		return response.BadRequest(fmt.Errorf("VGA console is only supported by virtual machines"))
+		return response.BadRequest(errors.New("VGA console is only supported by virtual machines"))
 	}
 
 	if !inst.IsRunning() {
-		return response.BadRequest(fmt.Errorf("Instance is not running"))
+		return response.BadRequest(errors.New("Instance is not running"))
 	}
 
 	if inst.IsFrozen() {
-		return response.BadRequest(fmt.Errorf("Instance is frozen"))
+		return response.BadRequest(errors.New("Instance is frozen"))
 	}
 
 	ws := &consoleWs{}
@@ -578,7 +579,7 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Forward the request if the container is remote.
@@ -597,12 +598,12 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if inst.Type() != instancetype.Container {
-		return response.SmartError(fmt.Errorf("Instance is not container type"))
+		return response.SmartError(errors.New("Instance is not container type"))
 	}
 
 	c, ok := inst.(instance.Container)
 	if !ok {
-		return response.SmartError(fmt.Errorf("Invalid instance type"))
+		return response.SmartError(errors.New("Invalid instance type"))
 	}
 
 	ent := response.FileResponseEntry{}
@@ -677,7 +678,7 @@ func instanceConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	projectName := request.ProjectParam(r)
@@ -688,12 +689,12 @@ func instanceConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if inst.Type() != instancetype.Container {
-		return response.SmartError(fmt.Errorf("Instance is not container type"))
+		return response.SmartError(errors.New("Instance is not container type"))
 	}
 
 	c, ok := inst.(instance.Container)
 	if !ok {
-		return response.SmartError(fmt.Errorf("Invalid instance type"))
+		return response.SmartError(errors.New("Invalid instance type"))
 	}
 
 	truncateConsoleLogFile := func(path string) error {
@@ -705,11 +706,11 @@ func instanceConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if !st.Mode().IsRegular() {
-			return fmt.Errorf("The console log is not a regular file")
+			return errors.New("The console log is not a regular file")
 		}
 
 		if path == "" {
-			return fmt.Errorf("Container does not keep a console logfile")
+			return errors.New("Container does not keep a console logfile")
 		}
 
 		return os.Truncate(path, 0)
