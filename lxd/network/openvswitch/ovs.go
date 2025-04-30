@@ -2,6 +2,7 @@ package openvswitch
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os/exec"
@@ -218,7 +219,7 @@ func (o *OVS) OVNEncapIP() (net.IP, error) {
 
 	encapIP := net.ParseIP(encapIPStr)
 	if encapIP == nil {
-		return nil, fmt.Errorf("Invalid ovn-encap-ip address")
+		return nil, errors.New("Invalid ovn-encap-ip address")
 	}
 
 	return encapIP, nil
