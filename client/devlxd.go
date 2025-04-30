@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -47,7 +48,7 @@ func (r *ProtocolDevLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 // GetHTTPClient returns the http client used for the connection. This can be used to set custom http options.
 func (r *ProtocolDevLXD) GetHTTPClient() (*http.Client, error) {
 	if r.http == nil {
-		return nil, fmt.Errorf("HTTP client isn't set, bad connection")
+		return nil, errors.New("HTTP client isn't set, bad connection")
 	}
 
 	return r.http, nil
