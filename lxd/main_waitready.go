@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -64,7 +65,7 @@ func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 					logger.Debugf("Failed connecting to LXD daemon (attempt %d): %v", i, err)
 				}
 
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(time.Second)
 				continue
 			}
 
@@ -72,14 +73,15 @@ func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 				logger.Debugf("Checking if LXD daemon is ready (attempt %d)", i)
 			}
 
-			_, _, err = d.RawQuery(http.MethodGet, "/internal/ready", nil, "")
+			u := api.NewURL().Path("internal", "ready").WithQuery("wait", "1")
+			_, _, err = d.RawQuery(http.MethodGet, u.String(), nil, "")
 			if err != nil {
 				errLast = err
 				if doLog {
 					logger.Debugf("Failed to check if LXD daemon is ready (attempt %d): %v", i, err)
 				}
 
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(time.Second)
 				continue
 			}
 
