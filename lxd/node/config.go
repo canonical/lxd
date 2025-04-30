@@ -207,7 +207,7 @@ var ConfigSchema = config.Schema{
 	// ---
 	//  type: string
 	//  scope: local
-	//  shortdesc: Address to bind the `pprof` debug server to (HTTP)
+	//  shortdesc: Address to bind the [`pprof`](https://pkg.go.dev/net/http/pprof) debug server to (HTTP)
 	"core.debug_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
 	// Network address for the DNS server
