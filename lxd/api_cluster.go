@@ -368,11 +368,11 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 
 	// Quick checks.
 	if req.ServerName == "" && req.Enabled {
-		return response.BadRequest(fmt.Errorf("ServerName is required when enabling clustering"))
+		return response.BadRequest(errors.New("ServerName is required when enabling clustering"))
 	}
 
 	if req.ServerName != "" && !req.Enabled {
-		return response.BadRequest(fmt.Errorf("ServerName must be empty when disabling clustering"))
+		return response.BadRequest(errors.New("ServerName must be empty when disabling clustering"))
 	}
 
 	if req.ServerName != "" && strings.HasPrefix(req.ServerName, targetGroupPrefix) {
@@ -495,16 +495,16 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 	// Make sure basic pre-conditions are met.
 	if len(req.ClusterCertificate) == 0 {
-		return response.BadRequest(fmt.Errorf("No target cluster member certificate provided"))
+		return response.BadRequest(errors.New("No target cluster member certificate provided"))
 	}
 
 	if s.ServerClustered {
-		return response.BadRequest(fmt.Errorf("This server is already clustered"))
+		return response.BadRequest(errors.New("This server is already clustered"))
 	}
 
 	// The old pre 'clustering_join' join API approach is no longer supported.
 	if req.ServerAddress == "" {
-		return response.BadRequest(fmt.Errorf("No server address provided for this member"))
+		return response.BadRequest(errors.New("No server address provided for this member"))
 	}
 
 	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
@@ -980,7 +980,7 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 		// Send the response before replacing the LXD daemon process.
 		f, ok := w.(http.Flusher)
 		if !ok {
-			return fmt.Errorf("http.ResponseWriter is not type http.Flusher")
+			return errors.New("http.ResponseWriter is not type http.Flusher")
 		}
 
 		f.Flush()
@@ -1356,7 +1356,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !s.ServerClustered {
-		return response.BadRequest(fmt.Errorf("This server is not clustered"))
+		return response.BadRequest(errors.New("This server is not clustered"))
 	}
 
 	if req.ServerName == "none" {
@@ -1398,7 +1398,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(onlineNodeAddresses) < 1 {
-		return response.InternalError(fmt.Errorf("There are no online cluster members"))
+		return response.InternalError(errors.New("There are no online cluster members"))
 	}
 
 	// Lock to prevent concurrent requests racing the operationsGetByType function and creating duplicates.
@@ -1755,7 +1755,7 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 
 	// Nodes must belong to at least one group.
 	if len(req.Groups) == 0 {
-		return response.BadRequest(fmt.Errorf("Cluster members need to belong to at least one group"))
+		return response.BadRequest(errors.New("Cluster members need to belong to at least one group"))
 	}
 
 	// Convert the roles.
@@ -2095,7 +2095,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			// Send the response before replacing the LXD daemon process.
 			f, ok := w.(http.Flusher)
 			if !ok {
-				return fmt.Errorf("http.ResponseWriter is not type http.Flusher")
+				return errors.New("http.ResponseWriter is not type http.Flusher")
 			}
 
 			f.Flush()
@@ -2451,7 +2451,7 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 
 	// Quick checks.
 	if req.Name == "" {
-		return response.BadRequest(fmt.Errorf("No name provided"))
+		return response.BadRequest(errors.New("No name provided"))
 	}
 
 	// Redirect all requests to the leader, which is the one with
@@ -2735,7 +2735,7 @@ func internalClusterPostAssign(d *Daemon, r *http.Request) response.Response {
 
 	// Quick checks.
 	if len(req.RaftNodes) == 0 {
-		return response.BadRequest(fmt.Errorf("No raft members provided"))
+		return response.BadRequest(errors.New("No raft members provided"))
 	}
 
 	nodes := make([]db.RaftNode, 0, len(req.RaftNodes))
@@ -2776,7 +2776,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 
 	// Quick checks.
 	if req.Address == "" {
-		return response.BadRequest(fmt.Errorf("No ID provided"))
+		return response.BadRequest(errors.New("No ID provided"))
 	}
 
 	// Redirect all requests to the leader, which is the one with
@@ -3226,19 +3226,19 @@ func evacuateClusterSetState(s *state.State, name string, state int) error {
 		}
 
 		if node.State == db.ClusterMemberStatePending {
-			return fmt.Errorf("Cannot evacuate or restore a pending cluster member")
+			return errors.New("Cannot evacuate or restore a pending cluster member")
 		}
 
 		// Do nothing if the node is already in expected state.
 		if node.State == state {
 			switch state {
 			case db.ClusterMemberStateEvacuated:
-				return fmt.Errorf("Cluster member is already evacuated")
+				return errors.New("Cluster member is already evacuated")
 			case db.ClusterMemberStateCreated:
-				return fmt.Errorf("Cluster member is already restored")
+				return errors.New("Cluster member is already restored")
 			}
 
-			return fmt.Errorf("Cluster member is already in requested state")
+			return errors.New("Cluster member is already in requested state")
 		}
 
 		// Set node status to requested value.
@@ -3338,7 +3338,7 @@ func evacuateClusterMember(s *state.State, gateway *cluster.Gateway, r *http.Req
 
 func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 	if opts.migrateInstance == nil {
-		return fmt.Errorf("Missing migration callback function")
+		return errors.New("Missing migration callback function")
 	}
 
 	metadata := make(map[string]any)
@@ -3712,7 +3712,7 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	if !s.ServerClustered {
-		return response.BadRequest(fmt.Errorf("This server is not clustered"))
+		return response.BadRequest(errors.New("This server is not clustered"))
 	}
 
 	req := api.ClusterGroupsPost{}
@@ -3845,7 +3845,7 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	if !s.ServerClustered {
-		return response.BadRequest(fmt.Errorf("This server is not clustered"))
+		return response.BadRequest(errors.New("This server is not clustered"))
 	}
 
 	recursion := util.IsRecursionRequest(r)
@@ -3944,7 +3944,7 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !s.ServerClustered {
-		return response.BadRequest(fmt.Errorf("This server is not clustered"))
+		return response.BadRequest(errors.New("This server is not clustered"))
 	}
 
 	var group *dbCluster.ClusterGroup
@@ -4022,7 +4022,7 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !s.ServerClustered {
-		return response.BadRequest(fmt.Errorf("This server is not clustered"))
+		return response.BadRequest(errors.New("This server is not clustered"))
 	}
 
 	req := api.ClusterGroupPost{}
@@ -4101,7 +4101,7 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !s.ServerClustered {
-		return response.BadRequest(fmt.Errorf("This server is not clustered"))
+		return response.BadRequest(errors.New("This server is not clustered"))
 	}
 
 	req := api.ClusterGroupPut{}
@@ -4221,7 +4221,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !s.ServerClustered {
-		return response.BadRequest(fmt.Errorf("This server is not clustered"))
+		return response.BadRequest(errors.New("This server is not clustered"))
 	}
 
 	var clusterGroup *api.ClusterGroup
@@ -4385,7 +4385,7 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Quick checks.
 	if name == "default" {
-		return response.Forbidden(fmt.Errorf("The 'default' cluster group cannot be deleted"))
+		return response.Forbidden(errors.New("The 'default' cluster group cannot be deleted"))
 	}
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -4422,11 +4422,11 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 
 func clusterGroupValidateName(name string) error {
 	if name == "" {
-		return fmt.Errorf("No name provided")
+		return errors.New("No name provided")
 	}
 
 	if name == "*" {
-		return fmt.Errorf("Reserved cluster group name")
+		return errors.New("Reserved cluster group name")
 	}
 
 	if name == "." || name == ".." {
@@ -4434,23 +4434,23 @@ func clusterGroupValidateName(name string) error {
 	}
 
 	if strings.Contains(name, "\\") {
-		return fmt.Errorf("Cluster group names may not contain back slashes")
+		return errors.New("Cluster group names may not contain back slashes")
 	}
 
 	if strings.Contains(name, "/") {
-		return fmt.Errorf("Cluster group names may not contain slashes")
+		return errors.New("Cluster group names may not contain slashes")
 	}
 
 	if strings.Contains(name, " ") {
-		return fmt.Errorf("Cluster group names may not contain spaces")
+		return errors.New("Cluster group names may not contain spaces")
 	}
 
 	if strings.Contains(name, "_") {
-		return fmt.Errorf("Cluster group names may not contain underscores")
+		return errors.New("Cluster group names may not contain underscores")
 	}
 
 	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
-		return fmt.Errorf("Cluster group names may not contain quotes")
+		return errors.New("Cluster group names may not contain quotes")
 	}
 
 	return nil
