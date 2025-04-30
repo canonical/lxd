@@ -440,7 +440,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 					// detect when the client disconnects to avoid leaving the command running
 					// in the background.
 					go func() {
-						_, _, err := conn.ReadMessage()
+						_, _, err := conn.ReadMessage() // Consume pings from server.
 
 						// If there is a control connection, then leave it to that handler
 						// to clean the command up. If there's no control connection, the
@@ -460,7 +460,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 					// avoid a situation where we hit an inactivity timeout on
 					// stderr during long exec sessions
 					go func() {
-						_, _, _ = conn.ReadMessage()
+						_, _, _ = conn.ReadMessage() // Consume pings from server.
 					}()
 				}
 
