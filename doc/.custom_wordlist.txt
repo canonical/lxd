@@ -139,6 +139,7 @@ Libera
 LogCLI
 lookups
 LoongArch
+loopback
 LRU
 LV
 LVM
