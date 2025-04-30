@@ -390,7 +390,7 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !details.pool.Driver().Info().Buckets {
-		return response.BadRequest(fmt.Errorf("Storage pool does not support buckets"))
+		return response.BadRequest(errors.New("Storage pool does not support buckets"))
 	}
 
 	targetMember := request.QueryParam(r, "target")
@@ -1061,7 +1061,7 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !details.pool.Driver().Info().Buckets {
-		return response.BadRequest(fmt.Errorf("Storage pool does not support buckets"))
+		return response.BadRequest(errors.New("Storage pool does not support buckets"))
 	}
 
 	keyName, err := url.PathUnescape(mux.Vars(r)["keyName"])
