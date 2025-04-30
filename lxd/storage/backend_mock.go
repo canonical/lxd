@@ -192,6 +192,11 @@ func (b *mockBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshot 
 	return nil
 }
 
+// UpdateCustomVolumeBackupFiles ...
+func (b *mockBackend) UpdateCustomVolumeBackupFiles(projectName string, volName string, snapshots bool, instances []instance.Instance, op *operations.Operation) error {
+	return nil
+}
+
 // CheckInstanceBackupFileSnapshots checks the snapshots in storage against the given backup config.
 func (b *mockBackend) CheckInstanceBackupFileSnapshots(backupConf *backupConfig.Config, projectName string, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
 	return nil, nil

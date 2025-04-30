@@ -126,6 +126,7 @@ type Pool interface {
 	UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error)
 	ImportCustomVolume(projectName string, poolVol *backupConfig.Config, op *operations.Operation) (revert.Hook, error)
 	RefreshCustomVolume(projectName string, srcProjectName string, volName, desc string, config map[string]string, srcPoolName, srcVolName string, snapshots bool, op *operations.Operation) error
+	UpdateCustomVolumeBackupFiles(projectName string, volName string, snapshots bool, instances []instance.Instance, op *operations.Operation) error
 	GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, op *operations.Operation) (*backupConfig.Config, error)
 	CreateCustomVolumeFromISO(projectName string, volName string, srcData io.ReadSeeker, size int64, op *operations.Operation) error
 
