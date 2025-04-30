@@ -1,7 +1,7 @@
 package load
 
 import (
-	"fmt"
+	"errors"
 	"sync"
 
 	"go.starlark.net/starlark"
@@ -71,7 +71,7 @@ func InstancePlacementProgram() (*starlark.Program, *starlark.Thread, error) {
 	prog, found := programs[nameInstancePlacement]
 	programsMu.Unlock()
 	if !found {
-		return nil, nil, fmt.Errorf("Instance placement scriptlet not loaded")
+		return nil, nil, errors.New("Instance placement scriptlet not loaded")
 	}
 
 	thread := &starlark.Thread{Name: nameInstancePlacement}
