@@ -3,6 +3,7 @@
 package endpoints
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -54,7 +55,7 @@ func CheckAlreadyRunning(path string) error {
 
 	// If the connection succeeded it means there's another LXD running.
 	if err == nil {
-		return fmt.Errorf("LXD is already running")
+		return errors.New("LXD is already running")
 	}
 
 	return nil
