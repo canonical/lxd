@@ -54,7 +54,7 @@ func NewWebsocketListenerConnection(connection *websocket.Conn) EventListenerCon
 func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHandler) {
 	ctx, cancel := context.WithCancel(ctx)
 
-	close := func() {
+	closer := func() {
 		e.lock.Lock()
 		defer e.lock.Unlock()
 
@@ -66,7 +66,7 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 		cancel()
 	}
 
-	defer close()
+	defer closer()
 
 	pingInterval := time.Second * 10
 	e.pongsPending = 0
@@ -80,7 +80,7 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 
 	// Start reader from client.
 	go func() {
-		defer close()
+		defer closer()
 
 		if recvFunc != nil {
 			for {
@@ -170,7 +170,7 @@ X-Content-Type-Options: nosniff
 func (e *streamListenerConnection) Reader(ctx context.Context, recvFunc EventHandler) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 
-	close := func() {
+	closer := func() {
 		e.lock.Lock()
 		defer e.lock.Unlock()
 
@@ -186,11 +186,11 @@ func (e *streamListenerConnection) Reader(ctx context.Context, recvFunc EventHan
 		cancelFunc()
 	}
 
-	defer close()
+	defer closer()
 
 	// Start reader from client.
 	go func() {
-		defer close()
+		defer closer()
 
 		buf := make([]byte, 1)
 
@@ -239,7 +239,7 @@ func NewSimpleListenerConnection(rwc io.ReadWriteCloser) EventListenerConnection
 func (e *simpleListenerConnection) Reader(ctx context.Context, recvFunc EventHandler) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 
-	close := func() {
+	closer := func() {
 		e.lock.Lock()
 		defer e.lock.Unlock()
 
@@ -255,11 +255,11 @@ func (e *simpleListenerConnection) Reader(ctx context.Context, recvFunc EventHan
 		cancelFunc()
 	}
 
-	defer close()
+	defer closer()
 
 	// Start reader from client.
 	go func() {
-		defer close()
+		defer closer()
 
 		buf := make([]byte, 1)
 
