@@ -3,6 +3,7 @@ package drivers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -192,7 +193,7 @@ func (d *ceph) rbdMapVolume(vol Volume) (string, error) {
 
 	idx := strings.Index(devPath, "/dev/rbd")
 	if idx < 0 {
-		return "", fmt.Errorf("Failed to detect mapped device path")
+		return "", errors.New("Failed to detect mapped device path")
 	}
 
 	devPath = strings.TrimSpace(devPath[idx:])
@@ -539,7 +540,7 @@ func (d *ceph) rbdGetVolumeParent(vol Volume) (string, error) {
 
 	idx = strings.Index(msg, "\n")
 	if idx == -1 {
-		return "", fmt.Errorf("Unexpected parsing error")
+		return "", errors.New("Unexpected parsing error")
 	}
 
 	msg = msg[:idx]
@@ -599,12 +600,12 @@ func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
 	for _, v := range data {
 		_, ok := v["name"]
 		if !ok {
-			return []string{}, fmt.Errorf("No \"name\" property found")
+			return []string{}, errors.New("No \"name\" property found")
 		}
 
 		name, ok := v["name"].(string)
 		if !ok {
-			return []string{}, fmt.Errorf("\"name\" property did not have string type")
+			return []string{}, errors.New("\"name\" property did not have string type")
 		}
 
 		name = strings.TrimSpace(name)
@@ -937,7 +938,7 @@ func (d *ceph) parseParent(parent string) (Volume, string, error) {
 
 	idx := strings.Index(parent, "/")
 	if idx == -1 {
-		return vol, "", fmt.Errorf("Pool delimiter not found")
+		return vol, "", errors.New("Pool delimiter not found")
 	}
 
 	slider := parent[(idx + 1):]
@@ -1007,7 +1008,7 @@ func (d *ceph) parseParent(parent string) (Volume, string, error) {
 func (d *ceph) parseClone(clone string) (poolName string, volumeType string, volumeName string, err error) {
 	idx := strings.Index(clone, "/")
 	if idx == -1 {
-		return "", "", "", fmt.Errorf("Unexpected parsing error")
+		return "", "", "", errors.New("Unexpected parsing error")
 	}
 
 	slider := clone[(idx + 1):]
@@ -1023,7 +1024,7 @@ func (d *ceph) parseClone(clone string) (poolName string, volumeType string, vol
 
 	idxType := strings.Index(slider, "_")
 	if idxType == -1 {
-		return "", "", "", fmt.Errorf("Unexpected parsing error")
+		return "", "", "", errors.New("Unexpected parsing error")
 	}
 
 	if idx == len("zombie_") {
@@ -1034,13 +1035,13 @@ func (d *ceph) parseClone(clone string) (poolName string, volumeType string, vol
 
 	idx = strings.Index(slider, "_")
 	if idx == -1 {
-		return "", "", "", fmt.Errorf("Unexpected parsing error")
+		return "", "", "", errors.New("Unexpected parsing error")
 	}
 
 	volumeName = slider
 	idx = strings.Index(volumeName, "_")
 	if idx == -1 {
-		return "", "", "", fmt.Errorf("Unexpected parsing error")
+		return "", "", "", errors.New("Unexpected parsing error")
 	}
 
 	volumeName = volumeName[(idx + 1):]
