@@ -1,6 +1,8 @@
 package ip
 
 import (
+	"context"
+
 	"github.com/canonical/lxd/shared"
 )
 
@@ -29,7 +31,7 @@ func (class *ClassHTB) Add() error {
 		cmd = append(cmd, "rate", class.Rate)
 	}
 
-	_, err := shared.RunCommand("tc", cmd...)
+	_, err := shared.RunCommandContext(context.TODO(), "tc", cmd...)
 	if err != nil {
 		return err
 	}
