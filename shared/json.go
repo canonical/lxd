@@ -28,11 +28,14 @@ func (m Jmap) GetMap(key string) (Jmap, error) {
 	val, ok := m[key]
 	if !ok {
 		return nil, fmt.Errorf("Response was missing %q", key)
-	} else if val, ok := val.(map[string]any); !ok {
-		return nil, fmt.Errorf("%q was not a map, got %T", key, m[key])
-	} else {
-		return val, nil
 	}
+
+	valMap, ok := val.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("%q was not a map, got %T", key, m[key])
+	}
+
+	return valMap, nil
 }
 
 // GetBool returns a bool for the given key or an error.
