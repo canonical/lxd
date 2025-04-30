@@ -3,6 +3,7 @@ package lxd
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -42,7 +43,7 @@ func (r *ProtocolSimpleStreams) GetImageFingerprints() ([]string, error) {
 
 // GetImagesWithFilter returns a filtered list of available images as Image structs.
 func (r *ProtocolSimpleStreams) GetImagesWithFilter(filters []string) ([]api.Image, error) {
-	return nil, fmt.Errorf("GetImagesWithFilter is not supported by the simplestreams protocol")
+	return nil, errors.New("GetImagesWithFilter is not supported by the simplestreams protocol")
 }
 
 // GetImage returns an Image struct for the provided fingerprint.
@@ -59,7 +60,7 @@ func (r *ProtocolSimpleStreams) GetImage(fingerprint string) (*api.Image, string
 func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRequest) (*ImageFileResponse, error) {
 	// Quick checks.
 	if req.MetaFile == nil && req.RootfsFile == nil {
-		return nil, fmt.Errorf("No file requested")
+		return nil, errors.New("No file requested")
 	}
 
 	// Attempt to download from host
@@ -217,17 +218,17 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 
 // GetImageSecret isn't relevant for the simplestreams protocol.
 func (r *ProtocolSimpleStreams) GetImageSecret(fingerprint string) (string, error) {
-	return "", fmt.Errorf("Private images aren't supported by the simplestreams protocol")
+	return "", errors.New("Private images aren't supported by the simplestreams protocol")
 }
 
 // GetPrivateImage isn't relevant for the simplestreams protocol.
 func (r *ProtocolSimpleStreams) GetPrivateImage(fingerprint string, secret string) (*api.Image, string, error) {
-	return nil, "", fmt.Errorf("Private images aren't supported by the simplestreams protocol")
+	return nil, "", errors.New("Private images aren't supported by the simplestreams protocol")
 }
 
 // GetPrivateImageFile isn't relevant for the simplestreams protocol.
 func (r *ProtocolSimpleStreams) GetPrivateImageFile(fingerprint string, secret string, req ImageFileRequest) (*ImageFileResponse, error) {
-	return nil, fmt.Errorf("Private images aren't supported by the simplestreams protocol")
+	return nil, errors.New("Private images aren't supported by the simplestreams protocol")
 }
 
 // GetImageAliases returns the list of available aliases as ImageAliasesEntry structs.
@@ -298,5 +299,5 @@ func (r *ProtocolSimpleStreams) GetImageAliasArchitectures(imageType string, nam
 
 // ExportImage exports (copies) an image to a remote server.
 func (r *ProtocolSimpleStreams) ExportImage(fingerprint string, image api.ImageExportPost) (Operation, error) {
-	return nil, fmt.Errorf("Exporting images is not supported by the simplestreams protocol")
+	return nil, errors.New("Exporting images is not supported by the simplestreams protocol")
 }
