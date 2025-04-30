@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"fmt"
+	"errors"
 	"sort"
 	"testing"
 
@@ -66,7 +66,7 @@ func (s *sortSuite) TestSortByPrecedence() {
 				{"a", "b", "c"},
 				{"c", "b", "a"},
 			},
-			expectErr: fmt.Errorf("Invalid sort column \"4\", not present in display columns \"123\""),
+			expectErr: errors.New("Invalid sort column \"4\", not present in display columns \"123\""),
 		},
 		{
 			name: "Sort column outside data range",
@@ -85,7 +85,7 @@ func (s *sortSuite) TestSortByPrecedence() {
 				{"a", "b", "c", "d"},
 				{"c", "b", "a"},
 			},
-			expectErr: fmt.Errorf("Index of sort column \"4\" outside data range"),
+			expectErr: errors.New("Index of sort column \"4\" outside data range"),
 		},
 		{
 			name: "Sort by first column",
