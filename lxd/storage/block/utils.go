@@ -236,7 +236,7 @@ func GetDiskDevicePath(diskNamePrefix string, diskPathFilter devicePathFilterFun
 	}
 
 	if devPath == "" {
-		return "", fmt.Errorf("Device not found")
+		return "", errors.New("Device not found")
 	}
 
 	return devPath, nil
