@@ -2627,7 +2627,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		// Convert to IEC format for nicer error.
 		imgSize := units.GetByteSizeStringIEC(srcSize, 2)
 		volSize := units.GetByteSizeStringIEC(volBytes, 2)
-		return fmt.Errorf("Volume size (%s) is lower then source disk size (%s)", volSize, imgSize)
+		return fmt.Errorf("Volume size (%s) is less than source disk size (%s)", volSize, imgSize)
 	}
 
 	err = b.driver.CreateVolume(vol, &volFiller, op)
