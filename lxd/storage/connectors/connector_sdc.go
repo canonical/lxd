@@ -2,7 +2,7 @@ package connectors
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/dell/goscaleio"
 
@@ -30,7 +30,7 @@ func (c *connectorSDC) Version() (string, error) {
 func (c *connectorSDC) LoadModules() error {
 	ok := goscaleio.DrvCfgIsSDCInstalled()
 	if !ok {
-		return fmt.Errorf("SDC kernel module is not loaded")
+		return errors.New("SDC kernel module is not loaded")
 	}
 
 	return nil
