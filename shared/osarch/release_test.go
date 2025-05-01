@@ -24,7 +24,7 @@ VERSION_ID="16.04"
 	defer cleanup()
 
 	lsbRelease, err := getLSBRelease(filename)
-	s.Nil(err)
+	s.NoError(err)
 	s.Equal(
 		map[string]string{
 			"NAME":       "Ubuntu",
@@ -39,7 +39,7 @@ func (s *releaseTestSuite) TestGetLSBReleaseSingleQuotes() {
 	defer cleanup()
 
 	lsbRelease, err := getLSBRelease(filename)
-	s.Nil(err)
+	s.NoError(err)
 	s.Equal(map[string]string{"NAME": "Ubuntu"}, lsbRelease)
 }
 
@@ -49,7 +49,7 @@ func (s *releaseTestSuite) TestGetLSBReleaseNoQuotes() {
 	defer cleanup()
 
 	lsbRelease, err := getLSBRelease(filename)
-	s.Nil(err)
+	s.NoError(err)
 	s.Equal(map[string]string{"NAME": "Ubuntu"}, lsbRelease)
 }
 
@@ -65,7 +65,7 @@ VERSION_ID="16.04"
 	defer cleanup()
 
 	lsbRelease, err := getLSBRelease(filename)
-	s.Nil(err)
+	s.NoError(err)
 	s.Equal(
 		map[string]string{
 			"NAME":       "Ubuntu",
