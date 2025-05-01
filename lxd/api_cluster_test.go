@@ -49,7 +49,7 @@ func TestCluster_Get(t *testing.T) {
 
 	cluster, _, err := client.GetCluster()
 	require.NoError(t, err)
-	assert.Equal(t, "", cluster.ServerName)
+	assert.Empty(t, cluster.ServerName)
 	assert.False(t, cluster.Enabled)
 }
 

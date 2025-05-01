@@ -25,7 +25,7 @@ func TestLocateImage(t *testing.T) {
 
 		address, err := tx.LocateImage(ctx, "abc")
 		require.NoError(t, err)
-		assert.Equal(t, "", address)
+		assert.Empty(t, address)
 
 		// Pretend that the function is being run on another node.
 		tx.NodeID(2)
@@ -39,7 +39,7 @@ func TestLocateImage(t *testing.T) {
 		require.NoError(t, err)
 
 		address, err = tx.LocateImage(ctx, "abc")
-		require.Equal(t, "", address)
+		require.Empty(t, address)
 		require.EqualError(t, err, "Image not available on any online member")
 
 		return nil
