@@ -210,11 +210,7 @@ func (t *Transaction) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation
 		endBig := big.NewInt(0)
 		endBig.SetBytes(IPRange.End)
 
-		for {
-			if startBig.Cmp(endBig) >= 0 {
-				break
-			}
-
+		for startBig.Cmp(endBig) < 0 {
 			IP := net.IP(startBig.Bytes())
 
 			// Check IP generated is not LXD's IP.
@@ -300,11 +296,7 @@ func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocatio
 		endBig := big.NewInt(0)
 		endBig.SetBytes(IPRange.End)
 
-		for {
-			if startBig.Cmp(endBig) >= 0 {
-				break
-			}
-
+		for startBig.Cmp(endBig) < 0 {
 			IP := net.IP(startBig.Bytes())
 
 			// Check IP generated is not LXD's IP.

@@ -7,5 +7,5 @@ type Bridge struct {
 
 // Add adds new virtual link.
 func (b *Bridge) Add() error {
-	return b.Link.add("bridge", nil)
+	return b.add("bridge", nil)
 }

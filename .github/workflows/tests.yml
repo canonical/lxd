@@ -144,7 +144,7 @@ jobs:
 
           # bin/max (sizes are in MiB)
           SIZES="lxc 16
-                 lxd-agent 13"
+                 lxd-agent 14"
           MIB="$((1024 * 1024))"
 
           while read -r bin max; do

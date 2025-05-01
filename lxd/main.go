@@ -112,7 +112,7 @@ func main() {
 
 	// activateifneeded sub-command
 	activateifneededCmd := cmdActivateifneeded{global: &globalCmd}
-	app.AddCommand(activateifneededCmd.Command())
+	app.AddCommand(activateifneededCmd.command())
 
 	// callhook sub-command
 	callhookCmd := cmdCallhook{global: &globalCmd}
@@ -124,7 +124,7 @@ func main() {
 
 	// forkdns sub-command
 	forkDNSCmd := cmdForkDNS{global: &globalCmd}
-	app.AddCommand(forkDNSCmd.Command())
+	app.AddCommand(forkDNSCmd.command())
 
 	// forkexec sub-command
 	forkexecCmd := cmdForkexec{global: &globalCmd}
@@ -136,11 +136,11 @@ func main() {
 
 	// forklimits sub-command
 	forklimitsCmd := cmdForklimits{global: &globalCmd}
-	app.AddCommand(forklimitsCmd.Command())
+	app.AddCommand(forklimitsCmd.command())
 
 	// forkmigrate sub-command
 	forkmigrateCmd := cmdForkmigrate{global: &globalCmd}
-	app.AddCommand(forkmigrateCmd.Command())
+	app.AddCommand(forkmigrateCmd.command())
 
 	// forksyscall sub-command
 	forksyscallCmd := cmdForksyscall{global: &globalCmd}
@@ -168,7 +168,7 @@ func main() {
 
 	// forkstart sub-command
 	forkstartCmd := cmdForkstart{global: &globalCmd}
-	app.AddCommand(forkstartCmd.Command())
+	app.AddCommand(forkstartCmd.command())
 
 	// forkuevent sub-command
 	forkueventCmd := cmdForkuevent{global: &globalCmd}
@@ -176,11 +176,11 @@ func main() {
 
 	// forkzfs sub-command
 	forkzfsCmd := cmdForkZFS{global: &globalCmd}
-	app.AddCommand(forkzfsCmd.Command())
+	app.AddCommand(forkzfsCmd.command())
 
 	// import sub-command
 	importCmd := cmdImport{global: &globalCmd}
-	app.AddCommand(importCmd.Command())
+	app.AddCommand(importCmd.command())
 
 	// init sub-command
 	initCmd := cmdInit{global: &globalCmd}
@@ -188,7 +188,7 @@ func main() {
 
 	// manpage sub-command
 	manpageCmd := cmdManpage{global: &globalCmd}
-	app.AddCommand(manpageCmd.Command())
+	app.AddCommand(manpageCmd.command())
 
 	// migratedumpsuccess sub-command
 	migratedumpsuccessCmd := cmdMigratedumpsuccess{global: &globalCmd}

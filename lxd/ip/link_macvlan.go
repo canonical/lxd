@@ -8,5 +8,5 @@ type Macvlan struct {
 
 // Add adds new virtual link.
 func (macvlan *Macvlan) Add() error {
-	return macvlan.Link.add("macvlan", []string{"mode", macvlan.Mode})
+	return macvlan.add("macvlan", []string{"mode", macvlan.Mode})
 }

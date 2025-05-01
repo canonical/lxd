@@ -28,7 +28,7 @@ type cmdActivateifneeded struct {
 	global *cmdGlobal
 }
 
-func (c *cmdActivateifneeded) Command() *cobra.Command {
+func (c *cmdActivateifneeded) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "activateifneeded"
 	cmd.Short = "Check if LXD should be started"
@@ -42,12 +42,12 @@ func (c *cmdActivateifneeded) Command() *cobra.Command {
   If at least one of those is true, then a connection will be attempted to the
   LXD socket which will cause a socket-activated LXD to be spawned.
 `
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdActivateifneeded) run(cmd *cobra.Command, args []string) error {
 	// Only root should run this
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("This must be run as root")

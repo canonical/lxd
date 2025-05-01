@@ -153,7 +153,7 @@ func (d *gpuSRIOV) getParentPCIAddresses() ([]string, error) {
 		return nil, err
 	}
 
-	var parentPCIAddresses []string
+	parentPCIAddresses := make([]string, 0, len(gpus.Cards))
 
 	for _, gpu := range gpus.Cards {
 		// Skip any cards that are not selected.

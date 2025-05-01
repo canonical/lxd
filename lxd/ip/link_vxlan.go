@@ -50,5 +50,5 @@ func (vxlan *Vxlan) additionalArgs() []string {
 
 // Add adds new virtual link.
 func (vxlan *Vxlan) Add() error {
-	return vxlan.Link.add("vxlan", vxlan.additionalArgs())
+	return vxlan.add("vxlan", vxlan.additionalArgs())
 }

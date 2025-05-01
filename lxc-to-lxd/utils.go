@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -73,7 +74,7 @@ func transferRootfs(op lxd.Operation, rootfs string, rsyncArgs string) error {
 	}
 
 	if !msg.GetSuccess() {
-		return fmt.Errorf(msg.GetMessage())
+		return errors.New(msg.GetMessage())
 	}
 
 	return nil

@@ -181,7 +181,7 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 				defer func() { _ = os.Remove(patchedFile.Name()) }()
 
 				// Apply it
-				_, err = shared.RunCommand("xdelta3", "-f", "-d", "-s", srcPath, deltaFile.Name(), patchedFile.Name())
+				_, err = shared.RunCommandContext(context.TODO(), "xdelta3", "-f", "-d", "-s", srcPath, deltaFile.Name(), patchedFile.Name())
 				if err != nil {
 					return nil, err
 				}

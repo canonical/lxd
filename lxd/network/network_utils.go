@@ -1437,7 +1437,7 @@ func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 	newProxyAddr.Address = address
 
 	// Split <ports> into individual ports and port ranges.
-	ports := strings.SplitN(port, ",", -1)
+	ports := strings.Split(port, ",")
 
 	newProxyAddr.Ports = make([]uint64, 0, len(ports))
 
