@@ -44,7 +44,7 @@ func TestOperation(t *testing.T) {
 	filter = cluster.OperationFilter{UUID: &uuid}
 	ops, err := cluster.GetOperations(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
-	assert.Equal(t, 1, len(ops))
+	assert.Len(t, ops, 1)
 	operation := ops[0]
 	assert.Equal(t, id, operation.ID)
 	assert.Equal(t, operationtype.InstanceCreate, operation.Type)
@@ -90,7 +90,7 @@ func TestOperationNoProject(t *testing.T) {
 	filter = cluster.OperationFilter{UUID: &uuid}
 	ops, err := cluster.GetOperations(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
-	assert.Equal(t, 1, len(ops))
+	assert.Len(t, ops, 1)
 	operation := ops[0]
 	require.NoError(t, err)
 	assert.Equal(t, id, operation.ID)
