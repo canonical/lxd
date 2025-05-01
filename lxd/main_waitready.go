@@ -17,7 +17,7 @@ import (
 type cmdWaitready struct {
 	global *cmdGlobal
 
-	flagTimeout int
+	flagTimeout uint64
 }
 
 // Command returns a cobra.Command object representing the "waitready" command.
@@ -33,7 +33,7 @@ func (c *cmdWaitready) Command() *cobra.Command {
   containers.
 `
 	cmd.RunE = c.Run
-	cmd.Flags().IntVarP(&c.flagTimeout, "timeout", "t", 0, "Number of seconds to wait before giving up"+"``")
+	cmd.Flags().Uint64VarP(&c.flagTimeout, "timeout", "t", 0, "Number of seconds to wait before giving up"+"``")
 
 	return cmd
 }
@@ -86,7 +86,7 @@ func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 
 		log(i, "Checking if LXD daemon is ready (attempt %d)", i)
 
-		u := api.NewURL().Path("internal", "ready").WithQuery("timeout", strconv.Itoa(c.flagTimeout))
+		u := api.NewURL().Path("internal", "ready").WithQuery("timeout", strconv.FormatUint(c.flagTimeout, 10))
 		_, _, err = d.RawQuery(http.MethodGet, u.String(), nil, "")
 		if err != nil {
 			// LXD is reachable but is internally reporting as not ready after the specified timeout.
