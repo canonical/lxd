@@ -39,9 +39,9 @@ func TestGetNetworksLocalConfigs(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, config, map[string]map[string]string{
+	assert.Equal(t, map[string]map[string]string{
 		"lxdbr0": {"bridge.external_interfaces": "vlan0"},
-	})
+	}, config)
 }
 
 func TestCreatePendingNetwork(t *testing.T) {

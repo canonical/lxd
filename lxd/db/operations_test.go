@@ -39,12 +39,12 @@ func TestOperation(t *testing.T) {
 	operations, err := cluster.GetOperations(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 	assert.Len(t, operations, 1)
-	assert.Equal(t, operations[0].UUID, "abcd")
+	assert.Equal(t, "abcd", operations[0].UUID)
 
 	filter = cluster.OperationFilter{UUID: &uuid}
 	ops, err := cluster.GetOperations(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
-	assert.Equal(t, len(ops), 1)
+	assert.Equal(t, 1, len(ops))
 	operation := ops[0]
 	assert.Equal(t, id, operation.ID)
 	assert.Equal(t, operationtype.InstanceCreate, operation.Type)
@@ -60,7 +60,7 @@ func TestOperation(t *testing.T) {
 	filter = cluster.OperationFilter{UUID: &uuid}
 	ops, err = cluster.GetOperations(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
-	assert.Equal(t, len(ops), 0)
+	assert.Equal(t, 0, len(ops))
 }
 
 // Add, get and remove an operation not associated with any project.
@@ -85,12 +85,12 @@ func TestOperationNoProject(t *testing.T) {
 	operations, err := cluster.GetOperations(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 	assert.Len(t, operations, 1)
-	assert.Equal(t, operations[0].UUID, "abcd")
+	assert.Equal(t, "abcd", operations[0].UUID)
 
 	filter = cluster.OperationFilter{UUID: &uuid}
 	ops, err := cluster.GetOperations(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
-	assert.Equal(t, len(ops), 1)
+	assert.Equal(t, 1, len(ops))
 	operation := ops[0]
 	require.NoError(t, err)
 	assert.Equal(t, id, operation.ID)
@@ -107,5 +107,5 @@ func TestOperationNoProject(t *testing.T) {
 	filter = cluster.OperationFilter{UUID: &uuid}
 	ops, err = cluster.GetOperations(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
-	assert.Equal(t, len(ops), 0)
+	assert.Equal(t, 0, len(ops))
 }
