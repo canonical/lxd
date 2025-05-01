@@ -45,7 +45,7 @@ func TestClusterState(t *testing.T) {
 	for clusterMemberName, state := range states {
 		// Local cluster member
 		if clusterMemberName == "0" {
-			assert.Greater(t, state.SysInfo.LogicalCPUs, uint64(0))
+			assert.Positive(t, state.SysInfo.LogicalCPUs)
 			continue
 		}
 

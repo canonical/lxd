@@ -59,7 +59,7 @@ func TestCreatePendingNetwork(t *testing.T) {
 
 	networkID, err := tx.GetNetworkID(context.Background(), api.ProjectDefaultName, "network1")
 	require.NoError(t, err)
-	assert.True(t, networkID > 0)
+	assert.Positive(t, networkID)
 
 	config = map[string]string{"bridge.external_interfaces": "bar"}
 	err = tx.CreatePendingNetwork(context.Background(), "rusp", api.ProjectDefaultName, "network1", db.NetworkTypeBridge, config)

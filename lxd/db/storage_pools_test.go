@@ -79,7 +79,7 @@ func TestStoragePoolsCreatePending(t *testing.T) {
 
 	poolID, err := tx.GetStoragePoolID(context.Background(), "pool1")
 	require.NoError(t, err)
-	assert.True(t, poolID > 0)
+	assert.Positive(t, poolID)
 
 	config = map[string]string{"source": "/bar"}
 	err = tx.CreatePendingStoragePool(context.Background(), "rusp", "pool1", "dir", config)
