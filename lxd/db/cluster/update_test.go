@@ -766,7 +766,7 @@ func TestUpdateFromV34(t *testing.T) {
 	var nodeID any
 	require.NoError(t, row.Scan(&id, &nodeID))
 	assert.Equal(t, 2, id)
-	assert.Equal(t, nil, nodeID)
+	assert.Nil(t, nodeID)
 }
 
 func TestUpdateFromV69(t *testing.T) {
