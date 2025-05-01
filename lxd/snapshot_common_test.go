@@ -18,7 +18,7 @@ func (suite *containerTestSuite) TestSnapshotScheduling() {
 	}
 
 	c, op, _, err := instance.CreateInternal(suite.d.State(), args, true)
-	suite.Req.Nil(err)
+	suite.Req.NoError(err)
 	suite.True(snapshotIsScheduledNow("* * * * *",
 		int64(c.ID())),
 		"snapshot.schedule config '* * * * *' should have matched now")
