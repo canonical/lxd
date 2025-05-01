@@ -4,7 +4,6 @@ go 1.23.7
 
 require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.17.6
-	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.1.0
 	github.com/canonical/go-dqlite/v3 v3.0.0
 	github.com/checkpoint-restore/go-criu/v6 v6.3.0
@@ -74,6 +73,7 @@ require (
 	cel.dev/expr v0.23.1 // indirect
 	github.com/NVIDIA/go-nvlib v0.7.1 // indirect
 	github.com/NVIDIA/go-nvml v0.12.4-1 // indirect
+	github.com/Rican7/retry v0.3.1 // indirect
 	github.com/Yiling-J/theine-go v0.6.1 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
