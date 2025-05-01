@@ -116,11 +116,11 @@ func TestIdmapSetIntersects(t *testing.T) {
 func TestIdmapHostIDMapRange(t *testing.T) {
 	// Check empty entry is not covered.
 	idmap := IdmapEntry{}
-	assert.Equal(t, false, idmap.HostIDsCoveredBy(nil, nil))
+	assert.False(t, idmap.HostIDsCoveredBy(nil, nil))
 
 	// Check nil allowed lists are not covered.
 	idmap = IdmapEntry{Isuid: true, Hostid: 1000, Maprange: 1}
-	assert.Equal(t, false, idmap.HostIDsCoveredBy(nil, nil))
+	assert.False(t, idmap.HostIDsCoveredBy(nil, nil))
 
 	// Check that UID/GID specific host IDs are covered by equivalent UID/GID specific host ID rule.
 	uidOnlyEntry := IdmapEntry{Isuid: true, Hostid: 1000, Maprange: 1}
@@ -134,33 +134,33 @@ func TestIdmapHostIDMapRange(t *testing.T) {
 		{Isgid: true, Hostid: 1000, Maprange: 1},
 	}
 
-	assert.Equal(t, true, uidOnlyEntry.HostIDsCoveredBy(allowedUIDMaps, nil))
-	assert.Equal(t, false, uidOnlyEntry.HostIDsCoveredBy(nil, allowedUIDMaps))
-	assert.Equal(t, true, uidOnlyEntry.HostIDsCoveredBy(allowedUIDMaps, allowedUIDMaps))
+	assert.True(t, uidOnlyEntry.HostIDsCoveredBy(allowedUIDMaps, nil))
+	assert.False(t, uidOnlyEntry.HostIDsCoveredBy(nil, allowedUIDMaps))
+	assert.True(t, uidOnlyEntry.HostIDsCoveredBy(allowedUIDMaps, allowedUIDMaps))
 
-	assert.Equal(t, false, uidOnlyEntry.HostIDsCoveredBy(allowedGIDMaps, nil))
-	assert.Equal(t, false, uidOnlyEntry.HostIDsCoveredBy(nil, allowedGIDMaps))
-	assert.Equal(t, false, uidOnlyEntry.HostIDsCoveredBy(allowedGIDMaps, allowedGIDMaps))
+	assert.False(t, uidOnlyEntry.HostIDsCoveredBy(allowedGIDMaps, nil))
+	assert.False(t, uidOnlyEntry.HostIDsCoveredBy(nil, allowedGIDMaps))
+	assert.False(t, uidOnlyEntry.HostIDsCoveredBy(allowedGIDMaps, allowedGIDMaps))
 
-	assert.Equal(t, false, gidOnlyEntry.HostIDsCoveredBy(allowedGIDMaps, nil))
-	assert.Equal(t, true, gidOnlyEntry.HostIDsCoveredBy(nil, allowedGIDMaps))
-	assert.Equal(t, true, gidOnlyEntry.HostIDsCoveredBy(allowedGIDMaps, allowedGIDMaps))
+	assert.False(t, gidOnlyEntry.HostIDsCoveredBy(allowedGIDMaps, nil))
+	assert.True(t, gidOnlyEntry.HostIDsCoveredBy(nil, allowedGIDMaps))
+	assert.True(t, gidOnlyEntry.HostIDsCoveredBy(allowedGIDMaps, allowedGIDMaps))
 
-	assert.Equal(t, false, gidOnlyEntry.HostIDsCoveredBy(allowedUIDMaps, nil))
-	assert.Equal(t, false, gidOnlyEntry.HostIDsCoveredBy(nil, allowedUIDMaps))
-	assert.Equal(t, false, gidOnlyEntry.HostIDsCoveredBy(allowedUIDMaps, allowedUIDMaps))
+	assert.False(t, gidOnlyEntry.HostIDsCoveredBy(allowedUIDMaps, nil))
+	assert.False(t, gidOnlyEntry.HostIDsCoveredBy(nil, allowedUIDMaps))
+	assert.False(t, gidOnlyEntry.HostIDsCoveredBy(allowedUIDMaps, allowedUIDMaps))
 
 	// Check ranges are correctly blocked when not covered by single ID allow list.
 	uidOnlyRangeEntry := IdmapEntry{Isuid: true, Hostid: 1000, Maprange: 2}
 	gidOnlyRangeEntry := IdmapEntry{Isgid: true, Hostid: 1000, Maprange: 2}
 
-	assert.Equal(t, false, uidOnlyRangeEntry.HostIDsCoveredBy(allowedUIDMaps, nil))
-	assert.Equal(t, false, uidOnlyRangeEntry.HostIDsCoveredBy(nil, allowedUIDMaps))
-	assert.Equal(t, false, uidOnlyRangeEntry.HostIDsCoveredBy(allowedUIDMaps, allowedUIDMaps))
+	assert.False(t, uidOnlyRangeEntry.HostIDsCoveredBy(allowedUIDMaps, nil))
+	assert.False(t, uidOnlyRangeEntry.HostIDsCoveredBy(nil, allowedUIDMaps))
+	assert.False(t, uidOnlyRangeEntry.HostIDsCoveredBy(allowedUIDMaps, allowedUIDMaps))
 
-	assert.Equal(t, false, gidOnlyRangeEntry.HostIDsCoveredBy(allowedGIDMaps, nil))
-	assert.Equal(t, false, gidOnlyRangeEntry.HostIDsCoveredBy(nil, allowedGIDMaps))
-	assert.Equal(t, false, gidOnlyRangeEntry.HostIDsCoveredBy(allowedGIDMaps, allowedGIDMaps))
+	assert.False(t, gidOnlyRangeEntry.HostIDsCoveredBy(allowedGIDMaps, nil))
+	assert.False(t, gidOnlyRangeEntry.HostIDsCoveredBy(nil, allowedGIDMaps))
+	assert.False(t, gidOnlyRangeEntry.HostIDsCoveredBy(allowedGIDMaps, allowedGIDMaps))
 
 	// Check ranges are allowed when fully covered.
 	allowedUIDMaps = []IdmapEntry{
@@ -171,34 +171,34 @@ func TestIdmapHostIDMapRange(t *testing.T) {
 		{Isgid: true, Hostid: 1000, Maprange: 2},
 	}
 
-	assert.Equal(t, true, uidOnlyRangeEntry.HostIDsCoveredBy(allowedUIDMaps, nil))
-	assert.Equal(t, false, uidOnlyRangeEntry.HostIDsCoveredBy(nil, allowedUIDMaps))
-	assert.Equal(t, true, uidOnlyRangeEntry.HostIDsCoveredBy(allowedUIDMaps, allowedUIDMaps))
+	assert.True(t, uidOnlyRangeEntry.HostIDsCoveredBy(allowedUIDMaps, nil))
+	assert.False(t, uidOnlyRangeEntry.HostIDsCoveredBy(nil, allowedUIDMaps))
+	assert.True(t, uidOnlyRangeEntry.HostIDsCoveredBy(allowedUIDMaps, allowedUIDMaps))
 
-	assert.Equal(t, false, gidOnlyRangeEntry.HostIDsCoveredBy(allowedGIDMaps, nil))
-	assert.Equal(t, true, gidOnlyRangeEntry.HostIDsCoveredBy(nil, allowedGIDMaps))
-	assert.Equal(t, true, gidOnlyRangeEntry.HostIDsCoveredBy(allowedGIDMaps, allowedGIDMaps))
+	assert.False(t, gidOnlyRangeEntry.HostIDsCoveredBy(allowedGIDMaps, nil))
+	assert.True(t, gidOnlyRangeEntry.HostIDsCoveredBy(nil, allowedGIDMaps))
+	assert.True(t, gidOnlyRangeEntry.HostIDsCoveredBy(allowedGIDMaps, allowedGIDMaps))
 
 	// Check ranges for combined allowed ID maps are correctly validated.
 	allowedCombinedMaps := []IdmapEntry{
 		{Isuid: true, Isgid: true, Hostid: 1000, Maprange: 2},
 	}
 
-	assert.Equal(t, true, uidOnlyRangeEntry.HostIDsCoveredBy(allowedCombinedMaps, nil))
-	assert.Equal(t, false, uidOnlyRangeEntry.HostIDsCoveredBy(nil, allowedCombinedMaps))
-	assert.Equal(t, true, uidOnlyRangeEntry.HostIDsCoveredBy(allowedCombinedMaps, allowedCombinedMaps))
+	assert.True(t, uidOnlyRangeEntry.HostIDsCoveredBy(allowedCombinedMaps, nil))
+	assert.False(t, uidOnlyRangeEntry.HostIDsCoveredBy(nil, allowedCombinedMaps))
+	assert.True(t, uidOnlyRangeEntry.HostIDsCoveredBy(allowedCombinedMaps, allowedCombinedMaps))
 
-	assert.Equal(t, false, gidOnlyRangeEntry.HostIDsCoveredBy(allowedCombinedMaps, nil))
-	assert.Equal(t, true, gidOnlyRangeEntry.HostIDsCoveredBy(nil, allowedCombinedMaps))
-	assert.Equal(t, true, gidOnlyRangeEntry.HostIDsCoveredBy(allowedCombinedMaps, allowedCombinedMaps))
+	assert.False(t, gidOnlyRangeEntry.HostIDsCoveredBy(allowedCombinedMaps, nil))
+	assert.True(t, gidOnlyRangeEntry.HostIDsCoveredBy(nil, allowedCombinedMaps))
+	assert.True(t, gidOnlyRangeEntry.HostIDsCoveredBy(allowedCombinedMaps, allowedCombinedMaps))
 
 	combinedEntry := IdmapEntry{Isuid: true, Isgid: true, Hostid: 1000, Maprange: 1}
 
-	assert.Equal(t, false, combinedEntry.HostIDsCoveredBy(allowedCombinedMaps, nil))
-	assert.Equal(t, false, combinedEntry.HostIDsCoveredBy(nil, allowedCombinedMaps))
-	assert.Equal(t, true, combinedEntry.HostIDsCoveredBy(allowedCombinedMaps, allowedCombinedMaps))
+	assert.False(t, combinedEntry.HostIDsCoveredBy(allowedCombinedMaps, nil))
+	assert.False(t, combinedEntry.HostIDsCoveredBy(nil, allowedCombinedMaps))
+	assert.True(t, combinedEntry.HostIDsCoveredBy(allowedCombinedMaps, allowedCombinedMaps))
 
-	assert.Equal(t, false, combinedEntry.HostIDsCoveredBy(allowedCombinedMaps, nil))
-	assert.Equal(t, false, combinedEntry.HostIDsCoveredBy(nil, allowedCombinedMaps))
-	assert.Equal(t, true, combinedEntry.HostIDsCoveredBy(allowedCombinedMaps, allowedCombinedMaps))
+	assert.False(t, combinedEntry.HostIDsCoveredBy(allowedCombinedMaps, nil))
+	assert.False(t, combinedEntry.HostIDsCoveredBy(nil, allowedCombinedMaps))
+	assert.True(t, combinedEntry.HostIDsCoveredBy(allowedCombinedMaps, allowedCombinedMaps))
 }

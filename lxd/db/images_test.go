@@ -82,7 +82,7 @@ func TestGetImage(t *testing.T) {
 		// 'public' is ignored if 'false'
 		id, img, err := tx.GetImage(ctx, "a", cluster.ImageFilter{Project: &project})
 		require.NoError(t, err)
-		assert.Equal(t, true, img.Public)
+		assert.True(t, img.Public)
 		assert.NotEqual(t, id, -1)
 
 		// non-public image with 'default' project
@@ -100,7 +100,7 @@ func TestGetImage(t *testing.T) {
 		public := true
 		id, img, err = tx.GetImage(ctx, "a", cluster.ImageFilter{Project: &project, Public: &public})
 		require.NoError(t, err)
-		assert.Equal(t, true, img.Public)
+		assert.True(t, img.Public)
 		assert.NotEqual(t, id, -1)
 
 		return nil
