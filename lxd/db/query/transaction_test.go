@@ -19,7 +19,7 @@ func TestTransaction_BeginError(t *testing.T) {
 	require.NoError(t, err)
 
 	err = query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error { return nil })
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Failed to begin transaction")
 }
 

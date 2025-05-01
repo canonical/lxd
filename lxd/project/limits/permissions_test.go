@@ -250,7 +250,7 @@ func TestCheckClusterTargetRestriction_RestrictedTrueWithOverride(t *testing.T) 
 	require.NoError(t, err)
 
 	err = limits.CheckClusterTargetRestriction(authorizer, req, p, "n1")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 // If a direct targeting is allowed, the check passes.

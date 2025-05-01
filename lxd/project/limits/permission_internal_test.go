@@ -24,7 +24,7 @@ func TestParseHostIDMapRange(t *testing.T) {
 		}
 
 		idmaps, err := parseHostIDMapRange(isUID, isGID, "foo")
-		assert.NotErrorIs(t, err, nil)
+		assert.Error(t, err)
 		assert.Nil(t, idmaps)
 
 		idmaps, err = parseHostIDMapRange(isUID, isGID, "1000")
@@ -38,7 +38,7 @@ func TestParseHostIDMapRange(t *testing.T) {
 			},
 		}
 
-		assert.ErrorIs(t, err, nil)
+		assert.NoError(t, err)
 		assert.Equal(t, expected, idmaps)
 
 		idmaps, err = parseHostIDMapRange(isUID, isGID, "1000-1001")
@@ -52,7 +52,7 @@ func TestParseHostIDMapRange(t *testing.T) {
 			},
 		}
 
-		assert.ErrorIs(t, err, nil)
+		assert.NoError(t, err)
 		assert.Equal(t, expected, idmaps)
 
 		idmaps, err = parseHostIDMapRange(isUID, isGID, "1000-1001,1002")
@@ -73,7 +73,7 @@ func TestParseHostIDMapRange(t *testing.T) {
 			},
 		}
 
-		assert.ErrorIs(t, err, nil)
+		assert.NoError(t, err)
 		assert.Equal(t, expected, idmaps)
 	}
 }
