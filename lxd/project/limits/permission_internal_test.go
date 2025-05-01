@@ -39,7 +39,7 @@ func TestParseHostIDMapRange(t *testing.T) {
 		}
 
 		assert.ErrorIs(t, err, nil)
-		assert.Equal(t, idmaps, expected)
+		assert.Equal(t, expected, idmaps)
 
 		idmaps, err = parseHostIDMapRange(isUID, isGID, "1000-1001")
 		expected = []idmap.IdmapEntry{
@@ -53,7 +53,7 @@ func TestParseHostIDMapRange(t *testing.T) {
 		}
 
 		assert.ErrorIs(t, err, nil)
-		assert.Equal(t, idmaps, expected)
+		assert.Equal(t, expected, idmaps)
 
 		idmaps, err = parseHostIDMapRange(isUID, isGID, "1000-1001,1002")
 		expected = []idmap.IdmapEntry{
@@ -74,7 +74,7 @@ func TestParseHostIDMapRange(t *testing.T) {
 		}
 
 		assert.ErrorIs(t, err, nil)
-		assert.Equal(t, idmaps, expected)
+		assert.Equal(t, expected, idmaps)
 	}
 }
 

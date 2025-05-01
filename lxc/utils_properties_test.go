@@ -106,7 +106,7 @@ func (s *utilsPropertiesTestSuite) TestSetFieldByJsonTagNonSettable() {
 	}
 
 	setFieldByJsonTag(&ts, "invalid name", "Jane Doe")
-	s.NotEqual(ts.Name, "Jane Doe")
+	s.NotEqual("Jane Doe", ts.Name)
 }
 
 func (s *utilsPropertiesTestSuite) TestUnsetFieldByJsonTagValid() {

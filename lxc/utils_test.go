@@ -28,7 +28,7 @@ func (s *utilsTestSuite) TestIsAliasesSubsetTrue() {
 		{Name: "baz"},
 	}
 
-	s.Exactly(IsAliasesSubset(a1, a2), true)
+	s.Exactly(true, IsAliasesSubset(a1, a2))
 }
 
 func (s *utilsTestSuite) TestIsAliasesSubsetFalse() {
@@ -42,7 +42,7 @@ func (s *utilsTestSuite) TestIsAliasesSubsetFalse() {
 		{Name: "baz"},
 	}
 
-	s.Exactly(IsAliasesSubset(a1, a2), false)
+	s.Exactly(false, IsAliasesSubset(a1, a2))
 }
 
 func (s *utilsTestSuite) TestGetExistingAliases() {
@@ -68,9 +68,9 @@ func (s *utilsTestSuite) TestGetExistingAliasesEmpty() {
 }
 
 func (s *utilsTestSuite) TestStructHasFields() {
-	s.Equal(structHasField(reflect.TypeOf(api.Image{}), "type"), true)
-	s.Equal(structHasField(reflect.TypeOf(api.Image{}), "public"), true)
-	s.Equal(structHasField(reflect.TypeOf(api.Image{}), "foo"), false)
+	s.Equal(true, structHasField(reflect.TypeOf(api.Image{}), "type"))
+	s.Equal(true, structHasField(reflect.TypeOf(api.Image{}), "public"))
+	s.Equal(false, structHasField(reflect.TypeOf(api.Image{}), "foo"))
 }
 
 func (s *utilsTestSuite) TestGetServerSupportedFilters() {

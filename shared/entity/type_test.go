@@ -319,7 +319,7 @@ func TestURL(t *testing.T) {
 			}
 
 			normalisedURL, err := actualEntityType.URL(actualProject, actualLocation, actualPathArgs...)
-			assert.Equal(t, normalisedURL.String(), tt.expectedNormalisedURL)
+			assert.Equal(t, tt.expectedNormalisedURL, normalisedURL.String())
 			assert.NoError(t, err)
 		})
 	}
