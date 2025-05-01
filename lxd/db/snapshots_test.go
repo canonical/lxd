@@ -46,7 +46,7 @@ func TestGetInstanceSnapshots(t *testing.T) {
 	assert.Equal(t, "snap1", s1.Name)
 	assert.Equal(t, "c1", s1.Instance)
 	assert.Equal(t, map[string]string{}, s1Config)
-	assert.Len(t, s1Devices, 0)
+	assert.Empty(t, s1Devices)
 
 	s2Config, err := cluster.GetInstanceSnapshotConfig(context.TODO(), tx.Tx(), snapshots[1].ID)
 	require.NoError(t, err)

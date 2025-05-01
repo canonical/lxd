@@ -117,7 +117,7 @@ func (s *utilsPropertiesTestSuite) TestUnsetFieldByJsonTagValid() {
 
 	err := unsetFieldByJsonTag(&ts, "name")
 	s.NoError(err)
-	s.Equal("", ts.Name)
+	s.Empty(ts.Name)
 }
 
 func (s *utilsPropertiesTestSuite) TestUnsetFieldByJsonTagInvalid() {
