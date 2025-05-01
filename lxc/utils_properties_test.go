@@ -154,7 +154,7 @@ func (s *utilsPropertiesTestSuite) TestUnpackKVToWritable() {
 	s.Equal("John Doe", ws.Name)
 	s.Equal(30, ws.Age)
 	s.Equal(85.5, ws.Score)
-	s.Equal(true, ws.Alive)
+	s.True(ws.Alive)
 	s.Equal("2000-01-01T00:00:00Z", ws.Birth.Format(time.RFC3339))
 }
 

@@ -19,6 +19,6 @@ func TestDotGo(t *testing.T) {
 	}
 
 	require.NoError(t, schema.DotGo(updates, "xyz", "xyz.go"))
-	require.Equal(t, true, shared.PathExists("xyz.go"))
+	require.True(t, shared.PathExists("xyz.go"))
 	require.NoError(t, os.Remove("xyz.go"))
 }
