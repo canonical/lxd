@@ -38,7 +38,7 @@ func TestUpdateFromV0(t *testing.T) {
 	_, err = db.Exec(stmt, time.Now())
 	require.Error(t, err)
 	var sqliteErr sqlite3.Error
-	require.True(t, errors.As(err, &sqliteErr))
+	require.ErrorAs(t, err, &sqliteErr)
 	require.Equal(t, sqlite3.ErrConstraintUnique, sqliteErr.ExtendedCode)
 }
 
