@@ -231,7 +231,8 @@ func (n *physical) Validate(config map[string]string) error {
 }
 
 // checkParentUse checks if parent is already in use by another network or instance device.
-func (n *physical) checkParentUse(ourConfig map[string]string) (bool, error) {
+// Returns an error if parent is already in use or the check has failed.
+func (n *physical) checkParentUse(ourConfig map[string]string) error {
 	var err error
 	var projectNetworks map[string]map[int64]api.Network // All managed networks across all projects.
 	var nodesNetworksParent map[int64]map[string]string  // Node IDs mapped to networks and their node-specific parent.
@@ -255,21 +256,21 @@ func (n *physical) checkParentUse(ourConfig map[string]string) (bool, error) {
 		// If in cluster mode, returned network configs are for the current node.
 		projectNetworks, err = tx.GetCreatedNetworks(ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed to load all networks: %w", err)
 		}
 
 		// Get parent interfaces for all networks on other nodes.
 		if n.state.ServerClustered && len(otherNodeIDs) > 0 {
 			nodesNetworksParent, err = tx.GetNetworksNodeParent(ctx, otherNodeIDs[0], otherNodeIDs[1:]...)
 			if err != nil {
-				return err
+				return fmt.Errorf("Failed to load node-specific configs: %w", err)
 			}
 		}
 
 		return nil
 	})
 	if err != nil {
-		return false, fmt.Errorf("Failed to load all networks: %w", err)
+		return err
 	}
 
 	for projectName, networks := range projectNetworks {
@@ -287,7 +288,7 @@ func (n *physical) checkParentUse(ourConfig map[string]string) (bool, error) {
 				// If either network doesn't specify a vlan, or both specify same vlan,
 				// then we can't use this parent.
 				if (network.Config["vlan"] == "" || ourConfig["vlan"] == "") || network.Config["vlan"] == ourConfig["vlan"] {
-					return true, nil
+					return fmt.Errorf("Parent interface %q in use by another network", ourConfig["parent"])
 				}
 			}
 		}
@@ -295,13 +296,13 @@ func (n *physical) checkParentUse(ourConfig map[string]string) (bool, error) {
 
 	// Check that parent interfaces on other nodes are not already in use.
 	if n.state.ServerClustered {
-		for _, networksParent := range nodesNetworksParent {
+		for nodeID, networksParent := range nodesNetworksParent {
 			parentsInUse := make(map[string]struct{})
 
 			for _, parent := range networksParent {
 				_, alreadyInUse := parentsInUse[parent]
 				if alreadyInUse {
-					return true, nil
+					return fmt.Errorf("Parent interface %q in use by another network on node %q", parent, n.nodes[nodeID].Name)
 				}
 
 				parentsInUse[parent] = struct{}{}
@@ -309,7 +310,7 @@ func (n *physical) checkParentUse(ourConfig map[string]string) (bool, error) {
 		}
 	}
 
-	return false, nil
+	return nil
 }
 
 // Create checks whether the referenced parent interface is used by other networks or instance devices, as we
@@ -319,13 +320,9 @@ func (n *physical) Create(clientType request.ClientType) error {
 
 	// We only need to check in the database once, not on every clustered node.
 	if clientType == request.ClientTypeNormal {
-		inUse, err := n.checkParentUse(n.config)
+		err := n.checkParentUse(n.config)
 		if err != nil {
 			return err
-		}
-
-		if inUse {
-			return fmt.Errorf("Parent interface %q in use by another network", n.config["parent"])
 		}
 	}
 
@@ -510,13 +507,9 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 				return errors.New("Cannot update network parent interface when in use")
 			}
 
-			inUse, err := n.checkParentUse(newNetwork.Config)
+			err = n.checkParentUse(newNetwork.Config)
 			if err != nil {
 				return err
-			}
-
-			if inUse {
-				return fmt.Errorf("Parent interface %q in use by another network", newNetwork.Config["parent"])
 			}
 		}
 	}
