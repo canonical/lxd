@@ -68,7 +68,7 @@ func TestConfig_ReplaceDeleteValues(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]string{"core.https_address": ""}, changed)
 
-	assert.Equal(t, "", config.HTTPSAddress())
+	assert.Empty(t, config.HTTPSAddress())
 
 	values, err := tx.Config(context.Background())
 	require.NoError(t, err)
@@ -112,7 +112,7 @@ func TestHTTPSAddress(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, err)
-	assert.Equal(t, "", config.HTTPSAddress())
+	assert.Empty(t, config.HTTPSAddress())
 
 	err = nodeDB.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		config, err = node.ConfigLoad(ctx, tx)
@@ -149,7 +149,7 @@ func TestClusterAddress(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, "", nodeConfig.ClusterAddress())
+	assert.Empty(t, nodeConfig.ClusterAddress())
 
 	err = nodeDB.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		nodeConfig, err = node.ConfigLoad(ctx, tx)

@@ -217,7 +217,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, thisVolume)
 	assert.Equal(t, volumeID, thisVolume.ID)
-	assert.Equal(t, "", thisVolume.Location)
+	assert.Empty(t, thisVolume.Location)
 
 	// Update the volume
 	config["k"] = "v2"

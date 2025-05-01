@@ -51,7 +51,7 @@ func TestContainerList(t *testing.T) {
 	assert.Equal(t, "c1", c1.Name)
 	assert.Equal(t, "node2", c1.Node)
 	assert.Equal(t, map[string]string{}, c1Config)
-	assert.Len(t, c1Devices, 0)
+	assert.Empty(t, c1Devices)
 
 	c2 := containers[1]
 	c2Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), c2.ID)
@@ -536,13 +536,13 @@ func TestGetLocalInstancesInProject(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, map[string]string{"z": "w", "a": "b"}, c2Config)
-	assert.Len(t, c2Devices, 0)
+	assert.Empty(t, c2Devices)
 
 	c3Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), containers[2].ID)
 	require.NoError(t, err)
 	c3Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), containers[2].ID)
 	require.NoError(t, err)
-	assert.Len(t, c3Config, 0)
+	assert.Empty(t, c3Config)
 	assert.Equal(t, map[string]map[string]string{"root": {"type": "disk", "x": "y"}}, cluster.DevicesToAPI(c3Devices))
 }
 

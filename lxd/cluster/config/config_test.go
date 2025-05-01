@@ -93,7 +93,7 @@ func TestConfig_ReplaceDeleteValues(t *testing.T) {
 	_, err = config.Replace(map[string]any{})
 	assert.NoError(t, err)
 
-	assert.Equal(t, "", config.ProxyHTTP())
+	assert.Empty(t, config.ProxyHTTP())
 
 	values, err := tx.Config(context.Background())
 	require.NoError(t, err)
