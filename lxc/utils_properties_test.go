@@ -35,7 +35,7 @@ func (s *utilsPropertiesTestSuite) TestStringToTimeHookFuncInvalidData() {
 
 func (s *utilsPropertiesTestSuite) TestStringToBoolHookFuncValidData() {
 	hookFunc := stringToBoolHookFunc()
-	hook := hookFunc.(func(reflect.Kind, reflect.Kind, any) (any, error))
+	hook := hookFunc.(func(reflect.Kind, reflect.Kind, any) (any, error)) //nolint:revive
 
 	result, err := hook(reflect.String, reflect.Bool, "t")
 	s.NoError(err)
@@ -44,7 +44,7 @@ func (s *utilsPropertiesTestSuite) TestStringToBoolHookFuncValidData() {
 
 func (s *utilsPropertiesTestSuite) TestStringToBoolHookFuncInvalidData() {
 	hookFunc := stringToBoolHookFunc()
-	hook := hookFunc.(func(reflect.Kind, reflect.Kind, any) (any, error))
+	hook := hookFunc.(func(reflect.Kind, reflect.Kind, any) (any, error)) //nolint:revive
 
 	_, err := hook(reflect.String, reflect.Bool, "not a boolean")
 	s.Error(err, "Expected an error but got nil")
@@ -52,7 +52,7 @@ func (s *utilsPropertiesTestSuite) TestStringToBoolHookFuncInvalidData() {
 
 func (s *utilsPropertiesTestSuite) TestStringToIntHookFuncValidData() {
 	hookFunc := stringToIntHookFunc()
-	hook := hookFunc.(func(reflect.Kind, reflect.Kind, any) (any, error))
+	hook := hookFunc.(func(reflect.Kind, reflect.Kind, any) (any, error)) //nolint:revive
 
 	result, err := hook(reflect.String, reflect.Int, "123")
 	s.NoError(err)
@@ -61,7 +61,7 @@ func (s *utilsPropertiesTestSuite) TestStringToIntHookFuncValidData() {
 
 func (s *utilsPropertiesTestSuite) TestStringToIntHookFuncInvalidData() {
 	hookFunc := stringToIntHookFunc()
-	hook := hookFunc.(func(reflect.Kind, reflect.Kind, any) (any, error))
+	hook := hookFunc.(func(reflect.Kind, reflect.Kind, any) (any, error)) //nolint:revive
 
 	_, err := hook(reflect.String, reflect.Int, "not an int")
 	s.Error(err, "Expected an error but got nil")
@@ -69,7 +69,7 @@ func (s *utilsPropertiesTestSuite) TestStringToIntHookFuncInvalidData() {
 
 func (s *utilsPropertiesTestSuite) TestStringToFloatHookFuncValidData() {
 	hookFunc := stringToFloatHookFunc()
-	hook := hookFunc.(func(reflect.Kind, reflect.Kind, any) (any, error))
+	hook := hookFunc.(func(reflect.Kind, reflect.Kind, any) (any, error)) //nolint:revive
 
 	result, err := hook(reflect.String, reflect.Float64, "123.45")
 	s.NoError(err)
@@ -78,7 +78,7 @@ func (s *utilsPropertiesTestSuite) TestStringToFloatHookFuncValidData() {
 
 func (s *utilsPropertiesTestSuite) TestStringToFloatHookFuncInvalidData() {
 	hookFunc := stringToFloatHookFunc()
-	hook := hookFunc.(func(reflect.Kind, reflect.Kind, any) (any, error))
+	hook := hookFunc.(func(reflect.Kind, reflect.Kind, any) (any, error)) //nolint:revive
 
 	_, err := hook(reflect.String, reflect.Float64, "not a float")
 	s.Error(err, "Expected an error but got nil")
