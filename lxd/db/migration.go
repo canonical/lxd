@@ -286,19 +286,19 @@ func importNodeAssociation(entity string, columns []string, row []any, tx *sql.T
 		if column == "id" {
 			id, ok = row[i].(int64)
 			if !ok {
-				return fmt.Errorf("Failed to convert %s ID to int64", entity)
+				return fmt.Errorf("Failed to convert %q ID to int64", entity)
 			}
 
 			break
 		}
 	}
 	if id == 0 {
-		return fmt.Errorf("entity %s has invalid ID", entity)
+		return fmt.Errorf("entity %q has invalid ID", entity)
 	}
 
 	_, err := tx.Exec(stmt, id)
 	if err != nil {
-		return fmt.Errorf("failed to associate %s to node: %w", entity, err)
+		return fmt.Errorf("failed to associate %q to node: %w", entity, err)
 	}
 
 	return nil
