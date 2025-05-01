@@ -219,7 +219,7 @@ func TestParseNetworks(t *testing.T) {
 				assert.NoError(t, err, "Expected ParseNetworks to succeed.")
 			}
 
-			require.Equal(t, len(nets), len(tc.expectNets), "Expected number of networks in/out to match.")
+			require.Len(t, tc.expectNets, len(nets), "Expected number of networks in/out to match.")
 
 			for i, net := range nets {
 				assert.Equal(t, net.String(), tc.expectNets[i], "Expected networks to match.")

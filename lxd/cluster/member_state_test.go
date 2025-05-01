@@ -40,7 +40,7 @@ func TestClusterState(t *testing.T) {
 	states, err := cluster.ClusterState(state, cert)
 	require.NoError(t, err)
 
-	assert.Equal(t, 3, len(states))
+	assert.Len(t, states, 3)
 
 	for clusterMemberName, state := range states {
 		// Local cluster member
@@ -70,7 +70,7 @@ func TestClusterState(t *testing.T) {
 	states, err = cluster.ClusterState(state, cert, members...)
 	require.NoError(t, err)
 
-	assert.Equal(t, 2, len(states))
+	assert.Len(t, states, 2)
 	for _, state := range states {
 		assert.Equal(t, uint64(24), state.SysInfo.LogicalCPUs)
 	}

@@ -220,7 +220,7 @@ func TestConvertNetworkConfig(t *testing.T) {
 
 		for _, conf := range tt.config {
 			parts := strings.SplitN(conf, "=", 2)
-			require.Equal(t, 2, len(parts))
+			require.Len(t, parts, 2)
 			err := c.SetConfigItem(strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]))
 			require.NoError(t, err)
 		}
