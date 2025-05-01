@@ -5,6 +5,7 @@ linters:
     - misspell
     - prealloc
     - revive
+    - testifylint
     - whitespace
   settings:
     errcheck:
