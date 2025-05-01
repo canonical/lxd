@@ -19,5 +19,5 @@ func (vlan *Vlan) additionalArgs() []string {
 
 // Add adds new virtual link.
 func (vlan *Vlan) Add() error {
-	return vlan.Link.add("vlan", vlan.additionalArgs())
+	return vlan.add("vlan", vlan.additionalArgs())
 }
