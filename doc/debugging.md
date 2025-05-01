@@ -80,6 +80,15 @@ openssl pkcs12 -clcerts -inkey client.key -in client.crt -export -out client.pfx
 
 After that, opening [`https://127.0.0.1:8443/1.0`](https://127.0.0.1:8443/1.0) should work as expected.
 
+## Debug LXD using `pprof`
+LXD provides a Go [`pprof`](https://pkg.go.dev/net/http/pprof) server when the {config:option}`server-core:core.debug_address` is set.
+
+The debug server should not be exposed to an externally accessible address for production use cases. Use the following command to enable the server on the loopback interface:
+
+    lxc config set core.debug_address=localhost:8080
+
+If the LXD server is running on your workstation, you can view a summary of available information by navigating to [`http://localhost:8080/debug/pprof/`](http://localhost:8080/debug/pprof/).
+
 ## Debug the LXD database
 
 The files of the global {ref}`database <database>` are stored under the `./database/global`
