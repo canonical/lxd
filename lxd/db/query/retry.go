@@ -4,11 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"math"
+	"math/rand/v2"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/Rican7/retry/jitter"
 	"github.com/canonical/go-dqlite/v3/driver"
 	"github.com/mattn/go-sqlite3"
 
@@ -23,38 +24,46 @@ const maxRetries = 250
 //
 // This should by typically used to wrap transactions.
 func Retry(ctx context.Context, f func(ctx context.Context) error) error {
-	// TODO: the retry loop should be configurable.
 	var err error
 	for i := 0; i < maxRetries; i++ {
 		err = f(ctx)
-		if err != nil {
-			if errors.Is(err, context.Canceled) {
-				break
-			}
-
-			// No point in re-trying or logging a no-row or not found error.
-			if errors.Is(err, sql.ErrNoRows) || api.StatusErrorCheck(err, http.StatusNotFound) {
-				break
-			}
-
-			// Process actual errors.
-			if IsRetriableError(err) {
-				if i == maxRetries {
-					logger.Warn("Database error, giving up", logger.Ctx{"attempt": i, "err": err})
-					break
-				}
-
-				logger.Debug("Database error, retrying", logger.Ctx{"attempt": i, "err": err})
-				time.Sleep(jitter.Deviation(nil, 0.8)(100 * time.Millisecond))
-				continue
-			} else {
-				logger.Debug("Database error", logger.Ctx{"err": err})
-			}
+		if err == nil {
+			// The function succeeded, we're done here.
+			break
 		}
-		break
+
+		if errors.Is(err, context.Canceled) {
+			// The function was canceled, don't retry.
+			break
+		}
+
+		// No point in re-trying or logging a no-row or not found error.
+		if errors.Is(err, sql.ErrNoRows) || api.StatusErrorCheck(err, http.StatusNotFound) {
+			break
+		}
+
+		// Process actual errors.
+		if !IsRetriableError(err) {
+			logger.Debug("Database error", logger.Ctx{"err": err})
+			break
+		}
+
+		if i == maxRetries {
+			logger.Warn("Database error, giving up", logger.Ctx{"attempt": i, "err": err})
+			break
+		}
+
+		logger.Debug("Database error, retrying", logger.Ctx{"attempt": i, "err": err})
+		time.Sleep(jitterDeviation(0.8, 100*time.Millisecond))
 	}
 
 	return err
+}
+
+func jitterDeviation(factor float64, duration time.Duration) time.Duration {
+	floor := int64(math.Floor(float64(duration) * (1 - factor)))
+	ceil := int64(math.Ceil(float64(duration) * (1 + factor)))
+	return time.Duration(rand.Int64N(ceil-floor) + floor)
 }
 
 // IsRetriableError returns true if the given error might be transient and the
