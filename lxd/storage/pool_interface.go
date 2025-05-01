@@ -90,10 +90,10 @@ type Pool interface {
 	UnmountInstance(inst instance.Instance, op *operations.Operation) error
 
 	// Instance snapshots.
-	CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error
+	CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, volumes []*api.StorageVolume, op *operations.Operation) error
 	RenameInstanceSnapshot(inst instance.Instance, newName string, op *operations.Operation) error
 	DeleteInstanceSnapshot(inst instance.Instance, op *operations.Operation) error
-	RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error
+	RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, volumeSnapshots []*api.StorageVolume, op *operations.Operation) error
 	MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (*MountInfo, error)
 	UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) error
 	UpdateInstanceSnapshot(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
@@ -129,7 +129,7 @@ type Pool interface {
 	CreateCustomVolumeFromISO(projectName string, volName string, srcData io.ReadSeeker, size int64, op *operations.Operation) error
 
 	// Custom volume snapshots.
-	CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, newDescription string, newExpiryDate time.Time, op *operations.Operation) error
+	CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, newDescription string, newExpiryDate time.Time, newSnapshotUUID string, op *operations.Operation) error
 	RenameCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, op *operations.Operation) error
 	DeleteCustomVolumeSnapshot(projectName string, volName string, op *operations.Operation) error
 	UpdateCustomVolumeSnapshot(projectName string, volName string, newDesc string, newConfig map[string]string, newExpiryDate time.Time, op *operations.Operation) error

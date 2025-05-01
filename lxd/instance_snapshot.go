@@ -351,9 +351,14 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	disks, err := instance.ParseSnapshotDisks(inst, req.DisksMode, req.ExcludeDisks)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
 	snapshot := func(op *operations.Operation) error {
 		inst.SetOperation(op)
-		return inst.Snapshot(req.Name, expiry, req.Stateful)
+		return inst.Snapshot(req.Name, expiry, req.Stateful, disks)
 	}
 
 	resources := map[string][]api.URL{}

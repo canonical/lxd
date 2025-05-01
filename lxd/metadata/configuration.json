@@ -2913,6 +2913,14 @@
 						}
 					},
 					{
+						"volatile.attached_volumes": {
+							"condition": "snapshot",
+							"longdesc": "JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding\nsnapshots, created as part of a multi-volume snapshot.\n",
+							"shortdesc": "JSON map of attached volumes to their respective snapshots.",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.base_image": {
 							"longdesc": "The hash of the image that the instance was created from (empty if the instance was not created from an image).",
 							"shortdesc": "Hash of the base image",

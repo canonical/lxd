@@ -2256,11 +2256,28 @@ definitions:
                         type: disk
                 type: object
                 x-go-name: Devices
+            disks:
+                description: |-
+                    Which disks should be included in the multi-volume restore.
+                    Can be "root" or empty (for just the instance root volume),
+                    "volumes" (for all disks sourced by volumes; fails if an attached volumes snapshot was deleted or if a volume is being shared).
+                example: '"volumes"'
+                type: string
+                x-go-name: DisksMode
             ephemeral:
                 description: Whether the instance is ephemeral (deleted on shutdown)
                 example: false
                 type: boolean
                 x-go-name: Ephemeral
+            exclude_disks:
+                description: Disks whose volumes should not be included in a multi-volume restore.
+                example:
+                    - disk1
+                    - disk2
+                items:
+                    type: string
+                type: array
+                x-go-name: ExcludeDisks
             profiles:
                 description: List of profiles applied to the instance
                 example:
@@ -2423,6 +2440,23 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     InstanceSnapshotsPost:
         properties:
+            disks:
+                description: |-
+                    Which disks should be included in the multi-volume snapshot.
+                    Can be "root" or empty (for just the instance root volume), and
+                    "volumes" (for all disks sourced by volumes; fails if an attached volume is being shared).
+                example: '"volumes"'
+                type: string
+                x-go-name: DisksMode
+            exclude_disks:
+                description: Disks sourced by volumes that should not be included in a multi-volume snapshot.
+                example:
+                    - disk1
+                    - disk2
+                items:
+                    type: string
+                type: array
+                x-go-name: ExcludeDisks
             expires_at:
                 description: When the snapshot expires (gets auto-deleted)
                 example: "2021-03-23T17:38:37.753398689-04:00"
@@ -2900,11 +2934,28 @@ definitions:
                         type: disk
                 type: object
                 x-go-name: Devices
+            disks:
+                description: |-
+                    Which disks should be included in the multi-volume restore.
+                    Can be "root" or empty (for just the instance root volume),
+                    "volumes" (for all disks sourced by volumes; fails if an attached volumes snapshot was deleted or if a volume is being shared).
+                example: '"volumes"'
+                type: string
+                x-go-name: DisksMode
             ephemeral:
                 description: Whether the instance is ephemeral (deleted on shutdown)
                 example: false
                 type: boolean
                 x-go-name: Ephemeral
+            exclude_disks:
+                description: Disks whose volumes should not be included in a multi-volume restore.
+                example:
+                    - disk1
+                    - disk2
+                items:
+                    type: string
+                type: array
+                x-go-name: ExcludeDisks
             instance_type:
                 description: Cloud instance type (AWS, GCP, Azure, ...) to emulate with limits
                 example: t1.micro

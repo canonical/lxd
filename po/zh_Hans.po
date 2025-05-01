@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-04-29 07:41-0600\n"
+"POT-Creation-Date: 2025-04-29 18:14-0300\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: 0x0916 <w@laoqinren.net>\n"
 "Language-Team: Chinese (Simplified) <https://hosted.weblate.org/projects/"
@@ -1358,6 +1358,18 @@ msgstr ""
 msgid "Columns"
 msgstr ""
 
+#: lxc/restore.go:38
+msgid ""
+"Comma-separated list of names for which disks should be ignored when "
+"performing a multi-volume restore"
+msgstr ""
+
+#: lxc/snapshot.go:50
+msgid ""
+"Comma-separated list of names for which disks should be ignored when "
+"performing a multi-volume snapshot"
+msgstr ""
+
 #: lxc/main.go:83
 msgid "Command line client for LXD"
 msgstr ""
@@ -1606,11 +1618,11 @@ msgstr ""
 msgid "Create identity provider groups"
 msgstr ""
 
-#: lxc/snapshot.go:31
+#: lxc/snapshot.go:33
 msgid "Create instance snapshots"
 msgstr ""
 
-#: lxc/snapshot.go:32
+#: lxc/snapshot.go:34
 msgid ""
 "Create instance snapshots\n"
 "\n"
@@ -1927,7 +1939,7 @@ msgstr ""
 #: lxc/project.go:856 lxc/project.go:923 lxc/publish.go:34 lxc/query.go:34
 #: lxc/rebuild.go:28 lxc/remote.go:35 lxc/remote.go:91 lxc/remote.go:749
 #: lxc/remote.go:787 lxc/remote.go:873 lxc/remote.go:954 lxc/remote.go:1018
-#: lxc/remote.go:1067 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32
+#: lxc/remote.go:1067 lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:34
 #: lxc/storage.go:34 lxc/storage.go:97 lxc/storage.go:203 lxc/storage.go:261
 #: lxc/storage.go:393 lxc/storage.go:475 lxc/storage.go:655 lxc/storage.go:742
 #: lxc/storage.go:846 lxc/storage.go:940 lxc/storage_bucket.go:30
@@ -2996,7 +3008,7 @@ msgstr ""
 msgid "If the image alias already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/snapshot.go:46 lxc/storage_volume.go:2457
+#: lxc/snapshot.go:48 lxc/storage_volume.go:2457
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
@@ -3006,7 +3018,7 @@ msgid ""
 "lxd init"
 msgstr ""
 
-#: lxc/snapshot.go:45
+#: lxc/snapshot.go:47
 msgid "Ignore any configured auto-expiry for the instance"
 msgstr ""
 
@@ -3199,7 +3211,7 @@ msgstr ""
 msgid "Invalid format: %s"
 msgstr ""
 
-#: lxc/snapshot.go:95
+#: lxc/snapshot.go:99
 #, c-format
 msgid "Invalid instance name: %s"
 msgstr ""
@@ -5232,11 +5244,11 @@ msgstr ""
 msgid "Restore cluster member"
 msgstr ""
 
-#: lxc/restore.go:21
+#: lxc/restore.go:23
 msgid "Restore instances from snapshots"
 msgstr ""
 
-#: lxc/restore.go:22
+#: lxc/restore.go:24
 msgid ""
 "Restore instances from snapshots\n"
 "\n"
@@ -6772,14 +6784,25 @@ msgstr ""
 msgid "Whether or not to only backup the instance (without snapshots)"
 msgstr ""
 
-#: lxc/restore.go:34
+#: lxc/restore.go:36
 msgid ""
 "Whether or not to restore the instance's running state from snapshot (if "
 "available)"
 msgstr ""
 
-#: lxc/snapshot.go:44
+#: lxc/snapshot.go:46
 msgid "Whether or not to snapshot the instance's running state"
+msgstr ""
+
+#: lxc/snapshot.go:49
+msgid ""
+"Which disks should be included in the snapshot; can be \"root\" or "
+"\"volumes\""
+msgstr ""
+
+#: lxc/restore.go:37
+msgid ""
+"Which disks should be included when restoring; can be \"root\" or \"volumes\""
 msgstr ""
 
 #: lxc/rebuild.go:28
@@ -7043,7 +7066,7 @@ msgstr ""
 msgid "[<remote>:]<instance> <profiles>"
 msgstr ""
 
-#: lxc/restore.go:20
+#: lxc/restore.go:22
 msgid "[<remote>:]<instance> <snapshot>"
 msgstr ""
 
@@ -7052,7 +7075,7 @@ msgstr ""
 msgid "[<remote>:]<instance> <template>"
 msgstr ""
 
-#: lxc/snapshot.go:30
+#: lxc/snapshot.go:32
 msgid "[<remote>:]<instance> [<snapshot name>]"
 msgstr ""
 
@@ -7843,7 +7866,7 @@ msgid ""
 "    Delete local instance \"c1\"."
 msgstr ""
 
-#: lxc/snapshot.go:37
+#: lxc/snapshot.go:39
 msgid ""
 "lxc snapshot u1 snap0\n"
 "\tCreate a snapshot of \"u1\" called \"snap0\".\n"
@@ -7853,7 +7876,7 @@ msgid ""
 "\"config.yaml\"."
 msgstr ""
 
-#: lxc/restore.go:26
+#: lxc/restore.go:28
 msgid ""
 "lxc snapshot u1 snap0\n"
 "    Create the snapshot.\n"

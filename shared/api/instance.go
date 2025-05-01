@@ -202,6 +202,20 @@ type InstancePut struct {
 	// Example: snap0
 	Restore string `json:"restore,omitempty" yaml:"restore,omitempty"`
 
+	// Which disks should be included in the multi-volume restore.
+	// Can be "root" or empty (for just the instance root volume),
+	// "volumes" (for all disks sourced by volumes; fails if an attached volumes snapshot was deleted or if a volume is being shared).
+	// Example: "volumes"
+	//
+	// API extension: instance_snapshot_multi_volume
+	DisksMode string `json:"disks,omitempty" yaml:"disks,omitempty"`
+
+	// Disks whose volumes should not be included in a multi-volume restore.
+	// Example: ["disk1","disk2"]
+	//
+	// API extension: instance_snapshot_multi_volume
+	ExcludeDisks []string `json:"exclude_disks,omitempty" yaml:"exclude_disks,omitempty"`
+
 	// Whether the instance currently has saved state on disk
 	// Example: false
 	Stateful bool `json:"stateful" yaml:"stateful"`
