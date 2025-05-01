@@ -68,7 +68,7 @@ func Test_certificateNeedsUpdate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			needsUpdate := certificateNeedsUpdate(tt.args.domain, tt.args.cert)
-			require.Equal(t, needsUpdate, tt.want)
+			require.Equal(t, tt.want, needsUpdate)
 		})
 	}
 }

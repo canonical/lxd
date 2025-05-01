@@ -576,19 +576,19 @@ INSERT INTO instances VALUES (2, 1, 'eoan/snap', 2, 1, 0, ?, 0, ?, 'Eoan Ermine 
 
 	config, err := query.SelectConfig(context.Background(), tx, "instances_config", "id = 1")
 	require.NoError(t, err)
-	assert.Equal(t, config, map[string]string{"key": "value2"})
+	assert.Equal(t, map[string]string{"key": "value2"}, config)
 
 	config, err = query.SelectConfig(context.Background(), tx, "instances_snapshots_config", "id = 1")
 	require.NoError(t, err)
-	assert.Equal(t, config, map[string]string{"key": "value1"})
+	assert.Equal(t, map[string]string{"key": "value1"}, config)
 
 	config, err = query.SelectConfig(context.Background(), tx, "instances_devices_config", "id = 1")
 	require.NoError(t, err)
-	assert.Equal(t, config, map[string]string{"k": "v"})
+	assert.Equal(t, map[string]string{"k": "v"}, config)
 
 	config, err = query.SelectConfig(context.Background(), tx, "instances_snapshots_devices_config", "id = 1")
 	require.NoError(t, err)
-	assert.Equal(t, config, map[string]string{"k": "v"})
+	assert.Equal(t, map[string]string{"k": "v"}, config)
 }
 
 func TestUpdateFromV19(t *testing.T) {
@@ -676,7 +676,7 @@ func TestUpdateFromV25(t *testing.T) {
 	config, err := query.SelectConfig(context.Background(), tx, "storage_volumes_snapshots_config", "")
 	require.NoError(t, err)
 	assert.Len(t, config, 1)
-	assert.Equal(t, config["k"], "v-old")
+	assert.Equal(t, "v-old", config["k"])
 }
 
 func TestUpdateFromV26_WithoutVolumes(t *testing.T) {
@@ -721,7 +721,7 @@ func TestUpdateFromV26_WithVolumes(t *testing.T) {
 	ids, err := query.SelectIntegers(context.Background(), tx, "SELECT seq FROM sqlite_sequence WHERE name = 'storage_volumes'")
 	require.NoError(t, err)
 
-	assert.Equal(t, ids[0], 2)
+	assert.Equal(t, 2, ids[0])
 }
 
 func TestUpdateFromV34(t *testing.T) {
@@ -760,14 +760,14 @@ func TestUpdateFromV34(t *testing.T) {
 	count, err := query.Count(context.Background(), tx, "storage_volumes", "")
 	require.NoError(t, err)
 
-	assert.Equal(t, count, 1)
+	assert.Equal(t, 1, count)
 
 	row := tx.QueryRow("SELECT id, node_id FROM storage_volumes")
 	var id int
 	var nodeID any
 	require.NoError(t, row.Scan(&id, &nodeID))
-	assert.Equal(t, id, 2)
-	assert.Equal(t, nodeID, nil)
+	assert.Equal(t, 2, id)
+	assert.Equal(t, nil, nodeID)
 }
 
 func TestUpdateFromV69(t *testing.T) {

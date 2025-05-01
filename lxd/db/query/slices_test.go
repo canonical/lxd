@@ -76,7 +76,7 @@ func TestInsertStrings(t *testing.T) {
 
 	values, err := query.SelectStrings(context.Background(), tx, "SELECT name FROM test ORDER BY name DESC LIMIT 2")
 	require.NoError(t, err)
-	assert.Equal(t, values, []string{"yy", "xx"})
+	assert.Equal(t, []string{"yy", "xx"}, values)
 }
 
 // Return a new transaction against an in-memory SQLite database with a single

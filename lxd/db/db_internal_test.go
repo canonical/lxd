@@ -99,25 +99,25 @@ func (s *dbTestSuite) Test_deleting_a_container_cascades_on_related_tables() {
 	statements = `SELECT count(*) FROM instances_profiles;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
-	s.Equal(count, 0, "Deleting a container didn't delete the profile association!")
+	s.Equal(0, count, "Deleting a container didn't delete the profile association!")
 
 	// Make sure there are 0 containers_config entries left.
 	statements = `SELECT count(*) FROM instances_config;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
-	s.Equal(count, 0, "Deleting a container didn't delete the associated container_config!")
+	s.Equal(0, count, "Deleting a container didn't delete the associated container_config!")
 
 	// Make sure there are 0 containers_devices entries left.
 	statements = `SELECT count(*) FROM instances_devices;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
-	s.Equal(count, 0, "Deleting a container didn't delete the associated container_devices!")
+	s.Equal(0, count, "Deleting a container didn't delete the associated container_devices!")
 
 	// Make sure there are 0 containers_devices_config entries left.
 	statements = `SELECT count(*) FROM instances_devices_config;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
-	s.Equal(count, 0, "Deleting a container didn't delete the associated container_devices_config!")
+	s.Equal(0, count, "Deleting a container didn't delete the associated container_devices_config!")
 }
 
 func (s *dbTestSuite) Test_deleting_a_profile_cascades_on_related_tables() {
@@ -138,25 +138,25 @@ func (s *dbTestSuite) Test_deleting_a_profile_cascades_on_related_tables() {
 	statements = `SELECT count(*) FROM instances_profiles WHERE profile_id = 2;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
-	s.Equal(count, 0, "Deleting a profile didn't delete the container association!")
+	s.Equal(0, count, "Deleting a profile didn't delete the container association!")
 
 	// Make sure there are 0 profiles_devices entries left.
 	statements = `SELECT count(*) FROM profiles_devices WHERE profile_id == 2;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
-	s.Equal(count, 0, "Deleting a profile didn't delete the related profiles_devices!")
+	s.Equal(0, count, "Deleting a profile didn't delete the related profiles_devices!")
 
 	// Make sure there are 0 profiles_config entries left.
 	statements = `SELECT count(*) FROM profiles_config WHERE profile_id == 2;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
-	s.Equal(count, 0, "Deleting a profile didn't delete the related profiles_config! There are %d left")
+	s.Equal(0, count, "Deleting a profile didn't delete the related profiles_config! There are %d left")
 
 	// Make sure there are 0 profiles_devices_config entries left.
 	statements = `SELECT count(*) FROM profiles_devices_config WHERE profile_device_id == 3;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
-	s.Equal(count, 0, "Deleting a profile didn't delete the related profiles_devices_config!")
+	s.Equal(0, count, "Deleting a profile didn't delete the related profiles_devices_config!")
 }
 
 func (s *dbTestSuite) Test_deleting_an_image_cascades_on_related_tables() {
@@ -176,13 +176,13 @@ func (s *dbTestSuite) Test_deleting_an_image_cascades_on_related_tables() {
 	statements = `SELECT count(*) FROM images_aliases;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
-	s.Equal(count, 0, "Deleting an image didn't delete the image alias association!")
+	s.Equal(0, count, "Deleting an image didn't delete the image alias association!")
 
 	// Make sure there are 0 images_properties entries left.
 	statements = `SELECT count(*) FROM images_properties;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
-	s.Equal(count, 0, "Deleting an image didn't delete the related images_properties!")
+	s.Equal(0, count, "Deleting an image didn't delete the related images_properties!")
 }
 
 func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {
@@ -197,7 +197,7 @@ func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {
 
 	s.Nil(err)
 	s.NotNil(result)
-	s.Equal(result.Filename, "filename")
+	s.Equal("filename", result.Filename)
 	s.Equal(result.CreatedAt.UTC(), time.Unix(1431547174, 0).UTC())
 	s.Equal(result.ExpiresAt.UTC(), time.Unix(1431547175, 0).UTC())
 	s.Equal(result.UploadedAt.UTC(), time.Unix(1431547176, 0).UTC())
@@ -244,7 +244,7 @@ func (s *dbTestSuite) Test_GetImageAlias_alias_exists() {
 	_ = s.db.Transaction(context.Background(), func(ctx context.Context, tx *ClusterTx) error {
 		_, alias, err := tx.GetImageAlias(ctx, "default", "somealias", true)
 		s.Nil(err)
-		s.Equal(alias.Target, "fingerprint")
+		s.Equal("fingerprint", alias.Target)
 
 		return nil
 	})
@@ -266,7 +266,7 @@ func (s *dbTestSuite) Test_CreateImageAlias() {
 
 		_, alias, err := tx.GetImageAlias(ctx, "default", "Chaosphere", true)
 		s.Nil(err)
-		s.Equal(alias.Target, "fingerprint")
+		s.Equal("fingerprint", alias.Target)
 
 		return nil
 	})
@@ -284,7 +284,7 @@ func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint() {
 
 		fingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, "server.remote", "simplestreams", "test", "container", 0)
 		s.Nil(err)
-		s.Equal(fingerprint, "fingerprint")
+		s.Equal("fingerprint", fingerprint)
 		return nil
 	})
 }
