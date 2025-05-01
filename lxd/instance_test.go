@@ -297,7 +297,7 @@ func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
 		},
 		Name: "testFoo",
 	}, true)
-	suite.Req.NoError(err, fmt.Errorf("Adding multiple routed with gateway mode ['none'] should succeed. "))
+	suite.Req.NoError(err, "Adding multiple routed with gateway mode ['none'] should succeed.")
 
 	eth0["ipv6.gateway"] = "auto"
 	eth1["ipv6.gateway"] = ""
@@ -312,7 +312,7 @@ func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
 		Name: "testFoo",
 	}, true)
 	suite.Req.Error(err,
-		fmt.Errorf("Adding multiple routed nic devices with any gateway mmode ['auto',''] should throw error. "))
+		"Adding multiple routed nic devices with any gateway mode ['auto',''] should throw error.")
 
 	err = c.Update(db.InstanceArgs{
 		Type:     instancetype.Container,
@@ -325,7 +325,7 @@ func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
 		Name: "testFoo",
 	}, true)
 	suite.Req.NoError(err,
-		fmt.Errorf("Adding multiple nic devices with unicque nictype ['routed'] should throw error. "))
+		"Adding multiple nic devices with unique nictype ['routed'] should throw error.")
 }
 
 func (suite *containerTestSuite) TestContainer_IsPrivileged_Unprivileged() {
