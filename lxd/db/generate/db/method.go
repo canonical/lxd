@@ -219,7 +219,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		}
 
 		buf.L("if len(entries) == 0 {")
-		buf.L("return nil, fmt.Errorf(\"Cannot filter on empty %s\")", entityFilter(mapping.Name))
+		buf.L("return nil, errors.New(\"Cannot filter on empty %s\")", entityFilter(mapping.Name))
 		buf.L("}")
 		buf.N()
 		buf.L("queryParts[0] += fmt.Sprintf(cond, strings.Join(entries, \" AND \"))")
@@ -312,9 +312,9 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		}
 
 		buf.L("%s %s {", branch, activeCriteria([]string{}, FieldNames(mapping.Filters)))
-		buf.L("return nil, fmt.Errorf(\"Cannot filter on empty %s\")", entityFilter(mapping.Name))
+		buf.L("return nil, errors.New(\"Cannot filter on empty %s\")", entityFilter(mapping.Name))
 		buf.L("} else {")
-		buf.L("return nil, fmt.Errorf(\"No statement exists for the given Filter\")")
+		buf.L("return nil, errors.New(\"No statement exists for the given Filter\")")
 		buf.L("}")
 		buf.L("}")
 		buf.N()
@@ -380,7 +380,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			buf.L("filter := f.%s", refStruct)
 			buf.L("if filter != nil {")
 			buf.L("if %s {", activeCriteria(nil, FieldNames(refMapping.Filters)))
-			buf.L("return nil, fmt.Errorf(\"Cannot filter on empty %s\")", entityFilter(refMapping.Name))
+			buf.L("return nil, errors.New(\"Cannot filter on empty %s\")", entityFilter(refMapping.Name))
 			buf.L("}")
 			buf.N()
 			buf.L("%sFilters = append(%sFilters, *filter)", refVar, refVar)
@@ -419,7 +419,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			buf.L("filter := f.%s", refStruct)
 			buf.L("if filter != nil {")
 			buf.L("if %s {", activeCriteria(nil, FieldNames(refMapping.Filters)))
-			buf.L("return nil, fmt.Errorf(\"Cannot filter on empty %s\")", entityFilter(refMapping.Name))
+			buf.L("return nil, errors.New(\"Cannot filter on empty %s\")", entityFilter(refMapping.Name))
 			buf.L("}")
 			buf.N()
 			buf.L("%sFilters = append(%sFilters, *filter)", refVar, refVar)
@@ -577,7 +577,7 @@ func (m *Method) getOne(buf *file.Buffer) error {
 	buf.L("case 1:")
 	buf.L("        return &objects[0], nil")
 	buf.L("default:")
-	buf.L(`        return nil, fmt.Errorf("More than one \"%s\" entry matches")`, entityTable(m.entity, m.config["table"]))
+	buf.L(`        return nil, errors.New("More than one \"%s\" entry matches")`, entityTable(m.entity, m.config["table"]))
 	buf.L("}")
 
 	return nil
