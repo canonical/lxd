@@ -153,12 +153,7 @@ func GetDistinctAuthGroupNamesFromIDPGroupNames(ctx context.Context, tx *sql.Tx,
 		args = append(args, idpGroupName)
 	}
 
-	q := fmt.Sprintf(`
-SELECT DISTINCT auth_groups.name
-FROM auth_groups
-JOIN auth_groups_identity_provider_groups ON auth_groups.id = auth_groups_identity_provider_groups.auth_group_id
-JOIN identity_provider_groups ON auth_groups_identity_provider_groups.identity_provider_group_id = identity_provider_groups.id
-WHERE identity_provider_groups.name IN %s`, query.Params(len(idpGroupNames)))
+	q := "\nSELECT DISTINCT auth_groups.name\nFROM auth_groups\nJOIN auth_groups_identity_provider_groups ON auth_groups.id = auth_groups_identity_provider_groups.auth_group_id\nJOIN identity_provider_groups ON auth_groups_identity_provider_groups.identity_provider_group_id = identity_provider_groups.id\nWHERE identity_provider_groups.name IN " + query.Params(len(idpGroupNames))
 	mappedGroups, err := query.SelectStrings(ctx, tx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get groups from identity provider groups: %w", err)
