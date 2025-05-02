@@ -141,7 +141,7 @@ func Send(name string, path string, conn io.ReadWriteCloser, tracker *ioprogress
 	 * stdin/stdout, but that also seemed messy. In any case, this seems to
 	 * work just fine.
 	 */
-	auds := fmt.Sprintf("@lxd/%s", uuid.New().String())
+	auds := "@lxd/" + uuid.New().String()
 	// We simply copy a part of the uuid if it's longer than the allowed
 	// maximum. That should be safe enough for our purposes.
 	if len(auds) > linux.ABSTRACT_UNIX_SOCK_LEN-1 {
