@@ -3,10 +3,11 @@ package cluster
 import (
 	"context"
 	"database/sql"
-	"fmt"
+
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -129,7 +130,7 @@ func TestEnsureSchema_UpdateNodeVersion(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			db := newDB(t)
 
 			// Add ourselves with an older schema version and API
