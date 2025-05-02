@@ -56,7 +56,7 @@ func imageOperationLock(fingerprint string) (locking.UnlockFunc, error) {
 	l.Debug("Acquiring lock for image")
 	defer l.Debug("Lock acquired for image")
 
-	return locking.Lock(context.TODO(), fmt.Sprintf("ImageOperation_%s", fingerprint))
+	return locking.Lock(context.TODO(), "ImageOperation_"+fingerprint)
 }
 
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it.
