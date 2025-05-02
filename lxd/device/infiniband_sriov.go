@@ -231,7 +231,7 @@ func (d *infinibandSRIOV) startVM() (*deviceConfig.RunConfig, error) {
 	runConf.NetworkInterface = append(runConf.NetworkInterface, []deviceConfig.RunConfigItem{
 		{Key: "devName", Value: d.name},
 		{Key: "pciSlotName", Value: vfPCIDev.SlotName},
-		{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
+		{Key: "pciIOMMUGroup", Value: strconv.FormatUint(pciIOMMUGroup, 10)},
 	}...)
 
 	return &runConf, nil
@@ -328,7 +328,7 @@ func (d *infinibandSRIOV) setupSriovParent(parentPCIAddress string, vfID int, vo
 	defer revert.Fail()
 
 	volatile["last_state.pci.parent"] = parentPCIAddress
-	volatile["last_state.vf.id"] = fmt.Sprintf("%d", vfID)
+	volatile["last_state.vf.id"] = strconv.Itoa(vfID)
 	volatile["last_state.created"] = "false" // Indicates don't delete device at stop time.
 
 	// Get VF device's PCI Slot Name so we can unbind and rebind it from the host.
