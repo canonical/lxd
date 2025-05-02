@@ -205,7 +205,7 @@ func (d *infinibandPhysical) Start() (*deviceConfig.RunConfig, error) {
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
 				{Key: "pciSlotName", Value: saveData["last_state.pci.slot.name"]},
-				{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
+				{Key: "pciIOMMUGroup", Value: strconv.FormatUint(pciIOMMUGroup, 10)},
 			}...)
 	}
 
