@@ -1402,7 +1402,7 @@ func (c *cmdClusterEvacuateAction) run(cmd *cobra.Command, args []string) error 
 		var statusErr api.StatusError
 
 		if errors.As(err, &statusErr) && statusErr.Status() == http.StatusServiceUnavailable {
-			return fmt.Errorf("Offline cluster members cannot be evacuated")
+			return errors.New("Offline cluster members cannot be evacuated")
 		}
 
 		return fmt.Errorf("Failed to update cluster member state: %w", err)
