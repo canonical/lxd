@@ -322,7 +322,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 	logger.Info("Downloading image", ctxMap)
 
 	// Cleanup any leftover from a past attempt
-	destDir := shared.VarPath("images")
+	destDir := s.ImagesStoragePath()
 	destName := filepath.Join(destDir, fp)
 
 	failure := true

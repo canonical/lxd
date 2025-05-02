@@ -500,7 +500,7 @@ func imgPostInstanceInfo(s *state.State, r *http.Request, req api.ImagesPost, op
 	}
 
 	/* rename the file to the expected name so our caller can use it */
-	finalName := shared.VarPath("images", info.Fingerprint)
+	finalName := filepath.Join(s.ImagesStoragePath(), info.Fingerprint)
 	err = shared.FileMove(imageFile.Name(), finalName)
 	if err != nil {
 		return nil, err
@@ -828,7 +828,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		info.Type = imageType
 	}
 
-	imgfname := shared.VarPath("images", info.Fingerprint)
+	imgfname := filepath.Join(s.ImagesStoragePath(), info.Fingerprint)
 	err = shared.FileMove(imageTmpFilename, imgfname)
 	if err != nil {
 		l.Error("Failed to move the image tarfile", logger.Ctx{
@@ -839,7 +839,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 	}
 
 	if rootfsTmpFilename != "" {
-		rootfsfname := shared.VarPath("images", info.Fingerprint+".rootfs")
+		rootfsfname := imgfname + ".rootfs"
 		err = shared.FileMove(rootfsTmpFilename, rootfsfname)
 		if err != nil {
 			l.Error("Failed to move the rootfs tarfile", logger.Ctx{
@@ -1123,7 +1123,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// create a directory under which we keep everything while building
-	builddir, err := os.MkdirTemp(shared.VarPath("images"), "lxd_build_")
+	builddir, err := os.MkdirTemp(s.ImagesStoragePath(), "lxd_build_")
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -2184,8 +2184,9 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 		}
 
 		createArgs := &lxd.ImageCreateArgs{}
-		imageMetaPath := shared.VarPath("images", newImage.Fingerprint)
-		imageRootfsPath := shared.VarPath("images", newImage.Fingerprint+".rootfs")
+
+		imageMetaPath := filepath.Join(s.ImagesStoragePath(), newImage.Fingerprint)
+		imageRootfsPath := imageMetaPath + ".rootfs"
 
 		metaFile, err := os.Open(imageMetaPath)
 		if err != nil {
@@ -2478,7 +2479,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 	}
 
 	// Remove main image file.
-	fname := filepath.Join(s.OS.VarDir, "images", fingerprint)
+	fname := filepath.Join(s.ImagesStoragePath(), fingerprint)
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
 		if err != nil {
@@ -2487,7 +2488,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 	}
 
 	// Remove the rootfs file for the image.
-	fname = filepath.Join(s.OS.VarDir, "images", fingerprint) + ".rootfs"
+	fname = fname + ".rootfs"
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
 		if err != nil {
@@ -2604,7 +2605,8 @@ func pruneLeftoverImages(s *state.State) {
 		}
 
 		// Look at what's in the images directory
-		entries, err := os.ReadDir(shared.VarPath("images"))
+		imagesDir := s.ImagesStoragePath()
+		entries, err := os.ReadDir(imagesDir)
 		if err != nil {
 			return fmt.Errorf("Unable to list the images directory: %w", err)
 		}
@@ -2613,7 +2615,7 @@ func pruneLeftoverImages(s *state.State) {
 		for _, entry := range entries {
 			fp := strings.Split(entry.Name(), ".")[0]
 			if !shared.ValueInSlice(fp, images) {
-				err = os.RemoveAll(shared.VarPath("images", entry.Name()))
+				err = os.RemoveAll(filepath.Join(imagesDir, entry.Name()))
 				if err != nil {
 					return fmt.Errorf("Unable to remove leftover image: %v: %w", entry.Name(), err)
 				}
@@ -2793,7 +2795,7 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 		}
 
 		// Remove main image file.
-		err := imageDeleteFromDisk(fingerprint)
+		err := imageDeleteFromDisk(s, fingerprint)
 		if err != nil {
 			return err
 		}
@@ -2956,7 +2958,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Remove main image file from disk.
-		err = imageDeleteFromDisk(details.image.Fingerprint)
+		err = imageDeleteFromDisk(s, details.image.Fingerprint)
 		if err != nil {
 			return err
 		}
@@ -2988,9 +2990,9 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 // imageDeleteFromDisk removes the main image file and rootfs file of an image.
-func imageDeleteFromDisk(fingerprint string) error {
+func imageDeleteFromDisk(s *state.State, fingerprint string) error {
 	// Remove main image file.
-	fname := shared.VarPath("images", fingerprint)
+	fname := filepath.Join(s.ImagesStoragePath(), fingerprint)
 	if shared.PathExists(fname) {
 		err := os.Remove(fname)
 		if err != nil && !os.IsNotExist(err) {
@@ -2999,7 +3001,7 @@ func imageDeleteFromDisk(fingerprint string) error {
 	}
 
 	// Remove the rootfs file for the image.
-	fname = shared.VarPath("images", fingerprint) + ".rootfs"
+	fname = fname + ".rootfs"
 	if shared.PathExists(fname) {
 		err := os.Remove(fname)
 		if err != nil && !os.IsNotExist(err) {
@@ -4352,7 +4354,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		return response.ForwardedResponse(client, r)
 	}
 
-	imagePath := shared.VarPath("images", imgInfo.Fingerprint)
+	imagePath := filepath.Join(s.ImagesStoragePath(), imgInfo.Fingerprint)
 	rootfsPath := imagePath + ".rootfs"
 
 	_, ext, _, err := shared.DetectCompression(imagePath)
@@ -4467,8 +4469,8 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 
 	run := func(op *operations.Operation) error {
 		createArgs := &lxd.ImageCreateArgs{}
-		imageMetaPath := shared.VarPath("images", details.imageFingerprintPrefix)
-		imageRootfsPath := shared.VarPath("images", details.imageFingerprintPrefix+".rootfs")
+		imageMetaPath := filepath.Join(s.ImagesStoragePath(), details.imageFingerprintPrefix)
+		imageRootfsPath := imageMetaPath + ".rootfs"
 
 		metaFile, err := os.Open(imageMetaPath)
 		if err != nil {
