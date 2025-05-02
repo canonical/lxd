@@ -82,7 +82,7 @@ func DeviceSetDriverOverride(pciDev Device, driverOverride string) error {
 	overridePath := filepath.Join("/sys/bus/pci/devices", pciDev.SlotName, "driver_override")
 
 	// The "\n" at end is important to allow the driver override to be cleared by passing "" in.
-	err := os.WriteFile(overridePath, []byte(fmt.Sprintf("%s\n", driverOverride)), 0600)
+	err := os.WriteFile(overridePath, []byte(driverOverride+"\n"), 0600)
 	if err != nil {
 		return fmt.Errorf("Failed setting driver override %q for device %q via %q: %w", driverOverride, pciDev.SlotName, overridePath, err)
 	}
@@ -170,7 +170,7 @@ func NormaliseAddress(addr string) string {
 	// However, the devices in /sys/bus/pci/devices use the long format which
 	// is why we need to make sure the prefix is present.
 	if len(addr) == 7 {
-		addr = fmt.Sprintf("0000:%s", addr)
+		addr = "0000:" + addr
 	}
 
 	// Ensure all addresses are lowercase.
