@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -505,7 +506,7 @@ func (d *zone) Content() (*strings.Builder, error) {
 		for _, entry := range extraRecord.Entries {
 			record := map[string]string{}
 			if entry.TTL > 0 {
-				record["ttl"] = fmt.Sprintf("%d", entry.TTL)
+				record["ttl"] = strconv.FormatUint(entry.TTL, 10)
 			} else {
 				record["ttl"] = "300"
 			}
