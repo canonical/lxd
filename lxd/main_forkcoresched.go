@@ -84,7 +84,7 @@ void forkcoresched(void)
 import "C"
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/spf13/cobra"
 
@@ -114,5 +114,5 @@ func (c *cmdForkcoresched) Command() *cobra.Command {
 }
 
 func (c *cmdForkcoresched) Run(cmd *cobra.Command, args []string) error {
-	return fmt.Errorf("This command should have been intercepted in cgo")
+	return errors.New("This command should have been intercepted in cgo")
 }
