@@ -3,6 +3,7 @@ package apparmor
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -262,7 +263,7 @@ func profileName(prefix string, name string) string {
 	if len(name)+len(prefix)+3+separators >= 253 {
 		hash := sha256.New()
 		_, _ = io.WriteString(hash, name)
-		name = fmt.Sprintf("%x", hash.Sum(nil))
+		name = hex.EncodeToString(hash.Sum(nil))
 	}
 
 	if len(prefix) > 0 {
