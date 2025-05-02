@@ -242,7 +242,7 @@ func instanceParseType(value string) (map[string]string, error) {
 
 		cpuTime := int(limits.CPU / float32(cpuCores) * 100.0)
 
-		out["limits.cpu"] = fmt.Sprintf("%d", cpuCores)
+		out["limits.cpu"] = strconv.Itoa(cpuCores)
 		if cpuTime < 100 {
 			out["limits.cpu.allowance"] = fmt.Sprintf("%d%%", cpuTime)
 		}
