@@ -880,7 +880,7 @@ func (c *cmdList) typeColumnData(cInfo api.InstanceFull) string {
 
 func (c *cmdList) numberSnapshotsColumnData(cInfo api.InstanceFull) string {
 	if cInfo.Snapshots != nil {
-		return fmt.Sprint(len(cInfo.Snapshots))
+		return strconv.Itoa(len(cInfo.Snapshots))
 	}
 
 	return "0"
@@ -888,7 +888,7 @@ func (c *cmdList) numberSnapshotsColumnData(cInfo api.InstanceFull) string {
 
 func (c *cmdList) pidColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil {
-		return fmt.Sprint(cInfo.State.Pid)
+		return strconv.FormatInt(cInfo.State.Pid, 10)
 	}
 
 	return ""
@@ -934,7 +934,7 @@ func (c *cmdList) lastUsedColumnData(cInfo api.InstanceFull) string {
 
 func (c *cmdList) numberOfProcessesColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil {
-		return fmt.Sprint(cInfo.State.Processes)
+		return strconv.FormatInt(cInfo.State.Processes, 10)
 	}
 
 	return ""
