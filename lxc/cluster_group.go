@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -498,7 +499,7 @@ func (c *cmdClusterGroupList) run(cmd *cobra.Command, args []string) error {
 	// Render the table
 	data := [][]string{}
 	for _, group := range groups {
-		line := []string{group.Name, group.Description, fmt.Sprint(len(group.Members))}
+		line := []string{group.Name, group.Description, strconv.Itoa(len(group.Members))}
 		data = append(data, line)
 	}
 
