@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/cgroup"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/idmap"
+	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -232,8 +233,8 @@ func (s *OS) Init() ([]cluster.Warning, error) {
 }
 
 // InitStorage initialises the storage layer after it has been mounted.
-func (s *OS) InitStorage() error {
-	return s.initStorageDirs()
+func (s *OS) InitStorage(config *node.Config) error {
+	return s.initStorageDirs(config)
 }
 
 // InUbuntuCore returns true if we're running on Ubuntu Core.
