@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -248,7 +249,7 @@ func GetMountinfo(path string) ([]string, error) {
 			continue
 		}
 
-		if tokens[0] == fmt.Sprint(stat.Mnt_id) {
+		if tokens[0] == strconv.FormatUint(stat.Mnt_id, 10) {
 			return tokens, nil
 		}
 	}
