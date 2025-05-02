@@ -2055,8 +2055,8 @@ func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
 		"forksyscallgo",
 		"finit_module_parse",                 // <syscall_operation>
 		fmt.Sprintf("%d", int(siov.req.pid)), // <PID>
-		fmt.Sprintf("%d", 0),                 // <PidFd>
-		fmt.Sprintf("%d", 3),                 // <module_fd>
+		"0",                 // <PidFd>
+		"3",                 // <module_fd>
 	}
 
 	var buffer bytes.Buffer
