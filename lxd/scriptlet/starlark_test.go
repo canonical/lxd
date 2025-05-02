@@ -2,6 +2,7 @@ package scriptlet
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -199,7 +200,7 @@ func TestStarlarkMarshal(t *testing.T) {
 			return ret
 		}(),
 	}} {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			sv, err := StarlarkMarshal(scenario.from)
 			if scenario.errPrefix == "" {
 				assert.NoError(t, err)
