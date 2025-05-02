@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 	"net/url"
 
@@ -72,7 +72,7 @@ func instanceUEFIVarsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -91,7 +91,7 @@ func instanceUEFIVarsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if inst.Type() != instancetype.VM {
-		return response.BadRequest(fmt.Errorf("UEFI variables manipulation supported for VM type instances only"))
+		return response.BadRequest(errors.New("UEFI variables manipulation supported for VM type instances only"))
 	}
 
 	instanceUEFI, err := inst.(instance.VM).UEFIVars()
@@ -157,7 +157,7 @@ func instanceUEFIVarsPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -183,11 +183,11 @@ func instanceUEFIVarsPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if inst.Type() != instancetype.VM {
-		return response.BadRequest(fmt.Errorf("UEFI variables manipulation supported for VM type instances only"))
+		return response.BadRequest(errors.New("UEFI variables manipulation supported for VM type instances only"))
 	}
 
 	if inst.IsRunning() {
-		return response.BadRequest(fmt.Errorf("UEFI variables editing is allowed for stopped VM instances only"))
+		return response.BadRequest(errors.New("UEFI variables editing is allowed for stopped VM instances only"))
 	}
 
 	instanceUEFI, err := inst.(instance.VM).UEFIVars()

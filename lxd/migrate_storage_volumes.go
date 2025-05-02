@@ -113,7 +113,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	// this, and adjust the migration types accordingly.
 	poolMigrationTypes = pool.MigrationTypes(storageDrivers.ContentType(customVol.ContentType), false, !s.volumeOnly)
 	if len(poolMigrationTypes) == 0 {
-		return fmt.Errorf("No source migration types available")
+		return errors.New("No source migration types available")
 	}
 
 	// Convert the pool's migration type options to an offer header to target.

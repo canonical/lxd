@@ -1,6 +1,7 @@
 package device
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -65,7 +66,7 @@ func (d *gpuSRIOV) validateConfig(instConf instance.ConfigReader) error {
 // validateEnvironment checks the runtime environment for correctness.
 func (d *gpuSRIOV) validateEnvironment() error {
 	if d.inst.Type() == instancetype.VM && shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) {
-		return fmt.Errorf("GPU devices cannot be used when migration.stateful is enabled")
+		return errors.New("GPU devices cannot be used when migration.stateful is enabled")
 	}
 
 	return validatePCIDevice(d.config["pci"])
@@ -125,7 +126,7 @@ func (d *gpuSRIOV) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	if vfID == -1 {
-		return nil, fmt.Errorf("All virtual functions on parent device seem to be in use")
+		return nil, errors.New("All virtual functions on parent device seem to be in use")
 	}
 
 	vfPCIDev, err := d.setupSriovParent(parentPCIAddress, vfID, saveData)
@@ -165,7 +166,7 @@ func (d *gpuSRIOV) getParentPCIAddresses() ([]string, error) {
 	}
 
 	if len(parentPCIAddresses) == 0 {
-		return nil, fmt.Errorf("Failed to detect requested GPU device")
+		return nil, errors.New("Failed to detect requested GPU device")
 	}
 
 	return parentPCIAddresses, nil

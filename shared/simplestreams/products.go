@@ -1,6 +1,7 @@
 package simplestreams
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -140,7 +141,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				}
 
 				if fingerprint == "" {
-					return fmt.Errorf("No LXD image fingerprint found")
+					return errors.New("No LXD image fingerprint found")
 				}
 
 				// Figure out the size
@@ -151,7 +152,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 
 				// Determine filename
 				if meta.Path == "" {
-					return fmt.Errorf("Missing path field on metadata entry")
+					return errors.New("Missing path field on metadata entry")
 				}
 
 				fields := strings.Split(meta.Path, "/")

@@ -2,7 +2,6 @@ package drivers
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -16,7 +15,7 @@ import (
 )
 
 // ErrExecDisconnected is returned when the guest disconnects the exec session.
-var ErrExecDisconnected = fmt.Errorf("Disconnected")
+var ErrExecDisconnected = errors.New("Disconnected")
 
 // Cmd represents a running command for an Qemu VM.
 type qemuCmd struct {
@@ -43,7 +42,7 @@ func (c *qemuCmd) Signal(sig unix.Signal) error {
 	// Check handler hasn't finished.
 	select {
 	case <-c.dataDone:
-		return fmt.Errorf("no such process") // Aligns with error retured from unix.Kill in lxc's Signal().
+		return errors.New("no such process") // Aligns with error retured from unix.Kill in lxc's Signal().
 	default:
 	}
 
@@ -113,7 +112,7 @@ func (c *qemuCmd) WindowResize(fd, winchWidth, winchHeight int) error {
 	// Check handler hasn't finished.
 	select {
 	case <-c.dataDone:
-		return fmt.Errorf("no such process") // Aligns with error retured from unix.Kill in lxc's Signal().
+		return errors.New("no such process") // Aligns with error retured from unix.Kill in lxc's Signal().
 	default:
 	}
 

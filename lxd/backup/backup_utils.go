@@ -3,7 +3,7 @@ package backup
 import (
 	"archive/tar"
 	"context"
-	"fmt"
+	"errors"
 	"io"
 	"strings"
 
@@ -25,7 +25,7 @@ func TarReader(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*tar.Reader, 
 	}
 
 	if unpacker == nil {
-		return nil, nil, fmt.Errorf("Unsupported backup compression")
+		return nil, nil, errors.New("Unsupported backup compression")
 	}
 
 	tr, cancelFunc, err := archive.CompressedTarReader(context.Background(), r, unpacker, sysOS, outputPath)
@@ -41,15 +41,15 @@ func TarReader(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*tar.Reader, 
 // If the name is illegal, then an empty string and an error are returned.
 func ValidateBackupName(backupName string) (string, error) {
 	if strings.Contains(backupName, "/") {
-		return "", fmt.Errorf("Backup name must not contain forward slashes")
+		return "", errors.New("Backup name must not contain forward slashes")
 	}
 
 	if strings.Contains(backupName, "\\") {
-		return "", fmt.Errorf("Backup name must not contain back slashes")
+		return "", errors.New("Backup name must not contain back slashes")
 	}
 
 	if strings.Contains(backupName, "..") {
-		return "", fmt.Errorf("Backup name must not contain '..'")
+		return "", errors.New("Backup name must not contain '..'")
 	}
 
 	return backupName, nil

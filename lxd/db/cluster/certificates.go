@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -131,7 +132,7 @@ func GetCertificateByFingerprintPrefix(ctx context.Context, tx *sql.Tx, fingerpr
 	}
 
 	if len(dbCertificateIdentities) > 1 {
-		return nil, fmt.Errorf("More than one certificate matches")
+		return nil, errors.New("More than one certificate matches")
 	}
 
 	if len(dbCertificateIdentities) == 0 {

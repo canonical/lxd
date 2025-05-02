@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -18,11 +19,11 @@ const separator = "_"
 // ValidName validates a project name.
 func ValidName(name string) error {
 	if name == "" {
-		return fmt.Errorf("No name provided")
+		return errors.New("No name provided")
 	}
 
 	if name == "*" {
-		return fmt.Errorf("Reserved project name")
+		return errors.New("Reserved project name")
 	}
 
 	if name == "." || name == ".." {
@@ -30,23 +31,23 @@ func ValidName(name string) error {
 	}
 
 	if strings.Contains(name, "\\") {
-		return fmt.Errorf("Project names may not contain back slashes")
+		return errors.New("Project names may not contain back slashes")
 	}
 
 	if strings.Contains(name, "/") {
-		return fmt.Errorf("Project names may not contain slashes")
+		return errors.New("Project names may not contain slashes")
 	}
 
 	if strings.Contains(name, " ") {
-		return fmt.Errorf("Project names may not contain spaces")
+		return errors.New("Project names may not contain spaces")
 	}
 
 	if strings.Contains(name, "_") {
-		return fmt.Errorf("Project names may not contain underscores")
+		return errors.New("Project names may not contain underscores")
 	}
 
 	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
-		return fmt.Errorf("Project names may not contain quotes")
+		return errors.New("Project names may not contain quotes")
 	}
 
 	return nil

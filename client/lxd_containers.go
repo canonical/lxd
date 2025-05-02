@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -182,7 +183,7 @@ func (r *ProtocolLXD) CreateContainer(container api.ContainersPost) (Operation, 
 
 func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("The source server isn't listening on the network")
+		return nil, errors.New("The source server isn't listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -321,35 +322,35 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 		// Quick checks.
 		if args.ContainerOnly {
 			if !r.HasExtension("container_only_migration") {
-				return nil, fmt.Errorf("The target server is missing the required \"container_only_migration\" API extension")
+				return nil, errors.New("The target server is missing the required \"container_only_migration\" API extension")
 			}
 
 			if !source.HasExtension("container_only_migration") {
-				return nil, fmt.Errorf("The source server is missing the required \"container_only_migration\" API extension")
+				return nil, errors.New("The source server is missing the required \"container_only_migration\" API extension")
 			}
 		}
 
 		if shared.ValueInSlice(args.Mode, []string{"push", "relay"}) {
 			if !r.HasExtension("container_push") {
-				return nil, fmt.Errorf("The target server is missing the required \"container_push\" API extension")
+				return nil, errors.New("The target server is missing the required \"container_push\" API extension")
 			}
 
 			if !source.HasExtension("container_push") {
-				return nil, fmt.Errorf("The source server is missing the required \"container_push\" API extension")
+				return nil, errors.New("The source server is missing the required \"container_push\" API extension")
 			}
 		}
 
 		if args.Mode == "push" && !source.HasExtension("container_push_target") {
-			return nil, fmt.Errorf("The source server is missing the required \"container_push_target\" API extension")
+			return nil, errors.New("The source server is missing the required \"container_push_target\" API extension")
 		}
 
 		if args.Refresh {
 			if !r.HasExtension("container_incremental_copy") {
-				return nil, fmt.Errorf("The target server is missing the required \"container_incremental_copy\" API extension")
+				return nil, errors.New("The target server is missing the required \"container_incremental_copy\" API extension")
 			}
 
 			if !source.HasExtension("container_incremental_copy") {
-				return nil, fmt.Errorf("The source server is missing the required \"container_incremental_copy\" API extension")
+				return nil, errors.New("The source server is missing the required \"container_incremental_copy\" API extension")
 			}
 		}
 
@@ -552,7 +553,7 @@ func (r *ProtocolLXD) UpdateContainer(name string, container api.ContainerPut, E
 func (r *ProtocolLXD) RenameContainer(name string, container api.ContainerPost) (Operation, error) {
 	// Quick check.
 	if container.Migration {
-		return nil, fmt.Errorf("Can't ask for a migration through RenameContainer")
+		return nil, errors.New("Can't ask for a migration through RenameContainer")
 	}
 
 	// Send the request
@@ -566,7 +567,7 @@ func (r *ProtocolLXD) RenameContainer(name string, container api.ContainerPost) 
 
 func (r *ProtocolLXD) tryMigrateContainer(source InstanceServer, name string, req api.ContainerPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("The target server isn't listening on the network")
+		return nil, errors.New("The target server isn't listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -632,7 +633,7 @@ func (r *ProtocolLXD) MigrateContainer(name string, container api.ContainerPost)
 
 	// Quick check.
 	if !container.Migration {
-		return nil, fmt.Errorf("Can't ask for a rename through MigrateContainer")
+		return nil, errors.New("Can't ask for a rename through MigrateContainer")
 	}
 
 	// Send the request
@@ -1084,16 +1085,16 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 		// Quick checks.
 		if shared.ValueInSlice(args.Mode, []string{"push", "relay"}) {
 			if !r.HasExtension("container_push") {
-				return nil, fmt.Errorf("The target server is missing the required \"container_push\" API extension")
+				return nil, errors.New("The target server is missing the required \"container_push\" API extension")
 			}
 
 			if !source.HasExtension("container_push") {
-				return nil, fmt.Errorf("The source server is missing the required \"container_push\" API extension")
+				return nil, errors.New("The source server is missing the required \"container_push\" API extension")
 			}
 		}
 
 		if args.Mode == "push" && !source.HasExtension("container_push_target") {
-			return nil, fmt.Errorf("The source server is missing the required \"container_push_target\" API extension")
+			return nil, errors.New("The source server is missing the required \"container_push_target\" API extension")
 		}
 
 		// Allow overriding the target name
@@ -1281,7 +1282,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 func (r *ProtocolLXD) RenameContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (Operation, error) {
 	// Quick check.
 	if container.Migration {
-		return nil, fmt.Errorf("Can't ask for a migration through RenameContainerSnapshot")
+		return nil, errors.New("Can't ask for a migration through RenameContainerSnapshot")
 	}
 
 	// Send the request
@@ -1297,7 +1298,7 @@ func (r *ProtocolLXD) RenameContainerSnapshot(containerName string, name string,
 // It runs the migration asynchronously and returns a RemoteOperation to track the migration status and any errors.
 func (r *ProtocolLXD) tryMigrateContainerSnapshot(source InstanceServer, containerName string, name string, req api.ContainerSnapshotPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("The target server isn't listening on the network")
+		return nil, errors.New("The target server isn't listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -1356,7 +1357,7 @@ func (r *ProtocolLXD) tryMigrateContainerSnapshot(source InstanceServer, contain
 func (r *ProtocolLXD) MigrateContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (Operation, error) {
 	// Quick check.
 	if !container.Migration {
-		return nil, fmt.Errorf("Can't ask for a rename through MigrateContainerSnapshot")
+		return nil, errors.New("Can't ask for a rename through MigrateContainerSnapshot")
 	}
 
 	// Send the request
@@ -1661,11 +1662,11 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 	opAPI := op.Get()
 
 	if args == nil || args.Terminal == nil {
-		return nil, fmt.Errorf("A terminal must be set")
+		return nil, errors.New("A terminal must be set")
 	}
 
 	if args.Control == nil {
-		return nil, fmt.Errorf("A control channel must be set")
+		return nil, errors.New("A control channel must be set")
 	}
 
 	// Parse the fds
@@ -1684,7 +1685,7 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 	var controlConn *websocket.Conn
 	// Call the control handler with a connection to the control socket
 	if fds[api.SecretNameControl] == "" {
-		return nil, fmt.Errorf("Did not receive a file descriptor for the control channel")
+		return nil, errors.New("Did not receive a file descriptor for the control channel")
 	}
 
 	controlConn, err = r.GetOperationWebsocket(opAPI.ID, fds[api.SecretNameControl])

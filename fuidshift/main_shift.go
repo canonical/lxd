@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -51,13 +51,13 @@ func (c *cmdShift) run(cmd *cobra.Command, args []string) error {
 
 	// Quick checks.
 	if !c.flagTestMode && os.Geteuid() != 0 {
-		return fmt.Errorf("This tool must be run as root")
+		return errors.New("This tool must be run as root")
 	}
 
 	// Handle mandatory arguments
 	if len(args) < 2 {
 		_ = cmd.Help()
-		return fmt.Errorf("Missing required arguments")
+		return errors.New("Missing required arguments")
 	}
 
 	directory := args[0]

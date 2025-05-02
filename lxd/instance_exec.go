@@ -77,7 +77,7 @@ func (s *execWs) Metadata() any {
 func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
-		return fmt.Errorf("missing secret")
+		return errors.New("missing secret")
 	}
 
 	for fd, fdSecret := range s.fds {
@@ -120,10 +120,10 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 				s.connsLock.Unlock()
 				return nil
 			} else if !found {
-				return fmt.Errorf("Unknown websocket number")
+				return errors.New("Unknown websocket number")
 			}
 
-			return fmt.Errorf("Websocket number already connected")
+			return errors.New("Websocket number already connected")
 		}
 	}
 
@@ -151,7 +151,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	select {
 	case <-s.waitRequiredConnected.Done():
 	case <-time.After(time.Second * 5):
-		return fmt.Errorf("Timed out waiting for websockets to connect")
+		return errors.New("Timed out waiting for websockets to connect")
 	}
 
 	var err error
@@ -173,7 +173,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 			c, ok := s.instance.(instance.Container)
 			if !ok {
-				return fmt.Errorf("Invalid instance type")
+				return errors.New("Invalid instance type")
 			}
 
 			idmapset, err := c.CurrentIdmap()
@@ -535,7 +535,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	post := api.InstanceExecPost{}
@@ -585,11 +585,11 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !inst.IsRunning() {
-		return response.BadRequest(fmt.Errorf("Instance is not running"))
+		return response.BadRequest(errors.New("Instance is not running"))
 	}
 
 	if inst.IsFrozen() {
-		return response.BadRequest(fmt.Errorf("Instance is frozen"))
+		return response.BadRequest(errors.New("Instance is frozen"))
 	}
 
 	// Process environment.

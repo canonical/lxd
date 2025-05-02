@@ -2,6 +2,7 @@ package cluster_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -154,7 +155,7 @@ func TestNewNotify_NotifyAliveShuttingDown(t *testing.T) {
 	cleanupF := f.Nodes(cert, 3)
 	defer cleanupF()
 
-	f.Unavailable(1, fmt.Errorf("LXD is shutting down"))
+	f.Unavailable(1, errors.New("LXD is shutting down"))
 
 	// Populate state.LocalConfig after nodes created above.
 	var err error

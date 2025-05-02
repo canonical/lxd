@@ -1,6 +1,7 @@
 package acl
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/canonical/lxd/shared"
@@ -10,7 +11,7 @@ import (
 // ValidName checks the ACL name is valid.
 func ValidName(name string) error {
 	if name == "" {
-		return fmt.Errorf("Name is required")
+		return errors.New("Name is required")
 	}
 
 	// Don't allow ACL names to start with special port selector characters to allow LXD to define special port

@@ -389,11 +389,11 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 
 	// Quick checks.
 	if req.Name == "" {
-		return response.BadRequest(fmt.Errorf("No name provided"))
+		return response.BadRequest(errors.New("No name provided"))
 	}
 
 	if strings.Contains(req.Name, "/") {
-		return response.BadRequest(fmt.Errorf("Profile names may not contain slashes"))
+		return response.BadRequest(errors.New("Profile names may not contain slashes"))
 	}
 
 	if shared.ValueInSlice(req.Name, []string{".", ".."}) {
@@ -420,7 +420,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 
 		current, _ := dbCluster.GetProfile(ctx, tx.Tx(), p.Name, req.Name)
 		if current != nil {
-			return fmt.Errorf("The profile already exists")
+			return errors.New("The profile already exists")
 		}
 
 		profile := dbCluster.Profile{
@@ -849,11 +849,11 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 
 	// Quick checks.
 	if req.Name == "" {
-		return response.BadRequest(fmt.Errorf("No name provided"))
+		return response.BadRequest(errors.New("No name provided"))
 	}
 
 	if strings.Contains(req.Name, "/") {
-		return response.BadRequest(fmt.Errorf("Profile names may not contain slashes"))
+		return response.BadRequest(errors.New("Profile names may not contain slashes"))
 	}
 
 	if shared.ValueInSlice(req.Name, []string{".", ".."}) {
@@ -928,7 +928,7 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(usedBy) > 0 {
-			return fmt.Errorf("Profile is currently in use")
+			return errors.New("Profile is currently in use")
 		}
 
 		return dbCluster.DeleteProfile(ctx, tx.Tx(), details.effectiveProject.Name, details.profileName)

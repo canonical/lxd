@@ -4,6 +4,7 @@ package openfga
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -91,23 +92,23 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 
 	// We always expect the `Object` field to be present.
 	if !hasObj {
-		return nil, fmt.Errorf("Read: Can only list by object")
+		return nil, errors.New("Read: Can only list by object")
 	}
 
 	// Users are what we are going to enumerate.
 	if hasUser {
-		return nil, fmt.Errorf("Read: Listing by user not supported")
+		return nil, errors.New("Read: Listing by user not supported")
 	}
 
 	// Expect the relation to be present.
 	if !hasRelation {
-		return nil, fmt.Errorf("Read: Listing all objects without a relation not supported")
+		return nil, errors.New("Read: Listing all objects without a relation not supported")
 	}
 
 	// Validate the object. We expect the URL to be present.
 	entityTypeStr, entityURL, hasURL := strings.Cut(obj, ":")
 	if !hasURL {
-		return nil, fmt.Errorf("Read: Listing all entities of type not supported")
+		return nil, errors.New("Read: Listing all entities of type not supported")
 	}
 
 	entityType := entity.Type(entityTypeStr)
@@ -212,7 +213,7 @@ func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, tk *open
 	// Expect the User field to be present.
 	user := tk.GetUser()
 	if user == "" {
-		return nil, fmt.Errorf("ReadUserTuple: User field of tuple key must be provided")
+		return nil, errors.New("ReadUserTuple: User field of tuple key must be provided")
 	}
 
 	// Only allow `identity` for the User type.
@@ -324,14 +325,14 @@ func (o *openfgaStore) ensureCacheLoaded(ctx context.Context, cache *RequestCach
 func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filter storage.ReadUsersetTuplesFilter, options storage.ReadUsersetTuplesOptions) (storage.TupleIterator, error) {
 	// Expect both an object and a relation.
 	if filter.Object == "" || filter.Relation == "" {
-		return nil, fmt.Errorf("ReadUsersetTuples: Filter must include both an object and a relation")
+		return nil, errors.New("ReadUsersetTuples: Filter must include both an object and a relation")
 	}
 
 	// Expect a URL to be present for the object. (E.g. we don't want to list all groups that have `can_view` on
 	// all projects, we should be checking for a specific entity).
 	entityTypeStr, entityURL, hasURL := strings.Cut(filter.Object, ":")
 	if !hasURL {
-		return nil, fmt.Errorf("ReadUsersetTuples: Listing all entities of type not supported")
+		return nil, errors.New("ReadUsersetTuples: Listing all entities of type not supported")
 	}
 
 	entityType := entity.Type(entityTypeStr)
@@ -528,13 +529,13 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 
 	// Expect that there will be exactly one user filter.
 	if len(filter.UserFilter) != 1 {
-		return nil, fmt.Errorf("ReadStartingWithUser: Unexpected user filter list length")
+		return nil, errors.New("ReadStartingWithUser: Unexpected user filter list length")
 	}
 
 	// Expect that the user filter object has an entity type and a URL.
 	userTypeStr, userURL, ok := strings.Cut(filter.UserFilter[0].GetObject(), ":")
 	if !ok {
-		return nil, fmt.Errorf("ReadStartingWithUser: Must provide user reference")
+		return nil, errors.New("ReadStartingWithUser: Must provide user reference")
 	}
 
 	// Validate the user entity type.
@@ -831,7 +832,7 @@ func (o *openfgaStore) ReadAuthorizationModels(ctx context.Context, store string
 		return []*openfgav1.AuthorizationModel{o.model}, "", nil
 	}
 
-	return nil, "", fmt.Errorf("Authorization model not set")
+	return nil, "", errors.New("Authorization model not set")
 }
 
 // MaxTuplesPerWrite returns -1 because we should never be writing to the store.

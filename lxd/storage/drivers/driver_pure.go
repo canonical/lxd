@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -181,7 +182,7 @@ func (d *pure) Validate(config map[string]string) error {
 	// Ensure pure.mode cannot be changed to avoid leaving volume mappings
 	// and prevent disturbing running instances.
 	if oldMode != "" && oldMode != newMode {
-		return fmt.Errorf("Pure Storage mode cannot be changed")
+		return errors.New("Pure Storage mode cannot be changed")
 	}
 
 	// Check if the selected Pure Storage mode is supported on this node.
@@ -220,11 +221,11 @@ func (d *pure) Create() error {
 	// not set. Since those keys are not cluster member specific, the general validation
 	// rules allow empty strings in order to create the pending storage pools.
 	if d.config["pure.gateway"] == "" {
-		return fmt.Errorf("The pure.gateway cannot be empty")
+		return errors.New("The pure.gateway cannot be empty")
 	}
 
 	if d.config["pure.api.token"] == "" {
-		return fmt.Errorf("The pure.api.token cannot be empty")
+		return errors.New("The pure.api.token cannot be empty")
 	}
 
 	poolSizeBytes, err := units.ParseByteSizeString(d.config["size"])

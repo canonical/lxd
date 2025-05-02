@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -532,7 +533,7 @@ func (p *powerFlexClient) createVolumeSnapshot(systemID string, volumeID string,
 	}
 
 	if len(actualResponse.VolumeIDs) == 0 {
-		return "", fmt.Errorf("Response does not contain a single snapshot ID")
+		return "", errors.New("Response does not contain a single snapshot ID")
 	}
 
 	return actualResponse.VolumeIDs[0], nil
@@ -1296,7 +1297,7 @@ func (d *powerflex) discover(ctx context.Context, targetAddresses ...string) ([]
 
 	// In case none of the target addresses returned any log records also return an error.
 	if len(discoveryLog.Records) == 0 {
-		return nil, fmt.Errorf("Failed to fetch a discovery log record from any of the target addresses")
+		return nil, errors.New("Failed to fetch a discovery log record from any of the target addresses")
 	}
 
 	return discoveryLog.Records, nil

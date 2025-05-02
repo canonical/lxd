@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -422,7 +423,7 @@ func (r *ProtocolLXD) MigrateStoragePoolVolume(pool string, volume api.StorageVo
 
 	// Quick check.
 	if !volume.Migration {
-		return nil, fmt.Errorf("Can't ask for a rename through MigrateStoragePoolVolume")
+		return nil, errors.New("Can't ask for a rename through MigrateStoragePoolVolume")
 	}
 
 	var req any
@@ -459,7 +460,7 @@ func (r *ProtocolLXD) MigrateStoragePoolVolume(pool string, volume api.StorageVo
 
 func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source InstanceServer, pool string, req api.StorageVolumePost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("The source server isn't listening on the network")
+		return nil, errors.New("The source server isn't listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -520,7 +521,7 @@ func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source InstanceServer, pool st
 // It will try to do this on every server in the provided list of urls, and waits for the creation to be complete.
 func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVolumesPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("The source server isn't listening on the network")
+		return nil, errors.New("The source server isn't listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -586,11 +587,11 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 	}
 
 	if args != nil && args.VolumeOnly && r.CheckExtension("storage_api_volume_snapshots") != nil {
-		return nil, fmt.Errorf("The target server is missing the required \"storage_api_volume_snapshots\" API extension")
+		return nil, errors.New("The target server is missing the required \"storage_api_volume_snapshots\" API extension")
 	}
 
 	if args != nil && args.Refresh && r.CheckExtension("custom_volume_refresh") != nil {
-		return nil, fmt.Errorf("The target server is missing the required \"custom_volume_refresh\" API extension")
+		return nil, errors.New("The target server is missing the required \"custom_volume_refresh\" API extension")
 	}
 
 	req := api.StorageVolumesPost{
@@ -801,7 +802,7 @@ func (r *ProtocolLXD) MoveStoragePoolVolume(pool string, source InstanceServer, 
 	}
 
 	if r != source {
-		return nil, fmt.Errorf("Moving storage volumes between remotes is not implemented")
+		return nil, errors.New("Moving storage volumes between remotes is not implemented")
 	}
 
 	req := api.StorageVolumePost{
@@ -1085,7 +1086,7 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeFromISO(pool string, args StoragePo
 	}
 
 	if args.Name == "" {
-		return nil, fmt.Errorf("Missing volume name")
+		return nil, errors.New("Missing volume name")
 	}
 
 	req.Header.Set("Content-Type", "application/octet-stream")

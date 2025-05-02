@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -265,7 +266,7 @@ func UpdateInstanceConfig(c *db.Cluster, b Info, mountPath string) error {
 	}
 
 	if !rootDiskDeviceFound {
-		return fmt.Errorf("No root device could be found")
+		return errors.New("No root device could be found")
 	}
 
 	// Write updated backup.yaml file.

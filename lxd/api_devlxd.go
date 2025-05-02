@@ -206,7 +206,7 @@ func findContainerForPID(pid int32, s *state.State) (instance.Container, error) 
 			}
 
 			if inst.Type() != instancetype.Container {
-				return nil, fmt.Errorf("Instance is not container type")
+				return nil, errors.New("Instance is not container type")
 			}
 
 			// Explicitly ignore type assertion check. We've just checked that it's a container.
@@ -232,7 +232,7 @@ func findContainerForPID(pid int32, s *state.State) (instance.Container, error) 
 			}
 
 			if ppid > math.MaxInt32 {
-				return nil, fmt.Errorf("PPid value too large: Upper bound exceeded")
+				return nil, errors.New("PPid value too large: Upper bound exceeded")
 			}
 
 			pid = int32(ppid)

@@ -143,7 +143,7 @@ func init() {
 func (e *EntityType) Scan(value any) error {
 	// Always expect null values to be coalesced into entityTypeNone (-1).
 	if value == nil {
-		return fmt.Errorf("Entity type cannot be null")
+		return errors.New("Entity type cannot be null")
 	}
 
 	intValue, err := driver.Int32.ConvertValue(value)
@@ -432,13 +432,13 @@ func PopulateEntityReferencesFromURLs(ctx context.Context, tx *sql.Tx, entityURL
 		}
 
 		if rowID >= len(entityURLs) {
-			return fmt.Errorf("Failed to get entityIDs from URLS: Internal error, returned row ID greater than number of URLs")
+			return errors.New("Failed to get entityIDs from URLS: Internal error, returned row ID greater than number of URLs")
 		}
 
 		// Using the row ID, get the *api.URL from the argument slice, then use it as a key in our result map to get the *EntityRef.
 		entityRef, ok := entityURLMap[entityURLs[rowID]]
 		if !ok {
-			return fmt.Errorf("Failed to get entityIDs from URLS: Internal error, entity URL missing from result object")
+			return errors.New("Failed to get entityIDs from URLS: Internal error, entity URL missing from result object")
 		}
 
 		// Set the value of the EntityID in the *EntityRef.

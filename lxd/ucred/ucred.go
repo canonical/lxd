@@ -2,7 +2,7 @@ package ucred
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net"
 
 	"golang.org/x/sys/unix"
@@ -12,7 +12,7 @@ import (
 )
 
 // ErrNotUnixSocket is returned when the underlying connection isn't a unix socket.
-var ErrNotUnixSocket = fmt.Errorf("Connection isn't a unix socket")
+var ErrNotUnixSocket = errors.New("Connection isn't a unix socket")
 
 // GetCred returns the credentials from the remote end of a unix socket.
 func GetCred(conn *net.UnixConn) (*unix.Ucred, error) {

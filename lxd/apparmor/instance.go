@@ -1,6 +1,7 @@
 package apparmor
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -203,7 +204,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 
 		vmInst, ok := inst.(instanceVM)
 		if !ok {
-			return "", fmt.Errorf("Instance is not VM type")
+			return "", errors.New("Instance is not VM type")
 		}
 
 		// Get start time firmware path to allow access to it.

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -646,7 +647,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 			}
 
 			if curConfig["cluster.https_address"] != newClusterHTTPSAddress {
-				return fmt.Errorf("Changing cluster.https_address is currently not supported")
+				return errors.New("Changing cluster.https_address is currently not supported")
 			}
 		}
 
@@ -996,7 +997,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		routerid := nodeConfig.BGPRouterID()
 
 		if asn > math.MaxUint32 {
-			return fmt.Errorf("Cannot convert BGP ASN to uint32: Upper bound exceeded")
+			return errors.New("Cannot convert BGP ASN to uint32: Upper bound exceeded")
 		}
 
 		err := s.BGP.Configure(address, uint32(asn), net.ParseIP(routerid))

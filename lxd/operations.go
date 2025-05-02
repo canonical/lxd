@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -185,7 +186,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(ops) > 1 {
-			return fmt.Errorf("More than one operation matches")
+			return errors.New("More than one operation matches")
 		}
 
 		operation := ops[0]
@@ -305,7 +306,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(ops) > 1 {
-			return fmt.Errorf("More than one operation matches")
+			return errors.New("More than one operation matches")
 		}
 
 		operation := ops[0]
@@ -357,7 +358,7 @@ func operationCancel(s *state.State, r *http.Request, projectName string, op *ap
 		}
 
 		if len(ops) > 1 {
-			return fmt.Errorf("More than one operation matches")
+			return errors.New("More than one operation matches")
 		}
 
 		operation := ops[0]
@@ -996,7 +997,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(ops) > 1 {
-			return fmt.Errorf("More than one operation matches")
+			return errors.New("More than one operation matches")
 		}
 
 		operation := ops[0]
@@ -1087,7 +1088,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	secret := r.FormValue("secret")
 	if secret == "" {
-		return response.BadRequest(fmt.Errorf("Missing websocket secret"))
+		return response.BadRequest(errors.New("Missing websocket secret"))
 	}
 
 	var address string
@@ -1103,7 +1104,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(ops) > 1 {
-			return fmt.Errorf("More than one operation matches")
+			return errors.New("More than one operation matches")
 		}
 
 		operation := ops[0]

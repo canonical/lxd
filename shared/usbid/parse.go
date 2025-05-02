@@ -17,6 +17,7 @@ package usbid
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -127,7 +128,7 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 
 		case 1:
 			if vendor == nil {
-				return fmt.Errorf("product line without vendor line")
+				return errors.New("product line without vendor line")
 			}
 
 			device = &Product{
@@ -142,7 +143,7 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 
 		case 2:
 			if device == nil {
-				return fmt.Errorf("interface line without device line")
+				return errors.New("interface line without device line")
 			}
 
 			if device.Interface == nil {
@@ -152,7 +153,7 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 			device.Interface[id] = name
 
 		default:
-			return fmt.Errorf("too many levels of nesting for vendor block")
+			return errors.New("too many levels of nesting for vendor block")
 		}
 
 		return nil
@@ -164,7 +165,7 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 
 	parseClass := func(level int, id uint16, name string) error {
 		if id > 255 {
-			return fmt.Errorf("integer overflow")
+			return errors.New("integer overflow")
 		}
 
 		switch level {
@@ -177,7 +178,7 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 
 		case 1:
 			if class == nil {
-				return fmt.Errorf("subclass line without class line")
+				return errors.New("subclass line without class line")
 			}
 
 			subclass = &SubClass{
@@ -192,7 +193,7 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 
 		case 2:
 			if subclass == nil {
-				return fmt.Errorf("protocol line without subclass line")
+				return errors.New("protocol line without subclass line")
 			}
 
 			if subclass.Protocol == nil {
@@ -202,7 +203,7 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 			subclass.Protocol[Protocol(id)] = name
 
 		default:
-			return fmt.Errorf("too many levels of nesting for class")
+			return errors.New("too many levels of nesting for class")
 		}
 
 		return nil

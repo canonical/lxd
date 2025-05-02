@@ -5,6 +5,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -200,7 +201,7 @@ func (c *ClusterTx) GetNodeByAddress(ctx context.Context, address string) (NodeI
 	case 1:
 		return nodes[0], nil
 	default:
-		return null, fmt.Errorf("more than one node matches")
+		return null, errors.New("more than one node matches")
 	}
 }
 
@@ -218,7 +219,7 @@ func (c *ClusterTx) GetNodeWithID(ctx context.Context, nodeID int) (NodeInfo, er
 	case 1:
 		return nodes[0], nil
 	default:
-		return null, fmt.Errorf("More than one cluster member matches")
+		return null, errors.New("More than one cluster member matches")
 	}
 }
 
@@ -236,7 +237,7 @@ func (c *ClusterTx) GetPendingNodeByAddress(ctx context.Context, address string)
 	case 1:
 		return nodes[0], nil
 	default:
-		return null, fmt.Errorf("More than one cluster member matches")
+		return null, errors.New("More than one cluster member matches")
 	}
 }
 
@@ -254,7 +255,7 @@ func (c *ClusterTx) GetNodeByName(ctx context.Context, name string) (NodeInfo, e
 	case 1:
 		return nodes[0], nil
 	default:
-		return null, fmt.Errorf("More than one cluster member matches")
+		return null, errors.New("More than one cluster member matches")
 	}
 }
 
@@ -273,7 +274,7 @@ func (c *ClusterTx) GetLocalNodeName(ctx context.Context) (string, error) {
 	case 1:
 		return names[0], nil
 	default:
-		return "", fmt.Errorf("inconsistency: non-unique node ID")
+		return "", errors.New("inconsistency: non-unique node ID")
 	}
 }
 
@@ -291,7 +292,7 @@ func (c *ClusterTx) GetLocalNodeAddress(ctx context.Context) (string, error) {
 	case 1:
 		return addresses[0], nil
 	default:
-		return "", fmt.Errorf("inconsistency: non-unique node ID")
+		return "", errors.New("inconsistency: non-unique node ID")
 	}
 }
 
@@ -311,7 +312,7 @@ func (c *ClusterTx) NodeIsOutdated(ctx context.Context) (bool, error) {
 		}
 	}
 	if version[0] == 0 || version[1] == 0 {
-		return false, fmt.Errorf("Inconsistency: local member not found")
+		return false, errors.New("Inconsistency: local member not found")
 	}
 
 	// Check if any of the other nodes is greater than us.
@@ -698,7 +699,7 @@ func (c *ClusterTx) UpdateNodeFailureDomain(ctx context.Context, id int64, domai
 	var domainID any
 
 	if domain == "" {
-		return fmt.Errorf("Failure domain name can't be empty")
+		return errors.New("Failure domain name can't be empty")
 	}
 
 	if domain == "default" {
@@ -1143,7 +1144,7 @@ func (c *ClusterTx) SetNodeVersion(id int64, version [2]int) error {
 	}
 
 	if n != 1 {
-		return fmt.Errorf("Expected exactly one row to be updated")
+		return errors.New("Expected exactly one row to be updated")
 	}
 
 	return nil

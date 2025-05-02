@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -25,17 +26,17 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 
 	if c.flagStorageBackend == "dir" || c.flagStorageBackend == "" {
 		if c.flagStorageLoopSize != -1 || c.flagStorageDevice != "" || c.flagStoragePool != "" {
-			return nil, fmt.Errorf("None of --storage-pool, --storage-create-device or --storage-create-loop may be used with the 'dir' backend")
+			return nil, errors.New("None of --storage-pool, --storage-create-device or --storage-create-loop may be used with the 'dir' backend")
 		}
 	} else {
 		if c.flagStorageLoopSize != -1 && c.flagStorageDevice != "" {
-			return nil, fmt.Errorf("Only one of --storage-create-device or --storage-create-loop can be specified")
+			return nil, errors.New("Only one of --storage-create-device or --storage-create-loop can be specified")
 		}
 	}
 
 	if c.flagNetworkAddress == "" {
 		if c.flagNetworkPort != -1 {
-			return nil, fmt.Errorf("--network-port can't be used without --network-address")
+			return nil, errors.New("--network-port can't be used without --network-address")
 		}
 	}
 
@@ -45,7 +46,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 	}
 
 	if len(storagePools) > 0 && (c.flagStorageBackend != "" || c.flagStorageDevice != "" || c.flagStorageLoopSize != -1 || c.flagStoragePool != "") {
-		return nil, fmt.Errorf("Storage has already been configured")
+		return nil, errors.New("Storage has already been configured")
 	}
 
 	// Defaults

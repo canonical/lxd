@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -97,7 +98,7 @@ func (s *tableSuite) TestRenderSlice() {
 				format: TableFormatCSV,
 			},
 			expect:    "",
-			expectErr: fmt.Errorf("Cannot render table: %w", fmt.Errorf("Provided argument is not a slice")),
+			expectErr: fmt.Errorf("Cannot render table: %w", errors.New("Provided argument is not a slice")),
 		},
 		{
 			name: "Invalid format",
@@ -106,7 +107,7 @@ func (s *tableSuite) TestRenderSlice() {
 				format: "not a table format",
 			},
 			expect:    "",
-			expectErr: fmt.Errorf("Invalid format \"not a table format\""),
+			expectErr: errors.New("Invalid format \"not a table format\""),
 		},
 		{
 			name: "happy path - csv, display all, sort precedence string->integer->url",

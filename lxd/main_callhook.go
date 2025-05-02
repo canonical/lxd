@@ -92,7 +92,7 @@ func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) er
 
 	containerRootFSMount := os.Getenv("LXC_ROOTFS_MOUNT")
 	if containerRootFSMount == "" {
-		return fmt.Errorf("LXC_ROOTFS_MOUNT is empty")
+		return errors.New("LXC_ROOTFS_MOUNT is empty")
 	}
 
 	fmt.Println(string(prettyHooks))
@@ -202,7 +202,7 @@ func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) er
 func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 	// Only root should run this.
 	if os.Geteuid() != 0 {
-		return fmt.Errorf("This must be run as root")
+		return errors.New("This must be run as root")
 	}
 
 	// Parse request.
@@ -219,11 +219,11 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 	// Handle startmountns hook.
 	if hook == "startmountns" {
 		if len(cdiHooksFiles) == 0 {
-			return fmt.Errorf("Missing required CDI hooks files argument")
+			return errors.New("Missing required CDI hooks files argument")
 		}
 
 		if c.devicesRootFolder == "" {
-			return fmt.Errorf("Missing required --devicesRootFolder <directory> flag")
+			return errors.New("Missing required --devicesRootFolder <directory> flag")
 		}
 
 		var err error

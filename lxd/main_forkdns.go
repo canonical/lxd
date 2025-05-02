@@ -350,7 +350,7 @@ func (c *cmdForkDNS) run(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		return fmt.Errorf("Missing required arguments")
+		return errors.New("Missing required arguments")
 	}
 
 	err := logger.InitLogger("", "lxd-forkdns", c.global.flagLogVerbose, c.global.flagLogDebug, nil)

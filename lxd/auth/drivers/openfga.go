@@ -56,7 +56,7 @@ var dummyDatastoreULID = ulid.Make().String()
 // load sets up the authorizer.
 func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cache, opts Opts) error {
 	if identityCache == nil {
-		return fmt.Errorf("Must provide certificate cache")
+		return errors.New("Must provide certificate cache")
 	}
 
 	e.identityCache = identityCache
@@ -76,7 +76,7 @@ func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cach
 	e.tlsAuthorizer = tlsDriver
 
 	if opts.openfgaDatastore == nil {
-		return fmt.Errorf("The OpenFGA datastore option must be set")
+		return errors.New("The OpenFGA datastore option must be set")
 	}
 
 	openfgaServerOptions := []server.OpenFGAServiceV1Option{
