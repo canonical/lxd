@@ -2053,10 +2053,10 @@ func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
 
 	forksyscallgoargs := []string{
 		"forksyscallgo",
-		"finit_module_parse",                 // <syscall_operation>
+		"finit_module_parse", // <syscall_operation>
 		strconv.FormatUint(uint64(siov.req.pid), 10), // <PID>
-		"0",                 // <PidFd>
-		"3",                 // <module_fd>
+		"0", // <PidFd>
+		"3", // <module_fd>
 	}
 
 	var buffer bytes.Buffer
