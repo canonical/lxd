@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -321,7 +322,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, do func(
 		resp.RootfsName = part.FileName()
 
 		// Check the hash
-		hash := fmt.Sprintf("%x", sha256.Sum(nil))
+		hash := hex.EncodeToString(sha256.Sum(nil))
 		if !strings.HasPrefix(hash, fingerprint) {
 			return nil, fmt.Errorf("Image fingerprint doesn't match. Got %s expected %s", hash, fingerprint)
 		}
@@ -349,7 +350,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, do func(
 	resp.MetaName = filename
 
 	// Check the hash
-	hash := fmt.Sprintf("%x", sha256.Sum(nil))
+	hash := hex.EncodeToString(sha256.Sum(nil))
 	if !strings.HasPrefix(hash, fingerprint) {
 		return nil, fmt.Errorf("Image fingerprint doesn't match. Got %s expected %s", hash, fingerprint)
 	}
