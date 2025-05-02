@@ -2054,7 +2054,7 @@ func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
 	forksyscallgoargs := []string{
 		"forksyscallgo",
 		"finit_module_parse",                 // <syscall_operation>
-		fmt.Sprintf("%d", int(siov.req.pid)), // <PID>
+		strconv.FormatUint(uint64(siov.req.pid), 10), // <PID>
 		"0",                 // <PidFd>
 		"3",                 // <module_fd>
 	}
