@@ -620,7 +620,7 @@ func (d *common) rebuildCommon(inst instance.Instance, img *api.Image, op *opera
 	delete(instLocalConfig, "volatile.base_image")
 	if img != nil {
 		for k, v := range img.Properties {
-			instLocalConfig[fmt.Sprintf("image.%s", k)] = v
+			instLocalConfig["image."+k] = v
 		}
 
 		instLocalConfig["volatile.base_image"] = img.Fingerprint
