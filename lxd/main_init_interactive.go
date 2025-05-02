@@ -1014,7 +1014,7 @@ they otherwise would.
 				netAddr = "[" + netAddr + "]"
 			}
 
-			netPort, err := c.global.asker.AskInt(fmt.Sprintf("Port to bind LXD to [default=%d]: ", shared.HTTPSDefaultPort), 1, 65535, fmt.Sprintf("%d", shared.HTTPSDefaultPort), func(netPort int64) error {
+			netPort, err := c.global.asker.AskInt(fmt.Sprintf("Port to bind LXD to [default=%d]: ", shared.HTTPSDefaultPort), 1, 65535, strconv.Itoa(shared.HTTPSDefaultPort), func(netPort int64) error {
 				address := util.CanonicalNetworkAddressFromAddressAndPort(netAddr, netPort, shared.HTTPSDefaultPort)
 
 				if err == nil {
