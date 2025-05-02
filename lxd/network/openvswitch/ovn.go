@@ -913,7 +913,7 @@ func (o *OVN) LogicalSwitchDHCPv6OptionsSet(switchName OVNSwitch, uuid OVNDHCPOp
 	// We have to use dhcp-options-set-options rather than the command above as its the only way to allow the
 	// domain_name option to be properly escaped.
 	args := []string{"dhcp-options-set-options", string(uuid),
-		fmt.Sprintf("server_id=%s", opts.ServerID.String()),
+		"server_id=" + opts.ServerID.String(),
 	}
 
 	if len(opts.DNSSearchList) > 0 {
