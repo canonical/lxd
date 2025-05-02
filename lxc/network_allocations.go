@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
@@ -36,7 +36,7 @@ func (c *cmdNetworkListAllocations) pretty(allocs []api.NetworkAllocations) erro
 			alloc.Address,
 			alloc.Network,
 			alloc.Type,
-			fmt.Sprint(alloc.NAT),
+			strconv.FormatBool(alloc.NAT),
 			alloc.Hwaddr,
 		}
 
