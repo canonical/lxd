@@ -286,7 +286,7 @@ func SRIOVSwitchdevEnabled(deviceName string) bool {
 		return false
 	}
 
-	slotName := fmt.Sprintf("pci/%s", pciDev.SlotName)
+	slotName := "pci/" + pciDev.SlotName
 
 	err = shared.RunCommandWithFds(context.TODO(), nil, &buf, "devlink", "-j", "dev", "eswitch", "show", slotName)
 	if err != nil {
