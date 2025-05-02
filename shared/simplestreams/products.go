@@ -2,8 +2,9 @@ package simplestreams
 
 import (
 	"errors"
-	"fmt"
+
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -236,11 +237,11 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				// Set the file list
 				var imgDownloads [][]string
 				if root == nil {
-					imgDownloads = [][]string{{meta.Path, meta.HashSha256, "meta", fmt.Sprint(meta.Size)}}
+					imgDownloads = [][]string{{meta.Path, meta.HashSha256, "meta", strconv.FormatInt(meta.Size, 10)}}
 				} else {
 					imgDownloads = [][]string{
-						{meta.Path, meta.HashSha256, "meta", fmt.Sprint(meta.Size)},
-						{root.Path, root.HashSha256, "root", fmt.Sprint(root.Size)}}
+						{meta.Path, meta.HashSha256, "meta", strconv.FormatInt(meta.Size, 10)},
+						{root.Path, root.HashSha256, "root", strconv.FormatInt(root.Size, 10)}}
 				}
 
 				// Add the deltas
@@ -280,7 +281,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 						delta.Path,
 						delta.HashSha256,
 						"root.delta-" + srcFingerprint,
-						fmt.Sprint(delta.Size)})
+						strconv.FormatInt(delta.Size, 10)})
 				}
 
 				// Add the image
