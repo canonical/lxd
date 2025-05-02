@@ -59,6 +59,20 @@ jobs:
           path: /home/runner/vuln-cache
           key: trivy-cache-${{ github.run_id }}
 
+      - name: Tag KEV alerts
+        run: |
+            cd /home/runner
+            curl -s --compressed -o kev.json https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+            kev_ids="$(jq -r '.vulnerabilities[].cveID' kev.json)"
+            jq --arg ids "$kev_ids" '($ids | split("\n")) as $id_list | .runs[].tool.driver.rules[] |= (
+              if (.id as $id | $id_list | index($id)) then
+                .shortDescription.text |= . + " (KEV)"
+              else
+                .
+              end
+            )' "$GITHUB_WORKSPACE/trivy-lxd-repo-scan-results.sarif" > trivy-modified.sarif
+            mv trivy-modified.sarif "$GITHUB_WORKSPACE/trivy-lxd-repo-scan-results.sarif"
+
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@28deaeda66b76a05916b6923827895f2b14ab387 # v3.28.16
         with:
@@ -107,11 +121,26 @@ jobs:
           --severity LOW,MEDIUM,HIGH,CRITICAL \
           --output /home/runner/${{ matrix.version }}-stable.sarif squashfs-root
 
-      - name: Flag snap scanning alerts
+      - name: Flag snap scanning alerts and tag KEV alerts
         run: |
           cd /home/runner
-          jq '.runs[].tool.driver.rules[] |= (.shortDescription.text |= "Snap scan - " + .)' ${{ matrix.version }}-stable.sarif > tmp.json
-          mv tmp.json ${{ matrix.version }}-stable.sarif
+          # Download KEV catalog
+          curl -s --compressed -o kev.json https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+          kev_ids="$(jq -r '.vulnerabilities[].cveID' kev.json)"
+          # Modify the SARIF file to both add "Snap scan - " prefix and tag KEV alerts
+          jq --arg ids "$kev_ids" '
+            ($ids | split("\n")) as $id_list |
+            .runs[].tool.driver.rules[] |= (
+              # First add the Snap scan prefix to all entries
+              .shortDescription.text = "Snap scan - " + .shortDescription.text |
+              # Then add KEV tag if applicable
+              if (.id as $id | $id_list | index($id)) then
+                .shortDescription.text |= . + " (KEV)"
+              else
+                .
+              end
+            )' ${{ matrix.version }}-stable.sarif > ${{ matrix.version }}-modified.sarif
+          mv ${{ matrix.version }}-modified.sarif ${{ matrix.version }}-stable.sarif
 
       # Now we checkout to the branch related to the scanned snap to populate github.sha appropriately.
       - name: Checkout
