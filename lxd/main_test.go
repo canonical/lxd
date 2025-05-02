@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+
 	"os"
 
 	"github.com/stretchr/testify/require"
@@ -73,7 +73,7 @@ func (suite *lxdTestSuite) SetupTest() {
 	poolConfig := map[string]string{}
 
 	// Create the database entry for the storage pool.
-	poolDescription := fmt.Sprintf("%s storage pool", lxdTestSuiteDefaultStoragePool)
+	poolDescription := lxdTestSuiteDefaultStoragePool + " storage pool"
 	_, err = dbStoragePoolCreateAndUpdateCache(suite.d.State(), lxdTestSuiteDefaultStoragePool, poolDescription, "mock", poolConfig)
 	if err != nil {
 		suite.T().Errorf("failed to create default storage pool: %v", err)
