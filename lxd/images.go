@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -483,7 +484,7 @@ func imgPostInstanceInfo(s *state.State, r *http.Request, req api.ImagesPost, op
 	}
 
 	info.Size = fi.Size()
-	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
+	info.Fingerprint = hex.EncodeToString(sha256.Sum(nil))
 	info.CreatedAt = time.Now().UTC()
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -800,7 +801,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		imageTmpFilename = post.Name()
 	}
 
-	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
+	info.Fingerprint = hex.EncodeToString(sha256.Sum(nil))
 
 	expectedFingerprint := r.Header.Get("X-LXD-fingerprint")
 	if expectedFingerprint != "" && info.Fingerprint != expectedFingerprint {
