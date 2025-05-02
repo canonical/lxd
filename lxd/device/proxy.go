@@ -618,18 +618,18 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 	switch d.config["bind"] {
 	case "host", "":
 		listenPid = lxdPid
-		listenPidFd = fmt.Sprintf("%d", lxdPidFd)
+		listenPidFd = strconv.Itoa(lxdPidFd)
 
 		connectPid = containerPid
-		connectPidFd = fmt.Sprintf("%d", containerPidFd)
+		connectPidFd = strconv.Itoa(containerPidFd)
 
 		listenAddr = d.rewriteHostAddr(listenAddr)
 	case "instance", "guest", "container":
 		listenPid = containerPid
-		listenPidFd = fmt.Sprintf("%d", containerPidFd)
+		listenPidFd = strconv.Itoa(containerPidFd)
 
 		connectPid = lxdPid
-		connectPidFd = fmt.Sprintf("%d", lxdPidFd)
+		connectPidFd = strconv.Itoa(lxdPidFd)
 
 		connectAddr = d.rewriteHostAddr(connectAddr)
 	default:
