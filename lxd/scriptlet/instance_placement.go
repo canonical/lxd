@@ -41,11 +41,11 @@ func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, 
 
 		switch b.Name() {
 		case "log_info":
-			l.Info(fmt.Sprintf("Instance placement scriptlet: %s", sb.String()))
+			l.Info("Instance placement scriptlet: " + sb.String())
 		case "log_warn":
-			l.Warn(fmt.Sprintf("Instance placement scriptlet: %s", sb.String()))
+			l.Warn("Instance placement scriptlet: " + sb.String())
 		default:
-			l.Error(fmt.Sprintf("Instance placement scriptlet: %s", sb.String()))
+			l.Error("Instance placement scriptlet: " + sb.String())
 		}
 
 		return starlark.None, nil
