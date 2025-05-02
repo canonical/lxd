@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -476,7 +477,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 				return false, "", "", nil, err
 			}
 
-			u, err := user.LookupId(fmt.Sprint(cred.Uid))
+			u, err := user.LookupId(strconv.FormatUint(uint64(cred.Uid), 10))
 			if err != nil {
 				return true, fmt.Sprint("uid=", cred.Uid), auth.AuthenticationMethodUnix, nil, nil
 			}
