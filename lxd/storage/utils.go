@@ -752,7 +752,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sys
 		// Check whether image is allowed to be unpacked into pool volume. Create a partial image volume
 		// struct and then use it to check that target volume size can be set as needed.
 		imgVolConfig := map[string]string{
-			"volatile.rootfs.size": fmt.Sprint(imgVirtualSize),
+			"volatile.rootfs.size": strconv.FormatInt(imgVirtualSize, 10),
 		}
 
 		imgVol := drivers.NewVolume(nil, "", drivers.VolumeTypeImage, drivers.ContentTypeBlock, "", imgVolConfig, nil)
