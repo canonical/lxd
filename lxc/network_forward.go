@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -141,7 +142,7 @@ func (c *cmdNetworkForwardList) run(cmd *cobra.Command, args []string) error {
 			forward.ListenAddress,
 			forward.Description,
 			forward.Config["target_address"],
-			fmt.Sprint(len(forward.Ports)),
+			strconv.Itoa(len(forward.Ports)),
 		}
 
 		if clustered {
