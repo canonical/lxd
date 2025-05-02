@@ -42,7 +42,7 @@ func (e entityTypeIdentity) urlsByProjectQuery() string {
 }
 
 func (e entityTypeIdentity) urlByIDQuery() string {
-	return fmt.Sprintf(`%s AND identities.id = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " AND identities.id = ?"
 }
 
 func (e entityTypeIdentity) idFromURLQuery() string {
