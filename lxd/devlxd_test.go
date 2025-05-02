@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-
 	"io"
 	"net"
 	"net/http"
