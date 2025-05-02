@@ -436,7 +436,7 @@ func begin(db *sql.DB) (*sql.Tx, error) {
 
 	logger.Debug("DbBegin: DB still locked")
 	logger.Debug(logger.GetStack())
-	return nil, fmt.Errorf("DB is locked")
+	return nil, errors.New("DB is locked")
 }
 
 // TxCommit commits the given transaction.

@@ -2,6 +2,7 @@ package device
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -172,7 +173,7 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 	fields := strings.Split(string(line), " ")
 
 	if len(fields) < 7 {
-		return nil, fmt.Errorf("Failed to get TPM device information")
+		return nil, errors.New("Failed to get TPM device information")
 	}
 
 	_, err = fmt.Sscanf(fields[6], "%d/%d)", &major, &minor)
@@ -182,7 +183,7 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 
 	// Return error as we were unable to retrieve information regarding the TPM device.
 	if major == 0 && minor == 0 {
-		return nil, fmt.Errorf("Failed to get TPM device information")
+		return nil, errors.New("Failed to get TPM device information")
 	}
 
 	if minor == TPM_MINOR {
@@ -247,7 +248,7 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 
 	unixListener, ok := listener.(*net.UnixListener)
 	if !ok {
-		return nil, fmt.Errorf("Failed getting UnixListener for swtpm")
+		return nil, errors.New("Failed getting UnixListener for swtpm")
 	}
 
 	revert.Add(func() {

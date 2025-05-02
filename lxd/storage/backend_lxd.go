@@ -101,12 +101,12 @@ func (b *lxdBackend) Description() string {
 // ValidateName validates the provided name, and returns an error if it's not a valid storage name.
 func (b *lxdBackend) ValidateName(value string) error {
 	if strings.Contains(value, "/") {
-		return fmt.Errorf(`Storage name cannot contain "/"`)
+		return errors.New(`Storage name cannot contain "/"`)
 	}
 
 	for _, r := range value {
 		if unicode.IsSpace(r) {
-			return fmt.Errorf(`Storage name cannot contain white space`)
+			return errors.New(`Storage name cannot contain white space`)
 		}
 	}
 
@@ -142,7 +142,7 @@ func (b *lxdBackend) LocalStatus() string {
 // isStatusReady returns an error if pool is not ready for use on this server.
 func (b *lxdBackend) isStatusReady() error {
 	if b.Status() == api.StoragePoolStatusPending {
-		return fmt.Errorf("Specified pool is not fully created")
+		return errors.New("Specified pool is not fully created")
 	}
 
 	if b.LocalStatus() == api.StoragePoolStatusUnvailable {
@@ -303,7 +303,7 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 	// Check if the pool source is being changed that the local state is still pending, otherwise prevent it.
 	_, sourceChanged := changedConfig["source"]
 	if sourceChanged && b.LocalStatus() != api.StoragePoolStatusPending {
-		return fmt.Errorf("Pool source cannot be changed when not in pending state")
+		return errors.New("Pool source cannot be changed when not in pending state")
 	}
 
 	// Prevent shrinking the storage pool.
@@ -313,7 +313,7 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 		newSizeBytes, _ := units.ParseByteSizeString(newSize)
 
 		if newSizeBytes < oldSizeBytes {
-			return fmt.Errorf("Pool cannot be shrunk")
+			return errors.New("Pool cannot be shrunk")
 		}
 	}
 
@@ -515,7 +515,7 @@ func (b *lxdBackend) ApplyPatch(name string) error {
 // if doesn't exist already.
 func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, projectName string, instanceName string, mountPath string) error {
 	if shared.IsSnapshot(instanceName) {
-		return fmt.Errorf("Instance must not be snapshot")
+		return errors.New("Instance must not be snapshot")
 	}
 
 	symlinkPath := InstancePath(instanceType, projectName, instanceName, false)
@@ -778,7 +778,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	// Check if the backup config contains a root volume and populate it for later use.
 	var rootVol *backupConfig.Volume
 	if srcBackup.Config == nil {
-		return nil, nil, fmt.Errorf("Backup config is missing")
+		return nil, nil, errors.New("Backup config is missing")
 	}
 
 	// Returns an error if the backup doesn't contain a root volume.
@@ -1036,7 +1036,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	}
 
 	if inst.Type() != src.Type() {
-		return fmt.Errorf("Instance types must match")
+		return errors.New("Instance types must match")
 	}
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
@@ -1054,7 +1054,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 
 	srcPoolBackend, ok := srcPool.(*lxdBackend)
 	if !ok {
-		return fmt.Errorf("Source pool is not a lxdBackend")
+		return errors.New("Source pool is not a lxdBackend")
 	}
 
 	// Check source volume exists, and get its config including all of the snapshots.
@@ -1102,7 +1102,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	}
 
 	if volExists {
-		return fmt.Errorf("Cannot create volume, already exists on target storage")
+		return errors.New("Cannot create volume, already exists on target storage")
 	}
 
 	// Setup reverter.
@@ -1333,7 +1333,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	}
 
 	if !storagePoolSupported {
-		return fmt.Errorf("Storage pool does not support custom volume type")
+		return errors.New("Storage pool does not support custom volume type")
 	}
 
 	// Use the information from the backup config to create a list of all the source volume's snapshots.
@@ -1482,7 +1482,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			err = srcVol.MountTask(func(_ string, _ *operations.Operation) error {
 				srcPoolBackend, ok := srcPool.(*lxdBackend)
 				if !ok {
-					return fmt.Errorf("Pool is not a lxdBackend")
+					return errors.New("Pool is not a lxdBackend")
 				}
 
 				volDiskPath, err := srcPoolBackend.driver.GetVolumeDiskPath(srcVol)
@@ -1586,7 +1586,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 	snapshots := len(srcSnapshots) > 0
 
 	if inst.Type() != src.Type() {
-		return fmt.Errorf("Instance types must match")
+		return errors.New("Instance types must match")
 	}
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
@@ -1618,7 +1618,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 
 	srcPoolBackend, ok := srcPool.(*lxdBackend)
 	if !ok {
-		return fmt.Errorf("Source pool is not a lxdBackend")
+		return errors.New("Source pool is not a lxdBackend")
 	}
 
 	// Check source volume exists, and get its config including all of the snapshots.
@@ -1990,7 +1990,7 @@ func (b *lxdBackend) recvBlockVol(toFile *os.File, volName string, conn io.ReadW
 	// Ensure that the received file is not a tarball, which is also the case for OVA format.
 	_, err = tar.NewReader(toFile).Next()
 	if err == nil {
-		return fmt.Errorf("Instance cannot be imported from a tar archive or OVA file")
+		return errors.New("Instance cannot be imported from a tar archive or OVA file")
 	}
 
 	return toFile.Close()
@@ -2171,7 +2171,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	}
 
 	if args.Config != nil {
-		return fmt.Errorf("Migration VolumeTargetArgs.Config cannot be set for instances")
+		return errors.New("Migration VolumeTargetArgs.Config cannot be set for instances")
 	}
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
@@ -2251,18 +2251,18 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 	// Check for inconsistencies between database and storage before continuing.
 	if dbVol == nil && volExists {
-		return fmt.Errorf("Volume already exists on storage but not in database")
+		return errors.New("Volume already exists on storage but not in database")
 	}
 
 	if dbVol != nil && !volExists {
-		return fmt.Errorf("Volume exists in database but not on storage")
+		return errors.New("Volume exists in database but not on storage")
 	}
 
 	// Consistency check for refresh mode.
 	// We expect that the args.Refresh setting will have already been set to false by the caller as part of
 	// detecting if the instance DB record exists or not. If we get here then something has gone wrong.
 	if args.Refresh && !volExists {
-		return fmt.Errorf("Cannot refresh volume, doesn't exist on migration target storage")
+		return errors.New("Cannot refresh volume, doesn't exist on migration target storage")
 	}
 
 	revert := revert.New()
@@ -2271,7 +2271,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	if !args.Refresh {
 		if volExists {
 			if !isRemoteClusterMove {
-				return fmt.Errorf("Cannot create volume, already exists on migration target storage")
+				return errors.New("Cannot create volume, already exists on migration target storage")
 			}
 		} else {
 			// Validate config and create database entry for new storage volume if not refreshing.
@@ -2468,20 +2468,20 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 	}
 
 	if args.Config != nil {
-		return fmt.Errorf("VolumeTargetArgs.Config cannot be set for conversion")
+		return errors.New("VolumeTargetArgs.Config cannot be set for conversion")
 	}
 
 	if args.Refresh {
-		return fmt.Errorf("Volume cannot be refreshed during conversion")
+		return errors.New("Volume cannot be refreshed during conversion")
 	}
 
 	if len(args.Snapshots) > 0 {
-		return fmt.Errorf("Snapshots cannot be received during conversion")
+		return errors.New("Snapshots cannot be received during conversion")
 	}
 
 	isRemoteClusterMove := args.ClusterMoveSourceName != "" && b.driver.Info().Remote
 	if isRemoteClusterMove {
-		return fmt.Errorf("Conversion cannot be used for moving instances between members")
+		return errors.New("Conversion cannot be used for moving instances between members")
 	}
 
 	contentType := InstanceContentType(inst)
@@ -2518,7 +2518,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 	}
 
 	if volExists {
-		return fmt.Errorf("Volume already exists on storage but not in database")
+		return errors.New("Volume already exists on storage but not in database")
 	}
 
 	revert := revert.New()
@@ -2613,13 +2613,13 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 	// Parse volume size into bytes.
 	volBytes, err := units.ParseByteSizeString(vol.ConfigSize())
 	if err != nil {
-		return fmt.Errorf("Failed parsing instance volume size")
+		return errors.New("Failed parsing instance volume size")
 	}
 
 	// Parse source disk size into bytes.
 	srcSize, err := units.ParseByteSizeString(strconv.FormatInt(srcDiskSize, 10))
 	if err != nil {
-		return fmt.Errorf("Failed parsing source disk size")
+		return errors.New("Failed parsing source disk size")
 	}
 
 	// Ensure source disk will fit into the instance volume.
@@ -2712,11 +2712,11 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 	defer l.Debug("RenameInstance finished")
 
 	if inst.IsSnapshot() {
-		return fmt.Errorf("Instance cannot be a snapshot")
+		return errors.New("Instance cannot be a snapshot")
 	}
 
 	if shared.IsSnapshot(newName) {
-		return fmt.Errorf("New name cannot be a snapshot")
+		return errors.New("New name cannot be a snapshot")
 	}
 
 	// Quick checks.
@@ -2860,7 +2860,7 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 	defer l.Debug("DeleteInstance finished")
 
 	if inst.IsSnapshot() {
-		return fmt.Errorf("Instance must not be a snapshot")
+		return errors.New("Instance must not be a snapshot")
 	}
 
 	// Check we can convert the instance to the volume types needed.
@@ -2877,7 +2877,7 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 
 	// Check all snapshots are already removed.
 	if len(dbVolSnaps) > 0 {
-		return fmt.Errorf("Cannot remove an instance volume that has snapshots")
+		return errors.New("Cannot remove an instance volume that has snapshots")
 	}
 
 	// Get the volume name on storage.
@@ -2935,7 +2935,7 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 	defer l.Debug("UpdateInstance finished")
 
 	if inst.IsSnapshot() {
-		return fmt.Errorf("Instance cannot be a snapshot")
+		return errors.New("Instance cannot be a snapshot")
 	}
 
 	// Check we can convert the instance to the volume types needed.
@@ -2970,22 +2970,22 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 	if len(changedConfig) != 0 {
 		// Check that the volume's size property isn't being changed.
 		if changedConfig["size"] != "" {
-			return fmt.Errorf(`Instance volume "size" property cannot be changed`)
+			return errors.New(`Instance volume "size" property cannot be changed`)
 		}
 
 		// Check that the volume's size.state property isn't being changed.
 		if changedConfig["size.state"] != "" {
-			return fmt.Errorf(`Instance volume "size.state" property cannot be changed`)
+			return errors.New(`Instance volume "size.state" property cannot be changed`)
 		}
 
 		// Check that the volume's block.filesystem property isn't being changed.
 		if changedConfig["block.filesystem"] != "" {
-			return fmt.Errorf(`Instance volume "block.filesystem" property cannot be changed`)
+			return errors.New(`Instance volume "block.filesystem" property cannot be changed`)
 		}
 
 		// Check that the volume's volatile.uuid property isn't being changed.
 		if changedConfig["volatile.uuid"] != "" {
-			return fmt.Errorf(`Instance volume "volatile.uuid" property cannot be changed`)
+			return errors.New(`Instance volume "volatile.uuid" property cannot be changed`)
 		}
 
 		if shared.IsFalseOrEmpty(changedConfig["security.shared"]) && volDBType == cluster.StoragePoolVolumeTypeVM {
@@ -3034,7 +3034,7 @@ func (b *lxdBackend) UpdateInstanceSnapshot(inst instance.Instance, newDesc stri
 	defer l.Debug("UpdateInstanceSnapshot finished")
 
 	if !inst.IsSnapshot() {
-		return fmt.Errorf("Instance must be a snapshot")
+		return errors.New("Instance must be a snapshot")
 	}
 
 	// Check we can convert the instance to the volume types needed.
@@ -3061,15 +3061,15 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 	contentType := InstanceContentType(inst)
 
 	if len(args.Snapshots) > 0 && args.FinalSync {
-		return fmt.Errorf("Snapshots should not be transferred during final sync")
+		return errors.New("Snapshots should not be transferred during final sync")
 	}
 
 	if args.Info == nil {
-		return fmt.Errorf("Migration info required")
+		return errors.New("Migration info required")
 	}
 
 	if args.Info.Config == nil {
-		return fmt.Errorf("Migration config required")
+		return errors.New("Migration config required")
 	}
 
 	rootVol, err := args.Info.Config.RootVolume()
@@ -3078,7 +3078,7 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 	}
 
 	if rootVol.Config == nil {
-		return fmt.Errorf("Volume config is required")
+		return errors.New("Volume config is required")
 	}
 
 	if len(args.Snapshots) != len(rootVol.Snapshots) {
@@ -3184,7 +3184,7 @@ func (b *lxdBackend) CleanupInstancePaths(inst instance.Instance, _ *operations.
 	defer l.Debug("CleanupInstancePaths finished")
 
 	if inst.IsSnapshot() {
-		return fmt.Errorf("Instance must not be a snapshot")
+		return errors.New("Instance must not be a snapshot")
 	}
 
 	// Check we can convert the instance to the volume types needed.
@@ -3598,15 +3598,15 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 	defer l.Debug("CreateInstanceSnapshot finished")
 
 	if inst.Type() != src.Type() {
-		return fmt.Errorf("Instance types must match")
+		return errors.New("Instance types must match")
 	}
 
 	if !inst.IsSnapshot() {
-		return fmt.Errorf("Instance must be a snapshot")
+		return errors.New("Instance must be a snapshot")
 	}
 
 	if src.IsSnapshot() {
-		return fmt.Errorf("Source instance cannot be a snapshot")
+		return errors.New("Source instance cannot be a snapshot")
 	}
 
 	// Check we can convert the instance to the volume type needed.
@@ -3697,11 +3697,11 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 	defer revert.Fail()
 
 	if !inst.IsSnapshot() {
-		return fmt.Errorf("Instance must be a snapshot")
+		return errors.New("Instance must be a snapshot")
 	}
 
 	if shared.IsSnapshot(newName) {
-		return fmt.Errorf("New name cannot be a snapshot")
+		return errors.New("New name cannot be a snapshot")
 	}
 
 	// Quick checks.
@@ -3723,7 +3723,7 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 
 	parentName, oldSnapshotName, isSnap := api.GetParentAndSnapshotName(inst.Name())
 	if !isSnap {
-		return fmt.Errorf("Volume name must be a snapshot")
+		return errors.New("Volume name must be a snapshot")
 	}
 
 	contentType := InstanceContentType(inst)
@@ -3786,7 +3786,7 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 
 	parentName, snapName, isSnap := api.GetParentAndSnapshotName(inst.Name())
 	if !inst.IsSnapshot() || !isSnap {
-		return fmt.Errorf("Instance must be a snapshot")
+		return errors.New("Instance must be a snapshot")
 	}
 
 	// Check we can convert the instance to the volume types needed.
@@ -3861,20 +3861,20 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 	defer revert.Fail()
 
 	if inst.Type() != src.Type() {
-		return fmt.Errorf("Instance types must match")
+		return errors.New("Instance types must match")
 	}
 
 	if inst.IsSnapshot() {
-		return fmt.Errorf("Instance must not be snapshot")
+		return errors.New("Instance must not be snapshot")
 	}
 
 	if !src.IsSnapshot() {
-		return fmt.Errorf("Source instance must be a snapshot")
+		return errors.New("Source instance must be a snapshot")
 	}
 
 	// Target instance must not be running.
 	if inst.IsRunning() {
-		return fmt.Errorf("Instance must not be running to restore")
+		return errors.New("Instance must not be running to restore")
 	}
 
 	// Check we can convert the instance to the volume type needed.
@@ -3900,7 +3900,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 	}
 
 	if !shared.IsSnapshot(src.Name()) {
-		return fmt.Errorf("Volume name must be a snapshot")
+		return errors.New("Volume name must be a snapshot")
 	}
 
 	// Load storage volume from database.
@@ -3999,7 +3999,7 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 	defer l.Debug("MountInstanceSnapshot finished")
 
 	if !inst.IsSnapshot() {
-		return nil, fmt.Errorf("Instance must be a snapshot")
+		return nil, errors.New("Instance must be a snapshot")
 	}
 
 	// Check we can convert the instance to the volume type needed.
@@ -4063,7 +4063,7 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operati
 	defer l.Debug("UnmountInstanceSnapshot finished")
 
 	if !inst.IsSnapshot() {
-		return fmt.Errorf("Instance must be a snapshot")
+		return errors.New("Instance must be a snapshot")
 	}
 
 	// Check we can convert the instance to the volume type needed.
@@ -4439,7 +4439,7 @@ func (b *lxdBackend) updateVolumeDescriptionOnly(projectName string, volName str
 	if newConfig != nil {
 		changedConfig, _ := b.detectChangedConfig(curVol.Config, newConfig)
 		if len(changedConfig) != 0 {
-			return fmt.Errorf("Volume config is not editable")
+			return errors.New("Volume config is not editable")
 		}
 	}
 
@@ -4494,7 +4494,7 @@ func (b *lxdBackend) CreateBucket(projectName string, bucket api.StorageBucketsP
 	}
 
 	if !b.Driver().Info().Buckets {
-		return fmt.Errorf("Storage pool does not support buckets")
+		return errors.New("Storage pool does not support buckets")
 	}
 
 	// Must be defined before revert so that its not cancelled by time revert.Fail runs.
@@ -4581,7 +4581,7 @@ func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket 
 	}
 
 	if !b.Driver().Info().Buckets {
-		return fmt.Errorf("Storage pool does not support buckets")
+		return errors.New("Storage pool does not support buckets")
 	}
 
 	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
@@ -4685,7 +4685,7 @@ func (b *lxdBackend) DeleteBucket(projectName string, bucketName string, op *ope
 	}
 
 	if !b.Driver().Info().Buckets {
-		return fmt.Errorf("Storage pool does not support buckets")
+		return errors.New("Storage pool does not support buckets")
 	}
 
 	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
@@ -4744,7 +4744,7 @@ func (b *lxdBackend) DeleteBucket(projectName string, bucketName string, op *ope
 // Used during the recovery import stage.
 func (b *lxdBackend) ImportBucket(projectName string, poolVol *backupConfig.Config, op *operations.Operation) (revert.Hook, error) {
 	if poolVol.Bucket == nil {
-		return nil, fmt.Errorf("Invalid pool bucket config supplied")
+		return nil, errors.New("Invalid pool bucket config supplied")
 	}
 
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "bucketName": poolVol.Bucket.Name})
@@ -4788,7 +4788,7 @@ func (b *lxdBackend) ImportBucket(projectName string, poolVol *backupConfig.Conf
 	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
 
 	if !memberSpecific {
-		return nil, fmt.Errorf("Importing buckets from a remote storage is not supported")
+		return nil, errors.New("Importing buckets from a remote storage is not supported")
 	}
 
 	// Handle common MinIO implementation for local storage drivers.
@@ -4921,7 +4921,7 @@ func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key 
 	}
 
 	if !b.Driver().Info().Buckets {
-		return nil, fmt.Errorf("Storage pool does not support buckets")
+		return nil, errors.New("Storage pool does not support buckets")
 	}
 
 	// Must be defined before revert so that its not cancelled by time revert.Fail runs.
@@ -5038,7 +5038,7 @@ func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyN
 	}
 
 	if !b.Driver().Info().Buckets {
-		return fmt.Errorf("Storage pool does not support buckets")
+		return errors.New("Storage pool does not support buckets")
 	}
 
 	// Must be defined before revert so that its not cancelled by time revert.Fail runs.
@@ -5186,7 +5186,7 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 	}
 
 	if !b.Driver().Info().Buckets {
-		return fmt.Errorf("Storage pool does not support buckets")
+		return errors.New("Storage pool does not support buckets")
 	}
 
 	// Must be defined before revert so that its not cancelled by time revert.Fail runs.
@@ -5257,11 +5257,11 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 // ActivateBucket mounts the local bucket volume and returns the MinIO S3 process for it.
 func (b *lxdBackend) ActivateBucket(projectName string, bucketName string, _ *operations.Operation) (*miniod.Process, error) {
 	if !b.Driver().Info().Buckets {
-		return nil, fmt.Errorf("Storage pool does not support buckets")
+		return nil, errors.New("Storage pool does not support buckets")
 	}
 
 	if b.Driver().Info().Remote {
-		return nil, fmt.Errorf("Remote buckets cannot be activated")
+		return nil, errors.New("Remote buckets cannot be activated")
 	}
 
 	bucketVolName := project.StorageVolume(projectName, bucketName)
@@ -5323,7 +5323,7 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 	}
 
 	if !storagePoolSupported {
-		return fmt.Errorf("Storage pool does not support custom volume type")
+		return errors.New("Storage pool does not support custom volume type")
 	}
 
 	revert := revert.New()
@@ -5420,7 +5420,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	}
 
 	if !storagePoolSupported {
-		return fmt.Errorf("Storage pool does not support custom volume type")
+		return errors.New("Storage pool does not support custom volume type")
 	}
 
 	// Use the information from the backup config to create a list of all the source volume's snapshots.
@@ -5536,7 +5536,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		err = srcVol.MountTask(func(_ string, _ *operations.Operation) error {
 			srcPoolBackend, ok := srcPool.(*lxdBackend)
 			if !ok {
-				return fmt.Errorf("Pool is not a lxdBackend")
+				return errors.New("Pool is not a lxdBackend")
 			}
 
 			volDiskPath, err := srcPoolBackend.driver.GetVolumeDiskPath(srcVol)
@@ -5749,11 +5749,11 @@ func (b *lxdBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCl
 	contentType := VolumeDBContentTypeToContentType(dbContentType)
 
 	if args.Info == nil {
-		return fmt.Errorf("Migration info required")
+		return errors.New("Migration info required")
 	}
 
 	if args.Info.Config == nil {
-		return fmt.Errorf("Migration config required")
+		return errors.New("Migration config required")
 	}
 
 	customVol, err := args.Info.Config.CustomVolume()
@@ -5762,7 +5762,7 @@ func (b *lxdBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCl
 	}
 
 	if customVol.Config == nil {
-		return fmt.Errorf("Volume config is required")
+		return errors.New("Volume config is required")
 	}
 
 	if len(args.Snapshots) != len(customVol.Snapshots) {
@@ -5823,7 +5823,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	}
 
 	if !storagePoolSupported {
-		return fmt.Errorf("Storage pool does not support custom volume type")
+		return errors.New("Storage pool does not support custom volume type")
 	}
 
 	var volumeConfig map[string]string
@@ -5857,11 +5857,11 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 
 	// Check for inconsistencies between database and storage before continuing.
 	if dbVol == nil && volExists {
-		return fmt.Errorf("Volume already exists on storage but not in database")
+		return errors.New("Volume already exists on storage but not in database")
 	}
 
 	if dbVol != nil && !volExists {
-		return fmt.Errorf("Volume exists in database but not on storage")
+		return errors.New("Volume exists in database but not on storage")
 	}
 
 	// Disable refresh mode if volume doesn't exist yet.
@@ -5870,7 +5870,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	if args.Refresh && !volExists {
 		args.Refresh = false
 	} else if !args.Refresh && volExists {
-		return fmt.Errorf("Cannot create volume, already exists on migration target storage")
+		return errors.New("Cannot create volume, already exists on migration target storage")
 	}
 
 	// VolumeSize is set to the actual size of the underlying block device.
@@ -5997,11 +5997,11 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	defer l.Debug("RenameCustomVolume finished")
 
 	if shared.IsSnapshot(volName) {
-		return fmt.Errorf("Volume name cannot be a snapshot")
+		return errors.New("Volume name cannot be a snapshot")
 	}
 
 	if shared.IsSnapshot(newVolName) {
-		return fmt.Errorf("New volume name cannot be a snapshot")
+		return errors.New("New volume name cannot be a snapshot")
 	}
 
 	revert := revert.New()
@@ -6170,7 +6170,7 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 	defer l.Debug("UpdateCustomVolume finished")
 
 	if shared.IsSnapshot(volName) {
-		return fmt.Errorf("Volume name cannot be a snapshot")
+		return errors.New("Volume name cannot be a snapshot")
 	}
 
 	// Get the volume name on storage.
@@ -6202,17 +6202,17 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 	if len(changedConfig) != 0 {
 		// Forbid changing the config for ISO custom volumes as they are read-only.
 		if contentType == drivers.ContentTypeISO {
-			return fmt.Errorf("Custom ISO volume config cannot be changed")
+			return errors.New("Custom ISO volume config cannot be changed")
 		}
 
 		// Check that the volume's block.filesystem property isn't being changed.
 		if changedConfig["block.filesystem"] != "" {
-			return fmt.Errorf(`Custom volume "block.filesystem" property cannot be changed`)
+			return errors.New(`Custom volume "block.filesystem" property cannot be changed`)
 		}
 
 		// Check that the volume's volatile.uuid property isn't being changed.
 		if changedConfig["volatile.uuid"] != "" {
-			return fmt.Errorf(`Custom volume "volatile.uuid" property cannot be changed`)
+			return errors.New(`Custom volume "volatile.uuid" property cannot be changed`)
 		}
 
 		// Check for config changing that is not allowed when running instances are using it.
@@ -6225,7 +6225,7 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 
 				// Confirm that no running instances are using it when changing shifted state.
 				if inst.IsRunning() && changedConfig["security.shifted"] != "" {
-					return fmt.Errorf("Cannot modify shifting with running instances using the volume")
+					return errors.New("Cannot modify shifting with running instances using the volume")
 				}
 
 				return nil
@@ -6281,7 +6281,7 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 	defer l.Debug("UpdateCustomVolumeSnapshot finished")
 
 	if !shared.IsSnapshot(volName) {
-		return fmt.Errorf("Volume must be a snapshot")
+		return errors.New("Volume must be a snapshot")
 	}
 
 	// Get current config to compare what has changed.
@@ -6304,7 +6304,7 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 	if newConfig != nil {
 		changedConfig, _ := b.detectChangedConfig(curVol.Config, newConfig)
 		if len(changedConfig) != 0 {
-			return fmt.Errorf("Volume config is not editable")
+			return errors.New("Volume config is not editable")
 		}
 	}
 
@@ -6331,7 +6331,7 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	defer l.Debug("DeleteCustomVolume finished")
 
 	if shared.IsSnapshot(volName) {
-		return fmt.Errorf("Volume name cannot be a snapshot")
+		return errors.New("Volume name cannot be a snapshot")
 	}
 
 	// Retrieve a list of snapshots.
@@ -6588,11 +6588,11 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	defer l.Debug("CreateCustomVolumeSnapshot finished")
 
 	if shared.IsSnapshot(volName) {
-		return fmt.Errorf("Volume does not support snapshots")
+		return errors.New("Volume does not support snapshots")
 	}
 
 	if shared.IsSnapshot(newSnapshotName) {
-		return fmt.Errorf("Snapshot name is not a valid snapshot name")
+		return errors.New("Snapshot name is not a valid snapshot name")
 	}
 
 	fullSnapshotName := drivers.GetSnapshotVolumeName(volName, newSnapshotName)
@@ -6697,11 +6697,11 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 
 	parentName, oldSnapshotName, isSnap := api.GetParentAndSnapshotName(volName)
 	if !isSnap {
-		return fmt.Errorf("Volume name must be a snapshot")
+		return errors.New("Volume name must be a snapshot")
 	}
 
 	if shared.IsSnapshot(newSnapshotName) {
-		return fmt.Errorf("Invalid new snapshot name")
+		return errors.New("Invalid new snapshot name")
 	}
 
 	volume, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
@@ -6749,7 +6749,7 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 	isSnap := shared.IsSnapshot(volName)
 
 	if !isSnap {
-		return fmt.Errorf("Volume name must be a snapshot")
+		return errors.New("Volume name must be a snapshot")
 	}
 
 	// Get the volume.
@@ -6814,11 +6814,11 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 
 	// Quick checks.
 	if shared.IsSnapshot(volName) {
-		return fmt.Errorf("Volume cannot be snapshot")
+		return errors.New("Volume cannot be snapshot")
 	}
 
 	if shared.IsSnapshot(snapshotName) {
-		return fmt.Errorf("Invalid snapshot name")
+		return errors.New("Invalid snapshot name")
 	}
 
 	// Get current volume.
@@ -6835,7 +6835,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 		}
 
 		if inst.IsRunning() {
-			return fmt.Errorf("Cannot restore custom volume used by running instances")
+			return errors.New("Cannot restore custom volume used by running instances")
 		}
 
 		return nil
@@ -7015,7 +7015,7 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 			}
 
 			if len(snapshots) != len(dbVolSnaps) {
-				return nil, fmt.Errorf("Instance snapshot record count doesn't match instance snapshot volume record count")
+				return nil, errors.New("Instance snapshot record count doesn't match instance snapshot volume record count")
 			}
 
 			volumeConfig.Snapshots = make([]*api.StorageVolumeSnapshot, 0, len(dbVolSnaps))
@@ -7836,7 +7836,7 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 	}
 
 	if volExists {
-		return fmt.Errorf("Cannot create volume, already exists on target storage")
+		return errors.New("Cannot create volume, already exists on target storage")
 	}
 
 	// Validate config and create database entry for new storage volume.
@@ -7880,7 +7880,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	defer l.Debug("CreateCustomVolumeFromBackup finished")
 
 	if srcBackup.Config == nil {
-		return fmt.Errorf("Valid volume config not found in index")
+		return errors.New("Valid volume config not found in index")
 	}
 
 	customVol, err := srcBackup.Config.CustomVolume()
@@ -7889,7 +7889,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	}
 
 	if len(srcBackup.Snapshots) != len(customVol.Snapshots) {
-		return fmt.Errorf("Valid volume snapshot config not found in index")
+		return errors.New("Valid volume snapshot config not found in index")
 	}
 
 	// Validate the names in the index.yaml file as these could be malicious.
@@ -7994,7 +7994,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	// the storage driver to understand this distinction and ensure that all activities done in the postHook
 	// normally are done in CreateVolumeFromBackup as the DB record is created ahead of time.
 	if volPostHook != nil {
-		return fmt.Errorf("Custom volume restore doesn't support post hooks")
+		return errors.New("Custom volume restore doesn't support post hooks")
 	}
 
 	eventCtx := logger.Ctx{"type": vol.Type()}

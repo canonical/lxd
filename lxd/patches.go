@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -193,7 +194,7 @@ func selectedPatchClusterMember(s *state.State) (bool, error) {
 	}
 
 	if len(clusterMembers) == 0 {
-		return false, fmt.Errorf("Clustered but no member found")
+		return false, errors.New("Clustered but no member found")
 	}
 
 	// Sort the cluster members by name.

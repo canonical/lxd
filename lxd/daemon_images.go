@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -469,7 +470,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		// Use relatively short response header timeout so as not to hold the image lock open too long.
 		httpTransport, ok := httpClient.Transport.(*http.Transport)
 		if !ok {
-			return nil, fmt.Errorf("Invalid http client type")
+			return nil, errors.New("Invalid http client type")
 		}
 
 		httpTransport.ResponseHeaderTimeout = 30 * time.Second

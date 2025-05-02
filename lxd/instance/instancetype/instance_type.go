@@ -1,7 +1,7 @@
 package instancetype
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/canonical/lxd/shared/api"
 )
@@ -34,7 +34,7 @@ func New(name string) (Type, error) {
 		return VM, nil
 	}
 
-	return -1, fmt.Errorf("Invalid instance type")
+	return -1, errors.New("Invalid instance type")
 }
 
 // String converts the internal representation of instance type to a string used in API requests.

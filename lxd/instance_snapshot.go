@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -139,7 +140,7 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(cname) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -215,7 +216,7 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 
 			renderedSnap, ok := render.(*api.InstanceSnapshot)
 			if !ok {
-				return response.InternalError(fmt.Errorf("Render didn't return a snapshot"))
+				return response.InternalError(errors.New("Render didn't return a snapshot"))
 			}
 
 			resultMap = append(resultMap, renderedSnap)
@@ -276,7 +277,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -622,7 +623,7 @@ func snapshotGet(s *state.State, _ *http.Request, snapInst instance.Instance) re
 
 	renderedSnap, ok := render.(*api.InstanceSnapshot)
 	if !ok {
-		return response.InternalError(fmt.Errorf("Render didn't return a snapshot"))
+		return response.InternalError(errors.New("Render didn't return a snapshot"))
 	}
 
 	etag := []any{snapInst.ExpiryDate()}
@@ -701,7 +702,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 		}
 
 		if reqNew.Name == "" {
-			return response.BadRequest(fmt.Errorf("A new name for the instance must be provided"))
+			return response.BadRequest(errors.New("A new name for the instance must be provided"))
 		}
 
 		if reqNew.Live {

@@ -142,7 +142,7 @@ func create(s *state.State, args db.InstanceArgs, p api.Project) (instance.Insta
 		return qemuCreate(s, args, p)
 	}
 
-	return nil, nil, fmt.Errorf("Instance type invalid")
+	return nil, nil, errors.New("Instance type invalid")
 }
 
 // DriverStatuses returns a map of DriverStatus structs for all instance type drivers.

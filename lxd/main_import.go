@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/spf13/cobra"
 )
@@ -22,5 +22,5 @@ func (c *cmdImport) command() *cobra.Command {
 }
 
 func (c *cmdImport) run(cmd *cobra.Command, args []string) error {
-	return fmt.Errorf(`Command has been replaced with "lxd recover"`)
+	return errors.New(`Command has been replaced with "lxd recover"`)
 }

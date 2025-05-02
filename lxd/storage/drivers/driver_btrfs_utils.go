@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -29,8 +30,8 @@ import (
 )
 
 // Errors.
-var errBtrfsNoQuota = fmt.Errorf("Quotas disabled on filesystem")
-var errBtrfsNoQGroup = fmt.Errorf("Unable to find quota group")
+var errBtrfsNoQuota = errors.New("Quotas disabled on filesystem")
+var errBtrfsNoQGroup = errors.New("Unable to find quota group")
 
 // btrfsISOVolSuffix suffix used for iso content type volumes.
 const btrfsISOVolSuffix = ".iso"
@@ -599,7 +600,7 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*B
 		}
 	}
 
-	return nil, fmt.Errorf("Optimized backup header file not found")
+	return nil, errors.New("Optimized backup header file not found")
 }
 
 // receiveSubVolume receives a subvolume from an io.Reader into the receivePath and returns the path to the received subvolume.
@@ -649,7 +650,7 @@ func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string, tracker *iopro
 	}
 
 	if filename == "" {
-		return "", fmt.Errorf("Failed to determine received subvolume")
+		return "", errors.New("Failed to determine received subvolume")
 	}
 
 	subVolPath := filepath.Join(receivePath, filename)

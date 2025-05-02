@@ -2,6 +2,7 @@ package block
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -32,7 +33,7 @@ func ClearBlock(blockPath string, blockOffset int64) error {
 	}
 
 	if size == blockOffset {
-		return fmt.Errorf("Size and offset are equal, nothing to clear")
+		return errors.New("Size and offset are equal, nothing to clear")
 	}
 
 	// Get all the stat data.
@@ -148,7 +149,7 @@ func ClearBlock(blockPath string, blockOffset int64) error {
 	}
 
 	if found != 3 {
-		return fmt.Errorf("Some of our initial markers weren't written properly")
+		return errors.New("Some of our initial markers weren't written properly")
 	}
 
 	// Start clearing the block.

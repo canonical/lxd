@@ -613,7 +613,7 @@ func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 
 				i++
 				if i > 255 {
-					return fmt.Errorf("Too many links")
+					return errors.New("Too many links")
 				}
 
 				// Update link target for next iteration.

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -40,7 +41,7 @@ func (r *ProtocolLXD) instanceTypeToPath(instanceType api.InstanceType) (string,
 			return "/containers", v, nil
 		}
 
-		return "", v, fmt.Errorf("Requested instance type not supported by server")
+		return "", v, errors.New("Requested instance type not supported by server")
 	}
 
 	// If a specific instance type has been requested, add the instance-type filter parameter
@@ -237,7 +238,7 @@ func (r *ProtocolLXD) rebuildInstance(instanceName string, instance api.Instance
 // It runs the rebuild process asynchronously and returns a RemoteOperation to monitor the progress and any errors.
 func (r *ProtocolLXD) tryRebuildInstance(instanceName string, req api.InstanceRebuildPost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("The source server isn't listening on the network")
+		return nil, errors.New("The source server isn't listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -717,7 +718,7 @@ func (r *ProtocolLXD) CreateInstance(instance api.InstancesPost) (Operation, err
 // It runs the instance creation asynchronously and returns a RemoteOperation to monitor the progress and any errors.
 func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("The source server isn't listening on the network")
+		return nil, errors.New("The source server isn't listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -851,41 +852,41 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 		// Quick checks.
 		if args.InstanceOnly {
 			if !r.HasExtension("container_only_migration") {
-				return nil, fmt.Errorf("The target server is missing the required \"container_only_migration\" API extension")
+				return nil, errors.New("The target server is missing the required \"container_only_migration\" API extension")
 			}
 
 			if !source.HasExtension("container_only_migration") {
-				return nil, fmt.Errorf("The source server is missing the required \"container_only_migration\" API extension")
+				return nil, errors.New("The source server is missing the required \"container_only_migration\" API extension")
 			}
 		}
 
 		if shared.ValueInSlice(args.Mode, []string{"push", "relay"}) {
 			if !r.HasExtension("container_push") {
-				return nil, fmt.Errorf("The target server is missing the required \"container_push\" API extension")
+				return nil, errors.New("The target server is missing the required \"container_push\" API extension")
 			}
 
 			if !source.HasExtension("container_push") {
-				return nil, fmt.Errorf("The source server is missing the required \"container_push\" API extension")
+				return nil, errors.New("The source server is missing the required \"container_push\" API extension")
 			}
 		}
 
 		if args.Mode == "push" && !source.HasExtension("container_push_target") {
-			return nil, fmt.Errorf("The source server is missing the required \"container_push_target\" API extension")
+			return nil, errors.New("The source server is missing the required \"container_push_target\" API extension")
 		}
 
 		if args.Refresh {
 			if !r.HasExtension("container_incremental_copy") {
-				return nil, fmt.Errorf("The target server is missing the required \"container_incremental_copy\" API extension")
+				return nil, errors.New("The target server is missing the required \"container_incremental_copy\" API extension")
 			}
 
 			if !source.HasExtension("container_incremental_copy") {
-				return nil, fmt.Errorf("The source server is missing the required \"container_incremental_copy\" API extension")
+				return nil, errors.New("The source server is missing the required \"container_incremental_copy\" API extension")
 			}
 		}
 
 		if args.AllowInconsistent {
 			if !r.HasExtension("instance_allow_inconsistent_copy") {
-				return nil, fmt.Errorf("The target server is missing the required \"instance_allow_inconsistent_copy\" API extension")
+				return nil, errors.New("The target server is missing the required \"instance_allow_inconsistent_copy\" API extension")
 			}
 		}
 
@@ -1109,7 +1110,7 @@ func (r *ProtocolLXD) RenameInstance(name string, instance api.InstancePost) (Op
 
 	// Quick check.
 	if instance.Migration {
-		return nil, fmt.Errorf("Can't ask for a migration through RenameInstance")
+		return nil, errors.New("Can't ask for a migration through RenameInstance")
 	}
 
 	// Send the request
@@ -1125,7 +1126,7 @@ func (r *ProtocolLXD) RenameInstance(name string, instance api.InstancePost) (Op
 // The function runs the migration operation asynchronously and returns a RemoteOperation to track the progress and handle any errors.
 func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req api.InstancePost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("The target server isn't listening on the network")
+		return nil, errors.New("The target server isn't listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -1244,7 +1245,7 @@ func (r *ProtocolLXD) MigrateInstance(name string, instance api.InstancePost) (O
 
 	// Quick check.
 	if !instance.Migration {
-		return nil, fmt.Errorf("Can't ask for a rename through MigrateInstance")
+		return nil, errors.New("Can't ask for a rename through MigrateInstance")
 	}
 
 	// Send the request
@@ -1817,7 +1818,7 @@ func (r *ProtocolLXD) rawSFTPConn(apiURL *url.URL) (net.Conn, error) {
 	}
 
 	if resp.Header.Get("Upgrade") != "sftp" {
-		return nil, fmt.Errorf("Missing or unexpected Upgrade header in response")
+		return nil, errors.New("Missing or unexpected Upgrade header in response")
 	}
 
 	return conn, err
@@ -1976,12 +1977,12 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 			}
 
 			if !source.HasExtension("container_push") {
-				return nil, fmt.Errorf("The source server is missing the required \"container_push\" API extension")
+				return nil, errors.New("The source server is missing the required \"container_push\" API extension")
 			}
 		}
 
 		if args.Mode == "push" && !source.HasExtension("container_push_target") {
-			return nil, fmt.Errorf("The source server is missing the required \"container_push_target\" API extension")
+			return nil, errors.New("The source server is missing the required \"container_push_target\" API extension")
 		}
 
 		// Allow overriding the target name
@@ -2188,7 +2189,7 @@ func (r *ProtocolLXD) RenameInstanceSnapshot(instanceName string, name string, i
 
 	// Quick check.
 	if instance.Migration {
-		return nil, fmt.Errorf("Can't ask for a migration through RenameInstanceSnapshot")
+		return nil, errors.New("Can't ask for a migration through RenameInstanceSnapshot")
 	}
 
 	// Send the request
@@ -2202,7 +2203,7 @@ func (r *ProtocolLXD) RenameInstanceSnapshot(instanceName string, name string, i
 
 func (r *ProtocolLXD) tryMigrateInstanceSnapshot(source InstanceServer, instanceName string, name string, req api.InstanceSnapshotPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("The target server isn't listening on the network")
+		return nil, errors.New("The target server isn't listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -2264,7 +2265,7 @@ func (r *ProtocolLXD) MigrateInstanceSnapshot(instanceName string, name string, 
 
 	// Quick check.
 	if !instance.Migration {
-		return nil, fmt.Errorf("Can't ask for a rename through MigrateInstanceSnapshot")
+		return nil, errors.New("Can't ask for a rename through MigrateInstanceSnapshot")
 	}
 
 	// Send the request
@@ -2689,11 +2690,11 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 	opAPI := op.Get()
 
 	if args == nil || args.Terminal == nil {
-		return nil, fmt.Errorf("A terminal must be set")
+		return nil, errors.New("A terminal must be set")
 	}
 
 	if args.Control == nil {
-		return nil, fmt.Errorf("A control channel must be set")
+		return nil, errors.New("A control channel must be set")
 	}
 
 	// Parse the fds
@@ -2716,7 +2717,7 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 
 	// Call the control handler with a connection to the control socket
 	if fds[api.SecretNameControl] == "" {
-		return nil, fmt.Errorf("Did not receive a file descriptor for the control channel")
+		return nil, errors.New("Did not receive a file descriptor for the control channel")
 	}
 
 	controlConn, err := r.GetOperationWebsocket(opAPI.ID, fds[api.SecretNameControl])
@@ -2791,11 +2792,11 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 	opAPI := op.Get()
 
 	if args == nil {
-		return nil, nil, fmt.Errorf("No arguments provided")
+		return nil, nil, errors.New("No arguments provided")
 	}
 
 	if args.Control == nil {
-		return nil, nil, fmt.Errorf("A control channel must be set")
+		return nil, nil, errors.New("A control channel must be set")
 	}
 
 	// Parse the fds.
@@ -2818,7 +2819,7 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 
 	// Call the control handler with a connection to the control socket.
 	if fds[api.SecretNameControl] == "" {
-		return nil, nil, fmt.Errorf("Did not receive a file descriptor for the control channel")
+		return nil, nil, errors.New("Did not receive a file descriptor for the control channel")
 	}
 
 	controlConn, err := r.GetOperationWebsocket(opAPI.ID, fds[api.SecretNameControl])
@@ -3135,7 +3136,7 @@ func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[stri
 	}
 
 	if targetSecrets[api.SecretNameControl] == "" {
-		return fmt.Errorf("Migration target didn't setup the required \"control\" socket")
+		return errors.New("Migration target didn't setup the required \"control\" socket")
 	}
 
 	// Struct used to hold everything together

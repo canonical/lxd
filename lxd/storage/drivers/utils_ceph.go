@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -140,7 +141,7 @@ func CephMonitors(cluster string) ([]string, error) {
 	}
 
 	if len(cephMon) == 0 {
-		return nil, fmt.Errorf("Couldn't find a CEPH mon")
+		return nil, errors.New("Couldn't find a CEPH mon")
 	}
 
 	return cephMon, nil
@@ -175,7 +176,7 @@ func getCephKeyFromFile(path string) (string, error) {
 	}
 
 	if cephSecret == "" {
-		return "", fmt.Errorf("Couldn't find a keyring entry")
+		return "", errors.New("Couldn't find a keyring entry")
 	}
 
 	return cephSecret, nil
@@ -245,7 +246,7 @@ func CephKeyring(cluster string, client string) (string, error) {
 	}
 
 	if cephSecret == "" {
-		return "", fmt.Errorf("Couldn't find a keyring entry")
+		return "", errors.New("Couldn't find a keyring entry")
 	}
 
 	return cephSecret, nil

@@ -2,6 +2,7 @@ package connectors
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -87,7 +88,7 @@ func connect(ctx context.Context, c Connector, targetQN string, targetAddrs []st
 
 			select {
 			case <-ctx.Done():
-				return nil, fmt.Errorf("Failed to find any session whilst trying to connect")
+				return nil, errors.New("Failed to find any session whilst trying to connect")
 			default:
 				// Sleep a while before trying to acquire the lock another time.
 				time.Sleep(500 * time.Millisecond)

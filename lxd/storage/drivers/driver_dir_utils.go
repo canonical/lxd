@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/storage/quota"
@@ -64,7 +65,7 @@ func (d *dir) deleteQuota(path string, volID int64) error {
 	}
 
 	if volID == 0 {
-		return fmt.Errorf("Missing volume ID")
+		return errors.New("Missing volume ID")
 	}
 
 	ok, err := quota.Supported(path)
@@ -99,7 +100,7 @@ func (d *dir) setQuota(path string, volID int64, sizeBytes int64) error {
 	}
 
 	if volID == 0 {
-		return fmt.Errorf("Missing volume ID")
+		return errors.New("Missing volume ID")
 	}
 
 	ok, err := quota.Supported(path)

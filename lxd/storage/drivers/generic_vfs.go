@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -61,7 +62,7 @@ func genericVFSGetResources(d Driver) (*api.ResourcesStoragePool, error) {
 // genericVFSRenameVolume is a generic RenameVolume implementation for VFS-only drivers.
 func genericVFSRenameVolume(d Driver, vol Volume, newVolName string, op *operations.Operation) error {
 	if vol.IsSnapshot() {
-		return fmt.Errorf("Volume must not be a snapshot")
+		return errors.New("Volume must not be a snapshot")
 	}
 
 	revert := revert.New()
@@ -131,7 +132,7 @@ func genericVFSVolumeSnapshots(d Driver, vol Volume, op *operations.Operation) (
 // genericVFSRenameVolumeSnapshot is a generic RenameVolumeSnapshot implementation for VFS-only drivers.
 func genericVFSRenameVolumeSnapshot(d Driver, snapVol Volume, newSnapshotName string, op *operations.Operation) error {
 	if !snapVol.IsSnapshot() {
-		return fmt.Errorf("Volume must be a snapshot")
+		return errors.New("Volume must be a snapshot")
 	}
 
 	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)
@@ -865,7 +866,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots [
 	}
 
 	if volExists {
-		return nil, nil, fmt.Errorf("Cannot restore volume, already exists on target")
+		return nil, nil, errors.New("Cannot restore volume, already exists on target")
 	}
 
 	// Create new empty volume.
@@ -988,7 +989,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots [
 // initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
 func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (revert.Hook, error), vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, refresh bool, allowInconsistent bool, op *operations.Operation) (revert.Hook, error) {
 	if vol.contentType != srcVol.contentType {
-		return nil, fmt.Errorf("Content type of source and target must be the same")
+		return nil, errors.New("Content type of source and target must be the same")
 	}
 
 	bwlimit := d.Config()["rsync.bwlimit"]

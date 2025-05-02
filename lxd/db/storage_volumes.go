@@ -163,11 +163,11 @@ func (c *ClusterTx) GetStorageVolumes(ctx context.Context, memberSpecific bool, 
 		for i, filter := range filters {
 			// Validate filter.
 			if filter.Name != nil && filter.Type == nil {
-				return nil, fmt.Errorf("Cannot filter by volume name if volume type not specified")
+				return nil, errors.New("Cannot filter by volume name if volume type not specified")
 			}
 
 			if filter.Name != nil && filter.Project == nil {
-				return nil, fmt.Errorf("Cannot filter by volume name if volume project not specified")
+				return nil, errors.New("Cannot filter by volume name if volume project not specified")
 			}
 
 			var qFilters []string
@@ -193,7 +193,7 @@ func (c *ClusterTx) GetStorageVolumes(ctx context.Context, memberSpecific bool, 
 			}
 
 			if qFilters == nil {
-				return nil, fmt.Errorf("Invalid storage volume filter")
+				return nil, errors.New("Invalid storage volume filter")
 			}
 
 			if i > 0 {
@@ -463,7 +463,7 @@ func (c *ClusterTx) CreateStoragePoolVolume(ctx context.Context, projectName str
 	var volumeID int64
 
 	if shared.IsSnapshot(volumeName) {
-		return -1, fmt.Errorf("Volume name may not be a snapshot")
+		return -1, errors.New("Volume name may not be a snapshot")
 	}
 
 	remoteDrivers := StorageRemoteDriverNames()
@@ -631,7 +631,7 @@ func (c *ClusterTx) GetStorageVolumeNodes(ctx context.Context, poolID int64, pro
 		// equivalent to db.ErrNoClusterMember that is used in newer schemas where a single remote volume
 		// DB record is created that is not associated to any single member.
 		if StorageRemoteDriverNames == nil {
-			return nil, fmt.Errorf("No remote storage drivers function defined")
+			return nil, errors.New("No remote storage drivers function defined")
 		}
 
 		remoteDrivers := StorageRemoteDriverNames()

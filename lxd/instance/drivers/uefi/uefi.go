@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -104,7 +105,7 @@ func UEFIVars(sysOS *sys.OS, uefiVarsPath string) (*api.InstanceUEFIVars, error)
 	}
 
 	if pyUEFIVars.Version != 2 {
-		return nil, fmt.Errorf("python-uefivars utility version is not compatible with LXD server")
+		return nil, errors.New("python-uefivars utility version is not compatible with LXD server")
 	}
 
 	instanceUEFI := api.InstanceUEFIVars{}

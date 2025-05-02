@@ -2,6 +2,7 @@ package shared
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -77,7 +78,7 @@ func ParseIPRange(ipRange string, allowedNets ...*net.IPNet) (*IPRange, error) {
 		matchFound := false
 		for _, allowedNet := range allowedNets {
 			if allowedNet == nil {
-				return nil, fmt.Errorf("Invalid allowed network")
+				return nil, errors.New("Invalid allowed network")
 			}
 
 			combinedStartIP := inAllowedNet(startIP, allowedNet)

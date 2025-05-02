@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -299,7 +300,7 @@ func (r *ProtocolLXD) CreateIdentityTLSToken(tlsIdentitiesPost api.IdentitiesTLS
 	}
 
 	if !tlsIdentitiesPost.Token {
-		return nil, fmt.Errorf("Token needs to be true when requesting a token")
+		return nil, errors.New("Token needs to be true when requesting a token")
 	}
 
 	var token api.CertificateAddToken

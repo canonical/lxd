@@ -17,6 +17,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
 	"net"
@@ -434,7 +435,7 @@ func GenerateMemCert(client bool, options CertOptions) (cert []byte, key []byte,
 func ParseCert(cert []byte) (*x509.Certificate, error) {
 	certBlock, _ := pem.Decode(cert)
 	if certBlock == nil {
-		return nil, fmt.Errorf("Invalid PEM block")
+		return nil, errors.New("Invalid PEM block")
 	}
 
 	return x509.ParseCertificate(certBlock.Bytes)
@@ -459,7 +460,7 @@ func CertFingerprint(cert *x509.Certificate) string {
 func CertFingerprintStr(c string) (string, error) {
 	pemCertificate, _ := pem.Decode([]byte(c))
 	if pemCertificate == nil {
-		return "", fmt.Errorf("invalid certificate")
+		return "", errors.New("invalid certificate")
 	}
 
 	cert, err := x509.ParseCertificate(pemCertificate.Bytes)
@@ -507,7 +508,7 @@ func GetRemoteCertificate(address string, useragent string) (*x509.Certificate, 
 
 	// Retrieve the certificate
 	if resp.TLS == nil || len(resp.TLS.PeerCertificates) == 0 {
-		return nil, fmt.Errorf("Unable to read remote TLS certificate")
+		return nil, errors.New("Unable to read remote TLS certificate")
 	}
 
 	return resp.TLS.PeerCertificates[0], nil
@@ -527,19 +528,19 @@ func CertificateTokenDecode(input string) (*api.CertificateAddToken, error) {
 	}
 
 	if j.ClientName == "" {
-		return nil, fmt.Errorf("No client name in certificate add token")
+		return nil, errors.New("No client name in certificate add token")
 	}
 
 	if len(j.Addresses) < 1 {
-		return nil, fmt.Errorf("No server addresses in certificate add token")
+		return nil, errors.New("No server addresses in certificate add token")
 	}
 
 	if j.Secret == "" {
-		return nil, fmt.Errorf("No secret in certificate add token")
+		return nil, errors.New("No secret in certificate add token")
 	}
 
 	if j.Fingerprint == "" {
-		return nil, fmt.Errorf("No certificate fingerprint in certificate add token")
+		return nil, errors.New("No certificate fingerprint in certificate add token")
 	}
 
 	return &j, nil
@@ -550,7 +551,7 @@ func CertificateTokenDecode(input string) (*api.CertificateAddToken, error) {
 func GenerateTrustCertificate(cert *CertInfo, name string) (*api.Certificate, error) {
 	block, _ := pem.Decode(cert.PublicKey())
 	if block == nil {
-		return nil, fmt.Errorf("Failed to decode certificate")
+		return nil, errors.New("Failed to decode certificate")
 	}
 
 	fingerprint, err := CertFingerprintStr(string(cert.PublicKey()))

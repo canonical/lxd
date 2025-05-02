@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -223,11 +224,11 @@ type VirtFuncInfo struct {
 // GetVFInfo returns info about virtual function.
 func (l *Link) GetVFInfo(vfID int) (VirtFuncInfo, error) {
 	vf := VirtFuncInfo{}
-	vfNotFoundErr := fmt.Errorf("no matching virtual function found")
+	vfNotFoundErr := errors.New("no matching virtual function found")
 
 	ipPath, err := exec.LookPath("ip")
 	if err != nil {
-		return vf, fmt.Errorf("ip command not found")
+		return vf, errors.New("ip command not found")
 	}
 
 	// Function to get VF info using regex matching, for older versions of ip tool. Less reliable.

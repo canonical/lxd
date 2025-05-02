@@ -79,11 +79,11 @@ func (h *HMACArgon2) ParseHTTPHeader(header string) (HMACFormatter, []byte, erro
 	}
 
 	if authHeaderDetails[0] == "" {
-		return nil, nil, fmt.Errorf("Argon2 salt cannot be empty")
+		return nil, nil, errors.New("Argon2 salt cannot be empty")
 	}
 
 	if authHeaderDetails[1] == "" {
-		return nil, nil, fmt.Errorf("Argon2 HMAC cannot be empty")
+		return nil, nil, errors.New("Argon2 HMAC cannot be empty")
 	}
 
 	saltFromHeader, err := hex.DecodeString(authHeaderDetails[0])
