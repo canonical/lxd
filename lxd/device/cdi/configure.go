@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -39,7 +40,7 @@ func specDevToNativeDev(configDevices *ConfigDevices, d specs.DeviceNode) error 
 		d.Minor = int64(unix.Minor(uint64(stat.Rdev)))
 	}
 
-	configDevices.UnixCharDevs = append(configDevices.UnixCharDevs, map[string]string{"type": "unix-char", "source": hostPath, "path": d.Path, "major": fmt.Sprintf("%d", d.Major), "minor": fmt.Sprintf("%d", d.Minor)})
+	configDevices.UnixCharDevs = append(configDevices.UnixCharDevs, map[string]string{"type": "unix-char", "source": hostPath, "path": d.Path, "major": strconv.FormatInt(d.Major, 10), "minor": strconv.FormatInt(d.Minor, 10)})
 	return nil
 }
 
