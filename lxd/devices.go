@@ -345,7 +345,7 @@ func fillFixedInstances(fixedInstances map[int64][]instance.Instance, inst insta
 	for _, id := range targetCPUPool {
 		cpu := deviceTaskCPU{}
 		cpu.id = id
-		cpu.strID = fmt.Sprint(id)
+		cpu.strID = strconv.FormatInt(id, 10)
 
 		count := 0
 		_, ok := fixedInstances[id]
@@ -415,7 +415,7 @@ func getCPULists() (cpus []int64, isolCPUs []int64, err error) {
 			continue
 		}
 
-		effectiveCPUsSlice = append(effectiveCPUsSlice, fmt.Sprint(id))
+		effectiveCPUsSlice = append(effectiveCPUsSlice, strconv.FormatInt(id, 10))
 	}
 
 	effectiveCPUs = strings.Join(effectiveCPUsSlice, ",")
