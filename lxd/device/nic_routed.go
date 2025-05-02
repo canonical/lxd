@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -301,7 +302,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 		}
 
 		// Record whether we created this device or not so it can be removed on stop.
-		saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
+		saveData["last_state.created"] = strconv.FormatBool(statusDev != "existing")
 
 		// If we created a VLAN interface, we need to setup the sysctls on that interface.
 		if shared.IsTrue(saveData["last_state.created"]) {
