@@ -20,7 +20,7 @@ func (e entityTypeStoragePool) urlsByProjectQuery() string {
 }
 
 func (e entityTypeStoragePool) urlByIDQuery() string {
-	return fmt.Sprintf(`%s WHERE storage_pools.id = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " WHERE storage_pools.id = ?"
 }
 
 func (e entityTypeStoragePool) idFromURLQuery() string {
