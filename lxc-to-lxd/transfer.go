@@ -51,7 +51,7 @@ func rsyncSend(conn *websocket.Conn, path string, rsyncArgs string) error {
 
 // Spawn the rsync process.
 func rsyncSendSetup(path string, rsyncArgs string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
-	auds := fmt.Sprintf("@lxc-to-lxd/%s", uuid.New().String())
+	auds := "@lxc-to-lxd/" + uuid.New().String()
 	if len(auds) > linux.ABSTRACT_UNIX_SOCK_LEN-1 {
 		auds = auds[:linux.ABSTRACT_UNIX_SOCK_LEN-1]
 	}
