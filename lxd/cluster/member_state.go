@@ -2,17 +2,21 @@ package cluster
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/sys/unix"
+	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared"
@@ -198,4 +202,112 @@ func MemberState(ctx context.Context, s *state.State) (*api.ClusterMemberState, 
 	}
 
 	return &memberState, nil
+}
+
+// resourcesCacheMu protects api.Resources shared cache.
+var resourcesCacheMu sync.Mutex
+
+func getClusterMemberResourcesFromCache(nodeName string) (*api.Resources, error) {
+	// Attempt to load the cached resources.
+	resourcesPath := shared.CachePath("resources", fmt.Sprintf("%s.yaml", nodeName))
+
+	data, err := os.ReadFile(resourcesPath)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &api.Resources{}
+	err = yaml.Unmarshal(data, res)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func getClusterMemberResources(s *state.State, nodeInfo db.NodeInfo) (*api.Resources, error) {
+	resourcesCacheMu.Lock()
+	defer resourcesCacheMu.Unlock()
+
+	// Check if we have a recent local cache entry already.
+	resourcesPath := shared.CachePath("resources", fmt.Sprintf("%s.yaml", nodeInfo.Name))
+	fi, err := os.Stat(resourcesPath)
+	if err == nil && fi.ModTime().Before(time.Now().Add(time.Hour)) {
+		return getClusterMemberResourcesFromCache(nodeInfo.Name)
+	}
+
+	// Connect to the server.
+	client, err := Connect(nodeInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), nil, true)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the server resources.
+	resources, err := client.GetServerResources()
+	if err != nil {
+		return nil, err
+	}
+
+	// Write to cache.
+	data, err := json.Marshal(resources)
+	if err != nil {
+		return nil, err
+	}
+
+	err = os.WriteFile(resourcesPath, data, 0600)
+	if err != nil {
+		return nil, err
+	}
+
+	return resources, nil
+}
+
+// ClusterMembersResources returns a map from clusterMemberName -> Resources for every member
+// of the cluster. This may require an HTTP call to the rest of the cluster.
+func ClusterMembersResources(s *state.State) (map[string]api.Resources, []string, error) {
+	membersResources := make(map[string]api.Resources)
+	skippedMembers := []string{}
+
+	if s.DB == nil || s.DB.Cluster == nil {
+		return nil, skippedMembers, fmt.Errorf("Failed to get cluster members resources, global database is not initialised")
+	}
+
+	// Get the list of cluster members.
+	var members []db.NodeInfo
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		members, err = tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, skippedMembers, err
+	}
+
+	for _, member := range members {
+		var res *api.Resources
+
+		if member.Name == s.ServerName {
+			// Get our own resources info.
+			res, err = resources.GetResources()
+			if err != nil {
+				return nil, skippedMembers, fmt.Errorf("Failed to get local member resources: %w", err)
+			}
+		} else {
+			res, err = getClusterMemberResources(s, member)
+			if err != nil {
+				logger.Warn("Failed to get cluster member resources", logger.Ctx{"name": member.Name, "err": err})
+				skippedMembers = append(skippedMembers, member.Name)
+				continue
+			}
+		}
+
+		membersResources[member.Name] = *res
+	}
+
+	return membersResources, skippedMembers, nil
 }

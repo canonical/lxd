@@ -42,6 +42,7 @@ import (
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/cgroup"
+	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/warningtype"
@@ -388,17 +389,6 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 // This is useful in a migration scenario where we need to find a minimum common denominator
 // of CPU flags to properly start a VM on a different node in a cluster.
 func (d *qemu) getClusterCPUFlags() ([]string, error) {
-	// Get the list of cluster members.
-	var nodes []db.RaftNode
-	err := d.state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		var err error
-		nodes, err = tx.GetRaftNodes(ctx)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	// Get architecture name.
 	arch, err := osarch.ArchitectureName(d.architecture)
 	if err != nil {
@@ -409,34 +399,16 @@ func (d *qemu) getClusterCPUFlags() ([]string, error) {
 	flagMembers := map[string]int{}
 	coreCount := 0
 
-	for _, node := range nodes {
-		var res *api.Resources
-		if node.Name == d.state.ServerName {
-			// Get our own local data.
-			res, err = resources.GetResources()
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			// Attempt to load the cached resources.
-			resourcesPath := shared.CachePath("resources", fmt.Sprintf("%s.yaml", node.Name))
+	membersResources, skippedMembers, err := cluster.ClusterMembersResources(d.state)
+	if err != nil {
+		return nil, err
+	}
 
-			data, err := os.ReadFile(resourcesPath)
-			if err != nil {
-				if errors.Is(err, fs.ErrNotExist) {
-					continue
-				}
+	if len(skippedMembers) > 0 {
+		d.logger.Warn("CPU flags are unknown for some cluster members. Stateful migration may fail", logger.Ctx{"skippedMembers": skippedMembers})
+	}
 
-				return nil, err
-			}
-
-			res = &api.Resources{}
-			err = yaml.Unmarshal(data, res)
-			if err != nil {
-				return nil, err
-			}
-		}
-
+	for _, res := range membersResources {
 		// Skip if not the correct architecture.
 		if res.CPU.Architecture != arch {
 			continue
@@ -455,7 +427,7 @@ func (d *qemu) getClusterCPUFlags() ([]string, error) {
 
 	// Get the host flags.
 	info := DriverStatuses()[instancetype.VM].Info
-	hostFlags, ok := info.Features["flags"].(map[string]bool)
+	baseCPUFlags, ok := info.Features["flags"].(map[string]bool)
 	if !ok {
 		// No CPU flags found.
 		return nil, nil
@@ -463,18 +435,29 @@ func (d *qemu) getClusterCPUFlags() ([]string, error) {
 
 	// Build a set of flags common to all cores.
 	flags := []string{}
+	unsupportedFlags := []string{}
 
 	for k, v := range flagMembers {
 		if v != coreCount {
 			continue
 		}
 
-		hostVal, ok := hostFlags[k]
-		if !ok || hostVal {
+		hostVal, ok := baseCPUFlags[k]
+		if !ok {
+			unsupportedFlags = append(unsupportedFlags, k)
+			continue
+		}
+
+		// Flag is already set in a base CPU model
+		if hostVal {
 			continue
 		}
 
 		flags = append(flags, k)
+	}
+
+	if len(unsupportedFlags) > 0 {
+		d.logger.Debug("Not all common CPU flags are supported by QEMU.", logger.Ctx{"unsupportedFlags": unsupportedFlags})
 	}
 
 	return flags, nil
