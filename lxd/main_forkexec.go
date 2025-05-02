@@ -328,7 +328,7 @@ void forkexec(void)
 import "C"
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/spf13/cobra"
 
@@ -358,5 +358,5 @@ func (c *cmdForkexec) Command() *cobra.Command {
 }
 
 func (c *cmdForkexec) Run(cmd *cobra.Command, args []string) error {
-	return fmt.Errorf("This command should have been intercepted in cgo")
+	return errors.New("This command should have been intercepted in cgo")
 }
