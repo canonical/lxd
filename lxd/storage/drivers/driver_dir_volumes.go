@@ -101,7 +101,7 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 // CreateVolumeFromBackup restores a backup tarball onto the storage device.
 func (d *dir) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	// Run the generic backup unpacker
-	postHook, revertHook, err := genericVFSBackupUnpack(d.withoutGetVolID(), d.state.OS, vol, srcBackup.Snapshots, srcData, op)
+	postHook, revertHook, err := genericVFSBackupUnpack(d.withoutGetVolID(), d.state, vol, srcBackup.Snapshots, srcData, op)
 	if err != nil {
 		return nil, nil, err
 	}
