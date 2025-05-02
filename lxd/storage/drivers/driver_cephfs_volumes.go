@@ -331,7 +331,7 @@ func (d *cephfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool,
 		return err
 	}
 
-	_, err = shared.RunCommandContext(context.TODO(), "setfattr", "-n", "ceph.quota.max_bytes", "-v", fmt.Sprintf("%d", sizeBytes), GetVolumeMountPath(d.name, vol.volType, vol.name))
+	_, err = shared.RunCommandContext(context.TODO(), "setfattr", "-n", "ceph.quota.max_bytes", "-v", strconv.FormatInt(sizeBytes, 10), GetVolumeMountPath(d.name, vol.volType, vol.name))
 	return err
 }
 
