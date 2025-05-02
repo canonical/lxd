@@ -2465,14 +2465,14 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 			args.fstype,
 			strconv.Itoa(args.flags),
 			string(args.idmapType),
-			fmt.Sprintf("%d", args.uid),
-			fmt.Sprintf("%d", args.gid),
-			fmt.Sprintf("%d", args.fsuid),
-			fmt.Sprintf("%d", args.fsgid),
-			fmt.Sprintf("%d", args.nsuid),
-			fmt.Sprintf("%d", args.nsgid),
-			fmt.Sprintf("%d", args.nsfsuid),
-			fmt.Sprintf("%d", args.nsfsgid),
+			strconv.FormatInt(args.uid, 10),
+			strconv.FormatInt(args.gid, 10),
+			strconv.FormatInt(args.fsuid, 10),
+			strconv.FormatInt(args.fsgid, 10),
+			strconv.FormatInt(args.nsuid, 10),
+			strconv.FormatInt(args.nsgid, 10),
+			strconv.FormatInt(args.nsfsuid, 10),
+			strconv.FormatInt(args.nsfsgid, 10),
 			args.data)
 	}
 
