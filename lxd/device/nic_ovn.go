@@ -751,8 +751,8 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 					[]deviceConfig.RunConfigItem{
 						{Key: "devName", Value: d.name},
 						{Key: "pciSlotName", Value: vfPCIDev.SlotName},
-						{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
-						{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
+						{Key: "pciIOMMUGroup", Value: strconv.FormatUint(pciIOMMUGroup, 10)},
+						{Key: "mtu", Value: strconv.FormatUint(uint64(mtu), 10)},
 					}...)
 			case "vdpa":
 				if vDPADevice == nil {
@@ -763,18 +763,18 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 					[]deviceConfig.RunConfigItem{
 						{Key: "devName", Value: d.name},
 						{Key: "pciSlotName", Value: vfPCIDev.SlotName},
-						{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
-						{Key: "maxVQP", Value: fmt.Sprintf("%d", vDPADevice.MaxVQs/2)},
+						{Key: "pciIOMMUGroup", Value: strconv.FormatUint(pciIOMMUGroup, 10)},
+						{Key: "maxVQP", Value: strconv.FormatUint(uint64(vDPADevice.MaxVQs/2), 10)},
 						{Key: "vDPADevName", Value: vDPADevice.Name},
 						{Key: "vhostVDPAPath", Value: vDPADevice.VhostVDPA.Path},
-						{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
+						{Key: "mtu", Value: strconv.FormatUint(uint64(mtu), 10)},
 					}...)
 			default:
 				runConf.NetworkInterface = append(runConf.NetworkInterface,
 					[]deviceConfig.RunConfigItem{
 						{Key: "devName", Value: d.name},
 						{Key: "hwaddr", Value: d.config["hwaddr"]},
-						{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
+						{Key: "mtu", Value: strconv.FormatUint(uint64(mtu), 10)},
 					}...)
 			}
 
@@ -1077,13 +1077,13 @@ func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
 	var v4mask string
 	if v4subnet != nil {
 		mask, _ := v4subnet.Mask.Size()
-		v4mask = fmt.Sprintf("%d", mask)
+		v4mask = strconv.Itoa(mask)
 	}
 
 	var v6mask string
 	if v6subnet != nil {
 		mask, _ := v6subnet.Mask.Size()
-		v6mask = fmt.Sprintf("%d", mask)
+		v6mask = strconv.Itoa(mask)
 	}
 
 	// OVN only supports dynamic IP allocation if neither IPv4 or IPv6 are statically set.
