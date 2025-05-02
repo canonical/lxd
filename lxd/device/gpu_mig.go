@@ -91,7 +91,7 @@ func (d *gpuMIG) buildMIGDeviceName(gpu api.ResourcesGPUCard) string {
 			return d.config["mig.uuid"]
 		}
 
-		return fmt.Sprintf("MIG-%s", d.config["mig.uuid"])
+		return "MIG-" + d.config["mig.uuid"]
 	}
 
 	return fmt.Sprintf("MIG-%s/%s/%s", gpu.Nvidia.UUID, d.config["mig.gi"], d.config["mig.ci"])
