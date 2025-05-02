@@ -6,6 +6,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/shared"
 )
@@ -43,14 +44,14 @@ profile "{{.name}}" {
 `))
 
 // ArchiveLoad ensures that the archive's policy is loaded into the kernel.
-func ArchiveLoad(sysOS *sys.OS, outputPath string, allowedCommandPaths []string) error {
+func ArchiveLoad(s *state.State, outputPath string, allowedCommandPaths []string) error {
 	profile := filepath.Join(aaPath, "profiles", ArchiveProfileFilename(outputPath))
 	content, err := os.ReadFile(profile)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
-	updated, err := archiveProfile(outputPath, allowedCommandPaths)
+	updated, err := archiveProfile(s, outputPath, allowedCommandPaths)
 	if err != nil {
 		return err
 	}
@@ -62,7 +63,7 @@ func ArchiveLoad(sysOS *sys.OS, outputPath string, allowedCommandPaths []string)
 		}
 	}
 
-	err = loadProfile(sysOS, ArchiveProfileFilename(outputPath))
+	err = loadProfile(s.OS, ArchiveProfileFilename(outputPath))
 	if err != nil {
 		return err
 	}
@@ -87,7 +88,7 @@ func ArchiveDelete(sysOS *sys.OS, outputPath string) error {
 }
 
 // archiveProfile generates the AppArmor profile template from the given destination path.
-func archiveProfile(outputPath string, allowedCommandPaths []string) (string, error) {
+func archiveProfile(s *state.State, outputPath string, allowedCommandPaths []string) (string, error) {
 	rootPath := ""
 	if shared.InSnap() {
 		rootPath = "/var/lib/snapd/hostfs"
@@ -99,13 +100,13 @@ func archiveProfile(outputPath string, allowedCommandPaths []string) (string, er
 		outputPathFull = outputPath // Use requested path if cannot resolve it.
 	}
 
-	backupsPath := shared.VarPath("backups")
+	backupsPath := s.BackupsStoragePath()
 	backupsPathFull, err := filepath.EvalSymlinks(backupsPath)
 	if err == nil {
 		backupsPath = backupsPathFull
 	}
 
-	imagesPath := shared.VarPath("images")
+	imagesPath := s.ImagesStoragePath()
 	imagesPathFull, err := filepath.EvalSymlinks(imagesPath)
 	if err == nil {
 		imagesPath = imagesPathFull

@@ -15,8 +15,8 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/apparmor"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/subprocess"
-	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
@@ -34,7 +34,7 @@ func (nwc *nullWriteCloser) Close() error {
 // ExtractWithFds runs extractor process under specifc AppArmor profile.
 // The allowedCmds argument specify commands which are allowed to run by apparmor.
 // The cmd argument is automatically added to allowedCmds slice.
-func ExtractWithFds(cmd string, args []string, allowedCmds []string, stdin io.ReadCloser, sysOS *sys.OS, output *os.File) error {
+func ExtractWithFds(s *state.State, cmd string, args []string, allowedCmds []string, stdin io.ReadCloser, output *os.File) error {
 	outputPath := output.Name()
 
 	allowedCmds = append(allowedCmds, cmd)
@@ -48,13 +48,13 @@ func ExtractWithFds(cmd string, args []string, allowedCmds []string, stdin io.Re
 		allowedCmdPaths = append(allowedCmdPaths, cmdPath)
 	}
 
-	err := apparmor.ArchiveLoad(sysOS, outputPath, allowedCmdPaths)
+	err := apparmor.ArchiveLoad(s, outputPath, allowedCmdPaths)
 	if err != nil {
 		return fmt.Errorf("Failed to start extract: Failed to load profile: %w", err)
 	}
 
-	defer func() { _ = apparmor.ArchiveDelete(sysOS, outputPath) }()
-	defer func() { _ = apparmor.ArchiveUnload(sysOS, outputPath) }()
+	defer func() { _ = apparmor.ArchiveDelete(s.OS, outputPath) }()
+	defer func() { _ = apparmor.ArchiveUnload(s.OS, outputPath) }()
 
 	var buffer bytes.Buffer
 	p := subprocess.NewProcessWithFds(cmd, args, stdin, output, &nullWriteCloser{&buffer})
@@ -77,7 +77,7 @@ func ExtractWithFds(cmd string, args []string, allowedCmds []string, stdin io.Re
 // The unpacker arguments are those returned by DetectCompressionFile().
 // The returned cancelFunc should be called when finished with reader to clean up any resources used.
 // This can be done before reading to the end of the tarball if desired.
-func CompressedTarReader(ctx context.Context, r io.ReadSeeker, unpacker []string, sysOS *sys.OS, outputPath string) (*tar.Reader, context.CancelFunc, error) {
+func CompressedTarReader(s *state.State, ctx context.Context, r io.ReadSeeker, unpacker []string, outputPath string) (*tar.Reader, context.CancelFunc, error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 
 	_, err := r.Seek(0, io.SeekStart)
@@ -93,7 +93,7 @@ func CompressedTarReader(ctx context.Context, r io.ReadSeeker, unpacker []string
 			return nil, cancelFunc, fmt.Errorf("Failed to start unpack: Failed to find executable: %w", err)
 		}
 
-		err = apparmor.ArchiveLoad(sysOS, outputPath, []string{cmdPath})
+		err = apparmor.ArchiveLoad(s, outputPath, []string{cmdPath})
 		if err != nil {
 			return nil, cancelFunc, fmt.Errorf("Failed to start unpack: Failed to load profile: %w", err)
 		}
@@ -114,8 +114,8 @@ func CompressedTarReader(ctx context.Context, r io.ReadSeeker, unpacker []string
 			ctxCancelFunc()
 			_ = pipeWriter.Close()
 			_, _ = p.Wait(ctx)
-			_ = apparmor.ArchiveUnload(sysOS, outputPath)
-			_ = apparmor.ArchiveDelete(sysOS, outputPath)
+			_ = apparmor.ArchiveUnload(s.OS, outputPath)
+			_ = apparmor.ArchiveDelete(s.OS, outputPath)
 		}
 
 		tr = tar.NewReader(pipeReader)
@@ -127,7 +127,7 @@ func CompressedTarReader(ctx context.Context, r io.ReadSeeker, unpacker []string
 }
 
 // Unpack extracts image from archive.
-func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker *ioprogress.ProgressTracker) error {
+func Unpack(s *state.State, file string, path string, blockBackend bool, tracker *ioprogress.ProgressTracker) error {
 	extractArgs, extension, unpacker, err := shared.DetectCompression(file)
 	if err != nil {
 		return err
@@ -139,7 +139,7 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 	var reader io.Reader
 	if strings.HasPrefix(extension, ".tar") {
 		command = "tar"
-		if sysOS.RunningInUserNS {
+		if s.OS.RunningInUserNS {
 			// We can't create char/block devices so avoid extracting them.
 			args = append(args, "--anchored")
 			args = append(args, "--wildcards")
@@ -215,10 +215,10 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 		readCloser = io.NopCloser(reader)
 	}
 
-	err = ExtractWithFds(command, args, allowedCmds, readCloser, sysOS, outputDir)
+	err = ExtractWithFds(s, command, args, allowedCmds, readCloser, outputDir)
 	if err != nil {
 		// We can't create char/block devices in unpriv containers so ignore related errors.
-		if sysOS.RunningInUserNS && command == "unsquashfs" {
+		if s.OS.RunningInUserNS && command == "unsquashfs" {
 			runError, ok := err.(shared.RunError)
 			if !ok {
 				return err

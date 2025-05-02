@@ -740,20 +740,21 @@ func patchNetworkOVNEnableNAT(name string, d *Daemon) error {
 
 // Moves backups from shared.VarPath("backups") to shared.VarPath("backups", "instances").
 func patchMoveBackupsInstances(name string, d *Daemon) error {
-	if !shared.PathExists(shared.VarPath("backups")) {
+	backupsPathBase := d.State().BackupsStoragePath()
+	if !shared.PathExists(backupsPathBase) {
 		return nil // Nothing to do, no backups directory.
 	}
 
-	backupsPath := shared.VarPath("backups", "instances")
+	backupsPath := filepath.Join(backupsPathBase, "instances")
 
 	err := os.MkdirAll(backupsPath, 0700)
 	if err != nil {
 		return fmt.Errorf("Failed creating instances backup directory %q: %w", backupsPath, err)
 	}
 
-	backups, err := os.ReadDir(shared.VarPath("backups"))
+	backups, err := os.ReadDir(backupsPathBase)
 	if err != nil {
-		return fmt.Errorf("Failed listing existing backup directory %q: %w", shared.VarPath("backups"), err)
+		return fmt.Errorf("Failed listing existing backup directory %q: %w", backupsPathBase, err)
 	}
 
 	for _, backupDir := range backups {
@@ -761,7 +762,7 @@ func patchMoveBackupsInstances(name string, d *Daemon) error {
 			continue // Don't try and move our new instances directory or temporary directories.
 		}
 
-		oldPath := shared.VarPath("backups", backupDir.Name())
+		oldPath := filepath.Join(backupsPathBase, backupDir.Name())
 		newPath := filepath.Join(backupsPath, backupDir.Name())
 		logger.Debugf("Moving backup from %q to %q", oldPath, newPath)
 		err = os.Rename(oldPath, newPath)
