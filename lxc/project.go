@@ -7,6 +7,7 @@ import (
 	"os"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -563,7 +564,7 @@ func (c *cmdProjectList) run(cmd *cobra.Command, args []string) error {
 			name = name + " (" + i18n.G("current") + ")"
 		}
 
-		strUsedBy := fmt.Sprint(len(project.UsedBy))
+		strUsedBy := strconv.Itoa(len(project.UsedBy))
 		data = append(data, []string{name, images, profiles, storageVolumes, storageBuckets, networks, networkZones, project.Description, strUsedBy})
 	}
 
@@ -973,7 +974,7 @@ func (c *cmdProjectInfo) run(cmd *cobra.Command, args []string) error {
 			if slices.Contains(byteLimits, shortKey) {
 				limit = units.GetByteSizeStringIEC(v.Limit, 2)
 			} else {
-				limit = fmt.Sprint(v.Limit)
+				limit = strconv.FormatInt(v.Limit, 10)
 			}
 		}
 
@@ -981,7 +982,7 @@ func (c *cmdProjectInfo) run(cmd *cobra.Command, args []string) error {
 		if slices.Contains(byteLimits, shortKey) {
 			usage = units.GetByteSizeStringIEC(v.Usage, 2)
 		} else {
-			usage = fmt.Sprint(v.Usage)
+			usage = strconv.FormatInt(v.Usage, 10)
 		}
 
 		columnName := strings.ToUpper(k)
