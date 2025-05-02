@@ -615,7 +615,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 				return err
 			}
 
-			net.Config["ipv4.nat"] = fmt.Sprint(netIPv4UseNAT)
+			net.Config["ipv4.nat"] = strconv.FormatBool(netIPv4UseNAT)
 		}
 
 		// IPv6
@@ -636,7 +636,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 				return err
 			}
 
-			net.Config["ipv6.nat"] = fmt.Sprint(netIPv6UseNAT)
+			net.Config["ipv6.nat"] = strconv.FormatBool(netIPv6UseNAT)
 		}
 
 		// Add the new network
