@@ -555,7 +555,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	// Used by cgo
+	// Used by cgo.
 	_ "github.com/canonical/lxd/lxd/include"
 )
 
