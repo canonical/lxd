@@ -2,11 +2,11 @@ package oidc
 
 import (
 	"context"
+	"crypto/hkdf"
 	"crypto/sha512"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/mail"
 	"strings"
@@ -19,7 +19,6 @@ import (
 	httphelper "github.com/zitadel/oidc/v3/pkg/http"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
-	"golang.org/x/crypto/hkdf"
 
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/response"
@@ -41,6 +40,11 @@ const (
 
 const (
 	defaultConfigExpiryInterval = 5 * time.Minute
+)
+
+var (
+	// cookieEncryptionHashFunc is used to derive secure keys from the cluster private key using HKDF.
+	cookieEncryptionHashFunc = sha512.New
 )
 
 // Verifier holds all information needed to verify an access token offline.
@@ -623,30 +627,27 @@ func (o *Verifier) secureCookieFromSession(sessionID uuid.UUID) (*securecookie.S
 	clusterPrivateKey := o.clusterCert().PrivateKey()
 
 	// Extract a pseudo-random key from the cluster private key.
-	prk := hkdf.Extract(sha512.New, clusterPrivateKey, salt)
+	prk, err := hkdf.Extract(cookieEncryptionHashFunc, clusterPrivateKey, salt)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to extract secure session key: %w", err)
+	}
 
-	// Get an io.Reader from which we can read a secure key. We will use this key as the hash key for the cookie.
+	// Get a secure key. We will use this key as the hash key for the cookie.
 	// The hash key is used to verify the integrity of decrypted values using HMAC. The HKDF "info" is set to "INTEGRITY"
 	// to indicate the intended usage of the key and prevent decryption in other contexts
 	// (see https://datatracker.ietf.org/doc/html/rfc5869#section-3.2).
-	keyDerivationFunc := hkdf.Expand(sha512.New, prk, []byte("INTEGRITY"))
-
-	// Read 64 bytes of the derived key. The securecookie library recommends 64 bytes for the hash key (https://github.com/gorilla/securecookie).
-	cookieHashKey := make([]byte, 64)
-	_, err = io.ReadFull(keyDerivationFunc, cookieHashKey)
+	// Use a key length of 64. The securecookie library recommends 64 bytes for the hash key (https://github.com/gorilla/securecookie).
+	cookieHashKey, err := hkdf.Expand(cookieEncryptionHashFunc, prk, "INTEGRITY", 64)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating secure cookie hash key: %w", err)
 	}
 
-	// Get an io.Reader from which we can read a secure key. We will use this key as the block key for the cookie.
+	// Get a secure key. We will use this key as the block key for the cookie.
 	// The block key is used by securecookie to perform AES encryption. The HKDF "info" is set to "ENCRYPTION"
 	// to indicate the intended usage of the key and prevent decryption in other contexts
 	// (see https://datatracker.ietf.org/doc/html/rfc5869#section-3.2).
-	keyDerivationFunc = hkdf.Expand(sha512.New, prk, []byte("ENCRYPTION"))
-
-	// Read 32 bytes of the derived key. Given 32 bytes for the block key the securecookie library will use AES-256 for encryption.
-	cookieBlockKey := make([]byte, 32)
-	_, err = io.ReadFull(keyDerivationFunc, cookieBlockKey)
+	// Use a key length of 32. Given 32 bytes for the block key the securecookie library will use AES-256 for encryption.
+	cookieBlockKey, err := hkdf.Expand(cookieEncryptionHashFunc, prk, "ENCRYPTION", 32)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating secure cookie block key: %w", err)
 	}
