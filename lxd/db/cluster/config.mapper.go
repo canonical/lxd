@@ -7,6 +7,7 @@ package cluster
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -87,9 +88,9 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string, filters ...Config
 	// Result slice.
 	objects := make([]Config, 0)
 
-	configObjectsLocal := strings.Replace(configObjects, "%s_id", parent+"_id", -1)
+	configObjectsLocal := strings.ReplaceAll(configObjects, "%s_id", parent+"_id")
 	fillParent := make([]any, strings.Count(configObjectsLocal, "%s"))
-	mangledParent := strings.Replace(parent, "_", "s_", -1) + "s"
+	mangledParent := strings.ReplaceAll(parent, "_", "s_") + "s"
 	for i := range fillParent {
 		fillParent[i] = mangledParent
 	}
@@ -118,7 +119,7 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string, filters ...Config
 		}
 
 		if len(entries) == 0 {
-			return nil, fmt.Errorf("Cannot filter on empty ConfigFilter")
+			return nil, errors.New("Cannot filter on empty ConfigFilter")
 		}
 
 		queryParts[0] += fmt.Sprintf(cond, strings.Join(entries, " AND "))
@@ -152,10 +153,10 @@ func CreateConfig(ctx context.Context, tx *sql.Tx, parent string, object Config)
 		return nil
 	}
 
-	configCreateLocal := strings.Replace(configCreate, "%s_id", parent+"_id", -1)
+	configCreateLocal := strings.ReplaceAll(configCreate, "%s_id", parent+"_id")
 	fillParent := make([]any, strings.Count(configCreateLocal, "%s"))
 	for i := range fillParent {
-		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
+		fillParent[i] = strings.ReplaceAll(parent, "_", "s_") + "s"
 	}
 
 	queryStr := fmt.Sprintf(configCreateLocal, fillParent...)
@@ -196,10 +197,10 @@ func UpdateConfig(ctx context.Context, tx *sql.Tx, parent string, referenceID in
 // DeleteConfig deletes the config matching the given key parameters.
 // generator: config DeleteMany
 func DeleteConfig(ctx context.Context, tx *sql.Tx, parent string, referenceID int) error {
-	configDeleteLocal := strings.Replace(configDelete, "%s_id", parent+"_id", -1)
+	configDeleteLocal := strings.ReplaceAll(configDelete, "%s_id", parent+"_id")
 	fillParent := make([]any, strings.Count(configDeleteLocal, "%s"))
 	for i := range fillParent {
-		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
+		fillParent[i] = strings.ReplaceAll(parent, "_", "s_") + "s"
 	}
 
 	queryStr := fmt.Sprintf(configDeleteLocal, fillParent...)

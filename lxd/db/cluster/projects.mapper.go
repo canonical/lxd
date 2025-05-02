@@ -186,9 +186,9 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]P
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
 		} else if filter.ID == nil && filter.Name == nil {
-			return nil, fmt.Errorf("Cannot filter on empty ProjectFilter")
+			return nil, errors.New("Cannot filter on empty ProjectFilter")
 		} else {
-			return nil, fmt.Errorf("No statement exists for the given Filter")
+			return nil, errors.New("No statement exists for the given Filter")
 		}
 	}
 
@@ -240,7 +240,7 @@ func GetProject(ctx context.Context, tx *sql.Tx, name string) (*Project, error) 
 	case 1:
 		return &objects[0], nil
 	default:
-		return nil, fmt.Errorf("More than one \"projects\" entry matches")
+		return nil, errors.New("More than one \"projects\" entry matches")
 	}
 }
 
