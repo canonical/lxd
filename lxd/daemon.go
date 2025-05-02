@@ -61,6 +61,7 @@ import (
 	networkZone "github.com/canonical/lxd/lxd/network/zone"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
@@ -727,6 +728,24 @@ func (d *Daemon) State() *state.State {
 			Leader:    localClusterAddress == leaderAddress,
 			Address:   leaderAddress,
 		}, nil
+	}
+
+	storagePath := func(config string, path string) string {
+		if config == "" {
+			return path
+		}
+
+		poolName, volumeName, _ := daemonStorageSplitVolume(config)
+		volStorageName := project.StorageVolume(api.ProjectDefaultName, volumeName)
+		return storageDrivers.GetVolumeMountPath(poolName, storageDrivers.VolumeTypeCustom, volStorageName)
+	}
+
+	s.ImagesStoragePath = func() string {
+		return storagePath(s.LocalConfig.StorageImagesVolume(), shared.VarPath("images"))
+	}
+
+	s.BackupsStoragePath = func() string {
+		return storagePath(s.LocalConfig.StorageBackupsVolume(), shared.VarPath("backups"))
 	}
 
 	return s
