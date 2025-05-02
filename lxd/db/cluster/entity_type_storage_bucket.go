@@ -23,11 +23,11 @@ FROM storage_buckets
 }
 
 func (e entityTypeStorageBucket) urlsByProjectQuery() string {
-	return fmt.Sprintf(`%s WHERE projects.name = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
 func (e entityTypeStorageBucket) urlByIDQuery() string {
-	return fmt.Sprintf(`%s WHERE storage_buckets.id = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " WHERE storage_buckets.id = ?"
 }
 
 func (e entityTypeStorageBucket) idFromURLQuery() string {
