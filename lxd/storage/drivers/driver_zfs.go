@@ -225,7 +225,7 @@ func (d *zfs) FillConfig() error {
 				return err
 			}
 
-			d.config["size"] = fmt.Sprint(defaultSize) + "GiB"
+			d.config["size"] = strconv.FormatUint(defaultSize, 10) + "GiB"
 		}
 	} else if filepath.IsAbs(d.config["source"]) {
 		// Set default pool_name.
