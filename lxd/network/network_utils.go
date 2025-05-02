@@ -859,7 +859,7 @@ func pingIP(ctx context.Context, ip net.IP) error {
 		timeout = time.Until(deadline)
 	}
 
-	_, err := shared.RunCommandContext(ctx, cmd, "-n", "-q", ip.String(), "-c", "1", "-w", fmt.Sprintf("%d", int(timeout.Seconds())))
+	_, err := shared.RunCommandContext(ctx, cmd, "-n", "-q", ip.String(), "-c", "1", "-w", strconv.Itoa(int(timeout.Seconds())))
 
 	return err
 }
