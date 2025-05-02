@@ -3,7 +3,6 @@ package cluster
 import (
 	"context"
 	"database/sql"
-
 	"net/http"
 	"os"
 	"path/filepath"
