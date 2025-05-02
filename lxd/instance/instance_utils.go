@@ -1033,7 +1033,7 @@ func NextSnapshotName(s *state.State, inst Instance, defaultPattern string) (str
 
 	// Append '-0', '-1', etc. if the actual pattern/snapshot name already exists
 	if snapshotExists {
-		pattern = fmt.Sprintf("%s-%%d", pattern)
+		pattern = pattern + "-%d"
 
 		var i int
 
