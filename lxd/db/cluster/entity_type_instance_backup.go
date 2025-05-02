@@ -20,11 +20,11 @@ JOIN projects ON instances.project_id = projects.id`, e.code())
 }
 
 func (e entityTypeInstanceBackup) urlsByProjectQuery() string {
-	return fmt.Sprintf(`%s WHERE projects.name = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
 func (e entityTypeInstanceBackup) urlByIDQuery() string {
-	return fmt.Sprintf(`%s WHERE instances_backups.id = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " WHERE instances_backups.id = ?"
 }
 
 func (e entityTypeInstanceBackup) idFromURLQuery() string {
