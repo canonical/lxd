@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -524,7 +525,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		}
 
 		// Validate hash
-		result := fmt.Sprintf("%x", sha256.Sum(nil))
+		result := hex.EncodeToString(sha256.Sum(nil))
 		if result != fp {
 			return nil, fmt.Errorf("Hash mismatch for %q: %s != %s", args.Server, result, fp)
 		}
