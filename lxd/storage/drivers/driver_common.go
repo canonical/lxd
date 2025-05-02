@@ -73,7 +73,7 @@ func (d *common) validatePool(config map[string]string, driverRules map[string]f
 	// Add to pool volume configuration options as volume.* options.
 	// These will be used as default configuration options for volume.
 	for volRule, volValidator := range volumeRules {
-		rules[fmt.Sprintf("volume.%s", volRule)] = volValidator
+		rules["volume."+volRule] = volValidator
 	}
 
 	// Run the validator against each field.
