@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -193,7 +194,7 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 		mem, err := shared.DeviceTotalMemory()
 		mem = mem / 1024 / 1024 / 10
 		if err == nil && mem < 256 {
-			memString := fmt.Sprint(mem)
+			memString := strconv.FormatInt(mem, 10)
 			args = append(args, "-da", memString, "-fr", memString, "-p", "1")
 		}
 
