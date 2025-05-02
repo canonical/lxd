@@ -321,7 +321,7 @@ func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *devic
 			connectPort = cAddr.Ports[(*lStruct).lAddrIndex]
 		}
 
-		connectAddr = net.JoinHostPort(cAddr.Address, fmt.Sprint(connectPort))
+		connectAddr = net.JoinHostPort(cAddr.Address, strconv.FormatUint(connectPort, 10))
 	}
 
 	if lAddr.ConnType == "udp" {
@@ -469,7 +469,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 			listenAddresses = make([]string, 0, listenPortCount)
 
 			for i := 0; i < listenPortCount; i++ {
-				listenAddresses = append(listenAddresses, net.JoinHostPort(lAddr.Address, fmt.Sprint(lAddr.Ports[i])))
+				listenAddresses = append(listenAddresses, net.JoinHostPort(lAddr.Address, strconv.FormatUint(lAddr.Ports[i], 10)))
 			}
 		}
 
