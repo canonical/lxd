@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -141,7 +142,7 @@ func (c *cmdNetworkZoneList) run(cmd *cobra.Command, args []string) error {
 
 	data := [][]string{}
 	for _, zone := range zones {
-		strUsedBy := fmt.Sprint(len(zone.UsedBy))
+		strUsedBy := strconv.Itoa(len(zone.UsedBy))
 		details := []string{
 			zone.Name,
 			zone.Description,
