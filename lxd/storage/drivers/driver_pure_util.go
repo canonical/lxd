@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -792,7 +793,7 @@ func (p *pureClient) resizeVolume(poolName string, volName string, sizeBytes int
 		"provisioned": sizeBytes,
 	}
 
-	url := api.NewURL().Path("volumes").WithQuery("names", poolName+"::"+volName).WithQuery("truncate", fmt.Sprint(truncate))
+	url := api.NewURL().Path("volumes").WithQuery("names", poolName+"::"+volName).WithQuery("truncate", strconv.FormatBool(truncate))
 	err := p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to resize volume %q in storage pool %q: %w", volName, poolName, err)
@@ -810,7 +811,7 @@ func (p *pureClient) copyVolume(srcPoolName string, srcVolName string, dstPoolNa
 		},
 	}
 
-	url := api.NewURL().Path("volumes").WithQuery("names", dstPoolName+"::"+dstVolName).WithQuery("overwrite", fmt.Sprint(overwrite))
+	url := api.NewURL().Path("volumes").WithQuery("names", dstPoolName+"::"+dstVolName).WithQuery("overwrite", strconv.FormatBool(overwrite))
 
 	if !overwrite {
 		// Disable default protection groups when creating a new volume to avoid potential issues
