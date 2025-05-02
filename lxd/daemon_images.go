@@ -412,7 +412,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 			ProgressHandler: progress,
 			Canceler:        canceler,
 			DeltaSourceRetriever: func(fingerprint string, file string) string {
-				path := shared.VarPath("images", fmt.Sprintf("%s.%s", fingerprint, file))
+				path := filepath.Join(destDir, fingerprint+"."+file)
 				if shared.PathExists(path) {
 					return path
 				}
