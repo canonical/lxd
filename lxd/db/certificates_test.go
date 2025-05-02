@@ -27,5 +27,5 @@ func TestGetCertificate(t *testing.T) {
 
 	cert, err := cluster.GetCertificate(ctx, tx.Tx(), "foobar")
 	require.NoError(t, err)
-	assert.Equal(t, cert.Fingerprint, "foobar")
+	assert.Equal(t, "foobar", cert.Fingerprint)
 }

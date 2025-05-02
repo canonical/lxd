@@ -67,7 +67,7 @@ func TestSchemaEnsure_VersionMoreRecentThanExpected(t *testing.T) {
 
 	schema, _ = newSchemaAndDB(t)
 	_, err = schema.Ensure(db)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.EqualError(t, err, "schema version '1' is more recent than expected '0'")
 }
 
@@ -79,7 +79,7 @@ func TestSchemaEnsure_FreshStatementError(t *testing.T) {
 	schema.Fresh("garbage")
 
 	_, err := schema.Ensure(db)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot apply fresh schema")
 }
 
@@ -98,7 +98,7 @@ func TestSchemaEnsure_MissingVersion(t *testing.T) {
 	schema.Add(updateNoop)
 
 	_, err = schema.Ensure(db)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.EqualError(t, err, "Missing updates: 1 to 3")
 }
 

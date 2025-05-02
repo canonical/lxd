@@ -35,7 +35,7 @@ var testStringsErrorCases = []struct {
 func TestStrings(t *testing.T) {
 	tx := newTxForSlices(t)
 	values, err := query.SelectStrings(context.Background(), tx, "SELECT name FROM test ORDER BY name")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, []string{"bar", "foo"}, values)
 }
 
@@ -63,7 +63,7 @@ var testIntegersErrorCases = []struct {
 func TestIntegers(t *testing.T) {
 	tx := newTxForSlices(t)
 	values, err := query.SelectIntegers(context.Background(), tx, "SELECT id FROM test ORDER BY id")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, []int{0, 1}, values)
 }
 
@@ -76,7 +76,7 @@ func TestInsertStrings(t *testing.T) {
 
 	values, err := query.SelectStrings(context.Background(), tx, "SELECT name FROM test ORDER BY name DESC LIMIT 2")
 	require.NoError(t, err)
-	assert.Equal(t, values, []string{"yy", "xx"})
+	assert.Equal(t, []string{"yy", "xx"}, values)
 }
 
 // Return a new transaction against an in-memory SQLite database with a single

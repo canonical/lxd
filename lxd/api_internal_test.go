@@ -95,7 +95,7 @@ func TestInternalImportRootDevicePopulate_ExpandedDeviceProfileDeviceMatch(t *te
 
 	internalImportRootDevicePopulate(instancePoolName, localDevices, expandedDevices, profiles)
 
-	assert.Equal(t, len(localDevices), 0)
+	assert.Empty(t, localDevices)
 }
 
 // Test that for an instance with no local root disk device, if the new profile root disk device doesn't match the
