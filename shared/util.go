@@ -1270,7 +1270,7 @@ func DownloadFileHash(ctx context.Context, httpClient *http.Client, useragent st
 			return -1, err
 		}
 
-		result := fmt.Sprintf("%x", hashFunc.Sum(nil))
+		result := hex.EncodeToString(hashFunc.Sum(nil))
 		if result != hash {
 			return -1, fmt.Errorf("Hash mismatch for %s: %s != %s", url, result, hash)
 		}
