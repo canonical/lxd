@@ -512,8 +512,15 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		d.globalConfig = config
 		d.globalConfigMu.Unlock()
 
+		// Copy the old config so that the update triggers have access to it.
+		// In this case it will not be used as we are not changing any node values.
+		oldNodeConfig := make(map[string]any)
+		for k, v := range s.LocalConfig.Dump() {
+			oldNodeConfig[k] = v
+		}
+
 		// Run any update triggers.
-		err = doAPI10UpdateTriggers(d, nil, changed, s.LocalConfig, config)
+		err = doAPI10UpdateTriggers(d, nil, changed, oldNodeConfig, s.LocalConfig, config)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -821,7 +828,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	d.globalConfigMu.Unlock()
 
 	// Run any update triggers.
-	err = doAPI10UpdateTriggers(d, nodeChanged, clusterChanged, newNodeConfig, newClusterConfig)
+	err = doAPI10UpdateTriggers(d, nodeChanged, clusterChanged, oldNodeConfig, newNodeConfig, newClusterConfig)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -833,7 +840,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	return response.EmptySyncResponse
 }
 
-func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, newNodeConfig *node.Config, newClusterConfig *clusterConfig.Config) error {
+func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, oldNodeConfig map[string]any, newNodeConfig *node.Config, newClusterConfig *clusterConfig.Config) error {
 	s := d.State()
 
 	maasChanged := false
@@ -968,7 +975,8 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 	value, ok = nodeChanged["storage.backups_volume"]
 	if ok {
-		err := daemonStorageMove(s, "backups", value)
+		oldValue, _ := oldNodeConfig["storage.backups_volume"].(string)
+		err := daemonStorageMove(s, "backups", oldValue, value)
 		if err != nil {
 			return err
 		}
@@ -976,7 +984,8 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 	value, ok = nodeChanged["storage.images_volume"]
 	if ok {
-		err := daemonStorageMove(s, "images", value)
+		oldValue, _ := oldNodeConfig["storage.images_volume"].(string)
+		err := daemonStorageMove(s, "images", oldValue, value)
 		if err != nil {
 			return err
 		}
