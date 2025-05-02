@@ -674,7 +674,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		runConf.NetworkInterface = append(runConf.NetworkInterface,
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
-				{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
+				{Key: "mtu", Value: strconv.FormatUint(uint64(mtu), 10)},
 			}...)
 	}
 
@@ -1540,7 +1540,7 @@ func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 				return errors.New("VLAN tagged ID 0 is not allowed for native Linux bridges")
 			}
 
-			err := link.BridgeVLANAdd(fmt.Sprintf("%d", vlanID), false, false, false)
+			err := link.BridgeVLANAdd(strconv.Itoa(vlanID), false, false, false)
 			if err != nil {
 				return err
 			}
@@ -1636,12 +1636,12 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 
 		if v4subnet != nil {
 			mask, _ := v4subnet.Mask.Size()
-			v4mask = fmt.Sprintf("%d", mask)
+			v4mask = strconv.Itoa(mask)
 		}
 
 		if v6subnet != nil {
 			mask, _ := v6subnet.Mask.Size()
-			v6mask = fmt.Sprintf("%d", mask)
+			v6mask = strconv.Itoa(mask)
 		}
 
 		if d.config["hwaddr"] != "" {
