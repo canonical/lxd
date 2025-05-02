@@ -55,7 +55,7 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 	for _, table := range preClusteringTables {
 		logger.Debugf("Loading data from table %s", table)
 		data := [][]any{}
-		stmt := fmt.Sprintf("SELECT * FROM %s", table)
+		stmt := "SELECT * FROM " + table
 
 		rows, err := tx.QueryContext(ctx, stmt)
 		if err != nil {
@@ -247,7 +247,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 			}
 
 			stmt := fmt.Sprintf("INSERT INTO %s(%s)", table, strings.Join(columns, ", "))
-			stmt += fmt.Sprintf(" VALUES %s", query.Params(len(columns)))
+			stmt += " VALUES " + query.Params(len(columns))
 			result, err := tx.Exec(stmt, row...)
 			if err != nil {
 				return fmt.Errorf("failed to insert row %d into %s: %w", i, table, err)
