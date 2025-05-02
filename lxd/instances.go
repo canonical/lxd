@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+
 	"net/http"
 	"os"
 	"path/filepath"
@@ -329,7 +329,7 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 				if attempt >= maxAttempts {
 					warnErr := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 						// If unable to start after 3 tries, record a warning.
-						return tx.UpsertWarningLocalNode(ctx, inst.Project().Name, entity.TypeInstance, inst.ID(), warningtype.InstanceAutostartFailure, fmt.Sprint(err))
+						return tx.UpsertWarningLocalNode(ctx, inst.Project().Name, entity.TypeInstance, inst.ID(), warningtype.InstanceAutostartFailure, err.Error())
 					})
 					if warnErr != nil {
 						instLogger.Warn("Failed to create instance autostart failure warning", logger.Ctx{"err": warnErr})
