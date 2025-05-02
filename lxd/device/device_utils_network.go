@@ -156,7 +156,7 @@ func networkSnapshotPhysicalNIC(hostName string, volatile map[string]string) err
 		return err
 	}
 
-	volatile["last_state.mtu"] = fmt.Sprint(mtu)
+	volatile["last_state.mtu"] = strconv.FormatUint(uint64(mtu), 10)
 
 	// Store current MAC for restoration on detach
 	mac, err := NetworkGetDevMAC(hostName)
@@ -709,8 +709,8 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 	// Record properties of VF settings on the parent device.
 	volatile["last_state.vf.parent"] = vfParent
 	volatile["last_state.vf.hwaddr"] = vfInfo.Address
-	volatile["last_state.vf.id"] = fmt.Sprint(vfID)
-	volatile["last_state.vf.vlan"] = fmt.Sprint(vfInfo.VLANs[0]["vlan"])
+	volatile["last_state.vf.id"] = strconv.Itoa(vfID)
+	volatile["last_state.vf.vlan"] = strconv.Itoa(vfInfo.VLANs[0]["vlan"])
 	volatile["last_state.vf.spoofcheck"] = strconv.FormatBool(vfInfo.SpoofCheck)
 
 	// Record the host interface we represents the VF device which we will move into instance.
