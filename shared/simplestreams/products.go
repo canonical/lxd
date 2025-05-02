@@ -2,7 +2,6 @@ package simplestreams
 
 import (
 	"errors"
-
 	"slices"
 	"strconv"
 	"strings"
