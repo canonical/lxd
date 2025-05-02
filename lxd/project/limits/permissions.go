@@ -1556,10 +1556,10 @@ var aggregateLimitConfigValuePrinters = map[string]func(int64) string{
 		return units.GetByteSizeStringIEC(limit, 1)
 	},
 	"limits.processes": func(limit int64) string {
-		return fmt.Sprintf("%d", limit)
+		return strconv.FormatInt(limit, 10)
 	},
 	"limits.cpu": func(limit int64) string {
-		return fmt.Sprintf("%d", limit)
+		return strconv.FormatInt(limit, 10)
 	},
 	"limits.disk": func(limit int64) string {
 		return units.GetByteSizeStringIEC(limit, 1)
