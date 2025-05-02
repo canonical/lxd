@@ -701,7 +701,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			if recursion {
 				md[status] = append(md[status].([]*api.Operation), &op)
 			} else {
-				md[status] = append(md[status].([]string), fmt.Sprintf("/1.0/operations/%s", op.ID))
+				md[status] = append(md[status].([]string), "/1.0/operations/"+op.ID)
 			}
 		}
 	}
