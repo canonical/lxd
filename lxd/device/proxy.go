@@ -307,7 +307,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 				return err
 			}
 
-			devFileName := fmt.Sprintf("proxy.%s", d.name)
+			devFileName := "proxy." + d.name
 			pidPath := filepath.Join(d.inst.DevicesPath(), devFileName)
 			logFileName := fmt.Sprintf("proxy.%s.log", d.name)
 			logPath := filepath.Join(d.inst.LogPath(), logFileName)
@@ -436,7 +436,7 @@ func (d *proxy) Stop() (*deviceConfig.RunConfig, error) {
 		logger.Errorf("Failed to remove proxy NAT filters: %v", err)
 	}
 
-	devFileName := fmt.Sprintf("proxy.%s", d.name)
+	devFileName := "proxy." + d.name
 	devPath := filepath.Join(d.inst.DevicesPath(), devFileName)
 
 	if !shared.PathExists(devPath) {
