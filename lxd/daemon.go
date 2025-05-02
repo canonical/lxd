@@ -1638,7 +1638,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Create directories on daemon storage mounts.
-	err = d.os.InitStorage()
+	err = d.os.InitStorage(d.localConfig)
 	if err != nil {
 		return err
 	}
