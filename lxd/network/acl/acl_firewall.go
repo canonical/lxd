@@ -99,14 +99,14 @@ func FirewallApplyACLRules(s *state.State, logger logger.Logger, aclProjectName 
 		Direction: "egress",
 		Action:    egressAction,
 		Log:       egressLogged,
-		LogName:   fmt.Sprintf("%s-egress", logPrefix),
+		LogName:   logPrefix + "-egress",
 	})
 
 	rules = append(rules, firewallDrivers.ACLRule{
 		Direction: "ingress",
 		Action:    ingressAction,
 		Log:       ingressLogged,
-		LogName:   fmt.Sprintf("%s-ingress", logPrefix),
+		LogName:   logPrefix + "-ingress",
 	})
 
 	return s.Firewall.NetworkApplyACLRules(aclNet.Name, rules)
