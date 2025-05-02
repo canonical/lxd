@@ -124,7 +124,7 @@ func (a *qemuBus) allocateInternal(multiFunctionGroup string, hotplug bool) (bus
 	multi = p.fn == 0 && multiFunctionGroup != ""
 
 	if a.name == "pci" || !hotplug {
-		return fmt.Sprintf("%s.0", a.name), fmt.Sprintf("%x.%d", p.bridgeDev, p.fn), multi
+		return a.name + ".0", fmt.Sprintf("%x.%d", p.bridgeDev, p.fn), multi
 	}
 
 	if a.name == "pcie" {
