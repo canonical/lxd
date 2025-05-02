@@ -538,7 +538,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	} else if d.inst.Type() == instancetype.VM {
 		runConf.NetworkInterface = append(runConf.NetworkInterface, []deviceConfig.RunConfigItem{
 			{Key: "devName", Value: d.name},
-			{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
+			{Key: "mtu", Value: strconv.FormatUint(uint64(mtu), 10)},
 		}...)
 	}
 
