@@ -21,7 +21,6 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
-	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
@@ -703,7 +702,7 @@ func genericVFSBackupVolume(d Driver, vol VolumeCopy, tarWriter *instancewriter.
 // created and a revert function that can be used to undo the actions this function performs should something
 // subsequently fail. For VolumeTypeCustom volumes, a nil post hook is returned as it is expected that the DB
 // record be created before the volume is unpacked due to differences in the archive format that allows this.
-func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
+func genericVFSBackupUnpack(d Driver, s *state.State, vol VolumeCopy, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	// Define function to unpack a volume from a backup tarball file.
 	unpackVolume := func(r io.ReadSeeker, tarArgs []string, unpacker []string, srcPrefix string, mountPath string) error {
 		volTypeName := "container"
@@ -768,7 +767,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots [
 				allowedCmds = append(allowedCmds, unpacker[0])
 			}
 
-			err = archive.ExtractWithFds("tar", args, allowedCmds, io.NopCloser(r), sysOS, f)
+			err = archive.ExtractWithFds(s, "tar", args, allowedCmds, io.NopCloser(r), f)
 			if err != nil {
 				return fmt.Errorf("Error starting unpack: %w", err)
 			}
@@ -783,7 +782,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots [
 
 			srcFile := srcPrefix + "." + genericVolumeBlockExtension
 
-			tr, cancelFunc, err := archive.CompressedTarReader(context.Background(), r, unpacker, sysOS, mountPath)
+			tr, cancelFunc, err := archive.CompressedTarReader(s, context.Background(), r, unpacker, mountPath)
 			if err != nil {
 				return err
 			}
