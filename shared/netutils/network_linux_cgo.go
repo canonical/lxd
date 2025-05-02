@@ -13,6 +13,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"unsafe"
 
@@ -183,7 +184,7 @@ func NetnsGetifaddrs(initPID int32, hostInterfaces []net.Interface) (map[string]
 			address := api.InstanceStateNetworkAddress{}
 			address.Family = family
 			address.Address = goAddrString
-			address.Netmask = fmt.Sprintf("%d", int(addr.ifa_prefixlen))
+			address.Netmask = strconv.Itoa(int(addr.ifa_prefixlen))
 			address.Scope = scope
 
 			addNetwork.Addresses = append(addNetwork.Addresses, address)
