@@ -16,7 +16,7 @@ func TestVersionTestSuite(t *testing.T) {
 
 func (s *versionTestSuite) TestNewVersion() {
 	v, err := NewDottedVersion("1.2.3")
-	s.Nil(err)
+	s.NoError(err)
 	s.Equal(1, v.Major)
 	s.Equal(2, v.Minor)
 	s.Equal(3, v.Patch)
@@ -24,19 +24,19 @@ func (s *versionTestSuite) TestNewVersion() {
 
 func (s *versionTestSuite) TestNewVersionNoPatch() {
 	v, err := NewDottedVersion("1.2")
-	s.Nil(err)
+	s.NoError(err)
 	s.Equal(-1, v.Patch)
 }
 
 func (s *versionTestSuite) TestNewVersionInvalid() {
 	v, err := NewDottedVersion("1.nope")
 	s.Nil(v)
-	s.NotNil(err)
+	s.Error(err)
 }
 
 func (s *versionTestSuite) TestParseDashes() {
 	v, err := Parse("1.2.3-asdf")
-	s.Nil(err)
+	s.NoError(err)
 	s.Equal(1, v.Major)
 	s.Equal(2, v.Minor)
 	s.Equal(3, v.Patch)
@@ -44,7 +44,7 @@ func (s *versionTestSuite) TestParseDashes() {
 
 func (s *versionTestSuite) TestParseParentheses() {
 	v, err := Parse("1.2.3(beta1)")
-	s.Nil(err)
+	s.NoError(err)
 	s.Equal(1, v.Major)
 	s.Equal(2, v.Minor)
 	s.Equal(3, v.Patch)
@@ -53,7 +53,7 @@ func (s *versionTestSuite) TestParseParentheses() {
 func (s *versionTestSuite) TestParseFail() {
 	v, err := Parse("asdfaf")
 	s.Nil(v)
-	s.NotNil(err)
+	s.Error(err)
 }
 
 func (s *versionTestSuite) TestString() {

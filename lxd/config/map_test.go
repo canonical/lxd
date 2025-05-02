@@ -300,7 +300,7 @@ func TestMap_Getters(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "hello", m.GetString("foo"))
-	assert.Equal(t, true, m.GetBool("bar"))
+	assert.True(t, m.GetBool("bar"))
 	assert.Equal(t, int64(123), m.GetInt64("egg"))
 }
 

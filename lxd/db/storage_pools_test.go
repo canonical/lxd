@@ -59,9 +59,9 @@ func TestGetStoragePoolsLocalConfigs(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, config, map[string]map[string]string{
+	assert.Equal(t, map[string]map[string]string{
 		"BTRFS": {"source": "/egg/baz"},
-	})
+	}, config)
 }
 
 func TestStoragePoolsCreatePending(t *testing.T) {
@@ -79,7 +79,7 @@ func TestStoragePoolsCreatePending(t *testing.T) {
 
 	poolID, err := tx.GetStoragePoolID(context.Background(), "pool1")
 	require.NoError(t, err)
-	assert.True(t, poolID > 0)
+	assert.Positive(t, poolID)
 
 	config = map[string]string{"source": "/bar"}
 	err = tx.CreatePendingStoragePool(context.Background(), "rusp", "pool1", "dir", config)
@@ -217,7 +217,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, thisVolume)
 	assert.Equal(t, volumeID, thisVolume.ID)
-	assert.Equal(t, thisVolume.Location, "")
+	assert.Empty(t, thisVolume.Location)
 
 	// Update the volume
 	config["k"] = "v2"
@@ -278,10 +278,10 @@ func TestCreateStoragePoolVolume_Snapshot(t *testing.T) {
 		require.NoError(t, err)
 
 		n := tx.GetNextStorageVolumeSnapshotIndex(ctx, "p1", "v1", 1, "snap%d")
-		assert.Equal(t, n, 1)
+		assert.Equal(t, 1, n)
 
 		n = tx.GetNextStorageVolumeSnapshotIndex(ctx, "p2", "v1", 1, "snap%d")
-		assert.Equal(t, n, 0)
+		assert.Equal(t, 0, n)
 
 		return nil
 	})

@@ -99,7 +99,7 @@ func TestDumpTableStoragePoolsConfig(t *testing.T) {
 );`, dump["storage_pools_config"][1])
 	data, err := query.GetTableData(context.Background(), tx, "storage_pools_config")
 	require.NoError(t, err)
-	assert.Equal(t, data, []string{"INSERT INTO storage_pools_config VALUES(1,1,NULL,'k','v');"})
+	assert.Equal(t, []string{"INSERT INTO storage_pools_config VALUES(1,1,NULL,'k','v');"}, data)
 }
 
 // Return a new transaction against an in-memory SQLite database populated with

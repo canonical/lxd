@@ -24,7 +24,7 @@ func TestUpdateFromV38_RaftNodes(t *testing.T) {
 	err = query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 		roles, err := query.SelectIntegers(ctx, tx, "SELECT role FROM raft_nodes")
 		require.NoError(t, err)
-		assert.Equal(t, roles, []int{0})
+		assert.Equal(t, []int{0}, roles)
 		return nil
 	})
 	require.NoError(t, err)
@@ -86,7 +86,7 @@ func TestUpdateFromV37_CopyCoreHTTPSAddress(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, clusterAddress, "1.2.3.4:666")
+	assert.Equal(t, "1.2.3.4:666", clusterAddress)
 }
 
 // If clustering is not enabled, the core.https_address config does not get copied.

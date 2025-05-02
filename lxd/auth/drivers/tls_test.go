@@ -284,18 +284,18 @@ func (s *tlsSuite) TestTLSAuthorizer() {
 			err := s.authorizer.CheckPermission(ctx, tt.entityURL, entitlement)
 			if tt.expectErr {
 				s.T().Logf("%q does not have %q on %q", tt.id.Name, entitlement, tt.entityURL)
-				s.Assert().Error(err)
-				s.Assert().True(api.StatusErrorCheck(err, tt.expectErrCode))
+				s.Error(err)
+				s.True(api.StatusErrorCheck(err, tt.expectErrCode))
 			} else {
 				s.T().Logf("%q has %q on %q", tt.id.Name, entitlement, tt.entityURL)
-				s.Assert().NoError(err)
+				s.NoError(err)
 			}
 
 			// If we don't expect an error from CheckPermission (e.g. access is allowed), then we expect the permission
 			// checker to return true (and vice versa).
 			permissionChecker, err := s.authorizer.GetPermissionChecker(ctx, entitlement, entityType)
-			s.Assert().NoError(err)
-			s.Assert().Equal(!tt.expectErr, permissionChecker(tt.entityURL))
+			s.NoError(err)
+			s.Equal(!tt.expectErr, permissionChecker(tt.entityURL))
 		}
 	}
 }

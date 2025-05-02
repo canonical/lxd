@@ -104,6 +104,6 @@ func assertNoSocketBasedActivation(t *testing.T) {
 	// confusing child processes or other logic.
 	for _, name := range []string{"LISTEN_PID", "LISTEN_FDS"} {
 		_, ok := os.LookupEnv(name)
-		assert.Equal(t, false, ok)
+		assert.False(t, ok)
 	}
 }

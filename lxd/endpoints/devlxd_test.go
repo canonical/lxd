@@ -22,5 +22,5 @@ func TestEndpoints_DevLxdCreateUnixSocket(t *testing.T) {
 
 	// The unix socket file gets removed after shutdown.
 	cleanup()
-	assert.Equal(t, false, shared.PathExists(path))
+	assert.False(t, shared.PathExists(path))
 }

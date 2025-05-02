@@ -59,7 +59,7 @@ func TestGateway_Single(t *testing.T) {
 	require.NoError(t, netConn.Close())
 
 	leader, err := gateway.LeaderAddress()
-	assert.Equal(t, "", leader)
+	assert.Empty(t, leader)
 	assert.EqualError(t, err, cluster.ErrNodeIsNotClustered.Error())
 
 	driver, err := driver.New(
@@ -179,7 +179,7 @@ func TestGateway_RaftNodesNotLeader(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, nodes, 1)
-	assert.Equal(t, nodes[0].ID, uint64(1))
+	assert.Equal(t, uint64(1), nodes[0].ID)
 	assert.Equal(t, nodes[0].Address, address)
 }
 
