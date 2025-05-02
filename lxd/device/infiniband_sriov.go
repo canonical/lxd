@@ -57,7 +57,7 @@ func (d *infinibandSRIOV) validateEnvironment() error {
 		return errors.New("Requires name property to start")
 	}
 
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
+	if !shared.PathExists("/sys/class/net/" + d.config["parent"]) {
 		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
 	}
 
