@@ -780,5 +780,5 @@ func instanceOperationLock(ctx context.Context, projectName string, instanceName
 	l.Debug("Acquiring lock for instance")
 	defer l.Debug("Lock acquired for instance")
 
-	return locking.Lock(ctx, fmt.Sprintf("InstanceOperation_%s", project.Instance(projectName, instanceName)))
+	return locking.Lock(ctx, "InstanceOperation_"+project.Instance(projectName, instanceName))
 }
