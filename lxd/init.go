@@ -99,7 +99,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 			// Config overrides.
 			for k, v := range storagePool.Config {
-				newStoragePool.Config[k] = fmt.Sprint(v)
+				newStoragePool.Config[k] = v
 			}
 
 			// Apply it.
@@ -157,7 +157,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 			// Config overrides.
 			for k, v := range network.Config {
-				newNetwork.Config[k] = fmt.Sprint(v)
+				newNetwork.Config[k] = v
 			}
 
 			// Apply it.
@@ -240,7 +240,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 			// Config overrides.
 			for k, v := range project.Config {
-				newProject.Config[k] = fmt.Sprint(v)
+				newProject.Config[k] = v
 			}
 
 			// Apply it.
@@ -324,7 +324,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 			// Config overrides.
 			for k, v := range storageVolume.Config {
-				newStorageVolume.Config[k] = fmt.Sprint(v)
+				newStorageVolume.Config[k] = v
 			}
 
 			// Apply it.
@@ -400,7 +400,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 			// Config overrides.
 			for k, v := range profile.Config {
-				newProfile.Config[k] = fmt.Sprint(v)
+				newProfile.Config[k] = v
 			}
 
 			// Device overrides.
@@ -414,7 +414,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 				// Existing device.
 				for configKey, configValue := range v {
-					newProfile.Devices[k][configKey] = fmt.Sprint(configValue)
+					newProfile.Devices[k][configKey] = configValue
 				}
 			}
 
