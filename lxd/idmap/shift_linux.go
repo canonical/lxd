@@ -2,8 +2,8 @@
 
 package idmap
 
-// #cgo LDFLAGS: -lacl
 /*
+#cgo LDFLAGS: -lacl
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
 #endif
