@@ -833,7 +833,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	return response.EmptySyncResponse
 }
 
-func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, nodeConfig *node.Config, clusterConfig *clusterConfig.Config) error {
+func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, newNodeConfig *node.Config, newClusterConfig *clusterConfig.Config) error {
 	s := d.State()
 
 	maasChanged := false
@@ -854,7 +854,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		case "core.proxy_https":
 			fallthrough
 		case "core.proxy_ignore_hosts":
-			daemonConfigSetProxy(d, clusterConfig)
+			daemonConfigSetProxy(d, newClusterConfig)
 		case "maas.api.url":
 			fallthrough
 		case "maas.api.key":
@@ -866,7 +866,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			}
 
 		case "cluster.offline_threshold":
-			d.gateway.HeartbeatOfflineThreshold = clusterConfig.OfflineThreshold()
+			d.gateway.HeartbeatOfflineThreshold = newClusterConfig.OfflineThreshold()
 			d.taskClusterHeartbeat.Reset()
 		case "images.auto_update_interval":
 			fallthrough
@@ -929,7 +929,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			return err
 		}
 
-		s.Endpoints.NetworkUpdateTrustedProxy(clusterConfig.HTTPSTrustedProxy())
+		s.Endpoints.NetworkUpdateTrustedProxy(newClusterConfig.HTTPSTrustedProxy())
 	}
 
 	value, ok = nodeChanged["cluster.https_address"]
@@ -939,7 +939,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			return err
 		}
 
-		s.Endpoints.NetworkUpdateTrustedProxy(clusterConfig.HTTPSTrustedProxy())
+		s.Endpoints.NetworkUpdateTrustedProxy(newClusterConfig.HTTPSTrustedProxy())
 	}
 
 	value, ok = nodeChanged["core.debug_address"]
@@ -983,8 +983,8 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	}
 
 	if maasChanged {
-		url, key := clusterConfig.MAASController()
-		machine := nodeConfig.MAASMachine()
+		url, key := newClusterConfig.MAASController()
+		machine := newNodeConfig.MAASMachine()
 		err := d.setupMAASController(url, key, machine)
 		if err != nil {
 			return err
@@ -992,9 +992,9 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	}
 
 	if bgpChanged {
-		address := nodeConfig.BGPAddress()
-		asn := clusterConfig.BGPASN()
-		routerid := nodeConfig.BGPRouterID()
+		address := newNodeConfig.BGPAddress()
+		asn := newClusterConfig.BGPASN()
+		routerid := newNodeConfig.BGPRouterID()
 
 		if asn > math.MaxUint32 {
 			return errors.New("Cannot convert BGP ASN to uint32: Upper bound exceeded")
@@ -1007,7 +1007,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	}
 
 	if dnsChanged {
-		address := nodeConfig.DNSAddress()
+		address := newNodeConfig.DNSAddress()
 
 		err := s.DNS.Reconfigure(address)
 		if err != nil {
@@ -1016,7 +1016,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	}
 
 	if lokiChanged {
-		lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes := clusterConfig.LokiServer()
+		lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes := newClusterConfig.LokiServer()
 
 		if lokiURL == "" || lokiLoglevel == "" || len(lokiTypes) == 0 {
 			d.internalListener.RemoveHandler("loki")
@@ -1045,7 +1045,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	}
 
 	if oidcChanged {
-		oidcIssuer, oidcClientID, oidcScopes, oidcAudience, oidcGroupsClaim := clusterConfig.OIDCServer()
+		oidcIssuer, oidcClientID, oidcScopes, oidcAudience, oidcGroupsClaim := newClusterConfig.OIDCServer()
 
 		if oidcIssuer == "" || oidcClientID == "" {
 			d.oidcVerifier = nil
@@ -1064,7 +1064,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	}
 
 	if syslogSocketChanged {
-		err := d.setupSyslogSocket(nodeConfig.SyslogSocket())
+		err := d.setupSyslogSocket(newNodeConfig.SyslogSocket())
 		if err != nil {
 			return err
 		}
