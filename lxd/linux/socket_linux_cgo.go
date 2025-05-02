@@ -46,8 +46,8 @@ again:
 import "C"
 
 import (
-	"fmt"
 	"os"
+	"strconv"
 
 	"golang.org/x/sys/unix"
 
@@ -88,7 +88,7 @@ func PidFdOpen(Pid int, Flags uint32) (*os.File, error) {
 		return nil, errno
 	}
 
-	return os.NewFile(uintptr(pidFd), fmt.Sprintf("%d", Pid)), nil
+	return os.NewFile(uintptr(pidFd), strconv.FormatInt(int64(Pid), 10)), nil
 }
 
 func PidfdSendSignal(Pidfd int, Signal int, Flags uint32) error {
