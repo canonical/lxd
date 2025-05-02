@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -741,7 +742,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots [
 			} else {
 				// For instance volumes, the user created files are stored in the rootfs sub-directory
 				// and so strip-components flag works fine.
-				args = append(args, "--strip-components="+fmt.Sprint(len(srcParts)))
+				args = append(args, "--strip-components="+strconv.Itoa(len(srcParts)))
 			}
 
 			// Directory to unpack comes after other options.
@@ -805,7 +806,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots [
 				// Allow potentially destructive resize of volume as we are going to be
 				// overwriting it entirely anyway. This allows shrinking of block volumes.
 				allowUnsafeResize = true
-				err = d.SetVolumeQuota(vol.Volume, fmt.Sprint(size), allowUnsafeResize, op)
+				err = d.SetVolumeQuota(vol.Volume, strconv.FormatInt(size, 10), allowUnsafeResize, op)
 				if err != nil {
 					return err
 				}
