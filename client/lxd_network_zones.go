@@ -73,7 +73,7 @@ func (r *ProtocolLXD) GetNetworkZone(name string) (*api.NetworkZone, string, err
 	zone := api.NetworkZone{}
 
 	// Fetch the raw value.
-	etag, err := r.queryStruct(http.MethodGet, fmt.Sprintf("/network-zones/%s", url.PathEscape(name)), nil, "", &zone)
+	etag, err := r.queryStruct(http.MethodGet, "/network-zones/"+url.PathEscape(name), nil, "", &zone)
 	if err != nil {
 		return nil, "", err
 	}
@@ -105,7 +105,7 @@ func (r *ProtocolLXD) UpdateNetworkZone(name string, zone api.NetworkZonePut, ET
 	}
 
 	// Send the request.
-	_, _, err = r.query(http.MethodPut, fmt.Sprintf("/network-zones/%s", url.PathEscape(name)), zone, ETag)
+	_, _, err = r.query(http.MethodPut, "/network-zones/"+url.PathEscape(name), zone, ETag)
 	if err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func (r *ProtocolLXD) DeleteNetworkZone(name string) error {
 	}
 
 	// Send the request.
-	_, _, err = r.query(http.MethodDelete, fmt.Sprintf("/network-zones/%s", url.PathEscape(name)), nil, "")
+	_, _, err = r.query(http.MethodDelete, "/network-zones/"+url.PathEscape(name), nil, "")
 	if err != nil {
 		return err
 	}
