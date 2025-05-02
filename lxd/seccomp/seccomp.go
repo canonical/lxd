@@ -2109,7 +2109,7 @@ func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
 		return int(-C.EPERM)
 	}
 
-	if shared.PathExists(fmt.Sprintf("/sys/module/%s", moduleName)) {
+	if shared.PathExists("/sys/module/" + moduleName) {
 		return int(-C.EEXIST)
 	}
 
