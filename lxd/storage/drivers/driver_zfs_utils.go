@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -84,7 +85,7 @@ func (d *zfs) createDataset(dataset string, options ...string) error {
 }
 
 func (d *zfs) createVolume(dataset string, size int64, options ...string) error {
-	args := []string{"create", "-s", "-V", fmt.Sprintf("%d", size)}
+	args := []string{"create", "-s", "-V", strconv.FormatInt(size, 10)}
 	for _, option := range options {
 		args = append(args, "-o")
 		args = append(args, option)
