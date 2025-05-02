@@ -23,11 +23,11 @@ WHERE instances.type = %d
 }
 
 func (e entityTypeContainer) urlsByProjectQuery() string {
-	return fmt.Sprintf(`%s AND projects.name = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " AND projects.name = ?"
 }
 
 func (e entityTypeContainer) urlByIDQuery() string {
-	return fmt.Sprintf(`%s AND instances.id = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " AND instances.id = ?"
 }
 
 func (e entityTypeContainer) idFromURLQuery() string {
