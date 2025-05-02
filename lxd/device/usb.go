@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
@@ -26,8 +27,8 @@ func usbIsOurDevice(config deviceConfig.Device, usb *USBEvent) bool {
 	if (config["vendorid"] != "" && config["vendorid"] != usb.Vendor) ||
 		(config["productid"] != "" && config["productid"] != usb.Product) ||
 		(config["serial"] != "" && config["serial"] != usb.Serial) ||
-		(config["busnum"] != "" && config["busnum"] != fmt.Sprintf("%d", usb.BusNum)) ||
-		(config["devnum"] != "" && config["devnum"] != fmt.Sprintf("%d", usb.DevNum)) {
+		(config["busnum"] != "" && config["busnum"] != strconv.Itoa(usb.BusNum)) ||
+		(config["devnum"] != "" && config["devnum"] != strconv.Itoa(usb.DevNum)) {
 		return false
 	}
 
