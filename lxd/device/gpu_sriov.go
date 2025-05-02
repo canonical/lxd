@@ -179,7 +179,7 @@ func (d *gpuSRIOV) setupSriovParent(parentPCIAddress string, vfID int, volatile 
 	defer revert.Fail()
 
 	volatile["last_state.pci.parent"] = parentPCIAddress
-	volatile["last_state.vf.id"] = fmt.Sprintf("%d", vfID)
+	volatile["last_state.vf.id"] = strconv.Itoa(vfID)
 	volatile["last_state.created"] = "false" // Indicates don't delete device at stop time.
 
 	// Get VF device's PCI Slot Name so we can unbind and rebind it from the host.
