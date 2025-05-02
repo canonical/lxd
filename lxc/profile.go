@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -802,7 +803,7 @@ func (c *cmdProfileList) projectNameColumnData(profile api.Profile) string {
 }
 
 func (c *cmdProfileList) usedByColumnData(profile api.Profile) string {
-	return fmt.Sprint(len(profile.UsedBy))
+	return strconv.Itoa(len(profile.UsedBy))
 }
 
 func (c *cmdProfileList) run(cmd *cobra.Command, args []string) error {
