@@ -57,7 +57,7 @@ func (r *ProtocolLXD) GetStoragePool(name string) (*api.StoragePool, string, err
 	pool := api.StoragePool{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct(http.MethodGet, fmt.Sprintf("/storage-pools/%s", url.PathEscape(name)), nil, "", &pool)
+	etag, err := r.queryStruct(http.MethodGet, "/storage-pools/"+url.PathEscape(name), nil, "", &pool)
 	if err != nil {
 		return nil, "", err
 	}
@@ -96,7 +96,7 @@ func (r *ProtocolLXD) UpdateStoragePool(name string, pool api.StoragePoolPut, ET
 	}
 
 	// Send the request
-	_, _, err = r.query(http.MethodPut, fmt.Sprintf("/storage-pools/%s", url.PathEscape(name)), pool, ETag)
+	_, _, err = r.query(http.MethodPut, "/storage-pools/"+url.PathEscape(name), pool, ETag)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func (r *ProtocolLXD) DeleteStoragePool(name string) error {
 	}
 
 	// Send the request
-	_, _, err = r.query(http.MethodDelete, fmt.Sprintf("/storage-pools/%s", url.PathEscape(name)), nil, "")
+	_, _, err = r.query(http.MethodDelete, "/storage-pools/"+url.PathEscape(name), nil, "")
 	if err != nil {
 		return err
 	}
