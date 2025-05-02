@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 )
 
 // portRangesFromSlice checks if adjacent indices in the given slice contain consecutive
@@ -36,7 +37,7 @@ func portRangeStr(portRange [2]uint64, delimiter string) string {
 	if portRange[1] < 1 {
 		return ""
 	} else if portRange[1] == 1 {
-		return fmt.Sprint(portRange[0])
+		return strconv.FormatUint(portRange[0], 10)
 	}
 
 	return fmt.Sprint(portRange[0], delimiter, portRange[0]+portRange[1]-1)
