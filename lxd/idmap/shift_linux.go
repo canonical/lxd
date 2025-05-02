@@ -401,6 +401,7 @@ static int create_detached_idmapped_mount(const char *path, const char *fstype)
 import "C"
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -587,7 +588,7 @@ func SupportsVFS3Fscaps(prefix string) bool {
 // UnshiftACL performs an UID/GID unshift on the ACL xattr value in accordance with idmap (set) provided
 func UnshiftACL(value string, set *IdmapSet) (string, error) {
 	if set == nil {
-		return "", fmt.Errorf("Invalid IdmapSet supplied")
+		return "", errors.New("Invalid IdmapSet supplied")
 	}
 
 	buf := []byte(value)
@@ -597,7 +598,7 @@ func UnshiftACL(value string, set *IdmapSet) (string, error) {
 
 	size := len(buf)
 	if size < int(unsafe.Sizeof(*header)) {
-		return "", fmt.Errorf("Invalid ACL size")
+		return "", errors.New("Invalid ACL size")
 	}
 
 	if header.a_version != C.native_to_le32(C.POSIX_ACL_XATTR_VERSION) {
@@ -606,11 +607,11 @@ func UnshiftACL(value string, set *IdmapSet) (string, error) {
 
 	count := C.posix_acl_xattr_count(C.size_t(size))
 	if count < 0 {
-		return "", fmt.Errorf("Invalid ACL count")
+		return "", errors.New("Invalid ACL count")
 	}
 
 	if count == 0 {
-		return "", fmt.Errorf("No valid ACLs found")
+		return "", errors.New("No valid ACLs found")
 	}
 
 	entryPtr := C.posix_entry_start(unsafe.Pointer(header))
@@ -657,7 +658,7 @@ func UnshiftACL(value string, set *IdmapSet) (string, error) {
 // UnshiftCaps performs an UID/GID unshift on the security.capability xattr value in accordance with idmap (set) provided
 func UnshiftCaps(value string, set *IdmapSet) (string, error) {
 	if set == nil {
-		return "", fmt.Errorf("Invalid IdmapSet supplied")
+		return "", errors.New("Invalid IdmapSet supplied")
 	}
 
 	buf := []byte(value)
