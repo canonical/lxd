@@ -263,12 +263,12 @@ func (d Xtables) networkSetupACLFilteringChains(networkName string) error {
 
 			// Allow core ICMPv4 to/from LXD host.
 			for _, icmpType := range []int{3, 11, 12} {
-				err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprint(icmpType), "-j", "ACCEPT")
+				err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", strconv.Itoa(icmpType), "-j", "ACCEPT")
 				if err != nil {
 					return err
 				}
 
-				err = d.iptablesPrepend(ipVersion, comment, "filter", "OUTPUT", "-o", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprint(icmpType), "-j", "ACCEPT")
+				err = d.iptablesPrepend(ipVersion, comment, "filter", "OUTPUT", "-o", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", strconv.Itoa(icmpType), "-j", "ACCEPT")
 				if err != nil {
 					return err
 				}
@@ -289,7 +289,7 @@ func (d Xtables) networkSetupACLFilteringChains(networkName string) error {
 
 			// Allow core ICMPv6 to/from LXD host.
 			for _, icmpType := range []int{1, 2, 3, 4, 133, 135, 136, 143} {
-				err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprint(icmpType), "-j", "ACCEPT")
+				err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", strconv.Itoa(icmpType), "-j", "ACCEPT")
 				if err != nil {
 					return err
 				}
@@ -297,7 +297,7 @@ func (d Xtables) networkSetupACLFilteringChains(networkName string) error {
 
 			// Allow ICMPv6 ping from host into network as dnsmasq uses this to probe IP allocations.
 			for _, icmpType := range []int{1, 2, 3, 4, 128, 134, 135, 136, 143} {
-				err = d.iptablesPrepend(ipVersion, comment, "filter", "OUTPUT", "-o", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprint(icmpType), "-j", "ACCEPT")
+				err = d.iptablesPrepend(ipVersion, comment, "filter", "OUTPUT", "-o", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", strconv.Itoa(icmpType), "-j", "ACCEPT")
 				if err != nil {
 					return err
 				}
@@ -406,8 +406,8 @@ func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, networkAddres
 
 		// Allow core ICMPv4 to/from LXD host.
 		for _, icmpType := range []int{3, 11, 12} {
-			rules = append(rules, []string{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprint(icmpType), "-j", "ACCEPT"})
-			rules = append(rules, []string{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprint(icmpType), "-j", "ACCEPT"})
+			rules = append(rules, []string{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", strconv.Itoa(icmpType), "-j", "ACCEPT"})
+			rules = append(rules, []string{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", strconv.Itoa(icmpType), "-j", "ACCEPT"})
 		}
 
 	case 6:
@@ -425,12 +425,12 @@ func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, networkAddres
 
 		// Allow core ICMPv6 to/from LXD host.
 		for _, icmpType := range []int{1, 2, 3, 4, 133, 135, 136, 143} {
-			rules = append(rules, []string{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprint(icmpType), "-j", "ACCEPT"})
+			rules = append(rules, []string{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", strconv.Itoa(icmpType), "-j", "ACCEPT"})
 		}
 
 		// Allow ICMPv6 ping from host into network as dnsmasq uses this to probe IP allocations.
 		for _, icmpType := range []int{1, 2, 3, 4, 128, 134, 135, 136, 143} {
-			rules = append(rules, []string{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprint(icmpType), "-j", "ACCEPT"})
+			rules = append(rules, []string{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", strconv.Itoa(icmpType), "-j", "ACCEPT"})
 		}
 
 	default:
