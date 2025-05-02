@@ -7,6 +7,7 @@ package cluster
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -136,9 +137,9 @@ func GetNodeClusterGroups(ctx context.Context, tx *sql.Tx, filters ...NodeCluste
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
 		} else if filter.GroupID == nil {
-			return nil, fmt.Errorf("Cannot filter on empty NodeClusterGroupFilter")
+			return nil, errors.New("Cannot filter on empty NodeClusterGroupFilter")
 		} else {
-			return nil, fmt.Errorf("No statement exists for the given Filter")
+			return nil, errors.New("No statement exists for the given Filter")
 		}
 	}
 

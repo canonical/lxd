@@ -186,9 +186,9 @@ func GetAuthGroups(ctx context.Context, tx *sql.Tx, filters ...AuthGroupFilter) 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
 		} else if filter.ID == nil && filter.Name == nil {
-			return nil, fmt.Errorf("Cannot filter on empty AuthGroupFilter")
+			return nil, errors.New("Cannot filter on empty AuthGroupFilter")
 		} else {
-			return nil, fmt.Errorf("No statement exists for the given Filter")
+			return nil, errors.New("No statement exists for the given Filter")
 		}
 	}
 
@@ -224,7 +224,7 @@ func GetAuthGroup(ctx context.Context, tx *sql.Tx, name string) (*AuthGroup, err
 	case 1:
 		return &objects[0], nil
 	default:
-		return nil, fmt.Errorf("More than one \"auths_groups\" entry matches")
+		return nil, errors.New("More than one \"auths_groups\" entry matches")
 	}
 }
 

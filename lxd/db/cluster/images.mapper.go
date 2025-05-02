@@ -7,6 +7,7 @@ package cluster
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -324,9 +325,9 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
 		} else if filter.ID == nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-			return nil, fmt.Errorf("Cannot filter on empty ImageFilter")
+			return nil, errors.New("Cannot filter on empty ImageFilter")
 		} else {
-			return nil, fmt.Errorf("No statement exists for the given Filter")
+			return nil, errors.New("No statement exists for the given Filter")
 		}
 	}
 
@@ -363,6 +364,6 @@ func GetImage(ctx context.Context, tx *sql.Tx, project string, fingerprint strin
 	case 1:
 		return &objects[0], nil
 	default:
-		return nil, fmt.Errorf("More than one \"images\" entry matches")
+		return nil, errors.New("More than one \"images\" entry matches")
 	}
 }
