@@ -62,7 +62,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 
 				// If valid non-CIDR address specified, append a /24 subnet.
 				if validate.IsNetworkAddressV4(v) == nil {
-					v = fmt.Sprintf("%s/24", v)
+					v = v + "/24"
 				}
 
 				ip, _, err := net.ParseCIDR(v)
@@ -92,7 +92,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 
 				// If valid non-CIDR address specified, append a /64 subnet.
 				if validate.IsNetworkAddressV6(v) == nil {
-					v = fmt.Sprintf("%s/64", v)
+					v = v + "/64"
 				}
 
 				ip, _, err := net.ParseCIDR(v)
@@ -291,7 +291,7 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 			ipFamilyArg = ip.FamilyV6
 		}
 
-		addresses := shared.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true)
+		addresses := shared.SplitNTrimSpace(d.config[keyPrefix+".address"], ",", -1, true)
 
 		// Setup address configuration.
 		for _, addr := range addresses {
@@ -301,7 +301,7 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 			}
 
 			nic = append(nic, deviceConfig.RunConfigItem{
-				Key:   fmt.Sprintf("%s.address", keyPrefix),
+				Key:   keyPrefix + ".address",
 				Value: addr.String(),
 			})
 
@@ -323,7 +323,7 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 				revert.Add(func() { _ = r.Delete() })
 
 				// Add static routes to instance IPs from custom routing tables if specified.
-				hostTableKey := fmt.Sprintf("%s.host_table", keyPrefix)
+				hostTableKey := keyPrefix + ".host_table"
 				if d.config[hostTableKey] != "" {
 					r := &ip.Route{
 						DevName: "lo",
@@ -357,7 +357,7 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 
 		// Setup gateway configuration.
 		if len(addresses) > 0 {
-			gwKeyName := fmt.Sprintf("%s.gateway", keyPrefix)
+			gwKeyName := keyPrefix + ".gateway"
 			if mode == ipvlanModeL3S && nicHasAutoGateway(d.config[gwKeyName]) {
 				nic = append(nic, deviceConfig.RunConfigItem{
 					Key:   gwKeyName,
@@ -465,7 +465,7 @@ func (d *nicIPVLAN) postStop() error {
 			ipFamilyArg = ip.FamilyV6
 		}
 
-		addresses := shared.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true)
+		addresses := shared.SplitNTrimSpace(d.config[keyPrefix+".address"], ",", -1, true)
 
 		// Remove host-side address configuration.
 		for _, addr := range addresses {
@@ -500,7 +500,7 @@ func (d *nicIPVLAN) postStop() error {
 				}
 
 				// Remove static routes to instance IPs from custom routing tables if specified.
-				hostTableKey := fmt.Sprintf("%s.host_table", keyPrefix)
+				hostTableKey := keyPrefix + ".host_table"
 				if d.config[hostTableKey] != "" {
 					r := &ip.Route{
 						DevName: "lo",
