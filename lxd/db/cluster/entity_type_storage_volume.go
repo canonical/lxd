@@ -42,11 +42,11 @@ FROM storage_volumes
 }
 
 func (e entityTypeStorageVolume) urlsByProjectQuery() string {
-	return fmt.Sprintf(`%s WHERE projects.name = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
 func (e entityTypeStorageVolume) urlByIDQuery() string {
-	return fmt.Sprintf(`%s WHERE storage_volumes.id = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " WHERE storage_volumes.id = ?"
 }
 
 func (e entityTypeStorageVolume) idFromURLQuery() string {
