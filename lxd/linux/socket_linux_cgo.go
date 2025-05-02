@@ -54,7 +54,7 @@ import (
 	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
 )
 
-const ABSTRACT_UNIX_SOCK_LEN int = C.ABSTRACT_UNIX_SOCK_LEN
+const ABSTRACT_UNIX_SOCK_LEN int = C.ABSTRACT_UNIX_SOCK_LEN //nolint:revive
 
 func ReadPid(r *os.File) int {
 	return int(C.read_pid(C.int(r.Fd())))
@@ -100,8 +100,8 @@ func PidfdSendSignal(Pidfd int, Signal int, Flags uint32) error {
 	return nil
 }
 
-const CLOSE_RANGE_UNSHARE uint32 = C.CLOSE_RANGE_UNSHARE
-const CLOSE_RANGE_CLOEXEC uint32 = C.CLOSE_RANGE_CLOEXEC
+const CLOSE_RANGE_UNSHARE uint32 = C.CLOSE_RANGE_UNSHARE //nolint:revive
+const CLOSE_RANGE_CLOEXEC uint32 = C.CLOSE_RANGE_CLOEXEC //nolint:revive
 
 func CloseRange(FirstFd uint32, LastFd uint32, Flags uint32) error {
 	ret, errno := C.lxd_close_range(C.uint32_t(FirstFd), C.uint32_t(LastFd), C.uint32_t(Flags))
