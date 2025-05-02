@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -485,7 +486,7 @@ func (d *powerflex) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 			multipleCount++
 		}
 
-		vol.SetConfigSize(fmt.Sprintf("%d", multipleCount*factorGiB*8))
+		vol.SetConfigSize(strconv.FormatInt(multipleCount*factorGiB*8, 10))
 	}
 
 	commonRules := d.commonVolumeRules()
