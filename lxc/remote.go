@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -432,7 +433,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		rHost = host
 		rPort = port
 	} else {
-		rPort = fmt.Sprint(shared.HTTPSDefaultPort)
+		rPort = strconv.Itoa(shared.HTTPSDefaultPort)
 	}
 
 	if rScheme == "unix" {
