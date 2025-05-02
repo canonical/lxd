@@ -2534,7 +2534,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 	defer revert.Fail()
 
 	// Create temporary file to store uploaded backup data.
-	backupFile, err := os.CreateTemp(shared.VarPath("backups"), backup.WorkingDirPrefix+"_")
+	backupFile, err := os.CreateTemp(s.BackupsStoragePath(), backup.WorkingDirPrefix+"_")
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -2564,7 +2564,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 		decomArgs := append(decomArgs, backupFile.Name())
 
 		// Create temporary file to store the decompressed tarball in.
-		tarFile, err := os.CreateTemp(shared.VarPath("backups"), backup.WorkingDirPrefix+"_decompress_")
+		tarFile, err := os.CreateTemp(s.BackupsStoragePath(), backup.WorkingDirPrefix+"_decompress_")
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -2572,7 +2572,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 		defer func() { _ = os.Remove(tarFile.Name()) }()
 
 		// Decompress to tarFile temporary file.
-		err = archive.ExtractWithFds(decomArgs[0], decomArgs[1:], nil, nil, s.OS, tarFile)
+		err = archive.ExtractWithFds(s, decomArgs[0], decomArgs[1:], nil, nil, tarFile)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -2592,7 +2592,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 	}
 
 	logger.Debug("Reading backup file info")
-	bInfo, err := backup.GetInfo(backupFile, s.OS, backupFile.Name())
+	bInfo, err := backup.GetInfo(s, backupFile, backupFile.Name())
 	if err != nil {
 		return response.BadRequest(err)
 	}
