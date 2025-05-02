@@ -7,6 +7,7 @@ package cluster
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -87,9 +88,9 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filters ...Devic
 	// Result slice.
 	objects := make([]Device, 0)
 
-	deviceObjectsLocal := strings.Replace(deviceObjects, "%s_id", parent+"_id", -1)
+	deviceObjectsLocal := strings.ReplaceAll(deviceObjects, "%s_id", parent+"_id")
 	fillParent := make([]any, strings.Count(deviceObjectsLocal, "%s"))
-	mangledParent := strings.Replace(parent, "_", "s_", -1) + "s"
+	mangledParent := strings.ReplaceAll(parent, "_", "s_") + "s"
 	for i := range fillParent {
 		fillParent[i] = mangledParent
 	}
@@ -118,7 +119,7 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filters ...Devic
 		}
 
 		if len(entries) == 0 {
-			return nil, fmt.Errorf("Cannot filter on empty DeviceFilter")
+			return nil, errors.New("Cannot filter on empty DeviceFilter")
 		}
 
 		queryParts[0] += fmt.Sprintf(cond, strings.Join(entries, " AND "))
@@ -136,7 +137,7 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filters ...Devic
 		filter := f.Config
 		if filter != nil {
 			if filter.Key == nil && filter.Value == nil {
-				return nil, fmt.Errorf("Cannot filter on empty ConfigFilter")
+				return nil, errors.New("Cannot filter on empty ConfigFilter")
 			}
 
 			configFilters = append(configFilters, *filter)
@@ -173,10 +174,10 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filters ...Devic
 // CreateDevices adds a new device to the database.
 // generator: device Create
 func CreateDevices(ctx context.Context, tx *sql.Tx, parent string, objects map[string]Device) error {
-	deviceCreateLocal := strings.Replace(deviceCreate, "%s_id", parent+"_id", -1)
+	deviceCreateLocal := strings.ReplaceAll(deviceCreate, "%s_id", parent+"_id")
 	fillParent := make([]any, strings.Count(deviceCreateLocal, "%s"))
 	for i := range fillParent {
-		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
+		fillParent[i] = strings.ReplaceAll(parent, "_", "s_") + "s"
 	}
 
 	queryStr := fmt.Sprintf(deviceCreateLocal, fillParent...)
@@ -235,10 +236,10 @@ func UpdateDevices(ctx context.Context, tx *sql.Tx, parent string, referenceID i
 // DeleteDevices deletes the device matching the given key parameters.
 // generator: device DeleteMany
 func DeleteDevices(ctx context.Context, tx *sql.Tx, parent string, referenceID int) error {
-	deviceDeleteLocal := strings.Replace(deviceDelete, "%s_id", parent+"_id", -1)
+	deviceDeleteLocal := strings.ReplaceAll(deviceDelete, "%s_id", parent+"_id")
 	fillParent := make([]any, strings.Count(deviceDeleteLocal, "%s"))
 	for i := range fillParent {
-		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
+		fillParent[i] = strings.ReplaceAll(parent, "_", "s_") + "s"
 	}
 
 	queryStr := fmt.Sprintf(deviceDeleteLocal, fillParent...)
