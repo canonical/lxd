@@ -1845,7 +1845,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return err
 			}
 		} else {
-			vxlanID := fmt.Sprintf("%d", binary.BigEndian.Uint32(overlaySubnet.IP.To4())>>8)
+			vxlanID := strconv.FormatUint(uint64(binary.BigEndian.Uint32(overlaySubnet.IP.To4())>>8), 10)
 			vxlan := &ip.Vxlan{
 				Link:    ip.Link{Name: tunName},
 				VxlanID: vxlanID,
