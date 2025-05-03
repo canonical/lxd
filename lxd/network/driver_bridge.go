@@ -1438,11 +1438,11 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		dnsmasqCmd = append(dnsmasqCmd, "--listen-address="+ipv4Address.String())
 		if n.DHCPv4Subnet() != nil {
 			if !shared.ValueInSlice("--dhcp-no-override", dnsmasqCmd) {
-				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")), fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts"))}...)
+				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", "--dhcp-leasefile=" + shared.VarPath("networks", n.name, "dnsmasq.leases"), "--dhcp-hostsfile=" + shared.VarPath("networks", n.name, "dnsmasq.hosts")}...)
 			}
 
 			if n.config["ipv4.dhcp.gateway"] != "" {
-				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option-force=3,%s", n.config["ipv4.dhcp.gateway"]))
+				dnsmasqCmd = append(dnsmasqCmd, "--dhcp-option-force=3,"+n.config["ipv4.dhcp.gateway"])
 			}
 
 			if bridge.MTU != bridgeMTUDefault {
@@ -1451,7 +1451,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 			dnsSearch := n.config["dns.search"]
 			if dnsSearch != "" {
-				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option-force=119,%s", strings.Trim(dnsSearch, " ")))
+				dnsmasqCmd = append(dnsmasqCmd, "--dhcp-option-force=119,"+strings.Trim(dnsSearch, " "))
 			}
 
 			expiry := "1h"
@@ -1587,7 +1587,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Update the dnsmasq config.
-		dnsmasqCmd = append(dnsmasqCmd, []string{fmt.Sprintf("--listen-address=%s", ipv6Address.String()), "--enable-ra"}...)
+		dnsmasqCmd = append(dnsmasqCmd, []string{"--listen-address=" + ipv6Address.String(), "--enable-ra"}...)
 		if n.DHCPv6Subnet() != nil {
 			if n.hasIPv6Firewall() {
 				fwOpts.FeaturesV6.ICMPDHCPDNSAccess = true
@@ -1595,7 +1595,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 			// Build DHCP configuration.
 			if !shared.ValueInSlice("--dhcp-no-override", dnsmasqCmd) {
-				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")), fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts"))}...)
+				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", "--dhcp-leasefile=" + shared.VarPath("networks", n.name, "dnsmasq.leases"), "--dhcp-hostsfile=" + shared.VarPath("networks", n.name, "dnsmasq.hosts")}...)
 			}
 
 			expiry := "1h"
@@ -1718,7 +1718,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	dnsClusteredAddress := ""
 	var overlaySubnet *net.IPNet
 	if n.config["bridge.mode"] == "fan" {
-		tunName := fmt.Sprintf("%s-fan", n.name)
+		tunName := n.name + "-fan"
 
 		// Parse the underlay.
 		underlay := n.config["fan.underlay_subnet"]
@@ -1746,7 +1746,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		address, _, _ := strings.Cut(fanAddress, "/")
 		if n.config["fan.type"] == "ipip" {
-			fanAddress = fmt.Sprintf("%s/24", address)
+			fanAddress = address + "/24"
 		}
 
 		// Update the MTU based on overlay device (if available).
@@ -1763,7 +1763,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if fanMTU != bridge.MTU {
 				bridge.MTU = fanMTU
 				if n.config["bridge.driver"] != "openvswitch" {
-					mtuLink := &ip.Link{Name: fmt.Sprintf("%s-mtu", n.name)}
+					mtuLink := &ip.Link{Name: n.name + "-mtu"}
 					err = mtuLink.SetMTU(bridge.MTU)
 					if err != nil {
 						return err
@@ -1778,7 +1778,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Parse the host subnet.
-		_, hostSubnet, err := net.ParseCIDR(fmt.Sprintf("%s/24", address))
+		_, hostSubnet, err := net.ParseCIDR(address + "/24")
 		if err != nil {
 			return fmt.Errorf("Failed parsing fan address: %w", err)
 		}
@@ -1802,11 +1802,11 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		dnsmasqCmd = append(dnsmasqCmd, []string{
-			fmt.Sprintf("--listen-address=%s", address),
+			"--listen-address=" + address,
 			"--dhcp-no-override", "--dhcp-authoritative",
 			fmt.Sprintf("--dhcp-option-force=26,%d", fanMTU),
-			fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")),
-			fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts")),
+			"--dhcp-leasefile=" + shared.VarPath("networks", n.name, "dnsmasq.leases"),
+			"--dhcp-hostsfile=" + shared.VarPath("networks", n.name, "dnsmasq.hosts"),
 			"--dhcp-range", fmt.Sprintf("%s,%s,%s", dhcpalloc.GetIP(hostSubnet, 2).String(), dhcpalloc.GetIP(hostSubnet, -2).String(), expiry)}...)
 
 		// Save the dnsmasq listen address so that firewall rules can be added later
@@ -2058,12 +2058,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Create a config file to contain additional config (and to prevent dnsmasq from reading /etc/dnsmasq.conf)
-		err = os.WriteFile(shared.VarPath("networks", n.name, "dnsmasq.raw"), []byte(fmt.Sprintf("%s\n", n.config["raw.dnsmasq"])), 0644)
+		err = os.WriteFile(shared.VarPath("networks", n.name, "dnsmasq.raw"), []byte(n.config["raw.dnsmasq"]+"\n"), 0644)
 		if err != nil {
 			return err
 		}
 
-		dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--conf-file=%s", shared.VarPath("networks", n.name, "dnsmasq.raw")))
+		dnsmasqCmd = append(dnsmasqCmd, "--conf-file="+shared.VarPath("networks", n.name, "dnsmasq.raw"))
 
 		// Attempt to drop privileges.
 		if n.state.OS.UnprivUser != "" {
@@ -2297,7 +2297,7 @@ func (n *bridge) Stop() error {
 
 	// Cleanup any existing tunnel device
 	for _, iface := range ifaces {
-		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
+		if strings.HasPrefix(iface.Name, n.name+"-") {
 			tunLink := &ip.Link{Name: iface.Name}
 			err = tunLink.Delete()
 			if err != nil {
@@ -2420,7 +2420,7 @@ func (n *bridge) spawnForkDNS(listenAddress string) error {
 	// Spawn the daemon using subprocess
 	command := n.state.OS.ExecPath
 	forkdnsargs := []string{"forkdns",
-		fmt.Sprintf("%s:1053", listenAddress),
+		listenAddress + ":1053",
 		dnsDomain,
 		n.name}
 
@@ -2895,8 +2895,8 @@ func (n *bridge) bridgeNetworkExternalSubnets(bridgeProjectNetworks map[string][
 		for _, netInfo := range networks {
 			for _, keyPrefix := range []string{"ipv4", "ipv6"} {
 				// If NAT is disabled, then network subnet is an external subnet.
-				if shared.IsFalseOrEmpty(netInfo.Config[fmt.Sprintf("%s.nat", keyPrefix)]) {
-					key := fmt.Sprintf("%s.address", keyPrefix)
+				if shared.IsFalseOrEmpty(netInfo.Config[keyPrefix+".nat"]) {
+					key := keyPrefix + ".address"
 
 					_, ipNet, err := net.ParseCIDR(netInfo.Config[key])
 					if err != nil {
@@ -2912,8 +2912,8 @@ func (n *bridge) bridgeNetworkExternalSubnets(bridgeProjectNetworks map[string][
 				}
 
 				// Find any external subnets used for network SNAT.
-				if netInfo.Config[fmt.Sprintf("%s.nat.address", keyPrefix)] != "" {
-					key := fmt.Sprintf("%s.nat.address", keyPrefix)
+				if netInfo.Config[keyPrefix+".nat.address"] != "" {
+					key := keyPrefix + ".nat.address"
 
 					subnetSize := 128
 					if keyPrefix == "ipv4" {
@@ -2934,7 +2934,7 @@ func (n *bridge) bridgeNetworkExternalSubnets(bridgeProjectNetworks map[string][
 				}
 
 				// Find any routes being used by the network.
-				for _, cidr := range shared.SplitNTrimSpace(netInfo.Config[fmt.Sprintf("%s.routes", keyPrefix)], ",", -1, true) {
+				for _, cidr := range shared.SplitNTrimSpace(netInfo.Config[keyPrefix+".routes"], ",", -1, true) {
 					_, ipNet, err := net.ParseCIDR(cidr)
 					if err != nil {
 						continue // Skip invalid/unspecified network addresses.
