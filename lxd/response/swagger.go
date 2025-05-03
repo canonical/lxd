@@ -1,4 +1,6 @@
 // Package response contains helpers for rendering LXD HTTP responses.
+//
+//nolint:unused
 package response
 
 import (
@@ -8,7 +10,7 @@ import (
 // Operation
 //
 // swagger:response Operation
-type swaggerOperation struct { //nolint:unused
+type swaggerOperation struct {
 	// Empty sync response
 	// in: body
 	Body struct {
@@ -31,7 +33,7 @@ type swaggerOperation struct { //nolint:unused
 // Empty sync response
 //
 // swagger:response EmptySyncResponse
-type swaggerEmptySyncResponse struct { //nolint:unused
+type swaggerEmptySyncResponse struct {
 	// Empty sync response
 	// in: body
 	Body struct {
@@ -49,7 +51,7 @@ type swaggerEmptySyncResponse struct { //nolint:unused
 // Bad Request
 //
 // swagger:response BadRequest
-type swaggerBadRequest struct { //nolint:unused
+type swaggerBadRequest struct {
 	// Bad Request
 	// in: body
 	Body struct {
@@ -67,7 +69,7 @@ type swaggerBadRequest struct { //nolint:unused
 // Forbidden
 //
 // swagger:response Forbidden
-type swaggerForbidden struct { //nolint:unused
+type swaggerForbidden struct {
 	// Bad Request
 	// in: body
 	Body struct {
@@ -85,7 +87,7 @@ type swaggerForbidden struct { //nolint:unused
 // Precondition Failed
 //
 // swagger:response PreconditionFailed
-type swaggerPreconditionFailed struct { //nolint:unused
+type swaggerPreconditionFailed struct {
 	// Internal server Error
 	// in: body
 	Body struct {
@@ -103,7 +105,7 @@ type swaggerPreconditionFailed struct { //nolint:unused
 // Internal Server Error
 //
 // swagger:response InternalServerError
-type swaggerInternalServerError struct { //nolint:unused
+type swaggerInternalServerError struct {
 	// Internal server Error
 	// in: body
 	Body struct {
@@ -121,7 +123,7 @@ type swaggerInternalServerError struct { //nolint:unused
 // Not found
 //
 // swagger:response NotFound
-type swaggerNotFound struct { //nolint:unused
+type swaggerNotFound struct {
 	// Not found
 	// in: body
 	Body struct {
@@ -139,7 +141,7 @@ type swaggerNotFound struct { //nolint:unused
 // Not implemented
 //
 // swagger:response NotImplemented
-type swaggerNotImplemented struct { //nolint:unused
+type swaggerNotImplemented struct {
 	// Not implemented
 	// in: body
 	Body struct {
