@@ -1,10 +1,22 @@
 // Package response contains helpers for rendering LXD HTTP responses.
-//
-//nolint:unused
 package response
 
 import (
 	"github.com/canonical/lxd/shared/api"
+)
+
+// Silence `unused` linter noise not realizing that these are used in the
+// swagger docs (doc/rest-api.yaml).
+var (
+	_ = swaggerOperation{}
+	_ = swaggerEmptySyncResponse{}
+	_ = swaggerBadRequest{}
+	_ = swaggerForbidden{}
+	_ = swaggerPreconditionFailed{}
+	_ = swaggerInternalServerError{}
+	_ = swaggerNotFound{}
+	_ = swaggerNotImplemented{}
+	_ = swaggerEmptySyncResponse{}
 )
 
 // Operation
