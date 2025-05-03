@@ -2651,7 +2651,7 @@ func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (cidr strin
 
 	ipBytes[3] = 1
 
-	return ipBytes.String() + "/" + fmt.Sprint(overlaySize), dev, ipStr, err
+	return ipBytes.String() + "/" + strconv.Itoa(overlaySize), dev, ipStr, err
 }
 
 func (n *bridge) addressForSubnet(subnet *net.IPNet) (net.IP, string, error) {
