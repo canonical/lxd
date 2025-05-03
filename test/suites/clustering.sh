@@ -2455,6 +2455,78 @@ test_clustering_dns() {
   ip link delete "${prefix}2"
 }
 
+test_clustering_fan() {
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML as weird rules..
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  # Import the test image on node1
+  LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
+
+  fanbridge="${prefix}fan"
+
+  echo "Create a fan bridge"
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create --target node1 "${fanbridge}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create --target node2 "${fanbridge}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${fanbridge}" bridge.mode=fan
+  LXD_DIR="${LXD_ONE_DIR}" lxc network set "${fanbridge}" dns.domain=fantastic
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${fanbridge}"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network get "${fanbridge}" bridge.mode)" = "fan" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network get "${fanbridge}" dns.domain)" = "fantastic" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network get "${fanbridge}" fan.underlay_subnet)" = "10.1.0.0/16" ]
+
+  echo "Create 2 containers"
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 testimage c1 -d "${SMALL_ROOT_DISK}" -n "${fanbridge}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 testimage c2 -d "${SMALL_ROOT_DISK}" -n "${fanbridge}"
+
+  echo "Get DHCP leases"
+  IP_C1="$(LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 -- udhcpc -f -i eth0 -n -q -t5 2>&1 | awk '/obtained,/ {print $4}')"
+  IP_C2="$(LXD_DIR="${LXD_ONE_DIR}" lxc exec c2 -- udhcpc -f -i eth0 -n -q -t5 2>&1 | awk '/obtained,/ {print $4}')"
+
+  echo "Configure IP addresses"
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 -- ip addr add "${IP_C1}"/8 dev eth0
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec c2 -- ip addr add "${IP_C2}"/8 dev eth0
+  LXD_DIR="${LXD_ONE_DIR}" lxc list
+
+  echo "Check that the containers are reachable from each other using IPs"
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 -- ping -c2 -W5 "${IP_C2}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec c2 -- ping -c2 -W5 "${IP_C1}"
+
+  echo "Cleaning up"
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1 c2
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${fanbridge}"
+
+  echo "Tearing down cluster"
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
+
 test_clustering_recover() {
   # shellcheck disable=SC2034
   local LXD_DIR
