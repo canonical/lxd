@@ -6993,6 +6993,7 @@ func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volNam
 	return &backupConfig.Config{
 		Version: api.BackupMetadataVersion2,
 		Volumes: []*backupConfig.Volume{volConfig},
+		Pools:   []*api.StoragePool{&b.db},
 	}, nil
 }
 
