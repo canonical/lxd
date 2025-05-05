@@ -1099,16 +1099,42 @@ test_backup_metadata() {
   lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
 
+  # Attach a disk from another pool with one snapshot.
+  custom_vol_pool="lxdtest-$(basename "${LXD_DIR}")-dir"
+  lxc storage create "${custom_vol_pool}" dir
+  lxc storage volume create "${custom_vol_pool}" foo
+  lxc storage volume snapshot "${custom_vol_pool}" foo
+  lxc storage volume attach "${custom_vol_pool}" foo c1 path=/mnt
+
   lxc start c1
   backup_yaml_path="${LXD_DIR}/containers/c1/backup.yaml"
-  poolName="$(lxc profile device get default root pool)"
   cat "${backup_yaml_path}"
 
+  # Test the containers backup config contains the latest format.
+  [ "$(yq '.snapshots | length' < "${backup_yaml_path}")" = "1" ]
+  [ "$(yq .version < "${backup_yaml_path}")" = "${highest_version}" ]
+  [ "$(yq '.volumes | length' < "${backup_yaml_path}")" = "2" ]
+  [ "$(yq '.volumes.[0].snapshots | length' < "${backup_yaml_path}")" = "1" ]
+  [ "$(yq '.volumes.[1].snapshots | length' < "${backup_yaml_path}")" = "1" ]
+  [ "$(yq '.pools | length' < "${backup_yaml_path}")" = "2" ]
+
   # Test pool changes are reflected in the config file.
-  lxc storage set "${poolName}" user.foo bar
-  [ "$(yq '.pools.[] | select(.name == "'"${poolName}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "bar" ]
-  lxc storage unset "${poolName}" user.foo
-  [ "$(yq '.pools.[] | select(.name == "'"${poolName}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "null" ]
+  lxc storage set "${custom_vol_pool}" user.foo bar
+  [ "$(yq '.pools.[] | select(.name == "'"${custom_vol_pool}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "bar" ]
+  lxc storage unset "${custom_vol_pool}" user.foo
+  [ "$(yq '.pools.[] | select(.name == "'"${custom_vol_pool}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "null" ]
+
+  # Test custom volume changes are reflected in the config file.
+  lxc storage volume set "${custom_vol_pool}" foo user.foo bar
+  [ "$(yq '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "bar" ]
+  lxc storage volume unset "${custom_vol_pool}" foo user.foo
+  [ "$(yq '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "null" ]
+  [ "$(yq '.volumes | length' < "${backup_yaml_path}")" = "2" ]
+  [ "$(yq '.pools | length' < "${backup_yaml_path}")" = "2" ]
+  lxc storage volume detach "${custom_vol_pool}" foo c1
+  [ "$(yq '.volumes | length' < "${backup_yaml_path}")" = "1" ]
+  [ "$(yq '.pools | length' < "${backup_yaml_path}")" = "1" ]
+  lxc storage volume attach "${custom_vol_pool}" foo c1 path=/mnt
 
   lxc stop -f c1
 
@@ -1175,6 +1201,8 @@ test_backup_metadata() {
 
   rm -rf "${tmpDir}/backup" "${tmpDir}/vol1.tar.gz"
   lxc storage volume delete "${poolName}" vol1
+  lxc storage volume delete "${custom_vol_pool}" foo
+  lxc storage delete "${custom_vol_pool}"
 
   rm -rf "${tmpDir}"
 }
