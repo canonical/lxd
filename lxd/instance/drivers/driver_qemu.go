@@ -8459,8 +8459,13 @@ func (d *qemu) UpdateBackupFile() error {
 		return err
 	}
 
+	volBackupConf, err := pool.GenerateInstanceCustomVolumeBackupConfig(d, nil, true, nil)
+	if err != nil {
+		return fmt.Errorf("Failed generating instance custom volume config: %w", err)
+	}
+
 	// Use the global metadata version.
-	return pool.UpdateInstanceBackupFile(d, true, nil, config.DefaultMetadataVersion, nil)
+	return pool.UpdateInstanceBackupFile(d, true, volBackupConf, config.DefaultMetadataVersion, nil)
 }
 
 type cpuTopology struct {
