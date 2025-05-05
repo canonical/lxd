@@ -45,7 +45,7 @@ import_subdir_files() {
 import_subdir_files includes
 
 echo "==> Checking for dependencies"
-check_dependencies lxd lxc curl dnsmasq jq yq git sqlite3 msgmerge msgfmt shuf setfacl setfattr socat swtpm dig
+check_dependencies lxd lxc curl /bin/busybox dnsmasq iptables jq yq git sqlite3 msgmerge msgfmt shuf setfacl setfattr socat swtpm dig
 
 if [ "${USER:-'root'}" != "root" ]; then
   echo "The testsuite must be run as root." >&2
@@ -127,8 +127,11 @@ cleanup() {
     echo "==> Cleaning up"
 
     kill_oidc
-    umount -l "${TEST_DIR}/dev"
+    mountpoint -q "${TEST_DIR}/dev" && umount -l "${TEST_DIR}/dev"
     cleanup_lxds "$TEST_DIR"
+
+    mountpoint -q "${TEST_DIR}" && umount -l "${TEST_DIR}"
+    rm -rf "${TEST_DIR}"
   fi
 
   echo ""
