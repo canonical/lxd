@@ -352,7 +352,7 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 		// This ensures the updated DB entry is reverted before trying to reset the file.
 		revert.Add(func() {
 			for _, inst := range instances {
-				_ = inst.UpdateBackupFile()
+				_ = inst.UpdateBackupFile(nil)
 			}
 		})
 
@@ -373,7 +373,7 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 		for _, inst := range instances {
 			// Don't invoke the the update of the instance's backup file directly on *lxdBackend.
 			// The instance's root vol might be located on a different storage pool which gets loaded when calling the instance's UpdateBackupFile.
-			err = inst.UpdateBackupFile()
+			err = inst.UpdateBackupFile(nil)
 			if err != nil {
 				return err
 			}
