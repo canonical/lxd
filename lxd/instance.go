@@ -58,7 +58,7 @@ func instanceCreateAsEmpty(s *state.State, args db.InstanceArgs) (instance.Insta
 
 	revert.Add(func() { _ = inst.Delete(true) })
 
-	err = inst.UpdateBackupFile()
+	err = inst.UpdateBackupFile(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,7 @@ func instanceCreateFromImage(s *state.State, img *api.Image, args db.InstanceArg
 
 	revert.Add(func() { _ = inst.Delete(true) })
 
-	err = inst.UpdateBackupFile()
+	err = inst.UpdateBackupFile(nil)
 	if err != nil {
 		return err
 	}
@@ -452,7 +452,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		}
 	}
 
-	err = inst.UpdateBackupFile()
+	err = inst.UpdateBackupFile(nil)
 	if err != nil {
 		return nil, err
 	}
