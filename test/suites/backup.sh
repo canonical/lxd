@@ -1118,6 +1118,7 @@ test_backup_metadata() {
   [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "${highest_version}" ]
   [ "$(yq '.config.volumes | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
   [ "$(yq '.config.volumes.[0].snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  [ "$(yq '.config.pools | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
 
   rm -rf "${tmpDir}/backup" "${tmpDir}/c1.tar.gz"
 
@@ -1153,6 +1154,7 @@ test_backup_metadata() {
   [ "$(yq .config.instance < "${tmpDir}/backup/index.yaml")" = "null" ]
   [ "$(yq '.config.volumes | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
   [ "$(yq '.config.volumes.[0].snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  [ "$(yq '.config.pools | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
 
   rm -rf "${tmpDir}/backup" "${tmpDir}/vol1.tar.gz"
 
