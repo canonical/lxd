@@ -4841,7 +4841,12 @@ func imageSyncBetweenNodes(ctx context.Context, s *state.State, r *http.Request,
 	// Pick a random node from that slice as the source.
 	syncNodeAddress := syncNodeAddresses[rand.Intn(len(syncNodeAddresses))]
 
-	source, err := cluster.Connect(r.Context(), syncNodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+	reqContext := context.Background()
+	if r != nil {
+		reqContext = r.Context()
+	}
+
+	source, err := cluster.Connect(reqContext, syncNodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 	if err != nil {
 		return fmt.Errorf("Failed to connect to source node for image synchronization: %w", err)
 	}
@@ -4888,7 +4893,7 @@ func imageSyncBetweenNodes(ctx context.Context, s *state.State, r *http.Request,
 		// Pick a random node from that slice as the target.
 		targetNodeAddress := addresses[rand.Intn(len(addresses))]
 
-		client, err := cluster.Connect(r.Context(), targetNodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+		client, err := cluster.Connect(reqContext, targetNodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 		if err != nil {
 			return fmt.Errorf("Failed to connect node for image synchronization: %w", err)
 		}
