@@ -36,6 +36,21 @@ test_container_devices_nic_bridged() {
   # Record how many nics we started with.
   startNicCount=$(find /sys/class/net | wc -l)
 
+  # Test device renaming without "eth0" device applied by profile.
+  lxc profile copy default "${ctName}"
+  lxc profile device remove "${ctName}" eth0
+  lxc init --empty "${ctName}" -d "${SMALL_ROOT_DISK}" -p "${ctName}"
+  lxc config device add "${ctName}" eth0 nic network="${brName}" name=eth0
+  [ "$(lxc config device get "${ctName}" eth0 name)" = "eth0" ]
+  [ "$(lxc config device get "${ctName}" eth0 network)" = "${brName}" ]
+  lxc config show -e "${ctName}" | sed '/^devices:/,/type:/ s/eth0/eth1/' | lxc config edit "${ctName}" # Rename added "eth0" to "eth1"
+  ! lxc config device get "${ctName}" eth0 name || false
+  [ "$(lxc config device get "${ctName}" eth1 name)" = "eth1" ]
+  [ "$(lxc config device get "${ctName}" eth1 network)" = "${brName}" ]
+  # Cleanup for remaining tests.
+  lxc delete "${ctName}" -f
+  lxc profile delete "${ctName}"
+
   # Test pre-launch profile config is applied at launch
   lxc profile copy default "${ctName}"
 
@@ -154,6 +169,9 @@ test_container_devices_nic_bridged() {
     host_name="${vethHostName}" \
     hwaddr="${ctMAC}" \
     mtu=1401
+
+  # Test hot plugging a container nic with a different name.
+  ! lxc config device add "${ctName}" eth1 nic nictype=bridged name=eth1 parent="${brName}" || false
 
   # Check profile routes are removed on hot-plug.
   if ip -4 r list dev "${brName}" | grep "192.0.2.1${ipRand}" ; then
