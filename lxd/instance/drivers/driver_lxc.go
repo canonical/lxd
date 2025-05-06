@@ -3533,7 +3533,7 @@ func (d *lxc) snapshot(name string, expiry time.Time, stateful bool) error {
 }
 
 // Snapshot takes a new snapshot.
-func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
+func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
