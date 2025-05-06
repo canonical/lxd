@@ -30,7 +30,7 @@ defaults:
 jobs:
   code-tests:
     env:
-      CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/"
+      CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/ -I/home/runner/go/bin/liblxc/include/"
       CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
@@ -124,6 +124,23 @@ jobs:
           mkdir /home/runner/go/bin/dqlite
           mv /home/runner/work/lxd/lxd-test/vendor/dqlite/include /home/runner/go/bin/dqlite/include
           mv /home/runner/work/lxd/lxd-test/vendor/dqlite/.libs /home/runner/go/bin/dqlite/libs
+
+          # Include liblxc libs in dependencies for system tests.
+          mkdir -p /home/runner/go/bin/liblxc
+          mv /home/runner/work/lxd/lxd-test/vendor/liblxc/include /home/runner/go/bin/liblxc/include
+          mv /home/runner/work/lxd/lxd-test/vendor/liblxc/lib /home/runner/go/bin/liblxc/libs
+
+          # liblxc requires a rootfs dir
+          mkdir -p /home/runner/go/bin/liblxc/rootfs
+
+          # Update env variables for liblxc
+          LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
+          PKG_CONFIG_PATH="$(pkg-config --variable pc_path pkg-config):${LIBLXC_ARCH_LIBS}/pkgconfig"
+
+          echo "CGO_LDFLAGS=${CGO_LDFLAGS} -L${LIBLXC_ARCH_LIBS}"       >> "${GITHUB_ENV}"
+          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${LIBLXC_ARCH_LIBS}" >> "${GITHUB_ENV}"
+          echo "LD_RUN_PATH=${LD_RUN_PATH}:${LIBLXC_ARCH_LIBS}"         >> "${GITHUB_ENV}"
+          echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"                     >> "${GITHUB_ENV}"
 
       - name: Build binaries
         run: |
@@ -219,6 +236,7 @@ jobs:
             /home/runner/go/bin/mc
             /home/runner/go/bin/minio
             /home/runner/go/bin/dqlite
+            /home/runner/go/bin/liblxc
           retention-days: 1
 
   system-tests:
