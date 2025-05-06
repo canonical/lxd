@@ -1887,14 +1887,6 @@ func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, poolName s
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Update devices using the volume in instances and profiles.
-	cleanup, err := storagePoolVolumeUpdateUsers(s, projectName, pool.Name(), vol, pool.Name(), &newVol)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	revert.Add(cleanup)
-
 	// Use an empty operation for this sync response to pass the requestor
 	op := &operations.Operation{}
 	op.SetRequestor(r)
@@ -1904,10 +1896,23 @@ func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, poolName s
 		return response.SmartError(err)
 	}
 
-	revert.Success()
+	revert.Add(func() {
+		_ = pool.RenameCustomVolume(projectName, req.Name, vol.Name, op)
+	})
+
+	// Update devices using the volume in instances and profiles.
+	// Perform this operation after the actual rename of the volume.
+	// This ensures the database entries are up to date.
+	cleanup, err := storagePoolVolumeUpdateUsers(s, projectName, pool.Name(), vol, pool.Name(), &newVol)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	revert.Add(cleanup)
 
 	u := api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", cluster.StoragePoolVolumeTypeNameCustom, req.Name).Project(projectName)
 
+	revert.Success()
 	return response.SyncResponseLocation(true, nil, u.String())
 }
 
