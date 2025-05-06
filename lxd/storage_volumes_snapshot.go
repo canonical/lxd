@@ -211,20 +211,9 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.SmartError(err)
 	}
 
-	// Fill in the expiry.
-	var expiry time.Time
-	if req.ExpiresAt != nil {
-		expiry = *req.ExpiresAt
-	} else {
-		expiry, err = shared.GetExpiry(time.Now().UTC(), parentDBVolume.Config["snapshots.expiry"])
-		if err != nil {
-			return response.BadRequest(err)
-		}
-	}
-
 	// Create the snapshot.
 	snapshot := func(op *operations.Operation) error {
-		return details.pool.CreateCustomVolumeSnapshot(effectiveProjectName, details.volumeName, req.Name, req.Description, expiry, op)
+		return details.pool.CreateCustomVolumeSnapshot(effectiveProjectName, details.volumeName, req.Name, req.Description, req.ExpiresAt, op)
 	}
 
 	resources := map[string][]api.URL{}
