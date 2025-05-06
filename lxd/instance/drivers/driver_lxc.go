@@ -2256,7 +2256,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	}
 
 	if snapName != "" && expiry != nil {
-		err := d.snapshot(snapName, *expiry, false)
+		err := d.snapshot(snapName, expiry, false)
 		if err != nil {
 			return "", nil, fmt.Errorf("Failed taking startup snapshot: %w", err)
 		}
@@ -3452,7 +3452,7 @@ func (d *lxc) RenderState(hostInterfaces []net.Interface) (*api.InstanceState, e
 }
 
 // snapshot creates a snapshot of the instance.
-func (d *lxc) snapshot(name string, expiry time.Time, stateful bool) error {
+func (d *lxc) snapshot(name string, expiry *time.Time, stateful bool) error {
 	// Deal with state.
 	if stateful {
 		// Quick checks.
@@ -3533,7 +3533,7 @@ func (d *lxc) snapshot(name string, expiry time.Time, stateful bool) error {
 }
 
 // Snapshot takes a new snapshot.
-func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
+func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
