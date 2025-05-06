@@ -423,7 +423,7 @@ test_container_devices_nic_bridged() {
 
   # Test DHCP lease clearance.
   lxc delete "${ctName}" -f
-  lxc launch testimage "${ctName}" -p "${ctName}"
+  lxc launch testimage "${ctName}" -d "${SMALL_ROOT_DISK}" -p "${ctName}"
 
   # Request DHCPv4 lease with custom name (to check managed name is allocated instead).
   lxc exec "${ctName}" -- udhcpc -f -i eth0 -n -q -t5 -F "${ctName}custom"
