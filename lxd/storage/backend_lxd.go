@@ -286,7 +286,7 @@ func (b *lxdBackend) IsUsed() (bool, error) {
 }
 
 // Update updates the pool config.
-func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newConfig map[string]string, _ *operations.Operation) error {
+func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newConfig map[string]string, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"newDesc": newDesc, "newConfig": newConfig})
 	l.Debug("Update started")
 	defer l.Debug("Update finished")
@@ -317,6 +317,9 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 		}
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Apply changes to local member if both global pool and node are not pending and non-user config changed.
 	// Otherwise just apply changes to DB (below) ready for the actual global create request to be initiated.
 	if len(changedConfig) > 0 && b.Status() != api.StoragePoolStatusPending && b.LocalStatus() != api.StoragePoolStatusPending && !userOnly {
@@ -326,16 +329,58 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 		}
 	}
 
+	// Revert the pool with the old configuration.
+	revert.Add(func() { _ = b.driver.Update(b.db.Config) })
+
 	// Update the database if something changed and we're in ClientTypeNormal mode.
 	if clientType == request.ClientTypeNormal && (len(changedConfig) > 0 || newDesc != b.db.Description) {
+		var instances []instance.Instance
+		err = PoolUsedByInstanceDevices(b.state, b.name, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
+			inst, err := instance.Load(b.state, dbInst, project)
+			if err != nil {
+				return err
+			}
+
+			instances = append(instances, inst)
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		// Add the backup file revert before changing the DB record.
+		// This ensures the updated DB entry is reverted before trying to reset the file.
+		revert.Add(func() {
+			for _, inst := range instances {
+				_ = inst.UpdateBackupFile()
+			}
+		})
+
 		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpdateStoragePool(ctx, b.name, newDesc, newConfig)
 		})
 		if err != nil {
 			return err
 		}
+
+		// Revert the pool's database record with the old configuration.
+		revert.Add(func() {
+			_ = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.UpdateStoragePool(ctx, b.name, b.db.Description, b.db.Config)
+			})
+		})
+
+		for _, inst := range instances {
+			// Don't invoke the the update of the instance's backup file directly on *lxdBackend.
+			// The instance's root vol might be located on a different storage pool which gets loaded when calling the instance's UpdateBackupFile.
+			err = inst.UpdateBackupFile()
+			if err != nil {
+				return err
+			}
+		}
 	}
 
+	revert.Success()
 	return nil
 }
 
