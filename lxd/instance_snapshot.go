@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"time"
 
 	"github.com/gorilla/mux"
 
@@ -342,19 +341,9 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid snapshot name: %w", err))
 	}
 
-	var expiry time.Time
-	if req.ExpiresAt != nil {
-		expiry = *req.ExpiresAt
-	} else {
-		expiry, err = shared.GetExpiry(time.Now().UTC(), inst.ExpandedConfig()["snapshots.expiry"])
-		if err != nil {
-			return response.BadRequest(err)
-		}
-	}
-
 	snapshot := func(op *operations.Operation) error {
 		inst.SetOperation(op)
-		return inst.Snapshot(req.Name, expiry, req.Stateful)
+		return inst.Snapshot(req.Name, req.ExpiresAt, req.Stateful)
 	}
 
 	resources := map[string][]api.URL{}
