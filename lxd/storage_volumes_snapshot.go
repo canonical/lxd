@@ -1258,17 +1258,12 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, s *state.State, volume
 			return fmt.Errorf("Error retrieving next snapshot name for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
 
-		expiry, err := shared.GetExpiry(time.Now().UTC(), v.Config["snapshots.expiry"])
-		if err != nil {
-			return fmt.Errorf("Error getting snapshot expiry for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
-		}
-
 		pool, err := storagePools.LoadByName(s, v.PoolName)
 		if err != nil {
 			return fmt.Errorf("Error loading pool for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
 
-		err = pool.CreateCustomVolumeSnapshot(v.ProjectName, v.Name, snapshotName, v.Description, expiry, nil)
+		err = pool.CreateCustomVolumeSnapshot(v.ProjectName, v.Name, snapshotName, v.Description, nil, nil)
 		if err != nil {
 			return fmt.Errorf("Error creating snapshot for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
