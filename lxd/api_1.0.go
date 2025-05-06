@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"strconv"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -333,14 +334,14 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	env.KernelFeatures = map[string]string{
-		"bpf_token":                 fmt.Sprint(s.OS.BPFToken),
-		"netnsid_getifaddrs":        fmt.Sprint(s.OS.NetnsGetifaddrs),
-		"uevent_injection":          fmt.Sprint(s.OS.UeventInjection),
-		"unpriv_binfmt":             fmt.Sprint(s.OS.UnprivBinfmt),
-		"unpriv_fscaps":             fmt.Sprint(s.OS.VFS3Fscaps),
-		"seccomp_listener":          fmt.Sprint(s.OS.SeccompListener),
-		"seccomp_listener_continue": fmt.Sprint(s.OS.SeccompListenerContinue),
-		"idmapped_mounts":           fmt.Sprint(s.OS.IdmappedMounts),
+		"bpf_token":                 strconv.FormatBool(s.OS.BPFToken),
+		"netnsid_getifaddrs":        strconv.FormatBool(s.OS.NetnsGetifaddrs),
+		"uevent_injection":          strconv.FormatBool(s.OS.UeventInjection),
+		"unpriv_binfmt":             strconv.FormatBool(s.OS.UnprivBinfmt),
+		"unpriv_fscaps":             strconv.FormatBool(s.OS.VFS3Fscaps),
+		"seccomp_listener":          strconv.FormatBool(s.OS.SeccompListener),
+		"seccomp_listener_continue": strconv.FormatBool(s.OS.SeccompListenerContinue),
+		"idmapped_mounts":           strconv.FormatBool(s.OS.IdmappedMounts),
 	}
 
 	drivers := instanceDrivers.DriverStatuses()
@@ -384,7 +385,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	if s.OS.LXCFeatures != nil {
 		env.LXCFeatures = map[string]string{}
 		for k, v := range s.OS.LXCFeatures {
-			env.LXCFeatures[k] = fmt.Sprint(v)
+			env.LXCFeatures[k] = strconv.FormatBool(v)
 		}
 	}
 

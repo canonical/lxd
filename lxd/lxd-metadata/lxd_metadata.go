@@ -412,7 +412,7 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 							case int, float64, bool:
 								configContentValueStr = fmt.Sprint(configEntryContentTyped)
 							case time.Time:
-								configContentValueStr = fmt.Sprint(configEntryContentTyped.Format(time.RFC3339))
+								configContentValueStr = configEntryContentTyped.Format(time.RFC3339)
 							}
 						}
 

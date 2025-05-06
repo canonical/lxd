@@ -137,7 +137,7 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 			}
 
 			revert.Add(func() {
-				path := fmt.Sprintf("/sys/bus/mdev/devices/%s", mdevUUID)
+				path := "/sys/bus/mdev/devices/" + mdevUUID
 
 				if shared.PathExists(path) {
 					err := os.WriteFile(filepath.Join(path, "remove"), []byte("1\n"), 0200)
@@ -196,7 +196,7 @@ func (d *gpuMdev) postStop() error {
 	v := d.volatileGet()
 
 	if v["vgpu.uuid"] != "" {
-		path := fmt.Sprintf("/sys/bus/mdev/devices/%s", v["vgpu.uuid"])
+		path := "/sys/bus/mdev/devices/" + v["vgpu.uuid"]
 
 		if shared.PathExists(path) {
 			err := os.WriteFile(filepath.Join(path, "remove"), []byte("1\n"), 0200)

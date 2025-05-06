@@ -1787,14 +1787,14 @@ func (d *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 			ueventArray[0] = "forkuevent"
 			ueventArray[1] = "inject"
 			ueventArray[2] = "--"
-			ueventArray[3] = fmt.Sprintf("%d", d.InitPID())
-			ueventArray[4] = fmt.Sprintf("%d", pidFdNr)
+			ueventArray[3] = strconv.Itoa(d.InitPID())
+			ueventArray[4] = strconv.Itoa(pidFdNr)
 			length := 0
 			for _, part := range eventParts {
 				length = length + len(part) + 1
 			}
 
-			ueventArray[5] = fmt.Sprintf("%d", length)
+			ueventArray[5] = strconv.Itoa(length)
 			ueventArray = append(ueventArray, eventParts...)
 			_, _, err := shared.RunCommandSplit(context.TODO(), nil, []*os.File{pidFd}, d.state.OS.ExecPath, ueventArray...)
 			if err != nil {
@@ -2167,7 +2167,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			nicID++
 
 			for _, nicItem := range runConf.NetworkInterface {
-				err = lxcSetConfigItem(cc, "lxc.net."+fmt.Sprint(nicID)+"."+nicItem.Key, nicItem.Value)
+				err = lxcSetConfigItem(cc, "lxc.net."+strconv.Itoa(nicID)+"."+nicItem.Key, nicItem.Value)
 				if err != nil {
 					return "", nil, fmt.Errorf("Failed to setup device network interface %q: %w", dev.Name(), err)
 				}
@@ -2287,7 +2287,7 @@ func (d *lxc) detachInterfaceRename(netns string, ifName string, hostName string
 		"detach",
 		"--",
 		netns,
-		fmt.Sprint(lxdPID),
+		strconv.Itoa(lxdPID),
 		ifName,
 		hostName,
 	)
@@ -2569,8 +2569,8 @@ func (d *lxc) mountBpfFs(pid int, bpffsParams map[string]string) error {
 		"forkmount",
 		"bpffs",
 		"--",
-		fmt.Sprint(pid),
-		fmt.Sprint(pidFdNr),
+		strconv.Itoa(pid),
+		strconv.Itoa(pidFdNr),
 		bpffsParams["mountpoint"],
 		bpffsParams["delegate_cmds"],
 		bpffsParams["delegate_maps"],
@@ -4471,7 +4471,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		d.localConfig["volatile.idmap.next"] = jsonIdmap
-		d.localConfig["volatile.idmap.base"] = fmt.Sprintf("%v", base)
+		d.localConfig["volatile.idmap.base"] = strconv.FormatInt(base, 10)
 
 		// Invalid idmap cache
 		d.idmapset = nil
@@ -6540,7 +6540,7 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 			d.state.OS.LxcPath,
 			configPath,
 			finalStateDir,
-			fmt.Sprint(preservesInodes),
+			strconv.FormatBool(preservesInodes),
 		)
 
 		if migrateErr == nil {
@@ -6955,7 +6955,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		}
 
 		// Finalize the args.
-		args = append(args, fmt.Sprint(d.InitPID()))
+		args = append(args, strconv.Itoa(d.InitPID()))
 
 		// Prepare sftp server.
 		forkfile := exec.Cmd{
@@ -7234,8 +7234,8 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 		d.state.OS.LxcPath,
 		filepath.Join(d.LogPath(), "lxc.conf"),
 		req.Cwd,
-		fmt.Sprint(req.User),
-		fmt.Sprint(req.Group),
+		strconv.FormatUint(uint64(req.User), 10),
+		strconv.FormatUint(uint64(req.Group), 10),
 	}
 
 	if d.state.OS.CoreScheduling && !d.state.OS.ContainerCoreScheduling {
@@ -7487,8 +7487,8 @@ func (d *lxc) networkState(hostInterfaces []net.Interface) map[string]api.Instan
 			"forknet",
 			"info",
 			"--",
-			fmt.Sprint(pid),
-			fmt.Sprint(pidFdNr))
+			strconv.Itoa(pid),
+			strconv.Itoa(pidFdNr))
 
 		// Process forkgetnet response
 		if err != nil {
@@ -7691,7 +7691,7 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 
 	// Move the mount inside the container
 	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
-	pidStr := fmt.Sprint(pid)
+	pidStr := strconv.Itoa(pid)
 
 	pidFdNr, pidFd := seccomp.MakePidFd(pid, d.state)
 	if pidFdNr >= 0 {
@@ -7710,11 +7710,11 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 		"lxd-mount",
 		"--",
 		pidStr,
-		fmt.Sprint(pidFdNr),
+		strconv.Itoa(pidFdNr),
 		mntsrc,
 		target,
 		string(idmapType),
-		fmt.Sprint(shiftfsFlags))
+		strconv.Itoa(shiftfsFlags))
 	if err != nil {
 		return err
 	}
@@ -7745,7 +7745,7 @@ func (d *lxc) insertMountLXC(source, target, fstype string, flags int) error {
 		source,
 		target,
 		fstype,
-		fmt.Sprint(flags))
+		strconv.Itoa(flags))
 	if err != nil {
 		return err
 	}
@@ -7773,7 +7773,7 @@ func (d *lxc) moveMount(source, target, fstype string, flags int, idmapType idma
 		defer func() { _ = pidFd.Close() }()
 	}
 
-	pidStr := fmt.Sprint(pid)
+	pidStr := strconv.Itoa(pid)
 
 	if !strings.HasPrefix(target, "/") {
 		target = "/" + target
@@ -7787,12 +7787,12 @@ func (d *lxc) moveMount(source, target, fstype string, flags int, idmapType idma
 		"move-mount",
 		"--",
 		pidStr,
-		fmt.Sprint(pidFdNr),
+		strconv.Itoa(pidFdNr),
 		fstype,
 		source,
 		target,
 		string(idmapType),
-		fmt.Sprint(flags))
+		strconv.Itoa(flags))
 	if err != nil {
 		return err
 	}
@@ -7855,8 +7855,8 @@ func (d *lxc) removeMount(mount string) error {
 			"forkmount",
 			"lxd-umount",
 			"--",
-			fmt.Sprint(pid),
-			fmt.Sprint(pidFdNr),
+			strconv.Itoa(pid),
+			strconv.Itoa(pidFdNr),
 			mount)
 		if err != nil {
 			return err
@@ -7889,8 +7889,8 @@ func (d *lxc) InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid 
 	}
 
 	nsuid, nsgid := idmapset.ShiftFromNs(uid, gid)
-	m["uid"] = fmt.Sprint(nsuid)
-	m["gid"] = fmt.Sprint(nsgid)
+	m["uid"] = strconv.FormatInt(nsuid, 10)
+	m["gid"] = strconv.FormatInt(nsgid, 10)
 
 	if !path.IsAbs(m["path"]) {
 		cwdLink := fmt.Sprintf("/proc/%d/cwd", pid)

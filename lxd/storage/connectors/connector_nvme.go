@@ -36,7 +36,7 @@ func (c *connectorNVMe) Version() (string, error) {
 
 	fields := strings.Split(strings.TrimSpace(out), " ")
 	if strings.HasPrefix(out, "nvme version ") && len(fields) > 2 {
-		return fmt.Sprintf("%s (nvme-cli)", fields[2]), nil
+		return fields[2] + " (nvme-cli)", nil
 	}
 
 	return "", fmt.Errorf("Failed to get nvme-cli version: Unexpected output %q", out)
@@ -57,7 +57,7 @@ func (c *connectorNVMe) LoadModules() error {
 // Getting the NQN from /etc/nvme/hostnqn would require the nvme-cli
 // package to be installed on the host.
 func (c *connectorNVMe) QualifiedName() (string, error) {
-	return fmt.Sprintf("nqn.2014-08.org.nvmexpress:uuid:%s", c.serverUUID), nil
+	return "nqn.2014-08.org.nvmexpress:uuid:" + c.serverUUID, nil
 }
 
 // Connect establishes a connection with the target on the given address.

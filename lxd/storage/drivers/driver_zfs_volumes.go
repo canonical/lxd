@@ -1897,7 +1897,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		}
 	}
 
-	value := fmt.Sprint(sizeBytes)
+	value := strconv.FormatInt(sizeBytes, 10)
 	if sizeBytes == 0 {
 		return nil
 	}

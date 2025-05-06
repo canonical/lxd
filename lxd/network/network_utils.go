@@ -75,7 +75,7 @@ func RandomDevName(prefix string) string {
 // MACDevName returns interface name with prefix 'lxd' and MAC without leading 2 digits.
 func MACDevName(mac net.HardwareAddr) string {
 	devName := strings.Join(strings.Split(mac.String(), ":"), "")
-	return fmt.Sprintf("lxd%s", devName[2:])
+	return "lxd" + devName[2:]
 }
 
 // UsedByInstanceDevices looks for instance NIC devices using the network and runs the supplied usageFunc for each.
@@ -774,7 +774,7 @@ func inRoutingTable(subnet *net.IPNet) bool {
 		filename = "ipv6_route"
 	}
 
-	file, err := os.Open(fmt.Sprintf("/proc/net/%s", filename))
+	file, err := os.Open("/proc/net/" + filename)
 	if err != nil {
 		return false
 	}
@@ -859,7 +859,7 @@ func pingIP(ctx context.Context, ip net.IP) error {
 		timeout = time.Until(deadline)
 	}
 
-	_, err := shared.RunCommandContext(ctx, cmd, "-n", "-q", ip.String(), "-c", "1", "-w", fmt.Sprintf("%d", int(timeout.Seconds())))
+	_, err := shared.RunCommandContext(ctx, cmd, "-n", "-q", ip.String(), "-c", "1", "-w", strconv.Itoa(int(timeout.Seconds())))
 
 	return err
 }
@@ -885,7 +885,7 @@ func pingSubnet(subnet *net.IPNet) bool {
 	poke := func(ip net.IP) {
 		defer wgChecks.Done()
 
-		addr := fmt.Sprintf("%s:22", ip.String())
+		addr := ip.String() + ":22"
 		if ip.To4() == nil {
 			addr = fmt.Sprintf("[%s]:22", ip.String())
 		}
@@ -1151,7 +1151,7 @@ func InterfaceRemove(nic string) error {
 
 // InterfaceExists returns true if network interface exists.
 func InterfaceExists(nic string) bool {
-	if nic != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", nic)) {
+	if nic != "" && shared.PathExists("/sys/class/net/"+nic) {
 		return true
 	}
 
@@ -1382,7 +1382,7 @@ func BridgeNetfilterEnabled(ipVersion uint) error {
 		sysctlName = "ip6tables"
 	}
 
-	sysctlPath := fmt.Sprintf("net/bridge/bridge-nf-call-%s", sysctlName)
+	sysctlPath := "net/bridge/bridge-nf-call-" + sysctlName
 	sysctlVal, err := util.SysctlGet(sysctlPath)
 	if err != nil {
 		return errors.New("br_netfilter kernel module not loaded")

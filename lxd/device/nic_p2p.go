@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
@@ -155,7 +156,7 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 		runConf.NetworkInterface = append(runConf.NetworkInterface,
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
-				{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
+				{Key: "mtu", Value: strconv.FormatUint(uint64(mtu), 10)},
 			}...)
 	}
 

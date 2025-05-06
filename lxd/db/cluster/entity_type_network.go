@@ -19,11 +19,11 @@ JOIN projects ON networks.project_id = projects.id`, e.code())
 }
 
 func (e entityTypeNetwork) urlsByProjectQuery() string {
-	return fmt.Sprintf(`%s WHERE projects.name = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
 func (e entityTypeNetwork) urlByIDQuery() string {
-	return fmt.Sprintf(`%s WHERE networks.id = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " WHERE networks.id = ?"
 }
 
 func (e entityTypeNetwork) idFromURLQuery() string {

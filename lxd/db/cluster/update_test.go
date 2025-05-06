@@ -437,7 +437,7 @@ INSERT INTO profiles_devices_config VALUES(4, 2, 'pool', 'default');
 		require.NoError(t, err)
 		assert.Equal(t, 1, count)
 
-		stmt := fmt.Sprintf("SELECT project_id FROM %s", table)
+		stmt := "SELECT project_id FROM " + table
 		ids, err := query.SelectIntegers(context.Background(), tx, stmt)
 		require.NoError(t, err)
 		assert.Equal(t, []int{1}, ids)

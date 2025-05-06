@@ -532,7 +532,7 @@ func (o *OVN) LogicalRouterPortAdd(routerName OVNRouter, portName OVNRouterPort,
 			_, err := o.nbctl("set", "Logical_Router_Port", string(portName),
 				`networks="`+strings.Join(ips, `","`)+`"`,
 				`mac="`+mac.String()+`"`,
-				"options:gateway_mtu="+fmt.Sprint(gatewayMTU),
+				"options:gateway_mtu="+strconv.FormatUint(uint64(gatewayMTU), 10),
 			)
 			if err != nil {
 				return err
@@ -548,7 +548,7 @@ func (o *OVN) LogicalRouterPortAdd(routerName OVNRouter, portName OVNRouterPort,
 	}
 
 	args = append(args, "--", "set", "Logical_Router_Port", string(portName),
-		"options:gateway_mtu="+fmt.Sprint(gatewayMTU),
+		"options:gateway_mtu="+strconv.FormatUint(uint64(gatewayMTU), 10),
 	)
 
 	_, err := o.nbctl(args...)
@@ -913,7 +913,7 @@ func (o *OVN) LogicalSwitchDHCPv6OptionsSet(switchName OVNSwitch, uuid OVNDHCPOp
 	// We have to use dhcp-options-set-options rather than the command above as its the only way to allow the
 	// domain_name option to be properly escaped.
 	args := []string{"dhcp-options-set-options", string(uuid),
-		fmt.Sprintf("server_id=%s", opts.ServerID.String()),
+		"server_id=" + opts.ServerID.String(),
 	}
 
 	if len(opts.DNSSearchList) > 0 {
@@ -1752,10 +1752,10 @@ func (o *OVN) aclRuleAddAppendArgs(args []string, entityTable string, entityName
 		}
 
 		// Add command to create ACL rule.
-		args = append(args, "--id=@id"+fmt.Sprint(i), "create", "acl",
+		args = append(args, "--id=@id"+strconv.Itoa(i), "create", "acl",
 			"action="+rule.Action,
 			"direction="+rule.Direction,
-			"priority="+fmt.Sprint(rule.Priority),
+			"priority="+strconv.Itoa(rule.Priority),
 			"match="+strconv.Quote(rule.Match),
 		)
 
@@ -1772,7 +1772,7 @@ func (o *OVN) aclRuleAddAppendArgs(args []string, entityTable string, entityName
 		}
 
 		// Add command to assign ACL rule to entity.
-		args = append(args, "--", "add", entityTable, entityName, "acl", "@id"+fmt.Sprint(i))
+		args = append(args, "--", "add", entityTable, entityName, "acl", "@id"+strconv.Itoa(i))
 	}
 
 	return args
@@ -2129,7 +2129,7 @@ func (o *OVN) LogicalRouterPolicyApply(routerName OVNRouter, policies ...OVNRout
 	args := []string{"lr-policy-del", string(routerName)}
 
 	for _, policy := range policies {
-		args = append(args, "--", "lr-policy-add", string(routerName), fmt.Sprint(policy.Priority), policy.Match, policy.Action)
+		args = append(args, "--", "lr-policy-add", string(routerName), strconv.Itoa(policy.Priority), policy.Match, policy.Action)
 	}
 
 	_, err := o.nbctl(args...)

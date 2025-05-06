@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
@@ -204,7 +205,7 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
 				{Key: "pciSlotName", Value: vfPCIDev.SlotName},
-				{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
+				{Key: "pciIOMMUGroup", Value: strconv.FormatUint(pciIOMMUGroup, 10)},
 			}...)
 	}
 

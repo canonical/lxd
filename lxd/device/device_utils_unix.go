@@ -367,8 +367,8 @@ func unixDeviceSetupCharNum(s *state.State, devicesPath string, typePrefix strin
 	// Overriding these in the config copy should avoid the need for unixDeviceSetup to stat
 	// the origin device to ascertain this information.
 	configCopy["type"] = "unix-char"
-	configCopy["major"] = fmt.Sprintf("%d", major)
-	configCopy["minor"] = fmt.Sprintf("%d", minor)
+	configCopy["major"] = strconv.FormatUint(uint64(major), 10)
+	configCopy["minor"] = strconv.FormatUint(uint64(minor), 10)
 	configCopy["path"] = path
 
 	return unixDeviceSetup(s, devicesPath, typePrefix, deviceName, configCopy, defaultMode, runConf)
@@ -385,8 +385,8 @@ func unixDeviceSetupBlockNum(s *state.State, devicesPath string, typePrefix stri
 	// Overriding these in the config copy should avoid the need for unixDeviceSetup to stat
 	// the origin device to ascertain this information.
 	configCopy["type"] = "unix-block"
-	configCopy["major"] = fmt.Sprintf("%d", major)
-	configCopy["minor"] = fmt.Sprintf("%d", minor)
+	configCopy["major"] = strconv.FormatUint(uint64(major), 10)
+	configCopy["minor"] = strconv.FormatUint(uint64(minor), 10)
 	configCopy["path"] = path
 
 	return unixDeviceSetup(s, devicesPath, typePrefix, deviceName, configCopy, defaultMode, runConf)

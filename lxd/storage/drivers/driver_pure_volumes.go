@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -728,7 +729,7 @@ func (d *pure) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 		remainder := sizeBytes % 512
 		if remainder > 0 {
 			sizeBytes = (sizeBytes/512 + 1) * 512
-			vol.SetConfigSize(fmt.Sprintf("%d", sizeBytes))
+			vol.SetConfigSize(strconv.FormatInt(sizeBytes, 10))
 		}
 	}
 

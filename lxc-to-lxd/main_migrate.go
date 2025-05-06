@@ -253,7 +253,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 		entry := strings.Split(env, "=")
 		key := strings.TrimSpace(entry[0])
 		val := strings.TrimSpace(entry[len(entry)-1])
-		newConfig[fmt.Sprintf("environment.%s", key)] = val
+		newConfig["environment."+key] = val
 	}
 
 	// Convert auto-start
@@ -602,7 +602,7 @@ func convertStorageConfig(conf []string, devices map[string]map[string]string) e
 
 		// Figure out the target
 		if !strings.HasPrefix(parts[1], "/") {
-			device["path"] = fmt.Sprintf("/%s", parts[1])
+			device["path"] = "/" + parts[1]
 		} else {
 			rootfs, err := getRootfs(conf)
 			if err != nil {

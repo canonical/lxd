@@ -228,7 +228,7 @@ func (s *Stmt) objectsBy(buf *file.Buffer) error {
 			// Ensure filters operate on the coalesced value for fields using coalesce setting.
 			where = append(where, fmt.Sprintf("coalesce(%s, %s) = ? ", column, coalesce[0]))
 		} else {
-			where = append(where, fmt.Sprintf("%s = ? ", column))
+			where = append(where, column+" = ? ")
 		}
 	}
 
@@ -314,7 +314,7 @@ func (s *Stmt) id(buf *file.Buffer) error {
 			column = mapping.FieldColumnName(field.Name, table)
 		}
 
-		where = append(where, fmt.Sprintf("%s = ?", column))
+		where = append(where, column+" = ?")
 	}
 
 	sql := fmt.Sprintf(stmts[s.kind], table, table+strings.Join(joins, ""), strings.Join(where, " AND "))

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -125,7 +126,7 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 
 	// Ensure that address is set if routes is set.
 	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
-		if d.config[fmt.Sprintf("%s.routes", keyPrefix)] != "" && d.config[fmt.Sprintf("%s.address", keyPrefix)] == "" {
+		if d.config[keyPrefix+".routes"] != "" && d.config[keyPrefix+".address"] == "" {
 			return fmt.Errorf("%s.routes requires %s.address to be set", keyPrefix, keyPrefix)
 		}
 	}
@@ -301,7 +302,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 		}
 
 		// Record whether we created this device or not so it can be removed on stop.
-		saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
+		saveData["last_state.created"] = strconv.FormatBool(statusDev != "existing")
 
 		// If we created a VLAN interface, we need to setup the sysctls on that interface.
 		if shared.IsTrue(saveData["last_state.created"]) {
@@ -392,7 +393,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 			ipFamilyArg = ip.FamilyV6
 		}
 
-		addresses := shared.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true)
+		addresses := shared.SplitNTrimSpace(d.config[keyPrefix+".address"], ",", -1, true)
 
 		// Add host-side gateway addresses.
 		if len(addresses) > 0 {
@@ -436,11 +437,11 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 			// This is in addition to the static route added to the main routing table, which is still
 			// critical to ensure that reverse path filtering doesn't kick in blocking traffic from
 			// the instance.
-			if d.config[fmt.Sprintf("%s.host_table", keyPrefix)] != "" {
+			if d.config[keyPrefix+".host_table"] != "" {
 				r := ip.Route{
 					DevName: saveData["host_name"],
 					Route:   fmt.Sprintf("%s/%d", addrStr, subnetSize),
-					Table:   d.config[fmt.Sprintf("%s.host_table", keyPrefix)],
+					Table:   d.config[keyPrefix+".host_table"],
 					Family:  ipFamilyArg,
 				}
 
@@ -466,8 +467,8 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 			}
 		}
 
-		if d.config[fmt.Sprintf("%s.routes", keyPrefix)] != "" {
-			routes := shared.SplitNTrimSpace(d.config[fmt.Sprintf("%s.routes", keyPrefix)], ",", -1, true)
+		if d.config[keyPrefix+".routes"] != "" {
+			routes := shared.SplitNTrimSpace(d.config[keyPrefix+".routes"], ",", -1, true)
 
 			if len(addresses) == 0 {
 				return nil, fmt.Errorf("%s.routes requires %s.address to be set", keyPrefix, keyPrefix)
@@ -508,12 +509,12 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 
 	if d.inst.Type() == instancetype.Container {
 		for _, keyPrefix := range []string{"ipv4", "ipv6"} {
-			ipAddresses := shared.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true)
+			ipAddresses := shared.SplitNTrimSpace(d.config[keyPrefix+".address"], ",", -1, true)
 
 			// Use a fixed address as the auto next-hop default gateway if using this IP family.
-			if len(ipAddresses) > 0 && nicHasAutoGateway(d.config[fmt.Sprintf("%s.gateway", keyPrefix)]) {
+			if len(ipAddresses) > 0 && nicHasAutoGateway(d.config[keyPrefix+".gateway"]) {
 				runConf.NetworkInterface = append(runConf.NetworkInterface,
-					deviceConfig.RunConfigItem{Key: fmt.Sprintf("%s.gateway", keyPrefix), Value: d.ipHostAddress(keyPrefix)},
+					deviceConfig.RunConfigItem{Key: keyPrefix + ".gateway", Value: d.ipHostAddress(keyPrefix)},
 				)
 			}
 
@@ -521,7 +522,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 				// Add addresses to instance NIC.
 				if keyPrefix == "ipv6" {
 					runConf.NetworkInterface = append(runConf.NetworkInterface,
-						deviceConfig.RunConfigItem{Key: "ipv6.address", Value: fmt.Sprintf("%s/128", addrStr)},
+						deviceConfig.RunConfigItem{Key: "ipv6.address", Value: addrStr + "/128"},
 					)
 				} else {
 					// Specify the broadcast address as 0.0.0.0 as there is no broadcast address on
@@ -529,7 +530,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 					// (and getting it wrong) which can prevent instances communicating with each other
 					// using adjacent IP addresses.
 					runConf.NetworkInterface = append(runConf.NetworkInterface,
-						deviceConfig.RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32 0.0.0.0", addrStr)},
+						deviceConfig.RunConfigItem{Key: "ipv4.address", Value: addrStr + "/32 0.0.0.0"},
 					)
 				}
 			}
@@ -537,7 +538,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	} else if d.inst.Type() == instancetype.VM {
 		runConf.NetworkInterface = append(runConf.NetworkInterface, []deviceConfig.RunConfigItem{
 			{Key: "devName", Value: d.name},
-			{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
+			{Key: "mtu", Value: strconv.FormatUint(uint64(mtu), 10)},
 		}...)
 	}
 
@@ -681,7 +682,7 @@ func (d *nicRouted) postStop() error {
 }
 
 func (d *nicRouted) ipHostAddress(ipFamily string) string {
-	key := fmt.Sprintf("%s.host_address", ipFamily)
+	key := ipFamily + ".host_address"
 	if d.config[key] != "" {
 		return d.config[key]
 	}

@@ -97,7 +97,7 @@ func (d *tpm) Start() (*deviceConfig.RunConfig, error) {
 		return nil, fmt.Errorf("Failed to validate environment: %w", err)
 	}
 
-	tpmDevPath := filepath.Join(d.inst.Path(), fmt.Sprintf("tpm.%s", filesystem.PathNameEncode(d.name)))
+	tpmDevPath := filepath.Join(d.inst.Path(), "tpm."+filesystem.PathNameEncode(d.name))
 
 	if !shared.PathExists(tpmDevPath) {
 		err := os.Mkdir(tpmDevPath, 0700)
@@ -115,11 +115,11 @@ func (d *tpm) Start() (*deviceConfig.RunConfig, error) {
 
 func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 	escapedDeviceName := filesystem.PathNameEncode(d.name)
-	tpmDevPath := filepath.Join(d.inst.Path(), fmt.Sprintf("tpm.%s", escapedDeviceName))
+	tpmDevPath := filepath.Join(d.inst.Path(), "tpm."+escapedDeviceName)
 	logFileName := fmt.Sprintf("tpm.%s.log", escapedDeviceName)
 	logPath := filepath.Join(d.inst.LogPath(), logFileName)
 
-	proc, err := subprocess.NewProcess("swtpm", []string{"chardev", "--tpm2", "--tpmstate", fmt.Sprintf("dir=%s", tpmDevPath), "--vtpm-proxy"}, logPath, "")
+	proc, err := subprocess.NewProcess("swtpm", []string{"chardev", "--tpm2", "--tpmstate", "dir=" + tpmDevPath, "--vtpm-proxy"}, logPath, "")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create new process: %w", err)
 	}
@@ -135,7 +135,7 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 	// Stop the TPM emulator if anything goes wrong.
 	revert.Add(func() { _ = proc.Stop() })
 
-	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", escapedDeviceName))
+	pidPath := filepath.Join(d.inst.DevicesPath(), escapedDeviceName+".pid")
 
 	err = proc.Save(pidPath)
 	if err != nil {
@@ -214,7 +214,7 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 	defer revert.Fail()
 
 	escapedDeviceName := filesystem.PathNameEncode(d.name)
-	tpmDevPath := filepath.Join(d.inst.Path(), fmt.Sprintf("tpm.%s", escapedDeviceName))
+	tpmDevPath := filepath.Join(d.inst.Path(), "tpm."+escapedDeviceName)
 	socketPath := filepath.Join(tpmDevPath, fmt.Sprintf("swtpm-%s.sock", escapedDeviceName))
 	runConf := deviceConfig.RunConfig{
 		TPMDevice: []deviceConfig.RunConfigItem{
@@ -265,7 +265,7 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 
 	defer func() { _ = unixFile.Close() }()
 
-	proc, err := subprocess.NewProcess("swtpm", []string{"socket", "--tpm2", "--tpmstate", fmt.Sprintf("dir=%s", tpmDevPath), "--ctrl", "type=unixio,fd=3"}, "", "")
+	proc, err := subprocess.NewProcess("swtpm", []string{"socket", "--tpm2", "--tpmstate", "dir=" + tpmDevPath, "--ctrl", "type=unixio,fd=3"}, "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +282,7 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 
 	revert.Add(func() { _ = proc.Stop() })
 
-	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", escapedDeviceName))
+	pidPath := filepath.Join(d.inst.DevicesPath(), escapedDeviceName+".pid")
 
 	err = proc.Save(pidPath)
 	if err != nil {
@@ -297,7 +297,7 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 
 // Stop terminates the TPM emulator.
 func (d *tpm) Stop() (*deviceConfig.RunConfig, error) {
-	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
+	pidPath := filepath.Join(d.inst.DevicesPath(), d.name+".pid")
 	runConf := deviceConfig.RunConfig{}
 
 	defer func() { _ = os.Remove(pidPath) }()
@@ -329,7 +329,7 @@ func (d *tpm) Stop() (*deviceConfig.RunConfig, error) {
 
 // Remove removes the TPM state file.
 func (d *tpm) Remove() error {
-	tpmDevPath := filepath.Join(d.inst.Path(), fmt.Sprintf("tpm.%s", d.name))
+	tpmDevPath := filepath.Join(d.inst.Path(), "tpm."+d.name)
 
 	return os.RemoveAll(tpmDevPath)
 }

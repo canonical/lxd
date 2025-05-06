@@ -737,7 +737,7 @@ func (n *ovn) Validate(config map[string]string) error {
 	// Check SNAT addresses specified are allowed to be used based on uplink's ovn.ingress_mode setting.
 	var externalSNATSubnets []*net.IPNet // Subnets to check for conflicts with other networks/NICs.
 	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
-		snatAddressKey := fmt.Sprintf("%s.nat.address", keyPrefix)
+		snatAddressKey := keyPrefix + ".nat.address"
 		if config[snatAddressKey] != "" {
 			if uplink.Config["ovn.ingress_mode"] != "routed" {
 				return fmt.Errorf(`Cannot specify %q when uplink ovn.ingress_mode is not "routed"`, snatAddressKey)
@@ -1012,7 +1012,7 @@ func (n *ovn) getChassisGroupName() openvswitch.OVNChassisGroup {
 
 // getRouterName returns OVN logical router name to use.
 func (n *ovn) getRouterName() openvswitch.OVNRouter {
-	return openvswitch.OVNRouter(fmt.Sprintf("%s-lr", n.getNetworkPrefix()))
+	return openvswitch.OVNRouter(n.getNetworkPrefix() + "-lr")
 }
 
 // getRouterExtPortName returns OVN logical router external port name to use.
@@ -1119,7 +1119,7 @@ func (n *ovn) getDNSSearchList() []string {
 
 // getExtSwitchName returns OVN  logical external switch name.
 func (n *ovn) getExtSwitchName() openvswitch.OVNSwitch {
-	return openvswitch.OVNSwitch(fmt.Sprintf("%s-ls-ext", n.getNetworkPrefix()))
+	return openvswitch.OVNSwitch(n.getNetworkPrefix() + "-ls-ext")
 }
 
 // getExtSwitchRouterPortName returns OVN logical external switch router port name.
@@ -1144,7 +1144,7 @@ func (n *ovn) getIntSwitchRouterPortName() openvswitch.OVNSwitchPort {
 
 // getIntSwitchInstancePortPrefix returns OVN logical internal switch instance port name prefix.
 func (n *ovn) getIntSwitchInstancePortPrefix() string {
-	return fmt.Sprintf("%s-instance", n.getNetworkPrefix())
+	return n.getNetworkPrefix() + "-instance"
 }
 
 // getLoadBalancerName returns OVN load balancer name to use for a listen address.
@@ -1507,12 +1507,12 @@ func (n *ovn) startUplinkPort() error {
 
 // uplinkOperationLockName returns the lock name to use for operations on the uplink network.
 func (n *ovn) uplinkOperationLockName(uplinkNet Network) string {
-	return fmt.Sprintf("network.ovn.%s", uplinkNet.Name())
+	return "network.ovn." + uplinkNet.Name()
 }
 
 // uplinkPortBridgeVars returns the uplink port bridge variables needed for port start/stop.
 func (n *ovn) uplinkPortBridgeVars(uplinkNet Network) *ovnUplinkPortBridgeVars {
-	ovsBridge := "lxdovn" + fmt.Sprint(uplinkNet.ID())
+	ovsBridge := "lxdovn" + strconv.FormatInt(uplinkNet.ID(), 10)
 
 	return &ovnUplinkPortBridgeVars{
 		ovsBridge: ovsBridge,
@@ -4410,8 +4410,8 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 		for _, netInfo := range networks {
 			for _, keyPrefix := range []string{"ipv4", "ipv6"} {
 				// If NAT is disabled, then network subnet is an external subnet.
-				if shared.IsFalseOrEmpty(netInfo.Config[fmt.Sprintf("%s.nat", keyPrefix)]) {
-					key := fmt.Sprintf("%s.address", keyPrefix)
+				if shared.IsFalseOrEmpty(netInfo.Config[keyPrefix+".nat"]) {
+					key := keyPrefix + ".address"
 
 					_, ipNet, err := net.ParseCIDR(netInfo.Config[key])
 					if err != nil {
@@ -4432,8 +4432,8 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 				}
 
 				// Find any external subnets used for network SNAT.
-				if netInfo.Config[fmt.Sprintf("%s.nat.address", keyPrefix)] != "" {
-					key := fmt.Sprintf("%s.nat.address", keyPrefix)
+				if netInfo.Config[keyPrefix+".nat.address"] != "" {
+					key := keyPrefix + ".nat.address"
 
 					_, ipNet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", netInfo.Config[key], subnetSize))
 					if err != nil {
@@ -5376,7 +5376,7 @@ func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.N
 			ip, _, _ := net.ParseCIDR(addr)
 			if ip != nil {
 				leases = append(leases, api.NetworkLease{
-					Hostname: fmt.Sprintf("%s.gw", n.Name()),
+					Hostname: n.Name() + ".gw",
 					Address:  ip.String(),
 					Type:     "gateway",
 					Project:  n.project,

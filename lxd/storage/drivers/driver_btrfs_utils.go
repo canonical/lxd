@@ -405,7 +405,7 @@ func (d *btrfs) setSubvolumeReadonlyProperty(path string, readonly bool) error {
 		args = append(args, "-f")
 	}
 
-	args = append(args, "-ts", path, "ro", fmt.Sprint(readonly))
+	args = append(args, "-ts", path, "ro", strconv.FormatBool(readonly))
 
 	_, err := shared.RunCommandContext(context.TODO(), "btrfs", args...)
 	return err

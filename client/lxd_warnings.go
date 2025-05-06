@@ -1,7 +1,6 @@
 package lxd
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
 
@@ -55,7 +54,7 @@ func (r *ProtocolLXD) GetWarning(UUID string) (*api.Warning, string, error) {
 
 	warning := api.Warning{}
 
-	etag, err := r.queryStruct(http.MethodGet, fmt.Sprintf("/warnings/%s", url.PathEscape(UUID)), nil, "", &warning)
+	etag, err := r.queryStruct(http.MethodGet, "/warnings/"+url.PathEscape(UUID), nil, "", &warning)
 	if err != nil {
 		return nil, "", err
 	}
@@ -71,7 +70,7 @@ func (r *ProtocolLXD) UpdateWarning(UUID string, warning api.WarningPut, ETag st
 	}
 
 	// Send the request
-	_, _, err = r.query(http.MethodPut, fmt.Sprintf("/warnings/%s", url.PathEscape(UUID)), warning, "")
+	_, _, err = r.query(http.MethodPut, "/warnings/"+url.PathEscape(UUID), warning, "")
 	if err != nil {
 		return err
 	}
@@ -87,7 +86,7 @@ func (r *ProtocolLXD) DeleteWarning(UUID string) error {
 	}
 
 	// Send the request
-	_, _, err = r.query(http.MethodDelete, fmt.Sprintf("/warnings/%s", url.PathEscape(UUID)), nil, "")
+	_, _, err = r.query(http.MethodDelete, "/warnings/"+url.PathEscape(UUID), nil, "")
 	if err != nil {
 		return err
 	}

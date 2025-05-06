@@ -69,7 +69,7 @@ func (c *cmdMigratedumpsuccess) Run(cmd *cobra.Command, args []string) error {
 
 	_ = conn.Close()
 
-	resp, _, err := d.RawQuery(http.MethodGet, fmt.Sprintf("%s/wait", args[0]), nil, "")
+	resp, _, err := d.RawQuery(http.MethodGet, args[0]+"/wait", nil, "")
 	if err != nil {
 		return err
 	}
