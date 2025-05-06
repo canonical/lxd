@@ -691,9 +691,22 @@ func (d *common) runHooks(hooks []func() error) error {
 }
 
 // snapshot handles the common part of the snapshoting process.
-func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time.Time, stateful bool) error {
+func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *time.Time, stateful bool) error {
 	revert := revert.New()
 	defer revert.Fail()
+
+	snapshotCreationDate := time.Now().UTC()
+
+	// If the expiry is unset, retrieve it from the instance's expanded config.
+	if expiry == nil {
+		// Use the snapshot creation date as reference for an exact expiry date.
+		instanceSnapshotExpiry, err := shared.GetExpiry(snapshotCreationDate, inst.ExpandedConfig()["snapshots.expiry"])
+		if err != nil {
+			return err
+		}
+
+		expiry = &instanceSnapshotExpiry
+	}
 
 	// Setup the arguments.
 	args := db.InstanceArgs{
@@ -707,7 +720,8 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 		Name:         inst.Name() + shared.SnapshotDelimiter + name,
 		Profiles:     inst.Profiles(),
 		Stateful:     stateful,
-		ExpiryDate:   expiry,
+		ExpiryDate:   *expiry,
+		CreationDate: snapshotCreationDate,
 	}
 
 	// Create the snapshot.
