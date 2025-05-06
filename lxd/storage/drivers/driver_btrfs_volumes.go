@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1033,7 +1034,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 		}
 
 		// Apply the limit to referenced data in qgroup.
-		_, err = shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "limit", fmt.Sprint(sizeBytes), qgroup, volPath)
+		_, err = shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "limit", strconv.FormatInt(sizeBytes, 10), qgroup, volPath)
 		if err != nil {
 			return err
 		}

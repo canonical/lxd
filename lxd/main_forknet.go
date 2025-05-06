@@ -121,6 +121,7 @@ import "C"
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -197,15 +198,15 @@ func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 	hostName := args[3]
 
 	if lxdPID == "" {
-		return fmt.Errorf("LXD PID argument is required")
+		return errors.New("LXD PID argument is required")
 	}
 
 	if ifName == "" {
-		return fmt.Errorf("ifname argument is required")
+		return errors.New("ifname argument is required")
 	}
 
 	if hostName == "" {
-		return fmt.Errorf("hostname argument is required")
+		return errors.New("hostname argument is required")
 	}
 
 	// Check if the interface exists.

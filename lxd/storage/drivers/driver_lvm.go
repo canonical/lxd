@@ -150,7 +150,7 @@ func (d *lvm) Create() error {
 				return err
 			}
 
-			d.config["size"] = fmt.Sprint(defaultSize) + "GiB"
+			d.config["size"] = strconv.FormatUint(defaultSize, 10) + "GiB"
 		}
 
 		size, err := units.ParseByteSizeString(d.config["size"])

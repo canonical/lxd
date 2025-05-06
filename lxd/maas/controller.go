@@ -70,7 +70,7 @@ func parseInterfaces(interfaces []ContainerInterface) (map[string]ContainerInter
 
 // NewController returns a new Controller using the specific MAAS server and machine.
 func NewController(url string, key string, machine string) (*Controller, error) {
-	baseURL := fmt.Sprintf("%s/api/2.0/", url)
+	baseURL := url + "/api/2.0/"
 
 	// Connect to MAAS
 	srv, err := gomaasapi.NewController(gomaasapi.ControllerArgs{

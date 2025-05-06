@@ -3,6 +3,7 @@ linters:
   enable:
     - godot
     - misspell
+    - perfsprint
     - prealloc
     - revive
     - testifylint

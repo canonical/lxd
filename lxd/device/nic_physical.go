@@ -112,7 +112,7 @@ func (d *nicPhysical) validateEnvironment() error {
 		return errors.New("Requires name property to start")
 	}
 
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
+	if !shared.PathExists("/sys/class/net/" + d.config["parent"]) {
 		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
 	}
 
@@ -158,7 +158,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 		}
 
 		// Record whether we created this device or not so it can be removed on stop.
-		saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
+		saveData["last_state.created"] = strconv.FormatBool(statusDev != "existing")
 
 		if shared.IsTrue(saveData["last_state.created"]) {
 			revert.Add(func() {
@@ -253,7 +253,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
 				{Key: "pciSlotName", Value: saveData["last_state.pci.slot.name"]},
-				{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
+				{Key: "pciIOMMUGroup", Value: strconv.FormatUint(pciIOMMUGroup, 10)},
 				{Key: "hwaddr", Value: hwaddr},
 			}...)
 	}

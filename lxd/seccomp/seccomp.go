@@ -473,6 +473,7 @@ import "C"
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -1061,7 +1062,7 @@ retry:
 func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state *state.State) (Instance, error)) (*Server, error) {
 	ret := C.seccomp_notify_get_sizes(&C.expected_sizes)
 	if ret < 0 {
-		return nil, fmt.Errorf("Failed to query kernel for seccomp notifier sizes")
+		return nil, errors.New("Failed to query kernel for seccomp notifier sizes")
 	}
 
 	// Cleanup existing sockets
@@ -1251,7 +1252,7 @@ func FindTGID(procFd int) (uint32, error) {
 		}
 	}
 
-	return 0, fmt.Errorf("Task group leader ID not found")
+	return 0, errors.New("Task group leader ID not found")
 }
 
 // isCapableInCtInitUserns checks if intercepted syscall's caller has a (cap) effective
@@ -2052,10 +2053,10 @@ func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
 
 	forksyscallgoargs := []string{
 		"forksyscallgo",
-		"finit_module_parse",                 // <syscall_operation>
-		fmt.Sprintf("%d", int(siov.req.pid)), // <PID>
-		fmt.Sprintf("%d", 0),                 // <PidFd>
-		fmt.Sprintf("%d", 3),                 // <module_fd>
+		"finit_module_parse", // <syscall_operation>
+		strconv.FormatUint(uint64(siov.req.pid), 10), // <PID>
+		"0", // <PidFd>
+		"3", // <module_fd>
 	}
 
 	var buffer bytes.Buffer
@@ -2108,7 +2109,7 @@ func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
 		return int(-C.EPERM)
 	}
 
-	if shared.PathExists(fmt.Sprintf("/sys/module/%s", moduleName)) {
+	if shared.PathExists("/sys/module/" + moduleName) {
 		return int(-C.EEXIST)
 	}
 
@@ -2456,22 +2457,22 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 			util.GetExecPath(),
 			"forksyscall",
 			"mount",
-			fmt.Sprintf("%d", args.pid),
-			fmt.Sprintf("%d", pidFdNr),
+			strconv.Itoa(args.pid),
+			strconv.Itoa(pidFdNr),
 			"0",
 			args.source,
 			args.target,
 			args.fstype,
-			fmt.Sprintf("%d", args.flags),
+			strconv.Itoa(args.flags),
 			string(args.idmapType),
-			fmt.Sprintf("%d", args.uid),
-			fmt.Sprintf("%d", args.gid),
-			fmt.Sprintf("%d", args.fsuid),
-			fmt.Sprintf("%d", args.fsgid),
-			fmt.Sprintf("%d", args.nsuid),
-			fmt.Sprintf("%d", args.nsgid),
-			fmt.Sprintf("%d", args.nsfsuid),
-			fmt.Sprintf("%d", args.nsfsgid),
+			strconv.FormatInt(args.uid, 10),
+			strconv.FormatInt(args.gid, 10),
+			strconv.FormatInt(args.fsuid, 10),
+			strconv.FormatInt(args.fsgid, 10),
+			strconv.FormatInt(args.nsuid, 10),
+			strconv.FormatInt(args.nsgid, 10),
+			strconv.FormatInt(args.nsfsuid, 10),
+			strconv.FormatInt(args.nsfsgid, 10),
 			args.data)
 	}
 
@@ -2607,7 +2608,7 @@ func lxcSupportSeccompNotifyContinue(state *state.State) error {
 	}
 
 	if !state.OS.SeccompListenerContinue {
-		return fmt.Errorf("Seccomp notify doesn't support continuing syscalls")
+		return errors.New("Seccomp notify doesn't support continuing syscalls")
 	}
 
 	return nil
@@ -2620,11 +2621,11 @@ func lxcSupportSeccompNotifyAddfd(state *state.State) error {
 	}
 
 	if !state.OS.SeccompListenerContinue {
-		return fmt.Errorf("Seccomp notify doesn't support continuing syscalls")
+		return errors.New("Seccomp notify doesn't support continuing syscalls")
 	}
 
 	if !state.OS.SeccompListenerAddfd {
-		return fmt.Errorf("Seccomp notify doesn't support adding file descriptors")
+		return errors.New("Seccomp notify doesn't support adding file descriptors")
 	}
 
 	return nil
@@ -2632,16 +2633,16 @@ func lxcSupportSeccompNotifyAddfd(state *state.State) error {
 
 func lxcSupportSeccompNotify(state *state.State) error {
 	if !state.OS.SeccompListener {
-		return fmt.Errorf("Seccomp notify not supported")
+		return errors.New("Seccomp notify not supported")
 	}
 
 	if !state.OS.LXCFeatures["seccomp_notify"] {
-		return fmt.Errorf("LXC doesn't support seccomp notify")
+		return errors.New("LXC doesn't support seccomp notify")
 	}
 
 	c, err := liblxc.NewContainer("test-seccomp", state.OS.LxcPath)
 	if err != nil {
-		return fmt.Errorf("Failed to load seccomp notify test container")
+		return errors.New("Failed to load seccomp notify test container")
 	}
 
 	err = c.SetConfigItem("lxc.seccomp.notify.proxy", "unix:"+shared.VarPath("seccomp.socket"))

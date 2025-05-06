@@ -128,7 +128,7 @@ func main() {
 
 	// forkexec sub-command
 	forkexecCmd := cmdForkexec{global: &globalCmd}
-	app.AddCommand(forkexecCmd.Command())
+	app.AddCommand(forkexecCmd.command())
 
 	// forkfile sub-command
 	forkfileCmd := cmdForkfile{global: &globalCmd}
@@ -144,7 +144,7 @@ func main() {
 
 	// forksyscall sub-command
 	forksyscallCmd := cmdForksyscall{global: &globalCmd}
-	app.AddCommand(forksyscallCmd.Command())
+	app.AddCommand(forksyscallCmd.command())
 
 	// forksyscallgo sub-command
 	forksyscallgoCmd := cmdForksyscallgo{global: &globalCmd}
@@ -152,7 +152,7 @@ func main() {
 
 	// forkcoresched sub-command
 	forkcoreschedCmd := cmdForkcoresched{global: &globalCmd}
-	app.AddCommand(forkcoreschedCmd.Command())
+	app.AddCommand(forkcoreschedCmd.command())
 
 	// forkmount sub-command
 	forkmountCmd := cmdForkmount{global: &globalCmd}
@@ -172,7 +172,7 @@ func main() {
 
 	// forkuevent sub-command
 	forkueventCmd := cmdForkuevent{global: &globalCmd}
-	app.AddCommand(forkueventCmd.Command())
+	app.AddCommand(forkueventCmd.command())
 
 	// forkzfs sub-command
 	forkzfsCmd := cmdForkZFS{global: &globalCmd}

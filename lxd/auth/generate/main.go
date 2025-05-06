@@ -199,7 +199,7 @@ func writeOutput(w io.Writer, entityToEntitlements map[entity.Type][]entitlement
 		}
 
 		for i := range entityTypes {
-			entityTypes[i] = fmt.Sprintf("entity.Type%s", snakeToPascal(entityTypes[i]))
+			entityTypes[i] = "entity.Type" + snakeToPascal(entityTypes[i])
 		}
 
 		sort.Strings(entityTypes)

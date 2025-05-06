@@ -172,7 +172,7 @@ func (h *dnsHandler) handlePTR(r *dns.Msg) (dns.Msg, error) {
 		req.RecursionDesired = false
 		req.Id = r.Id
 
-		resp, err := dns.Exchange(&req, fmt.Sprintf("%s:1053", server))
+		resp, err := dns.Exchange(&req, server+":1053")
 		if err != nil || len(resp.Answer) == 0 {
 			// Error or empty response, try the next one
 			continue
@@ -275,7 +275,7 @@ func (h *dnsHandler) handleA(r *dns.Msg) (dns.Msg, error) {
 		req.RecursionDesired = false
 		req.Id = r.Id
 
-		resp, err := dns.Exchange(&req, fmt.Sprintf("%s:1053", server))
+		resp, err := dns.Exchange(&req, server+":1053")
 		if err != nil || resp.Rcode != dns.RcodeSuccess {
 			// Error sending request or error response, try next server.
 			continue

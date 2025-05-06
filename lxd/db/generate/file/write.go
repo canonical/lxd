@@ -13,9 +13,7 @@ import (
 func Reset(path string, imports []string, buildComment string, iface bool) error {
 	// A new line needs to be appended after the build comment.
 	if buildComment != "" {
-		buildComment = fmt.Sprintf(`%s
-
-`, buildComment)
+		buildComment = buildComment + "\n\n"
 	}
 
 	if iface {

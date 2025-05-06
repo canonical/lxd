@@ -1,7 +1,6 @@
 package osarch
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -84,5 +83,5 @@ ID="ubuntu"
 	defer cleanup()
 
 	_, err := getLSBRelease(filename)
-	s.EqualError(err, fmt.Sprintf("%s: invalid format on line 3", filename))
+	s.EqualError(err, filename+": invalid format on line 3")
 }

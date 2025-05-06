@@ -74,7 +74,7 @@ func (c *cmdShutdown) Run(cmd *cobra.Command, args []string) error {
 
 		httpTransport.ResponseHeaderTimeout = 3600 * time.Second
 
-		_, _, err = d.RawQuery(http.MethodPut, fmt.Sprintf("/internal/shutdown?%s", v.Encode()), nil, "")
+		_, _, err = d.RawQuery(http.MethodPut, "/internal/shutdown?"+v.Encode(), nil, "")
 		if err != nil {
 			chResult <- err
 			return

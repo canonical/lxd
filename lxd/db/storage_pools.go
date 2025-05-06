@@ -590,7 +590,7 @@ func (c *ClusterTx) storagePools(ctx context.Context, where string, args ...any)
 	inargs := []any{}
 
 	if where != "" {
-		stmt += fmt.Sprintf(" WHERE %s", where)
+		stmt += " WHERE " + where
 		inargs = append(inargs, args...)
 	}
 

@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	log "github.com/sirupsen/logrus"
 
@@ -16,7 +17,7 @@ import (
 
 func tlsConfig(uid uint32) (*tls.Config, error) {
 	// Load the client certificate.
-	content, err := os.ReadFile(filepath.Join("users", fmt.Sprintf("%d", uid), "client.crt"))
+	content, err := os.ReadFile(filepath.Join("users", strconv.FormatUint(uint64(uid), 10), "client.crt"))
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open client certificate: %w", err)
 	}
@@ -24,7 +25,7 @@ func tlsConfig(uid uint32) (*tls.Config, error) {
 	tlsClientCert := string(content)
 
 	// Load the client key.
-	content, err = os.ReadFile(filepath.Join("users", fmt.Sprintf("%d", uid), "client.key"))
+	content, err = os.ReadFile(filepath.Join("users", strconv.FormatUint(uint64(uid), 10), "client.key"))
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open client key: %w", err)
 	}
@@ -80,7 +81,7 @@ func proxyConnection(conn *net.UnixConn) {
 	defer logger.Debug("Disconnected")
 
 	// Check if the user was setup.
-	if !shared.PathExists(filepath.Join("users", fmt.Sprintf("%d", creds.Uid))) {
+	if !shared.PathExists(filepath.Join("users", strconv.FormatUint(uint64(creds.Uid), 10))) {
 		log.Infof("Setting up LXD for uid %d", creds.Uid)
 		err := lxdSetupUser(creds.Uid)
 		if err != nil {

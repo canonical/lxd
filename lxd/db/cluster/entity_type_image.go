@@ -19,11 +19,11 @@ JOIN projects ON images.project_id = projects.id`, e.code())
 }
 
 func (e entityTypeImage) urlsByProjectQuery() string {
-	return fmt.Sprintf("%s WHERE projects.name = ?", e.allURLsQuery())
+	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
 func (e entityTypeImage) urlByIDQuery() string {
-	return fmt.Sprintf(`%s WHERE images.id = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " WHERE images.id = ?"
 }
 
 func (e entityTypeImage) idFromURLQuery() string {

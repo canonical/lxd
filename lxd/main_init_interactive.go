@@ -540,7 +540,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 				return err
 			}
 
-			net.Config["ipv4.nat"] = fmt.Sprint(netIPv4UseNAT)
+			net.Config["ipv4.nat"] = strconv.FormatBool(netIPv4UseNAT)
 		}
 
 		// IPv6
@@ -561,7 +561,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 				return err
 			}
 
-			net.Config["ipv6.nat"] = fmt.Sprint(netIPv6UseNAT)
+			net.Config["ipv6.nat"] = strconv.FormatBool(netIPv6UseNAT)
 		}
 
 		// Add the new network
@@ -939,7 +939,7 @@ they otherwise would.
 				netAddr = "[" + netAddr + "]"
 			}
 
-			netPort, err := c.global.asker.AskInt(fmt.Sprintf("Port to bind LXD to [default=%d]: ", shared.HTTPSDefaultPort), 1, 65535, fmt.Sprintf("%d", shared.HTTPSDefaultPort), func(netPort int64) error {
+			netPort, err := c.global.asker.AskInt(fmt.Sprintf("Port to bind LXD to [default=%d]: ", shared.HTTPSDefaultPort), 1, 65535, strconv.Itoa(shared.HTTPSDefaultPort), func(netPort int64) error {
 				address := util.CanonicalNetworkAddressFromAddressAndPort(netAddr, netPort, shared.HTTPSDefaultPort)
 
 				if err == nil {

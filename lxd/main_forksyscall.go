@@ -551,11 +551,11 @@ void forksyscall(void)
 import "C"
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/spf13/cobra"
 
-	// Used by cgo
+	// Used by cgo.
 	_ "github.com/canonical/lxd/lxd/include"
 )
 
@@ -563,7 +563,7 @@ type cmdForksyscall struct {
 	global *cmdGlobal
 }
 
-func (c *cmdForksyscall) Command() *cobra.Command {
+func (c *cmdForksyscall) command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
 	cmd.Use = "forksyscall <syscall> <PID> <PidFd> [...]"
@@ -574,12 +574,12 @@ func (c *cmdForksyscall) Command() *cobra.Command {
   This set of internal commands is used for all seccomp-based container syscall
   operations.
 `
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Hidden = true
 
 	return cmd
 }
 
-func (c *cmdForksyscall) Run(cmd *cobra.Command, args []string) error {
-	return fmt.Errorf("This command should have been intercepted in cgo")
+func (c *cmdForksyscall) run(cmd *cobra.Command, args []string) error {
+	return errors.New("This command should have been intercepted in cgo")
 }

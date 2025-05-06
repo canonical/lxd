@@ -210,7 +210,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	}
 
 	args := lxd.ConnectionArgs{
-		UserAgent:          fmt.Sprintf("LXD-MIGRATE %s", version.Version),
+		UserAgent:          "LXD-MIGRATE " + version.Version,
 		InsecureSkipVerify: true,
 	}
 
@@ -869,7 +869,7 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 
 	if config.InstanceArgs.Type == api.InstanceTypeContainer {
 		// Create the rootfs directory
-		fullPath = fmt.Sprintf("%s/rootfs", path)
+		fullPath = path + "/rootfs"
 
 		err = os.Mkdir(fullPath, 0755)
 		if err != nil {

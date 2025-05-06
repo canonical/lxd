@@ -184,7 +184,7 @@ func findContainerForPID(pid int32, s *state.State) (instance.Container, error) 
 	origpid := pid
 
 	for pid > 1 {
-		procPID := "/proc/" + fmt.Sprint(pid)
+		procPID := "/proc/" + strconv.Itoa(int(pid))
 		cmdline, err := os.ReadFile(procPID + "/cmdline")
 		if err != nil {
 			return nil, err

@@ -1,7 +1,6 @@
 package endpoints_test
 
 import (
-	"fmt"
 	"net"
 	"strings"
 	"testing"
@@ -103,8 +102,8 @@ func TestEndpoints_NetworkCreateTCPSocketIPv4(t *testing.T) {
 
 	address, certificate := endpoints.NetworkAddressAndCert()
 	parts := strings.Split(address, ":")
-	ipv6Address := fmt.Sprintf("[::1]:%s", parts[1])
-	ipv4Address := fmt.Sprintf("127.0.0.1:%s", parts[1])
+	ipv6Address := "[::1]:" + parts[1]
+	ipv4Address := "127.0.0.1:" + parts[1]
 
 	// Check accessibility over IPv4 request
 	assert.NoError(t, httpGetOverTLSSocket(ipv4Address, certificate))

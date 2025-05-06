@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -150,7 +151,7 @@ func (c *cmdNetworkACLList) run(cmd *cobra.Command, args []string) error {
 
 	data := [][]string{}
 	for _, acl := range acls {
-		strUsedBy := fmt.Sprint(len(acl.UsedBy))
+		strUsedBy := strconv.Itoa(len(acl.UsedBy))
 		details := []string{
 			acl.Name,
 			acl.Description,

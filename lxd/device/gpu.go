@@ -1,7 +1,7 @@
 package device
 
 import (
-	"fmt"
+	"strconv"
 
 	"github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/shared/api"
@@ -170,8 +170,9 @@ func gpuValidationRules(requiredFields []string, optionalFields []string) map[st
 // Check if the device matches the given GPU card.
 // It matches based on vendorid, pci, productid or id setting of the device.
 func gpuSelected(device config.Device, gpu api.ResourcesGPUCard) bool {
-	return !((device["vendorid"] != "" && gpu.VendorID != device["vendorid"]) ||
+	// Ignore suggestion to apply De Morgan's law.
+	return !((device["vendorid"] != "" && gpu.VendorID != device["vendorid"]) || //nolint:staticcheck
 		(device["pci"] != "" && gpu.PCIAddress != device["pci"]) ||
 		(device["productid"] != "" && gpu.ProductID != device["productid"]) ||
-		(device["id"] != "" && (gpu.DRM == nil || fmt.Sprintf("%d", gpu.DRM.ID) != device["id"])))
+		(device["id"] != "" && (gpu.DRM == nil || strconv.FormatUint(gpu.DRM.ID, 10) != device["id"])))
 }

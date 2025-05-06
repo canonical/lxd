@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -144,7 +145,7 @@ func (c *cmdNetworkLoadBalancerList) run(cmd *cobra.Command, args []string) erro
 		details := []string{
 			loadBalancer.ListenAddress,
 			loadBalancer.Description,
-			fmt.Sprint(len(loadBalancer.Ports)),
+			strconv.Itoa(len(loadBalancer.Ports)),
 		}
 
 		if clustered {

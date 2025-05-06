@@ -20,11 +20,11 @@ LEFT JOIN projects ON operations.project_id = projects.id`, e.code())
 }
 
 func (e entityTypeOperation) urlsByProjectQuery() string {
-	return fmt.Sprintf(`%s WHERE projects.name = ?`, strings.Replace(e.allURLsQuery(), "LEFT JOIN projects", "JOIN projects", 1))
+	return strings.Replace(e.allURLsQuery(), "LEFT JOIN projects", "JOIN projects", 1) + " WHERE projects.name = ?"
 }
 
 func (e entityTypeOperation) urlByIDQuery() string {
-	return fmt.Sprintf(`%s WHERE operations.id = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " WHERE operations.id = ?"
 }
 
 func (e entityTypeOperation) idFromURLQuery() string {

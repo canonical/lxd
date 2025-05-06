@@ -920,7 +920,7 @@ func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error
 			return -1, err
 		}
 
-		newSnapshotName := fmt.Sprintf("zombie_snapshot_%s", uuid.New().String())
+		newSnapshotName := "zombie_snapshot_" + uuid.New().String()
 		err = d.rbdRenameVolumeSnapshot(vol, snapshotName, newSnapshotName)
 		if err != nil {
 			return -1, err

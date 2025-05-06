@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"fmt"
 	"net"
 	"os"
 	"strconv"
@@ -102,7 +101,7 @@ func CanonicalNetworkAddress(address string, defaultPort int64) string {
 func CanonicalNetworkAddressFromAddressAndPort(address string, port int64, defaultPort int64) string {
 	// Because we accept just the host part of an IPv6 listen address (e.g. `[::]`) don't use net.JoinHostPort.
 	// If a bare IP address is supplied then CanonicalNetworkAddress will use net.JoinHostPort if needed.
-	return CanonicalNetworkAddress(address+":"+fmt.Sprint(port), defaultPort)
+	return CanonicalNetworkAddress(address+":"+strconv.FormatInt(port, 10), defaultPort)
 }
 
 // ServerTLSConfig returns a new server-side tls.Config generated from the give

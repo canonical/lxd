@@ -103,7 +103,7 @@ func instanceRefreshTypesTask(stateFunc func() *state.State) (task.Func, task.Sc
 func instanceRefreshTypes(ctx context.Context, s *state.State) error {
 	// Attempt to download the new definitions
 	downloadParse := func(filename string, target any) error {
-		url := fmt.Sprintf("https://images.lxd.canonical.com/meta/instance-types/%s", filename)
+		url := "https://images.lxd.canonical.com/meta/instance-types/" + filename
 
 		httpClient, err := util.HTTPClient("", s.Proxy)
 		if err != nil {
@@ -242,7 +242,7 @@ func instanceParseType(value string) (map[string]string, error) {
 
 		cpuTime := int(limits.CPU / float32(cpuCores) * 100.0)
 
-		out["limits.cpu"] = fmt.Sprintf("%d", cpuCores)
+		out["limits.cpu"] = strconv.Itoa(cpuCores)
 		if cpuTime < 100 {
 			out["limits.cpu.allowance"] = fmt.Sprintf("%d%%", cpuTime)
 		}

@@ -20,7 +20,7 @@ func (e entityTypeClusterMember) urlsByProjectQuery() string {
 }
 
 func (e entityTypeClusterMember) urlByIDQuery() string {
-	return fmt.Sprintf(`%s WHERE nodes.id = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " WHERE nodes.id = ?"
 }
 
 func (e entityTypeClusterMember) idFromURLQuery() string {

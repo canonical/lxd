@@ -155,7 +155,7 @@ func (d *cephfs) Create() error {
 
 	if fsExists {
 		for _, key := range []string{"create_missing", "osd_pg_num", "meta_pool", "data_pool"} {
-			cephfsSourceKey := fmt.Sprintf("cephfs.%s", key)
+			cephfsSourceKey := "cephfs." + key
 			if d.config[cephfsSourceKey] != "" {
 				return fmt.Errorf("Invalid config key %q: CephFS filesystem already exists", cephfsSourceKey)
 			}

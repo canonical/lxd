@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -1089,7 +1090,7 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 			strManaged = i18n.G("YES")
 		}
 
-		strUsedBy := fmt.Sprint(len(network.UsedBy))
+		strUsedBy := strconv.Itoa(len(network.UsedBy))
 		details := []string{
 			network.Name,
 			network.Type,

@@ -129,28 +129,28 @@ func (d *common) usedBy(firstOnly bool) ([]string, error) {
 		case db.InstanceArgs:
 			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, u.Name)
 			if u.Project != api.ProjectDefaultName {
-				uri += fmt.Sprintf("?project=%s", u.Project)
+				uri += "?project=" + u.Project
 			}
 
 			usedBy = append(usedBy, uri)
 		case *api.Network:
 			uri := fmt.Sprintf("/%s/networks/%s", version.APIVersion, u.Name)
 			if d.projectName != api.ProjectDefaultName {
-				uri += fmt.Sprintf("?project=%s", d.projectName)
+				uri += "?project=" + d.projectName
 			}
 
 			usedBy = append(usedBy, uri)
 		case dbCluster.Profile:
 			uri := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, u.Name)
 			if u.Project != api.ProjectDefaultName {
-				uri += fmt.Sprintf("?project=%s", u.Project)
+				uri += "?project=" + u.Project
 			}
 
 			usedBy = append(usedBy, uri)
 		case *api.NetworkACL:
 			uri := fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, u.Name)
 			if d.projectName != api.ProjectDefaultName {
-				uri += fmt.Sprintf("?project=%s", d.projectName)
+				uri += "?project=" + d.projectName
 			}
 
 			usedBy = append(usedBy, uri)

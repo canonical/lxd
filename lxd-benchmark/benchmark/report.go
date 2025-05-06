@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -82,7 +83,7 @@ func (r *CSVReport) AddRecord(label string, elapsed time.Duration) error {
 	}
 
 	record := []string{
-		fmt.Sprintf("%d", time.Now().UnixNano()/int64(time.Millisecond)), // timestamp
+		strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10), // timestamp
 		fmt.Sprintf("%d", elapsed/time.Millisecond),
 		label,
 		"",     // responseCode is not used

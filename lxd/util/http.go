@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -73,7 +74,7 @@ func EtagHash(data any) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("%x", etag.Sum(nil)), nil
+	return hex.EncodeToString(etag.Sum(nil)), nil
 }
 
 // EtagCheck validates the hash of the current state with the hash

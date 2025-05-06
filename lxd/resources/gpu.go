@@ -71,8 +71,8 @@ func loadNvidiaProc() (map[string]*api.ResourcesGPUCardNvidia, error) {
 			}
 
 			if key == "Device Minor" {
-				nvidiaCard.CardName = fmt.Sprintf("nvidia%s", value)
-				nvidiaCard.CardDevice = fmt.Sprintf("195:%s", value)
+				nvidiaCard.CardName = "nvidia" + value
+				nvidiaCard.CardDevice = "195:" + value
 			}
 		}
 
@@ -134,8 +134,8 @@ func loadNvidiaContainer() (map[string]*api.ResourcesGPUCardNvidia, error) {
 				Model:        record[2],
 				UUID:         record[4],
 				Architecture: record[6],
-				CardName:     fmt.Sprintf("nvidia%s", record[1]),
-				CardDevice:   fmt.Sprintf("195:%s", record[1]),
+				CardName:     "nvidia" + record[1],
+				CardDevice:   "195:" + record[1],
 			}
 		}
 	}
@@ -265,7 +265,7 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 		if ok {
 			card.Nvidia = nvidia
 		} else {
-			nvidia, ok := nvidiaCards[fmt.Sprintf("0000%s", card.PCIAddress)]
+			nvidia, ok := nvidiaCards["0000"+card.PCIAddress]
 			if ok {
 				card.Nvidia = nvidia
 			}
