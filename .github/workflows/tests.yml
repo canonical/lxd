@@ -30,10 +30,11 @@ defaults:
 jobs:
   code-tests:
     env:
-      CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/"
-      CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
-      LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
-      LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
+      CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/ -I/home/runner/go/bin/liblxc/include/"
+      CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/ -L/home/runner/go/bin/liblxc/libs/"
+      LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/:/home/runner/go/bin/liblxc/libs/"
+      PKG_CONFIG_PATH: "/home/runner/go/bin/liblxc/libs/pkgconfig/"
+      LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/:/home/runner/go/bin/liblxc/libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
     name: Code
     runs-on: ubuntu-22.04
@@ -124,6 +125,11 @@ jobs:
           mkdir /home/runner/go/bin/dqlite
           mv /home/runner/work/lxd/lxd-test/vendor/dqlite/include /home/runner/go/bin/dqlite/include
           mv /home/runner/work/lxd/lxd-test/vendor/dqlite/.libs /home/runner/go/bin/dqlite/libs
+
+          # Include liblxc libs in dependencies for system tests.
+          mkdir /home/runner/go/bin/liblxc
+          mv /home/runner/work/lxd/lxd-test/vendor/liblxc/include /home/runner/go/bin/liblxc/include
+          mv /home/runner/work/lxd/lxd-test/vendor/liblxc/lib/*-linux-gnu /home/runner/go/bin/liblxc/libs
 
       - name: Build binaries
         run: |
@@ -220,6 +226,7 @@ jobs:
             /home/runner/go/bin/mc
             /home/runner/go/bin/minio
             /home/runner/go/bin/dqlite
+            /home/runner/go/bin/liblxc
           retention-days: 1
 
   system-tests:
