@@ -48,8 +48,8 @@ type execWs struct {
 	instance              instance.Instance
 	conns                 map[int]*websocket.Conn
 	connsLock             sync.Mutex
-	waitRequiredConnected *cancel.Canceller
-	waitControlConnected  *cancel.Canceller
+	waitRequiredConnected cancel.Canceller
+	waitControlConnected  cancel.Canceller
 	fds                   map[int]string
 	s                     *state.State
 }
@@ -666,8 +666,8 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			ws.conns[execWSStderr] = nil
 		}
 
-		ws.waitRequiredConnected = cancel.New(context.Background())
-		ws.waitControlConnected = cancel.New(context.Background())
+		ws.waitRequiredConnected = cancel.New()
+		ws.waitControlConnected = cancel.New()
 
 		for i := range ws.conns {
 			ws.fds[i], err = shared.RandomCryptoString()
