@@ -1,5 +1,5 @@
 ---
-relatedlinks: '[LXD&#32;Grafana&#32;dashboard](https://grafana.com/grafana/dashboards/19131-lxd/)'
+relatedlinks: "[LXD&#32;Grafana&#32;dashboard](https://grafana.com/grafana/dashboards/19131-lxd/)"
 ---
 
 (grafana)=

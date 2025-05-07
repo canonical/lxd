@@ -1,5 +1,5 @@
 ---
-relatedlinks: '[Introduction&#32;to&#32;LXD&#32;projects](https://ubuntu.com/tutorials/introduction-to-lxd-projects)'
+relatedlinks: "[Introduction&#32;to&#32;LXD&#32;projects](https://ubuntu.com/tutorials/introduction-to-lxd-projects)"
 ---
 
 (projects)=

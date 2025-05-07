@@ -1,5 +1,5 @@
 ---
-relatedlinks: '[How&#32;to&#32;install&#32;a&#32;Windows&#32;11&#32;VM&#32;using&#32;LXD](https://ubuntu.com/tutorials/how-to-install-a-windows-11-vm-using-lxd)'
+relatedlinks: "[How&#32;to&#32;install&#32;a&#32;Windows&#32;11&#32;VM&#32;using&#32;LXD](https://ubuntu.com/tutorials/how-to-install-a-windows-11-vm-using-lxd)"
 ---
 
 (instances)=

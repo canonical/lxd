@@ -1,5 +1,5 @@
 ---
-relatedlinks: '[Directly&#32;interacting&#32;with&#32;the&#32;LXD&#32;API](https://ubuntu.com/blog/directly-interacting-with-the-lxd-api)'
+relatedlinks: "[Directly&#32;interacting&#32;with&#32;the&#32;LXD&#32;API](https://ubuntu.com/blog/directly-interacting-with-the-lxd-api)"
 ---
 
 (restapi)=
