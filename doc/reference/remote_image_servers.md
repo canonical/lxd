@@ -1,6 +1,6 @@
 ---
-discourse: '[New&#32;LXD&#32;image&#32;server&#32;available&#32;(images.lxd.canonical.com)](43824),[Image&#32;server&#32;infrastructure](16647)'
-relatedlinks: '[Deploying&#32;a&#32;new&#32;LXD&#32;image&#32;server&#32;-&#32;YouTube](https://www.youtube.com/watch?v=pM0EgUqj2a0)'
+discourse: "[New&#32;LXD&#32;image&#32;server&#32;available&#32;(images.lxd.canonical.com)](43824),[Image&#32;server&#32;infrastructure](16647)"
+relatedlinks: "[Deploying&#32;a&#32;new&#32;LXD&#32;image&#32;server&#32;-&#32;YouTube](https://www.youtube.com/watch?v=pM0EgUqj2a0)"
 ---
 
 (remote-image-servers)=

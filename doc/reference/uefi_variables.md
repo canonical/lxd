@@ -1,5 +1,5 @@
 ---
-discourse: '[LXD&#32;VM&#32;instance&#32;EFI&#32;Variables&#32;edit&#32;CLI](42313)'
+discourse: "[LXD&#32;VM&#32;instance&#32;EFI&#32;Variables&#32;edit&#32;CLI](42313)"
 ---
 
 # UEFI variables for VMs
