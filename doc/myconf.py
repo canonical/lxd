@@ -152,12 +152,12 @@ intersphinx_mapping = {
     'cloud-init': ('https://cloudinit.readthedocs.io/en/latest/', None)
 }
 
-notfound_urls_prefix = "/lxd/en/latest/"
+notfound_urls_prefix = "/lxd/latest/"
 
 if ("LOCAL_SPHINX_BUILD" in os.environ) and (os.environ["LOCAL_SPHINX_BUILD"] == "True"):
     swagger_url_scheme = "/api/#{{path}}"
 else:
-    swagger_url_scheme = "/lxd/en/latest/api/#{{path}}"
+    swagger_url_scheme = "/lxd/latest/api/#{{path}}"
 
 myst_url_schemes = {
     "http": None,
@@ -202,9 +202,9 @@ exclude_patterns = ['html', 'README.md', '.sphinx', 'config_options_cheat_sheet.
 
 # Open Graph configuration
 
-ogp_site_url = "https://documentation.ubuntu.com/lxd/en/latest/"
+ogp_site_url = "https://documentation.ubuntu.com/lxd/latest/"
 ogp_site_name = "LXD documentation"
-ogp_image = "https://documentation.ubuntu.com/lxd/en/latest/_static/tag.png"
+ogp_image = "https://documentation.ubuntu.com/lxd/latest/_static/tag.png"
 
 # Links to ignore when checking links
 
@@ -212,7 +212,7 @@ linkcheck_ignore = [
     'https://127.0.0.1:8443/1.0',
     'https://web.libera.chat/#lxd',
     'http://localhost:8001',
-    r'/lxd/en/latest/api/.*',
+    r'/lxd/latest/api/.*',
     r'/api/.*'
 ]
 linkcheck_exclude_documents = [r'.*/manpages/.*']
