@@ -88,8 +88,8 @@ endif
 
 	@echo "LXD-MIGRATE built successfully"
 
-.PHONY: deps
-deps:
+.PHONY: dqlite
+dqlite:
 	# dqlite (+raft)
 	@if [ ! -e "$(DQLITE_PATH)" ]; then \
 		echo "Retrieving dqlite from ${DQLITE_BRANCH} branch"; \
@@ -104,6 +104,8 @@ deps:
 		./configure --enable-build-raft && \
 		make
 
+.PHONY: deps
+deps: dqlite
 	# environment
 	@echo ""
 	@echo "Please set the following in your environment (possibly ~/.bashrc)"
