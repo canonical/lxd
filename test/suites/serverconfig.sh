@@ -97,10 +97,31 @@ _server_config_storage() {
   lxc delete -f foo2
   lxc image delete fooimage
 
-  # Reset and cleanup
+  # Unset the config and remove the volumes
   lxc config unset storage.backups_volume
   lxc config unset storage.images_volume
   lxc storage volume delete "${pool}" backups
   lxc storage volume delete "${pool}" images
+
+  # Record again after unsetting
+  BACKUPS_AFTER=$(cd "${LXD_DIR}/backups/" && find . | sort)
+  IMAGES_AFTER=$(cd "${LXD_DIR}/images/" && find . | sort)
+
+  # Validate content
+  if [ "${BACKUPS_BEFORE}" != "${BACKUPS_AFTER}" ]; then
+    echo "Backups dir content mismatch"
+    false
+  fi
+
+  if [ "${IMAGES_BEFORE}" != "${IMAGES_AFTER}" ]; then
+    echo "Images dir content mismatch"
+    false
+  fi
+
+  lxc start foo
+  lxc exec foo -- touch /root/foo
+  lxc stop -f foo
+
+  # Cleanup
   lxc delete -f foo
 }
