@@ -1,5 +1,5 @@
 ---
-relatedlinks: '[Linux&#32;containers&#32;security](https://linuxcontainers.org/lxc/security/)'
+relatedlinks: "[Linux&#32;containers&#32;security](https://linuxcontainers.org/lxc/security/)"
 ---
 
 (exp-security)=
