@@ -290,15 +290,14 @@ func (s *execWs) Do(op *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "PID": cmd.PID(), "interactive": s.req.Interactive})
 	l.Debug("Instance process started")
 
-	var cmdKillOnce sync.Once
-	cmdKill := func() {
+	cmdKill := sync.OnceFunc(func() {
 		err := cmd.Signal(unix.SIGKILL)
 		if err != nil {
 			l.Debug("Failed to send SIGKILL signal", logger.Ctx{"err": err})
 		} else {
 			l.Debug("Sent SIGKILL signal")
 		}
-	}
+	})
 
 	// Now that process has started, we can start the control handler.
 	wgEOF.Add(1)
@@ -332,7 +331,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 					l.Warn("Failed getting exec control websocket reader, killing command", logger.Ctx{"err": err})
 				}
 
-				cmdKillOnce.Do(cmdKill)
+				cmdKill()
 
 				return
 			}
@@ -346,7 +345,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 				l.Warn("Failed reading control websocket message, killing command", logger.Ctx{"err": err})
 
-				cmdKillOnce.Do(cmdKill)
+				cmdKill()
 
 				return
 			}
@@ -450,7 +449,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 						// then it is our responsibility to kill the command now.
 						if s.waitControlConnected.Err() == nil {
 							l.Warn("Unexpected read on stdout websocket, killing command", logger.Ctx{"number": i, "err": err})
-							cmdKillOnce.Do(cmdKill)
+							cmdKill()
 						}
 					}()
 				}
