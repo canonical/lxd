@@ -1339,7 +1339,6 @@ parts:
     source-depth: 1
     source-type: git
     build-packages:
-      - dpkg-dev
       - libapparmor-dev
       - libcap-dev
       - libdbus-1-dev
