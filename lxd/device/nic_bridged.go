@@ -403,6 +403,12 @@ func (d *nicBridged) checkAddressConflict() error {
 		// that has DNS enabled and is connected to the same untagged VLAN.
 		if d.network != nil && d.network.Config()["dns.mode"] != "none" && nicCheckDNSNameConflict(d.inst.Name(), inst.Name) {
 			if sameLogicalInstance {
+				// Skip NICs that are being renamed.
+				_, nicInPendingExpandedDevices := d.inst.ExpandedDevices()[nicName]
+				if !nicInPendingExpandedDevices {
+					return nil
+				}
+
 				return api.StatusErrorf(http.StatusConflict, "Instance DNS name %q conflict between %q and %q because both are connected to same network", strings.ToLower(inst.Name), d.name, nicName)
 			}
 

@@ -36,6 +36,21 @@ test_container_devices_nic_bridged() {
   # Record how many nics we started with.
   startNicCount=$(find /sys/class/net | wc -l)
 
+  # Test device renaming without "eth0" device applied by profile.
+  lxc profile copy default "${ctName}"
+  lxc profile device remove "${ctName}" eth0
+  lxc init --empty "${ctName}" -d "${SMALL_ROOT_DISK}" -p "${ctName}"
+  lxc config device add "${ctName}" eth0 nic network="${brName}" name=eth0
+  [ "$(lxc config device get "${ctName}" eth0 name)" = "eth0" ]
+  [ "$(lxc config device get "${ctName}" eth0 network)" = "${brName}" ]
+  lxc config show -e "${ctName}" | sed '/^devices:/,/type:/ s/eth0/eth1/' | lxc config edit "${ctName}" # Rename added "eth0" to "eth1"
+  ! lxc config device get "${ctName}" eth0 name || false
+  [ "$(lxc config device get "${ctName}" eth1 name)" = "eth1" ]
+  [ "$(lxc config device get "${ctName}" eth1 network)" = "${brName}" ]
+  # Cleanup for remaining tests.
+  lxc delete "${ctName}" -f
+  lxc profile delete "${ctName}"
+
   # Test pre-launch profile config is applied at launch
   lxc profile copy default "${ctName}"
 
@@ -52,7 +67,7 @@ test_container_devices_nic_bridged() {
   lxc profile device set "${ctName}" eth0 queue.tx.length "1200"
   lxc profile device set "${ctName}" eth0 hwaddr "${ctMAC}"
 
-  lxc init testimage "${ctName}" -p "${ctName}"
+  lxc init testimage "${ctName}" -d "${SMALL_ROOT_DISK}" -p "${ctName}"
 
   # Check that adding another NIC to the same network fails because it triggers duplicate instance DNS name checks.
   # Because this would effectively cause 2 NICs with the same instance name to be connected to the same network.
@@ -154,6 +169,9 @@ test_container_devices_nic_bridged() {
     host_name="${vethHostName}" \
     hwaddr="${ctMAC}" \
     mtu=1401
+
+  # Test hot plugging a container nic with a different name.
+  ! lxc config device add "${ctName}" eth1 nic nictype=bridged name=eth1 parent="${brName}" || false
 
   # Check profile routes are removed on hot-plug.
   if ip -4 r list dev "${brName}" | grep "192.0.2.1${ipRand}" ; then
@@ -405,7 +423,7 @@ test_container_devices_nic_bridged() {
 
   # Test DHCP lease clearance.
   lxc delete "${ctName}" -f
-  lxc launch testimage "${ctName}" -p "${ctName}"
+  lxc launch testimage "${ctName}" -d "${SMALL_ROOT_DISK}" -p "${ctName}"
 
   # Request DHCPv4 lease with custom name (to check managed name is allocated instead).
   lxc exec "${ctName}" -- udhcpc -f -i eth0 -n -q -t5 -F "${ctName}custom"
@@ -533,7 +551,7 @@ test_container_devices_nic_bridged() {
   fi
 
   # Check dnsmasq host file is updated on new device.
-  lxc init testimage "${ctName}" -p "${ctName}"
+  lxc init testimage "${ctName}" -d "${SMALL_ROOT_DISK}" -p "${ctName}"
   lxc config device add "${ctName}" eth0 nic nictype=bridged parent="${brName}" name=eth0 ipv4.address=192.0.2.200 ipv6.address=2001:db8::200
 
   ls -lR "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/"
@@ -686,7 +704,7 @@ test_container_devices_nic_bridged() {
   fi
 
   # Test interface naming scheme.
-  lxc init testimage test-naming
+  lxc init testimage -d "${SMALL_ROOT_DISK}" test-naming
   lxc start test-naming
   lxc query "/1.0/instances/test-naming/state" | jq -r .network.eth0.host_name | grep ^veth
   lxc stop -f test-naming
@@ -800,7 +818,7 @@ test_container_devices_nic_bridged() {
   lxc delete -f foo
 
   # Test container without extra network configuration can be restored from backup.
-  lxc init testimage foo -p "${ctName}"
+  lxc init testimage foo -d "${SMALL_ROOT_DISK}" -p "${ctName}"
   lxc export foo foo.tar.gz
   lxc import foo.tar.gz foo2
   rm foo.tar.gz
