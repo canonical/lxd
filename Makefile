@@ -16,6 +16,7 @@ GOTOOLCHAIN=local
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
 DQLITE_BRANCH=master
+LIBLXC_BRANCH=main
 
 ifneq "$(wildcard vendor)" ""
 	DEPS_PATH=$(CURDIR)/vendor
@@ -23,6 +24,7 @@ else
 	DEPS_PATH=$(GOPATH)/deps
 endif
 DQLITE_PATH=$(DEPS_PATH)/dqlite
+LIBLXC_PATH=$(DEPS_PATH)/liblxc
 
 .PHONY: default
 default: all
@@ -104,6 +106,32 @@ dqlite:
 		autoreconf -i && \
 		./configure --enable-build-raft && \
 		make
+
+.PHONY: liblxc
+liblxc:
+	# lxc/liblxc
+	@if [ ! -e "$(LIBLXC_PATH)" ]; then \
+		echo "Retrieving lxc/liblxc from ${LIBLXC_BRANCH} branch"; \
+		git clone --depth=1 --branch "${LIBLXC_BRANCH}" "https://github.com/lxc/lxc" "$(LIBLXC_PATH)"; \
+	elif [ -e "$(LIBLXC_PATH)/.git" ]; then \
+		echo "Updating existing lxc/liblxc branch"; \
+		git -C "$(LIBLXC_PATH)" pull; \
+	fi
+
+	cd "$(LIBLXC_PATH)" && \
+		meson setup -Dprefix="$(LIBLXC_PATH)" -Dlocalstatedir="$(LIBLXC_PATH)/state" -Dsystemd-unitdir="$(LIBLXC_PATH)/systemd" \
+			-Dexamples=false \
+			-Dman=false \
+			-Dopenssl=false \
+			-Dtools=false \
+			-Dtests=false \
+			-Dmemfd-rexec=false \
+			-Dapparmor=true \
+			-Dseccomp=true \
+			-Dcapabilities=true \
+			build && \
+		meson compile -C build && \
+		ninja -C build install
 
 .PHONY: deps
 deps: dqlite
