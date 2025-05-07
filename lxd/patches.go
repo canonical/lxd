@@ -99,6 +99,7 @@ var patches = []patch{
 	{name: "entity_type_identity_certificate_split", stage: patchPreLoadClusterConfig, run: patchSplitIdentityCertificateEntityTypes},
 	{name: "storage_unset_powerflex_sdt_setting", stage: patchPostDaemonStorage, run: patchUnsetPowerFlexSDTSetting},
 	{name: "oidc_groups_claim_scope", stage: patchPreLoadClusterConfig, run: patchOIDCGroupsClaimScope},
+	{name: "remove_backupsimages_symlinks", stage: patchPostDaemonStorage, run: patchRemoveBackupsImagesSymlinks},
 }
 
 type patch struct {
@@ -1482,6 +1483,35 @@ func patchOIDCGroupsClaimScope(_ string, d *Daemon) error {
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to configure oidc.groups.claim as an OIDC scope: %w", err)
+	}
+
+	return nil
+}
+
+// Remove shared.VarPath("backups") and shared.VarPath("images") symlinks.
+func patchRemoveBackupsImagesSymlinks(_ string, d *Daemon) error {
+	dirs := []string{
+		shared.VarPath("backups"),
+		shared.VarPath("images"),
+	}
+
+	for _, dir := range dirs {
+		if !shared.PathExists(dir) {
+			continue // Nothing to do, symlink doesn't exist
+		}
+
+		info, err := os.Lstat(dir)
+		if err != nil {
+			return fmt.Errorf("Failed to call Lstat() on %q: %w", dir, err)
+		}
+
+		if info.Mode()&os.ModeSymlink != 0 {
+			// Remove the symlink.
+			err = os.Remove(dir)
+			if err != nil {
+				return fmt.Errorf("Failed to delete storage symlink at %q: %w", dir, err)
+			}
+		}
 	}
 
 	return nil
