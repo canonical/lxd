@@ -16,6 +16,7 @@ GOTOOLCHAIN=local
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
 DQLITE_BRANCH=lts-1.17.x
+LIBLXC_BRANCH=stable-6.0
 
 ifneq "$(wildcard vendor)" ""
 	DEPS_PATH=$(CURDIR)/vendor
@@ -23,6 +24,8 @@ else
 	DEPS_PATH=$(GOPATH)/deps
 endif
 DQLITE_PATH=$(DEPS_PATH)/dqlite
+LIBLXC_PATH=$(DEPS_PATH)/liblxc
+LIBLXC_ROOTFS_MOUNT_PATH=$(GOPATH)/bin/liblxc/rootfs
 
 .PHONY: default
 default: all
@@ -104,6 +107,44 @@ dqlite:
 		autoreconf -i && \
 		./configure --enable-build-raft && \
 		make
+
+.PHONY: liblxc
+liblxc:
+	# lxc/liblxc
+	@if [ ! -e "$(LIBLXC_PATH)" ]; then \
+		echo "Retrieving lxc/liblxc from ${LIBLXC_BRANCH} branch"; \
+		git clone --depth=1 --branch "${LIBLXC_BRANCH}" "https://github.com/lxc/lxc" "$(LIBLXC_PATH)"; \
+	elif [ -e "$(LIBLXC_PATH)/.git" ]; then \
+		echo "Updating existing lxc/liblxc branch"; \
+		git -C "$(LIBLXC_PATH)" pull; \
+	fi
+
+	# XXX: the rootfs-mount-path must not depend on LIBLXC_PATH to allow
+	# building in "vendor" mode but move the resulting binaries elsewhere for
+	# caching purposes
+	cd "$(LIBLXC_PATH)" && \
+		meson setup \
+			--buildtype=release \
+			-Dapparmor=true \
+			-Dcapabilities=true \
+			-Dcommands=false \
+			-Ddbus=false \
+			-Dexamples=false \
+			-Dinstall-init-files=false \
+			-Dinstall-state-dirs=false \
+			-Dman=false \
+			-Dmemfd-rexec=false \
+			-Dopenssl=false \
+			-Dprefix="$(LIBLXC_PATH)" \
+			-Drootfs-mount-path="$(LIBLXC_ROOTFS_MOUNT_PATH)" \
+			-Dseccomp=true \
+			-Dselinux=false \
+			-Dspecfile=false \
+			-Dtests=false \
+			-Dtools=false \
+			build && \
+		meson compile -C build && \
+		ninja -C build install
 
 .PHONY: deps
 deps: dqlite
