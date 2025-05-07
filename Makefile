@@ -18,10 +18,11 @@ GOCOVERDIR ?= $(shell go env GOCOVERDIR)
 DQLITE_BRANCH=lts-1.17.x
 
 ifneq "$(wildcard vendor)" ""
-	DQLITE_PATH=$(CURDIR)/vendor/dqlite
+	DEPS_PATH=$(CURDIR)/vendor
 else
-	DQLITE_PATH=$(GOPATH)/deps/dqlite
+	DEPS_PATH=$(GOPATH)/deps
 endif
+DQLITE_PATH=$(DEPS_PATH)/dqlite
 
 .PHONY: default
 default: all
