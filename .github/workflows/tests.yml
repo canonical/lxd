@@ -758,7 +758,7 @@ jobs:
     env:
       SSH_AUTH_SOCK: /tmp/ssh_agent.sock
       PACKAGE: "lxd"
-      REPO: "git+ssh://lxdbot@git.launchpad.net/~canonical-lxd/lxd"
+      REPO: "git+ssh://lxdbot@git.launchpad.net/~lxd-snap/lxd"
       BRANCH: >-
         ${{ fromJson('{
           "main": "latest-edge",
