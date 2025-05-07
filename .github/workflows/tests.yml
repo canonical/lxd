@@ -551,7 +551,7 @@ jobs:
           git config --global user.signingkey ~/.ssh/id_ed25519.pub
           localRev="$(git rev-parse HEAD)"
           go install github.com/canonical/lxd-ci/lxd-snapcraft@latest
-          git clone -b "${TARGET}" git+ssh://lxdbot@git.launchpad.net/~canonical-lxd/lxd ~/lxd-pkg-snap-lp
+          git clone -b "${TARGET}" git+ssh://lxdbot@git.launchpad.net/~lxd-snap/lxd ~/lxd-pkg-snap-lp
           cd ~/lxd-pkg-snap-lp
           lxd-snapcraft -package lxd -set-version "git-${localRev:0:7}" -set-source-commit "${localRev}"
           git add --all
