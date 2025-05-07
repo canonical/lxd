@@ -1,7 +1,6 @@
 package events
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -83,7 +82,7 @@ func (s *Server) AddListener(projectName string, allProjects bool, projectPermis
 		listenerCommon: listenerCommon{
 			EventListenerConnection: connection,
 			messageTypes:            messageTypes,
-			done:                    cancel.New(context.Background()),
+			done:                    cancel.New(),
 			id:                      uuid.New().String(),
 			recvFunc:                recvFunc,
 		},
