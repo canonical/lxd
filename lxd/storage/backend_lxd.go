@@ -2252,7 +2252,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 			// Convert to IEC format for nicer error.
 			rootDiskSize := units.GetByteSizeStringIEC(rootDiskConfBytes, 2)
 			migrationSourceSize := units.GetByteSizeStringIEC(args.VolumeSize, 2)
-			return fmt.Errorf("The configured target instance root disk size (%s + 4MiB overhead) is less than the migration source size (%s)", rootDiskSize, migrationSourceSize)
+			return fmt.Errorf("Volume size (%s + 4MiB overhead) is less than source disk size (%s)", rootDiskSize, migrationSourceSize)
 		}
 	}
 
