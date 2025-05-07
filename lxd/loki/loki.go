@@ -21,6 +21,7 @@ import (
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/cancel"
 )
 
 // This is a modified version of https://github.com/grafana/loki/blob/v1.6.1/pkg/promtail/client/.
@@ -56,8 +57,7 @@ type entry struct {
 type Client struct {
 	cfg     config
 	client  *http.Client
-	quit    chan struct{}
-	once    sync.Once
+	cancel  cancel.Canceller
 	entries chan entry
 	wg      sync.WaitGroup
 }
@@ -81,7 +81,7 @@ func NewClient(ctx context.Context, u *url.URL, username string, password string
 		},
 		client:  &http.Client{},
 		entries: make(chan entry),
-		quit:    make(chan struct{}),
+		cancel:  cancel.New(),
 	}
 
 	if caCert != "" {
@@ -133,7 +133,7 @@ func (c *Client) run() {
 
 	for {
 		select {
-		case <-c.quit:
+		case <-c.cancel.Done():
 			return
 
 		case e := <-c.entries:
@@ -219,7 +219,7 @@ func (c *Client) sendBatch(batch *batch) {
 
 		// Retry every 10s, but exit if Stop() is called.
 		select {
-		case <-c.quit:
+		case <-c.cancel.Done():
 			return
 		case <-time.After(c.cfg.timeout):
 		}
@@ -260,7 +260,7 @@ func (c *Client) send(ctx context.Context, buf []byte) (int, error) {
 
 // Stop the client.
 func (c *Client) Stop() {
-	c.once.Do(func() { close(c.quit) })
+	c.cancel.Cancel()
 	c.wg.Wait()
 }
 
