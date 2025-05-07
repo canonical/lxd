@@ -653,6 +653,12 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume copy pool1/vol1 pool1/vol1 --target=node1 --destination-target=node2 --target-project foo
     ! LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo || false
 
+    # Check snapshotting storage volumes works.
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume snapshot pool1 custom/vol1 snapNode1 --target=node1
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume snapshot pool1 custom/vol1 snapNode2 --target=node2
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume info pool1 custom/vol1 --target=node1 | grep -cF snapNode1)" = 1 ]
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume info pool1 custom/vol1 --target=node2 | grep -cF snapNode2)" = 1 ]
+
     # Check renaming storage volume works.
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create pool1 vol2 --target=node1
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume move pool1/vol2 pool1/vol3 --target=node1
