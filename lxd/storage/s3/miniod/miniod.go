@@ -47,7 +47,7 @@ type Process struct {
 	consoleURL   url.URL
 	username     string
 	password     string
-	cancel       *cancel.Canceller
+	cancel       cancel.Canceller
 	err          error
 }
 
@@ -218,7 +218,7 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 		consoleURL:   api.NewURL().Scheme("http").Host(fmt.Sprintf("%s:%d", minioHost, consolePort)).URL,
 		username:     minioAdminUser,      // Persistent admin user required to keep config between restarts.
 		password:     uuid.New().String(), // Random admin password for service.
-		cancel:       cancel.New(context.Background()),
+		cancel:       cancel.New(),
 	}
 
 	miniosMu.Lock()
