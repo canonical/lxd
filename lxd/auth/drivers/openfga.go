@@ -247,6 +247,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 		// If we have a not found error from the underlying OpenFGADatastore we should mask it to make requests consistent.
 		// (all not found errors returned before an access control decision is made are masked to prevent discovery).
 		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			l.Debug("Entity not found", logger.Ctx{"http_code": http.StatusNotFound})
 			return api.NewGenericStatusError(http.StatusNotFound)
 		}
 
@@ -278,6 +279,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 				// If we have a not found error from the underlying OpenFGADatastore we should mask it to make requests consistent.
 				// (all not found errors returned before an access control decision is made are masked to prevent discovery).
 				if api.StatusErrorCheck(err, http.StatusNotFound) {
+					l.Debug("Entity not found", logger.Ctx{"http_code": http.StatusNotFound})
 					return api.NewGenericStatusError(http.StatusNotFound)
 				}
 
