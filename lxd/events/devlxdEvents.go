@@ -1,7 +1,6 @@
 package events
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -39,7 +38,7 @@ func (s *DevLXDServer) AddListener(instanceID int, connection EventListenerConne
 		listenerCommon: listenerCommon{
 			EventListenerConnection: connection,
 			messageTypes:            messageTypes,
-			done:                    cancel.New(context.Background()),
+			done:                    cancel.New(),
 			id:                      uuid.New().String(),
 		},
 		instanceID: instanceID,
