@@ -119,7 +119,7 @@ type Operation struct {
 	onDone    func(*Operation)
 
 	// Indicates if operation has finished.
-	finished *cancel.Canceller
+	finished cancel.Canceller
 
 	// Locking for concurent access to the Operation
 	lock sync.Mutex
@@ -149,7 +149,7 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 	op.status = api.Pending
 	op.url = "/" + version.APIVersion + "/operations/" + op.id
 	op.resources = opResources
-	op.finished = cancel.New(context.Background())
+	op.finished = cancel.New()
 	op.state = s
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 
