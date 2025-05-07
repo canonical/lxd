@@ -135,7 +135,7 @@ type Daemon struct {
 	// Status control.
 	startStopLock  sync.Mutex         // Prevent concurrent starts and stops.
 	setupChan      chan struct{}      // Closed when basic Daemon setup is completed
-	waitReady      *cancel.Canceller  // Cancelled when LXD is fully ready
+	waitReady      cancel.Canceller   // Cancelled when LXD is fully ready
 	shutdownCtx    context.Context    // Cancelled when shutdown starts.
 	shutdownCancel context.CancelFunc // Cancels the shutdownCtx to indicate shutdown starting.
 	shutdownDoneCh chan error         // Receives the result of the d.Stop() function and tells LXD to end.
@@ -198,7 +198,7 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 		http01Provider: acme.NewHTTP01Provider(),
 		os:             os,
 		setupChan:      make(chan struct{}),
-		waitReady:      cancel.New(context.Background()),
+		waitReady:      cancel.New(),
 		shutdownCtx:    shutdownCtx,
 		shutdownCancel: shutdownCancel,
 		shutdownDoneCh: make(chan error),
