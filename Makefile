@@ -97,7 +97,7 @@ dqlite:
 		git clone --depth=1 --branch "${DQLITE_BRANCH}" "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
 	elif [ -e "$(DQLITE_PATH)/.git" ]; then \
 		echo "Updating existing dqlite branch"; \
-		cd "$(DQLITE_PATH)"; git pull; \
+		git -C "$(DQLITE_PATH)" pull; \
 	fi
 
 	cd "$(DQLITE_PATH)" && \
