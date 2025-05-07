@@ -2787,7 +2787,7 @@ func (d *qemu) generateConfigShare() error {
 	// rather than being enabled at boot.
 	lxdAgentServiceUnit := `[Unit]
 Description=LXD - agent
-Documentation=https://documentation.ubuntu.com/lxd/en/latest/
+Documentation=https://documentation.ubuntu.com/lxd/latest/
 Before=multi-user.target cloud-init.target cloud-init.service cloud-init-local.service
 DefaultDependencies=no
 
