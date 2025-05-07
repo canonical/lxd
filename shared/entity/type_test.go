@@ -145,6 +145,16 @@ func TestURL(t *testing.T) {
 			expectedErr:           nil,
 		},
 		{
+			name:                  "instances",
+			rawURL:                "/1.0/instances/my-instance?target=member01",
+			expectedNormalisedURL: "/1.0/instances/my-instance?project=default",
+			expectedEntityType:    TypeInstance,
+			expectedLocation:      "member01",
+			expectedProject:       api.ProjectDefaultName,
+			expectedPathArgs:      []string{"my-instance"},
+			expectedErr:           nil,
+		},
+		{
 			name:                  "instance backup",
 			rawURL:                "/1.0/instances/my-instance/backups/my-backup?project=my-project",
 			expectedNormalisedURL: "/1.0/instances/my-instance/backups/my-backup?project=my-project",
