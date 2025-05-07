@@ -261,4 +261,4 @@ Following the CLI prompts, a working MicroCloud will be ready within minutes.
 
 When the initialization is complete, you’ll have an OVN cluster, a Ceph cluster and a LXD cluster, and LXD itself will have been configured with both networking and storage suitable for use in a cluster.
 
-See the [MicroCloud documentation](https://canonical-microcloud.readthedocs-hosted.com) for more information.
+See the [MicroCloud documentation](https://documentation.ubuntu.com/microcloud/latest/microcloud/) for more information.
