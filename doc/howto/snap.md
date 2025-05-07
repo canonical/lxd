@@ -98,25 +98,24 @@ To avoid this problem, use the `--cohort="+"` flag when refreshing your snaps:
 
 This flag ensures that all machines in a cluster see the same snap revision and are therefore not affected by a progressive rollout.
 
-### Use a Snap Store Proxy
+### Use an Enterprise Store proxy
 
-If you manage a large LXD cluster and you need absolute control over when updates are applied, consider installing a Snap Store Proxy.
+```{admonition} For Snap Store Proxy users
+:class: tip
 
-The Snap Store Proxy is a separate application that sits between the snap client command on your machines and the snap store.
-You can configure the Snap Store Proxy to make only specific snap revisions available for installation.
+If you previously used the Snap Store Proxy, see the [migration guide](https://documentation.ubuntu.com/enterprise-store/main/how-to/migrate) in the Enterprise Store documentation for instructions on transitioning to the Enterprise Store.
 
-See the [Snap Store Proxy documentation](https://docs.ubuntu.com/snap-store-proxy/) for information about how to install and register the Snap Store Proxy.
+```
 
-After setting it up, configure the snap clients on all cluster members to use the proxy.
-See [Configuring snap devices](https://docs.ubuntu.com/snap-store-proxy/en/devices) for instructions.
+If you manage a large LXD cluster and require absolute control over when updates are applied, consider using the [Enterprise Store](https://documentation.ubuntu.com/enterprise-store/main/). This proxy application sits between your machines' snap clients and the Snap Store, giving you control over which snap revisions are available for installation.
 
-You can then configure the Snap Store Proxy to override the revision for the LXD snap:
+To get started, follow the Enterprise Store documentation to [install](https://documentation.ubuntu.com/enterprise-store/main/how-to/install/) and [register](https://documentation.ubuntu.com/enterprise-store/main/how-to/register/) the service. Once it's running, configure all cluster members to use the proxy; see [Configure devices](https://documentation.ubuntu.com/enterprise-store/main/how-to/devices/) for instructions. You can then [override the revision](https://documentation.ubuntu.com/enterprise-store/main/how-to/overrides/) for the LXD snap to control which version is installed:
 
-    sudo snap-proxy override lxd <channel>=<revision>
+    sudo enterprise-store override lxd <channel>=<revision>
 
 For example:
 
-    sudo snap-proxy override lxd stable=25846
+    sudo enterprise-store override lxd stable=25846
 
 (howto-snap-configure)=
 ## Configure the snap
