@@ -1,5 +1,5 @@
 ---
-discourse: '[Identity&#32;and&#32;Access&#32;Management&#32;for&#32;LXD](41516)'
+discourse: "[Identity&#32;and&#32;Access&#32;Management&#32;for&#32;LXD](41516)"
 ---
 
 (authorization)=
