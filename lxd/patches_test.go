@@ -17,6 +17,7 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/entity"
 )
 
@@ -24,7 +25,7 @@ func Test_patchSplitIdentityCertificateEntityTypes(t *testing.T) {
 	// Set up test database.
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
-	ctx := context.Background()
+	ctx := cancel.New()
 
 	var groupID int
 	var certificateID int
@@ -127,7 +128,7 @@ func Test_patchOIDCGroupsClaimScope(t *testing.T) {
 
 		// Set the groups claim.
 		// Use default values for oidc.scopes
-		ctx := context.Background()
+		ctx := cancel.New()
 		err := cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			conf, err := clusterConfig.Load(ctx, tx)
 			require.NoError(t, err)
@@ -170,7 +171,7 @@ func Test_patchOIDCGroupsClaimScope(t *testing.T) {
 
 		// Set the groups claim.
 		// This time set oidc.scopes to already include the groups claim (i.e. this patch was already run on another member).
-		ctx := context.Background()
+		ctx := cancel.New()
 		err := cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			conf, err := clusterConfig.Load(ctx, tx)
 			require.NoError(t, err)
