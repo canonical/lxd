@@ -2265,7 +2265,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Update the backup.yaml file just before starting the instance process, but after all devices have been
 	// setup, so that the backup file contains the volatile keys used for this instance start, so that they
 	// can be used for instance cleanup.
-	err = d.UpdateBackupFile()
+	err = d.UpdateBackupFile(nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -3791,7 +3791,7 @@ func (d *lxc) Delete(force bool) error {
 		}
 
 		// Update the backup file.
-		err = parent.UpdateBackupFile()
+		err = parent.UpdateBackupFile(nil)
 		if err != nil {
 			return err
 		}
@@ -4081,7 +4081,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	}
 
 	// Update the backup file.
-	err = d.UpdateBackupFile()
+	err = d.UpdateBackupFile(nil)
 	if err != nil {
 		return err
 	}
@@ -4890,7 +4890,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		return fmt.Errorf("Failed to update database: %w", err)
 	}
 
-	err = d.UpdateBackupFile()
+	err = d.UpdateBackupFile(nil)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("Failed to write backup file: %w", err)
 	}
@@ -5355,7 +5355,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 		}
 	}
 
-	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, d.op)
+	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, nil, d.op)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance migration config: %w", err)
 	}
@@ -8314,14 +8314,14 @@ func (rw *lxcCgroupReadWriter) Set(version cgroup.Backend, _ string, key string,
 }
 
 // UpdateBackupFile writes the instance's backup.yaml file to storage.
-func (d *lxc) UpdateBackupFile() error {
+func (d *lxc) UpdateBackupFile(volBackupConf *config.Config) error {
 	pool, err := d.getStoragePool()
 	if err != nil {
 		return err
 	}
 
 	// Use the global metadata version.
-	return pool.UpdateInstanceBackupFile(d, true, config.DefaultMetadataVersion, nil)
+	return pool.UpdateInstanceBackupFile(d, true, volBackupConf, config.DefaultMetadataVersion, nil)
 }
 
 // Info returns "lxc" and the currently loaded version of LXC.
