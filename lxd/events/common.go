@@ -24,7 +24,7 @@ type listenerCommon struct {
 	EventListenerConnection
 
 	messageTypes []string
-	done         *cancel.Canceller
+	done         cancel.Canceller
 	id           string
 	lock         sync.Mutex
 	recvFunc     EventHandler
@@ -33,7 +33,7 @@ type listenerCommon struct {
 func (e *listenerCommon) start() {
 	logger.Debug("Event listener server handler started", logger.Ctx{"id": e.id, "local": e.LocalAddr(), "remote": e.RemoteAddr()})
 
-	e.Reader(e.done.Context, e.recvFunc)
+	e.Reader(e.done, e.recvFunc)
 	e.Close()
 }
 
