@@ -1823,12 +1823,20 @@ func networkStartup(stateFunc func() *state.State) error {
 					}
 
 					if remainingNetworks <= 0 {
+						// All networks are ready now after performing some retries.
+						// This unblocks any waitready caller using the --network flag.
+						s.NetworkReady.Cancel()
+
 						return // Our job here is done.
 					}
 				}
 			}
 		}()
 	} else {
+		// All networks are ready.
+		// This unblocks any waitready caller using the --network flag.
+		stateFunc().NetworkReady.Cancel()
+
 		logger.Info("All networks initialized")
 	}
 
