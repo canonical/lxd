@@ -143,6 +143,7 @@ deps: dqlite liblxc
 	@echo "export CGO_LDFLAGS=\"-L$(DQLITE_PATH)/.libs/ -L$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/\""
 	@echo "export LD_LIBRARY_PATH=\"$(DQLITE_PATH)/.libs/:$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/\""
 	@echo "export PKG_CONFIG_PATH=\"$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/pkgconfig/\""
+	@echo "export LIBLXC_APPARMOR_D_PATH=\"$(LIBLXC_PATH)/etc/apparmor.d\""
 	@echo "export CGO_LDFLAGS_ALLOW=\"(-Wl,-wrap,pthread_create)|(-Wl,-z,now)\""
 
 .PHONY: update-gomod
@@ -244,6 +245,11 @@ check: default check-unit
 
 .PHONY: check-unit
 check-unit:
+	# Copy liblxc apparmor.d definitions (except usr.bin.lxc-{copy,start})
+	if [ -d "$(LIBLXC_APPARMOR_D_PATH)" ]; then \
+		cp --recursive --update --verbose "$(LIBLXC_APPARMOR_D_PATH)/abstractions/lxc" /etc/apparmor.d/abstractions/ ;\
+		cp --recursive --update --verbose "$(LIBLXC_APPARMOR_D_PATH)/lxc"* /etc/apparmor.d/ ;\
+	fi
 ifeq "$(GOCOVERDIR)" ""
 	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 else
