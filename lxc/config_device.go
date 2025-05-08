@@ -792,7 +792,7 @@ func (c *cmdConfigDeviceSet) run(cmd *cobra.Command, args []string) error {
 				return errors.New(i18n.G("Device doesn't exist"))
 			}
 
-			return errors.New(i18n.G("Device from profile(s) cannot be modified for individual instance. Override device or modify profile instead"))
+			return fmt.Errorf("Device %q from profile(s) %q cannot be modified for individual instance %q: %w", devname, inst.Profiles, inst.Name, errors.New(i18n.G("Override device or modify profile instead")))
 		}
 
 		for k, v := range keys {
