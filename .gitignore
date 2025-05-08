@@ -10,7 +10,6 @@ tags
 # Potential binaries
 fuidshift/fuidshift
 lxc/lxc
-lxc-to-lxd/lxc-to-lxd
 lxd-agent/lxd-agent
 lxd-benchmark/lxd-benchmark
 lxd-migrate/lxd-migrate
