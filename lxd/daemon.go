@@ -702,6 +702,8 @@ func (d *Daemon) State() *state.State {
 		StartTime:           d.startTime,
 		Authorizer:          d.authorizer,
 		UbuntuPro:           d.ubuntuPro,
+		NetworkReady:        d.waitNetworkReady,
+		StorageReady:        d.waitStorageReady,
 	}
 
 	s.LeaderInfo = func() (*state.LeaderInfo, error) {
