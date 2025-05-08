@@ -136,4 +136,4 @@ If you add or update configuration options, regenerate and commit the documentat
 
 ## More information
 
-For more information, including details about contributing to the code as well as the documentation for LXD, see [How to contribute to LXD](https://documentation.ubuntu.com/lxd/en/latest/contributing/) in the documentation.
+For more information, including details about contributing to the code as well as the documentation for LXD, see [How to contribute to LXD](https://documentation.ubuntu.com/lxd/latest/contributing/) in the documentation.
