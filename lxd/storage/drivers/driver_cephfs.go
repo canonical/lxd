@@ -301,7 +301,7 @@ func (d *cephfs) Create() error {
 
 	// Mount the pool.
 	srcPath := strings.Join(monAddresses, ",") + ":/"
-	err = TryMount(srcPath, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], userSecret, fsName))
+	err = TryMount(srcPath, mountPoint, "ceph", 0, d.getMountOptions(d.config["cephfs.user.name"], userSecret, fsName))
 	if err != nil {
 		return err
 	}
@@ -362,7 +362,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 
 	// Mount the pool.
 	srcPath := strings.Join(monAddresses, ",") + ":/"
-	err = TryMount(srcPath, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], userSecret, fsName))
+	err = TryMount(srcPath, mountPoint, "ceph", 0, d.getMountOptions(d.config["cephfs.user.name"], userSecret, fsName))
 	if err != nil {
 		return err
 	}
@@ -545,7 +545,7 @@ func (d *cephfs) Mount() (bool, error) {
 	}
 
 	// Mount options.
-	options := fmt.Sprintf("name=%s,secret=%s,mds_namespace=%s", d.config["cephfs.user.name"], userSecret, fsName)
+	options := d.getMountOptions(d.config["cephfs.user.name"], userSecret, fsName)
 	if shared.IsTrue(d.config["cephfs.fscache"]) {
 		options += ",fsc"
 	}
