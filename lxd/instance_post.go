@@ -618,6 +618,17 @@ func instancePostMigration(s *state.State, inst instance.Instance, req api.Insta
 		return err
 	}
 
+	// Update any permissions relating to the old instance to point to the new instance before it is deleted.
+	// Warnings relating to the old instance will be deleted.
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		q := `UPDATE auth_groups_permissions SET entity_id = ? WHERE entity_type = ? AND entity_id = ?`
+		_, err = tx.Tx().ExecContext(ctx, q, targetInst.ID(), dbCluster.EntityType(entity.TypeInstance), inst.ID())
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to copy instance permissions: %w", err)
+	}
+
 	// Delete original instance.
 	err = inst.Delete(true)
 	if err != nil {
