@@ -152,12 +152,20 @@ func storageStartup(s *state.State) error {
 					}
 
 					if len(initPools) <= 0 {
+						// All storage pools are ready now after performing some retries.
+						// This unblocks any waitready caller using the --storage flag.
+						s.StorageReady.Cancel()
+
 						return // Our job here is done.
 					}
 				}
 			}
 		}()
 	} else {
+		// All storage pools are ready.
+		// This unblocks any waitready caller using the --storage flag.
+		s.StorageReady.Cancel()
+
 		logger.Info("All storage pools initialized")
 	}
 
