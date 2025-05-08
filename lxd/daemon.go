@@ -133,12 +133,11 @@ type Daemon struct {
 	serverCertInt *shared.CertInfo // Do not use this directly, use servertCert func.
 
 	// Status control.
-	startStopLock  sync.Mutex         // Prevent concurrent starts and stops.
-	setupChan      chan struct{}      // Closed when basic Daemon setup is completed
-	waitReady      *cancel.Canceller  // Cancelled when LXD is fully ready
-	shutdownCtx    context.Context    // Cancelled when shutdown starts.
-	shutdownCancel context.CancelFunc // Cancels the shutdownCtx to indicate shutdown starting.
-	shutdownDoneCh chan error         // Receives the result of the d.Stop() function and tells LXD to end.
+	startStopLock  sync.Mutex       // Prevent concurrent starts and stops.
+	setupChan      chan struct{}    // Closed when basic Daemon setup is completed
+	waitReady      cancel.Canceller // Cancelled when LXD is fully ready
+	shutdownCtx    cancel.Canceller // Cancelled when shutdown starts.
+	shutdownDoneCh chan error       // Receives the result of the d.Stop() function and tells LXD to end.
 
 	// Device monitor for watching filesystem events
 	devmonitor fsmonitor.FSMonitor
@@ -185,7 +184,7 @@ type DaemonConfig struct {
 func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	lxdEvents := events.NewServer(daemon.Debug, daemon.Verbose, cluster.EventHubPush)
 	devLXDEvents := events.NewDevLXDServer(daemon.Debug, daemon.Verbose)
-	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
+	shutdownCtx := cancel.New()
 
 	d := &Daemon{
 		identityCache:  &identity.Cache{},
@@ -198,9 +197,8 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 		http01Provider: acme.NewHTTP01Provider(),
 		os:             os,
 		setupChan:      make(chan struct{}),
-		waitReady:      cancel.New(context.Background()),
+		waitReady:      cancel.New(),
 		shutdownCtx:    shutdownCtx,
-		shutdownCancel: shutdownCancel,
 		shutdownDoneCh: make(chan error),
 	}
 
@@ -2048,7 +2046,7 @@ func cancelCancelableOps() error {
 // Stop stops the shared daemon.
 func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	// Cancelling the context will make everyone aware that we're shutting down.
-	d.shutdownCancel()
+	d.shutdownCtx.Cancel()
 
 	d.startStopLock.Lock()
 	defer d.startStopLock.Unlock()

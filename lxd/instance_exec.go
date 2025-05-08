@@ -48,8 +48,8 @@ type execWs struct {
 	instance              instance.Instance
 	conns                 map[int]*websocket.Conn
 	connsLock             sync.Mutex
-	waitRequiredConnected *cancel.Canceller
-	waitControlConnected  *cancel.Canceller
+	waitRequiredConnected cancel.Canceller
+	waitControlConnected  cancel.Canceller
 	fds                   map[int]string
 	s                     *state.State
 }
@@ -290,15 +290,14 @@ func (s *execWs) Do(op *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "PID": cmd.PID(), "interactive": s.req.Interactive})
 	l.Debug("Instance process started")
 
-	var cmdKillOnce sync.Once
-	cmdKill := func() {
+	cmdKill := sync.OnceFunc(func() {
 		err := cmd.Signal(unix.SIGKILL)
 		if err != nil {
 			l.Debug("Failed to send SIGKILL signal", logger.Ctx{"err": err})
 		} else {
 			l.Debug("Sent SIGKILL signal")
 		}
-	}
+	})
 
 	// Now that process has started, we can start the control handler.
 	wgEOF.Add(1)
@@ -332,7 +331,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 					l.Warn("Failed getting exec control websocket reader, killing command", logger.Ctx{"err": err})
 				}
 
-				cmdKillOnce.Do(cmdKill)
+				cmdKill()
 
 				return
 			}
@@ -346,7 +345,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 				l.Warn("Failed reading control websocket message, killing command", logger.Ctx{"err": err})
 
-				cmdKillOnce.Do(cmdKill)
+				cmdKill()
 
 				return
 			}
@@ -450,7 +449,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 						// then it is our responsibility to kill the command now.
 						if s.waitControlConnected.Err() == nil {
 							l.Warn("Unexpected read on stdout websocket, killing command", logger.Ctx{"number": i, "err": err})
-							cmdKillOnce.Do(cmdKill)
+							cmdKill()
 						}
 					}()
 				}
@@ -666,8 +665,8 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			ws.conns[execWSStderr] = nil
 		}
 
-		ws.waitRequiredConnected = cancel.New(context.Background())
-		ws.waitControlConnected = cancel.New(context.Background())
+		ws.waitRequiredConnected = cancel.New()
+		ws.waitControlConnected = cancel.New()
 
 		for i := range ws.conns {
 			ws.fds[i], err = shared.RandomCryptoString()
