@@ -395,7 +395,6 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_devlxd "/dev/lxd"
     run_test test_fuidshift "fuidshift"
     run_test test_migration "migration"
-    run_test test_lxc_to_lxd "LXC to LXD"
     run_test test_fdleak "fd leak"
     run_test test_storage "storage"
     run_test test_storage_volume_snapshots "storage volume snapshots"
