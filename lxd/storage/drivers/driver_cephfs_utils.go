@@ -3,6 +3,7 @@ package drivers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/canonical/lxd/shared"
 )
@@ -85,4 +86,11 @@ func (d *cephfs) getConfig(clusterName string, userName string) ([]string, strin
 	}
 
 	return monitors, secret, nil
+}
+
+// getMountOptions returns the common mount options for volumes.
+func (d *cephfs) getMountOptions(name string, secret string, namespace string) string {
+	// The default mount_timeout is 60s.
+	// Setting it to 10s ensures the mount operation doesn't take longer than the default deadline which is used by TryMount.
+	return fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v,mount_timeout=10", name, secret, namespace)
 }
