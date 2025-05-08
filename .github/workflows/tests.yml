@@ -201,9 +201,11 @@ jobs:
           make static-analysis
 
       - name: Unit tests (all)
+        env:
+          LIBLXC_APPARMOR_D_PATH: "/home/runner/go/bin/liblxc/etc/apparmor.d"
         run: |
           set -eux
-          sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,GOCOVERDIR,PKG_CONFIG_PATH,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" make check-unit
+          sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,GOCOVERDIR,PKG_CONFIG_PATH,LIBLXC_APPARMOR_D_PATH,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" make check-unit
 
       - name: Upload coverage data
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
