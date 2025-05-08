@@ -241,7 +241,12 @@ func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 	}
 
 	timeoutSeconds := request.QueryParam(r, "timeout")
+	waitNetwork := shared.IsTrue(request.QueryParam(r, "network"))
+	waitStorage := shared.IsTrue(request.QueryParam(r, "storage"))
+
 	notReadyErr := errors.New("LXD daemon not ready yet")
+	networkNotReadyErr := errors.New("Networks not ready yet")
+	storageNotReadyErr := errors.New("Storage pools not ready yet")
 
 	if timeoutSeconds != "" {
 		timeoutSecondsUint, err := strconv.ParseUint(timeoutSeconds, 10, 32)
@@ -257,6 +262,24 @@ func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 			defer cancel()
 		}
 
+		// If network is true, then block until all networks are marked as ready.
+		if waitNetwork {
+			select {
+			case <-d.waitNetworkReady.Done(): // Block until all networks are ready.
+			case <-ctx.Done(): // Don't leave this go routine around if client disconnects or timeout reached.
+				return response.Unavailable(networkNotReadyErr)
+			}
+		}
+
+		// If storage is true, then block until all storage pools are marked as ready.
+		if waitStorage {
+			select {
+			case <-d.waitStorageReady.Done(): // Block until all storage pools are ready.
+			case <-ctx.Done(): // Don't leave this go routine around if client disconnects or timeout reached.
+				return response.Unavailable(storageNotReadyErr)
+			}
+		}
+
 		select {
 		case <-d.waitReady.Done(): // Block until LXD is ready and then return EmptySyncResponse.
 		case <-ctx.Done(): // Don't leave this go routine around if client disconnects or timeout reached.
@@ -264,6 +287,10 @@ func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 		}
 	} else if d.waitReady.Err() == nil {
 		return response.Unavailable(notReadyErr)
+	} else if waitNetwork && d.waitNetworkReady.Err() == nil {
+		return response.Unavailable(networkNotReadyErr)
+	} else if waitStorage && d.waitStorageReady.Err() == nil {
+		return response.Unavailable(storageNotReadyErr)
 	}
 
 	return response.EmptySyncResponse // LXD is ready.
