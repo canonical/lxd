@@ -64,8 +64,11 @@ func (t Type) URL(projectName string, location string, pathArguments ...string) 
 		u = u.WithQuery("project", projectName)
 	}
 
-	// Always set location if provided (empty or "none" locations are ignored).
-	u = u.Target(location)
+	// Only set location if required to uniquely identify the entity.
+	if info.requiresLocation() {
+		u = u.Target(location)
+	}
+
 	return u, nil
 }
 
