@@ -24,6 +24,7 @@ import (
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/lxd/ubuntupro"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/cancel"
 )
 
 // State is a gateway to the two main stateful components of LXD, the database
@@ -102,6 +103,12 @@ type State struct {
 
 	// Ubuntu pro settings.
 	UbuntuPro *ubuntupro.Client
+
+	// NetworkReady can be used to track whether all networks are successfully started.
+	NetworkReady cancel.Canceller
+
+	// StorageReady can be used to track whether all storage pools are successfully started.
+	StorageReady cancel.Canceller
 }
 
 // LeaderInfo represents information regarding cluster member leadership.
