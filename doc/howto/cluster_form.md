@@ -1,5 +1,5 @@
 ---
-relatedlinks: '[MicroCloud](https://canonical.com/microcloud)'
+relatedlinks: "[MicroCloud](https://canonical.com/microcloud)"
 ---
 
 (cluster-form)=
