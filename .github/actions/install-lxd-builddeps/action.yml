@@ -16,6 +16,7 @@ runs:
           gettext \
           git \
           libacl1-dev \
+          libapparmor-dev \
           libcap-dev \
           libdbus-1-dev \
           libseccomp-dev \
