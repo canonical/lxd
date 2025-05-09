@@ -146,6 +146,13 @@ liblxc:
 		meson compile -C build && \
 		ninja -C build install
 
+ifneq ($(shell command -v ldd),)
+	# verify that liblxc.so is linked against some critically important libs
+	ldd "$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/liblxc.so" | grep -wE 'libapparmor|libcap|libseccomp'
+	[ "$$(ldd "$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/liblxc.so" | grep -cwE 'libapparmor|libcap|libseccomp')" = "3" ]
+	@echo "OK: liblxc .so link check passed"
+endif
+
 .PHONY: deps
 deps: dqlite
 	# environment
