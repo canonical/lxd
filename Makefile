@@ -136,6 +136,7 @@ liblxc:
 			-Dapparmor=true \
 			-Dseccomp=true \
 			-Dselinux=false \
+			-Dspecfile=false \
 			-Dcapabilities=true \
 			build && \
 		meson compile -C build && \
