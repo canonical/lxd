@@ -126,6 +126,7 @@ liblxc:
 			-Dsystemd-unitdir="$(LIBLXC_PATH)/systemd" \
 			-Drootfs-mount-path="$(LIBLXC_PATH)/rootfs" \
 			-Ddbus=false \
+			-Dcommands=false \
 			-Dexamples=false \
 			-Dman=false \
 			-Dopenssl=false \
