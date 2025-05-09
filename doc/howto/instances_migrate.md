@@ -109,3 +109,15 @@ When the percentage of synced memory is equal to or greater than the threshold s
 For LXD servers that are members of a cluster, you can use the evacuate and restore operations to temporarily migrate all instances from one cluster member to another. These operations can also live-migrate eligible instances.
 
 For more information, see: {ref}`cluster-evacuate-restore`.
+
+## Related topics
+
+How-to guides:
+
+- {ref}`Migrate instances in a cluster <howto-cluster-manage-instance-migrate>`
+- {ref}`howto-projects-work-move-instance`
+- {ref}`Import machines to LXD instances <import-machines-to-instances>`
+- {ref}`secondary-backup-server`
+- {ref}`instances-backup-export-instance`
+- {ref}`instances-backup-import-instance`
+- {ref}`Move or copy storage volumes <howto-storage-move-volume>`
