@@ -1339,13 +1339,11 @@ parts:
     source-depth: 1
     source-type: git
     build-packages:
-      - dpkg-dev
       - libapparmor-dev
       - libcap-dev
       - libdbus-1-dev
       - libseccomp-dev
       - libselinux1-dev
-      - libssl-dev
       - pkg-config
       - meson
       - ninja-build
@@ -1354,6 +1352,7 @@ parts:
       - --prefix=/
       - -Dexamples=false
       - -Dman=false
+      - -Dopenssl=false
       - -Dtools=false
       - -Dtests=false
       - -Dmemfd-rexec=false
