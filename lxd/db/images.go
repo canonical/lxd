@@ -304,8 +304,6 @@ func (c *ClusterTx) GetImage(ctx context.Context, fingerprintPrefix string, filt
 // publicOnly, when true, will return the image only if it is public;
 // a false value will return any image matching the fingerprint prefix.
 func (c *ClusterTx) GetImageByFingerprintPrefix(ctx context.Context, fingerprintPrefix string, filter cluster.ImageFilter) (int, *api.Image, error) {
-	var image api.Image
-	var object cluster.Image
 	if fingerprintPrefix == "" {
 		return -1, nil, errors.New("No fingerprint prefix specified for the image")
 	}
@@ -330,6 +328,7 @@ func (c *ClusterTx) GetImageByFingerprintPrefix(ctx context.Context, fingerprint
 		return -1, nil, fmt.Errorf("Failed to fetch images: %w", err)
 	}
 
+	var object cluster.Image
 	switch len(images) {
 	case 0:
 		return -1, nil, api.StatusErrorf(http.StatusNotFound, "Image not found")
@@ -339,28 +338,12 @@ func (c *ClusterTx) GetImageByFingerprintPrefix(ctx context.Context, fingerprint
 		return -1, nil, errors.New("More than one image matches")
 	}
 
-	image.Fingerprint = object.Fingerprint
-	image.Filename = object.Filename
-	image.Size = object.Size
-	image.Cached = object.Cached
-	image.Public = object.Public
-	image.AutoUpdate = object.AutoUpdate
-	image.Project = object.Project
-
-	err = c.imageFill(
-		ctx, object.ID, &image,
-		&object.CreationDate.Time, &object.ExpiryDate.Time, &object.LastUseDate.Time,
-		&object.UploadDate, object.Architecture, object.Type)
+	img, err := object.ToAPI(ctx, c.Tx(), profileProject)
 	if err != nil {
-		return -1, nil, fmt.Errorf("Fill image details: %w", err)
+		return -1, nil, err
 	}
 
-	err = c.imageFillProfiles(ctx, object.ID, &image, profileProject)
-	if err != nil {
-		return -1, nil, fmt.Errorf("Fill image profiles: %w", err)
-	}
-
-	return object.ID, &image, nil
+	return object.ID, img, nil
 }
 
 // GetImageFromAnyProject returns an image matching the given fingerprint, if
