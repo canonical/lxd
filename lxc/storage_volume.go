@@ -2720,7 +2720,7 @@ func (c *cmdStorageVolumeExport) run(cmd *cobra.Command, args []string) error {
 
 	volName, volType := parseVolume("custom", args[1])
 	if volType != "custom" {
-		return errors.New(i18n.G("Only \"custom\" volumes can be exported"))
+		return fmt.Errorf("Failed to create storage volume backup for volume %q: %w", volName, errors.New(i18n.G("Only \"custom\" volumes can be exported")))
 	}
 
 	req := api.StoragePoolVolumeBackupsPost{
@@ -2738,7 +2738,7 @@ func (c *cmdStorageVolumeExport) run(cmd *cobra.Command, args []string) error {
 
 	op, err := d.CreateStoragePoolVolumeBackup(name, volName, req)
 	if err != nil {
-		return fmt.Errorf("Failed to create storage volume backup: %w", err)
+		return fmt.Errorf("Failed to create storage volume backup for volume %q: %w", volName, err)
 	}
 
 	// Watch the background operation
