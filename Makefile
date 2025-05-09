@@ -129,6 +129,7 @@ liblxc:
 			-Dcommands=false \
 			-Dexamples=false \
 			-Dinstall-init-files=false \
+			-Dinstall-state-dirs=false \
 			-Dman=false \
 			-Dopenssl=false \
 			-Dtools=false \
