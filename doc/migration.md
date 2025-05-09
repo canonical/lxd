@@ -12,12 +12,6 @@ Migrate physical or virtual machines to LXD instances
 
   See {ref}`import-machines-to-instances` for more information.
 
-Migrate instances from LXC to LXD
-: If you are using LXC and want to migrate all or some of your LXC containers to a LXD installation on the same machine, you can use the `lxc-to-lxd` tool.
-  The tool analyzes the LXC configuration and copies the data and configuration of your existing LXC containers into new LXD containers.
-
-  See {ref}`migrate-from-lxc` for more information.
-
 Migrate existing LXD instances between servers
 : The most basic kind of migration is if you have a LXD instance on one server and want to move it to a different LXD server.
   For virtual machines, you can do that as a live migration, which means that you can migrate your VM while it is running and there will be no downtime.
@@ -32,7 +26,6 @@ The following how-to guides cover common operations related to migration:
 :titlesonly:
 
 :diataxis:Import existing machines </howto/import_machines_to_instances>
-:diataxis:Migrate from LXC </howto/migrate_from_lxc>
 :diataxis:Move instances </howto/move_instances>
 ```
 
@@ -42,5 +35,4 @@ The following how-to guides cover common operations related to migration:
 
 :topical:Move instances </howto/move_instances>
 :topical:Import existing machines </howto/import_machines_to_instances>
-:topical:Migrate from LXC </howto/migrate_from_lxc>
 ```
