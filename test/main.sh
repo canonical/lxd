@@ -119,6 +119,13 @@ cleanup() {
     if [ "${expandDmesg}" = "no" ]; then
       echo "::endgroup::"
     fi
+
+    # Diagnose any issue with liblxc
+    echo "::group::lxc info"
+    for i in $(lxc list --all-projects -cn -f csv); do
+      lxc info --show-log "${i}"
+    done
+    echo "::endgroup::"
   fi
 
   if [ -n "${GITHUB_ACTIONS:-}" ]; then
