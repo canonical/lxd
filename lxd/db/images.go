@@ -18,13 +18,6 @@ import (
 	"github.com/canonical/lxd/shared/osarch"
 )
 
-// ImageSourceProtocol maps image source protocol codes to human-readable names.
-var ImageSourceProtocol = map[int]string{
-	0: "lxd",
-	1: "direct",
-	2: "simplestreams",
-}
-
 // GetLocalImagesFingerprints returns the fingerprints of all local images.
 func (c *ClusterTx) GetLocalImagesFingerprints(ctx context.Context) ([]string, error) {
 	q := `
@@ -34,55 +27,6 @@ SELECT images.fingerprint
  WHERE node_id = ?
 `
 	return query.SelectStrings(ctx, c.tx, q, c.nodeID)
-}
-
-// GetImageSource returns the image source with the given ID.
-func (c *ClusterTx) GetImageSource(ctx context.Context, imageID int) (int, api.ImageSource, error) {
-	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
-	type imagesSource struct {
-		ID          int
-		Server      string
-		Protocol    int
-		Certificate string
-		Alias       string
-	}
-
-	sources := []imagesSource{}
-	err := query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
-		s := imagesSource{}
-
-		err := scan(&s.ID, &s.Server, &s.Protocol, &s.Certificate, &s.Alias)
-		if err != nil {
-			return err
-		}
-
-		sources = append(sources, s)
-
-		return nil
-	}, imageID)
-	if err != nil {
-		return -1, api.ImageSource{}, err
-	}
-
-	if len(sources) == 0 {
-		return -1, api.ImageSource{}, api.StatusErrorf(http.StatusNotFound, "Image source not found")
-	}
-
-	source := sources[0]
-
-	protocol, found := ImageSourceProtocol[source.Protocol]
-	if !found {
-		return -1, api.ImageSource{}, fmt.Errorf("Invalid protocol: %d", source.Protocol)
-	}
-
-	result := api.ImageSource{
-		Server:      source.Server,
-		Protocol:    protocol,
-		Certificate: source.Certificate,
-		Alias:       source.Alias,
-	}
-
-	return source.ID, result, nil
 }
 
 // Fill extra image fields such as properties and alias. This is called after
@@ -213,7 +157,7 @@ SELECT fingerprint
 // CreateImageSource inserts a new image source.
 func (c *ClusterTx) CreateImageSource(ctx context.Context, id int, server string, protocol string, certificate string, alias string) error {
 	protocolInt := -1
-	for protoInt, protoString := range ImageSourceProtocol {
+	for protoInt, protoString := range cluster.ImageSourceProtocol {
 		if protoString == protocol {
 			protocolInt = protoInt
 		}
@@ -254,7 +198,7 @@ func (c *ClusterTx) GetCachedImageSourceFingerprint(ctx context.Context, server 
 	}
 
 	protocolInt := -1
-	for protoInt, protoString := range ImageSourceProtocol {
+	for protoInt, protoString := range cluster.ImageSourceProtocol {
 		if protoString == protocol {
 			protocolInt = protoInt
 		}
