@@ -129,7 +129,7 @@ jobs:
           # Include liblxc libs in dependencies for system tests.
           mkdir /home/runner/go/bin/liblxc
           mv /home/runner/work/lxd/lxd-test/vendor/liblxc/include /home/runner/go/bin/liblxc/include
-          mv /home/runner/work/lxd/lxd-test/vendor/liblxc/lib/*-linux-gnu /home/runner/go/bin/liblxc/libs
+          mv /home/runner/work/lxd/lxd-test/vendor/liblxc/lib /home/runner/go/bin/liblxc/libs
 
       - name: Build binaries
         run: |
