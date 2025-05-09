@@ -345,4 +345,4 @@ See [`POST /1.0/instances`](swagger:/instances/instances_post) for more informat
 
 You can copy an instance to a secondary backup server to back it up.
 
-See {ref}`secondary-backup-server` for more information, and {ref}`move-instances` for instructions.
+See {ref}`secondary-backup-server` for more information, and {ref}`howto-instances-migrate` for instructions.

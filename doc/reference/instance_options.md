@@ -219,7 +219,7 @@ Note that this inheritance is not enforced by LXD but by the kernel.
 (instance-options-migration)=
 ## Migration options
 
-The following instance options control the behavior if the instance is {ref}`moved from one LXD server to another <move-instances>`:
+The following instance options control the behavior if the instance is {ref}`moved from one LXD server to another <howto-instances-migrate>`:
 
 % Include content from [../metadata.txt](../metadata.txt)
 ```{include} ../metadata.txt
