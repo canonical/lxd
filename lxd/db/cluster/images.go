@@ -3,8 +3,16 @@
 package cluster
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
+	"net/http"
 	"time"
+
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/osarch"
 )
 
 // Code generation directives.
@@ -42,6 +50,104 @@ type Image struct {
 	Cached       bool
 	LastUseDate  sql.NullTime
 	AutoUpdate   bool
+}
+
+// ToAPI converts the Image to an api.Image, making extra database queries as necessary.
+// If the profileProject is non-empty then its used to populate the image's profiles using the effective profile project.
+func (img *Image) ToAPI(ctx context.Context, tx *sql.Tx, profileProject string) (*api.Image, error) {
+	var err error
+
+	// Initialise API image struct.
+	image := api.Image{
+		Fingerprint: img.Fingerprint,
+		Filename:    img.Filename,
+		Size:        img.Size,
+		Cached:      img.Cached,
+		Public:      img.Public,
+		AutoUpdate:  img.AutoUpdate,
+		Project:     img.Project,
+		CreatedAt:   img.CreationDate.Time,
+		ExpiresAt:   img.ExpiryDate.Time,
+		LastUsedAt:  img.LastUseDate.Time,
+		UploadedAt:  img.UploadDate,
+		Type:        instancetype.Type(img.Type).String(),
+	}
+
+	// Add architecture.
+	image.Architecture, _ = osarch.ArchitectureName(img.Architecture)
+
+	// Add properties.
+	image.Properties, err = query.SelectConfig(ctx, tx, "images_properties", "image_id=?", img.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add aliases.
+	image.Aliases = make([]api.ImageAlias, 0)
+
+	{
+		q := "SELECT name, description FROM images_aliases WHERE image_id=?"
+		err = query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
+			alias := api.ImageAlias{}
+
+			err := scan(&alias.Name, &alias.Description)
+			if err != nil {
+				return err
+			}
+
+			image.Aliases = append(image.Aliases, alias)
+			return nil
+		}, img.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Add source info.
+	_, source, err := GetImageSource(ctx, tx, img.ID)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return nil, err
+	}
+
+	image.UpdateSource = &source
+	image.UpdateSource.ImageType = image.Type
+
+	// Get effective project profiles.
+	if profileProject != "" {
+		enabled, err := ProjectHasProfiles(context.Background(), tx, profileProject)
+		if err != nil {
+			return nil, err
+		}
+
+		if !enabled {
+			profileProject = api.ProjectDefaultName
+		}
+
+		// Get the profiles
+		image.Profiles = make([]string, 0)
+
+		q := `
+		SELECT profiles.name FROM profiles
+		JOIN images_profiles ON images_profiles.profile_id = profiles.id
+		JOIN projects ON profiles.project_id = projects.id
+		WHERE images_profiles.image_id = ? AND projects.name = ?`
+
+		err = query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
+			var profileName string
+			err := scan(&profileName)
+			if err != nil {
+				return err
+			}
+
+			image.Profiles = append(image.Profiles, profileName)
+			return nil
+		}, img.ID, profileProject)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &image, nil
 }
 
 // ImageFilter can be used to filter results yielded by GetImages.
