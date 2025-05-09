@@ -120,7 +120,10 @@ liblxc:
 	fi
 
 	cd "$(LIBLXC_PATH)" && \
-		meson setup -Dprefix="$(LIBLXC_PATH)" -Dlocalstatedir="$(LIBLXC_PATH)/state" -Dsystemd-unitdir="$(LIBLXC_PATH)/systemd" \
+		meson setup \
+			-Dprefix="$(LIBLXC_PATH)" \
+			-Dlocalstatedir="$(LIBLXC_PATH)/state" \
+			-Dsystemd-unitdir="$(LIBLXC_PATH)/systemd" \
 			-Drootfs-mount-path="$(LIBLXC_PATH)/rootfs" \
 			-Dexamples=false \
 			-Dman=false \
