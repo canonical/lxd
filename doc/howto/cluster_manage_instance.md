@@ -27,10 +27,11 @@ To check on which member an instance is located, list all instances in the clust
 
 The location column indicates the member on which each instance is running.
 
-## Move an instance
+(howto-cluster-manage-instance-migrate)=
+## Migrate an instance
 
-You can move an existing instance to another cluster member.
-For example, to move the instance `c1` to the cluster member `server1`, use the following commands:
+You can migrate an existing instance to another cluster member.
+For example, to migrate the instance `c1` to the cluster member `server1`, use the following commands:
 
     lxc stop c1
     lxc move c1 --target server1
@@ -38,7 +39,7 @@ For example, to move the instance `c1` to the cluster member `server1`, use the 
 
 See {ref}`howto-instances-migrate` for more information.
 
-To move an instance to a member of a cluster group, use the group name prefixed with `@` for the `--target` flag.
+To migrate an instance to a member of a cluster group, use the group name prefixed with `@` for the `--target` flag.
 For example:
 
     lxc move c1 --target @group1
