@@ -1352,6 +1352,8 @@ parts:
       - -Dcommands=false
       - -Ddbus=false
       - -Dexamples=false
+      - -Dinstall-init-files=false
+      - -Dinstall-state-dirs=false
       - -Dman=false
       - -Dmemfd-rexec=false
       - -Dopenssl=false
