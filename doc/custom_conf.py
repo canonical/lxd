@@ -407,9 +407,8 @@ if ('TOPICAL' in os.environ) and (os.environ['TOPICAL'] == 'True'):
     custom_tags.append('topical')
     toc_filter_exclude = ['diataxis']
 else:
-    custom_excludes.extend(['security.md','external_resources.md','reference/network_external.md','migration.md'])
+    custom_excludes.extend(['security.md','external_resources.md','reference/network_external.md'])
     redirects['security/index'] = '../explanation/security/'
-    redirects['migration/index'] = '../howto/import_machines_to_instances/'
     custom_tags.append('diataxis')
     toc_filter_exclude = ['topical']
 

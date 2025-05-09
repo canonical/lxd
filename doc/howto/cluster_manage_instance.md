@@ -36,7 +36,7 @@ For example, to move the instance `c1` to the cluster member `server1`, use the 
     lxc move c1 --target server1
     lxc start c1
 
-See {ref}`move-instances` for more information.
+See {ref}`howto-instances-migrate` for more information.
 
 To move an instance to a member of a cluster group, use the group name prefixed with `@` for the `--target` flag.
 For example:

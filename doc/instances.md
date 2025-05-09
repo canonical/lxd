@@ -43,7 +43,7 @@ How to export and move instances:
 :titlesonly:
 
 :diataxis:Back up instances </howto/instances_backup.md>
-:diataxis:Move instances </howto/move_instances>
+:diataxis:Migrate instances </howto/instances_migrate>
 ```
 
 ```{only} diataxis

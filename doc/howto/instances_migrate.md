@@ -2,7 +2,7 @@
 discourse: lxc:[Online&#32;VM&#32;live-migration&#32;(QEMU&#32;to&#32;QEMU)](16635)
 ---
 
-(move-instances)=
+(howto-instances-migrate)=
 # How to move existing LXD instances between servers
 
 If you use the LXD client, you can move or copy instances from one LXD server (remote or local) to another.
