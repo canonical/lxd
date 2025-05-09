@@ -134,6 +134,7 @@ liblxc:
 			-Dmemfd-rexec=false \
 			-Dapparmor=true \
 			-Dseccomp=true \
+			-Dselinux=false \
 			-Dcapabilities=true \
 			build && \
 		meson compile -C build && \
