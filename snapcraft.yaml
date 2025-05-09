@@ -1361,10 +1361,8 @@ parts:
       - -Dselinux=true
       - -Dcapabilities=true
       - -Drootfs-mount-path=/var/snap/lxd/common/lxc/
-      - -Dlibexecdir=/snap/lxd/current/libexec/
     organize:
       snap/lxd/current/lxc: lxc
-      snap/lxd/current/libexec: libexec
       share/lxc/hooks: lxc/hooks
     prime:
       - bin/lxc-checkconfig
