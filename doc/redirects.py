@@ -3,4 +3,6 @@ redirects = {
     'reference/network_external/index': '../networks/',
     'explanation/containers_and_vms/index': '../instances/',
     'explanation/clustering/index': '../clusters/',
+    'migration/index': '../howto/instances_migrate',
+    'howto/move_instances/index': '../instances_migrate/',
 }
