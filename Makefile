@@ -125,6 +125,7 @@ liblxc:
 			-Dlocalstatedir="$(LIBLXC_PATH)/state" \
 			-Dsystemd-unitdir="$(LIBLXC_PATH)/systemd" \
 			-Drootfs-mount-path="$(LIBLXC_PATH)/rootfs" \
+			-Ddbus=false \
 			-Dexamples=false \
 			-Dman=false \
 			-Dopenssl=false \
