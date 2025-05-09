@@ -128,6 +128,7 @@ liblxc:
 			-Ddbus=false \
 			-Dcommands=false \
 			-Dexamples=false \
+			-Dinstall-init-files=false \
 			-Dman=false \
 			-Dopenssl=false \
 			-Dtools=false \
