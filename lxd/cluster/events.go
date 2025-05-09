@@ -373,7 +373,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 
 // Establish a client connection to get events from the given node.
 func eventsConnect(address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo) (*eventListenerClient, error) {
-	client, err := Connect(address, networkCert, serverCert, nil, true)
+	client, err := Connect(nil, address, networkCert, serverCert, true) //nolint:staticcheck // No request context to be passed.
 	if err != nil {
 		return nil, err
 	}

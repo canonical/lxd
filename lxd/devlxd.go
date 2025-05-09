@@ -84,6 +84,7 @@ var apiDevLXD = []devLXDAPIEndpoint{
 	devLXDMetadataEndpoint,
 	devLXDEventsEndpoint,
 	devLXDDevicesEndpoint,
+	devLXDStoragePoolEndpoint,
 	devLXDUbuntuProEndpoint,
 	devLXDUbuntuProTokenEndpoint,
 }
@@ -283,7 +284,7 @@ func devLXDImageExportHandler(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(err)
 	}
 
-	return imageExport(d, r)
+	return imageExportHandler(d, r)
 }
 
 var devLXDMetadataEndpoint = devLXDAPIEndpoint{
@@ -452,6 +453,9 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 	handleFunc := func(w http.ResponseWriter, r *http.Request) {
 		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
 		request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
+
+		// Set request source address value to the request context.
+		request.SetCtxValue(r, request.CtxRequestSourceAddress, r.RemoteAddr)
 
 		handleRequest := func(action devLXDAPIEndpointAction) (resp response.Response) {
 			// Handle panic in the handler.

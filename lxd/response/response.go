@@ -50,10 +50,19 @@ type devLXDResponse struct {
 	content     any
 	code        int
 	contentType string
+	etag        any
 }
 
 // Render renders a response for requests against the /dev/lxd socket.
 func (r *devLXDResponse) Render(w http.ResponseWriter, req *http.Request) (err error) {
+	// Set an appropriate ETag header.
+	if r.etag != nil {
+		etag, err := util.EtagHash(r.etag)
+		if err == nil {
+			w.Header().Set("ETag", `"`+etag+`"`)
+		}
+	}
+
 	if r.code != http.StatusOK {
 		http.Error(w, fmt.Sprint(r.content), r.code)
 	} else if r.contentType == "json" {
@@ -102,7 +111,27 @@ func DevLXDResponse(code int, content any, contentType string, rawResponse bool)
 		return SyncResponse(true, content)
 	}
 
-	return &devLXDResponse{content: content, code: code, contentType: contentType}
+	return &devLXDResponse{
+		code:        code,
+		content:     content,
+		contentType: contentType,
+	}
+}
+
+// DevLXDResponseETag represents a devLXDResponse with ETag. If ETag is not nil, it is set in
+// response headers. If rawResponse is true, a api.ResponseRaw will be sent instead of a minimal
+// devLXDResponse.
+func DevLXDResponseETag(code int, content any, etag any, contentType string, rawResponse bool) Response {
+	if rawResponse {
+		return SyncResponse(true, content)
+	}
+
+	return &devLXDResponse{
+		code:        code,
+		content:     content,
+		contentType: contentType,
+		etag:        etag,
+	}
 }
 
 // Sync response.
@@ -553,7 +582,7 @@ type forwardedResponse struct {
 
 // ForwardedResponse takes a request directed to a node and forwards it to
 // another node, writing back the response it gegs.
-func ForwardedResponse(client lxd.InstanceServer, request *http.Request) Response {
+func ForwardedResponse(client lxd.InstanceServer) Response {
 	return &forwardedResponse{
 		client: client,
 	}

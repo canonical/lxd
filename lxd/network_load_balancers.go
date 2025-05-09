@@ -284,7 +284,7 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating load balancer: %w", err))
 	}
 
-	lc := lifecycle.NetworkLoadBalancerCreated.Event(n, listenAddress.String(), request.CreateRequestor(r), nil)
+	lc := lifecycle.NetworkLoadBalancerCreated.Event(n, listenAddress.String(), request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle(effectiveProjectName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
@@ -358,7 +358,7 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed deleting load balancer: %w", err))
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkLoadBalancerDeleted.Event(n, listenAddress, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkLoadBalancerDeleted.Event(n, listenAddress, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }
@@ -616,7 +616,7 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed updating load balancer: %w", err))
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkLoadBalancerUpdated.Event(n, listenAddress, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkLoadBalancerUpdated.Event(n, listenAddress, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }

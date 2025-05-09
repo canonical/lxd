@@ -69,3 +69,14 @@ type UbuntuProSettings struct {
 	// Example: on
 	GuestAttach string `json:"guest_attach"`
 }
+
+// DevLXDStoragePool represents the storage pool information.
+type DevLXDStoragePool struct {
+	// Name of the storage pool
+	// Example: default
+	Name string `json:"name" yaml:"name"`
+
+	// Driver of the storage pool
+	// Example: btrfs
+	Driver string `json:"driver" yaml:"driver"`
+}

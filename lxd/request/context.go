@@ -6,6 +6,17 @@ import (
 	"net/http"
 )
 
+// IsRequestContext checks if the given context is a request context.
+// The request context is identified by the presence of the CtxRequestSourceAddress key.
+func IsRequestContext(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+
+	// XXX: We should use a request UUID or something similar to identify the request context.
+	return ctx.Value(CtxRequestSourceAddress) != nil
+}
+
 // GetCtxValue gets a value of type T from the context using the given key.
 func GetCtxValue[T any](ctx context.Context, key CtxKey) (T, error) {
 	var empty T

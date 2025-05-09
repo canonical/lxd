@@ -646,7 +646,7 @@ func (d *Daemon) handleOIDCAuthenticationResult(r *http.Request, result *oidc.Au
 			return fmt.Errorf("Failed to notify cluster members of new or updated OIDC identity: %w", err)
 		}
 
-		lc := action.Event(api.AuthenticationMethodOIDC, result.Email, request.CreateRequestor(r), nil)
+		lc := action.Event(api.AuthenticationMethodOIDC, result.Email, request.CreateRequestor(r.Context()), nil)
 		s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 		s.UpdateIdentityCache()
@@ -794,6 +794,9 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 
 		// Set the "trusted" value in the request context.
 		request.SetCtxValue(r, request.CtxTrusted, trusted)
+
+		// Set request source address value in the request context.
+		request.SetCtxValue(r, request.CtxRequestSourceAddress, r.RemoteAddr)
 
 		// Reject internal queries to remote, non-cluster, clients
 		if version == "internal" && !shared.ValueInSlice(protocol, []string{auth.AuthenticationMethodUnix, auth.AuthenticationMethodCluster}) {
@@ -2535,7 +2538,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		if isDegraded || onlineVoters < maxVoters || onlineStandbys < maxStandBy {
 			d.clusterMembershipMutex.Lock()
 			logger.Debug("Rebalancing member roles in heartbeat", logger.Ctx{"local": localClusterAddress})
-			err := rebalanceMemberRoles(d.State(), d.gateway, nil, unavailableMembers)
+			err := rebalanceMemberRoles(context.TODO(), d.State(), d.gateway, unavailableMembers)
 			if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 				logger.Warn("Could not rebalance cluster member roles", logger.Ctx{"err": err, "local": localClusterAddress})
 			}

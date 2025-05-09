@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"net/http"
 	"net/url"
 
@@ -60,7 +58,7 @@ import (
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func instancePut(d *Daemon, r *http.Request) response.Response {
+func instancePutHandler(d *Daemon, r *http.Request) response.Response {
 	// Don't mess with instance while in setup mode.
 	<-d.waitReady.Done()
 
@@ -72,69 +70,76 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
+	etag := r.Header.Get("If-Match")
 
 	// Get the container
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	instanceName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	if shared.IsSnapshot(name) {
-		return response.BadRequest(errors.New("Invalid instance name"))
+	// Unmarshal the request.
+	req := api.InstancePut{}
+	err = request.DecodeAndRestoreJSONBody(r, &req)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	op, err := instancePut(r.Context(), s, projectName, instanceName, instanceType, req, etag)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return operations.OperationResponse(op)
+}
+
+func instancePut(reqContext context.Context, s *state.State, projectName string, instanceName string, instanceType instancetype.Type, req api.InstancePut, reqETag string) (*operations.Operation, error) {
+	if shared.IsSnapshot(instanceName) {
+		return nil, api.NewStatusError(http.StatusBadRequest, "Invalid instance name")
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
+	err := forwardIfInstanceIsRemote(reqContext, s, projectName, instanceName, instanceType)
 	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if resp != nil {
-		return resp
+		return nil, err
 	}
 
 	revert := revert.New()
 	defer revert.Fail()
 
-	unlock, err := instanceOperationLock(s.ShutdownCtx, projectName, name)
+	unlock, err := instanceOperationLock(s.ShutdownCtx, projectName, instanceName)
 	if err != nil {
-		return response.SmartError(err)
+		return nil, err
 	}
 
 	revert.Add(func() {
 		unlock()
 	})
 
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
+	inst, err := instance.LoadByProjectAndName(s, projectName, instanceName)
 	if err != nil {
-		return response.SmartError(err)
+		return nil, err
 	}
 
 	// Validate the ETag
 	etag := []any{inst.Architecture(), inst.LocalConfig(), inst.LocalDevices(), inst.IsEphemeral(), inst.Profiles()}
-	err = util.EtagCheck(r, etag)
+	err = util.EtagCheckString(reqETag, etag)
 	if err != nil {
-		return response.PreconditionFailed(err)
+		return nil, api.NewStatusError(http.StatusPreconditionFailed, err.Error())
 	}
 
-	configRaw := api.InstancePut{}
-	err = json.NewDecoder(r.Body).Decode(&configRaw)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	architecture, err := osarch.ArchitectureId(configRaw.Architecture)
+	architecture, err := osarch.ArchitectureId(req.Architecture)
 	if err != nil {
 		architecture = 0
 	}
 
 	var do func(*operations.Operation) error
 	var opType operationtype.Type
-	if configRaw.Restore == "" {
+	if req.Restore == "" {
 		// Check project limits.
-		apiProfiles := make([]api.Profile, 0, len(configRaw.Profiles))
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			profiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, configRaw.Profiles)
+		apiProfiles := make([]api.Profile, 0, len(req.Profiles))
+		err = s.DB.Cluster.Transaction(reqContext, func(ctx context.Context, tx *db.ClusterTx) error {
+			profiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, req.Profiles)
 			if err != nil {
 				return err
 			}
@@ -158,10 +163,10 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 				apiProfiles = append(apiProfiles, *apiProfile)
 			}
 
-			return limits.AllowInstanceUpdate(ctx, s.GlobalConfig, tx, projectName, name, configRaw, inst.LocalConfig())
+			return limits.AllowInstanceUpdate(ctx, s.GlobalConfig, tx, projectName, instanceName, req, inst.LocalConfig())
 		})
 		if err != nil {
-			return response.SmartError(err)
+			return nil, err
 		}
 
 		// Update container configuration
@@ -170,10 +175,10 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 
 			args := db.InstanceArgs{
 				Architecture: architecture,
-				Config:       configRaw.Config,
-				Description:  configRaw.Description,
-				Devices:      deviceConfig.NewDevices(configRaw.Devices),
-				Ephemeral:    configRaw.Ephemeral,
+				Config:       req.Config,
+				Description:  req.Description,
+				Devices:      deviceConfig.NewDevices(req.Devices),
+				Ephemeral:    req.Ephemeral,
 				Profiles:     apiProfiles,
 				Project:      projectName,
 			}
@@ -192,26 +197,26 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		do = func(_ *operations.Operation) error {
 			defer unlock()
 
-			return instanceSnapRestore(s, projectName, name, configRaw.Restore, configRaw.Stateful)
+			return instanceSnapRestore(s, projectName, instanceName, req.Restore, req.Stateful)
 		}
 
 		opType = operationtype.SnapshotRestore
 	}
 
 	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", instanceName)}
 
 	if inst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil, r)
+	op, err := operations.OperationCreate(reqContext, s, projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {
-		return response.InternalError(err)
+		return nil, err
 	}
 
 	revert.Success()
-	return operations.OperationResponse(op)
+	return op, nil
 }
 
 func instanceSnapRestore(s *state.State, projectName string, name string, snap string, stateful bool) error {
