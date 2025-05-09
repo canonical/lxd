@@ -50,10 +50,6 @@ runs:
 
         sudo apt-get update
 
-        # mask services from lxc-utils (`lxc-*` tools are used in test/suites/lxc-to-lxd.sh)
-        # doing this masking before the package is installed means they won't even start
-        sudo systemctl mask lxc.service lxc-net.service
-
         sudo apt-get install --no-install-recommends -y \
           build-essential \
           curl \
@@ -63,7 +59,6 @@ runs:
           libcap-dev \
           libdbus-1-dev \
           liblxc-dev \
-          lxc-utils \
           libseccomp-dev \
           libselinux1-dev \
           libsqlite3-dev \

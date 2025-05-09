@@ -54,7 +54,6 @@ How to import instances:
 :titlesonly:
 
 :diataxis:Import existing machines </howto/import_machines_to_instances>
-:diataxis:Migrate from LXC </howto/migrate_from_lxc>
 ```
 
 ```{only} diataxis
