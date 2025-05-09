@@ -2323,7 +2323,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		_, source, err = tx.GetImageSource(ctx, id)
+		_, source, err = dbCluster.GetImageSource(ctx, tx.Tx(), id)
 		if err != nil {
 			logger.Error("Error getting source image", logger.Ctx{"err": err, "fingerprint": fingerprint})
 			return err

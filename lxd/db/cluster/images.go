@@ -53,3 +53,59 @@ type ImageFilter struct {
 	Cached      *bool
 	AutoUpdate  *bool
 }
+
+// ImageSourceProtocol maps image source protocol codes to human-readable names.
+var ImageSourceProtocol = map[int]string{
+	0: "lxd",
+	1: "direct",
+	2: "simplestreams",
+}
+
+// GetImageSource returns the image source with the given ID.
+func GetImageSource(ctx context.Context, tx *sql.Tx, imageID int) (int, api.ImageSource, error) {
+	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
+	type imagesSource struct {
+		ID          int
+		Server      string
+		Protocol    int
+		Certificate string
+		Alias       string
+	}
+
+	sources := []imagesSource{}
+	err := query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
+		s := imagesSource{}
+
+		err := scan(&s.ID, &s.Server, &s.Protocol, &s.Certificate, &s.Alias)
+		if err != nil {
+			return err
+		}
+
+		sources = append(sources, s)
+
+		return nil
+	}, imageID)
+	if err != nil {
+		return -1, api.ImageSource{}, err
+	}
+
+	if len(sources) == 0 {
+		return -1, api.ImageSource{}, api.StatusErrorf(http.StatusNotFound, "Image source not found")
+	}
+
+	source := sources[0]
+
+	protocol, found := ImageSourceProtocol[source.Protocol]
+	if !found {
+		return -1, api.ImageSource{}, fmt.Errorf("Invalid protocol: %d", source.Protocol)
+	}
+
+	result := api.ImageSource{
+		Server:      source.Server,
+		Protocol:    protocol,
+		Certificate: source.Certificate,
+		Alias:       source.Alias,
+	}
+
+	return source.ID, result, nil
+}
