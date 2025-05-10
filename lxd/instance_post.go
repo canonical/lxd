@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/device"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
@@ -872,6 +873,30 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 			err = srcPool.DeleteInstance(srcInst, nil)
 			if err != nil {
 				return fmt.Errorf("Failed deleting instance on source member: %w", err)
+			}
+
+			// Perform post-migration device cleanup.
+			devices := srcInst.ExpandedDevices()
+			localConfig := srcInst.LocalConfig()
+
+			// Create no-op volatile functions since we're only interested in post-migration cleanup.
+			volatileGet := func() map[string]string { return map[string]string{} }
+			volatileSet := func(_ map[string]string) error { return nil }
+			for devName, devConfig := range devices {
+				// Restore hardware address for NIC devices from volatile config.
+				if devConfig["type"] == "nic" && devConfig["hwaddr"] == "" && localConfig["volatile."+devName+".hwaddr"] != "" {
+					devices[devName]["hwaddr"] = localConfig["volatile."+devName+".hwaddr"]
+				}
+
+				dev, err := device.New(srcInst, s, devName, devConfig, volatileGet, volatileSet)
+				if err != nil {
+					return err
+				}
+
+				err = dev.PostMigrate()
+				if err != nil {
+					return err
+				}
 			}
 		}
 
