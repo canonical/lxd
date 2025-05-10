@@ -130,6 +130,9 @@ jobs:
           mv /home/runner/work/lxd/lxd-test/vendor/liblxc/include /home/runner/go/bin/liblxc/include
           mv /home/runner/work/lxd/lxd-test/vendor/liblxc/lib /home/runner/go/bin/liblxc/libs
 
+          # liblxc requires a rootfs dir
+          mkdir /home/runner/go/bin/liblxc/rootfs
+
           # Update env variables for liblxc
           LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
           PKG_CONFIG_PATH="$(pkg-config --variable pc_path pkg-config):${LIBLXC_ARCH_LIBS}/pkgconfig"
