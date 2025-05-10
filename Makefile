@@ -26,6 +26,7 @@ else
 endif
 DQLITE_PATH=$(DEPS_PATH)/dqlite
 LIBLXC_PATH=$(DEPS_PATH)/liblxc
+LIBLXC_ROOTFS_MOUNT_PATH=$(GOPATH)/bin/liblxc/rootfs
 
 .PHONY: default
 default: all
@@ -119,10 +120,13 @@ liblxc:
 		git -C "$(LIBLXC_PATH)" pull; \
 	fi
 
+	# XXX: the rootfs-mount-path must not depend on LIBLXC_PATH to allow
+	# building in "vendor" mode but move the resulting binaries elsewhere for
+	# caching purposes
 	cd "$(LIBLXC_PATH)" && \
 		meson setup \
 			-Dprefix="$(LIBLXC_PATH)" \
-			-Drootfs-mount-path="$(LIBLXC_PATH)/rootfs" \
+			-Drootfs-mount-path="$(LIBLXC_ROOTFS_MOUNT_PATH)" \
 			-Ddbus=false \
 			-Dcommands=false \
 			-Dexamples=false \
