@@ -1,5 +1,9 @@
 #!/bin/bash
 set -eu
+if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
+    GOPATH="$(go env GOPATH)"
+fi
+
 [ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
 
 # Don't translate lxc output for parsing in it in tests.
@@ -45,7 +49,7 @@ import_subdir_files() {
 import_subdir_files includes
 
 echo "==> Checking for dependencies"
-check_dependencies lxd lxc curl /bin/busybox dnsmasq iptables jq yq git sqlite3 msgmerge msgfmt shuf setfacl setfattr socat swtpm dig
+check_dependencies lxd lxc curl /bin/busybox dnsmasq iptables jq yq git sqlite3 msgmerge msgfmt rsync shuf setfacl setfattr socat swtpm dig
 
 if [ "${USER:-'root'}" != "root" ]; then
   echo "The testsuite must be run as root." >&2
@@ -119,6 +123,13 @@ cleanup() {
     if [ "${expandDmesg}" = "no" ]; then
       echo "::endgroup::"
     fi
+
+    # Diagnose any issue with liblxc
+    echo "::group::lxc info"
+    for i in $(lxc list --all-projects -cn -f csv); do
+      lxc info --show-log "${i}"
+    done
+    echo "::endgroup::"
   fi
 
   if [ -n "${GITHUB_ACTIONS:-}" ]; then
