@@ -1380,6 +1380,10 @@ parts:
       git config user.email "noreply@lists.canonical.com"
       git config user.name "LXD snap builder"
 
+      # lxc-checkconfig.in does not need any preprocessing
+      mkdir -p bin
+      install --mode=0755 src/lxc/cmd/lxc-checkconfig.in bin/lxc-checkconfig
+
       cd ../build
 
       set +ex
