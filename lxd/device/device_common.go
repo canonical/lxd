@@ -75,6 +75,11 @@ func (d *deviceCommon) CanMigrate() bool {
 	return false
 }
 
+// PostMigrateSend returns nil error as majority of devices don't need to do any post-migration cleanup.
+func (d *deviceCommon) PostMigrateSend() error {
+	return nil
+}
+
 // UpdatableFields returns an empty list of updatable fields as most devices do not support updates.
 func (d *deviceCommon) UpdatableFields(oldDevice Type) []string {
 	return []string{}

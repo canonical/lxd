@@ -65,6 +65,9 @@ type Device interface {
 
 	// Remove performs any host-side cleanup when a device is removed from an instance.
 	Remove() error
+
+	// PostMigrateSend performs any device cleanup required after an instance has been migrated to another cluster member.
+	PostMigrateSend() error
 }
 
 // device represents a sealed interface that implements Device, but also contains some internal
