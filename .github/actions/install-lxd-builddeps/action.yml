@@ -18,9 +18,7 @@ runs:
           libacl1-dev \
           libapparmor-dev \
           libcap-dev \
-          libdbus-1-dev \
           libseccomp-dev \
-          libselinux1-dev \
           libsqlite3-dev \
           meson \
           ninja-build \
