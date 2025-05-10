@@ -1,5 +1,9 @@
 #!/bin/bash
 set -eu
+if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
+    GOPATH="$(go env GOPATH)"
+fi
+
 [ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
 
 # Don't translate lxc output for parsing in it in tests.
