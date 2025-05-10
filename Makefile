@@ -126,21 +126,17 @@ liblxc:
 	cd "$(LIBLXC_PATH)" && \
 		meson setup \
 			-Dprefix="$(LIBLXC_PATH)" \
+			-Dlocalstatedir="$(LIBLXC_PATH)/state" \
+			-Dsystemd-unitdir="$(LIBLXC_PATH)/systemd" \
 			-Drootfs-mount-path="$(LIBLXC_ROOTFS_MOUNT_PATH)" \
-			-Ddbus=false \
-			-Dcommands=false \
 			-Dexamples=false \
-			-Dinstall-init-files=false \
-			-Dinstall-state-dirs=false \
 			-Dman=false \
-			-Dopenssl=false \
 			-Dtools=false \
 			-Dtests=false \
 			-Dmemfd-rexec=false \
 			-Dapparmor=true \
 			-Dseccomp=true \
-			-Dselinux=false \
-			-Dspecfile=false \
+			-Dselinux=true \
 			-Dcapabilities=true \
 			build && \
 		meson compile -C build && \
