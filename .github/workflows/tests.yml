@@ -126,12 +126,12 @@ jobs:
           mv /home/runner/work/lxd/lxd-test/vendor/dqlite/.libs /home/runner/go/bin/dqlite/libs
 
           # Include liblxc libs in dependencies for system tests.
-          mkdir /home/runner/go/bin/liblxc
+          mkdir -p /home/runner/go/bin/liblxc
           mv /home/runner/work/lxd/lxd-test/vendor/liblxc/include /home/runner/go/bin/liblxc/include
           mv /home/runner/work/lxd/lxd-test/vendor/liblxc/lib /home/runner/go/bin/liblxc/libs
 
           # liblxc requires a rootfs dir
-          mkdir /home/runner/go/bin/liblxc/rootfs
+          mkdir -p /home/runner/go/bin/liblxc/rootfs
 
           # Update env variables for liblxc
           LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
