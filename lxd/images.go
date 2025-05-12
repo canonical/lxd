@@ -2279,7 +2279,7 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 // Returns whether the image has been updated.
 func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operation, id int, info *api.Image, projectName string, manual bool) (*api.Image, error) {
 	fingerprint := info.Fingerprint
-	var source api.ImageSource
+	var source *api.ImageSource
 
 	if !manual {
 		var interval int64
