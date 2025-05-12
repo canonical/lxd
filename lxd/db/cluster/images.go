@@ -107,10 +107,11 @@ func (img *Image) ToAPI(ctx context.Context, tx *sql.Tx, profileProject string) 
 	_, source, err := GetImageSource(ctx, tx, img.ID)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return nil, err
+	} else if err == nil {
+		// Only populate UpdateSource if image source found.
+		image.UpdateSource = &source
+		image.UpdateSource.ImageType = image.Type
 	}
-
-	image.UpdateSource = &source
-	image.UpdateSource.ImageType = image.Type
 
 	// Get effective project profiles.
 	if profileProject != "" {
