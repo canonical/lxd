@@ -107,10 +107,11 @@ func (img *Image) ToAPI(ctx context.Context, tx *sql.Tx, profileProject string) 
 	_, source, err := GetImageSource(ctx, tx, img.ID)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return nil, err
+	} else if err == nil {
+		// Only populate UpdateSource if image source found.
+		image.UpdateSource = source
+		image.UpdateSource.ImageType = image.Type
 	}
-
-	image.UpdateSource = &source
-	image.UpdateSource.ImageType = image.Type
 
 	// Get effective project profiles.
 	if profileProject != "" {
@@ -168,7 +169,7 @@ var ImageSourceProtocol = map[int]string{
 }
 
 // GetImageSource returns the image source with the given ID.
-func GetImageSource(ctx context.Context, tx *sql.Tx, imageID int) (int, api.ImageSource, error) {
+func GetImageSource(ctx context.Context, tx *sql.Tx, imageID int) (int, *api.ImageSource, error) {
 	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
 	type imagesSource struct {
 		ID          int
@@ -192,21 +193,21 @@ func GetImageSource(ctx context.Context, tx *sql.Tx, imageID int) (int, api.Imag
 		return nil
 	}, imageID)
 	if err != nil {
-		return -1, api.ImageSource{}, err
+		return -1, nil, err
 	}
 
 	if len(sources) == 0 {
-		return -1, api.ImageSource{}, api.StatusErrorf(http.StatusNotFound, "Image source not found")
+		return -1, nil, api.StatusErrorf(http.StatusNotFound, "Image source not found")
 	}
 
 	source := sources[0]
 
 	protocol, found := ImageSourceProtocol[source.Protocol]
 	if !found {
-		return -1, api.ImageSource{}, fmt.Errorf("Invalid protocol: %d", source.Protocol)
+		return -1, nil, fmt.Errorf("Invalid protocol: %d", source.Protocol)
 	}
 
-	result := api.ImageSource{
+	result := &api.ImageSource{
 		Server:      source.Server,
 		Protocol:    protocol,
 		Certificate: source.Certificate,
