@@ -161,6 +161,14 @@ import_subdir_files suites
 TEST_DIR=$(mktemp -d -p "$(pwd)" tmp.XXX)
 chmod +x "${TEST_DIR}"
 
+# Verify the dir chain is accessible for other users
+INACCESSIBLE_DIRS="$(namei -m "${TEST_DIR}" | awk '/^ d/ {print $1}' | grep -v 'x$' || true)"
+if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
+    echo "Some directories are not accessible by other users" >&2
+    namei -m "${TEST_DIR}"
+    exit 1
+fi
+
 if [ -n "${LXD_TMPFS:-}" ]; then
   mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=6G
 fi
