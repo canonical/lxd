@@ -1,5 +1,9 @@
 #!/bin/bash
 set -eu
+if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
+    GOPATH="$(go env GOPATH)"
+fi
+
 [ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
 
 # Don't translate lxc output for parsing in it in tests.
@@ -45,7 +49,7 @@ import_subdir_files() {
 import_subdir_files includes
 
 echo "==> Checking for dependencies"
-check_dependencies lxd lxc curl /bin/busybox dnsmasq iptables jq yq git sqlite3 msgmerge msgfmt shuf setfacl setfattr socat swtpm dig
+check_dependencies lxd lxc curl /bin/busybox dnsmasq iptables jq yq git sqlite3 msgmerge msgfmt rsync shuf setfacl setfattr socat swtpm dig
 
 if [ "${USER:-'root'}" != "root" ]; then
   echo "The testsuite must be run as root." >&2
@@ -156,6 +160,14 @@ import_subdir_files suites
 # Setup test directory
 TEST_DIR=$(mktemp -d -p "$(pwd)" tmp.XXX)
 chmod +x "${TEST_DIR}"
+
+# Verify the dir chain is accessible for other users
+INACCESSIBLE_DIRS="$(namei -m "${TEST_DIR}" | awk '/^ d/ {print $1}' | grep -v 'x$' || true)"
+if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
+    echo "Some directories are not accessible by other users" >&2
+    namei -m "${TEST_DIR}"
+    exit 1
+fi
 
 if [ -n "${LXD_TMPFS:-}" ]; then
   mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=6G
