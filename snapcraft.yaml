@@ -1361,6 +1361,7 @@ parts:
       - -Drootfs-mount-path=/var/snap/lxd/common/lxc/
       - -Dseccomp=true
       - -Dselinux=false
+      - -Dspecfile=false
       - -Dtests=false
       - -Dtools=false
     organize:
