@@ -1347,6 +1347,7 @@ parts:
       - ninja-build
     plugin: meson
     meson-parameters:
+      - "--buildtype=release"
       - -Dapparmor=true
       - -Dcapabilities=true
       - -Dcommands=false
