@@ -2577,6 +2577,16 @@ test_clustering_fan() {
   LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 -- ping -c2 -W5 "${IP_C2}"
   LXD_DIR="${LXD_ONE_DIR}" lxc exec c2 -- ping -c2 -W5 "${IP_C1}"
 
+  echo "Check that the DHCP leases are cleaned up post-migration"
+  grep -qF " c1 " "${LXD_ONE_DIR}/networks/${fanbridge}/dnsmasq.leases"
+  lxc stop -f c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc move c1 --target node2
+  lxc start c1
+  if grep -qF " c1 " "${LXD_ONE_DIR}/networks/${fanbridge}/dnsmasq.leases" ; then
+    echo "DHCP lease not released"
+    false
+  fi
+
   echo "Cleaning up"
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1 c2
   LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
