@@ -1341,7 +1341,6 @@ parts:
     build-packages:
       - libapparmor-dev
       - libcap-dev
-      - libdbus-1-dev
       - libseccomp-dev
       - libselinux1-dev
       - pkg-config
@@ -1351,6 +1350,7 @@ parts:
     meson-parameters:
       - -Dapparmor=true
       - -Dcapabilities=true
+      - -Ddbus=false
       - -Dexamples=false
       - -Dman=false
       - -Dmemfd-rexec=false
