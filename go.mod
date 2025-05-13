@@ -49,7 +49,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
-	github.com/vishvananda/netlink v1.3.0
+	github.com/vishvananda/netlink v1.3.1
 	github.com/zitadel/oidc/v3 v3.38.1
 	go.starlark.net v0.0.0-20250417143717-f57e51f710eb
 	go.uber.org/zap v1.27.0
