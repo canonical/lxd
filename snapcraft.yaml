@@ -1349,18 +1349,18 @@ parts:
       - ninja-build
     plugin: meson
     meson-parameters:
-      - -Dprefix=/
+      - -Dapparmor=true
+      - -Dcapabilities=true
       - -Dexamples=false
       - -Dman=false
-      - -Dopenssl=false
-      - -Dtools=false
-      - -Dtests=false
       - -Dmemfd-rexec=false
-      - -Dapparmor=true
+      - -Dopenssl=false
+      - -Dprefix=/
+      - -Drootfs-mount-path=/var/snap/lxd/common/lxc/
       - -Dseccomp=true
       - -Dselinux=true
-      - -Dcapabilities=true
-      - -Drootfs-mount-path=/var/snap/lxd/common/lxc/
+      - -Dtests=false
+      - -Dtools=false
     organize:
       snap/lxd/current/lxc: lxc
       share/lxc/hooks: lxc/hooks
