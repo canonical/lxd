@@ -137,17 +137,15 @@ jobs:
         run: |
           set -eux
 
-          # Build lxc/lxd-agent the same way as done in the snap
-          go build -trimpath -o "/tmp/bin/lxc" github.com/canonical/lxd/lxc
-          CGO_ENABLED=0 go build -trimpath -o "/tmp/bin/lxd-agent" -tags=agent,netgo github.com/canonical/lxd/lxd-agent
-          strip -s /tmp/bin/*
-
           # bin/max (sizes are in MiB)
           SIZES="lxc 16
                  lxd-agent 14"
           MIB="$((1024 * 1024))"
 
+          # Strip a copy of the freshly built binaries and check their size
+          mkdir /tmp/bin
           while read -r bin max; do
+            install --strip "/home/runner/go/bin/${bin}" /tmp/bin/
             cur="$(stat --format=%s "/tmp/bin/${bin}")"
             min=$((max - 1))
             min_mib="$((min * MIB))"
