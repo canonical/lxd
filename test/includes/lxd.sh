@@ -323,6 +323,8 @@ panic_checker() {
   local test_dir daemon_dir
   test_dir="${1}"
 
+  [ -e "${test_dir}/daemons" ] || return
+
   while read -r daemon_dir; do
     deps/panic-checker "${daemon_dir}/lxd.log"
   done < "${test_dir}/daemons"
