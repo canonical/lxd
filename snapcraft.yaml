@@ -1350,6 +1350,7 @@ parts:
     meson-parameters:
       - -Dapparmor=true
       - -Dcapabilities=true
+      - -Dcommands=false
       - -Ddbus=false
       - -Dexamples=false
       - -Dman=false
