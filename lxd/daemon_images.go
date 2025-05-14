@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/canonical/lxd/client"
@@ -80,7 +81,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 	fp := alias
 
 	// Attempt to resolve the alias
-	if shared.ValueInSlice(protocol, []string{"lxd", "simplestreams"}) {
+	if slices.Contains([]string{"lxd", "simplestreams"}, protocol) {
 		clientArgs := &lxd.ConnectionArgs{
 			TLSServerCert: args.Certificate,
 			UserAgent:     version.UserAgent,
@@ -294,7 +295,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 			return info, nil
 		}
 
-		if shared.ValueInSlice(poolID, poolIDs) {
+		if slices.Contains(poolIDs, poolID) {
 			logger.Debug("Image already exists on storage pool", ctxMap)
 			return info, nil
 		}

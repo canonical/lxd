@@ -2908,7 +2908,7 @@ func (c *cmdStorageVolumeImport) run(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		// Validate type flag
-		if !shared.ValueInSlice(c.flagType, []string{"backup", "iso"}) {
+		if !slices.Contains([]string{"backup", "iso"}, c.flagType) {
 			return errors.New("Import type needs to be \"backup\" or \"iso\"")
 		}
 	}

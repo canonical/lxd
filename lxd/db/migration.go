@@ -7,11 +7,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -173,7 +173,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 						continue
 					}
 
-					if column == "key" && shared.ValueInSlice(value, keys) {
+					if column == "key" && slices.Contains(keys, value) {
 						skip = true
 					}
 				}
@@ -201,7 +201,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 					return fmt.Errorf("Failed to convert key to string for row %d in networks_config", i)
 				}
 
-				if !shared.ValueInSlice(key, NodeSpecificNetworkConfig) {
+				if !slices.Contains(NodeSpecificNetworkConfig, key) {
 					nullNodeID = true
 					break
 				}
@@ -225,7 +225,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 					return fmt.Errorf("Failed to convert key to string for row %d in storage_pools_config", i)
 				}
 
-				if !shared.ValueInSlice(key, NodeSpecificStorageConfig) {
+				if !slices.Contains(NodeSpecificStorageConfig, key) {
 					nullNodeID = true
 					break
 				}
@@ -240,7 +240,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 				appendNodeID()
 			}
 
-			if shared.ValueInSlice(table, preClusteringTablesRequiringProjectID) {
+			if slices.Contains(preClusteringTablesRequiringProjectID, table) {
 				// These tables have a project_id reference in the new schema.
 				columns = append(columns, "project_id")
 				row = append(row, 1) // Reference the default project.
@@ -263,7 +263,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 			}
 
 			// Also insert the image ID to node ID association.
-			if shared.ValueInSlice(table, []string{"images", "networks", "storage_pools"}) {
+			if slices.Contains([]string{"images", "networks", "storage_pools"}, table) {
 				entity := table[:len(table)-1]
 				err := importNodeAssociation(entity, columns, row, tx)
 				if err != nil {

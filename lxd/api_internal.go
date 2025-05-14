@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	runtimeDebug "runtime/debug"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -528,7 +529,7 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 
 	database := r.FormValue("database")
 
-	if !shared.ValueInSlice(database, []string{"local", "global"}) {
+	if !slices.Contains([]string{"local", "global"}, database) {
 		return response.BadRequest(errors.New("Invalid database"))
 	}
 
@@ -571,7 +572,7 @@ func internalSQLPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	if !shared.ValueInSlice(req.Database, []string{"local", "global"}) {
+	if !slices.Contains([]string{"local", "global"}, req.Database) {
 		return response.BadRequest(errors.New("Invalid database"))
 	}
 

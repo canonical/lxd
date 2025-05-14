@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -129,7 +130,7 @@ func (c *cmdRemoteAdd) findProject(d lxd.InstanceServer, project string) (string
 			}
 
 			// Deal with multiple projects.
-			if shared.ValueInSlice("default", names) {
+			if slices.Contains(names, "default") {
 				// If we have access to the default project, use it.
 				return "", nil
 			}
@@ -601,13 +602,13 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 
 	// If not specified, the preferred order of authentication is 1) OIDC 2) TLS.
 	if c.flagAuthType == "" {
-		if !srv.Public && shared.ValueInSlice(api.AuthenticationMethodOIDC, srv.AuthMethods) {
+		if !srv.Public && slices.Contains(srv.AuthMethods, api.AuthenticationMethodOIDC) {
 			c.flagAuthType = api.AuthenticationMethodOIDC
 		} else {
 			c.flagAuthType = api.AuthenticationMethodTLS
 		}
 
-		if shared.ValueInSlice(c.flagAuthType, []string{api.AuthenticationMethodOIDC}) {
+		if slices.Contains([]string{api.AuthenticationMethodOIDC}, c.flagAuthType) {
 			// Update the remote configuration
 			remote := conf.Remotes[server]
 			remote.AuthType = c.flagAuthType
@@ -633,7 +634,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if !srv.Public && !shared.ValueInSlice(c.flagAuthType, srv.AuthMethods) {
+	if !srv.Public && !slices.Contains(srv.AuthMethods, c.flagAuthType) {
 		return fmt.Errorf(i18n.G("Authentication type '%s' not supported by server"), c.flagAuthType)
 	}
 

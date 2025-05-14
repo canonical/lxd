@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -20,7 +21,6 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/request"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
@@ -166,7 +166,7 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 		tupleKey.User = string(entity.TypeServer) + ":" + entity.ServerURL().String()
 
 	case entity.TypeInstance:
-		if !shared.ValueInSlice(entityType, []entity.Type{entity.TypeInstanceBackup, entity.TypeInstanceSnapshot}) {
+		if !slices.Contains([]entity.Type{entity.TypeInstanceBackup, entity.TypeInstanceSnapshot}, entityType) {
 			return nil, fmt.Errorf("Received unexpected query, entities of type %q do not have an instance relation", entityType)
 		}
 
@@ -178,7 +178,7 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 		tupleKey.User = string(entity.TypeInstance) + ":" + entity.InstanceURL(projectName, pathArgs[0]).String()
 
 	case entity.TypeStorageVolume:
-		if !shared.ValueInSlice(entityType, []entity.Type{entity.TypeStorageVolumeBackup, entity.TypeStorageVolumeSnapshot}) {
+		if !slices.Contains([]entity.Type{entity.TypeStorageVolumeBackup, entity.TypeStorageVolumeSnapshot}, entityType) {
 			return nil, fmt.Errorf("Received unexpected query, entities of type %q do not have an instance relation", entityType)
 		}
 
@@ -560,7 +560,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 	relationEntityType := entity.Type(filter.Relation)
 
 	// If the relation is "project" or "server", we are listing all resources under the project/server.
-	if shared.ValueInSlice(relationEntityType, []entity.Type{entity.TypeProject, entity.TypeServer, entity.TypeInstance, entity.TypeStorageVolume}) {
+	if slices.Contains([]entity.Type{entity.TypeProject, entity.TypeServer, entity.TypeInstance, entity.TypeStorageVolume}, relationEntityType) {
 		if filter.Relation != string(userEntityType) {
 			// Expect that the user entity type is expected for the relation.
 			return nil, fmt.Errorf("ReadStartingWithUser: Relation %q is not valid for entities of type %q", filter.Relation, userEntityType)

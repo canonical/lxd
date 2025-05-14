@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -291,13 +292,13 @@ func (d *common) validateConfigMap(config map[string]string, rules map[string]fu
 // validateRule validates the rule supplied.
 func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) error {
 	// Validate Action field (required).
-	if !shared.ValueInSlice(rule.Action, ValidActions) {
+	if !slices.Contains(ValidActions, rule.Action) {
 		return fmt.Errorf("Action must be one of: %s", strings.Join(ValidActions, ", "))
 	}
 
 	// Validate State field (required).
 	validStates := []string{"enabled", "disabled", "logged"}
-	if !shared.ValueInSlice(rule.State, validStates) {
+	if !slices.Contains(validStates, rule.State) {
 		return fmt.Errorf("State must be one of: %s", strings.Join(validStates, ", "))
 	}
 
@@ -355,13 +356,13 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 	// Validate Protocol field.
 	if rule.Protocol != "" {
 		validProtocols := []string{"icmp4", "icmp6", "tcp", "udp"}
-		if !shared.ValueInSlice(rule.Protocol, validProtocols) {
+		if !slices.Contains(validProtocols, rule.Protocol) {
 			return fmt.Errorf("Protocol must be one of: %s", strings.Join(validProtocols, ", "))
 		}
 	}
 
 	// Validate protocol dependent fields.
-	if shared.ValueInSlice(rule.Protocol, []string{"tcp", "udp"}) {
+	if slices.Contains([]string{"tcp", "udp"}, rule.Protocol) {
 		if rule.ICMPType != "" {
 			return errors.New("ICMP type cannot be used with non-ICMP protocol")
 		}
@@ -385,7 +386,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 				return fmt.Errorf("Invalid Destination port: %w", err)
 			}
 		}
-	} else if shared.ValueInSlice(rule.Protocol, []string{"icmp4", "icmp6"}) {
+	} else if slices.Contains([]string{"icmp4", "icmp6"}, rule.Protocol) {
 		if rule.SourcePort != "" {
 			return fmt.Errorf("Source port cannot be used with %q protocol", rule.Protocol)
 		}

@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -800,7 +801,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 				// Check if expected snapshot.
 				if strings.Contains(entry, "@snapshot-") {
 					name := strings.Split(entry, "@snapshot-")[1]
-					if shared.ValueInSlice(name, snapshots) {
+					if slices.Contains(snapshots, name) {
 						continue
 					}
 				}
@@ -910,7 +911,7 @@ func (d *zfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser,
 	// 2) Snapshots shouldn't be copied (--instance-only flag)
 	volumeOnly := len(volTargetArgs.Snapshots) == 0
 
-	if shared.ValueInSlice(migration.ZFSFeatureMigrationHeader, volTargetArgs.MigrationType.Features) {
+	if slices.Contains(volTargetArgs.MigrationType.Features, migration.ZFSFeatureMigrationHeader) {
 		// The source will send all of its snapshots with their respective GUID.
 		buf, err := io.ReadAll(conn)
 		if err != nil {
@@ -924,7 +925,7 @@ func (d *zfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser,
 	}
 
 	// If we're refreshing, send back all snapshots of the target.
-	if volTargetArgs.Refresh && shared.ValueInSlice(migration.ZFSFeatureMigrationHeader, volTargetArgs.MigrationType.Features) {
+	if volTargetArgs.Refresh && slices.Contains(volTargetArgs.MigrationType.Features, migration.ZFSFeatureMigrationHeader) {
 		snapshots, err := vol.Volume.Snapshots(op)
 		if err != nil {
 			return fmt.Errorf("Failed getting volume snapshots: %w", err)
@@ -2543,7 +2544,7 @@ func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs 
 	var srcMigrationHeader *ZFSMetaDataHeader
 
 	// The target will validate the GUIDs and if successful proceed with the refresh.
-	if shared.ValueInSlice(migration.ZFSFeatureMigrationHeader, volSrcArgs.MigrationType.Features) {
+	if slices.Contains(volSrcArgs.MigrationType.Features, migration.ZFSFeatureMigrationHeader) {
 		snapshots, err := d.VolumeSnapshots(vol.Volume, op)
 		if err != nil {
 			return err
@@ -2573,14 +2574,14 @@ func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs 
 	}
 
 	// If we haven't negotiated zvol support, ensure volume is not a zvol.
-	if !shared.ValueInSlice(migration.ZFSFeatureZvolFilesystems, volSrcArgs.MigrationType.Features) && d.isBlockBacked(vol.Volume) {
+	if !slices.Contains(volSrcArgs.MigrationType.Features, migration.ZFSFeatureZvolFilesystems) && d.isBlockBacked(vol.Volume) {
 		return errors.New("Filesystem zvol detected in source but target does not support receiving zvols")
 	}
 
 	incrementalStream := true
 	var migrationHeader ZFSMetaDataHeader
 
-	if volSrcArgs.Refresh && shared.ValueInSlice(migration.ZFSFeatureMigrationHeader, volSrcArgs.MigrationType.Features) {
+	if volSrcArgs.Refresh && slices.Contains(volSrcArgs.MigrationType.Features, migration.ZFSFeatureMigrationHeader) {
 		buf, err := io.ReadAll(conn)
 		if err != nil {
 			return fmt.Errorf("Failed reading ZFS migration header: %w", err)
