@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -348,7 +349,7 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Disallow listing resources in projects the caller does not have access to.
-	if !shared.ValueInSlice(request.ProjectParam(r), id.Projects) {
+	if !slices.Contains(id.Projects, request.ProjectParam(r)) {
 		return response.Forbidden(errors.New("Certificate is restricted"))
 	}
 
@@ -432,7 +433,7 @@ func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allow
 	entitlements := strings.Split(rawEntitlements, ",")
 	validEntitlements := make([]auth.Entitlement, 0, len(entitlements))
 	for _, e := range entitlements {
-		if !shared.ValueInSlice(auth.Entitlement(e), allowedEntitlements) {
+		if !slices.Contains(allowedEntitlements, auth.Entitlement(e)) {
 			return nil, api.StatusErrorf(http.StatusBadRequest, "Requested entitlement %q is not valid for entity type %q", e, entityType)
 		}
 
@@ -549,7 +550,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 
 			// The identity type must be in our list of candidate types (e.g. if this certificate is a metrics certificate
 			// and we're on a non-metrics related route).
-			if !shared.ValueInSlice(id.IdentityType, candidateIdentityTypes) {
+			if !slices.Contains(candidateIdentityTypes, id.IdentityType) {
 				return false, "", "", nil, nil
 			}
 
@@ -796,7 +797,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		request.SetCtxValue(r, request.CtxTrusted, trusted)
 
 		// Reject internal queries to remote, non-cluster, clients
-		if version == "internal" && !shared.ValueInSlice(protocol, []string{auth.AuthenticationMethodUnix, auth.AuthenticationMethodCluster}) {
+		if version == "internal" && !slices.Contains([]string{auth.AuthenticationMethodUnix, auth.AuthenticationMethodCluster}, protocol) {
 			// Except for the initial cluster accept request (done over trusted TLS)
 			if !trusted || c.Path != "cluster/accept" || protocol != api.AuthenticationMethodTLS {
 				logger.Warn("Rejecting remote internal API request", logger.Ctx{"ip": r.RemoteAddr})
@@ -1374,7 +1375,7 @@ func (d *Daemon) init() error {
 
 	/* Setup dqlite */
 	clusterLogLevel := "ERROR"
-	if shared.ValueInSlice("dqlite", trace) {
+	if slices.Contains(trace, "dqlite") {
 		clusterLogLevel = "TRACE"
 	}
 
@@ -1467,7 +1468,7 @@ func (d *Daemon) init() error {
 			driver.WithLogFunc(cluster.DqliteLog),
 		}
 
-		if shared.ValueInSlice("database", trace) {
+		if slices.Contains(trace, "database") {
 			options = append(options, driver.WithTracing(dqliteClient.LogDebug))
 		}
 

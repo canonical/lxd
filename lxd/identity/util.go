@@ -3,14 +3,14 @@ package identity
 import (
 	"fmt"
 	"net/http"
+	"slices"
 
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
 // IsFineGrainedIdentityType returns true if permissions of the identity type are managed via group membership.
 func IsFineGrainedIdentityType(identityType string) bool {
-	return shared.ValueInSlice(identityType, []string{api.IdentityTypeOIDCClient, api.IdentityTypeCertificateClient, api.IdentityTypeCertificateClientPending})
+	return slices.Contains([]string{api.IdentityTypeOIDCClient, api.IdentityTypeCertificateClient, api.IdentityTypeCertificateClientPending}, identityType)
 }
 
 // IsRestrictedIdentityType returns whether the given identity is restricted or not. Identity types that are not
@@ -21,7 +21,7 @@ func IsRestrictedIdentityType(identityType string) (bool, error) {
 		return false, err
 	}
 
-	return !shared.ValueInSlice(identityType, []string{api.IdentityTypeCertificateClientUnrestricted, api.IdentityTypeCertificateServer}), nil
+	return !slices.Contains([]string{api.IdentityTypeCertificateClientUnrestricted, api.IdentityTypeCertificateServer}, identityType), nil
 }
 
 // AuthenticationMethodFromIdentityType returns the authentication method corresponding to the given identity type. All
@@ -40,7 +40,7 @@ func AuthenticationMethodFromIdentityType(identityType string) (string, error) {
 // ValidateAuthenticationMethod returns an api.StatusError with http.StatusBadRequest if the given authentication
 // method is not recognised.
 func ValidateAuthenticationMethod(authenticationMethod string) error {
-	if !shared.ValueInSlice(authenticationMethod, []string{api.AuthenticationMethodTLS, api.AuthenticationMethodOIDC}) {
+	if !slices.Contains([]string{api.AuthenticationMethodTLS, api.AuthenticationMethodOIDC}, authenticationMethod) {
 		return api.StatusErrorf(http.StatusBadRequest, "Unrecognized authentication method %q", authenticationMethod)
 	}
 

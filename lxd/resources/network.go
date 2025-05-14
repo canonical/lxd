@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -15,7 +16,6 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/network/openvswitch"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -363,7 +363,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 				card.PCIAddress = pciAddr
 
 				// Skip devices we already know about
-				if shared.ValueInSlice(card.PCIAddress, pciKnown) {
+				if slices.Contains(pciKnown, card.PCIAddress) {
 					continue
 				}
 
@@ -411,7 +411,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 			devicePath := filepath.Join(sysBusPci, entryName)
 
 			// Skip devices we already know about
-			if shared.ValueInSlice(entryName, pciKnown) {
+			if slices.Contains(pciKnown, entryName) {
 				continue
 			}
 

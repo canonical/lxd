@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"slices"
 
 	"github.com/canonical/lxd/lxd/fsmonitor"
 	"github.com/canonical/lxd/lxd/fsmonitor/drivers"
@@ -41,7 +42,7 @@ const (
 
 // isValid returns an error if the GuestAttachSetting is not one of the pre-defined values.
 func validateGuestAttachSetting(guestAttachSetting string) error {
-	if !shared.ValueInSlice(guestAttachSetting, []string{guestAttachSettingOff, guestAttachSettingAvailable, guestAttachSettingOn}) {
+	if !slices.Contains([]string{guestAttachSettingOff, guestAttachSettingAvailable, guestAttachSettingOn}, guestAttachSetting) {
 		return fmt.Errorf("Invalid guest auto-attach setting %q", guestAttachSetting)
 	}
 

@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
@@ -75,7 +75,7 @@ func (c *cmdMonitor) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if !shared.ValueInSlice(c.flagFormat, []string{"json", "pretty", "yaml"}) {
+	if !slices.Contains([]string{"json", "pretty", "yaml"}, c.flagFormat) {
 		return fmt.Errorf(i18n.G("Invalid format: %s"), c.flagFormat)
 	}
 

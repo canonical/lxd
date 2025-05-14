@@ -8,13 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -274,7 +274,7 @@ func getFilesystemMetrics() (map[string]metrics.FilesystemMetrics, error) {
 		}
 
 		// Skip uninteresting mounts
-		if shared.ValueInSlice(fields[2], defFSTypesExcluded) || defMountPointsExcluded.MatchString(fields[1]) {
+		if slices.Contains(defFSTypesExcluded, fields[2]) || defMountPointsExcluded.MatchString(fields[1]) {
 			continue
 		}
 

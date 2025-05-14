@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -16,7 +17,6 @@ import (
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/warnings"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
@@ -236,7 +236,7 @@ func storagePoolDriversCacheUpdate(s *state.State) {
 			Remote:  entry.Remote,
 		})
 
-		if shared.ValueInSlice(entry.Name, drivers) {
+		if slices.Contains(drivers, entry.Name) {
 			usedDrivers[entry.Name] = entry.Version
 		}
 	}

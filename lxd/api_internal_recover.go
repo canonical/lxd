@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
@@ -150,7 +151,7 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 	addDependencyError := func(err error) {
 		errStr := err.Error()
 
-		if !shared.ValueInSlice(errStr, res.DependencyErrors) {
+		if !slices.Contains(res.DependencyErrors, errStr) {
 			res.DependencyErrors = append(res.DependencyErrors, errStr)
 		}
 	}

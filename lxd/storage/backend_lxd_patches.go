@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -11,7 +12,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/storage/drivers"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -165,7 +165,7 @@ DELETE FROM storage_volumes WHERE id IN (
 // the corresponding project name as a prefix.
 func patchBucketNames(b *lxdBackend) error {
 	// Apply patch only for btrfs, dir, lvm, and zfs drivers.
-	if !shared.ValueInSlice(b.driver.Info().Name, []string{"btrfs", "dir", "lvm", "zfs"}) {
+	if !slices.Contains([]string{"btrfs", "dir", "lvm", "zfs"}, b.driver.Info().Name) {
 		return nil
 	}
 
