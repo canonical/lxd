@@ -1152,6 +1152,11 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Disallow deletion of server certificates.
+	if certInfo.Type == certificate.TypeServer {
+		return response.BadRequest(errors.New("Cannot delete a server certificate. Remove the cluster member instead"))
+	}
+
 	var userCanEditCertificate bool
 	err = s.Authorizer.CheckPermission(r.Context(), entity.CertificateURL(certInfo.Fingerprint), auth.EntitlementCanDelete)
 	if err != nil && !auth.IsDeniedError(err) {
