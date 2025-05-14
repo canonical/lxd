@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -61,6 +62,15 @@ func GetPathMode(path string) (os.FileMode, error) {
 // SetSize sets the terminal size to the specified width and height for the given file descriptor.
 func SetSize(fd int, width int, height int) (err error) {
 	var dimensions [4]uint16
+
+	if width > math.MaxUint16 || height > math.MaxUint16 {
+		return fmt.Errorf("Width or height too large: %d %d", width, height)
+	}
+
+	if width < 0 || height < 0 {
+		return fmt.Errorf("Width and height must not be negative: %d %d", width, height)
+	}
+
 	dimensions[0] = uint16(height)
 	dimensions[1] = uint16(width)
 
