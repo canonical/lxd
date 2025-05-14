@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -333,7 +334,7 @@ func ParseLXDFileHeaders(headers http.Header) (*LXDFileHeaders, error) {
 		filetype = "file"
 	}
 
-	if !ValueInSlice(filetype, []string{"file", "symlink", "directory"}) {
+	if !slices.Contains([]string{"file", "symlink", "directory"}, filetype) {
 		return nil, fmt.Errorf("Invalid file type: %q", filetype)
 	}
 
@@ -345,7 +346,7 @@ func ParseLXDFileHeaders(headers http.Header) (*LXDFileHeaders, error) {
 		write = "overwrite"
 	}
 
-	if !ValueInSlice(write, []string{"overwrite", "append"}) {
+	if !slices.Contains([]string{"overwrite", "append"}, write) {
 		return nil, fmt.Errorf("Invalid file write mode: %q", write)
 	}
 
@@ -361,7 +362,7 @@ func ParseLXDFileHeaders(headers http.Header) (*LXDFileHeaders, error) {
 			GIDModifyExisting = GIDModifyExisting || perm == "gid"
 			modeModifyExisting = modeModifyExisting || perm == "mode"
 
-			if !ValueInSlice(perm, []string{"uid", "gid", "mode"}) {
+			if !slices.Contains([]string{"uid", "gid", "mode"}, perm) {
 				return nil, fmt.Errorf("Invalid modify-perm field: %q", perm)
 			}
 		}
@@ -781,7 +782,7 @@ func IsTrue(value string) bool {
 		return true
 	}
 
-	return ValueInSlice(strings.ToLower(value), []string{"true", "yes", "on"})
+	return slices.Contains([]string{"true", "yes", "on"}, strings.ToLower(value))
 }
 
 // IsTrueOrEmpty returns true if value is empty or if IsTrue() returns true.
@@ -795,7 +796,7 @@ func IsFalse(value string) bool {
 		return true
 	}
 
-	return ValueInSlice(strings.ToLower(value), []string{"false", "no", "off"})
+	return slices.Contains([]string{"false", "no", "off"}, strings.ToLower(value))
 }
 
 // IsFalseOrEmpty returns true if value is empty or if IsFalse() returns true.
