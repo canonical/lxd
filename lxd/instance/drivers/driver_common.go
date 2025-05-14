@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -845,7 +846,7 @@ func (d *common) getStartupSnapNameAndExpiry(inst instance.Instance) (string, *t
 	}
 
 	triggers := strings.Split(schedule, ", ")
-	if !shared.ValueInSlice("@startup", triggers) {
+	if !slices.Contains(triggers, "@startup") {
 		return "", nil, nil
 	}
 
@@ -1264,7 +1265,7 @@ func (d *common) needsNewInstanceID(changedConfig []string, oldExpandedDevices d
 		"user.user-data",
 		"user.network-config",
 	} {
-		if shared.ValueInSlice(key, changedConfig) {
+		if slices.Contains(changedConfig, key) {
 			return true
 		}
 	}
@@ -1306,13 +1307,13 @@ func (d *common) needsNewInstanceID(changedConfig []string, oldExpandedDevices d
 	newNames := getNICNames(d.expandedDevices)
 
 	for _, entry := range oldNames {
-		if !shared.ValueInSlice(entry, newNames) {
+		if !slices.Contains(newNames, entry) {
 			return true
 		}
 	}
 
 	for _, entry := range newNames {
-		if !shared.ValueInSlice(entry, oldNames) {
+		if !slices.Contains(oldNames, entry) {
 			return true
 		}
 	}
@@ -1374,7 +1375,7 @@ func (d *common) deviceLoad(inst instance.Instance, deviceName string, rawConfig
 	var err error
 
 	// Create copy of config and load some fields from volatile if device is nic or infiniband.
-	if shared.ValueInSlice(rawConfig["type"], []string{"nic", "infiniband"}) {
+	if slices.Contains([]string{"nic", "infiniband"}, rawConfig["type"]) {
 		configCopy, err = inst.FillNetworkDevice(deviceName, rawConfig)
 		if err != nil {
 			return nil, err

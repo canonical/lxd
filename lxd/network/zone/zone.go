@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -79,7 +80,7 @@ func (d *zone) Info() *api.NetworkZone {
 func (d *zone) networkUsesZone(netConfig map[string]string) bool {
 	for _, key := range []string{"dns.zone.forward", "dns.zone.reverse.ipv4", "dns.zone.reverse.ipv6"} {
 		zoneNames := shared.SplitNTrimSpace(netConfig[key], ",", -1, true)
-		if shared.ValueInSlice(d.info.Name, zoneNames) {
+		if slices.Contains(zoneNames, d.info.Name) {
 			return true
 		}
 	}

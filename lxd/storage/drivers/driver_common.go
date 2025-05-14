@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/backup"
@@ -475,14 +476,14 @@ func (d *common) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *operati
 
 	// Check if the provided list of volume snapshots matches the ones from storage.
 	for _, wantedSnapshotName := range wantedSnapshotNames {
-		if !shared.ValueInSlice(wantedSnapshotName, storageSnapshotNames) {
+		if !slices.Contains(storageSnapshotNames, wantedSnapshotName) {
 			return fmt.Errorf("Snapshot %q expected but not in storage", wantedSnapshotName)
 		}
 	}
 
 	// Check if the snapshots in storage match the ones from the provided list.
 	for _, storageSnapshotName := range storageSnapshotNames {
-		if !shared.ValueInSlice(storageSnapshotName, wantedSnapshotNames) {
+		if !slices.Contains(wantedSnapshotNames, storageSnapshotName) {
 			return fmt.Errorf("Snapshot %q in storage but not expected", storageSnapshotName)
 		}
 	}
@@ -546,7 +547,7 @@ func (d *common) ValidateBucketKey(keyName string, creds S3Credentials, roleName
 	}
 
 	validRoles := []string{"admin", "read-only"}
-	if !shared.ValueInSlice(roleName, validRoles) {
+	if !slices.Contains(validRoles, roleName) {
 		return errors.New("Invalid key role")
 	}
 

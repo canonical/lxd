@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
@@ -113,7 +114,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 		for _, storagePool := range config.StoragePools {
 			// New storagePool.
-			if !shared.ValueInSlice(storagePool.Name, storagePoolNames) {
+			if !slices.Contains(storagePoolNames, storagePool.Name) {
 				err := createStoragePool(storagePool)
 				if err != nil {
 					return nil, err
@@ -254,7 +255,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 		for _, project := range config.Projects {
 			// New project.
-			if !shared.ValueInSlice(project.Name, projectNames) {
+			if !slices.Contains(projectNames, project.Name) {
 				err := createProject(project)
 				if err != nil {
 					return nil, err
@@ -429,7 +430,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 		for _, profile := range config.Profiles {
 			// New profile.
-			if !shared.ValueInSlice(profile.Name, profileNames) {
+			if !slices.Contains(profileNames, profile.Name) {
 				err := createProfile(profile)
 				if err != nil {
 					return nil, err

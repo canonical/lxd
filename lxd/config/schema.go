@@ -3,11 +3,10 @@ package config
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/canonical/lxd/shared"
 )
 
 // Schema defines the available keys of a config Map, along with the types
@@ -102,7 +101,7 @@ func (v *Key) validate(value string) error {
 	switch v.Type {
 	case String:
 	case Bool:
-		if !shared.ValueInSlice(strings.ToLower(value), booleans) {
+		if !slices.Contains(booleans, strings.ToLower(value)) {
 			return errors.New("Invalid boolean")
 		}
 
