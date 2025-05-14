@@ -321,3 +321,31 @@ update-auth:
 			git commit -S -sm "lxd/auth: Update auth" -- ./lxd/auth/;\
 		fi;\
 	fi
+
+.PHONY: sideload-lxc
+sideload-lxc: client
+	sudo install $(GOPATH)/bin/lxc /var/snap/lxd/common/lxc.debug
+
+.PHONY: unload-lxc
+unload-lxc:
+	if [ -e /var/snap/lxd/common/lxc.debug ]; then \
+		sudo rm -f /var/snap/lxd/common/lxc.debug; \
+	fi
+
+.PHONY: sideload-lxd
+sideload-lxd: lxd
+	sudo install $(GOPATH)/bin/lxd /var/snap/lxd/common/lxd.debug
+	sudo systemctl restart snap.lxd.daemon.service
+
+.PHONY: unload-lxd
+unload-lxd:
+	if [ -e /var/snap/lxd/common/lxd.debug ]; then \
+		sudo rm -f /var/snap/lxd/common/lxd.debug; \
+		sudo systemctl restart snap.lxd.daemon.service; \
+	fi
+
+.PHONY: sideload
+sideload: sideload-lxc sideload-lxd
+
+.PHONY: unload
+unload: unload-lxc unload-lxd
