@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -477,7 +478,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Basic parameter validation.
-	if !shared.ValueInSlice(post.Type, []string{instance.ConsoleTypeConsole, instance.ConsoleTypeVGA}) {
+	if !slices.Contains([]string{instance.ConsoleTypeConsole, instance.ConsoleTypeVGA}, post.Type) {
 		return response.BadRequest(fmt.Errorf("Unknown console type %q", post.Type))
 	}
 

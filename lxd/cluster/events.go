@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"time"
 
@@ -323,7 +324,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 
 			// Indicate to any notifiers waiting for this member's address that it is connected.
 			for connected, notifyAddresses := range listenersNotify {
-				if shared.ValueInSlice(m.Address, notifyAddresses) {
+				if slices.Contains(notifyAddresses, m.Address) {
 					close(connected)
 					delete(listenersNotify, connected)
 				}

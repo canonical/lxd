@@ -2,11 +2,11 @@ package device
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/network/acl"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/validate"
 )
 
@@ -673,7 +673,7 @@ func nicCheckNamesUnique(instConf instance.ConfigReader) error {
 			continue
 		}
 
-		if shared.ValueInSlice(devConfig["name"], seenNICNames) {
+		if slices.Contains(seenNICNames, devConfig["name"]) {
 			return fmt.Errorf("Duplicate NIC name detected %q", devConfig["name"])
 		}
 

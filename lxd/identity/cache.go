@@ -4,9 +4,9 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/http"
+	"slices"
 	"sync"
 
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -165,7 +165,7 @@ func (c *Cache) X509Certificates(identityTypes ...string) map[string]x509.Certif
 
 	certificates := make(map[string]x509.Certificate, len(tlsEntries))
 	for _, tlsEntry := range tlsEntries {
-		if (len(identityTypes) == 0 || shared.ValueInSlice(tlsEntry.IdentityType, identityTypes)) && tlsEntry.Certificate != nil {
+		if (len(identityTypes) == 0 || slices.Contains(identityTypes, tlsEntry.IdentityType)) && tlsEntry.Certificate != nil {
 			certificates[tlsEntry.Identifier] = *tlsEntry.Certificate
 		}
 	}

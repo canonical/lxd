@@ -3,6 +3,7 @@ package cloudinit
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v2"
@@ -49,8 +50,8 @@ type Config struct {
 // provided, it is understood that the caller wants the resulting values for both [vendor|user]-data.
 func GetEffectiveConfig(instanceConfig map[string]string, requestedKey string, instanceName string, instanceProject string) (config Config) {
 	// Assign requestedKey according to the type of seed data it refers to.
-	vendorKeyProvided := shared.ValueInSlice(requestedKey, VendorDataKeys)
-	userKeyProvided := shared.ValueInSlice(requestedKey, UserDataKeys)
+	vendorKeyProvided := slices.Contains(VendorDataKeys, requestedKey)
+	userKeyProvided := slices.Contains(UserDataKeys, requestedKey)
 
 	var vendorDataKey string
 	var userDataKey string
@@ -125,7 +126,7 @@ func parseCloudConfig(rawCloudConfig string) (cloudConfig, error) {
 	// Check if rawCloudConfig is in a supported format.
 	// A YAML cloud config without #cloud-config is invalid.
 	// The "#cloud-config" tag can be either on the first or second lines.
-	if rawCloudConfig != "" && !shared.ValueInSlice("#cloud-config", shared.SplitNTrimSpace(rawCloudConfig, "\n", 3, false)) {
+	if rawCloudConfig != "" && !slices.Contains(shared.SplitNTrimSpace(rawCloudConfig, "\n", 3, false), "#cloud-config") {
 		return nil, errors.New(`Parsing configuration is not supported as it is not "#cloud-config"`)
 	}
 
@@ -300,7 +301,7 @@ func addValueToListsInMap(user map[any]any, addedValues []string, fieldKeys []st
 		// Add the keys to the lists that will not be filled with an alias afterwards.
 		// Do not add if the key is already present on the slice and mark added keys.
 		for _, key := range addedValues {
-			if !shared.ValueInSlice(any(key), targetList) {
+			if !slices.Contains(targetList, any(key)) {
 				targetList = append(targetList, key+addedValueTag)
 			}
 		}

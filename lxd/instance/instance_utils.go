@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -136,7 +137,7 @@ func validConfigKey(os *sys.OS, key string, value string, instanceType instancet
 	// Check if the key is a valid prefix and whether or not it requires a subkey.
 	knownPrefixes := append(instancetype.ConfigKeyPrefixesAny, instancetype.ConfigKeyPrefixesContainer...)
 	if strings.HasSuffix(key, ".") {
-		if key != instancetype.ConfigVolatilePrefix && !shared.ValueInSlice(key, knownPrefixes) {
+		if key != instancetype.ConfigVolatilePrefix && !slices.Contains(knownPrefixes, key) {
 			// Not a known prefix.
 			return fmt.Errorf("Unknown configuration key: %q", key)
 		}
@@ -256,12 +257,12 @@ func lxcValidConfig(rawLxc string) error {
 			fields := strings.Split(key, ".")
 
 			// lxc.net.X.ipv4.address or lxc.net.X.ipv6.address
-			if len(fields) == 5 && shared.ValueInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "address" {
+			if len(fields) == 5 && slices.Contains([]string{"ipv4", "ipv6"}, fields[3]) && fields[4] == "address" {
 				continue
 			}
 
 			// lxc.net.X.ipv4.gateway or lxc.net.X.ipv6.gateway
-			if len(fields) == 5 && shared.ValueInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "gateway" {
+			if len(fields) == 5 && slices.Contains([]string{"ipv4", "ipv6"}, fields[3]) && fields[4] == "gateway" {
 				continue
 			}
 
@@ -564,7 +565,7 @@ func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, sou
 // A nil list indicates that we can't tell at this stage, typically for private images.
 func SuitableArchitectures(ctx context.Context, s *state.State, tx *db.ClusterTx, projectName string, sourceInst *cluster.Instance, sourceImageRef string, req api.InstancesPost) ([]int, error) {
 	// Handle cases where the architecture is already provided.
-	if shared.ValueInSlice(req.Source.Type, []string{api.SourceTypeConversion, api.SourceTypeMigration, api.SourceTypeNone}) && req.Architecture != "" {
+	if slices.Contains([]string{api.SourceTypeConversion, api.SourceTypeMigration, api.SourceTypeNone}, req.Source.Type) && req.Architecture != "" {
 		id, err := osarch.ArchitectureId(req.Architecture)
 		if err != nil {
 			return nil, err
@@ -574,7 +575,7 @@ func SuitableArchitectures(ctx context.Context, s *state.State, tx *db.ClusterTx
 	}
 
 	// For migration and conversion, an architecture must be specified in the req.
-	if shared.ValueInSlice(req.Source.Type, []string{api.SourceTypeConversion, api.SourceTypeMigration}) && req.Architecture == "" {
+	if slices.Contains([]string{api.SourceTypeConversion, api.SourceTypeMigration}, req.Source.Type) && req.Architecture == "" {
 		return nil, api.StatusErrorf(http.StatusBadRequest, "An architecture must be specified in migration or conversion requests")
 	}
 
@@ -614,7 +615,7 @@ func SuitableArchitectures(ctx context.Context, s *state.State, tx *db.ClusterTx
 
 			var err error
 			var remote lxd.ImageServer
-			if shared.ValueInSlice(req.Source.Protocol, []string{"", "lxd"}) {
+			if slices.Contains([]string{"", "lxd"}, req.Source.Protocol) {
 				// Remote LXD image server.
 				remote, err = lxd.ConnectPublicLXD(req.Source.Server, &lxd.ConnectionArgs{
 					TLSServerCert: req.Source.Certificate,
@@ -765,7 +766,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 		return nil, nil, nil, err
 	}
 
-	if !shared.ValueInSlice(args.Architecture, s.OS.Architectures) {
+	if !slices.Contains(s.OS.Architectures, args.Architecture) {
 		return nil, nil, nil, errors.New("Requested architecture isn't supported by this host")
 	}
 
@@ -783,7 +784,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 
 	checkedProfiles := map[string]bool{}
 	for _, profile := range args.Profiles {
-		if !shared.ValueInSlice(profile.Name, profiles) {
+		if !slices.Contains(profiles, profile.Name) {
 			return nil, nil, nil, fmt.Errorf("Requested profile %q doesn't exist", profile.Name)
 		}
 

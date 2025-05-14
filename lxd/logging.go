@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -114,7 +115,7 @@ func expireLogs(ctx context.Context, state *state.State) error {
 		}
 
 		// Check if the instance still exists.
-		if shared.ValueInSlice(fi.Name(), names) {
+		if slices.Contains(names, fi.Name()) {
 			instDirEntries, err := os.ReadDir(shared.LogPath(fi.Name()))
 			if err != nil {
 				return err

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -814,7 +815,7 @@ func (n *bridge) Validate(config map[string]string) error {
 	for k, v := range config {
 		key := k
 		// Bridge mode checks
-		if bridgeMode == "fan" && strings.HasPrefix(key, "ipv4.") && !shared.ValueInSlice(key, []string{"ipv4.dhcp.expiry", "ipv4.firewall", "ipv4.nat", "ipv4.nat.order"}) && v != "" {
+		if bridgeMode == "fan" && strings.HasPrefix(key, "ipv4.") && !slices.Contains([]string{"ipv4.dhcp.expiry", "ipv4.firewall", "ipv4.nat", "ipv4.nat.order"}, key) && v != "" {
 			return errors.New("IPv4 configuration may not be set when in 'fan' mode")
 		}
 
@@ -1190,7 +1191,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// IPv6 bridge configuration.
-	if !shared.ValueInSlice(n.config["ipv6.address"], []string{"", "none"}) {
+	if !slices.Contains([]string{"", "none"}, n.config["ipv6.address"]) {
 		if !shared.PathExists("/proc/sys/net/ipv6") {
 			return errors.New("Network has ipv6.address but kernel IPv6 support is missing")
 		}
@@ -1370,7 +1371,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Configure IPv4 firewall (includes fan).
-	if n.config["bridge.mode"] == "fan" || !shared.ValueInSlice(n.config["ipv4.address"], []string{"", "none"}) {
+	if n.config["bridge.mode"] == "fan" || !slices.Contains([]string{"", "none"}, n.config["ipv4.address"]) {
 		if n.hasDHCPv4() && n.hasIPv4Firewall() {
 			fwOpts.FeaturesV4.ICMPDHCPDNSAccess = true
 		}
@@ -1425,7 +1426,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	var ipv4Address net.IP
 
 	// Configure IPv4.
-	if !shared.ValueInSlice(n.config["ipv4.address"], []string{"", "none"}) {
+	if !slices.Contains([]string{"", "none"}, n.config["ipv4.address"]) {
 		var subnet *net.IPNet
 
 		// Parse the subnet.
@@ -1437,7 +1438,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Update the dnsmasq config.
 		dnsmasqCmd = append(dnsmasqCmd, "--listen-address="+ipv4Address.String())
 		if n.DHCPv4Subnet() != nil {
-			if !shared.ValueInSlice("--dhcp-no-override", dnsmasqCmd) {
+			if !slices.Contains(dnsmasqCmd, "--dhcp-no-override") {
 				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", "--dhcp-leasefile=" + shared.VarPath("networks", n.name, "dnsmasq.leases"), "--dhcp-hostsfile=" + shared.VarPath("networks", n.name, "dnsmasq.hosts")}...)
 			}
 
@@ -1554,7 +1555,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	var ipv6Address net.IP
 
 	// Configure IPv6.
-	if !shared.ValueInSlice(n.config["ipv6.address"], []string{"", "none"}) {
+	if !slices.Contains([]string{"", "none"}, n.config["ipv6.address"]) {
 		// Enable IPv6 for the subnet.
 		err := util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", n.name), "0")
 		if err != nil {
@@ -1594,7 +1595,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			}
 
 			// Build DHCP configuration.
-			if !shared.ValueInSlice("--dhcp-no-override", dnsmasqCmd) {
+			if !slices.Contains(dnsmasqCmd, "--dhcp-no-override") {
 				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", "--dhcp-leasefile=" + shared.VarPath("networks", n.name, "dnsmasq.leases"), "--dhcp-hostsfile=" + shared.VarPath("networks", n.name, "dnsmasq.hosts")}...)
 			}
 
@@ -2356,7 +2357,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 		})
 
 		// Bring the bridge down entirely if the driver has changed.
-		if shared.ValueInSlice("bridge.driver", changedKeys) && n.isRunning() {
+		if slices.Contains(changedKeys, "bridge.driver") && n.isRunning() {
 			err = n.Stop()
 			if err != nil {
 				return err
@@ -2364,7 +2365,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 		}
 
 		// Detach any external interfaces should no longer be attached.
-		if shared.ValueInSlice("bridge.external_interfaces", changedKeys) && n.isRunning() {
+		if slices.Contains(changedKeys, "bridge.external_interfaces") && n.isRunning() {
 			devices := []string{}
 			for _, dev := range strings.Split(newNetwork.Config["bridge.external_interfaces"], ",") {
 				dev = strings.TrimSpace(dev)
@@ -2377,7 +2378,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 					continue
 				}
 
-				if !shared.ValueInSlice(dev, devices) && InterfaceExists(dev) {
+				if !slices.Contains(devices, dev) && InterfaceExists(dev) {
 					err = DetachInterface(n.name, dev)
 					if err != nil {
 						return err
@@ -2532,7 +2533,7 @@ func (n *bridge) getTunnels() []string {
 		}
 
 		fields := strings.Split(k, ".")
-		if !shared.ValueInSlice(fields[1], tunnels) {
+		if !slices.Contains(tunnels, fields[1]) {
 			tunnels = append(tunnels, fields[1])
 		}
 	}
@@ -2752,7 +2753,7 @@ func (n *bridge) updateForkdnsServersFile(addresses []string) error {
 func (n *bridge) hasIPv4Firewall() bool {
 	// IPv4 firewall is only enabled if there is a bridge ipv4.address or fan mode, and ipv4.firewall enabled.
 	// When using fan bridge.mode, there can be an empty ipv4.address, so we assume it is active.
-	if (n.config["bridge.mode"] == "fan" || !shared.ValueInSlice(n.config["ipv4.address"], []string{"", "none"})) && shared.IsTrueOrEmpty(n.config["ipv4.firewall"]) {
+	if (n.config["bridge.mode"] == "fan" || !slices.Contains([]string{"", "none"}, n.config["ipv4.address"])) && shared.IsTrueOrEmpty(n.config["ipv4.firewall"]) {
 		return true
 	}
 
@@ -2762,7 +2763,7 @@ func (n *bridge) hasIPv4Firewall() bool {
 // hasIPv6Firewall indicates whether the network has IPv6 firewall enabled.
 func (n *bridge) hasIPv6Firewall() bool {
 	// IPv6 firewall is only enabled if there is a bridge ipv6.address and ipv6.firewall enabled.
-	if !shared.ValueInSlice(n.config["ipv6.address"], []string{"", "none"}) && shared.IsTrueOrEmpty(n.config["ipv6.firewall"]) {
+	if !slices.Contains([]string{"", "none"}, n.config["ipv6.address"]) && shared.IsTrueOrEmpty(n.config["ipv6.firewall"]) {
 		return true
 	}
 
@@ -3689,7 +3690,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 			// Skip leases that don't match any of the instance MACs from the project (only when we
 			// have populated the projectMacs list in ClientTypeNormal mode). Otherwise get all local
 			// leases and they will be filtered on the server handling the end user request.
-			if clientType == request.ClientTypeNormal && macStr != "" && !shared.ValueInSlice(macStr, projectMacs) {
+			if clientType == request.ClientTypeNormal && macStr != "" && !slices.Contains(projectMacs, macStr) {
 				continue
 			}
 
@@ -3732,7 +3733,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 
 			// Add local leases from other members, filtering them for MACs that belong to the project.
 			for _, lease := range memberLeases {
-				if lease.Hwaddr != "" && shared.ValueInSlice(lease.Hwaddr, projectMacs) {
+				if lease.Hwaddr != "" && slices.Contains(projectMacs, lease.Hwaddr) {
 					leasesCh <- lease
 				}
 			}
@@ -3754,7 +3755,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 
 // UsesDNSMasq indicates if network's config indicates if it needs to use dnsmasq.
 func (n *bridge) UsesDNSMasq() bool {
-	return n.config["bridge.mode"] == "fan" || !shared.ValueInSlice(n.config["ipv4.address"], []string{"", "none"}) || !shared.ValueInSlice(n.config["ipv6.address"], []string{"", "none"})
+	return n.config["bridge.mode"] == "fan" || !slices.Contains([]string{"", "none"}, n.config["ipv4.address"]) || !slices.Contains([]string{"", "none"}, n.config["ipv6.address"])
 }
 
 // checkAddressNotInOVNRange checks that a given IP address does not overlap

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -773,7 +774,7 @@ func (c *cmdList) ipv4ColumnData(cInfo api.InstanceFull) string {
 			}
 
 			for _, addr := range net.Addresses {
-				if shared.ValueInSlice(addr.Scope, []string{"link", "local"}) {
+				if slices.Contains([]string{"link", "local"}, addr.Scope) {
 					continue
 				}
 
@@ -799,7 +800,7 @@ func (c *cmdList) ipv6ColumnData(cInfo api.InstanceFull) string {
 			}
 
 			for _, addr := range net.Addresses {
-				if shared.ValueInSlice(addr.Scope, []string{"link", "local"}) {
+				if slices.Contains([]string{"link", "local"}, addr.Scope) {
 					continue
 				}
 

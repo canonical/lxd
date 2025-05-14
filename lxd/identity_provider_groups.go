@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 
 	"github.com/gorilla/mux"
 
@@ -18,7 +19,6 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
@@ -589,7 +589,7 @@ func patchIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, newGroup := range idpGroupPut.Groups {
-			if !shared.ValueInSlice(newGroup, apiIDPGroup.Groups) {
+			if !slices.Contains(apiIDPGroup.Groups, newGroup) {
 				apiIDPGroup.Groups = append(apiIDPGroup.Groups, newGroup)
 			}
 		}

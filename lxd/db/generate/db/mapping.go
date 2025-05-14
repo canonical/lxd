@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 
 	"golang.org/x/tools/go/packages"
@@ -154,7 +155,7 @@ func (m *Mapping) ColumnFields(exclude ...string) []*Field {
 	fields := []*Field{}
 
 	for _, field := range m.Fields {
-		if shared.ValueInSlice(field.Name, exclude) {
+		if slices.Contains(exclude, field.Name) {
 			continue
 		}
 

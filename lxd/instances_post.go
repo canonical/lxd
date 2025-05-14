@@ -1229,7 +1229,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			for {
 				i++
 				req.Name = petname.Generate(2, "-")
-				if !shared.ValueInSlice(req.Name, names) {
+				if !slices.Contains(names, req.Name) {
 					break
 				}
 

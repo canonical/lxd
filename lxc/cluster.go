@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -626,7 +627,7 @@ Are you really sure you want to force removing %s? (yes/no): `), name)
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSuffix(input, "\n")
 
-	if !shared.ValueInSlice(strings.ToLower(input), []string{i18n.G("yes")}) {
+	if !slices.Contains([]string{i18n.G("yes")}, strings.ToLower(input)) {
 		return errors.New(i18n.G("User aborted delete operation"))
 	}
 

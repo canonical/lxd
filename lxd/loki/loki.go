@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -266,7 +267,7 @@ func (c *Client) Stop() {
 
 // HandleEvent handles the event received from the internal event listener.
 func (c *Client) HandleEvent(event api.Event) {
-	if !shared.ValueInSlice(event.Type, c.cfg.types) {
+	if !slices.Contains(c.cfg.types, event.Type) {
 		return
 	}
 
@@ -324,7 +325,7 @@ func (c *Client) HandleEvent(event api.Event) {
 
 		// Add key-value pairs as labels but don't override any labels.
 		for k, v := range context {
-			if shared.ValueInSlice(k, c.cfg.labels) {
+			if slices.Contains(c.cfg.labels, k) {
 				_, ok := entry.labels[k]
 				if !ok {
 					// Label names may not contain any hyphens.
@@ -376,7 +377,7 @@ func (c *Client) HandleEvent(event api.Event) {
 
 		// Add key-value pairs as labels but don't override any labels.
 		for k, v := range context {
-			if shared.ValueInSlice(k, c.cfg.labels) {
+			if slices.Contains(c.cfg.labels, k) {
 				_, ok := entry.labels[k]
 				if !ok {
 					entry.labels[k] = v

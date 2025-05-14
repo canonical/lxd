@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -451,7 +452,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 			}
 
 			// Skip devices not connected to managed networks.
-			if !shared.ValueInSlice(d["parent"], networks) {
+			if !slices.Contains(networks, d["parent"]) {
 				continue
 			}
 
@@ -1401,7 +1402,7 @@ func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 	// Split into <protocol> and <address>.
 	fields := strings.SplitN(data, ":", 2)
 
-	if !shared.ValueInSlice(fields[0], []string{"tcp", "udp", "unix"}) {
+	if !slices.Contains([]string{"tcp", "udp", "unix"}, fields[0]) {
 		return nil, fmt.Errorf("Unknown protocol type %q", fields[0])
 	}
 
@@ -1428,7 +1429,7 @@ func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 	}
 
 	// Validate that it's a valid address.
-	if shared.ValueInSlice(newProxyAddr.ConnType, []string{"udp", "tcp"}) {
+	if slices.Contains([]string{"udp", "tcp"}, newProxyAddr.ConnType) {
 		err := validate.Optional(validate.IsNetworkAddress)(address)
 		if err != nil {
 			return nil, err
@@ -1493,7 +1494,7 @@ func AllowedUplinkNetworks(ctx context.Context, tx *db.ClusterTx, projectConfig 
 	allowedRestrictedUplinks := shared.SplitNTrimSpace(projectConfig["restricted.networks.uplinks"], ",", -1, false)
 
 	for _, allowedRestrictedUplink := range allowedRestrictedUplinks {
-		if shared.ValueInSlice(allowedRestrictedUplink, uplinkNetworkNames) {
+		if slices.Contains(uplinkNetworkNames, allowedRestrictedUplink) {
 			allowedUplinkNetworkNames = append(allowedUplinkNetworkNames, allowedRestrictedUplink)
 		}
 	}

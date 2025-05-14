@@ -8,11 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -266,7 +266,7 @@ WHERE networks.id = ? AND networks.state = ?
 	// Figure which nodes are missing
 	missing := []string{}
 	for _, node := range nodes {
-		if !shared.ValueInSlice(node.Name, defined) {
+		if !slices.Contains(defined, node.Name) {
 			missing = append(missing, node.Name)
 		}
 	}
@@ -849,7 +849,7 @@ func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]str
 		}
 
 		var nodeIDValue any
-		if !shared.ValueInSlice(k, NodeSpecificNetworkConfig) {
+		if !slices.Contains(NodeSpecificNetworkConfig, k) {
 			nodeIDValue = nil
 		} else {
 			nodeIDValue = nodeID

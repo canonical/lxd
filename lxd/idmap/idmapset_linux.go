@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -504,7 +505,7 @@ func (m IdmapSet) ToLxcString() []string {
 	var lines []string
 	for _, e := range m.Idmap {
 		for _, l := range e.ToLxcString() {
-			if !shared.ValueInSlice(l, lines) {
+			if !slices.Contains(lines, l) {
 				lines = append(lines, l)
 			}
 		}

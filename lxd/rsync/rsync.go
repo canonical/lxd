@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -413,18 +414,18 @@ func Recv(path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTrac
 
 func rsyncFeatureArgs(features []string) []string {
 	args := []string{}
-	if shared.ValueInSlice("xattrs", features) {
+	if slices.Contains(features, "xattrs") {
 		args = append(args, "--xattrs")
 		if AtLeast("3.1.3") {
 			args = append(args, "--filter=-x security.selinux")
 		}
 	}
 
-	if shared.ValueInSlice("delete", features) {
+	if slices.Contains(features, "delete") {
 		args = append(args, "--delete")
 	}
 
-	if shared.ValueInSlice("compress", features) {
+	if slices.Contains(features, "compress") {
 		args = append(args, "--compress")
 		args = append(args, "--compress-level=2")
 	}

@@ -8,6 +8,7 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -446,7 +447,7 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 				flush = true
 			}
 
-			if !shared.ValueInSlice(cmd.Name(), []string{"init", "launch"}) {
+			if !slices.Contains([]string{"init", "launch"}, cmd.Name()) {
 				msg := i18n.G(`To start your first container, try: lxc launch ubuntu:24.04
 Or for a virtual machine: lxc launch ubuntu:24.04 --vm`)
 				fmt.Fprintln(os.Stderr, msg)

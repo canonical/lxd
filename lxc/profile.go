@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -925,7 +926,7 @@ func (c *cmdProfileRemove) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if !shared.ValueInSlice(args[1], inst.Profiles) {
+	if !slices.Contains(inst.Profiles, args[1]) {
 		return fmt.Errorf(i18n.G("Profile %s isn't currently applied to %s"), args[1], resource.name)
 	}
 
