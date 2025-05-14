@@ -134,6 +134,7 @@ jobs:
           make
 
       - name: Check lxc/lxd-agent binary sizes
+        if: env.GOCOVERAGE != 'true'
         run: |
           set -eux
 
