@@ -12,7 +12,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
@@ -100,7 +99,7 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 				newDevices[devName][key] = val
 			}
 
-			if shared.ValueInSlice(devName, usedByDevices) {
+			if slices.Contains(usedByDevices, devName) {
 				newDevices[devName]["pool"] = newPoolName
 				newDevices[devName]["source"] = newVol.Name
 			}

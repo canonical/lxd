@@ -3,6 +3,7 @@ package edk2
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/shared"
@@ -156,7 +157,7 @@ func GetAchitectureFirmwareVarsCandidates(hostArch int) (varsNames []string) {
 	for _, installation := range architectureInstallations[hostArch] {
 		for _, usage := range installation.Usage {
 			for _, fwPair := range usage {
-				if !shared.ValueInSlice(fwPair.Vars, varsNames) {
+				if !slices.Contains(varsNames, fwPair.Vars) {
 					varsNames = append(varsNames, fwPair.Vars)
 				}
 			}

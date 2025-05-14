@@ -2,11 +2,10 @@ package load
 
 import (
 	"errors"
+	"slices"
 	"sync"
 
 	"go.starlark.net/starlark"
-
-	"github.com/canonical/lxd/shared"
 )
 
 // nameInstancePlacement is the name used in Starlark for the instance placement scriptlet.
@@ -15,15 +14,7 @@ const nameInstancePlacement = "instance_placement"
 // InstancePlacementCompile compiles the instance placement scriptlet.
 func InstancePlacementCompile(src string) (*starlark.Program, error) {
 	isPreDeclared := func(name string) bool {
-		return shared.ValueInSlice(name, []string{
-			"log_info",
-			"log_warn",
-			"log_error",
-			"set_target",
-			"get_cluster_member_resources",
-			"get_cluster_member_state",
-			"get_instance_resources",
-		})
+		return slices.Contains([]string{"log_info", "log_warn", "log_error", "set_target", "get_cluster_member_resources", "get_cluster_member_state", "get_instance_resources"}, name)
 	}
 
 	// Parse, resolve, and compile a Starlark source file.

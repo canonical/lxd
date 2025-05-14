@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1081,7 +1082,7 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 
 	data := [][]string{}
 	for _, network := range networks {
-		if shared.ValueInSlice(network.Type, []string{"loopback", "unknown"}) {
+		if slices.Contains([]string{"loopback", "unknown"}, network.Type) {
 			continue
 		}
 

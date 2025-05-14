@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -387,7 +388,7 @@ func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (Ins
 		eventListenerManager: newEventListenerManager(ctx),
 	}
 
-	if shared.ValueInSlice(args.AuthType, []string{api.AuthenticationMethodOIDC}) {
+	if slices.Contains([]string{api.AuthenticationMethodOIDC}, args.AuthType) {
 		server.RequireAuthenticated(true)
 	}
 

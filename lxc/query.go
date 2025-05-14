@@ -8,12 +8,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
@@ -73,7 +73,7 @@ func (c *cmdQuery) run(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.G("--project cannot be used with the query command"))
 	}
 
-	if !shared.ValueInSlice(c.flagAction, []string{"GET", "PUT", "POST", "PATCH", "DELETE"}) {
+	if !slices.Contains([]string{"GET", "PUT", "POST", "PATCH", "DELETE"}, c.flagAction) {
 		return fmt.Errorf(i18n.G("Action %q isn't supported by this tool"), c.flagAction)
 	}
 

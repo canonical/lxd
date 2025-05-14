@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/auth"
@@ -184,7 +185,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			for _, lease := range leases {
-				if shared.ValueInSlice(lease.Type, []string{"static", "dynamic", "uplink"}) {
+				if slices.Contains([]string{"static", "dynamic", "uplink"}, lease.Type) {
 					cidrAddr, nat, err := ipToCIDR(lease.Address, netConf)
 					if err != nil {
 						return response.SmartError(err)

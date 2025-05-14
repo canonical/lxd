@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -42,7 +43,7 @@ func DiskMount(srcPath string, dstPath string, recursive bool, propagation strin
 	flags, mountOptionsStr := filesystem.ResolveMountOptions(mountOptions)
 
 	var readonly bool
-	if shared.ValueInSlice("ro", mountOptions) {
+	if slices.Contains(mountOptions, "ro") {
 		readonly = true
 	}
 

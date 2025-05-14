@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -330,7 +331,7 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 			}
 		}
 
-		if shared.ValueInSlice(args.Mode, []string{"push", "relay"}) {
+		if slices.Contains([]string{"push", "relay"}, args.Mode) {
 			if !r.HasExtension("container_push") {
 				return nil, errors.New("The target server is missing the required \"container_push\" API extension")
 			}
@@ -1083,7 +1084,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 	// Process the copy arguments
 	if args != nil {
 		// Quick checks.
-		if shared.ValueInSlice(args.Mode, []string{"push", "relay"}) {
+		if slices.Contains([]string{"push", "relay"}, args.Mode) {
 			if !r.HasExtension("container_push") {
 				return nil, errors.New("The target server is missing the required \"container_push\" API extension")
 			}

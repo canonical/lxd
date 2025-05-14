@@ -218,7 +218,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	// These come from https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt
 	propagationTypes := []string{"", "private", "shared", "slave", "unbindable", "rshared", "rslave", "runbindable", "rprivate"}
 	validatePropagation := func(input string) error {
-		if !shared.ValueInSlice(d.config["bind"], propagationTypes) {
+		if !slices.Contains(propagationTypes, d.config["bind"]) {
 			return fmt.Errorf("Invalid propagation value. Must be one of: %s", strings.Join(propagationTypes, ", "))
 		}
 
@@ -2305,14 +2305,14 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 		for _, block := range blocks {
 			blockStr := ""
 
-			if shared.ValueInSlice(block, validBlocks) {
+			if slices.Contains(validBlocks, block) {
 				// Straightforward entry (full block device)
 				blockStr = block
 			} else {
 				// Attempt to deal with a partition (guess its parent)
 				fields := strings.SplitN(block, ":", 2)
 				fields[1] = "0"
-				if shared.ValueInSlice(fields[0]+":"+fields[1], validBlocks) {
+				if slices.Contains(validBlocks, fields[0]+":"+fields[1]) {
 					blockStr = fields[0] + ":" + fields[1]
 				}
 			}
@@ -2642,7 +2642,7 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 	// The added values are single quoted to prevent rendering `meta-data` unparseable.
 	// Single quotes included in the value itself are escaped by being replaced with `''`.
 	for key, value := range instanceConfig {
-		if strings.HasPrefix(key, "user.") && !shared.ValueInSlice(key, excludedKeys) {
+		if strings.HasPrefix(key, "user.") && !slices.Contains(excludedKeys, key) {
 			metaDataBuilder.WriteString(key + ": '" + strings.ReplaceAll(value, "'", "''") + "'\n")
 		}
 	}

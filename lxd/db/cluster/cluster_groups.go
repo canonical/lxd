@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"database/sql"
+	"slices"
 
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared"
@@ -82,7 +83,7 @@ WHERE projects_config.key = 'restricted.cluster.groups'`
 			return err
 		}
 
-		if shared.ValueInSlice(groupName, shared.SplitNTrimSpace(configValue, ",", -1, false)) {
+		if slices.Contains(shared.SplitNTrimSpace(configValue, ",", -1, false), groupName) {
 			projectURLs = append(projectURLs, entity.ProjectURL(projectName).String())
 		}
 

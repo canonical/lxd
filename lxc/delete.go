@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -49,7 +50,7 @@ func (c *cmdDelete) promptDelete(name string) error {
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSuffix(input, "\n")
 
-	if !shared.ValueInSlice(strings.ToLower(input), []string{i18n.G("yes")}) {
+	if !slices.Contains([]string{i18n.G("yes")}, strings.ToLower(input)) {
 		return errors.New(i18n.G("User aborted delete operation"))
 	}
 
