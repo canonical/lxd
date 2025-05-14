@@ -301,14 +301,6 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		return response.SmartError(err)
 	}
 
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		err := limits.AllowBackupCreation(tx, effectiveProjectName)
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
@@ -321,8 +313,17 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 
 	var dbVolume *db.StorageVolume
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := limits.AllowBackupCreation(tx, effectiveProjectName)
+		if err != nil {
+			return err
+		}
+
 		dbVolume, err = tx.GetStoragePoolVolume(ctx, details.pool.ID(), effectiveProjectName, details.volumeType, details.volumeName, true)
-		return err
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
