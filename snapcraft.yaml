@@ -1341,26 +1341,28 @@ parts:
     build-packages:
       - libapparmor-dev
       - libcap-dev
-      - libdbus-1-dev
       - libseccomp-dev
-      - libselinux1-dev
       - pkg-config
       - meson
       - ninja-build
     plugin: meson
     meson-parameters:
-      - --prefix=/
-      - -Dexamples=false
-      - -Dman=false
-      - -Dopenssl=false
-      - -Dtools=false
-      - -Dtests=false
-      - -Dmemfd-rexec=false
       - -Dapparmor=true
-      - -Dseccomp=true
-      - -Dselinux=true
       - -Dcapabilities=true
+      - -Dcommands=false
+      - -Ddbus=false
+      - -Dexamples=false
+      - -Dinstall-init-files=false
+      - -Dinstall-state-dirs=false
+      - -Dman=false
+      - -Dmemfd-rexec=false
+      - -Dopenssl=false
+      - -Dprefix=/
       - -Drootfs-mount-path=/var/snap/lxd/common/lxc/
+      - -Dseccomp=true
+      - -Dselinux=false
+      - -Dtests=false
+      - -Dtools=false
     organize:
       snap/lxd/current/lxc: lxc
       share/lxc/hooks: lxc/hooks
@@ -1377,6 +1379,10 @@ parts:
       cd ../src
       git config user.email "noreply@lists.canonical.com"
       git config user.name "LXD snap builder"
+
+      # lxc-checkconfig.in does not need any preprocessing
+      mkdir -p bin
+      install --mode=0755 src/lxc/cmd/lxc-checkconfig.in bin/lxc-checkconfig
 
       cd ../build
 
