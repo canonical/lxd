@@ -476,6 +476,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"os"
 	"path/filepath"
@@ -1864,7 +1865,12 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 		return 0
 	}
 
-	instMetrics.Procs = uint16(pids)
+	// Limit process count to MaxUint16 to avoid integer overflow.
+	if pids > math.MaxUint16 {
+		instMetrics.Procs = math.MaxUint16
+	} else {
+		instMetrics.Procs = uint16(pids)
+	}
 
 	// Get instance memory stats.
 	memStats, err := cg.GetMemoryStats()
