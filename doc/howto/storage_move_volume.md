@@ -30,7 +30,7 @@ When copying from one storage pool to another, you can either use the same name 
 
 ````
 ````{group-tab} UI
-To copy a custom storage volume, navigate to the overview page of the storage volume you wish to copy, and click the {guilabel}`Copy` button in the top right.
+To copy a custom storage volume, navigate to the {guilabel}`Overview` page of the storage volume you wish to copy, and click {guilabel}`Copy`.
 
 ```{figure} /images/storage/storage_volumes_overview.png
 :width: 80%
@@ -43,8 +43,6 @@ In the {guilabel}`Copy volume` modal, you can define a new name for the copied v
 :width: 60%
 :alt: LXD Custom Storage Volume copy volume modal
 ```
-
-When you have finished configuring the new storage volume, click {guilabel}`Copy` to finalize the operation.
 
 ````
 `````
@@ -69,7 +67,9 @@ When moving from one storage pool to another, you can either use the same name f
 ````
 ````{group-tab} UI
 
-To rename a custom storage volume, navigate to the overview page of the volume and select its name in the header row to edit it.
+You can use the LXD UI to rename a custom storage volume, but not to move it.
+
+To rename a custom storage volume, navigate to its {guilabel}`Overview` page and select its name in the header to edit it.
 
 ```{figure} /images/storage/storage_volumes_rename.png
 :width: 60%
@@ -79,7 +79,7 @@ To rename a custom storage volume, navigate to the overview page of the volume a
 ````
 `````
 
-## Copy or move between cluster members
+## Copy or migrate between cluster members
 
 `````{tabs}
 ````{group-tab} CLI
@@ -91,11 +91,11 @@ To copy or move a custom storage volume from one cluster member to another, add 
 ````
 ````{group-tab} UI
 
-To copy or move a storage volume between cluster members, open the {guilabel}`Copy volume` modal by navigating to the overview page of the storage volume you wish to copy, and clicking the {guilabel}`Copy` button in the top right.
+You can use the LXD UI to copy storage volumes between cluster members, but not to move them.
+
+To copy a storage volume, navigate to the {guilabel}`Overview` page of the storage volume within a clustered environment, then click {guilabel}`Copy`.
 
 In the {guilabel}`Copy volume` modal, select an alternative cluster member from the {guilabel}`Cluster member` dropdown.
-
-When you have finished configuring the new storage volume, click {guilabel}`Copy` to finalize the operation.
 
 ````
 `````
@@ -110,11 +110,9 @@ Add the `--target-project` to copy or move a custom storage volume to a differen
 ````
 ````{group-tab} UI
 
-To copy or move a storage volume between projects, open the {guilabel}`Copy volume` modal by navigating to the overview page of the storage volume you wish to copy, and clicking the {guilabel}`Copy` button in the top right.
+To copy a storage volume between projects, navigate to the {guilabel}`Overview` page of the storage volume, then click {guilabel}`Copy`.
 
 In the {guilabel}`Copy volume` modal, select an alternative project from the {guilabel}`Target project` dropdown.
-
-When you have finished configuring the new storage volume, click {guilabel}`Copy` to finalize the operation.
 ````
 `````
 
