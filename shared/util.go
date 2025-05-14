@@ -722,17 +722,6 @@ func HasKey[K comparable, V any](key K, m map[K]V) bool {
 	return found
 }
 
-// ValueInSlice returns true if key is in list.
-func ValueInSlice[T comparable](key T, list []T) bool {
-	for _, entry := range list {
-		if entry == key {
-			return true
-		}
-	}
-
-	return false
-}
-
 // StringPrefixInSlice returns true if any element in the list has the given prefix.
 func StringPrefixInSlice(key string, list []string) bool {
 	for _, entry := range list {
