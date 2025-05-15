@@ -5278,6 +5278,18 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 
 // ActivateBucket mounts the local bucket volume and returns the MinIO S3 process for it.
 func (b *lxdBackend) ActivateBucket(projectName string, bucketName string, _ *operations.Operation) (*miniod.Process, error) {
+	var bucket *db.StorageBucket
+	var err error
+
+	// Get the bucket config.
+	err = b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		bucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, true, bucketName)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	if !b.Driver().Info().Buckets {
 		return nil, errors.New("Storage pool does not support buckets")
 	}
@@ -5287,7 +5299,7 @@ func (b *lxdBackend) ActivateBucket(projectName string, bucketName string, _ *op
 	}
 
 	bucketVolName := project.StorageVolume(projectName, bucketName)
-	bucketVol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, nil)
+	bucketVol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, bucket.Config)
 
 	return miniod.EnsureRunning(b.state, bucketVol)
 }
