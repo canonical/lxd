@@ -23,7 +23,7 @@ test_devlxd() {
   lxc config set devlxd security.devlxd.images true
   # Trying to get a private image should return a not found error so that the client can't infer the existence
   # of an image with the provided fingerprint.
-  [ "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" = "not found" ]
+  [ "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" = "Not Found" ]
   lxd sql global "UPDATE images SET cached=1 WHERE fingerprint=\"${fingerprint}\""
   # No output means the export succeeded.
   [ -z "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" ]

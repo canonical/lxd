@@ -21,6 +21,11 @@ func SmartError(err error) Response {
 		return EmptySyncResponse
 	}
 
+	var forwardErr *RequestForwardRequiredError
+	if errors.As(err, &forwardErr) {
+		return forwardErr.ForwardedResponse()
+	}
+
 	statusCode, found := api.StatusErrorMatch(err)
 	if found {
 		return &errorResponse{statusCode, err.Error()}

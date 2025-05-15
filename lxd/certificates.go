@@ -208,7 +208,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 // clusterMemberJoinTokenValid searches for cluster join token that matches the join token provided.
 // Returns matching operation if found and cancels the operation, otherwise returns nil.
 func clusterMemberJoinTokenValid(s *state.State, r *http.Request, projectName string, joinToken *api.ClusterMemberJoinToken) (*api.Operation, error) {
-	ops, err := operationsGetByType(s, r, projectName, operationtype.ClusterJoinToken)
+	ops, err := operationsGetByType(r.Context(), s, projectName, operationtype.ClusterJoinToken)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting cluster join token operations: %w", err)
 	}
@@ -251,7 +251,7 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, projectName st
 
 	if foundOp != nil {
 		// Token is single-use, so cancel it now.
-		err = operationCancel(s, r, projectName, foundOp)
+		err = operationCancel(r.Context(), s, projectName, foundOp)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
 		}
@@ -295,7 +295,7 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, projectName st
 // If an operation is found it is cancelled and the request metadata is returned. If no operation is found then a nil value
 // is returned. An error is only returned if an internal error occurs, or if a token is found but is not valid.
 func certificateTokenValid(s *state.State, r *http.Request, addToken *api.CertificateAddToken) (*api.CertificatesPost, error) {
-	ops, err := operationsGetByType(s, r, api.ProjectDefaultName, operationtype.CertificateAddToken)
+	ops, err := operationsGetByType(r.Context(), s, api.ProjectDefaultName, operationtype.CertificateAddToken)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting certificate token operations: %w", err)
 	}
@@ -338,7 +338,7 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 	}
 
 	// Token is single-use, so cancel it now.
-	err = operationCancel(s, r, api.ProjectDefaultName, foundOp)
+	err = operationCancel(r.Context(), s, api.ProjectDefaultName, foundOp)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
 	}
@@ -661,7 +661,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			meta["expiresAt"] = expiresAt
 		}
 
-		op, err := operations.OperationCreate(s, api.ProjectDefaultName, operations.OperationClassToken, operationtype.CertificateAddToken, nil, meta, nil, nil, nil, r)
+		op, err := operations.OperationCreate(r.Context(), s, api.ProjectDefaultName, operations.OperationClassToken, operationtype.CertificateAddToken, nil, meta, nil, nil, nil)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -753,7 +753,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	// Reload the identity cache to add the new certificate.
 	s.UpdateIdentityCache()
 
-	lc := lifecycle.CertificateCreated.Event(fingerprint, request.CreateRequestor(r), nil)
+	lc := lifecycle.CertificateCreated.Event(fingerprint, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
@@ -1106,7 +1106,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 	// Reload the identity cache.
 	s.UpdateIdentityCache()
 
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateUpdated.Event(dbInfo.Fingerprint, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateUpdated.Event(dbInfo.Fingerprint, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }
@@ -1222,7 +1222,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	// Reload the cache.
 	s.UpdateIdentityCache()
 
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateDeleted.Event(fingerprint, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateDeleted.Event(fingerprint, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }
