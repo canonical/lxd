@@ -248,7 +248,7 @@ func NetworkAllowed(reqProjectConfig map[string]string, networkName string, isMa
 	}
 
 	// Don't allow access to unmanaged networks if only managed network access is allowed.
-	if slices.Contains([]string{"managed", ""}, reqProjectConfig["restricted.devices.nic"]) && !isManaged {
+	if !isManaged && slices.Contains([]string{"managed", ""}, reqProjectConfig["restricted.devices.nic"]) {
 		return false
 	}
 
