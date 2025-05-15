@@ -254,7 +254,7 @@ func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, filterin
 	// If the server entity type is in the list of entity types, or if we are getting all entity types and
 	// not filtering by project, we need to add a server URL to the result. The entity ID of the server entity type is
 	// always zero.
-	if slices.Contains(filteringEntityTypes, entity.TypeServer) || (len(filteringEntityTypes) == 0 && projectName == "") {
+	if (len(filteringEntityTypes) == 0 && projectName == "") || slices.Contains(filteringEntityTypes, entity.TypeServer) {
 		result[entity.TypeServer] = map[int]*api.URL{0: entity.ServerURL()}
 
 		// Return early if there are no other entity types in the list (no queries to execute).
