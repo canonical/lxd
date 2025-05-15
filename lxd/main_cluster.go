@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/canonical/go-dqlite/v2/client"
@@ -35,7 +34,7 @@ func promptConfirmation(prompt string, opname string) error {
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSuffix(input, "\n")
 
-	if !slices.Contains([]string{"yes"}, strings.ToLower(input)) {
+	if strings.ToLower(input) != "yes" {
 		return fmt.Errorf("%s operation aborted", opname)
 	}
 
