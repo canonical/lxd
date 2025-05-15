@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -879,7 +880,7 @@ func filterVolumes(volumes []*db.StorageVolume, clauses *filter.ClauseSet, allPr
 	filtered := []*db.StorageVolume{}
 	for _, volume := range volumes {
 		// Filter out image volumes that are not used by this project.
-		if volume.Type == cluster.StoragePoolVolumeTypeNameImage && !allProjects && !shared.ValueInSlice(volume.Name, filterProjectImages) {
+		if volume.Type == cluster.StoragePoolVolumeTypeNameImage && !allProjects && !slices.Contains(filterProjectImages, volume.Name) {
 			continue
 		}
 
@@ -2015,7 +2016,7 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check that the storage volume type is valid.
-	if !shared.ValueInSlice(details.volumeType, supportedVolumeTypes) {
+	if !slices.Contains(supportedVolumeTypes, details.volumeType) {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
 	}
 
@@ -2124,7 +2125,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check that the storage volume type is valid.
-	if !shared.ValueInSlice(details.volumeType, supportedVolumeTypes) {
+	if !slices.Contains(supportedVolumeTypes, details.volumeType) {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
 	}
 
@@ -2382,7 +2383,7 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check that the storage volume type is valid.
-	if !shared.ValueInSlice(details.volumeType, supportedVolumeTypes) {
+	if !slices.Contains(supportedVolumeTypes, details.volumeType) {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
 	}
 

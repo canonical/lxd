@@ -4,8 +4,8 @@ package auth
 
 import (
 	"fmt"
+	"slices"
 
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/entity"
 )
 
@@ -16,7 +16,7 @@ func ValidateEntitlement(entityType entity.Type, entitlement Entitlement) error 
 		return fmt.Errorf("No entitlements can be granted against entities of type %q", entityType)
 	}
 
-	if !shared.ValueInSlice(entitlement, entitlements) {
+	if !slices.Contains(entitlements, entitlement) {
 		return fmt.Errorf("Entitlement %q not valid for entity type %q", entitlement, entityType)
 	}
 

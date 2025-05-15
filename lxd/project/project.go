@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -247,7 +248,7 @@ func NetworkAllowed(reqProjectConfig map[string]string, networkName string, isMa
 	}
 
 	// Don't allow access to unmanaged networks if only managed network access is allowed.
-	if shared.ValueInSlice(reqProjectConfig["restricted.devices.nic"], []string{"managed", ""}) && !isManaged {
+	if !isManaged && slices.Contains([]string{"managed", ""}, reqProjectConfig["restricted.devices.nic"]) {
 		return false
 	}
 
@@ -258,7 +259,7 @@ func NetworkAllowed(reqProjectConfig map[string]string, networkName string, isMa
 
 	// Check if requested network is in list of allowed networks.
 	allowedRestrictedNetworks := shared.SplitNTrimSpace(reqProjectConfig["restricted.networks.access"], ",", -1, false)
-	return shared.ValueInSlice(networkName, allowedRestrictedNetworks)
+	return slices.Contains(allowedRestrictedNetworks, networkName)
 }
 
 // ProfileProject returns the effective project to use for the profile based on the requested project.

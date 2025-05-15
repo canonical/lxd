@@ -1127,7 +1127,7 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, mappedGroup := range mappedGroups {
-			if !shared.ValueInSlice(mappedGroup, effectiveGroups) {
+			if !slices.Contains(effectiveGroups, mappedGroup) {
 				effectiveGroups = append(effectiveGroups, mappedGroup)
 			}
 		}
@@ -1545,7 +1545,7 @@ func patchIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Ident
 		}
 
 		for _, groupName := range identityPut.Groups {
-			if !shared.ValueInSlice(groupName, apiIdentity.Groups) {
+			if !slices.Contains(apiIdentity.Groups, groupName) {
 				apiIdentity.Groups = append(apiIdentity.Groups, groupName)
 			}
 		}
@@ -1845,7 +1845,7 @@ func updateIdentityCache(d *Daemon) {
 	identityCacheEntries := make([]identity.CacheEntry, 0, len(identities))
 	var localServerCerts []dbCluster.Certificate
 	for _, id := range identities {
-		if !shared.ValueInSlice(string(id.Type), cacheableIdentityTypes) {
+		if !slices.Contains(cacheableIdentityTypes, string(id.Type)) {
 			continue
 		}
 

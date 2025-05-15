@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 
 	"golang.org/x/tools/go/packages"
 
 	"github.com/canonical/lxd/lxd/db/generate/lex"
-	"github.com/canonical/lxd/shared"
 )
 
 // Packages returns the AST packages in which to search for structs.
@@ -105,7 +105,7 @@ func FiltersFromStmt(pkg *packages.Package, kind string, entity string, filters 
 	for _, filterGroup := range stmtFilters {
 		ignoredFilterGroup := []string{}
 		for _, filter := range filters {
-			if !shared.ValueInSlice(filter.Name, filterGroup) {
+			if !slices.Contains(filterGroup, filter.Name) {
 				ignoredFilterGroup = append(ignoredFilterGroup, filter.Name)
 			}
 		}
@@ -137,7 +137,7 @@ func RefFiltersFromStmt(pkg *packages.Package, entity string, ref string, filter
 	for _, filterGroup := range stmtFilters {
 		ignoredFilterGroup := []string{}
 		for _, filter := range filters {
-			if !shared.ValueInSlice(filter.Name, filterGroup) {
+			if !slices.Contains(filterGroup, filter.Name) {
 				ignoredFilterGroup = append(ignoredFilterGroup, filter.Name)
 			}
 		}
@@ -308,8 +308,8 @@ func tableType(pkg *packages.Package, name string, fields []*Field) TableType {
 		}
 	}
 
-	if shared.ValueInSlice("ReferenceID", fieldNames) {
-		if shared.ValueInSlice("Key", fieldNames) && shared.ValueInSlice("Value", fieldNames) {
+	if slices.Contains(fieldNames, "ReferenceID") {
+		if slices.Contains(fieldNames, "Key") && slices.Contains(fieldNames, "Value") {
 			return MapTable
 		}
 
@@ -461,9 +461,9 @@ func parseField(f *ast.Field, kind string) (*Field, error) {
 			stmtKind = "delete"
 		}
 
-		if shared.ValueInSlice(kind, omitFields) || shared.ValueInSlice(stmtKind, omitFields) {
+		if slices.Contains(omitFields, kind) || slices.Contains(omitFields, stmtKind) {
 			return nil, nil
-		} else if kind == "exists" && shared.ValueInSlice("id", omitFields) {
+		} else if kind == "exists" && slices.Contains(omitFields, "id") {
 			// Exists checks ID, so if we are omitting the field from ID, also omit it from Exists.
 			return nil, nil
 		}

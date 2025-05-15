@@ -34,7 +34,7 @@ func promptConfirmation(prompt string, opname string) error {
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSuffix(input, "\n")
 
-	if !shared.ValueInSlice(strings.ToLower(input), []string{"yes"}) {
+	if strings.ToLower(input) != "yes" {
 		return fmt.Errorf("%s operation aborted", opname)
 	}
 

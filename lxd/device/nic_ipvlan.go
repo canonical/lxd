@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -117,7 +118,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		validModes := []string{ipvlanModeL3S, ipvlanModeL2}
-		if !shared.ValueInSlice(value, validModes) {
+		if !slices.Contains(validModes, value) {
 			return fmt.Errorf("Must be one of: %v", strings.Join(validModes, ", "))
 		}
 

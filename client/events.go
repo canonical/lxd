@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/revert"
 )
@@ -258,7 +258,7 @@ func (m *eventListenerManager) getEvents(ctxConnected context.Context, websocket
 			for _, listener := range m.eventListeners[listener.projectName] {
 				listener.targetsLock.Lock()
 				for _, target := range listener.targets {
-					if target.types != nil && !shared.ValueInSlice(event.Type, target.types) {
+					if target.types != nil && !slices.Contains(target.types, event.Type) {
 						continue
 					}
 
