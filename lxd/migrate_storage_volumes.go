@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -178,7 +179,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		// Ensure that only the requested snapshots are included in the migration index header.
 		customVol.Snapshots = make([]*api.StorageVolumeSnapshot, 0, len(volSourceArgs.Snapshots))
 		for i := range allSnapshots {
-			if shared.ValueInSlice(allSnapshots[i].Name, volSourceArgs.Snapshots) {
+			if slices.Contains(volSourceArgs.Snapshots, allSnapshots[i].Name) {
 				customVol.Snapshots = append(customVol.Snapshots, allSnapshots[i])
 			}
 		}

@@ -3,11 +3,11 @@ package events
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
 
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 )
@@ -78,7 +78,7 @@ func (s *DevLXDServer) broadcast(instanceID int, event api.Event) error {
 	s.lock.Lock()
 	listeners := s.listeners
 	for _, listener := range listeners {
-		if !shared.ValueInSlice(event.Type, listener.messageTypes) {
+		if !slices.Contains(listener.messageTypes, event.Type) {
 			continue
 		}
 

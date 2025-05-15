@@ -7,13 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/warningtype"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
@@ -181,7 +181,7 @@ func (c *ClusterTx) createWarning(ctx context.Context, object cluster.Warning) (
 			return -1, fmt.Errorf("Failed to get project names: %w", err)
 		}
 
-		if !shared.ValueInSlice(object.Project, projects) {
+		if !slices.Contains(projects, object.Project) {
 			return -1, fmt.Errorf("Unknown project %q", object.Project)
 		}
 

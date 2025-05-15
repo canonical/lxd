@@ -2,11 +2,10 @@ package metrics
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/canonical/lxd/shared"
 )
 
 // NewMetricSet returns a new MetricSet.
@@ -101,7 +100,7 @@ func (m *MetricSet) String() string {
 	for _, metricType := range metricTypes {
 		// ProcsTotal is a gauge according to the OpenMetrics spec as its value can decrease.
 		metricTypeNameSuffix := " counter\n"
-		if shared.ValueInSlice(metricType, gaugeMetrics) || strings.HasSuffix(MetricNames[metricType], "_bytes") {
+		if slices.Contains(gaugeMetrics, metricType) || strings.HasSuffix(MetricNames[metricType], "_bytes") {
 			metricTypeNameSuffix = " gauge\n"
 		}
 

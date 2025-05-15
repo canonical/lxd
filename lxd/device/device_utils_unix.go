@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -122,7 +123,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 	// Extra checks for nesting.
 	if s.OS.RunningInUserNS {
 		for key, value := range m {
-			if shared.ValueInSlice(key, []string{"major", "minor", "mode", "uid", "gid"}) && value != "" {
+			if slices.Contains([]string{"major", "minor", "mode", "uid", "gid"}, key) && value != "" {
 				return nil, fmt.Errorf("The %q property may not be set when adding a device to a nested container", key)
 			}
 		}

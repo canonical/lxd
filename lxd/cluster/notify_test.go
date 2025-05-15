@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
@@ -70,7 +71,7 @@ func TestNewNotifier(t *testing.T) {
 	}
 	require.NoError(t, err)
 	for i := range addresses {
-		assert.True(t, shared.ValueInSlice(f.Address(i+1), addresses))
+		assert.True(t, slices.Contains(addresses, f.Address(i+1)))
 	}
 }
 

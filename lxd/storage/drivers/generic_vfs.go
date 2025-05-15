@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -168,7 +169,7 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol VolumeCopy, conn io.R
 			return ErrNotSupported
 		}
 	} else if vol.contentType == ContentTypeFS {
-		if !shared.ValueInSlice(volSrcArgs.MigrationType.FSType, []migration.MigrationFSType{migration.MigrationFSType_RSYNC, migration.MigrationFSType_RBD_AND_RSYNC}) {
+		if !slices.Contains([]migration.MigrationFSType{migration.MigrationFSType_RSYNC, migration.MigrationFSType_RBD_AND_RSYNC}, volSrcArgs.MigrationType.FSType) {
 			return ErrNotSupported
 		}
 	}
@@ -306,7 +307,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_BLOCK_AND_RSYNC {
 			return nil, ErrNotSupported
 		}
-	} else if !shared.ValueInSlice(volTargetArgs.MigrationType.FSType, []migration.MigrationFSType{migration.MigrationFSType_RSYNC, migration.MigrationFSType_RBD_AND_RSYNC}) {
+	} else if !slices.Contains([]migration.MigrationFSType{migration.MigrationFSType_RSYNC, migration.MigrationFSType_RBD_AND_RSYNC}, volTargetArgs.MigrationType.FSType) {
 		return nil, ErrNotSupported
 	}
 

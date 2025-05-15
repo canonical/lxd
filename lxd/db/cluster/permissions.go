@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/query"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
@@ -103,7 +103,7 @@ func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Perm
 		entityTypes := make([]EntityType, 0, len(danglingPermissions))
 		for _, perm := range danglingPermissions {
 			permissionIDs = append(permissionIDs, perm.ID)
-			if !shared.ValueInSlice(perm.EntityType, entityTypes) {
+			if !slices.Contains(entityTypes, perm.EntityType) {
 				entityTypes = append(entityTypes, perm.EntityType)
 			}
 		}

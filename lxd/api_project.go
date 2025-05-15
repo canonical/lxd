@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -763,7 +764,7 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 			return fmt.Errorf("Persist profile changes: %w", err)
 		}
 
-		if shared.ValueInSlice("features.profiles", configChanged) {
+		if slices.Contains(configChanged, "features.profiles") {
 			if shared.IsTrue(req.Config["features.profiles"]) {
 				err = projectCreateDefaultProfile(tx, project.Name, "", "")
 				if err != nil {
@@ -778,7 +779,7 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 			}
 		}
 
-		if shared.ValueInSlice("features.images", configChanged) && shared.IsFalse(req.Config["features.images"]) && shared.IsTrue(req.Config["features.profiles"]) {
+		if slices.Contains(configChanged, "features.images") && shared.IsFalse(req.Config["features.images"]) && shared.IsTrue(req.Config["features.profiles"]) {
 			err = cluster.InitProjectWithoutImages(ctx, tx.Tx(), project.Name)
 			if err != nil {
 				return err

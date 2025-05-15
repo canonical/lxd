@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/mail"
+	"slices"
 	"strings"
 	"time"
 
@@ -150,7 +151,7 @@ func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken stri
 
 	// Check that the token includes the configured audience.
 	audience := claims.GetAudience()
-	if o.audience != "" && !shared.ValueInSlice(o.audience, audience) {
+	if o.audience != "" && !slices.Contains(audience, o.audience) {
 		return nil, AuthError{Err: errors.New("Provided OIDC token doesn't allow the configured audience")}
 	}
 

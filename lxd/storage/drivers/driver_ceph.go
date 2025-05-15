@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -421,7 +422,7 @@ func (d *ceph) Validate(config map[string]string) error {
 			continue
 		}
 
-		if oldValue != configOptionValue && shared.ValueInSlice(configOption, immutableOptions) {
+		if oldValue != configOptionValue && slices.Contains(immutableOptions, configOption) {
 			return fmt.Errorf("Cannot update %q", configOption)
 		}
 	}
