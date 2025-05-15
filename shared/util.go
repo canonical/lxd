@@ -356,13 +356,14 @@ func ParseLXDFileHeaders(headers http.Header) (*LXDFileHeaders, error) {
 
 	modifyPermHeader := headers.Get("X-LXD-modify-perm")
 
+	modifyPermFields := []string{"uid", "gid", "mode"}
 	if modifyPermHeader != "" {
 		for _, perm := range strings.Split(modifyPermHeader, ",") {
 			UIDModifyExisting = UIDModifyExisting || perm == "uid"
 			GIDModifyExisting = GIDModifyExisting || perm == "gid"
 			modeModifyExisting = modeModifyExisting || perm == "mode"
 
-			if !slices.Contains([]string{"uid", "gid", "mode"}, perm) {
+			if !slices.Contains(modifyPermFields, perm) {
 				return nil, fmt.Errorf("Invalid modify-perm field: %q", perm)
 			}
 		}
