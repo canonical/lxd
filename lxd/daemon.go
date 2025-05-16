@@ -133,11 +133,13 @@ type Daemon struct {
 	serverCertInt *shared.CertInfo // Do not use this directly, use servertCert func.
 
 	// Status control.
-	startStopLock  sync.Mutex       // Prevent concurrent starts and stops.
-	setupChan      chan struct{}    // Closed when basic Daemon setup is completed
-	waitReady      cancel.Canceller // Cancelled when LXD is fully ready
-	shutdownCtx    cancel.Canceller // Cancelled when shutdown starts.
-	shutdownDoneCh chan error       // Receives the result of the d.Stop() function and tells LXD to end.
+	startStopLock    sync.Mutex       // Prevent concurrent starts and stops.
+	setupChan        chan struct{}    // Closed when basic Daemon setup is completed
+	waitReady        cancel.Canceller // Cancelled when LXD is fully ready
+	waitNetworkReady cancel.Canceller // Closed when all networks are ready.
+	waitStorageReady cancel.Canceller // Closed when all storage pools are ready.
+	shutdownCtx      cancel.Canceller // Cancelled when shutdown starts.
+	shutdownDoneCh   chan error       // Receives the result of the d.Stop() function and tells LXD to end.
 
 	// Device monitor for watching filesystem events
 	devmonitor fsmonitor.FSMonitor
@@ -187,19 +189,21 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	shutdownCtx := cancel.New()
 
 	d := &Daemon{
-		identityCache:  &identity.Cache{},
-		config:         config,
-		devLXDEvents:   devLXDEvents,
-		events:         lxdEvents,
-		tasks:          task.NewGroup(),
-		clusterTasks:   task.NewGroup(),
-		db:             &db.DB{},
-		http01Provider: acme.NewHTTP01Provider(),
-		os:             os,
-		setupChan:      make(chan struct{}),
-		waitReady:      cancel.New(),
-		shutdownCtx:    shutdownCtx,
-		shutdownDoneCh: make(chan error),
+		identityCache:    &identity.Cache{},
+		config:           config,
+		devLXDEvents:     devLXDEvents,
+		events:           lxdEvents,
+		tasks:            task.NewGroup(),
+		clusterTasks:     task.NewGroup(),
+		db:               &db.DB{},
+		http01Provider:   acme.NewHTTP01Provider(),
+		os:               os,
+		setupChan:        make(chan struct{}),
+		waitReady:        cancel.New(),
+		waitNetworkReady: cancel.New(),
+		waitStorageReady: cancel.New(),
+		shutdownCtx:      shutdownCtx,
+		shutdownDoneCh:   make(chan error),
 	}
 
 	d.serverCert = func() *shared.CertInfo { return d.serverCertInt }
@@ -698,6 +702,8 @@ func (d *Daemon) State() *state.State {
 		StartTime:           d.startTime,
 		Authorizer:          d.authorizer,
 		UbuntuPro:           d.ubuntuPro,
+		NetworkReady:        d.waitNetworkReady,
+		StorageReady:        d.waitStorageReady,
 	}
 
 	s.LeaderInfo = func() (*state.LeaderInfo, error) {
