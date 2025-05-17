@@ -115,5 +115,5 @@ echo ""
 
 echo "# Systemd log (last 50 lines)"
 echo '```'
-nsenter -t 1 -m journalctl -u snap.lxd.daemon -n50 | cat
+nsenter -t 1 -m journalctl --no-pager -u snap.lxd.daemon -n50
 echo '```'
