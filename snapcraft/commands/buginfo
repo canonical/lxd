@@ -31,7 +31,6 @@ fi
 echo " - Kernel version: $(uname -a)"
 echo " - LXC version: $(lxc --version)"
 echo " - LXD version: $(lxd --version)"
-echo " - Snap revision: ${SNAP_REVISION}"
 echo ""
 
 echo "# Detailed snap information"
