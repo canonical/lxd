@@ -248,8 +248,8 @@ test_clustering_membership() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node5 | grep -q "node5"
 
   # Client certificate are shared across all nodes.
-  lxc remote add cluster 10.1.1.101:8443 --accept-certificate --password=sekret
-  lxc remote set-url cluster https://10.1.1.102:8443
+  lxc remote add cluster 100.64.1.101:8443 --accept-certificate --password=sekret
+  lxc remote set-url cluster https://100.64.1.102:8443
   lxc network list cluster: | grep -q "${bridge}"
   lxc remote remove cluster
 
@@ -815,7 +815,7 @@ test_clustering_storage() {
 
     # Manually send the join request.
     cert=$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_ONE_DIR}/cluster.crt")
-    op=$(curl --unix-socket "${LXD_THREE_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"node3\",\"enabled\":true,\"member_config\":[${member_config}],\"server_address\":\"10.1.1.103:8443\",\"cluster_address\":\"10.1.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_password\":\"sekret\"}" | jq -r .operation)
+    op=$(curl --unix-socket "${LXD_THREE_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"node3\",\"enabled\":true,\"member_config\":[${member_config}],\"server_address\":\"100.64.1.103:8443\",\"cluster_address\":\"100.64.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_password\":\"sekret\"}" | jq -r .operation)
     curl --unix-socket "${LXD_THREE_DIR}/unix.socket" "lxd${op}/wait"
 
     # Ensure that node-specific config appears on all nodes,
@@ -1866,7 +1866,7 @@ test_clustering_update_cert_token() {
   cmp -s "${LXD_TWO_DIR}/cluster.key" "${key_path}"
 
   # Verify the token with the wrong cert fingerprint is not usable due to the fingerprint mismatch
-  url="https://10.1.1.101:8443"
+  url="https://100.64.1.101:8443"
   ! lxc remote add cluster "${token}" || false
   [ "$(DEBUG="" lxc remote add cluster "${token}" 2>&1)" = "Error: Certificate fingerprint mismatch between certificate token and server \"${url}\"" ]
   ! lxc remote add cluster --token "${token}" "${url}" || false
@@ -1917,16 +1917,16 @@ test_clustering_join_api() {
   # Check a server with the name 'valid' cannot be joined when modifying the token.
   # Therefore replace the valid name in the token with 'none'.
   malicious_token="$(lxc cluster add valid --quiet | base64 -d | jq '.server_name |= "none"' | base64 --wrap=0)"
-  op=$(curl --unix-socket "${LXD_TWO_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"valid\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"10.1.1.102:8443\",\"cluster_address\":\"10.1.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_token\":\"${malicious_token}\"}" | jq -r .operation)
+  op=$(curl --unix-socket "${LXD_TWO_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"valid\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"100.64.1.102:8443\",\"cluster_address\":\"100.64.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_token\":\"${malicious_token}\"}" | jq -r .operation)
   [ "$(curl --unix-socket "${LXD_TWO_DIR}/unix.socket" "lxd${op}/wait" | jq '.error_code')" = "403" ]
 
   # Check that the server cannot be joined using a valid token by changing it's name to 'none'.
   token="$(lxc cluster add valid2 --quiet)"
-  [ "$(curl --unix-socket "${LXD_TWO_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"none\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"10.1.1.102:8443\",\"cluster_address\":\"10.1.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_token\":\"${token}\"}" | jq -r '.error_code')" = "400" ]
+  [ "$(curl --unix-socket "${LXD_TWO_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"none\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"100.64.1.102:8443\",\"cluster_address\":\"100.64.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_token\":\"${token}\"}" | jq -r '.error_code')" = "400" ]
 
   # Check the server can be joined.
   token="$(lxc cluster add node2 --quiet)"
-  op=$(curl --unix-socket "${LXD_TWO_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"node2\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"10.1.1.102:8443\",\"cluster_address\":\"10.1.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_token\":\"${token}\"}" | jq -r .operation)
+  op=$(curl --unix-socket "${LXD_TWO_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"node2\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"100.64.1.102:8443\",\"cluster_address\":\"100.64.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_token\":\"${token}\"}" | jq -r .operation)
   curl --unix-socket "${LXD_TWO_DIR}/unix.socket" "lxd${op}/wait"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: Fully operational"
@@ -1938,10 +1938,10 @@ test_clustering_join_api() {
   LXD_NETNS="${ns3}" spawn_lxd "${LXD_THREE_DIR}" false
 
   # Check the server cannot be joined using password by changing it's name to 'none'.
-  [ "$(curl --unix-socket "${LXD_THREE_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"none\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"10.1.1.103:8443\",\"cluster_address\":\"10.1.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_password\":\"sekret\"}" | jq -r '.error_code')" = "400" ]
+  [ "$(curl --unix-socket "${LXD_THREE_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"none\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"100.64.1.103:8443\",\"cluster_address\":\"100.64.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_password\":\"sekret\"}" | jq -r '.error_code')" = "400" ]
 
   # Check the server can be joined using password.
-  op=$(curl --unix-socket "${LXD_THREE_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"node3\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"10.1.1.103:8443\",\"cluster_address\":\"10.1.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_password\":\"sekret\"}" | jq -r .operation)
+  op=$(curl --unix-socket "${LXD_THREE_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"node3\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"100.64.1.103:8443\",\"cluster_address\":\"100.64.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_password\":\"sekret\"}" | jq -r .operation)
   curl --unix-socket "${LXD_THREE_DIR}/unix.socket" "lxd${op}/wait"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -q "message: Fully operational"
@@ -2190,7 +2190,7 @@ test_clustering_address() {
 
   # Add a remote using the core.https_address of the bootstrap node, and check
   # that the REST API is exposed.
-  url="https://10.1.1.101:8443"
+  url="https://100.64.1.101:8443"
   lxc remote add cluster --password sekret --accept-certificate "${url}"
   lxc storage list cluster: | grep -q data
 
@@ -2211,13 +2211,13 @@ test_clustering_address() {
 
   # The core.https_address config value can be changed and the REST API is still
   # accessible.
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set "core.https_address" 10.1.1.101:9999
-  url="https://10.1.1.101:9999"
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set "core.https_address" 100.64.1.101:9999
+  url="https://100.64.1.101:9999"
   lxc remote set-url cluster "${url}"
   lxc storage list cluster:| grep -q data
 
   # The cluster.https_address config value can't be changed.
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc config set "cluster.https_address" "10.1.1.101:8448" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config set "cluster.https_address" "100.64.1.101:8448" || false
 
   # Create a container using the REST API exposed over core.https_address.
   LXD_DIR="${LXD_ONE_DIR}" deps/import-busybox --alias testimage
@@ -2523,7 +2523,7 @@ test_clustering_fan() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${fanbridge}"
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network get "${fanbridge}" bridge.mode)" = "fan" ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network get "${fanbridge}" dns.domain)" = "fantastic" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network get "${fanbridge}" fan.underlay_subnet)" = "10.1.0.0/16" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network get "${fanbridge}" fan.underlay_subnet)" = "100.64.0.0/16" ]
 
   echo "Create 2 containers"
   LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 testimage c1 -d "${SMALL_ROOT_DISK}" -n "${fanbridge}"
@@ -2593,9 +2593,9 @@ test_clustering_recover() {
   sleep 5
 
   # Check the current database nodes
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "10.1.1.101:8443"
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "10.1.1.102:8443"
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "10.1.1.103:8443"
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "100.64.1.101:8443"
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "100.64.1.102:8443"
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "100.64.1.103:8443"
 
   # Create a test project, just to insert something in the database.
   LXD_DIR="${LXD_ONE_DIR}" lxc project create p1
@@ -2617,8 +2617,8 @@ test_clustering_recover() {
   LXD_DIR="${LXD_ONE_DIR}" lxc project list | grep -qwF p1
 
   # The database nodes have been updated
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "10.1.1.101:8443"
-  ! LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "10.1.1.102:8443" || false
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "100.64.1.101:8443"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "100.64.1.102:8443" || false
 
   # Cleanup the dead node.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2 --force --yes
@@ -2897,7 +2897,7 @@ test_clustering_remove_raft_node() {
   # Remove the second node from the database but not from the raft configuration.
   retries=10
   while [ "${retries}" != "0" ]; do
-    LXD_DIR="${LXD_ONE_DIR}" lxd sql global "DELETE FROM nodes WHERE address = '10.1.1.102:8443'" && break
+    LXD_DIR="${LXD_ONE_DIR}" lxd sql global "DELETE FROM nodes WHERE address = '100.64.1.102:8443'" && break
     sleep 0.5
     retries=$((retries-1))
   done
@@ -2920,11 +2920,11 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database$"
 
   # The second node is still in the raft_nodes table.
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes WHERE address = '10.1.1.102:8443'")" = 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 1 ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes")" = 4 ]
 
   # Force removing the raft node.
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster remove-raft-node -q "10.1.1.102"
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster remove-raft-node -q "100.64.1.102"
 
   # Wait for a heartbeat to propagate and a rebalance to be performed.
   sleep 12
@@ -2936,9 +2936,8 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database$"
 
   # The second node is gone from the raft_nodes_table.
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes WHERE address = '10.1.1.102:8443'")" = 0 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 0 ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes")" = 3 ]
-
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
@@ -3101,11 +3100,11 @@ test_clustering_image_refresh() {
   dir_configure "${LXD_REMOTE_DIR}"
   LXD_DIR="${LXD_REMOTE_DIR}" deps/import-busybox --alias testimage --public
 
-  LXD_DIR="${LXD_REMOTE_DIR}" lxc config set core.https_address "10.1.1.104:8443"
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc config set core.https_address "100.64.1.104:8443"
 
   # Add remotes
-  lxc remote add public "https://10.1.1.104:8443" --accept-certificate --password foo --public
-  lxc remote add cluster "https://10.1.1.101:8443" --accept-certificate --password sekret
+  lxc remote add public "https://100.64.1.104:8443" --accept-certificate --password foo --public
+  lxc remote add cluster "https://100.64.1.101:8443" --accept-certificate --password sekret
 
   LXD_DIR="${LXD_REMOTE_DIR}" lxc init testimage c1
 
@@ -3816,7 +3815,7 @@ test_clustering_groups() {
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
 
-  lxc remote add cluster --password sekret --accept-certificate "https://10.1.1.101:8443"
+  lxc remote add cluster --password sekret --accept-certificate "https://100.64.1.101:8443"
 
   # Initially, there is only the default group
   lxc cluster group show cluster:default
