@@ -44,8 +44,8 @@ test_clustering_move() {
 
   # Set up a fine-grained TLS identity.
   token="$(LXD_DIR=${LXD_ONE_DIR} lxc auth identity create tls/test --quiet)"
-  lxc remote add cluster 10.1.1.101:8443 --token="${token}"
-  lxc remote set-url cluster https://10.1.1.102:8443
+  lxc remote add cluster 100.64.1.101:8443 --token="${token}"
+  lxc remote set-url cluster https://100.64.1.102:8443
 
   # Make the identity a member of a group that has minimal permissions for moving the instances.
   LXD_DIR=${LXD_ONE_DIR} lxc auth group create instance-movers
