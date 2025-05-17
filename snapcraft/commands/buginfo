@@ -31,12 +31,11 @@ fi
 echo " - Kernel version: $(uname -a)"
 echo " - LXC version: $(lxc --version)"
 echo " - LXD version: $(lxd --version)"
-echo " - Snap revision: ${SNAP_REVISION}"
 echo ""
 
 echo "# Detailed snap information"
 echo '```'
-nsenter -t 1 -m snap info lxd
+nsenter -t 1 -m snap list --all lxd core20 core22 core24 snapd
 echo '```'
 echo ""
 
@@ -116,5 +115,5 @@ echo ""
 
 echo "# Systemd log (last 50 lines)"
 echo '```'
-nsenter -t 1 -m journalctl -u snap.lxd.daemon -n50 | cat
+nsenter -t 1 -m journalctl --no-pager -u snap.lxd.daemon -n50
 echo '```'
