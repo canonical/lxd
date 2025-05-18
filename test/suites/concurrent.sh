@@ -29,5 +29,5 @@ test_concurrent() {
     wait "${pid}"
   done
 
-  ! lxc list | grep -q concurrent || false
+  ! lxc list | grep -F concurrent || false
 }
