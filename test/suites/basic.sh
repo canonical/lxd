@@ -26,10 +26,10 @@ test_basic_usage() {
   # Test alias list filtering
   lxc image alias create foo "${sum}"
   lxc image alias create bar "${sum}"
-  lxc image alias list local: | grep -q foo
-  lxc image alias list local: | grep -q bar
+  lxc image alias list local: | grep -wF foo
+  lxc image alias list local: | grep -wF bar
   lxc image alias list local: foo | grep -q -v bar
-  lxc image alias list local: "${sum}" | grep -q foo
+  lxc image alias list local: "${sum}" | grep -wF foo
   lxc image alias list local: non-existent | grep -q -v non-existent
   lxc image alias delete foo
   lxc image alias delete bar
@@ -40,10 +40,10 @@ test_basic_usage() {
   lxc image alias delete bar
 
   # Test image list output formats (table & json)
-  lxc image list --format table | grep -q testimage
+  lxc image list --format table | grep -wF testimage
   lxc image list --format json \
     | jq '.[]|select(.alias[0].name="testimage")' \
-    | grep -q '"name": "testimage"'
+    | grep -F '"name": "testimage"'
 
   # Test image delete
   lxc image delete testimage
@@ -55,8 +55,8 @@ test_basic_usage() {
   # Re-import the image
   mv "${LXD_DIR}/${sum}.tar.xz" "${LXD_DIR}/testimage.tar.xz"
   lxc image import "${LXD_DIR}/testimage.tar.xz" --alias testimage user.foo=bar --public
-  lxc image show testimage | grep -qF "user.foo: bar"
-  lxc image show testimage | grep -qF "public: true"
+  [ "$(lxc image get-property testimage user.foo)" = "bar" ]
+  lxc image show testimage | grep -xF "public: true"
   lxc image delete testimage
   lxc image import "${LXD_DIR}/testimage.tar.xz" --alias testimage
   rm "${LXD_DIR}/testimage.tar.xz"
@@ -309,7 +309,7 @@ test_basic_usage() {
     # shellcheck disable=SC2030
     LXD_DIR=${LXD_ACTIVATION_DIR}
     ensure_import_testimage
-    lxd activateifneeded --debug 2>&1 | grep -qF "Daemon has core.https_address set, activating..."
+    lxd activateifneeded --debug 2>&1 | grep -F "Daemon has core.https_address set, activating..."
     lxc config unset core.https_address --force-local
     lxd activateifneeded --debug 2>&1 | grep -qF -v "activating..."
     lxc init testimage autostart --force-local
@@ -321,7 +321,7 @@ test_basic_usage() {
     respawn_lxd "${LXD_DIR}" true
     lxc stop --force autostart --force-local
 
-    lxd activateifneeded --debug 2>&1 | grep -qF "Daemon has auto-started instances, activating..."
+    lxd activateifneeded --debug 2>&1 | grep -F "Daemon has auto-started instances, activating..."
 
     lxc config unset autostart boot.autostart --force-local
     lxd activateifneeded --debug 2>&1 | grep -qF -v "activating..."
@@ -331,18 +331,18 @@ test_basic_usage() {
     shutdown_lxd "${LXD_DIR}"
     [ -d "/proc/${PID}" ] && false
 
-    lxd activateifneeded --debug 2>&1 | grep -qF "Daemon has auto-started instances, activating..."
+    lxd activateifneeded --debug 2>&1 | grep -F "Daemon has auto-started instances, activating..."
 
     # shellcheck disable=SC2031
     respawn_lxd "${LXD_DIR}" true
 
-    lxc list --force-local autostart | grep -q RUNNING
+    lxc list --force-local autostart | grep -wF RUNNING
 
     # Check for scheduled instance snapshots
     lxc stop --force autostart --force-local
     lxc config set autostart snapshots.schedule "* * * * *" --force-local
     shutdown_lxd "${LXD_DIR}"
-    lxd activateifneeded --debug 2>&1 | grep -qF "Daemon has scheduled instance snapshots, activating..."
+    lxd activateifneeded --debug 2>&1 | grep -F "Daemon has scheduled instance snapshots, activating..."
 
     # shellcheck disable=SC2031
     respawn_lxd "${LXD_DIR}" true
@@ -363,7 +363,7 @@ test_basic_usage() {
     lxc storage volume set "${storage_pool}" vol snapshots.schedule="* * * * *" --force-local
 
     shutdown_lxd "${LXD_DIR}"
-    lxd activateifneeded --debug 2>&1 | grep -qF "Daemon has scheduled volume snapshots, activating..."
+    lxd activateifneeded --debug 2>&1 | grep -F "Daemon has scheduled volume snapshots, activating..."
 
     # shellcheck disable=SC2031
     respawn_lxd "${LXD_DIR}" true
@@ -380,7 +380,7 @@ test_basic_usage() {
   lxc list | grep foo | grep RUNNING
   lxc stop foo --force
 
-  if lxc info | grep -q 'unpriv_binfmt: "true"'; then
+  if lxc info | grep -F 'unpriv_binfmt: "true"'; then
     # Test binfmt_misc support
     lxc start foo
     lxc exec foo -- mount -t binfmt_misc none /proc/sys/fs/binfmt_misc
@@ -512,13 +512,13 @@ test_basic_usage() {
 
     if [ "${MAJOR}" -gt "1" ] || { [ "${MAJOR}" = "1" ] && [ "${MINOR}" -ge "2" ]; }; then
       aa_namespace="lxd-lxd-apparmor-test_<$(echo "${LXD_DIR}" | sed -e 's/\//-/g' -e 's/^.//')>"
-      aa-status | grep -q ":${aa_namespace}:unconfined" || aa-status | grep -qF ":${aa_namespace}://unconfined"
+      aa-status | grep -F ":${aa_namespace}:unconfined" || aa-status | grep -F ":${aa_namespace}://unconfined"
       lxc stop lxd-apparmor-test --force
-      ! aa-status | grep -qF ":${aa_namespace}:" || false
+      ! aa-status | grep -F ":${aa_namespace}:" || false
     else
       aa-status | grep "lxd-lxd-apparmor-test_<${LXD_DIR}>"
       lxc stop lxd-apparmor-test --force
-      ! aa-status | grep -qF "lxd-lxd-apparmor-test_<${LXD_DIR}>" || false
+      ! aa-status | grep -F "lxd-lxd-apparmor-test_<${LXD_DIR}>" || false
     fi
     lxc delete lxd-apparmor-test
     [ ! -f "${LXD_DIR}/security/apparmor/profiles/lxd-lxd-apparmor-test" ]
@@ -568,9 +568,9 @@ test_basic_usage() {
   lxc publish --force c3 --alias=image3
   # Delete multiple images with lxc delete and confirm they're deleted
   lxc image delete local:image1 local:image2 local:image3
-  ! lxc image list | grep -q image1 || false
-  ! lxc image list | grep -q image2 || false
-  ! lxc image list | grep -q image3 || false
+  ! lxc image list | grep -wF image1 || false
+  ! lxc image list | grep -wF image2 || false
+  ! lxc image list | grep -wF image3 || false
   # Cleanup the containers
   lxc delete --force c1 c2 c3
 
@@ -623,7 +623,7 @@ test_basic_usage() {
 
   lxc restart -f foo
   lxc stop foo --force
-  ! lxc list | grep -q foo || false
+  ! lxc list | grep -wF foo || false
 
   # Test renaming/deletion of the default profile
   ! lxc profile rename default foobar || false
@@ -687,7 +687,7 @@ test_basic_usage() {
   # Test rebuilding an instance with an empty file system.
   lxc init testimage c1
   lxc rebuild c1 --empty
-  ! lxc config show c1 | grep -q 'image.*' || false
+  ! lxc config show c1 | grep -F 'image.' || false
   lxc delete c1 -f
 
   # Test assigning an empty profile (with no root disk device) to an instance.
