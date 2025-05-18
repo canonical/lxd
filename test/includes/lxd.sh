@@ -300,12 +300,6 @@ wipe() {
         fi
     fi
 
-    local pid
-    # shellcheck disable=SC2009
-    ps aux | grep lxc-monitord | grep "${1}" | awk '{print $2}' | while read -r pid; do
-        kill -9 "${pid}" || true
-    done
-
     if mountpoint -q "${1}"; then
         umount -l "${1}"
     fi
