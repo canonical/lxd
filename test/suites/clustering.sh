@@ -10,7 +10,7 @@ test_clustering_enable() {
     # shellcheck disable=SC2034,SC2030
     LXD_DIR=${LXD_INIT_DIR}
 
-    lxc config show | grep "core.https_address" | grep -qE "127.0.0.1:[0-9]{4,5}$"
+    lxc config show | grep -xE "^\s+core\.https_address: 127\.0\.0\.1:[0-9]{4,5}"
     # Launch a container.
     ensure_import_testimage
     lxc storage create default dir
