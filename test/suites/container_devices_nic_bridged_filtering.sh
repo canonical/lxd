@@ -10,7 +10,7 @@ test_container_devices_nic_bridged_filtering() {
   fi
 
   if [ "$firewallDriver" = "xtables" ]; then
-    if readlink -f "$(command -v ebtables)" | grep -q nft; then
+    if readlink -f "$(command -v ebtables)" | grep -wF nft >/dev/null; then
       echo "==> SKIP: ebtables must be legacy version (try update-alternatives --set ebtables /usr/sbin/ebtables-legacy)"
       return
     fi
