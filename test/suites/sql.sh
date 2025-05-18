@@ -12,24 +12,24 @@ test_sql() {
   [ "$(lxd sql global --format csv "SELECT value FROM config WHERE key = 'user.foo'")" = "bar" ]
 
   # Test formats
-  lxd sql global --format sql 'SELECT key FROM config' | grep -F 'key'
-  lxd sql global --format table 'SELECT key FROM config' | grep -F 'KEY'
-  lxd sql global --format compact 'SELECT key FROM config' | grep -F 'KEY'
+  lxd sql global --format sql 'SELECT key FROM config' | grep -wF 'key'
+  lxd sql global --format table 'SELECT key FROM config' | grep -wF 'KEY'
+  lxd sql global --format compact 'SELECT key FROM config' | grep -wF 'KEY'
 
   # Global database insert
-  lxd sql global "INSERT INTO config(key,value) VALUES('core.https_allowed_credentials','true')" | grep -qxF "Rows affected: 1"
-  lxd sql global "DELETE FROM config WHERE key='core.https_allowed_credentials'" | grep -qxF "Rows affected: 1"
+  lxd sql global "INSERT INTO config(key,value) VALUES('core.https_allowed_credentials','true')" | grep -xF "Rows affected: 1"
+  lxd sql global "DELETE FROM config WHERE key='core.https_allowed_credentials'" | grep -xF "Rows affected: 1"
 
   # Standard input
   [ "$(echo "SELECT value FROM config WHERE key = 'user.foo'" | lxd sql global --format csv -)" = "bar" ]
 
   # Multiple queries
-  lxd sql global "SELECT * FROM config; SELECT * FROM instances" | grep -qxF "=> Query 0:"
+  lxd sql global "SELECT * FROM config; SELECT * FROM instances" | grep -xF "=> Query 0:"
 
   # Local database dump
   SQLITE_DUMP="${TEST_DIR}/dump.db"
   lxd sql local .dump | sqlite3 "${SQLITE_DUMP}"
-  sqlite3 "${SQLITE_DUMP}" "SELECT * FROM patches" | grep -qF "|dnsmasq_entries_include_device_name|"
+  sqlite3 "${SQLITE_DUMP}" "SELECT * FROM patches" | grep -F "|dnsmasq_entries_include_device_name|"
   rm -f "${SQLITE_DUMP}"
 
   # Local database schema dump
@@ -46,7 +46,7 @@ test_sql() {
   echo "$GLOBAL_DUMP" | grep -F "CREATE INDEX"   # ensure indices are captured.
   echo "$GLOBAL_DUMP" | grep -F "CREATE VIEW"    # ensure views are captured.
   echo "$GLOBAL_DUMP" | sqlite3 "${SQLITE_DUMP}"
-  sqlite3 "${SQLITE_DUMP}" "SELECT * FROM profiles" | grep -qF "|Default LXD profile|"
+  sqlite3 "${SQLITE_DUMP}" "SELECT * FROM profiles" | grep -F "|Default LXD profile|"
   rm -f "${SQLITE_DUMP}"
 
   # Global database schema dump
@@ -60,6 +60,6 @@ test_sql() {
   SQLITE_SYNC="${LXD_DIR}/database/global/db.bin"
   echo "SYNC ${SQLITE_SYNC}"
   lxd sql global .sync
-  sqlite3 "${SQLITE_SYNC}" "SELECT * FROM schema" | grep -q "^1|"
-  sqlite3 "${SQLITE_SYNC}" "SELECT * FROM profiles" | grep -qF "|Default LXD profile|"
+  sqlite3 "${SQLITE_SYNC}" "SELECT * FROM schema" | grep "^1|"
+  sqlite3 "${SQLITE_SYNC}" "SELECT * FROM profiles" | grep -F "|Default LXD profile|"
 }
