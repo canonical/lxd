@@ -171,7 +171,7 @@ test_config_profiles() {
   # test profile rename
   lxc profile create foo
   lxc profile rename foo bar
-  lxc profile list | grep -qv foo  # the old name is gone
+  ! lxc profile list | grep -wF foo || false  # the old name is gone
   lxc profile delete bar
 
   lxc config device list foo | grep mnt1
