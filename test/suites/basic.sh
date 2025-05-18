@@ -28,15 +28,15 @@ test_basic_usage() {
   lxc image alias create bar "${sum}"
   lxc image alias list local: | grep -wF foo
   lxc image alias list local: | grep -wF bar
-  lxc image alias list local: foo | grep -q -v bar
+  !  lxc image alias list local: foo | grep -wF bar || false
   lxc image alias list local: "${sum}" | grep -wF foo
-  lxc image alias list local: non-existent | grep -q -v non-existent
+  ! lxc image alias list local: non-existent | grep -wF non-existent || false
   lxc image alias delete foo
   lxc image alias delete bar
 
   lxc image alias create foo "${sum}"
   lxc image alias rename foo bar
-  lxc image alias list | grep -qv foo  # the old name is gone
+  ! lxc image alias list | grep -wF foo || false  # the old name is gone
   lxc image alias delete bar
 
   # Test image list output formats (table & json)
@@ -311,9 +311,9 @@ test_basic_usage() {
     ensure_import_testimage
     lxd activateifneeded --debug 2>&1 | grep -F "Daemon has core.https_address set, activating..."
     lxc config unset core.https_address --force-local
-    lxd activateifneeded --debug 2>&1 | grep -qF -v "activating..."
+    ! lxd activateifneeded --debug 2>&1 | grep -F "activating..." || false
     lxc init testimage autostart --force-local
-    lxd activateifneeded --debug 2>&1 | grep -qF -v "activating..."
+    ! lxd activateifneeded --debug 2>&1 | grep -F "activating..." || false
     lxc config set autostart boot.autostart true --force-local
 
     # Restart the daemon, this forces the global database to be dumped to disk.
@@ -324,7 +324,7 @@ test_basic_usage() {
     lxd activateifneeded --debug 2>&1 | grep -F "Daemon has auto-started instances, activating..."
 
     lxc config unset autostart boot.autostart --force-local
-    lxd activateifneeded --debug 2>&1 | grep -qF -v "activating..."
+    ! lxd activateifneeded --debug 2>&1 | grep -F "activating..." || false
 
     lxc start autostart --force-local
     PID=$(lxc info autostart --force-local | awk '/^PID:/ {print $2}')
@@ -355,7 +355,7 @@ test_basic_usage() {
     lxc storage volume create "${storage_pool}" vol --force-local
 
     shutdown_lxd "${LXD_DIR}"
-    lxd activateifneeded --debug 2>&1 | grep -qF -v "activating..."
+    ! lxd activateifneeded --debug 2>&1 | grep -F "activating..." || false
 
     # shellcheck disable=SC2031
     respawn_lxd "${LXD_DIR}" true
