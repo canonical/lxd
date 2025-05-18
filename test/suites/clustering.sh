@@ -21,7 +21,7 @@ test_clustering_enable() {
     lxc cluster enable node1
 
     # Test the non-recursive mode to list cluster members.
-    lxc query /1.0/cluster/members | jq '.[0]' | grep -q node1
+    [ "$(lxc query /1.0/cluster/members | jq -r '.[0]')" = "/1.0/cluster/members/node1" ]
 
     # Test the recursive mode to list cluster members.
     # The command implicitly sets the recursive=1 query paramter.
