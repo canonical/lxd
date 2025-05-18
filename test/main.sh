@@ -1,5 +1,6 @@
 #!/bin/bash
 set -eu
+set -o pipefail
 if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
     GOPATH="$(go env GOPATH)"
 fi
