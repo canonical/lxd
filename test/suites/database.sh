@@ -36,7 +36,7 @@ EOF
     set -e
     # shellcheck disable=SC2034
     LXD_DIR=${LXD_RESTORE_DIR}
-    lxc config get "core.https_allowed_credentials" | grep -q "true"
+    [ "$(lxc config get "core.https_allowed_credentials")" = "true" ]
   )
 
   kill_lxd "${LXD_RESTORE_DIR}"
