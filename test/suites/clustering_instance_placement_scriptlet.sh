@@ -17,7 +17,7 @@ test_clustering_instance_placement_scriptlet() {
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
 
   # The state of the preseeded storage pool shows up as CREATED
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep data | grep -q CREATED
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
 
   # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
@@ -90,9 +90,9 @@ EOF
   LXD_DIR="${LXD_TWO_DIR}" lxc profile device set foo root size=200MiB
   LXD_DIR="${LXD_TWO_DIR}" lxc init testimage c2 -p foo
   LXD_DIR="${LXD_THREE_DIR}" lxc init testimage c3 -p foo
-  LXD_DIR="${LXD_ONE_DIR}" lxc info c1 | grep -q "Location: node2"
-  LXD_DIR="${LXD_ONE_DIR}" lxc info c2 | grep -q "Location: node2"
-  LXD_DIR="${LXD_ONE_DIR}" lxc info c3 | grep -q "Location: node2"
+  LXD_DIR="${LXD_ONE_DIR}" lxc info c1 | grep -xF "Location: node2"
+  LXD_DIR="${LXD_ONE_DIR}" lxc info c2 | grep -xF "Location: node2"
+  LXD_DIR="${LXD_ONE_DIR}" lxc info c3 | grep -xF "Location: node2"
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1 c2 c3
   LXD_DIR="${LXD_ONE_DIR}" lxc profile delete foo
 
@@ -128,7 +128,7 @@ def instance_placement(request, candidate_members):
 EOF
 
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c1 -c cluster.evacuate=migrate
-  LXD_DIR="${LXD_ONE_DIR}" lxc info c1 | grep -q "Location: node1"
+  LXD_DIR="${LXD_ONE_DIR}" lxc info c1 | grep -xF "Location: node1"
 
   # Set basic instance placement scriptlet that statically targets to 3rd member.
   cat << EOF | lxc config set instances.placement.scriptlet=-
@@ -152,8 +152,8 @@ EOF
 
   # Evacuate member with instance and check its moved to 2nd member.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "status: Evacuated"
-  LXD_DIR="${LXD_ONE_DIR}" lxc info c1 | grep -q "Location: node3"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF "status: Evacuated"
+  LXD_DIR="${LXD_ONE_DIR}" lxc info c1 | grep -xF "Location: node3"
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1
 
   # Delete the storage pool
