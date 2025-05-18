@@ -1,3 +1,4 @@
 test_check_deps() {
-  ! ldd "$(command -v lxc)" | grep -q liblxc || false
+  echo "lxc binary must not be linked with liblxc"
+  ! ldd "$(command -v lxc)" | grep -F liblxc || false
 }
