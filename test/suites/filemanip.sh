@@ -58,7 +58,7 @@ test_filemanip() {
   echo "foo" > "${TEST_DIR}/source/file with spaces"
 
   lxc file push -p -r "${TEST_DIR}"/source filemanip/tmp/ptest
-  lxc exec filemanip --project=test -- find /tmp/ptest/source | grep -q "file with spaces"
+  lxc exec filemanip --project=test -- find /tmp/ptest/source | grep -F "file with spaces"
   rm -rf "${TEST_DIR}/source/file with spaces"
 
   lxc file pull -p -r filemanip/tmp/ptest "${TEST_DIR}/dest"
