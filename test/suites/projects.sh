@@ -1,13 +1,13 @@
 # Use the default project.
 test_projects_default() {
   # The default project is used by the default profile
-  lxc project show default | grep -q "/1.0/profiles/default$"
+  lxc project show default | grep -xF -- "- /1.0/profiles/default"
 
   # Containers and images are assigned to the default project
   ensure_import_testimage
   lxc init testimage c1
-  lxc project show default | grep -q "/1.0/profiles/default$"
-  lxc project show default | grep -q "/1.0/images/"
+  lxc project show default | grep -xF -- "- /1.0/profiles/default"
+  lxc project show default | grep -F -- "- /1.0/images/"
   lxc delete c1
 }
 
@@ -17,12 +17,13 @@ test_projects_crud() {
   lxc project create foo
 
   # All features are enabled by default
-  lxc project show foo | grep -q 'features.images: "true"'
-  lxc project get foo "features.profiles" | grep -q 'true'
+  lxc project show foo | grep -F 'features.images: "true"'
+  [ "$(lxc project get foo "features.profiles")" = "true" ]
 
   # Set a limit
   lxc project set foo limits.containers 10
-  lxc project show foo | grep -q 'limits.containers: "10"'
+  lxc project show foo | grep -F 'limits.containers: "10"'
+  [ "$(lxc project get foo limits.containers)" = "10" ]
 
   # Trying to create a project with the same name fails
   ! lxc project create foo || false
@@ -39,14 +40,14 @@ test_projects_crud() {
 
   # Edit the project
   lxc project show bar| sed 's/^description:.*/description: "Bar project"/' | lxc project edit bar
-  lxc project show bar | grep -q "description: Bar project"
+  lxc project show bar | grep -xF "description: Bar project"
 
   # Edit the project config via PATCH. Existing key/value pairs should remain or be updated.
   lxc query -X PATCH -d '{\"config\" : {\"limits.memory\":\"5GiB\",\"features.images\":\"false\"}}' /1.0/projects/bar
-  lxc project show bar | grep -q 'limits.memory: 5GiB'
-  lxc project show bar | grep -q 'features.images: "false"'
-  lxc project show bar | grep -q 'features.profiles: "true"'
-  lxc project show bar | grep -q 'limits.containers: "10"'
+  lxc project show bar | grep -F 'limits.memory: 5GiB'
+  lxc project show bar | grep -F 'features.images: "false"'
+  lxc project show bar | grep -F 'features.profiles: "true"'
+  lxc project show bar | grep -F 'limits.containers: "10"'
 
   # Create a second project
   lxc project create foo
@@ -59,12 +60,12 @@ test_projects_crud() {
   # Turning off the profiles feature makes the project see the default profile
   # from the default project.
   lxc project set foo features.profiles false
-  lxc profile show default | grep -E -q '^description: Default LXD profile$'
+  lxc profile show default | grep -xF 'description: Default LXD profile'
 
   # Turning on the profiles feature creates a project-specific default
   # profile.
   lxc project set foo features.profiles true
-  lxc profile show default | grep -E -q '^description: Default LXD profile for project foo$'
+  lxc profile show default | grep -xF 'description: Default LXD profile for project foo'
 
   # Invalid config values are rejected.
   ! lxc project set foo garbage xxx || false
@@ -76,7 +77,7 @@ test_projects_crud() {
   lxc project delete bar
 
   # We're back to the default project
-  lxc project list | grep -q "default (current)"
+  lxc project list | grep -F "default (current)"
 }
 
 # Use containers in a project.
@@ -96,30 +97,30 @@ test_projects_containers() {
   lxc init testimage c1
 
   # The container is listed when using this project
-  lxc list | grep -q c1
-  lxc info c1 | grep -q "Name: c1"
+  lxc list | grep -wF c1
+  lxc info c1 | grep -xF "Name: c1"
 
   # The container's volume is listed too.
-  lxc storage volume list "${pool}" | grep container | grep -q c1
+  lxc storage volume list "${pool}" | grep -wF container | grep -wF c1
 
   # For backends with optimized storage, we can see the image volume inside the
   # project.
   driver="$(storage_backend "$LXD_DIR")"
   if [ "${driver}" != "dir" ]; then
-      lxc storage volume list "${pool}" | grep image | grep -q "${fingerprint}"
+      lxc storage volume list "${pool}" | grep -wF image | grep -F "${fingerprint}"
   fi
 
   # Start the container
   lxc start c1
-  lxc list | grep c1 | grep -q RUNNING
-  echo "abc" | lxc exec c1 cat | grep -q abc
+  lxc list | grep -wF c1 | grep -wF RUNNING
+  echo "abc" | lxc exec c1 cat | grep -xF abc
 
   # The container can't be managed when using the default project
   lxc project switch default
-  ! lxc list | grep -q c1 || false
+  ! lxc list | grep -wF c1 || false
   ! lxc info c1 || false
   ! lxc delete c1 || false
-  ! lxc storage volume list "${pool}" | grep container | grep -q c1 || false
+  ! lxc storage volume list "${pool}" | grep -wF container | grep -wF c1 || false
 
   # Trying to delete a project which is in use fails
   ! lxc project delete foo || false
@@ -127,13 +128,13 @@ test_projects_containers() {
   # Trying to change features of a project which is in use fails
   ! lxc project show foo| sed 's/features.profiles:.*/features.profiles: "false"/' | lxc project edit foo || false
   ! lxc project set foo "features.profiles" "false" || false
-  lxc project show foo | grep -q 'features.profiles: "true"'
+  lxc project show foo | grep -F 'features.profiles: "true"'
 
   # Create a container with the same name in the default project
   ensure_import_testimage
   lxc init testimage c1
   lxc start c1
-  lxc list | grep c1 | grep -q RUNNING
+  lxc list | grep -wF c1 | grep -wF RUNNING
   lxc stop --force c1
 
   # Delete the container
@@ -148,7 +149,7 @@ test_projects_containers() {
 
   # The container in the default project can still be used
   lxc start c1
-  lxc list | grep c1 | grep -q RUNNING
+  lxc list | grep -wF c1 | grep -wF RUNNING
   lxc stop --force c1
   lxc delete c1
 }
@@ -214,8 +215,8 @@ test_projects_snapshots() {
 
   # Create, rename, restore and delete a snapshot
   lxc snapshot c1
-  lxc info c1 | grep -q snap0
-  lxc config show c1/snap0 | grep -q BusyBox
+  lxc info c1 | grep -wF snap0
+  lxc config show c1/snap0 | grep -wF BusyBox
   lxc rename c1/snap0 c1/foo
   lxc restore c1 foo
   lxc delete c1/foo
@@ -292,36 +293,36 @@ test_projects_profiles() {
   lxc project switch foo
 
   # List profiles
-  lxc profile list | grep -q 'default'
-  lxc profile show default | grep -q 'description: Default LXD profile for project foo'
+  lxc profile list | grep -wF 'default'
+  lxc profile show default | grep -xF 'description: Default LXD profile for project foo'
 
   # Create a profile in this project
   lxc profile create p1
-  lxc profile list | grep -q 'p1'
+  lxc profile list | grep -wF 'p1'
 
   # Set a config key on this profile
   lxc profile set p1 user.x y
-  lxc profile get p1 user.x | grep -q 'y'
+  [ "$(lxc profile get p1 user.x)" = "y" ]
 
   # The profile is not visible in the default project
   lxc project switch default
-  ! lxc profile list | grep -q 'p1' || false
+  ! lxc profile list | grep -wF 'p1' || false
 
   # The profile is visible in the default project when --all-projects is used
-  lxc profile list --all-projects | grep -q 'p1'
+  lxc profile list --all-projects | grep -wF 'p1'
 
   # A profile with the same name can be created in the default project
   lxc profile create p1
 
   # The same key can have a different value
   lxc profile set p1 user.x z
-  lxc profile get p1 user.x | grep -q 'z'
+  [ "$(lxc profile get p1 user.x)" = "z" ]
 
   # Switch back to the project
   lxc project switch foo
 
   # The profile has still the original config
-  lxc profile get p1 user.x | grep -q 'y'
+  [ "$(lxc profile get p1 user.x)" = "y" ]
 
   # Delete the profile from the project
   lxc profile delete p1
@@ -339,7 +340,7 @@ test_projects_profiles() {
   # copy to an existing profile without --refresh should fail
   ! lxc profile copy --project default --target-project foo default bar
   lxc profile copy --project default --target-project foo default bar --refresh
-  lxc profile get --project foo bar user.x | grep -q 'z'
+  [ "$(lxc profile get --project foo bar user.x)" = "z" ]
   lxc profile copy --project default --target-project foo default bar-non-existent --refresh
   lxc profile delete bar --project foo
   lxc profile delete bar-non-existent --project foo
@@ -410,7 +411,7 @@ test_projects_images() {
 
   # The imported image is not visible in the default project.
   lxc project switch default
-  ! lxc image list | grep -q "${fingerprint}" || false
+  ! lxc image list | grep -F "${fingerprint}" || false
 
   # Switch back to the project and clean it up.
   lxc project switch foo
@@ -420,11 +421,11 @@ test_projects_images() {
   deps/import-busybox --project foo --alias foo-image
 
   # The image alias shows up in the project
-  lxc image list | grep -q foo-image
+  lxc image list | grep -wF foo-image
 
   # However the image alias is not visible in the default project.
   lxc project switch default
-  ! lxc image list | grep -q foo-project || false
+  ! lxc image list | grep -wF foo-project || false
 
   # Let's import the same image in the default project
   ensure_import_testimage
@@ -433,7 +434,7 @@ test_projects_images() {
   lxc project switch foo
 
   # The image alias from the default project is not visible here
-  ! lxc image list | grep -q testimage || false
+  ! lxc image list | grep -wF testimage || false
 
   # Rename the image alias in the project using the same it has in the default
   # one.
@@ -450,7 +451,7 @@ test_projects_images() {
   lxc project delete foo
 
   # We automatically switched to the default project, which still has the alias
-  lxc image list | grep -q testimage
+  lxc image list | grep -wF testimage
 }
 
 # Use global images in a project.
@@ -468,24 +469,24 @@ test_projects_images_default() {
   lxc project set bar "features.images" "false"
 
   # The project can see images from the default project
-  lxc image list | grep -q testimage
+  lxc image list | grep -wF testimage
 
   # The image from the default project has correct profile assigned
   fingerprint="$(lxc image list --format json | jq -r .[0].fingerprint)"
-  lxc query "/1.0/images/${fingerprint}?project=foo" | jq -r ".profiles[0]" | grep -xq default
+  [ "$(lxc query "/1.0/images/${fingerprint}?project=foo" | jq -r ".profiles[0]")" = "default" ]
 
   # The project can delete images in the default project
   lxc image delete testimage
 
   # Images imported into the project show up in the default project
   deps/import-busybox --project foo --alias foo-image
-  lxc image list | grep -q foo-image
+  lxc image list | grep -wF foo-image
   lxc project switch default
-  lxc image list | grep -q foo-image
+  lxc image list | grep -wF foo-image
 
   # Correct profile assigned to images from another project
   fingerprint="$(lxc image list --format json | jq -r '.[] | select(.aliases[0].name == "foo-image") | .fingerprint')"
-  lxc query "/1.0/images/${fingerprint}?project=bar" | jq -r ".profiles[0]" | grep -xq default
+  [ "$(lxc query "/1.0/images/${fingerprint}?project=bar" | jq -r ".profiles[0]")" = "default" ]
 
   lxc image delete foo-image
 
@@ -502,25 +503,25 @@ test_projects_storage() {
   lxc project create foo -c features.storage.volumes=false
   lxc project switch foo
 
-  lxc storage volume list "${pool}" | grep custom | grep -q vol
+  lxc storage volume list "${pool}" | grep -wF custom | grep -wF vol
 
   lxc storage volume delete "${pool}" vol
 
   lxc project switch default
 
-  ! lxc storage volume list "${pool}" | grep custom | grep -q vol || false
+  ! lxc storage volume list "${pool}" | grep -wF custom | grep -F vol || false
 
   lxc project set foo features.storage.volumes=true
   lxc storage volume create "${pool}" vol
   lxc project switch foo
-  ! lxc storage volume list "${pool}" | grep custom | grep -q vol
+  ! lxc storage volume list "${pool}" | grep -wF custom | grep -wF vol
 
   lxc storage volume create "${pool}" vol
   lxc storage volume delete "${pool}" vol
 
   lxc storage volume create "${pool}" vol2
   lxc project switch default
-  ! lxc storage volume list "${pool}" | grep custom | grep -q vol2
+  ! lxc storage volume list "${pool}" | grep -wF custom | grep -wF vol2
 
   lxc project switch foo
   lxc storage volume delete "${pool}" vol2
@@ -548,7 +549,7 @@ test_projects_network() {
   # Create a container in the project
   lxc init -n "${network}" testimage c1
 
-  lxc network show "${network}" |grep -q "/1.0/instances/c1?project=foo"
+  lxc network show "${network}" | grep -xF -- "- /1.0/instances/c1?project=foo"
 
   # Delete the container
   lxc delete c1
@@ -585,8 +586,8 @@ test_projects_limits() {
   lxc project set p1 limits.disk.pool.limit1=0
   lxc project set p1 limits.disk.pool.limit2=0
 
-  ! lxc storage list | grep -q limit1 || false
-  ! lxc storage list | grep -q limit2 || false
+  ! lxc storage list | grep -F limit1 || false
+  ! lxc storage list | grep -F limit2 || false
 
   lxc storage volume create "${pool}" foo size=10MiB
   ! lxc storage volume create "${pool}" bar size=50MiB || false
@@ -1120,14 +1121,14 @@ test_projects_usage() {
   lxc init testimage c1 --project test-usage
   lxc project info test-usage
 
-  lxc project info test-usage --format csv | grep -q "CONTAINERS,UNLIMITED,1"
-  lxc project info test-usage --format csv | grep -q "CPU,5,1"
-  lxc project info test-usage --format csv | grep -q "DISK,10.00GiB,300.00MiB"
-  lxc project info test-usage --format csv | grep -q "INSTANCES,UNLIMITED,1"
-  lxc project info test-usage --format csv | grep -q "MEMORY,1.00GiB,512.00MiB"
-  lxc project info test-usage --format csv | grep -q "NETWORKS,3,0"
-  lxc project info test-usage --format csv | grep -q "PROCESSES,40,20"
-  lxc project info test-usage --format csv | grep -q "VIRTUAL-MACHINES,UNLIMITED,0"
+  lxc project info test-usage --format csv | grep -xF "CONTAINERS,UNLIMITED,1"
+  lxc project info test-usage --format csv | grep -xF "CPU,5,1"
+  lxc project info test-usage --format csv | grep -xF "DISK,10.00GiB,300.00MiB"
+  lxc project info test-usage --format csv | grep -xF "INSTANCES,UNLIMITED,1"
+  lxc project info test-usage --format csv | grep -xF "MEMORY,1.00GiB,512.00MiB"
+  lxc project info test-usage --format csv | grep -xF "NETWORKS,3,0"
+  lxc project info test-usage --format csv | grep -xF "PROCESSES,40,20"
+  lxc project info test-usage --format csv | grep -xF "VIRTUAL-MACHINES,UNLIMITED,0"
 
   lxc delete c1 --project test-usage
   lxc image delete testimage --project test-usage
