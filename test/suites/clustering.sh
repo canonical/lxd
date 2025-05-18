@@ -25,11 +25,11 @@ test_clustering_enable() {
 
     # Test the recursive mode to list cluster members.
     # The command implicitly sets the recursive=1 query paramter.
-    lxc cluster list | grep -q node1
+    lxc cluster list | grep -wF node1
 
     # The container is still there and now shows up as
     # running on node 1.
-    lxc list | grep c1 | grep -q node1
+    lxc list | grep -wF c1 | grep -wF node1
 
     # Clustering can't be enabled on an already clustered instance.
     ! lxc cluster enable node2 || false
@@ -67,7 +67,7 @@ test_clustering_enable() {
     lxc config set core.https_address 127.0.0.1
     # Enable clustering.
     lxc cluster enable node1
-    lxc cluster list | grep -q 127.0.0.1:8443
+    lxc cluster list | grep -F 127.0.0.1:8443
   )
 
   kill_lxd "${LXD_INIT_DIR}"
@@ -84,7 +84,7 @@ test_clustering_enable() {
     lxc config set cluster.https_address 127.0.0.1:8443
     # Enable clustering.
     lxc cluster enable node1
-    lxc cluster list | grep -q 127.0.0.1:8443
+    lxc cluster list | grep -F 127.0.0.1:8443
   )
 
   kill_lxd "${LXD_INIT_DIR}"
@@ -116,7 +116,7 @@ test_clustering_enable() {
     lxc config set cluster.https_address 127.0.0.1:8443
     # Enable clustering.
     lxc cluster enable node1
-    lxc cluster list | grep -q 127.0.0.1:8443
+    lxc cluster list | grep -F 127.0.0.1:8443
   )
 
   kill_lxd "${LXD_INIT_DIR}"
@@ -133,7 +133,7 @@ test_clustering_enable() {
     lxc config set cluster.https_address 127.0.0.1
     # Enable clustering.
     lxc cluster enable node1
-    lxc cluster list | grep -q 127.0.0.1:8443
+    lxc cluster list | grep -F 127.0.0.1:8443
   )
 
   kill_lxd "${LXD_INIT_DIR}"
@@ -150,7 +150,7 @@ test_clustering_enable() {
     lxc config set cluster.https_address 127.0.0.1:8443
     # Enable clustering.
     lxc cluster enable node1
-    lxc cluster list | grep -q 127.0.0.1:8443
+    lxc cluster list | grep -F 127.0.0.1:8443
   )
 
   kill_lxd "${LXD_INIT_DIR}"
@@ -168,7 +168,7 @@ test_clustering_enable() {
     respawn_lxd "${LXD_DIR}" true
     # Enable clustering.
     lxc cluster enable node1
-    lxc cluster list | grep -q 127.0.0.1:8443
+    lxc cluster list | grep -F 127.0.0.1:8443
   )
 
   kill_lxd "${LXD_INIT_DIR}"
@@ -203,8 +203,8 @@ test_clustering_membership() {
 
   # Configuration keys can be changed on any node.
   LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 11
-  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -q 'cluster.offline_threshold: "11"'
-  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -q 'cluster.offline_threshold: "11"'
+  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F 'cluster.offline_threshold: "11"'
+  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F 'cluster.offline_threshold: "11"'
 
   # The preseeded network bridge exists on all nodes.
   ns1_pid="$(cat "${TEST_DIR}/ns/${ns1}/PID")"
@@ -240,17 +240,17 @@ test_clustering_membership() {
   # List all nodes, using clients points to different nodes and
   # checking which are database nodes and which are database-standby nodes.
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -q "\- database-leader$"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF -- '- database-leader'
   [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep -Fc "database-standby")" = "2" ]
   [ "$(LXD_DIR="${LXD_FIVE_DIR}" lxc cluster list | grep -Fc "database ")" = "3" ]
 
   # Show a single node
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node5 | grep -q "node5"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node5 | grep -F "server_name: node5"
 
   # Client certificate are shared across all nodes.
   lxc remote add cluster 100.64.1.101:8443 --accept-certificate --password=sekret
   lxc remote set-url cluster https://100.64.1.102:8443
-  lxc network list cluster: | grep -q "${bridge}"
+  lxc network list cluster: | grep -F "${bridge}"
   lxc remote remove cluster
 
   # Check info for single node (from local and remote node).
@@ -266,7 +266,7 @@ test_clustering_membership() {
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   sleep 12
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node3 | grep -q "status: Offline"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node3 | grep -xF "status: Offline"
 
   # Gracefully remove a node and check trust certificate is removed.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep node4
@@ -408,23 +408,23 @@ test_clustering_containers() {
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage foo
 
   # The container is visible through both nodes
-  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q STOPPED
-  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q node2
-  LXD_DIR="${LXD_TWO_DIR}" lxc list | grep foo | grep -q STOPPED
+  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep -wF foo | grep -wF STOPPED
+  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep -wF foo | grep -wF node2
+  LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -wF foo | grep -wF STOPPED
 
   # A Location: field indicates on which node the container is running
-  LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q "Location: node2"
+  LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -xF "Location: node2"
 
   # Start the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc start foo
-  LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "Status: RUNNING"
-  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q RUNNING
+  LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -xF "Status: RUNNING"
+  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep -wF foo | grep -wF RUNNING
 
   # Trying to delete a node which has container results in an error
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2 || false
 
   # Exec a command in the container via node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc exec foo -- ls / | grep -qxF proc
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec foo -- ls / | grep -xF proc
 
   # Pull, push and delete files from the container via node1
   ! LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/non-existing-file "${TEST_DIR}/non-existing-file" || false
@@ -432,12 +432,12 @@ test_clustering_containers() {
   echo "hello world" > "${TEST_DIR}/hello-world/text"
   LXD_DIR="${LXD_ONE_DIR}" lxc file push "${TEST_DIR}/hello-world/text" foo/hello-world-text
   LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/hello-world-text "${TEST_DIR}/hello-world-text"
-  grep -q "hello world" "${TEST_DIR}/hello-world-text"
+  [ "$(cat "${TEST_DIR}/hello-world-text")" = "hello world" ]
   rm "${TEST_DIR}/hello-world-text"
   LXD_DIR="${LXD_ONE_DIR}" lxc file push --recursive "${TEST_DIR}/hello-world" foo/
   rm -r "${TEST_DIR}/hello-world"
   LXD_DIR="${LXD_ONE_DIR}" lxc file pull --recursive foo/hello-world "${TEST_DIR}"
-  grep -q "hello world" "${TEST_DIR}/hello-world/text"
+  [ "$(cat "${TEST_DIR}/hello-world/text")" = "hello world" ]
   rm -r "${TEST_DIR}/hello-world"
   LXD_DIR="${LXD_ONE_DIR}" lxc file delete foo/hello-world/text
   ! LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/hello-world/text "${TEST_DIR}/hello-world-text" || false
@@ -447,18 +447,18 @@ test_clustering_containers() {
 
   # Rename the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc rename foo foo2
-  LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -q foo2
+  LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -wF foo2
   LXD_DIR="${LXD_ONE_DIR}" lxc rename foo2 foo
 
   # Show lxc.log via node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc info --show-log foo | grep -q Log
+  LXD_DIR="${LXD_ONE_DIR}" lxc info --show-log foo | grep -xF 'Log:'
 
   # Create, rename and delete a snapshot of the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo foo-bak
-  LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q foo-bak
+  LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -wF foo-bak
   LXD_DIR="${LXD_ONE_DIR}" lxc rename foo/foo-bak foo/foo-bak-2
   LXD_DIR="${LXD_ONE_DIR}" lxc delete foo/foo-bak-2
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q foo-bak-2 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -wF foo-bak-2 || false
 
   # Export from node1 the image that was imported on node2
   LXD_DIR="${LXD_ONE_DIR}" lxc image export testimage "${TEST_DIR}/testimage"
@@ -469,18 +469,18 @@ test_clustering_containers() {
   LXD_DIR="${LXD_TWO_DIR}" lxc launch --target node1 testimage bar
   LXD_DIR="${LXD_TWO_DIR}" lxc stop bar --force
   LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -q bar || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -wF bar || false
 
   # Create a container on node1 using a snapshot from node2.
   LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo foo-bak
   LXD_DIR="${LXD_TWO_DIR}" lxc copy foo/foo-bak bar --target node1
-  LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "Location: node1"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -xF "Location: node1"
   LXD_DIR="${LXD_THREE_DIR}" lxc delete bar
 
   # Copy the container on node2 to node3, using a client connected to
   # node1.
   LXD_DIR="${LXD_ONE_DIR}" lxc copy foo bar --target node3
-  LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "Location: node3"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -xF "Location: node3"
 
   # Move the container on node3 to node1, using a client connected to
   # node2 and a different container name than the original one. The
@@ -488,14 +488,14 @@ test_clustering_containers() {
   apply_template1=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get bar volatile.apply_template)
 
   LXD_DIR="${LXD_TWO_DIR}" lxc move bar egg --target node2
-  LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -q "Location: node2"
+  LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -xF "Location: node2"
   apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   [ "${apply_template1}" =  "${apply_template2}" ]
 
   # Move back to node3 the container on node1, keeping the same name.
   apply_template1=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   LXD_DIR="${LXD_TWO_DIR}" lxc move egg --target node3
-  LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -q "Location: node3"
+  LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -xF "Location: node3"
   apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   [ "${apply_template1}" =  "${apply_template2}" ]
 
@@ -506,7 +506,7 @@ test_clustering_containers() {
     LXD_DIR="${LXD_TWO_DIR}" lxc start egg
     LXD_DIR="${LXD_TWO_DIR}" lxc exec egg -- umount /dev/.lxd-mounts
     LXD_DIR="${LXD_TWO_DIR}" lxc move egg --target node1
-    LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -q "Location: node1"
+    LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -xF "Location: node1"
     LXD_DIR="${LXD_TWO_DIR}" lxc move egg --target node3 --stateless
     LXD_DIR="${LXD_TWO_DIR}" lxc stop -f egg
   fi
@@ -514,7 +514,7 @@ test_clustering_containers() {
   # Create backup and attempt to move container. Move should fail and container should remain on node1.
   LXD_DIR="${LXD_THREE_DIR}" lxc query -X POST --wait -d '{\"name\":\"foo\"}' /1.0/instances/egg/backups
   ! LXD_DIR="${LXD_THREE_DIR}" lxc move egg --target node2 || false
-  LXD_DIR="${LXD_THREE_DIR}" lxc info egg | grep -q "Location: node3"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info egg | grep -xF "Location: node3"
 
   LXD_DIR="${LXD_THREE_DIR}" lxc delete egg
 
@@ -527,7 +527,7 @@ test_clustering_containers() {
   LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   sleep 12
-  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q ERROR
+  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep -wF foo | grep -wF ERROR
 
   # For an instance on an offline member, we can get its config but not use recursion nor get instance state.
   LXD_DIR="${LXD_ONE_DIR}" lxc config show foo
@@ -539,12 +539,12 @@ test_clustering_containers() {
   # on node1 since node2 is offline and both node1 and node3 have zero
   # containers, but node1 has a lower node ID.
   LXD_DIR="${LXD_THREE_DIR}" lxc launch testimage bar
-  LXD_DIR="${LXD_THREE_DIR}" lxc info bar | grep -q "Location: node1"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info bar | grep -xF "Location: node1"
 
   # Start a container without specifying any target. It will be placed
   # on node3 since node2 is offline and node1 already has a container.
   LXD_DIR="${LXD_THREE_DIR}" lxc launch testimage egg
-  LXD_DIR="${LXD_THREE_DIR}" lxc info egg | grep -q "Location: node3"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info egg | grep -xF "Location: node3"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc stop egg --force
   LXD_DIR="${LXD_ONE_DIR}" lxc stop bar --force
@@ -581,7 +581,7 @@ test_clustering_storage() {
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
 
   # The state of the preseeded storage pool shows up as CREATED
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep data | grep -q CREATED
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
 
   # Add a newline at the end of each line. YAML as weird rules..
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
@@ -593,7 +593,7 @@ test_clustering_storage() {
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${poolDriver}"
 
   # The state of the preseeded storage pool is still CREATED
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep data | grep -q CREATED
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
 
   # Check both nodes show preseeded storage pool created.
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'data' AND nodes.name = 'node1'")" = "node1,1" ]
@@ -635,9 +635,9 @@ test_clustering_storage() {
     # Create new partially created pool and check we can fix it.
     LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}" source=/tmp/not/exist --target node1
     LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" --target node2
-    LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Pending
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -F status: | grep -wF Pending
     ! LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" || false
-    LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Errored
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -F status: | grep -wF Errored
     LXD_DIR="${LXD_ONE_DIR}" lxc storage unset pool1 source --target node1
     ! LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" rsync.bwlimit=1000 || false # Check global config is rejected on re-create.
     LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}"
@@ -668,11 +668,11 @@ test_clustering_storage() {
     # Check renaming storage volume works.
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create pool1 vol2 --target=node1
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume move pool1/vol2 pool1/vol3 --target=node1
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show pool1 vol3 | grep -q node1
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show pool1 vol3 | grep -wF node1
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume move pool1/vol3 pool1/vol2 --target=node1 --destination-target=node2
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show pool1 vol2 | grep -q node2
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show pool1 vol2 | grep -wF node2
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume rename pool1 vol2 vol3 --target=node2
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show pool1 vol3 | grep -q node2
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show pool1 vol3 | grep -wF node2
 
     # Delete pool and check cleaned up.
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete pool1 vol1 --target=node1
@@ -716,15 +716,15 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}" --target node1
   fi
 
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q node1
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q node2 || false
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -wF node1
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -wF node2 || false
   if [ -n "${driver_config_node2}" ]; then
     # shellcheck disable=SC2086
     LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}" ${driver_config_node2} --target node2
   else
     LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}" --target node2
   fi
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Pending
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -F status: | grep -wF Pending
 
   # A container can't be created when associated with a pending pool.
   LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
@@ -744,11 +744,11 @@ test_clustering_storage() {
   else
       LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}"
   fi
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Created
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -F status: | grep -wF Created
 
   # The 'source' config key is omitted when showing the cluster
   # configuration, and included when showing the node-specific one.
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q source || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -wF source || false
   source1="$(basename "${LXD_ONE_DIR}")"
   source2="$(basename "${LXD_TWO_DIR}")"
   if [ "${poolDriver}" = "ceph" ]; then
@@ -756,15 +756,15 @@ test_clustering_storage() {
     source1="lxdtest-$(basename "${TEST_DIR}")"
     source2="${source1}"
   fi
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node1 | grep source | grep -q "${source1}"
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node2 | grep source | grep -q "${source2}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node1 | grep -wF source | grep -F "${source1}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node2 | grep -wF source | grep -F "${source2}"
 
   # Update the storage pool
   if [ "${poolDriver}" = "dir" ]; then
     LXD_DIR="${LXD_ONE_DIR}" lxc storage set pool1 rsync.bwlimit 10
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep rsync.bwlimit | grep -q 10
+    [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc storage get pool1 rsync.bwlimit)" = "10" ]
     LXD_DIR="${LXD_TWO_DIR}" lxc storage unset pool1 rsync.bwlimit
-    ! LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -q rsync.bwlimit || false
+    ! LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -F rsync.bwlimit || false
   fi
 
   if [ "${poolDriver}" = "ceph" ]; then
@@ -781,8 +781,8 @@ test_clustering_storage() {
 
     # Move the container to node1
     LXD_DIR="${LXD_TWO_DIR}" lxc move foo --target node1
-    LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "Location: node1"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "snap-test"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -xF "Location: node1"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -wF "snap-test"
 
     # Start and stop the container on its new node1 host
     LXD_DIR="${LXD_TWO_DIR}" lxc start foo
@@ -821,7 +821,7 @@ test_clustering_storage() {
     # Ensure that node-specific config appears on all nodes,
     # regardless of the pool being created before or after the node joined.
     for n in node1 node2 node3 ; do
-      LXD_DIR="${LXD_ONE_DIR}" lxc storage get pool1 "${key}" --target "${n}" | grep -q "${value}"
+      LXD_DIR="${LXD_ONE_DIR}" lxc storage get pool1 "${key}" --target "${n}" | grep -F "${value}"
     done
 
     # Other storage backends will be finished with the third node, so we can remove it.
@@ -833,8 +833,8 @@ test_clustering_storage() {
   if [ "${poolDriver}" = "ceph" ]; then
     # Move the container to node3, renaming it
     LXD_DIR="${LXD_TWO_DIR}" lxc move foo bar --target node3
-    LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "Location: node3"
-    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -q "snap-test"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -xF "Location: node3"
+    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -wF "snap-test"
 
     # Shutdown node 3, and wait for it to be considered offline.
     LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 11
@@ -843,8 +843,8 @@ test_clustering_storage() {
 
     # Move the container back to node2, even if node3 is offline
     LXD_DIR="${LXD_ONE_DIR}" lxc move bar --target node2
-    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -q "Location: node2"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "snap-test"
+    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -xF "Location: node2"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -wF "snap-test"
 
     # Start and stop the container on its new node2 host
     LXD_DIR="${LXD_TWO_DIR}" lxc start bar
@@ -883,12 +883,12 @@ test_clustering_storage() {
     # Launch a container on node2
     LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
     LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 testimage foo
-    LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q "Location: node2"
+    LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -xF "Location: node2"
 
     # Stop the container and move it to node1
     LXD_DIR="${LXD_ONE_DIR}" lxc stop foo --force
     LXD_DIR="${LXD_TWO_DIR}" lxc move foo bar --target node1
-    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -q "Location: node1"
+    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -xF "Location: node1"
 
     # Start and stop the migrated container on node1
     LXD_DIR="${LXD_TWO_DIR}" lxc start bar
@@ -896,13 +896,13 @@ test_clustering_storage() {
 
     # Rename the container locally on node1
     LXD_DIR="${LXD_TWO_DIR}" lxc rename bar foo
-    LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q "Location: node1"
+    LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -xF "Location: node1"
 
     # Copy the container without specifying a target, it will be placed on node2
     # since it's the one with the least number of containers (0 vs 1)
     sleep 6 # Wait for pending operations to be removed from the database
     LXD_DIR="${LXD_ONE_DIR}" lxc copy foo bar
-    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -q "Location: node2"
+    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -xF "Location: node2"
 
     # Start and stop the copied container on node2
     LXD_DIR="${LXD_TWO_DIR}" lxc start bar
@@ -918,17 +918,17 @@ test_clustering_storage() {
 
   # Delete the storage pool
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -q pool1 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF pool1 || false
 
   if [ "${poolDriver}" != "ceph" ]; then
     # Create a volume on node1
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create data web
-    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list data | grep web | grep -q node1
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume list data | grep web | grep -q node1
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list data | grep -F web | grep -wF node1
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume list data | grep -F web | grep -wF node1
 
     # Since the volume name is unique to node1, it's possible to show, rename,
     # get the volume without specifying the --target parameter.
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web | grep -q "location: node1"
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web | grep -F "location: node1"
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume rename data web webbaz
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename data webbaz web
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume get data web size
@@ -951,8 +951,8 @@ test_clustering_storage() {
     LXD_DIR="${LXD_TWO_DIR}" lxc config device add c2 web disk pool=data source=web path=/mnt/web
 
     # Specifying the --target parameter shows the proper volume.
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node1 data web | grep -q "location: node1"
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node2 data web | grep -q "location: node2"
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node1 data web | grep -F "location: node1"
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node2 data web | grep -F "location: node2"
 
     # rename updates the disk devices that refer to the disk
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node1 data web webbaz
@@ -1055,7 +1055,7 @@ test_clustering_storage_single_node() {
   # Finalize the storage pool creation
   LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Created
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -F status: | grep -wF Created
 
   # Delete the storage pool
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
@@ -1096,7 +1096,7 @@ test_clustering_network() {
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
   # The state of the preseeded network shows up as CREATED
-  LXD_DIR="${LXD_ONE_DIR}" lxc network list | grep "${bridge}" | grep -q CREATED
+  LXD_DIR="${LXD_ONE_DIR}" lxc network list | grep -F "${bridge}" | grep -wF CREATED
 
   # Add a newline at the end of each line. YAML as weird rules..
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
@@ -1116,7 +1116,7 @@ test_clustering_network() {
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
   # The state of the preseeded network is still CREATED
-  LXD_DIR="${LXD_ONE_DIR}" lxc network list| grep "${bridge}" | grep -q CREATED
+  LXD_DIR="${LXD_ONE_DIR}" lxc network list | grep -F "${bridge}" | grep -wF CREATED
 
   # Check both nodes show network created.
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${bridge}' AND nodes.name = 'node1'")" = "node1,1" ]
@@ -1130,11 +1130,11 @@ test_clustering_network() {
 
   # Define networks on the two nodes
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node1
-  LXD_DIR="${LXD_TWO_DIR}" lxc network show  "${net}" | grep -q node1
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc network show "${net}" | grep -q node2 || false
+  LXD_DIR="${LXD_TWO_DIR}" lxc network show  "${net}" | grep -wF node1
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc network show "${net}" | grep -wF node2 || false
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2 || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Pending
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Pending
 
   # A container can't be created when its NIC is associated with a pending network.
   LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
@@ -1145,8 +1145,8 @@ test_clustering_network() {
 
   # Create the network
   LXD_DIR="${LXD_TWO_DIR}" lxc network create "${net}"
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Created
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" --target node2 | grep status: | grep -q Created
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Created
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" --target node2 | grep -F status: | grep -wF Created
 
   # FIXME: rename the network is not supported with clustering
   ! LXD_DIR="${LXD_TWO_DIR}" lxc network rename "${net}" "${net}-foo" || false
@@ -1162,11 +1162,11 @@ test_clustering_network() {
   nsenter -n -t "${LXD_PID1}" -- ip link add "${net}" type dummy # Create dummy interface to conflict with network.
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Pending # Check has pending status.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Pending # Check has pending status.
 
   # Run network create on other node1 (expect this to fail early due to existing interface).
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Errored # Check has errored status.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Errored # Check has errored status.
 
   # Check each node status (expect both node1 and node2 to be pending as local member running created failed first).
 [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node1'")" = "node1,0" ]
@@ -1208,11 +1208,11 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8::1/64|| false
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Errored # Check has errored status.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Errored # Check has errored status.
   nsenter -n -t "${LXD_PID1}" -- ip link delete "${net}" # Remove conflicting interface.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.dhcp=false || false # Check supplying global config on re-create is blocked.
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" # Check re-create succeeds.
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Created # Check is created after fix.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Created # Check is created after fix.
   nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep bridge # Check bridge exists.
   nsenter -n -t "${LXD_PID2}" -- ip -details link show "${net}" | grep bridge # Check bridge exists.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" || false # Check re-create is blocked after success.
@@ -1318,8 +1318,8 @@ test_clustering_upgrade() {
   # The second daemon is blocked waiting for the other to be upgraded
   ! LXD_DIR="${LXD_TWO_DIR}" lxd waitready --timeout=5 || false
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "message: LXD version is older than other members"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: LXD version is newer than other members"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -F "message: LXD version is older than other members"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "message: LXD version is newer than other members"
 
   # Respawn the first node, so it matches the version the second node
   # believes to have.
@@ -1348,9 +1348,9 @@ test_clustering_upgrade() {
   # upgraded
   ! LXD_DIR="${LXD_TWO_DIR}" lxd waitready --timeout=5 || false
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "message: LXD version is older than other members"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: LXD version is newer than other members"
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node3 | grep -q "message: LXD version is older than other members"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -F "message: LXD version is older than other members"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "message: LXD version is newer than other members"
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node3 | grep -F "message: LXD version is older than other members"
 
   # Respawn the first node and third node, so they match the version
   # the second node believes to have.
@@ -1409,8 +1409,8 @@ test_clustering_downgrade() {
   # The second daemon is blocked waiting for the other to be upgraded
   ! LXD_DIR="${LXD_TWO_DIR}" lxd waitready --timeout=5 || false
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "message: LXD version is newer than other members"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: LXD version is older than other members"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -F "message: LXD version is newer than other members"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "message: LXD version is older than other members"
 
   # Respawn the first node, so it matches the version the second node believes to have.
   shutdown_lxd "${LXD_ONE_DIR}"
@@ -1436,9 +1436,9 @@ test_clustering_downgrade() {
   # The second daemon is blocked waiting for the other two to be upgraded.
   ! LXD_DIR="${LXD_TWO_DIR}" lxd waitready --timeout=5 || false
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "message: LXD version is newer than other members"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: LXD version is older than other members"
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node3 | grep -q "message: LXD version is newer than other members"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -F "message: LXD version is newer than other members"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "message: LXD version is older than other members"
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node3 | grep -F "message: LXD version is newer than other members"
 
   # Respawn the first node and third node, so they match the version the second node believes to have.
   shutdown_lxd "${LXD_ONE_DIR}"
@@ -1501,7 +1501,7 @@ test_clustering_upgrade_large() {
   done
 
   LXD_DIR="${LXD_ONE_DIR}" lxd waitready --timeout=10
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "OFFLINE" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF "OFFLINE" || false
 
   for i in $(seq "${N}" -1 1); do
     LXD_DIR="${LXD_CLUSTER_DIR}/${i}" lxd shutdown
@@ -1548,12 +1548,12 @@ test_clustering_publish() {
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage foo
 
   LXD_DIR="${LXD_ONE_DIR}" lxc publish foo --alias=foo-image
-  LXD_DIR="${LXD_ONE_DIR}" lxc image show foo-image | grep -q "public: false"
+  LXD_DIR="${LXD_ONE_DIR}" lxc image show foo-image | grep -F "public: false"
   LXD_DIR="${LXD_TWO_DIR}" lxc image delete foo-image
 
   LXD_DIR="${LXD_TWO_DIR}" lxc snapshot foo backup
   LXD_DIR="${LXD_ONE_DIR}" lxc publish foo/backup --alias=foo-backup-image
-  LXD_DIR="${LXD_ONE_DIR}" lxc image show foo-backup-image | grep -q "public: false"
+  LXD_DIR="${LXD_ONE_DIR}" lxc image show foo-backup-image | grep -F "public: false"
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -1620,8 +1620,8 @@ used_by:
 EOF
   ) | LXD_DIR="${LXD_TWO_DIR}" lxc profile edit web
 
-  LXD_DIR="${LXD_TWO_DIR}" lxc exec c1 -- ls /mnt | grep -qxF hello
-  LXD_DIR="${LXD_TWO_DIR}" lxc exec c2 -- ls /mnt | grep -qxF hello
+  LXD_DIR="${LXD_TWO_DIR}" lxc exec c1 -- ls /mnt | grep -xF hello
+  LXD_DIR="${LXD_TWO_DIR}" lxc exec c2 -- ls /mnt | grep -xF hello
 
   LXD_DIR="${LXD_TWO_DIR}" lxc stop c1 --force
   LXD_DIR="${LXD_ONE_DIR}" lxc stop c2 --force
@@ -1698,8 +1698,8 @@ test_clustering_update_cert() {
   cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}"
   cmp -s "${LXD_TWO_DIR}/cluster.key" "${key_path}"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -F "server_name: node2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -F "server_name: node1"
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -1785,10 +1785,10 @@ test_clustering_update_cert_reversion() {
   ! cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
   ! cmp -s "${LXD_TWO_DIR}/cluster.key" "${key_path}" || false
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -F "server_name: node2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -F "server_name: node1"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc warning list | grep -q "Unable to update cluster certificate"
+  LXD_DIR="${LXD_ONE_DIR}" lxc warning list | grep -F "Unable to update cluster certificate"
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -1929,7 +1929,7 @@ test_clustering_join_api() {
   op=$(curl --unix-socket "${LXD_TWO_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"node2\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"100.64.1.102:8443\",\"cluster_address\":\"100.64.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_token\":\"${token}\"}" | jq -r .operation)
   curl --unix-socket "${LXD_TWO_DIR}/unix.socket" "lxd${op}/wait"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: Fully operational"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "message: Fully operational"
 
   setup_clustering_netns 3
   LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
@@ -2061,8 +2061,8 @@ test_clustering_projects() {
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage c1
 
   # The container is visible through both nodes
-  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep -q c1
-  LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -q c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep -wF c1
+  LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -wF c1
 
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1
 
@@ -2185,14 +2185,14 @@ test_clustering_address() {
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "dir" "8444"
 
   # The bootstrap node appears in the list with its cluster-specific port
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q 8444
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "database: true"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -F :8444
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF "database: true"
 
   # Add a remote using the core.https_address of the bootstrap node, and check
   # that the REST API is exposed.
   url="https://100.64.1.101:8443"
   lxc remote add cluster --password sekret --accept-certificate "${url}"
-  lxc storage list cluster: | grep -q data
+  lxc storage list cluster: | grep -F data
 
   # Add a newline at the end of each line. YAML as weird rules..
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
@@ -2203,18 +2203,18 @@ test_clustering_address() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "dir" "8444"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q node2
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node2 | grep -q "database: true"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -F node2
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node2 | grep -xF "database: true"
 
   # The new node appears with its custom cluster port
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep ^url | grep -q 8444
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep ^url | grep ':8444$'
 
   # The core.https_address config value can be changed and the REST API is still
   # accessible.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set "core.https_address" 100.64.1.101:9999
   url="https://100.64.1.101:9999"
   lxc remote set-url cluster "${url}"
-  lxc storage list cluster:| grep -q data
+  lxc storage list cluster:| grep -wF data
 
   # The cluster.https_address config value can't be changed.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc config set "cluster.https_address" "100.64.1.101:8448" || false
@@ -2222,7 +2222,7 @@ test_clustering_address() {
   # Create a container using the REST API exposed over core.https_address.
   LXD_DIR="${LXD_ONE_DIR}" deps/import-busybox --alias testimage
   lxc init --target node2 testimage cluster:c1
-  lxc list cluster: | grep -q c1
+  lxc list cluster: | grep -wF c1
 
   # The core.https_address config value can be set to a wildcard address if
   # the port is the same as cluster.https_address.
@@ -2276,8 +2276,8 @@ test_clustering_image_replication() {
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
 
   # The image is visible through both nodes
-  LXD_DIR="${LXD_ONE_DIR}" lxc image list | grep -q testimage
-  LXD_DIR="${LXD_TWO_DIR}" lxc image list | grep -q testimage
+  LXD_DIR="${LXD_ONE_DIR}" lxc image list | grep -wF testimage
+  LXD_DIR="${LXD_TWO_DIR}" lxc image list | grep -wF testimage
 
   # The image tarball is available on both nodes
   fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')
@@ -2316,9 +2316,9 @@ test_clustering_image_replication() {
   LXD_DIR="${LXD_THREE_DIR}" ensure_import_testimage
 
   # The image is visible through all three nodes
-  LXD_DIR="${LXD_ONE_DIR}" lxc image list | grep -q testimage
-  LXD_DIR="${LXD_TWO_DIR}" lxc image list | grep -q testimage
-  LXD_DIR="${LXD_THREE_DIR}" lxc image list | grep -q testimage
+  LXD_DIR="${LXD_ONE_DIR}" lxc image list | grep -wF testimage
+  LXD_DIR="${LXD_TWO_DIR}" lxc image list | grep -wF testimage
+  LXD_DIR="${LXD_THREE_DIR}" lxc image list | grep -wF testimage
 
   # The image tarball is available on all three nodes
   fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')
@@ -2364,17 +2364,17 @@ test_clustering_image_replication() {
 
   # Disable the image replication
   LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.images_minimal_replica 1
-  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -q 'cluster.images_minimal_replica: "1"'
-  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -q 'cluster.images_minimal_replica: "1"'
-  LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -q 'cluster.images_minimal_replica: "1"'
+  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F 'cluster.images_minimal_replica: "1"'
+  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F 'cluster.images_minimal_replica: "1"'
+  LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F 'cluster.images_minimal_replica: "1"'
 
   # Import the test image on node2
   LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
 
   # The image is visible through all three nodes
-  LXD_DIR="${LXD_ONE_DIR}" lxc image list | grep -q testimage
-  LXD_DIR="${LXD_TWO_DIR}" lxc image list | grep -q testimage
-  LXD_DIR="${LXD_THREE_DIR}" lxc image list | grep -q testimage
+  LXD_DIR="${LXD_ONE_DIR}" lxc image list | grep -wF testimage
+  LXD_DIR="${LXD_TWO_DIR}" lxc image list | grep -wF testimage
+  LXD_DIR="${LXD_THREE_DIR}" lxc image list | grep -wF testimage
 
   # The image tarball is only available on node2
   fingerprint=$(LXD_DIR="${LXD_TWO_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')
@@ -2593,9 +2593,9 @@ test_clustering_recover() {
   sleep 5
 
   # Check the current database nodes
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "100.64.1.101:8443"
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "100.64.1.102:8443"
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "100.64.1.103:8443"
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -F "100.64.1.101:8443"
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -F "100.64.1.102:8443"
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -F "100.64.1.103:8443"
 
   # Create a test project, just to insert something in the database.
   LXD_DIR="${LXD_ONE_DIR}" lxc project create p1
@@ -2614,11 +2614,11 @@ test_clustering_recover() {
   respawn_lxd_cluster_member "${ns1}" "${LXD_ONE_DIR}"
 
   # The project we had created is still there
-  LXD_DIR="${LXD_ONE_DIR}" lxc project list | grep -qwF p1
+  LXD_DIR="${LXD_ONE_DIR}" lxc project list | grep -wF p1
 
   # The database nodes have been updated
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "100.64.1.101:8443"
-  ! LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "100.64.1.102:8443" || false
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -F "100.64.1.101:8443"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -F "100.64.1.102:8443" || false
 
   # Cleanup the dead node.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2 --force --yes
@@ -2695,8 +2695,8 @@ test_clustering_handover() {
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster ls
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node1
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -q "\- database$"
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node1 | grep -q "database: false"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -xF -- "- database"
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node1 | grep -xF "database: false"
 
   # Even if we shutdown one more node, the cluster is still available.
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
@@ -2804,10 +2804,10 @@ test_clustering_rebalance() {
   sleep 15
 
   # The second node is offline and has been demoted.
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "status: Offline"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "database: false"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "status: Online"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database$"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "status: Offline"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "database: false"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF "status: Online"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -F -- "- database"
 
   # Respawn the second node. It won't be able to disrupt the current leader,
   # since dqlite uses pre-vote.
@@ -2815,8 +2815,8 @@ test_clustering_rebalance() {
   sleep 12
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "status: Online"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "database: true"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "status: Online"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "database: true"
 
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
@@ -2862,8 +2862,8 @@ test_clustering_remove_raft_node() {
 
   # Configuration keys can be changed on any node.
   LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 11
-  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -q 'cluster.offline_threshold: "11"'
-  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -q 'cluster.offline_threshold: "11"'
+  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F 'cluster.offline_threshold: "11"'
+  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F 'cluster.offline_threshold: "11"'
 
   # The preseeded network bridge exists on all nodes.
   ns1_pid="$(cat "${TEST_DIR}/ns/${ns1}/PID")"
@@ -2911,13 +2911,13 @@ test_clustering_remove_raft_node() {
   sleep 12
 
   # The node does not appear anymore in the cluster list.
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node2" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF "node2" || false
 
   # There are only 2 database nodes.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "\- database-leader$"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -q "\- database$"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database$"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- database-leader"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -xF -- "- database"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF -- "- database"
 
   # The second node is still in the raft_nodes table.
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 1 ]
@@ -2931,9 +2931,9 @@ test_clustering_remove_raft_node() {
 
   # We're back to 3 database nodes.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "\- database-leader$"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -q "\- database$"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database$"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- database-leader"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -xF -- "- database"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF -- "- database"
 
   # The second node is gone from the raft_nodes_table.
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 0 ]
@@ -3002,7 +3002,7 @@ test_clustering_failure_domains() {
   spawn_lxd_and_join_cluster "${ns6}" "${bridge}" "${cert}" 6 4 "${LXD_SIX_DIR}"
 
   # Default failure domain
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "failure_domain: default"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "failure_domain: default"
 
   # Set failure domains
 
@@ -3019,15 +3019,15 @@ test_clustering_failure_domains() {
   # shellcheck disable=SC2039
   printf "roles: []\nfailure_domain: \"az3\"\ngroups: [\"default\"]" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node6
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "failure_domain: az2"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "failure_domain: az2"
 
   # Shutdown a node in az2, its replacement is picked from az2.
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   sleep 3
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "database: false"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -q "database: true"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "database: false"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -xF "database: true"
 
   LXD_DIR="${LXD_SIX_DIR}" lxd shutdown
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
@@ -3074,7 +3074,7 @@ test_clustering_image_refresh() {
   LXD_DIR="${LXD_ONE_DIR}" lxc config set images.auto_update_interval 1
 
   # The state of the preseeded storage pool shows up as CREATED
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep data | grep -q CREATED
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
 
   # Add a newline at the end of each line. YAML as weird rules..
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
@@ -3294,7 +3294,7 @@ test_clustering_evacuation() {
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
 
   # The state of the preseeded storage pool shows up as CREATED
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep data | grep -q CREATED
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
 
   # Add a newline at the end of each line. YAML as weird rules..
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
@@ -3347,57 +3347,57 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force
 
   # Ensure the node is evacuated
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -q "status: Evacuated"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -F "status: Evacuated"
 
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list
 
   # Check instance status
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Status: RUNNING"
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Location: node1" || false
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Status: RUNNING"
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Location: node1" || false
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Status: STOPPED"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Status: RUNNING"
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Location: node1" || false
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Status: STOPPED"
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Location: node1" || false
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Location: node2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Status: RUNNING"
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Location: node1" || false
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Status: RUNNING"
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Location: node1" || false
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Status: STOPPED"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Location: node1"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Status: RUNNING"
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Location: node1" || false
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Status: STOPPED"
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Location: node1" || false
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Status: RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Location: node2"
 
-  c1_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep "Location:" | awk '{print $2}')
-  c2_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep "Location:" | awk '{print $2}')
-  c4_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep "Location:" | awk '{print $2}')
-  c5_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep "Location:" | awk '{print $2}')
-  c6_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep "Location:" | awk '{print $2}')
+  c1_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | awk '/Location:/ {print $2}')
+  c2_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | awk '/Location:/ {print $2}')
+  c4_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | awk '/Location:/ {print $2}')
+  c5_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | awk '/Location:/ {print $2}')
+  c6_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | awk '/Location:/ {print $2}')
 
   # Restore first node with "skip" mode.
   # "skip" mode restores cluster member status without starting instances or migrating back evacuated instances.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster restore node1 --action=skip --force
 
   # Ensure the node is restored
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -q "status: Online"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF "status: Online"
 
   # Verify that instances remain in their evacuated state/location
   # c1 should stay on the node it was migrated to
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Location: ${c1_location}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Status: RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Location: ${c1_location}"
   # c2 should stay on the node it was migrated to
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Location: ${c2_location}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Status: RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Location: ${c2_location}"
   # c3 should remain stopped on node1
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Status: STOPPED"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Location: node1"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Status: STOPPED"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Location: node1"
   # c4 should stay on the node it was migrated to
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Location: ${c4_location}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Status: RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Location: ${c4_location}"
   # c5 should remain stopped on the node it was migrated to
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Status: STOPPED"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Location: ${c5_location}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Status: STOPPED"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Location: ${c5_location}"
   # c6 should stay on the node it was already on
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Location: ${c6_location}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Status: RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Location: ${c6_location}"
 
   # Now test a full restore for comparison
   # Evacuate node1 again
@@ -3407,7 +3407,7 @@ test_clustering_evacuation() {
   ! LXD_DIR="${LXD_TWO_DIR}" lxc launch testimage c7 --target=node1 || false
 
   # Ensure the node is evacuated
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -q "status: Evacuated"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF "status: Evacuated"
 
   # Restore first node (without "skip" mode)
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster restore node1 --force
@@ -3416,18 +3416,18 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_TWO_DIR}" lxc list
 
   # Ensure the instances were moved back to the origin
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Status: STOPPED"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Location: node2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Status: RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Location: node1"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Status: RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Location: node1"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Status: RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Location: node1"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Status: RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Location: node1"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Status: STOPPED"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Location: node1"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Status: RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Location: node2"
 
   # Clean up
   LXD_DIR="${LXD_TWO_DIR}" lxc rm -f c1
@@ -3507,12 +3507,12 @@ test_clustering_edit_configuration() {
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
 
   # Ensure successful communication
-  LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
-  LXD_DIR="${LXD_THREE_DIR}" lxc info --target node1 | grep -q "server_name: node1"
-  LXD_DIR="${LXD_FOUR_DIR}" lxc info --target node1 | grep -q "server_name: node1"
-  LXD_DIR="${LXD_FIVE_DIR}" lxc info --target node1 | grep -q "server_name: node1"
-  LXD_DIR="${LXD_SIX_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -F "server_name: node2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -F "server_name: node1"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info --target node1 | grep -F "server_name: node1"
+  LXD_DIR="${LXD_FOUR_DIR}" lxc info --target node1 | grep -F "server_name: node1"
+  LXD_DIR="${LXD_FIVE_DIR}" lxc info --target node1 | grep -F "server_name: node1"
+  LXD_DIR="${LXD_SIX_DIR}" lxc info --target node1 | grep -F "server_name: node1"
 
   # Shut down all nodes, de-syncing the roles tables
   shutdown_lxd "${LXD_ONE_DIR}"
@@ -3567,17 +3567,17 @@ test_clustering_edit_configuration() {
     echo "${files}" | grep local.db
 
     # Recovery tarballs shouldn't be included in backups
-    ! echo "${files}" | grep -q lxd_recovery_db.tar.gz || false
+    ! echo "${files}" | grep -F lxd_recovery_db.tar.gz || false
   done
 
   # Ensure successful communication
-  LXD_DIR="${LXD_ONE_DIR}"   lxc info --target node2 | grep -q "server_name: node2"
-  LXD_DIR="${LXD_TWO_DIR}"   lxc info --target node1 | grep -q "server_name: node1"
-  LXD_DIR="${LXD_THREE_DIR}" lxc info --target node1 | grep -q "server_name: node1"
-  LXD_DIR="${LXD_FOUR_DIR}"  lxc info --target node1 | grep -q "server_name: node1"
-  LXD_DIR="${LXD_FIVE_DIR}"  lxc info --target node1 | grep -q "server_name: node1"
-  LXD_DIR="${LXD_SIX_DIR}"   lxc info --target node1 | grep -q "server_name: node1"
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster ls | grep -q "No heartbeat" || false
+  LXD_DIR="${LXD_ONE_DIR}"   lxc info --target node2 | grep -F "server_name: node2"
+  LXD_DIR="${LXD_TWO_DIR}"   lxc info --target node1 | grep -F "server_name: node1"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info --target node1 | grep -F "server_name: node1"
+  LXD_DIR="${LXD_FOUR_DIR}"  lxc info --target node1 | grep -F "server_name: node1"
+  LXD_DIR="${LXD_FIVE_DIR}"  lxc info --target node1 | grep -F "server_name: node1"
+  LXD_DIR="${LXD_SIX_DIR}"   lxc info --target node1 | grep -F "server_name: node1"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -F "No heartbeat" || false
 
   # Clean up
   shutdown_lxd "${LXD_ONE_DIR}"
@@ -3655,12 +3655,12 @@ test_clustering_remove_members() {
   ns6="${prefix}6"
   spawn_lxd_and_join_cluster "${ns6}" "${bridge}" "${cert}" 6 1 "${LXD_SIX_DIR}"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
-  LXD_DIR="${LXD_THREE_DIR}" lxc info --target node1 | grep -q "server_name: node1"
-  LXD_DIR="${LXD_FOUR_DIR}" lxc info --target node1 | grep -q "server_name: node1"
-  LXD_DIR="${LXD_FIVE_DIR}" lxc info --target node1 | grep -q "server_name: node1"
-  LXD_DIR="${LXD_SIX_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -F "server_name: node2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -F "server_name: node1"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info --target node1 | grep -F "server_name: node1"
+  LXD_DIR="${LXD_FOUR_DIR}" lxc info --target node1 | grep -F "server_name: node1"
+  LXD_DIR="${LXD_FIVE_DIR}" lxc info --target node1 | grep -F "server_name: node1"
+  LXD_DIR="${LXD_SIX_DIR}" lxc info --target node1 | grep -F "server_name: node1"
 
   # stop node 6
   shutdown_lxd "${LXD_SIX_DIR}"
@@ -3672,18 +3672,18 @@ test_clustering_remove_members() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster rm node5
 
   # Ensure the remaining node is working and node2, node3, node4,node5 successful reomve from cluster
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node2" || false
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node3" || false
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node4" || false
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node5" || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node1"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF "node2" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF "node3" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF "node4" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF "node5" || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF "node1"
 
   # Start node 6
   LXD_NETNS="${ns6}" respawn_lxd "${LXD_SIX_DIR}" true
 
   # make sure node6 is a spare ndoe
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node6"
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node6 | grep -qE "\- database(|-standy|-leader)$" || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF "node6"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node6 | grep -E "\- database(|-standy|-leader)$" || false
 
   # waite for leader update table raft_node of local database by heartbeat
   sleep 10s
@@ -3692,12 +3692,12 @@ test_clustering_remove_members() {
   LXD_DIR="${LXD_SIX_DIR}" lxc cluster rm node1
 
   # Ensure the remaining node is working and node1 had successful remove
-  ! LXD_DIR="${LXD_SIX_DIR}" lxc cluster list | grep -q "node1" || false
-  LXD_DIR="${LXD_SIX_DIR}" lxc cluster list | grep -q "node6"
+  ! LXD_DIR="${LXD_SIX_DIR}" lxc cluster list | grep -wF "node1" || false
+  LXD_DIR="${LXD_SIX_DIR}" lxc cluster list | grep -wF "node6"
 
   # Check whether node6 is changed from a spare node to a leader node.
-  LXD_DIR="${LXD_SIX_DIR}" lxc cluster show node6 | grep -q "\- database-leader$"
-  LXD_DIR="${LXD_SIX_DIR}" lxc cluster show node6 | grep -q "\- database$"
+  LXD_DIR="${LXD_SIX_DIR}" lxc cluster show node6 | grep -xF -- "- database-leader"
+  LXD_DIR="${LXD_SIX_DIR}" lxc cluster show node6 | grep -xF -- "- database"
 
   # Spawn a sixth node
   setup_clustering_netns 7
@@ -3706,8 +3706,8 @@ test_clustering_remove_members() {
   spawn_lxd_and_join_cluster "${ns7}" "${bridge}" "${cert}" 7 6 "${LXD_SEVEN_DIR}"
 
   # Ensure the remaining node is working by join a new node7
-  LXD_DIR="${LXD_SIX_DIR}" lxc info --target node7 | grep -q "server_name: node7"
-  LXD_DIR="${LXD_SEVEN_DIR}" lxc info --target node6 | grep -q "server_name: node6"
+  LXD_DIR="${LXD_SIX_DIR}" lxc info --target node7 | grep -F "server_name: node7"
+  LXD_DIR="${LXD_SEVEN_DIR}" lxc info --target node6 | grep -F "server_name: node6"
 
   # Clean up
   shutdown_lxd "${LXD_ONE_DIR}"
@@ -3766,14 +3766,14 @@ test_clustering_autotarget() {
  # Spawn c1 on node2 from node1
  ensure_import_testimage
   lxc init --target node2 testimage c1
- lxc ls | grep c1 | grep -q node2
+ lxc ls | grep -wF c1 | grep -wF node2
 
  # Set node1 config to disable autotarget
  lxc cluster set node1 scheduler.instance manual
 
  # Spawn another node, autotargeting node2 although it has more instances.
  lxc init testimage c2
- lxc ls | grep c2 | grep -q node2
+ lxc ls | grep -wF c2 | grep -wF node2
 
   shutdown_lxd "${LXD_ONE_DIR}"
   shutdown_lxd "${LXD_TWO_DIR}"
@@ -3922,23 +3922,23 @@ EOF
 
   # c1 should go to node1
   lxc init testimage cluster:c1
-  lxc info cluster:c1 | grep -q "Location: node1"
+  lxc info cluster:c1 | grep -xF "Location: node1"
 
   # c2 should go to node2. Additionally it should be possible to specify the network.
   lxc init testimage cluster:c2 --target=@blah --network "${bridge}"
-  lxc info cluster:c2 | grep -q "Location: node2"
+  lxc info cluster:c2 | grep -xF "Location: node2"
 
   # c3 should go to node2 again. Additionally it should be possible to specify the storage pool.
   lxc init testimage cluster:c3 --target=@blah --storage data
-  lxc info cluster:c3 | grep -q "Location: node2"
+  lxc info cluster:c3 | grep -xF "Location: node2"
 
   # Direct targeting of node2 should work
   lxc init testimage cluster:c4 --target=node2
-  lxc info cluster:c4 | grep -q "Location: node2"
+  lxc info cluster:c4 | grep -xF "Location: node2"
 
   # Direct targeting of node3 should work
   lxc init testimage cluster:c5 --target=node3
-  lxc info cluster:c5 | grep -q "Location: node3"
+  lxc info cluster:c5 | grep -xF "Location: node3"
 
   # Clean up
   lxc rm -f c1 c2 c3 c4 c5
@@ -3999,17 +3999,17 @@ EOF
   lxc cluster unset cluster:node2 scheduler.instance
   lxc init testimage cluster:c1 --project foo
   lxc init testimage cluster:c2 --project foo
-  lxc info cluster:c1 --project foo | grep -q "Location: node2"
-  lxc info cluster:c2 --project foo | grep -q "Location: node2"
+  lxc info cluster:c1 --project foo | grep -xF "Location: node2"
+  lxc info cluster:c2 --project foo | grep -xF "Location: node2"
   lxc delete -f c1 c2 --project foo
 
   # Check can specify any member or group when restricted.cluster.groups is empty.
   lxc project unset foo restricted.cluster.groups
   lxc init testimage cluster:c1 --project foo --target=node1
-  lxc info cluster:c1 --project foo | grep -q "Location: node1"
+  lxc info cluster:c1 --project foo | grep -xF "Location: node1"
 
   lxc init testimage cluster:c2 --project foo --target=@blah
-  lxc info cluster:c2 --project foo | grep -q "Location: node2"
+  lxc info cluster:c2 --project foo | grep -xF "Location: node2"
 
   lxc delete -f c1 c2 --project foo
 
@@ -4083,7 +4083,7 @@ test_clustering_events() {
 
   # c1 should go to node1.
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --target=node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc info c1 | grep -q "Location: node1"
+  LXD_DIR="${LXD_ONE_DIR}" lxc info c1 | grep -xF "Location: node1"
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c2 --target=node2
 
   LXD_DIR="${LXD_ONE_DIR}" stdbuf -oL lxc monitor --type=lifecycle > "${TEST_DIR}/node1.log" &
@@ -4314,7 +4314,7 @@ test_clustering_trust_add() {
 
   # Expect one running token operation.
   operation_uuid="$(LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "TOKEN,Executing operation,RUNNING" | cut -d, -f1 )"
-  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,RUNNING"
   is_uuid_v4 "${operation_uuid}"
 
   # Get the address of LXD_TWO.
@@ -4328,8 +4328,8 @@ test_clustering_trust_add() {
   ! lxc remote add lxd_two "${lxd_two_address}" --token "${lxd_one_token}" || false
 
   # Expect the operation to be cancelled.
-  LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,CANCELLED"
-  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,CANCELLED"
+  LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,CANCELLED"
+  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,CANCELLED"
 
   # Set token expiry to 1 hour
   lxc config set core.remote_token_expiry 1H
@@ -4341,7 +4341,7 @@ test_clustering_trust_add() {
 
   # Expect one running token operation.
   operation_uuid="$(LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "TOKEN,Executing operation,RUNNING" | cut -d, -f1 )"
-  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,RUNNING"
   is_uuid_v4 "${operation_uuid}"
 
   # Get the address of LXD_TWO.
@@ -4354,8 +4354,8 @@ test_clustering_trust_add() {
   lxc remote add lxd_two "${lxd_two_address}" --token "${lxd_one_token}"
 
   # Expect the operation to be cancelled.
-  LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,CANCELLED"
-  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,CANCELLED"
+  LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,CANCELLED"
+  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,CANCELLED"
 
   # Clean up
   lxc remote rm lxd_two
