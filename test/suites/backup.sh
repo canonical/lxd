@@ -49,13 +49,13 @@ yes
 EOF
 
   # Ensure custom storage volume has been recovered.
-  lxc storage volume show "${poolName}" vol1 | grep -q 'content_type: block'
-  lxc storage volume show "${poolName}" vol2 | grep -q 'content_type: iso'
+  lxc storage volume show "${poolName}" vol1 | grep -xF 'content_type: block'
+  lxc storage volume show "${poolName}" vol2 | grep -xF 'content_type: iso'
 
   if [ "$poolDriver" = "zfs" ]; then
     # Ensure custom storage volumes have been recovered.
-    lxc storage volume show "${poolName}" vol3 | grep -q 'content_type: filesystem'
-    lxc storage volume show "${poolName}" vol4 | grep -q 'content_type: filesystem'
+    lxc storage volume show "${poolName}" vol3 | grep -xF 'content_type: filesystem'
+    lxc storage volume show "${poolName}" vol4 | grep -xF 'content_type: filesystem'
 
     # Cleanup
     lxc storage volume delete "${poolName}" vol3
@@ -647,14 +647,14 @@ test_backup_rename() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  if ! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -q "Error: Instance backup not found" ; then
+  if ! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -F "Error: Instance backup not found" ; then
     echo "invalid rename response for missing container"
     false
   fi
 
   lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
 
-  if ! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -q "Error: Instance backup not found" ; then
+  if ! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -F "Error: Instance backup not found" ; then
     echo "invalid rename response for missing backup"
     false
   fi
@@ -778,7 +778,7 @@ _backup_volume_export_with_project() {
   [ "$(cat "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
   [ ! -d "${LXD_DIR}/non-optimized/backup/volume-snapshots" ]
 
-  ! grep -q -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml" || false
+  ! grep -F -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml" || false
 
   rm -rf "${LXD_DIR}/non-optimized/"*
   rm "${LXD_DIR}/testvol.tar.gz"
@@ -814,7 +814,7 @@ _backup_volume_export_with_project() {
   [ -d "${LXD_DIR}/non-optimized/backup/volume-snapshots/test-snap0" ]
   [  "$(cat "${LXD_DIR}/non-optimized/backup/volume-snapshots/test-snap0/test")" = "foo" ]
 
-  grep -q -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml"
+  grep -F -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml"
 
   rm -rf "${LXD_DIR}/non-optimized/"*
 
@@ -913,7 +913,7 @@ test_backup_volume_rename_delete() {
   # Create test volume.
   lxc storage volume create "${pool}" vol1 size=32MiB
 
-  if ! lxc query -X POST /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -q "Error: Storage volume backup not found" ; then
+  if ! lxc query -X POST /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -F "Error: Storage volume backup not found" ; then
     echo "invalid rename response for missing storage volume"
     false
   fi
