@@ -454,5 +454,7 @@ test_tls_version() {
 
   echo "TLS 1.2 is refused with a protocol version error"
   ! my_curl --tls-max 1.2 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || false
-  my_curl --tls-max 1.2 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" | grep -F "alert protocol version"
+  # rc=35: SSL connect error. The SSL handshaking failed.
+  CURL_ERR="$(my_curl --tls-max 1.2 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || [ "${?}" = 35 ])"
+  echo "${CURL_ERR}" | grep -F "alert protocol version"
 }
