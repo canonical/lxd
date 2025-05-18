@@ -62,12 +62,12 @@ test_clustering_move() {
   lxc info cluster:c1 | grep -q "Location: node1"
 
   # c1 can be moved within the same cluster group if it has multiple members
-  current_location="$(query cluster:/1.0/instances/c1 | jq -r '.location')"
+  current_location="$(lxc query cluster:/1.0/instances/c1 | jq -r '.location')"
   lxc move cluster:c1 --target=@default
-  query cluster:/1.0/instances/c1 | jq -re ".location != \"$current_location\""
-  current_location="$(query cluster:/1.0/instances/c1 | jq -r '.location')"
+  lxc query cluster:/1.0/instances/c1 | jq -re ".location != \"$current_location\""
+  current_location="$(lxc query cluster:/1.0/instances/c1 | jq -r '.location')"
   lxc move cluster:c1 --target=@default
-  query cluster:/1.0/instances/c1 | jq -re ".location != \"$current_location\""
+  lxc query cluster:/1.0/instances/c1 | jq -re ".location != \"$current_location\""
 
   # c1 cannot be moved within the same cluster group if it has a single member
   lxc move cluster:c1 --target=@foobar3
