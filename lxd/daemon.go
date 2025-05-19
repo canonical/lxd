@@ -730,22 +730,23 @@ func (d *Daemon) State() *state.State {
 		}, nil
 	}
 
-	storagePath := func(config string, path string) string {
+	storagePath := func(config string, target string) string {
 		if config == "" {
-			return path
+			return shared.VarPath(target)
 		}
 
 		poolName, volumeName, _ := daemonStorageSplitVolume(config)
 		volStorageName := project.StorageVolume(api.ProjectDefaultName, volumeName)
-		return storageDrivers.GetVolumeMountPath(poolName, storageDrivers.VolumeTypeCustom, volStorageName)
+		volMountPath := storageDrivers.GetVolumeMountPath(poolName, storageDrivers.VolumeTypeCustom, volStorageName)
+		return filepath.Join(volMountPath, target)
 	}
 
 	s.ImagesStoragePath = func() string {
-		return storagePath(s.LocalConfig.StorageImagesVolume(), shared.VarPath("images"))
+		return storagePath(s.LocalConfig.StorageImagesVolume(), "images")
 	}
 
 	s.BackupsStoragePath = func() string {
-		return storagePath(s.LocalConfig.StorageBackupsVolume(), shared.VarPath("backups"))
+		return storagePath(s.LocalConfig.StorageBackupsVolume(), "backups")
 	}
 
 	return s

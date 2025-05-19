@@ -271,6 +271,7 @@ func daemonStorageMove(s *state.State, storageType string, oldConfig string, new
 
 		sourceVolume = project.StorageVolume(api.ProjectDefaultName, sourceVolume)
 		sourcePath = storageDrivers.GetVolumeMountPath(sourcePool, storageDrivers.VolumeTypeCustom, sourceVolume)
+		sourcePath = filepath.Join(sourcePath, storageType)
 	}
 
 	moveContent := func(source string, target string) error {
@@ -280,20 +281,7 @@ func daemonStorageMove(s *state.State, storageType string, oldConfig string, new
 			return err
 		}
 
-		// Remove the source content.
-		entries, err := os.ReadDir(source)
-		if err != nil {
-			return err
-		}
-
-		for _, entry := range entries {
-			err := os.RemoveAll(filepath.Join(source, entry.Name()))
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
+		return os.RemoveAll(source)
 	}
 
 	// Deal with unsetting.
@@ -355,6 +343,12 @@ func daemonStorageMove(s *state.State, storageType string, oldConfig string, new
 		destPath = s.BackupsStoragePath()
 	}
 
+	// Ensure the destination directory structure exists within the target volume.
+	err = os.MkdirAll(destPath, 0700)
+	if err != nil {
+		return fmt.Errorf("Failed to create directory %q: %w", destPath, err)
+	}
+
 	err = os.Chmod(destPath, 0700)
 	if err != nil {
 		return fmt.Errorf("Failed to set permissions on %q: %w", destPath, err)
@@ -392,12 +386,6 @@ func daemonStorageMove(s *state.State, storageType string, oldConfig string, new
 	err = moveContent(sourcePath, destPath)
 	if err != nil {
 		return fmt.Errorf("Failed to move data over to directory %q: %w", destPath, err)
-	}
-
-	// Remove the old data.
-	err = os.RemoveAll(sourcePath)
-	if err != nil {
-		return fmt.Errorf("Failed to cleanup old directory %q: %w", sourcePath, err)
 	}
 
 	return nil
