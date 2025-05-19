@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -53,7 +54,7 @@ func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
 
 		// Unmount volume.
 		_, err = pool.UnmountCustomVolume(api.ProjectDefaultName, volumeName, nil)
-		if err != nil {
+		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 			return fmt.Errorf("Failed to unmount storage volume %q: %w", source, err)
 		}
 
@@ -233,16 +234,18 @@ func daemonStorageValidate(s *state.State, target string) (validatedTarget strin
 		return "", fmt.Errorf("Failed to list %q: %w", mountpoint, err)
 	}
 
+	allowedEntries := []string{
+		"lost+found", // Clean ext4 volumes.
+		".zfs",       // Systems with snapdir=visible
+		"images",
+		"backups", // Allow re-use of volume for multiple images and backups stores.
+	}
+
 	for _, entry := range entries {
 		entryName := entry.Name()
 
-		// Don't fail on clean ext4 volumes.
-		if entryName == "lost+found" {
-			continue
-		}
-
-		// Don't fail on systems with snapdir=visible.
-		if entryName == ".zfs" {
+		// Don't fail on entries known to be possibly present.
+		if slices.Contains(allowedEntries, entryName) {
 			continue
 		}
 
@@ -308,10 +311,10 @@ func daemonStorageMove(s *state.State, storageType string, oldConfig string, new
 			return err
 		}
 
-		// Unmount old volume.
+		// Unmount old volume if noone else is using it.
 		projectName, sourceVolumeName := project.StorageVolumeParts(sourceVolume)
 		_, err = pool.UnmountCustomVolume(projectName, sourceVolumeName, nil)
-		if err != nil {
+		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 			return fmt.Errorf(`Failed to umount storage volume "%s/%s": %w`, sourcePool, sourceVolumeName, err)
 		}
 
@@ -375,7 +378,7 @@ func daemonStorageMove(s *state.State, storageType string, oldConfig string, new
 		// Unmount old volume.
 		projectName, sourceVolumeName := project.StorageVolumeParts(sourceVolume)
 		_, err = pool.UnmountCustomVolume(projectName, sourceVolumeName, nil)
-		if err != nil {
+		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 			return fmt.Errorf(`Failed to umount storage volume "%s/%s": %w`, sourcePool, sourceVolumeName, err)
 		}
 
