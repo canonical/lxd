@@ -50,7 +50,8 @@ func (m *Map) Change(changes map[string]any) (map[string]string, error) {
 		// When a hidden value is set to "true" in the change set, it
 		// means "keep it unchanged", so we replace it with our current
 		// value.
-		if ok && key.Hidden && change == true {
+		changeBool, _ := change.(bool)
+		if ok && key.Hidden && changeBool {
 			change = m.GetRaw(name)
 		}
 
