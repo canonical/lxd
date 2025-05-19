@@ -126,7 +126,7 @@ test_storage_driver_ceph() {
     lxc profile device remove default root
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool1"
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool2"
-    ! ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool ls | grep -q "lxdtest-$(basename "${LXD_DIR}")-existing-osd-pool" || false
+    ! ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool ls | grep -F "lxdtest-$(basename "${LXD_DIR}")-existing-osd-pool" || false
 
 
     # Test that pre-existing OSD pools are not affected by the config option in LXD. Only the associated pool should be affected.
