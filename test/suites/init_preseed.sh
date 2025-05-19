@@ -64,17 +64,17 @@ profiles:
       type: nic
 EOF
 
-    lxc info | grep -q 'core.https_address: 127.0.0.1:9999'
-    lxc info | grep -q 'images.auto_update_interval: "15"'
-    lxc network list | grep -q "lxdt$$"
-    lxc storage list | grep -q "${storage_pool}"
-    lxc storage show "${storage_pool}" | grep -q "$source"
-    lxc storage volume list "${storage_pool}" | grep -q "${storage_volume}"
-    lxc profile list | grep -q "test-profile"
-    lxc profile show default | grep -q "pool: ${storage_pool}"
-    lxc profile show test-profile | grep -q "limits.memory: 2GiB"
-    lxc profile show test-profile | grep -q "nictype: bridged"
-    lxc profile show test-profile | grep -q "parent: lxdt$$"
+    lxc info | grep -F 'core.https_address: 127.0.0.1:9999'
+    lxc info | grep -F 'images.auto_update_interval: "15"'
+    lxc network list | grep -wF "lxdt$$"
+    lxc storage list | grep -wF "${storage_pool}"
+    lxc storage show "${storage_pool}" | grep -wF "$source"
+    lxc storage volume list "${storage_pool}" | grep -wF "${storage_volume}"
+    lxc profile list | grep -wF "test-profile"
+    lxc profile show default | grep -wF "pool: ${storage_pool}"
+    lxc profile show test-profile | grep -wF "limits.memory: 2GiB"
+    lxc profile show test-profile | grep -wF "nictype: bridged"
+    lxc profile show test-profile | grep -wF "parent: lxdt$$"
     printf 'config: {}\ndevices: {}' | lxc profile edit default
     lxc profile delete test-profile
     lxc network delete lxdt$$
