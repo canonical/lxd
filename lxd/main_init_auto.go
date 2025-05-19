@@ -40,7 +40,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 		}
 
 		if c.flagTrustPassword != "" {
-			return nil, fmt.Errorf("--trust-password can't be used without --network-address")
+			return nil, errors.New("--trust-password can't be used without --network-address")
 		}
 	}
 

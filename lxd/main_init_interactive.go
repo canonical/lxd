@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -132,7 +133,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 
 			host, _, _ := net.SplitHostPort(address)
 			if shared.ValueInSlice(host, []string{"", "[::]", "0.0.0.0"}) {
-				return fmt.Errorf("Invalid IP address or DNS name")
+				return errors.New("Invalid IP address or DNS name")
 			}
 
 			if err == nil {
@@ -170,7 +171,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 
 			// Root is required to access the certificate files
 			if os.Geteuid() != 0 {
-				return fmt.Errorf("Joining an existing cluster requires root privileges")
+				return errors.New("Joining an existing cluster requires root privileges")
 			}
 
 			var joinToken *api.ClusterMemberJoinToken
@@ -191,7 +192,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 				} else if shared.ValueInSlice(strings.ToLower(input), []string{"no", "n"}) {
 					return nil
 				} else if validJoinToken(input) != nil {
-					return fmt.Errorf("Not yes/no, or invalid join token")
+					return errors.New("Not yes/no, or invalid join token")
 				}
 
 				return nil
@@ -219,7 +220,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 					config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress, shared.HTTPSDefaultPort)
 
 					// Cluster certificate
-					cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
+					cert, err := shared.GetRemoteCertificate("https://"+config.Cluster.ClusterAddress, version.UserAgent)
 					if err != nil {
 						fmt.Printf("Error connecting to existing cluster member %q: %v\n", clusterAddress, err)
 						continue
@@ -236,7 +237,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 				}
 
 				if config.Cluster.ClusterCertificate == "" {
-					return fmt.Errorf("Unable to connect to any of the cluster members specified in join token")
+					return errors.New("Unable to connect to any of the cluster members specified in join token")
 				}
 
 				// Raw join token used as cluster password so it can be validated.
@@ -258,7 +259,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 					config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress, shared.HTTPSDefaultPort)
 
 					// Cluster certificate
-					cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
+					cert, err := shared.GetRemoteCertificate("https://"+config.Cluster.ClusterAddress, version.UserAgent)
 					if err != nil {
 						fmt.Printf("Error connecting to existing cluster member: %v\n", err)
 						continue
@@ -277,7 +278,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 							return nil
 						}
 
-						return fmt.Errorf("Not yes/no or fingerprint")
+						return errors.New("Not yes/no or fingerprint")
 					}
 
 					fingerprintCorrect, err := c.global.asker.AskString("Is this the correct fingerprint? (yes/no/[fingerprint]) [default=no]: ", "no", validator)
@@ -286,7 +287,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 					}
 
 					if shared.ValueInSlice(strings.ToLower(fingerprintCorrect), []string{"no", "n"}) {
-						return fmt.Errorf("User aborted configuration")
+						return errors.New("User aborted configuration")
 					}
 
 					config.Cluster.ClusterCertificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
@@ -304,7 +305,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 			}
 
 			if !clusterWipeMember {
-				return fmt.Errorf("User aborted configuration")
+				return errors.New("User aborted configuration")
 			}
 
 			// Connect to existing cluster
@@ -331,7 +332,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 				UserAgent:     version.UserAgent,
 			}
 
-			client, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), args)
+			client, err := lxd.ConnectLXD("https://"+config.Cluster.ClusterAddress, args)
 			if err != nil {
 				return err
 			}
@@ -541,7 +542,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 							return fmt.Errorf("The auto-detected underlay (%s) isn't a /16 or /24, please specify manually", subnet.String())
 						}
 
-						return fmt.Errorf("The underlay subnet must be a /16 or a /24")
+						return errors.New("The underlay subnet must be a /16 or a /24")
 					}
 
 					return nil
@@ -694,7 +695,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 
 	if len(availableBackends) == 0 {
 		if poolType != util.PoolTypeAny {
-			return fmt.Errorf("No storage backends available")
+			return errors.New("No storage backends available")
 		}
 
 		return fmt.Errorf("No %s storage backends available", poolType)
@@ -888,7 +889,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 							}
 
 							if result < 1 {
-								return fmt.Errorf("Minimum size is 1GiB")
+								return errors.New("Minimum size is 1GiB")
 							}
 
 							return nil
@@ -899,7 +900,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 					}
 
 					if !strings.HasSuffix(pool.Config["size"], "GiB") {
-						pool.Config["size"] = fmt.Sprintf("%sGiB", pool.Config["size"])
+						pool.Config["size"] = pool.Config["size"] + "GiB"
 					}
 				}
 			}
@@ -945,7 +946,7 @@ and make sure that your user can see and run the "thin_check" command before run
 				}
 
 				if !lvmContinueNoThin {
-					return fmt.Errorf("The LVM thin provisioning tools couldn't be found on the system")
+					return errors.New("The LVM thin provisioning tools couldn't be found on the system")
 				}
 
 				pool.Config["lvm.use_thinpool"] = "false"
