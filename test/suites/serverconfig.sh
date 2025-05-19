@@ -68,8 +68,8 @@ _server_config_storage() {
   [ ! -e "${LXD_DIR}/images" ]
 
   # Record after
-  BACKUPS_AFTER=$(cd "${LXD_DIR}/storage-pools/${pool}/custom/default_backups/" && find . | sort)
-  IMAGES_AFTER=$(cd "${LXD_DIR}/storage-pools/${pool}/custom/default_images/" && find . | sort)
+  BACKUPS_AFTER=$(cd "${LXD_DIR}/storage-pools/${pool}/custom/default_backups/backups" && find . | sort)
+  IMAGES_AFTER=$(cd "${LXD_DIR}/storage-pools/${pool}/custom/default_images/images" && find . | sort)
 
   # Validate content
   if [ "${BACKUPS_BEFORE}" != "${BACKUPS_AFTER}" ]; then
