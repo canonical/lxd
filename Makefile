@@ -15,13 +15,18 @@ GOMIN=1.24.2
 GOTOOLCHAIN=local
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
+ARCH ?= $(shell uname -m)
 DQLITE_BRANCH=master
+LIBLXC_BRANCH=main
 
 ifneq "$(wildcard vendor)" ""
-	DQLITE_PATH=$(CURDIR)/vendor/dqlite
+	DEPS_PATH=$(CURDIR)/vendor
 else
-	DQLITE_PATH=$(GOPATH)/deps/dqlite
+	DEPS_PATH=$(GOPATH)/deps
 endif
+DQLITE_PATH=$(DEPS_PATH)/dqlite
+LIBLXC_PATH=$(DEPS_PATH)/liblxc
+LIBLXC_ROOTFS_MOUNT_PATH=$(GOPATH)/bin/liblxc/rootfs
 
 .PHONY: default
 default: all
@@ -88,15 +93,15 @@ endif
 
 	@echo "LXD-MIGRATE built successfully"
 
-.PHONY: deps
-deps:
+.PHONY: dqlite
+dqlite:
 	# dqlite (+raft)
 	@if [ ! -e "$(DQLITE_PATH)" ]; then \
 		echo "Retrieving dqlite from ${DQLITE_BRANCH} branch"; \
 		git clone --depth=1 --branch "${DQLITE_BRANCH}" "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
 	elif [ -e "$(DQLITE_PATH)/.git" ]; then \
 		echo "Updating existing dqlite branch"; \
-		cd "$(DQLITE_PATH)"; git pull; \
+		git -C "$(DQLITE_PATH)" pull; \
 	fi
 
 	cd "$(DQLITE_PATH)" && \
@@ -104,12 +109,60 @@ deps:
 		./configure --enable-build-raft && \
 		make
 
+.PHONY: liblxc
+liblxc:
+	# lxc/liblxc
+	@if [ ! -e "$(LIBLXC_PATH)" ]; then \
+		echo "Retrieving lxc/liblxc from ${LIBLXC_BRANCH} branch"; \
+		git clone --depth=1 --branch "${LIBLXC_BRANCH}" "https://github.com/lxc/lxc" "$(LIBLXC_PATH)"; \
+	elif [ -e "$(LIBLXC_PATH)/.git" ]; then \
+		echo "Updating existing lxc/liblxc branch"; \
+		git -C "$(LIBLXC_PATH)" pull; \
+	fi
+
+	# XXX: the rootfs-mount-path must not depend on LIBLXC_PATH to allow
+	# building in "vendor" mode but move the resulting binaries elsewhere for
+	# caching purposes
+	cd "$(LIBLXC_PATH)" && \
+		meson setup \
+			--buildtype=release \
+			-Dapparmor=true \
+			-Dcapabilities=true \
+			-Dcommands=false \
+			-Ddbus=false \
+			-Dexamples=false \
+			-Dinstall-init-files=false \
+			-Dinstall-state-dirs=false \
+			-Dman=false \
+			-Dmemfd-rexec=false \
+			-Dopenssl=false \
+			-Dprefix="$(LIBLXC_PATH)" \
+			-Drootfs-mount-path="$(LIBLXC_ROOTFS_MOUNT_PATH)" \
+			-Dseccomp=true \
+			-Dselinux=false \
+			-Dspecfile=false \
+			-Dtests=false \
+			-Dtools=false \
+			build && \
+		meson compile -C build && \
+		ninja -C build install
+
+ifneq ($(shell command -v ldd),)
+	# verify that liblxc.so is linked against some critically important libs
+	ldd "$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/liblxc.so" | grep -wE 'libapparmor|libcap|libseccomp'
+	[ "$$(ldd "$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/liblxc.so" | grep -cwE 'libapparmor|libcap|libseccomp')" = "3" ]
+	@echo "OK: liblxc .so link check passed"
+endif
+
+.PHONY: deps
+deps: dqlite liblxc
 	# environment
 	@echo ""
 	@echo "Please set the following in your environment (possibly ~/.bashrc)"
-	@echo "export CGO_CFLAGS=\"-I$(DQLITE_PATH)/include/\""
-	@echo "export CGO_LDFLAGS=\"-L$(DQLITE_PATH)/.libs/\""
-	@echo "export LD_LIBRARY_PATH=\"$(DQLITE_PATH)/.libs/\""
+	@echo "export CGO_CFLAGS=\"-I$(DQLITE_PATH)/include/ -I$(LIBLXC_PATH)/include/\""
+	@echo "export CGO_LDFLAGS=\"-L$(DQLITE_PATH)/.libs/ -L$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/\""
+	@echo "export LD_LIBRARY_PATH=\"$(DQLITE_PATH)/.libs/:$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/\""
+	@echo "export PKG_CONFIG_PATH=\"$(pkg-config --variable pc_path pkg-config):$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/pkgconfig/\""
 	@echo "export CGO_LDFLAGS_ALLOW=\"(-Wl,-wrap,pthread_create)|(-Wl,-z,now)\""
 
 .PHONY: update-gomod
