@@ -324,6 +324,11 @@ test_basic_usage() {
     lxd activateifneeded --debug 2>&1 | grep -F "Daemon has auto-started instances, activating..."
 
     lxc config unset autostart boot.autostart --force-local
+
+    # Restart the daemon, this forces the global database to be dumped to disk.
+    shutdown_lxd "${LXD_DIR}"
+    respawn_lxd "${LXD_DIR}" true
+
     ! lxd activateifneeded --debug 2>&1 | grep -F "activating..." || false
 
     lxc start autostart --force-local
