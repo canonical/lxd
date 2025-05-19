@@ -75,7 +75,7 @@ test_network() {
   # rename network
   lxc network create lxdt$$
   lxc network rename lxdt$$ newnet$$
-  lxc network list | grep -qv lxdt$$  # the old name is gone
+  ! lxc network list | grep -wF "lxdt$$" || false # the old name is gone
   lxc network delete newnet$$
 
   # Unconfigured bridge
