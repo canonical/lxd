@@ -21,8 +21,8 @@ test_tls_restrictions() {
   lxc_remote project create localhost:blah
 
   # Validate normal view with no restrictions
-  lxc_remote project list localhost: | grep -q default
-  lxc_remote project list localhost: | grep -q blah
+  lxc_remote project list localhost: | grep -wF default
+  lxc_remote project list localhost: | grep -wF blah
 
   # Apply restrictions
   lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: false/restricted: true/" | lxc config trust edit "${FINGERPRINT}"
@@ -47,8 +47,8 @@ test_tls_restrictions() {
   lxc config trust show "${FINGERPRINT}" | sed -e "s/projects: \[\]/projects: ['blah']/" -e "s/restricted: false/restricted: true/" | lxc config trust edit "${FINGERPRINT}"
 
   # Validate restricted view
-  ! lxc_remote project list localhost: | grep -q default || false
-  lxc_remote project list localhost: | grep -q blah
+  ! lxc_remote project list localhost: | grep -wF default || false
+  lxc_remote project list localhost: | grep -wF blah
 
   # Validate that the restricted caller cannot edit or delete the project.
   ! lxc_remote project set localhost:blah user.foo=bar || false
