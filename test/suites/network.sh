@@ -123,13 +123,8 @@ test_network() {
   lxc network list-leases lxdt$$ --project foo | grep -wF STATIC | grep -F "${v6_addr_foo}"
 
   # Request DHCPv6 lease (if udhcpc6 is in busybox image).
-  busyboxUdhcpc6=1
-  if ! lxc exec nettest -- busybox --list | grep udhcpc6 ; then
-    busyboxUdhcpc6=0
-  fi
-
-  if [ "$busyboxUdhcpc6" = "1" ]; then
-    lxc exec nettest -- udhcpc6 -f -i eth0 -n -q -t5 2>&1 | grep 'IPv6 obtained'
+  if lxc exec nettest -- busybox --list | grep -wF udhcpc6 ; then
+    lxc exec nettest -- udhcpc6 -f -i eth0 -n -q -t5 2>&1 | grep -F 'IPv6 obtained'
   fi
 
   # Check IPAM information
