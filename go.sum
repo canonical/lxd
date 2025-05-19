@@ -10,12 +10,12 @@ github.com/Masterminds/squirrel v1.5.4 h1:uUcX/aBc8O7Fg9kaISIUsHXdKuqehiXAMQTYX8
 github.com/Masterminds/squirrel v1.5.4/go.mod h1:NNaOrjSoIDfDA40n7sr2tPNZRfjzjA400rg+riTZj10=
 github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migciow=
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=
-github.com/NVIDIA/go-nvlib v0.7.1 h1:7HHPZxoCjSLm1NgaRRjuhI8ffMCpc5Vgpg5yxQYUff8=
-github.com/NVIDIA/go-nvlib v0.7.1/go.mod h1:2Kh2kYSP5IJ8EKf0/SYDzHiQKb9EJkwOf2LQzu6pXzY=
+github.com/NVIDIA/go-nvlib v0.7.2 h1:7sy/NVUa4sM9FLKwH6CjBfHSWrJUmv8emVyxLTzjfOA=
+github.com/NVIDIA/go-nvlib v0.7.2/go.mod h1:2Kh2kYSP5IJ8EKf0/SYDzHiQKb9EJkwOf2LQzu6pXzY=
 github.com/NVIDIA/go-nvml v0.12.4-1 h1:WKUvqshhWSNTfm47ETRhv0A0zJyr1ncCuHiXwoTrBEc=
 github.com/NVIDIA/go-nvml v0.12.4-1/go.mod h1:8Llmj+1Rr+9VGGwZuRer5N/aCjxGuR5nPb/9ebBiIEQ=
-github.com/NVIDIA/nvidia-container-toolkit v1.17.6 h1:WaSzAz4oy8NZptk3pRNTOcfXpWHmjya7mtz8bB9Ctsk=
-github.com/NVIDIA/nvidia-container-toolkit v1.17.6/go.mod h1:wu/FGhiKrPRtMlwieSEYXnfCJyw42dEU7dV0JAHHZrE=
+github.com/NVIDIA/nvidia-container-toolkit v1.17.7 h1:i/7kXP/qRcWTZdNi9LGGqrF/0niEajAFGVF1zo7HnfA=
+github.com/NVIDIA/nvidia-container-toolkit v1.17.7/go.mod h1:khOgMW80+g8eX/1zPlO4demLShHht9I0YEm8ngcPgwk=
 github.com/Rican7/retry v0.3.1 h1:scY4IbO8swckzoA/11HgBwaZRJEyY9vaNJshcdhp1Mc=
 github.com/Rican7/retry v0.3.1/go.mod h1:CxSDrhAyXmTMeEuRAnArMu1FHu48vtfjLREWqVl7Vw0=
 github.com/Yiling-J/theine-go v0.6.1 h1:njE/rBBviU/Sq2G7PJKdLdwXg8j1azvZQulIjmshD+o=
