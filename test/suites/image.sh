@@ -25,28 +25,28 @@ test_image_expiry() {
   # Confirm the image is cached
   [ -n "${fp}" ]
   fpbrief=$(echo "${fp}" | cut -c 1-12)
-  lxc_remote image list l2: | grep -q "${fpbrief}"
+  lxc_remote image list l2: | grep -wF "${fpbrief}"
 
   # Test modification of image expiry date
-  lxc_remote image info "l2:${fp}" | grep -q "Expires.*never"
+  lxc_remote image info "l2:${fp}" | grep "Expires.*never"
   lxc_remote image show "l2:${fp}" | sed "s/expires_at.*/expires_at: 3000-01-01T00:00:00-00:00/" | lxc_remote image edit "l2:${fp}"
-  lxc_remote image info "l2:${fp}" | grep -q "Expires.*3000"
+  lxc_remote image info "l2:${fp}" | grep "Expires.*3000"
 
   # Override the upload date for the image record in the default project.
-  LXD_DIR="$LXD2_DIR" lxd sql global "UPDATE images SET last_use_date='$(date --rfc-3339=seconds -u -d "2 days ago")' WHERE fingerprint='${fp}' AND project_id = 1" | grep -q "Rows affected: 1"
+  LXD_DIR="$LXD2_DIR" lxd sql global "UPDATE images SET last_use_date='$(date --rfc-3339=seconds -u -d "2 days ago")' WHERE fingerprint='${fp}' AND project_id = 1" | grep -xF "Rows affected: 1"
 
   # Trigger the expiry
   lxc_remote config set l2: images.remote_cache_expiry 1
 
   for _ in $(seq 20); do
     sleep 1
-    ! lxc_remote image list l2: | grep -q "${fpbrief}" && break
+    ! lxc_remote image list l2: | grep -wF "${fpbrief}" && break
   done
 
-  ! lxc_remote image list l2: | grep -q "${fpbrief}" || false
+  ! lxc_remote image list l2: | grep -wF "${fpbrief}" || false
 
   # Check image is still in p1 project and has not been expired.
-  lxc_remote image list l2: --project p1 | grep -q "${fpbrief}"
+  lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}"
 
   # Test instance can still be created in p1 project.
   lxc_remote project switch l2:p1
@@ -54,7 +54,7 @@ test_image_expiry() {
   lxc_remote project switch l2:default
 
   # Override the upload date for the image record in the p1 project.
-  LXD_DIR="$LXD2_DIR" lxd sql global "UPDATE images SET last_use_date='$(date --rfc-3339=seconds -u -d "2 days ago")' WHERE fingerprint='${fp}' AND project_id > 1" | grep -q "Rows affected: 1"
+  LXD_DIR="$LXD2_DIR" lxd sql global "UPDATE images SET last_use_date='$(date --rfc-3339=seconds -u -d "2 days ago")' WHERE fingerprint='${fp}' AND project_id > 1" | grep -xF "Rows affected: 1"
   lxc_remote project set l2:p1 images.remote_cache_expiry=1
 
   # Trigger the expiry in p1 project by changing global images.remote_cache_expiry.
@@ -62,10 +62,10 @@ test_image_expiry() {
 
   for _ in $(seq 20); do
     sleep 1
-    ! lxc_remote image list l2: --project p1 | grep -q "${fpbrief}" && break
+    ! lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}" && break
   done
 
-  ! lxc_remote image list l2: --project p1 | grep -q "${fpbrief}" || false
+  ! lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}" || false
 
   # Cleanup and reset
   lxc_remote delete -f l2:c1
@@ -83,8 +83,8 @@ test_image_list_all_aliases() {
     sum="$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
     lxc image alias create zzz "$sum"
     # both aliases are listed if the "aliases" column is included in output
-    lxc image list -c L | grep -qwF testimage
-    lxc image list -c L | grep -qwF zzz
+    lxc image list -c L | grep -wF testimage
+    lxc image list -c L | grep -wF zzz
 }
 
 test_image_list_remotes() {
