@@ -98,8 +98,8 @@ EOF
   lxc snapshot foo snap2
   lxc snapshot foo snap3
   lxc delete foo/snap2 foo/snap3
-  ! lxc info foo | grep -q snap2 || false
-  ! lxc info foo | grep -q snap3 || false
+  ! lxc info foo | grep -wF snap2 || false
+  ! lxc info foo | grep -wF snap3 || false
 
   # no CLI for this, so we use the API directly (rename a snapshot)
   wait_for "${LXD_ADDR}" my_curl -X POST "https://${LXD_ADDR}/1.0/containers/foo/snapshots/tester" -d "{\"name\":\"tester2\"}"
@@ -348,10 +348,10 @@ snap_restore() {
   # Check snapshot creation dates.
   lxc init testimage c1
   lxc snapshot c1
-  ! lxc storage volume show "${pool}" container/c1 | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
-  ! lxc storage volume show "${pool}" container/c1/snap0 | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "${pool}" container/c1 | grep '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "${pool}" container/c1/snap0 | grep '^created_at: 0001-01-01T00:00:00Z' || false
   lxc copy c1 c2
-  ! lxc storage volume show "${pool}" container/c2 | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "${pool}" container/c2 | grep '^created_at: 0001-01-01T00:00:00Z' || false
   [ "$(lxc storage volume show "${pool}" container/c1/snap0 | awk /created_at:/)" = "$(lxc storage volume show "${pool}" container/c2/snap0 | awk /created_at:/)" ]
   lxc delete -f c1 c2
 }
@@ -378,7 +378,7 @@ test_snap_expiry() {
 
   lxc launch testimage c1
   lxc snapshot c1
-  lxc config show c1/snap0 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
+  lxc config show c1/snap0 | grep -F 'expires_at: 0001-01-01T00:00:00Z'
   [ "$(lxc config get --property c1/snap0 expires_at)" = "0001-01-01 00:00:00 +0000 UTC" ]
 
   # Check the API returns the zero time representation when listing all snapshots in recursive mode.
@@ -396,11 +396,11 @@ test_snap_expiry() {
   [ "$(date -d "${created_at} today + 1days")" = "$(date -d "${expires_at}")" ]
 
   lxc copy c1 c2
-  ! lxc config show c2/snap1 | grep -q 'expires_at: 0001-01-01T00:00:00Z' || false
+  ! lxc config show c2/snap1 | grep -F 'expires_at: 0001-01-01T00:00:00Z' || false
   [ "$(lxc config get --property c2/snap1 expires_at)" != "0001-01-01 00:00:00 +0000 UTC" ]
 
   lxc snapshot c1 --no-expiry
-  lxc config show c1/snap2 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
+  lxc config show c1/snap2 | grep -F 'expires_at: 0001-01-01T00:00:00Z'
   [ "$(lxc config get --property c1/snap2 expires_at)" = "0001-01-01 00:00:00 +0000 UTC" ]
 
   lxc rm -f c1
@@ -420,15 +420,15 @@ test_snap_schedule() {
   lxc launch testimage c3 -c snapshots.schedule='@startup, 10 5,6 * * *'
   lxc launch testimage c4 -c snapshots.schedule='@startup, 10 5-8 * * *'
   lxc launch testimage c5 -c snapshots.schedule='@startup, 10 2,5-8/2 * * *'
-  lxc info c1 | grep -q snap0
-  lxc info c2 | grep -q snap0
-  lxc info c3 | grep -q snap0
-  lxc info c4 | grep -q snap0
-  lxc info c5 | grep -q snap0
+  lxc info c1 | grep -wF snap0
+  lxc info c2 | grep -wF snap0
+  lxc info c3 | grep -wF snap0
+  lxc info c4 | grep -wF snap0
+  lxc info c5 | grep -wF snap0
 
   # Check we get a new snapshot on restart
   lxc restart c1 -f
-  lxc info c1 | grep -q snap1
+  lxc info c1 | grep -wF snap1
 
   lxc rm -f c1 c2 c3 c4 c5
 }
