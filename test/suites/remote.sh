@@ -181,6 +181,17 @@ test_remote_admin() {
 
   lxc_remote remote add foo "${LXD_ADDR}" --accept-certificate --password foo
   lxc_remote remote list | grep -wF 'foo'
+  fingerprint="$(cert_fingerprint "${LXD_CONF}/client.crt")"
+  lxc_remote config trust remove "${fingerprint}"
+  lxc_remote remote remove foo
+
+  token="$(lxc config trust add --name foo -q)"
+
+  # Ensure trust token cannot be used with --accept-certificate.
+  ! lxc_remote remote add foo "${LXD_ADDR}" --accept-certificate --token "${token}" || false
+
+  lxc_remote remote add foo "${LXD_ADDR}" --token "${token}"
+  lxc_remote remote list | grep -wF 'foo'
 
   lxc_remote remote set-default foo
   [ "$(lxc_remote remote get-default)" = "foo" ]
