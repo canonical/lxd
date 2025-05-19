@@ -166,7 +166,7 @@ test_remote_admin() {
   ! lxc_remote remote add foo "${LXD_ADDR}" --accept-certificate --token "${token}" || false
 
   lxc_remote remote add foo "${LXD_ADDR}" --token "${token}"
-  lxc_remote remote list | grep 'foo'
+  lxc_remote remote list | grep -wF 'foo'
 
   lxc_remote remote set-default foo
   [ "$(lxc_remote remote get-default)" = "foo" ]
@@ -366,7 +366,7 @@ test_remote_usage() {
   lxc_remote image copy localhost:testimage lxd2: --alias bar
   # Get the `cached` and `aliases` fields for the image `bar` in lxd2
   cached=$(lxc_remote image info lxd2:bar | awk '/^Cached/ { print $2 }')
-  alias=$(lxc_remote image info lxd2:bar | grep -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
+  alias=$(lxc_remote image info lxd2:bar | grep -xF -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
 
   # Check that image is not cached
   [ "${cached}" = "no" ]
@@ -387,7 +387,7 @@ test_remote_usage() {
   # Finally, lets copy the remote image explicitly to the local server with an alias like we did before
   lxc_remote image copy localhost:testimage lxd2: --alias bar
   cached=$(lxc_remote image info lxd2:bar | awk '/^Cached/ { print $2 }')
-  alias=$(lxc_remote image info lxd2:bar | grep -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
+  alias=$(lxc_remote image info lxd2:bar | grep -xF -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
   # The `cached` field should be set to `no` since the image was explicitly copied.
   [ "${cached}" = "no" ]
   # The alias should be set to `bar`.
