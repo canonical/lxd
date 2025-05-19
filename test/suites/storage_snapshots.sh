@@ -80,16 +80,16 @@ EOF
 
   # edit volume snapshot description
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed 's/^description:.*/description: foo/' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
-  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -q 'description: foo'
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -xF 'description: foo'
 
   # edit volume snapshot expiry date
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed 's/^expires_at:.*/expires_at: 2100-01-02T15:04:05Z/' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
   # Depending on the timezone of the runner, some values will be different.
   # Both the year (2100) and the month (01) will be constant though.
-  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -q '^expires_at: 2100-01'
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep '^expires_at: 2100-01'
   # Reset/remove expiry date
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed '/^expires_at:/d' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
-  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -q '^expires_at: 0001-01-01T00:00:00Z'
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep '^expires_at: 0001-01-01T00:00:00Z'
 
   # Check the API returns the zero time representation when listing all snapshots in recursive mode.
   [ "$(lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom/${storage_volume}/snapshots?recursion=2" | jq -r '.[] | select(.name == "'"${storage_volume}/snap0"'") | .expires_at')" = "0001-01-01T00:00:00Z" ]
@@ -106,7 +106,7 @@ EOF
   [ "$(date -d "${created_at} today + 1days")" = "$(date -d "${expires_at}")" ]
 
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}" --no-expiry
-  lxc storage volume show "${storage_pool}" "${storage_volume}/snap2" | grep -q 'expires_at: 0001-01-01T00:00:00Z'
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap2" | grep 'expires_at: 0001-01-01T00:00:00Z'
 
   lxc storage volume rm "${storage_pool}" "${storage_volume}/snap2"
   lxc storage volume rm "${storage_pool}" "${storage_volume}/snap1"
@@ -170,10 +170,10 @@ EOF
   # Check snapshot creation dates.
   lxc storage volume create "${storage_pool}" "vol1"
   lxc storage volume snapshot "${storage_pool}" "vol1" "snap0"
-  ! lxc storage volume show "${storage_pool}" "vol1" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
-  ! lxc storage volume show "${storage_pool}" "vol1/snap0" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "${storage_pool}" "vol1" | grep '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "${storage_pool}" "vol1/snap0" | grep '^created_at: 0001-01-01T00:00:00Z' || false
   lxc storage volume copy "${storage_pool}/vol1" "${storage_pool}/vol2"
-  ! lxc storage volume show "${storage_pool}" "vol2" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "${storage_pool}" "vol2" | grep '^created_at: 0001-01-01T00:00:00Z' || false
   [ "$(lxc storage volume show "${storage_pool}" "vol1/snap0" | awk /created_at:/)" = "$(lxc storage volume show "${storage_pool}" "vol2/snap0" | awk /created_at:/)" ]
   lxc storage volume delete "${storage_pool}" "vol1"
   lxc storage volume delete "${storage_pool}" "vol2"
@@ -295,10 +295,10 @@ EOF
   # Check snapshot creation dates (remote).
   lxc storage volume create "${storage_pool}" "vol1"
   lxc storage volume snapshot "${storage_pool}" "vol1" "snap0"
-  ! lxc storage volume show "${storage_pool}" "vol1" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
-  ! lxc storage volume show "${storage_pool}" "vol1/snap0" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "${storage_pool}" "vol1" | grep '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "${storage_pool}" "vol1/snap0" | grep '^created_at: 0001-01-01T00:00:00Z' || false
   lxc storage volume copy "${storage_pool}/vol1" "localhost:${storage_pool}/vol1-copy"
-  ! lxc storage volume show "${storage_pool}" "localhost:${storage_pool}" "vol1-copy" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "${storage_pool}" "localhost:${storage_pool}" "vol1-copy" | grep '^created_at: 0001-01-01T00:00:00Z' || false
   [ "$(lxc storage volume show "${storage_pool}" "vol1/snap0" | awk /created_at:/)" = "$(lxc storage volume show "localhost:${storage_pool}" "vol1-copy/snap0" | awk /created_at:/)" ]
   lxc storage volume delete "${storage_pool}" "vol1"
   lxc storage volume delete "${storage_pool}" "vol1-copy"
