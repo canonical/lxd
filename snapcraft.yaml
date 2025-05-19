@@ -290,7 +290,7 @@ parts:
 
   criu:
     source: https://github.com/checkpoint-restore/criu
-    source-commit: c2b48ff423aa663b3534a5ba96907366e4c1b408 # v4.0
+    source-commit: b6059ff193a9b0dff98e997134d662c3ccfd1600 # v4.1
     source-depth: 1
     source-type: git
     plugin: nil
@@ -593,7 +593,7 @@ parts:
 
   nvidia-container:
     source: https://github.com/NVIDIA/libnvidia-container
-    source-commit: a198166e1c1166f4847598438115ea97dacc7a92 # v1.17.6
+    source-commit: d26524ab5db96a55ae86033f53de50d3794fb547 # v1.17.7
     source-depth: 1
     source-type: git
     plugin: make
@@ -655,7 +655,7 @@ parts:
   nvidia-container-toolkit:
     source: https://github.com/NVIDIA/nvidia-container-toolkit
     source-depth: 1
-    source-commit: e627eb2e21e167988e04c0579a1c941c1e263ff6 # v1.17.6
+    source-commit: bae3e7842ebe26812d8bd6a9be6a14a83dc91d8f # v1.17.7
     source-type: git
     build-snaps:
       - go/1.24/stable
@@ -845,7 +845,7 @@ parts:
       - libatomic
       - spice-server
     source: https://git.launchpad.net/ubuntu/+source/qemu
-    source-commit: ea5d82865d36eb3052a3090db27cf96d1bf09da5 # import/1%8.2.2+ds-0ubuntu1.6
+    source-commit: ed8ba3428bff0004d8b4961a85225a6ceb443d52 # import/1%8.2.2+ds-0ubuntu1.7
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1264,7 +1264,7 @@ parts:
 
   zfs-2-3:
     source: https://github.com/openzfs/zfs
-    source-commit: f3e4043a36942e67ccbc05318479a07d242fc611 # zfs-2.3.1
+    source-commit: 92f430b00f42964b63aee373fbf6598a20f6c0cc # zfs-2.3.2
     source-depth: 1
     source-type: git
     plugin: autotools
