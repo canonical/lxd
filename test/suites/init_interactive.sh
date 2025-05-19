@@ -10,7 +10,7 @@ test_init_interactive() {
 
     # XXX We need to remove the eth0 device from the default profile, which
     #     is typically attached by spawn_lxd.
-    if lxc profile show default | grep -q eth0; then
+    if lxc profile device list default | grep -xF "eth0" >/dev/null; then
       lxc profile device remove default eth0
     fi
 
@@ -29,11 +29,11 @@ no
 yes
 EOF
 
-    lxc info | grep -q 'images.auto_update_interval: "0"'
-    lxc network list | grep -q "lxdt$$"
-    lxc storage list | grep -q "my-storage-pool"
-    lxc profile show default | grep -q "pool: my-storage-pool"
-    lxc profile show default | grep -q "network: lxdt$$"
+    [ "$(lxc config get images.auto_update_interval)" = "0" ]
+    lxc network list | grep -wF "lxdt$$"
+    lxc storage list | grep -wF "my-storage-pool"
+    lxc profile show default | grep -F "pool: my-storage-pool"
+    lxc profile show default | grep -F "network: lxdt$$"
     printf 'config: {}\ndevices: {}' | lxc profile edit default
     lxc network delete lxdt$$
   )
