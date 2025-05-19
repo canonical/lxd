@@ -34,10 +34,8 @@ EOF
     lxc storage list | grep -wF "my-storage-pool"
     lxc profile show default | grep -F "pool: my-storage-pool"
     lxc profile show default | grep -F "network: lxdt$$"
-    printf 'config: {}\ndevices: {}' | lxc profile edit default
+    echo -ne 'config: {}\ndevices: {}' | lxc profile edit default
     lxc network delete lxdt$$
   )
   kill_lxd "${LXD_INIT_DIR}"
-
-  return
 }
