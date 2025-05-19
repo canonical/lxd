@@ -35,7 +35,6 @@ description: |-
    - apparmor.unprivileged-restrictions-disable: Whether to disable restrictions on unprivileged user namespaces [default=true]
    - ceph.builtin: Use snap-specific Ceph configuration [default=false]
    - ceph.external: Use the system's ceph tools (ignores ceph.builtin) [default=false]
-   - criu.enable: Enable experimental live-migration support [default=false]
    - daemon.debug: Increase logging to debug level [default=false]
    - daemon.group: Set group of users that have full control over LXD [default=lxd]
    - daemon.user.group: Set group of users that have restricted LXD access [default=lxd]
