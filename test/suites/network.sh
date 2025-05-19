@@ -53,9 +53,9 @@ test_network() {
 
   # check ipv4.address and ipv6.address can be unset without triggering random subnet generation.
   lxc network unset lxdt$$ ipv4.address
-  ! lxc network show lxdt$$ | grep ipv4.address || false
+  ! lxc network show lxdt$$ | grep -F ipv4.address || false
   lxc network unset lxdt$$ ipv6.address
-  ! lxc network show lxdt$$ | grep ipv6.address || false
+  ! lxc network show lxdt$$ | grep -F ipv6.address || false
 
   # check ipv4.address and ipv6.address can be regenerated on update using "auto" value.
   lxc network set lxdt$$ ipv4.address auto
@@ -136,12 +136,12 @@ test_network() {
   net_ipv4="$(lxc network get lxdt$$ ipv4.address)"
   net_ipv6="$(lxc network get lxdt$$ ipv6.address)"
 
-  lxc network list-allocations | grep -e "${net_ipv4}" -e "${net_ipv6}"
-  lxc network list-allocations | grep -e "/1.0/networks/lxdt$$" -e "/1.0/instances/nettest"
-  lxc network list-allocations | grep -e "${v4_addr}" -e "${v6_addr}"
-  lxc network list-allocations localhost: | grep -e "${net_ipv4}" -e "${net_ipv6}"
-  lxc network list-allocations localhost: | grep -e "/1.0/networks/lxdt$$" -e "/1.0/instances/nettest"
-  lxc network list-allocations localhost: | grep -e "${v4_addr}" -e "${v6_addr}"
+  lxc network list-allocations | grep -F -e "${net_ipv4}" -e "${net_ipv6}"
+  lxc network list-allocations | grep -F -e "/1.0/networks/lxdt$$" -e "/1.0/instances/nettest"
+  lxc network list-allocations | grep -F -e "${v4_addr}" -e "${v6_addr}"
+  lxc network list-allocations localhost: | grep -F -e "${net_ipv4}" -e "${net_ipv6}"
+  lxc network list-allocations localhost: | grep -F -e "/1.0/networks/lxdt$$" -e "/1.0/instances/nettest"
+  lxc network list-allocations localhost: | grep -F -e "${v4_addr}" -e "${v6_addr}"
   lxc network list-allocations --format csv | grep -F "/1.0/instances/outsider?project=foo,${v4_addr_foo}"
   lxc network list-allocations --format csv | grep -F "/1.0/instances/outsider?project=foo,${v6_addr_foo}"
 
