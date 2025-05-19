@@ -593,7 +593,7 @@ parts:
 
   nvidia-container:
     source: https://github.com/NVIDIA/libnvidia-container
-    source-commit: a198166e1c1166f4847598438115ea97dacc7a92 # v1.17.6
+    source-commit: d26524ab5db96a55ae86033f53de50d3794fb547 # v1.17.7
     source-depth: 1
     source-type: git
     plugin: make
