@@ -101,6 +101,7 @@ var patches = []patch{
 	{name: "storage_unset_powerflex_sdt_setting", stage: patchPostDaemonStorage, run: patchUnsetPowerFlexSDTSetting},
 	{name: "oidc_groups_claim_scope", stage: patchPreLoadClusterConfig, run: patchOIDCGroupsClaimScope},
 	{name: "remove_backupsimages_symlinks", stage: patchPostDaemonStorage, run: patchRemoveBackupsImagesSymlinks},
+	{name: "move_images_storage", stage: patchPostDaemonStorage, run: patchMoveBackupsImagesStorage},
 }
 
 type patch struct {
@@ -1512,6 +1513,55 @@ func patchRemoveBackupsImagesSymlinks(_ string, d *Daemon) error {
 			if err != nil {
 				return fmt.Errorf("Failed to delete storage symlink at %q: %w", dir, err)
 			}
+		}
+	}
+
+	return nil
+}
+
+// If storage.images_volume is set, move images into an `images` subfolder.
+func patchMoveBackupsImagesStorage(name string, d *Daemon) error {
+	moveStorage := func(destPath string) error {
+		sourcePath, dirName := filepath.Split(destPath)
+
+		err := os.MkdirAll(destPath, 0700)
+		if err != nil {
+			return fmt.Errorf("Failed creating directory %q: %w", destPath, err)
+		}
+
+		items, err := os.ReadDir(sourcePath)
+		if err != nil {
+			return fmt.Errorf("Failed listing existing directory %q: %w", sourcePath, err)
+		}
+
+		for _, item := range items {
+			if item.Name() == dirName {
+				continue // Don't try and move our new directory.
+			}
+
+			oldPath := filepath.Join(sourcePath, item.Name())
+			newPath := filepath.Join(destPath, item.Name())
+			logger.Debugf("Moving backup from %q to %q", oldPath, newPath)
+			err = os.Rename(oldPath, newPath)
+			if err != nil {
+				return fmt.Errorf("Failed moving file from %q to %q: %w", oldPath, newPath, err)
+			}
+		}
+
+		return nil
+	}
+
+	if d.localConfig.StorageImagesVolume() != "" {
+		err := moveStorage(d.State().ImagesStoragePath())
+		if err != nil {
+			return err
+		}
+	}
+
+	if d.localConfig.StorageBackupsVolume() != "" {
+		err := moveStorage(d.State().BackupsStoragePath())
+		if err != nil {
+			return err
 		}
 	}
 
