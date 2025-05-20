@@ -601,6 +601,14 @@ jobs:
           merge-multiple: true
           path: /home/runner/go/bin
 
+      - name: Prepare for running LXD daemon
+        run: |
+          set -eux
+
+          # Update env variables for liblxc
+          LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
+          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${LIBLXC_ARCH_LIBS}" >> "${GITHUB_ENV}"
+
       - name: Set exec perms on LXD binaries
         run: |
           set -eux
