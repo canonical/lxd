@@ -160,3 +160,8 @@ Add a `sriov` GPU device to an instance by specifying the PCI address of the par
     lxc config device add <instance_name> <device_name> gpu gputype=sriov pci=<pci_address>
 
 See {ref}`instances-configure-devices` for more information.
+
+## Related topics
+
+- {ref}`container-gpu-passthrough-with-docker`
+- {ref}`faq-gpu-passthrough-stop`

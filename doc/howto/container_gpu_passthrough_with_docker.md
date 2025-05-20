@@ -1,6 +1,8 @@
 (container-gpu-passthrough-with-docker)=
 # How to pass an NVIDIA GPU to a container
 
+## Steps
+
 If you have an NVIDIA GPU (either discrete (dGPU) or integrated (iGPU)) and you want to pass the runtime libraries and configuration installed on your host to your container, you should add a {ref}`LXD GPU device <devices-gpu>`.
 Consider the following scenario:
 
@@ -148,3 +150,8 @@ After adding the device, let's try to run a basic [MNIST](https://en.wikipedia.o
         [07/31/2024-13:19:21] [I]  Prob 9  0.0000 Class 9:
         [07/31/2024-13:19:21] [I]
         &&&& PASSED TensorRT.sample_onnx_mnist [TensorRT v8603] # ./sample_onnx_mnist
+
+## Related topics
+
+- {ref}`GPU devices reference <devices-gpu>`
+- {ref}`faq-gpu-passthrough-stop`
