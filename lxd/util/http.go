@@ -93,7 +93,7 @@ func EtagCheck(r *http.Request, data any) error {
 	}
 
 	if hash != match {
-		return api.StatusErrorf(http.StatusPreconditionFailed, "ETag doesn't match: %s vs %s", hash, match)
+		return api.StatusErrorf(http.StatusPreconditionFailed, "ETag doesn't match: %s vs %s. The configuration has been modified since this change began. Please retrieve the updated configuration before proceeding.", hash, match)
 	}
 
 	return nil
