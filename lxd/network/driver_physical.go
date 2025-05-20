@@ -233,16 +233,30 @@ func (n *physical) Validate(config map[string]string) error {
 
 // checkParentUse checks if parent is already in use by another network or instance device.
 func (n *physical) checkParentUse(ourConfig map[string]string) (bool, error) {
-	// Get all managed networks across all projects.
 	var err error
-	var projectNetworks map[string]map[int64]api.Network
+	var projectNetworks map[string]map[int64]api.Network // All managed networks across all projects.
+	var nodesNetworksParent map[int64]map[string]string  // Node IDs mapped to networks and their node-specific parent.
 
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get all managed networks across all projects.
+		// If in clustered mode, returned network configs are for the current node.
 		projectNetworks, err = tx.GetCreatedNetworks(ctx)
-		return err
+		if err != nil {
+			return fmt.Errorf("Failed to load all networks: %w", err)
+		}
+
+		// Get parent interfaces for all networks on all nodes.
+		if n.state.ServerClustered && len(n.nodes) > 1 {
+			nodesNetworksParent, err = tx.GetNetworksNodeParent(ctx)
+			if err != nil {
+				return fmt.Errorf("Failed to load node-specific configs: %w", err)
+			}
+		}
+
+		return nil
 	})
 	if err != nil {
-		return false, fmt.Errorf("Failed to load all networks: %w", err)
+		return false, err
 	}
 
 	for projectName, networks := range projectNetworks {
@@ -263,6 +277,26 @@ func (n *physical) checkParentUse(ourConfig map[string]string) (bool, error) {
 					return true, nil
 				}
 			}
+		}
+	}
+
+	currNodeID := n.state.DB.Cluster.GetNodeID()
+
+	// Check that parent interfaces on other nodes are not already in use.
+	for nodeID, networksParent := range nodesNetworksParent {
+		if nodeID == currNodeID {
+			continue // Skip the current node, it has been checked already.
+		}
+
+		parentsInUse := make(map[string]struct{})
+
+		for _, parent := range networksParent {
+			_, alreadyInUse := parentsInUse[parent]
+			if alreadyInUse {
+				return true, nil
+			}
+
+			parentsInUse[parent] = struct{}{}
 		}
 	}
 
