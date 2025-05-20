@@ -317,7 +317,7 @@ panic_checker() {
   # Only run if DEBUG is set (e.g. LXD_VERBOSE or LXD_DEBUG is set)
   # Panics are logged at info level, which won't be outputted unless this is set.
   if [ -z "${DEBUG:-}" ]; then
-    return
+    return 0
   fi
 
   local test_dir daemon_dir
