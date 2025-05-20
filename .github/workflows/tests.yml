@@ -355,6 +355,7 @@ jobs:
       CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/ -I/home/runner/go/bin/liblxc/include/"
       CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
+      LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     steps:
