@@ -401,6 +401,16 @@ jobs:
           merge-multiple: true
           path: /home/runner/go/bin
 
+      - name: Prepare for running LXD daemon
+        run: |
+          set -eux
+
+          # Update env variables for liblxc
+          LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
+          echo "CGO_LDFLAGS=${CGO_LDFLAGS} -L${LIBLXC_ARCH_LIBS}"       >> "${GITHUB_ENV}"
+          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${LIBLXC_ARCH_LIBS}" >> "${GITHUB_ENV}"
+          echo "LD_RUN_PATH=${LD_RUN_PATH}:${LIBLXC_ARCH_LIBS}"         >> "${GITHUB_ENV}"
+
       - name: Install build dependencies
         uses: ./.github/actions/install-lxd-builddeps
 
