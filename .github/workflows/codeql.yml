@@ -18,7 +18,6 @@ on:
       - stable-*
   pull_request:
     paths-ignore:
-      - '.github/**'
       - 'doc/**'
       - 'po/**'
       - 'tests/**'
